@@ -124,6 +124,11 @@ NARROW_CHECK_DIGEST = (
 # review item P4-A2-R5-F2's own lesson, applied to the landing that
 # came after it.
 LEVEL_FORM_SUBCHECK = "shape_form_cells"
+# ...and the LISTING that arrived after the listing baseline was
+# frozen, subtracted from that baseline for the same reason (plan
+# P4-D30). `field_widths` is REPORT-ONLY, so it is listed whole on
+# every numeric-family column rather than checked width by width.
+FIELD_WIDTH_FACT = "numeric.field_widths"
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -225,11 +230,34 @@ def test_widening_the_demonstration_lost_no_obligation(
         "region|label.shape_form_cells|levels.south.shape_form_cells",
         "region|label.shape_form_cells|levels.west.shape_form_cells",
     ], added
-    assert len(listings) == NARROW_LISTING_COUNT, len(listings)
+    # THE LISTINGS ARE HELD THE SAME WAY, and the same argument
+    # applies to the key that arrived after THIS baseline was frozen.
+    # `field_widths` is REPORT-ONLY (plan P4-D30), so every numeric
+    # column of the demonstration lists it once and the count rises by
+    # exactly those columns. Setting them aside must reproduce the
+    # frozen 126 character for character; re-recording the digest
+    # against 130 would bless whatever else moved beside them.
+    kept = [entry for entry in listings if FIELD_WIDTH_FACT not in entry]
+    assert len(kept) == NARROW_LISTING_COUNT, len(kept)
     assert (
-        hashlib.sha256("\n".join(listings).encode("utf-8")).hexdigest()
+        hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
         == NARROW_LISTING_DIGEST
+    ), (
+        "a listing the demonstration carried before plan P4-D30 is "
+        "gone or renamed. A key added since then cannot excuse that: "
+        "this list is the run with the new key's own listings taken "
+        "out, so it must reproduce the frozen baseline."
     )
+    # ...and the four the new key adds are the four it should, named
+    # rather than counted: one per numeric-family column.
+    assert sorted(
+        entry for entry in listings if FIELD_WIDTH_FACT in entry
+    ) == [
+        "amount|numeric.field_widths|",
+        "dose|numeric.field_widths|",
+        "reading|numeric.field_widths|",
+        "visits|numeric.field_widths|",
+    ]
     for name, digest in NARROW_COLUMN_DIGESTS.items():
         cells = twin.columns[twin.names.index(name)]
         found = hashlib.sha256(
@@ -476,7 +504,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twin holds: the demonstration's twin is byte-identical, measured
 # against the tree at the commit before this landing.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "460a283a24743412d2a12588f09f7e40af792f6e10d811dd0008612ee6bdda6d"
+    "0edb2dcae996cb387d66c6d0de35d836927abdea6c7ed3c0019d5b0a905fdb88"
 )
 
 
@@ -1221,7 +1249,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # the census carries nine obligations more than it did and not one
 # fewer, which is the thing this digest exists to make somebody check.
 GOLDEN_QUALITY_SHA256 = (
-    "4ab4f51f5d91c2b1814f08a70a6b73f7f1563ed3a4272e01a1a7714670340e4c"
+    "f5c99e5c05c49c362d23631cc6d5e063a077242acea45308849c3870e3960929"
 )
 
 

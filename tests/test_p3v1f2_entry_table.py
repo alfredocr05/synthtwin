@@ -4590,6 +4590,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # on the same terms, and for the same reason only the widths the
     # fixtures publish need a row here (P4-D14).
     ("numeric", "pads.published.5"): "numeric.pad_widths",
+    # The census of WHOLE-NUMBER field widths (P4-D30) has NO row here
+    # and needs none: it is REPORT-ONLY, so the validator LISTS it
+    # whole rather than filing an executable subcheck per width, and a
+    # listing at the empty grain binds its fact without a name of its
+    # own. That is the same treatment `numeric.value_histogram` and
+    # `numeric.n_distinct_values` have beside it.
     # The census of written FORMS names one subcheck per published
     # form, so its subcheck names are decided by the description in
     # the same way the two width censuses are (P4-D18). Only the forms
@@ -4745,8 +4751,13 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # item P4-A1-R2-F2). Its own two distinctness counts are CHECKED,
     # not listed (review item P4-A2-R1-F1).
     "joined": (
+        # REPORT-ONLY (plan P4-D30): a whole-number field width is a
+        # fact about MAGNITUDE, placed by the ladder, so each position
+        # lists the census whole rather than owing a subcheck a width.
+        "joined.parts[0].field_widths",
         "joined.parts[0].n_distinct_values",
         "joined.parts[0].percentiles_between",
+        "joined.parts[1].field_widths",
         "joined.parts[1].n_distinct_values",
         "joined.parts[1].percentiles_between",
         "universal.detection_evidence",
@@ -4842,6 +4853,11 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # REPORT-ONLY (plan P4-D4.10): one fact, ninety rungs, no file
         # held to any of them.
         "numeric.percentiles_between",
+        # REPORT-ONLY (plan P4-D30): an unpadded cell is exactly as
+        # wide as its value, so the census is a magnitude fact placed
+        # by the ladder, and the twin follows it without being held to
+        # it. Listed whole rather than checked width by width.
+        "numeric.field_widths",
         "numeric.n_distinct_values",
         "numeric.value_histogram",
         "universal.detection_evidence",

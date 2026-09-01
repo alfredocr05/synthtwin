@@ -268,7 +268,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # role and no spelling of any column moved, and the TWIN's own digest in
 # tests/test_twin_golden.py did not move at all.
 GOLDEN_SHA256 = (
-    "200bc7c1d318a3b9deb88fdddb3467578c5ceea678c62a1970ac10280a353b52"
+    "65c6cdf5c784a2d4d9bec18e50cdafdf09d7cd83d49258d50d3ddeb6ed9e880f"
 )
 
 
