@@ -3635,15 +3635,17 @@ def _exponent_spelling(shape, lead, room, order):
     the family's capacity is the shape's own count of spellings at that
     width.  None where the room holds no mantissa at all, or where the
     walk has left the three-figure exponent field.
+
+    This is the ``order``-th CANDIDATE, which is not the same thing as
+    the ``order``-th spelling: some candidates the reading turns down.
+    `_exponent_accepted` is the one that counts only the accepted ones.
     """
-    tail = 5
-    power_sign = "-"
-    if shape == "too_large":
-        tail = 4
-        power_sign = ""
-    places = room - tail
+    places = _exponent_places(shape, room)
     if places < 1:
         return None
+    power_sign = "-"
+    if shape == "too_large":
+        power_sign = ""
     span = 10 ** places - 1
     power = _exponent_power(order // span)
     if power is None:
@@ -3652,6 +3654,59 @@ def _exponent_spelling(shape, lead, room, order):
     return (
         lead + "0" * (places - len(body)) + body + "e" + power_sign + str(power)
     )
+
+
+def _exponent_places(shape, room):
+    """How many figures the mantissa gets at one room -- G10.5.
+
+    The exponent field is four characters wide for the too-large shape
+    and five for the too-small one, whatever exponent it holds, and the
+    mantissa fills what that leaves.
+    """
+    if shape == "too_large":
+        return room - 4
+    return room - 5
+
+
+def _exponent_accepted(shape, lead, room, order):
+    """The ``order``-th exponent spelling the READING accepts -- G10.5.
+
+    A candidate the reading turns down is STEPPED PAST and the walk
+    carries on, because the refusals inside one exponent are contiguous
+    at one end -- a suffix for the too-small shape and a PREFIX for the
+    too-large one, whose `1e308` is a number this format holds while
+    `2e308` through `9e308` are not.  A rule that stopped at the first
+    refusal was therefore right for one shape and wrong for the other,
+    and this oracle certified the wrong boundary along with the
+    generator and the method (review item P4-A2-R3, item 1).
+
+    What ENDS the walk is one whole exponent turned down: the exponent
+    moves monotonically away from the shape once it leaves 999, so an
+    exponent none of whose mantissas is accepted is one past which
+    nothing ever is again.  None says the family is spent at this room.
+
+    Written as "the ``order``-th accepted candidate" rather than as an
+    advancing cursor, so this file's answer is a function of ``order``
+    alone and shares no state with the walk it checks.
+    """
+    index = 0
+    seen = 0
+    turned_down = 0
+    span = max(10 ** _exponent_places(shape, room) - 1, 0)
+    while True:
+        candidate = _exponent_spelling(shape, lead, room, index)
+        if candidate is None:
+            return None
+        index = index + 1
+        if not _reads_back_as(shape, candidate):
+            turned_down = turned_down + 1
+            if turned_down > span:
+                return None
+            continue
+        turned_down = 0
+        if seen == order:
+            return candidate
+        seen = seen + 1
 
 
 def _reads_back_as(shape, candidate):
@@ -3770,10 +3825,7 @@ def _unrepresentable_spelling(shape, sign, order, asked, family=SPELLING_PLAIN):
     width = _unrepresentable_width(shape, asked, sign)
     room = width - len(lead)
     if family == SPELLING_EXPONENT:
-        candidate = _exponent_spelling(shape, lead, room, order)
-        if candidate is None or not _reads_back_as(shape, candidate):
-            return None
-        return candidate
+        return _exponent_accepted(shape, lead, room, order)
     if shape == "contradictory":
         return f"(-{order + 1})"
     if shape == "whole_in_range":

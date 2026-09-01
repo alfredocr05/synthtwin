@@ -6302,6 +6302,36 @@ def _hole_spellings(
     return tuple(found)
 
 
+def _holes_reserved(
+    column: contract.ColumnBlock, everywhere: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """Every hole spelling this column's own walks must not INVENT.
+
+    The column's own published hole spellings and every other column's
+    together, because a `--missing-value` declaration is made once and
+    reaches the whole table -- and because a role in
+    `taxonomy.ROLES_PUBLISHING_NOTHING` publishes an empty map of its
+    own however many of its cells wore a declared spelling, so its own
+    map alone reserves nothing at all (review item P4-A2-R3, item 2).
+
+    ``everywhere`` may be empty, which is what a caller holding no
+    document hands over; the column's own map then stands alone,
+    exactly as it did before.
+
+    Guarantees: accepts a loaded column and the document's own hole
+    spellings; returns them together, sorted and without repeats.
+    Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    for spelling in _hole_spellings(column):
+        if spelling not in found:
+            found = found + [spelling]
+    for spelling in everywhere:
+        if spelling not in found:
+            found = found + [spelling]
+    return tuple(sorted(found))
+
+
 def _unaffixed_numbers(
     count: int,
     pair: "tuple[str, str]",
@@ -11134,26 +11164,37 @@ def _partner_at(
     The family is enumerated in a fixed order, so two implementations
     build the same partners:
 
-    * the spacing is taken in ascending TOTAL, and within one total the
-      leading share ascends: no spacing, then one space (trailing, then
-      leading), then two (trailing pair, one each side, leading pair),
-      and so on;
+    * the spacing is a TOTAL over the whole cell, taken in ascending
+      order, and within one total the leading share ascends: no
+      spacing, then one space (trailing, then leading), then two
+      (trailing pair, one each side, leading pair), and so on;
     * within one spacing, the case flips of method G8.2 are taken in
       ascending binary-counter order, the unflipped parent first;
-    * the parent itself -- no spacing and no flip -- is not one of its
-      own partners and is stepped over.
+    * the parent's OWN placement -- its own total, its own leading
+      share and no flip -- is not one of its own partners and is
+      stepped over.
 
     Case flips therefore come first and in exactly the order they came
     in before this family was widened, so a column whose collisions case
     alone could carry writes what it wrote before.
 
+    THE TOTAL IS COUNTED OVER THE CELL AND NOT ADDED TO THE PARENT
+    (residual R-P4-47). Those are the same thing for every parent
+    carrying no edge spacing of its own, which is every parent the
+    invention roles wrote before this one; where a parent DOES carry
+    spacing they differ, and the difference is what a pinned width
+    needs. A parent `N ` at a window pinned to its own length has ` N`
+    as its next partner rather than ` N ` one character past it, so
+    both cells land where the description says. See
+    `_unrepresentable_cells` for the walk that writes such a parent.
+
     ``shortest`` and ``longest`` are the lengths this partner is
     permitted to take -- the published length range of the column, or
     the one pinned length where this value carries a published end.
     ``longest`` of None says the description publishes no longest
-    length, and the spacing then has no end. Spacing only ever LENGTHENS
-    a value, so a parent already longer than ``longest`` has no partner
-    at all and None is handed back.
+    length, and the spacing then has no end. A parent whose own TRIMMED
+    text is longer than ``longest`` has no partner at all and None is
+    handed back.
 
     Guarantees: accepts text, a counting number from one upward and a
     length window; returns text or None, where None says this parent's
@@ -11162,24 +11203,46 @@ def _partner_at(
     """
     if order < 1:
         return None
-    places = len([place for place in range(len(parent))
-                  if _has_case(parent[place])])
+    # THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS THE
+    # TRIMMED TEXT AND NOT THE PARENT AS WRITTEN (residual R-P4-47).
+    # Every rule below is unchanged where the parent carries no edge
+    # spacing of its own, which is every parent the invention roles
+    # wrote before this: the trimmed text IS the parent, its own
+    # placement is the no-spacing one, and the walk starts and steps
+    # exactly where it did. What it adds is the case a parent WITH
+    # edge spacing needs -- the total is counted over the whole family
+    # rather than added to the parent, so a parent written `N ` at a
+    # pinned width has ` N` as its partner at that same width instead
+    # of ` N ` one character past it.
+    body = parsing.trimmed(parent)
+    own = len(parent) - len(body)
+    # HOW MUCH OF THAT SPACING IS AT THE FRONT, counted by asking the
+    # SHIPPED TRIM of each leading character rather than by a second
+    # notion of what a space is -- and by indexing rather than by a
+    # method call, which the offline audit refuses on a value it cannot
+    # trace. `str.find` was written here first and turned two source
+    # audits red, which is the policy working.
+    own_lead = 0
+    while own_lead < len(parent) and not parsing.trimmed(parent[own_lead]):
+        own_lead = own_lead + 1
+    places = len([place for place in range(len(body))
+                  if _has_case(body[place])])
     flips = 1 << places
-    spread = max(0, shortest - len(parent))
+    spread = max(0, shortest - len(body))
     left = order
-    while longest is None or len(parent) + spread <= longest:
+    while longest is None or len(body) + spread <= longest:
         room = (spread + 1) * flips
-        if spread == 0:
+        if spread == own:
             room = room - 1
         if left <= room:
             seat = left - 1
-            if spread == 0:
+            if spread == own and seat >= own_lead * flips:
                 seat = seat + 1
             lead = seat // flips
             flip = seat % flips
-            built = parent
+            built = body
             if flip:
-                turned = _case_variant(parent, flip)
+                turned = _case_variant(body, flip)
                 if turned is None:
                     return None
                 built = turned
@@ -12926,9 +12989,27 @@ def _walked_cell(
 
 
 def _unrepresentable_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    everywhere: "tuple[str, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers that cannot be held.
+
+    ``everywhere`` is every spelling ANY column of the document calls
+    absent, and this role cannot do without it (review item P4-A2-R3,
+    item 2). A `--missing-value` declaration is made once and reaches
+    the whole table, and this role publishes NOTHING -- it is one of
+    `taxonomy.ROLES_PUBLISHING_NOTHING` -- so its own
+    `missing_by_source` is empty on every column there is and the walk
+    that read only that map was reading a map that is always empty.
+    Measured on a two-column table where a label column publishes
+    `missing_by_source {"1e400": 12}` under `--missing-value 1e400`
+    while the wide column beside it holds only present values: the wide
+    column's twin was given `1e400` -- the exponent family's very first
+    spelling -- as a PRESENT cell, its own recount stayed silent
+    because its own map is empty, no deviation was named, and
+    re-describing the twin under the profile's own settings moved that
+    column from 40 present and 0 absent to 39 and 1.
 
     THE DESCRIPTION PUBLISHES A WIDTH NOW (residual R-P4-37), and this
     docstring said the opposite until 2026-08-26. `min_length` and
@@ -12958,6 +13039,7 @@ def _unrepresentable_cells(
     facts = column.facts
     if not isinstance(facts, contract.UnrepresentableFacts):
         raise _wrong_facts(column.name)
+    reserved = _holes_reserved(column, everywhere)
     kinds, signs = _unrepresentable_families(column, facts, groups)
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
@@ -13018,32 +13100,82 @@ def _unrepresentable_cells(
     open_windows: list[tuple[int, int | None]] = [
         (1, None) for _each in groups
     ]
-    for index in range(len(groups)):
-        partner = _partner_of(
-            index, folded, spellings, families, used, windows
-        )
-        if partner is None:
+    # THE PARENT KEEPS ROOM FOR THE PARTNERS IT WILL BE ASKED FOR
+    # (residual R-P4-47, contract 9.7's own sentence). A partner is
+    # reached by edge spacing and spacing only LENGTHENS, so a parent
+    # already filling a PINNED width has no partner at that width and
+    # the walk fell back to the open window: the fold was kept, the
+    # ceiling was missed by one character, and the report named it. The
+    # source column shows the answer its own cells took -- `N + " "`
+    # beside `" " + N` are one width because the PARENT carries a space
+    # too -- so a parent that will be asked for partners at its own
+    # pinned width is written with that many fewer figures and that
+    # many spaces, and both cells land where the description says.
+    #
+    # TWO PASSES, AND THE FIRST IS EXACTLY WHAT REVISION 5 WROTE. The
+    # reservation is not predicted: pass one writes every parent at its
+    # full width and records which parents had a partner fall back to
+    # the open window, and only a column that HAD such a fallback is
+    # built again. So every column whose widths were already held comes
+    # out byte for byte as it did, and the second pass is reached only
+    # where the twin was missing a width. Where the reserved room would
+    # take a parent below its own kind's floor the reservation is not
+    # made and the fallback stands, which is the old outcome with the
+    # miss still named.
+    spacing = [0 for _each in groups]
+    for _pass in range(2):
+        used = {}
+        states = {}
+        spellings = []
+        fallbacks: "dict[int, int]" = {}
+        for index in range(len(groups)):
             partner = _partner_of(
-                index, folded, spellings, families, used, open_windows
+                index, folded, spellings, families, used, windows
             )
-        if partner is not None:
-            spellings = spellings + [_take(partner, used)]
-            continue
-        spelling = _wide_number(
-            kinds[index], signs[index], states, used,
-            _hole_spellings(column),
-            _wide_width(kinds[index], asked[index], signs[index]),
-        )
-        if spelling is None:
-            raise errors.ProfileError(
-                _domain_too_small(
-                    column.name,
-                    _wide_shape_words(kinds[index], signs[index]),
-                    len(groups),
-                    index,
+            if partner is None:
+                partner = _partner_of(
+                    index, folded, spellings, families, used, open_windows
                 )
+                if partner is not None:
+                    fallbacks = _fallback_counted(
+                        fallbacks, partner, spellings, folded
+                    )
+            if partner is not None:
+                spellings = spellings + [_take(partner, used)]
+                continue
+            room = asked[index] - spacing[index]
+            spelling = _wide_number(
+                kinds[index], signs[index], states, used,
+                reserved,
+                _wide_width(kinds[index], room, signs[index]),
             )
-        spellings = spellings + [spelling]
+            if spelling is None:
+                raise errors.ProfileError(
+                    _domain_too_small(
+                        column.name,
+                        _wide_shape_words(kinds[index], signs[index]),
+                        len(groups),
+                        index,
+                    )
+                )
+            if spacing[index] and len(spelling) == room:
+                spelling = _take(
+                    f"{spelling}{_SPACE * spacing[index]}", used
+                )
+            spellings = spellings + [spelling]
+        if not fallbacks:
+            break
+        moved = False
+        for place in sorted(fallbacks):
+            wanted = fallbacks[place]
+            floor = _wide_width(kinds[place], 1, signs[place])
+            if asked[place] - wanted < floor:
+                continue
+            if spacing[place] != wanted:
+                spacing[place] = wanted
+                moved = True
+        if not moved:
+            break
     notes: "list[Deviation]" = []
     # ONLY A WIDTH PAST THE PUBLISHED CEILING IS A WIDENING (item
     # P4-G3-F1). The test was once "not equal to `max_length`", which
@@ -13086,6 +13218,39 @@ def _unrepresentable_cells(
     # above, which is exactly the case it exists for.
     notes = notes + _wide_width_notes(column.name, facts, spellings, kinds)
     return _grouped(groups, spellings), notes
+
+
+def _fallback_counted(
+    fallbacks: "dict[int, int]",
+    partner: str,
+    spellings: "list[str]",
+    folded: int,
+) -> "dict[int, int]":
+    """Record that one parent owed a partner its pinned width could not hold.
+
+    A partner is found by `_partner_of`, which hands back the spelling
+    and not the parent it was built from; the parent is the one value
+    already written that this partner FOLDS onto, which is the same
+    question the published folded count asks. Counting it here is what
+    lets the second pass reserve exactly the room the first pass found
+    wanting, rather than predicting an assignment `_partner_of` makes
+    from three preferences.
+
+    Guarantees: accepts the counts so far, one partner spelling, the
+    spellings written so far and how many of them are parents; returns
+    the counts with this partner's parent incremented, or unchanged
+    where no written parent folds onto it. Raises nothing. No I/O.
+    """
+    key = parsing.folded(partner)
+    for place in range(min(folded, len(spellings))):
+        if parsing.folded(spellings[place]) != key:
+            continue
+        if place in fallbacks:
+            fallbacks[place] = fallbacks[place] + 1
+        else:
+            fallbacks[place] = 1
+        return fallbacks
+    return fallbacks
 
 
 def _wide_width_notes(
@@ -13613,20 +13778,54 @@ def _wide_exponent_number(
     or None where the room holds no mantissa at all or the walk has
     left the three-figure exponent field. Raises nothing. No I/O.
     """
-    tail = 5
-    power_sign = "-"
-    if kind == 1:
-        tail = 4
-        power_sign = ""
-    places = room - tail
+    places = _exponent_places(kind, room)
     if places < 1:
         return None
+    power_sign = "-"
+    if kind == 1:
+        power_sign = ""
     span = 10 ** places - 1
     power = _exponent_power(index // span)
     if power is None:
         return None
     body = f"{index % span + 1}"
     return f"{lead}{'0' * (places - len(body))}{body}e{power_sign}{power}"
+
+
+def _exponent_places(kind: int, room: int) -> int:
+    """How many figures the mantissa gets at one room (method G10.5).
+
+    The exponent field is four characters wide for the too-large shape
+    and five for the too-small one, whatever exponent it holds, and the
+    mantissa fills what that leaves of the room. Zero or less says the
+    room holds no mantissa at all.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    mantissa's own width in figures, which may be zero or negative.
+    Raises nothing. No I/O.
+    """
+    if kind == 1:
+        return room - 4
+    return room - 5
+
+
+def _exponent_span(kind: int, room: int) -> int:
+    """How many spellings ONE exponent of this shape holds at one room.
+
+    The mantissa is spent before the exponent moves, so this is the
+    length of one exponent's own run of spellings -- and it is what
+    tells the walk that a shape has left the field for good. See
+    `_wide_family_number` for the argument that makes it a stopping
+    rule rather than a curiosity.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    count of mantissas at that room, zero where the room holds none.
+    Raises nothing. No I/O.
+    """
+    places = _exponent_places(kind, room)
+    if places < 1:
+        return 0
+    return 10 ** places - 1
 
 
 def _wide_reads_back(kind: int, candidate: str) -> bool:
@@ -13640,17 +13839,20 @@ def _wide_reads_back(kind: int, candidate: str) -> bool:
     would have filed under another class, which is the defect the
     refusal exists to prevent rather than a deviation to report.
 
-    THIS IS WHAT ENDS THE WALK, which is why no 309 and no 325 is
-    written into the exponent family's construction. The exponent
-    steps outward from 400 until this answers no, and the two shapes
-    stop DIFFERENTLY: the too-large shape stops on an exponent
-    boundary, at `1e308`, because every mantissa at 309 or more
-    overflows; the too-small shape stops two spellings INTO an
-    exponent, at `3e-324`, because `1e-324` and `2e-324` fall below the
-    smallest subnormal and `3e-324` rounds up onto it. A rule that
-    stopped at the exponent boundary would throw two spellings away and
-    a rule that assumed one would write a value this format holds into
-    a column described as holding none.
+    THIS IS WHAT DECIDES THE WALK'S REACH, which is why no 309 and no
+    325 is written into the exponent family's construction. The
+    exponent steps outward from 400 and this is asked of every
+    candidate; the two shapes are turned down DIFFERENTLY, and neither
+    of them at a place a constant could name. The too-small shape's
+    first refusal is `3e-324`, two spellings INTO its exponent, because
+    `1e-324` and `2e-324` fall below the smallest subnormal and
+    `3e-324` rounds up onto it, and every later candidate is refused
+    with it. The too-large shape's first refusal is `1e308`, a number
+    this format holds -- and `2e308` through `9e308` are turned down by
+    NOTHING, so the walk steps past `1e308` and carries on. A rule that
+    stopped at a refusal threw those eight away; a rule that assumed an
+    exponent boundary would write a value this format holds into a
+    column described as holding none.
 
     IT SAID SOMETHING ELSE FOR ONE DRAFT, and the correction is worth
     keeping. While the exponent was FIXED at 400 this could not answer
@@ -13686,19 +13888,56 @@ def _wide_family_number(
     family's next spelling, and a column that uses both writes each
     from its own start.
 
+    A TURNED-DOWN CANDIDATE IS STEPPED PAST AND IS NOT THE END OF THE
+    WALK (review item P4-A2-R3, item 1). Revision 5 read the first
+    refusal as the family being spent, which is true of the too-SMALL
+    shape and false of the too-large one: within one exponent the
+    mantissa ascends, so a value too small stops being out of range
+    once and stays in range for the rest of that exponent, while a
+    value too LARGE starts in range and becomes out of range as the
+    mantissa grows. At five characters `1e308` is a number this format
+    holds and `2e308` through `9e308` are not, so stopping on `1e308`
+    threw eight spellings away and made the family's asserted capacity
+    6,219 where the shape's own count is **6,227**. A real 6,220-row
+    column of `1e309` through `9e999` beside `2e308` was then REFUSED
+    by `synthtwin generate` on a description the profiler had just
+    written from it.
+
+    AND WHAT ENDS THE WALK INSTEAD IS ONE WHOLE EXPONENT TURNED DOWN.
+    The refusals inside one exponent are contiguous by the same
+    monotonicity -- a prefix for the too-large shape, a suffix for the
+    too-small one -- and the exponent itself walks outward from 400 and
+    then inward, so an exponent every one of whose mantissas is turned
+    down is an exponent past which nothing is ever accepted again. That
+    is a rule of the SHAPE and not a step budget: it needs no number
+    written here, it cannot stop a family that still holds a spelling,
+    and it bounds the walk, which a bare "step past it and carry on"
+    does not.
+
+    AND A HOLE SPELLING IS REFUSED BEFORE IT IS CLAIMED (review item
+    P4-A2-R3, item 2). Neither family asked: the exponent branch
+    ignored its `holes` argument outright, and the digit-string branch
+    asked only inside its ordinary-text arm. A `--missing-value`
+    declaration reaches the whole table, so a column whose own absent
+    cells wore nothing still has the table's hole spellings reserved
+    against it -- see `_unrepresentable_cells` for where the wider set
+    comes from. A refused candidate costs the family one spelling, so
+    the capacity a refusal leaves is the capacity this walk reports.
+
     Guarantees: accepts a family, a kind, the sign's own text, the room
     after that sign, the per-family walk states, the column's used
-    spellings and its hole spellings; returns an unused spelling of
-    that family, or None where the family is spent at that room.
-    Raises nothing. No I/O.
+    spellings and every hole spelling reserved against it; returns an
+    unused spelling of that family that is no hole spelling, or None
+    where the family is spent at that room. Raises nothing. No I/O.
     """
     key = f"{family}/{kind}/{lead}"
     if key not in states:
         states[key] = [0]
     state = states[key]
-    steps = 0
-    while steps < len(used) + 2:
-        steps = steps + 1
+    span = _exponent_span(kind, room)
+    turned_down = 0
+    refused = 0
+    while refused <= len(used) + len(holes) + 1:
         index = state[0]
         state[0] = state[0] + 1
         if family == _WIDE_EXPONENT:
@@ -13706,15 +13945,27 @@ def _wide_family_number(
             if candidate is None:
                 return None
             if not _wide_reads_back(kind, candidate):
-                return None
+                turned_down = turned_down + 1
+                if turned_down > span:
+                    return None
+                continue
+            turned_down = 0
+            if _is_a_hole_spelling(candidate, holes):
+                refused = refused + 1
+                continue
             if _unused(candidate, used):
                 return _take(candidate, used)
+            refused = refused + 1
             continue
         plain = _wide_plain_number(kind, lead, room, index, used, holes)
         if plain is None:
             return None
+        if _is_a_hole_spelling(plain, holes):
+            refused = refused + 1
+            continue
         if _unused(plain, used):
             return _take(plain, used)
+        refused = refused + 1
     return None
 
 
@@ -14110,7 +14361,13 @@ def _plan_column(
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
-        cells, notes = _unrepresentable_cells(column, groups)
+        # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE (review item
+        # P4-A2-R3, item 2). Planning computed them for the whole
+        # document and then handed this role nothing, so the one role
+        # that publishes no `missing_by_source` of its own -- and
+        # therefore has no other way to learn a declared spelling --
+        # was the one role that could not see them.
+        cells, notes = _unrepresentable_cells(column, groups, all_holes)
     return _ColumnPlan(
         column=column,
         all_holes=all_holes,

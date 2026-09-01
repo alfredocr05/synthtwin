@@ -3176,6 +3176,46 @@ The construction, in this order:
    partners, in exactly the order revision 4 gave them, so a column whose
    collisions case alone could carry writes what it wrote before.
 
+   **THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS ITS
+   TRIMMED TEXT** (residual R-P4-47). The three rules above are stated
+   over the parent, and for every parent an invention role produced
+   before this those are the same thing: a parent carrying no edge
+   spacing of its own IS its own trimmed text, its own placement is the
+   no-spacing one, and the walk starts and steps exactly where revision
+   5 said it did. Where a parent DOES carry edge spacing the total is
+   counted over the whole cell rather than added to what the parent
+   already has, so a parent written `N ` inside a window pinned at
+   `len(N) + 1` has ` N` as its next partner AT THAT SAME WIDTH, and
+   not ` N ` one character past it. The placement stepped over is the
+   parent's own — its own total, its own leading share, and `k = 0`.
+
+   **AND A PARENT THAT WILL BE ASKED FOR PARTNERS AT A PINNED WIDTH IS
+   WRITTEN WITH ROOM FOR THEM** (residual R-P4-47; section 9.7 of the
+   profile contract says this in its own words about the partner, and
+   this is the same sentence applied to the parent). Spacing only
+   LENGTHENS, so a parent already filling a pinned width has no partner
+   at that width at all: `N + " "` beside `" " + N` is ONE published
+   width and one folded identity, and the walk kept the fold, fell back
+   to the open window, and missed the ceiling by one character. The
+   source column shows the answer its own cells took, which is that the
+   PARENT carries a space too. So the parent of such a slot is written
+   with that many fewer figures and that many spaces, and both cells
+   land where the description says a cell of that column sits.
+
+   **THE ROOM IS NOT FORECAST, IT IS MEASURED IN A FIRST PASS.** Which
+   parent a slot takes is settled by step 4's preferences, so a rule
+   that predicted the assignment would be a second implementation of
+   it, free to disagree with the first. Instead the column is built
+   once exactly as it was built before, the parents whose partners fell
+   back to the open window are counted, and ONLY such a column is built
+   again with that many spaces reserved in each of those parents. A
+   column whose widths were already held has no fallback, so it is
+   never built twice and none of its bytes move — which includes every
+   column whose parent holds a letter, since a case flip keeps the
+   length exactly where it was. Where the reserved room would take a
+   parent below its own shape's floor the reservation is not made, the
+   fallback stands, and the recount names the width as before.
+
    **WHICH MEMBER OF THAT ORDER A SLOT TAKES** (review item P2-C4-F4).
    The three rules above say what the family IS; this says which member
    of it a slot gets, and the twin's bytes are fixed only by the two
@@ -4247,35 +4287,80 @@ three parts and they apply in this order.
   shipped parser reads it back as out of range AND settles it as the
   shape's own whole-number status — the same two questions step 6's
   recount asks of the finished cell. Where a candidate fails either,
-  the family is spent at that width and the walk moves on. That is the
+  it is STEPPED PAST and the walk carries on to the next. That is the
   rule the too-small shape's zero run already follows, and the only
   form two implementations can agree on without sharing a number.
 
-  **AND THE QUESTION IS WHAT ENDS THE WALK**, which is why no 309 and
-  no 325 appears in this family's construction. Measured at each
-  shape's narrowest width, and the two shapes stop DIFFERENTLY:
+  **A REFUSED CANDIDATE IS NOT THE END OF THE WALK, and revision 5
+  read it as one.** Inside one exponent the mantissa ascends, so the
+  candidates the question turns down are contiguous at one END of that
+  exponent — a SUFFIX for the too-small shape, whose values grow past
+  the smallest subnormal as the mantissa grows, and a PREFIX for the
+  too-large one, whose values grow past the largest holdable number
+  the same way. Stopping at the first refusal is therefore right for
+  one shape and wrong for the other, which is exactly what happened:
+  at five characters `1e308` is a number this format holds while
+  `2e308` through `9e308` are not, so the walk stopped one spelling
+  short of eight it could have written.
 
-  * the too-large shape stops on an EXPONENT boundary. Every mantissa
-    at an exponent of 309 or more overflows, so the first refused
-    spelling is `1e308` and the capacity at five characters is
-    **6,219** — nine mantissas at each of 691 exponents, which is the
-    shape's own count of five-character spellings;
-  * the too-small shape stops PARTWAY THROUGH an exponent. `1e-324`
-    and `2e-324` are below the smallest subnormal and `3e-324` rounds
-    up onto it, so the walk stops two spellings into its 677th
-    exponent and the capacity at six characters is **6,077**.
+  **WHAT ENDS THE WALK IS ONE WHOLE EXPONENT TURNED DOWN.** The
+  exponent steps outward from 400 and then inward from 399, so it
+  moves monotonically away from the shape after it leaves 999; an
+  exponent every one of whose mantissas is refused is therefore an
+  exponent past which nothing is ever accepted again, and the family
+  is spent at that width. This is a rule of the SHAPE and not a step
+  budget: no number is written down for it, it cannot stop a family
+  that still holds a spelling, and it BOUNDS the walk, which "step
+  past it and carry on" does not.
 
-  A rule that stopped at the exponent boundary would throw two
-  spellings away; a rule that ASSUMED a boundary would write a value
-  the format holds into a column described as holding none. Asking each
-  candidate is what gets both right without either number being
-  written down.
+  Measured at each shape's narrowest width, and the two shapes end
+  DIFFERENTLY:
+
+  * the too-large shape ends INSIDE an exponent and past a refusal.
+    Every mantissa at an exponent of 309 or more overflows and so does
+    every mantissa but the first at 308, so the first refused spelling
+    is `1e308`, the eight after it are written, and the capacity at
+    five characters is **6,227** — nine mantissas at each of 691
+    exponents plus those eight, which is the shape's own count of
+    five-character spellings;
+  * the too-small shape ends PARTWAY THROUGH an exponent and at its
+    first refusal. `1e-324` and `2e-324` are below the smallest
+    subnormal and `3e-324` rounds up onto it, so every candidate from
+    there on is refused and the capacity at six characters is
+    **6,077**, two spellings into its 677th exponent.
+
+  A rule that stopped at the exponent boundary would throw the
+  too-small shape's two spellings away; a rule that stopped at the
+  first refusal throws the too-large shape's eight away; and a rule
+  that ASSUMED a boundary would write a value the format holds into a
+  column described as holding none. Asking each candidate, stepping
+  past the ones turned down, and giving the family up on a whole
+  exponent of them is what gets all three right without any of the
+  numbers being written down.
 
   The mantissa has an edge of its own, measured the same way and far
   further out: a too-small spelling stops underflowing at a mantissa of
   seventy-seven figures, which needs a room of 82 characters. So the
   exponent's edge is the one a column can reach and the mantissa's is
   not.
+* **NEITHER FAMILY MAY CLAIM A HOLE SPELLING, and the hole spellings
+  this role must avoid are the WHOLE DOCUMENT'S.** A `--missing-value`
+  declaration is made once and reaches every column of the table, and
+  a spelling any column publishes among its absent cells therefore
+  means "no value" wherever it is written. This role is the one that
+  cannot learn it from its own block: it publishes no value of the
+  table at all, so its own `missing_by_source` is empty however many
+  of its cells wore a declared spelling, and a walk consulting that
+  map alone reserves nothing. A candidate the reader's own rule would
+  call absent is stepped past by both families before it is claimed,
+  and the capacity a shape supplies at a width is what is left after
+  those spellings are taken out — so the refusal of G9.4 counts them
+  out too. Measured: a label column publishing `missing_by_source
+  {"1e400": 12}` beside a wide column of five-character values gave
+  that wide column `1e400` — the exponent family's very first
+  spelling — as a PRESENT cell, and `synthtwin validate` reported
+  eight of its counts missed against a generation report that named
+  nothing.
 * **The asked width is the width of the WHOLE CELL.** A minus sign, a
   leading `0.` and a trailing figure are all spent inside it, so a group
   asked for 400 characters writes a cell 400 characters long and not
@@ -4425,14 +4510,18 @@ Construction, in this fixed order, so the counts land exactly:
    asks — while its exponent family supplies every mantissa the room
    holds at each exponent it visits. At a room of five the too-large
    shape's digit-string family supplies NOTHING at all, because its own
-   floor is 310, and its exponent family supplies **6,219**: nine
-   mantissas at each of the 691 three-figure exponents the shape has
-   there. A rule that fixed the exponent would supply nine, and nine is
-   fewer than a real column of that width holds — which is how the
-   refusal of G9.4 came to be raised on a description a profiler wrote.
-   At six characters the too-small shape's exponent family supplies
-   **6,077**, and the difference between that and 6,084 is the two
-   spellings its edge falls short of a whole exponent by.
+   floor is 310, and its exponent family supplies **6,227**: nine
+   mantissas at each of the 691 three-figure exponents whose every
+   mantissa overflows, plus the eight at 308 that overflow while
+   `1e308` does not. A rule that fixed the exponent would supply nine,
+   and nine is fewer than a real column of that width holds — which is
+   how the refusal of G9.4 came to be raised on a description a
+   profiler wrote. A rule that stopped at the first refused candidate
+   supplies 6,219, and a real 6,220-value column of that width was
+   refused for the missing eight. At six characters the too-small
+   shape's exponent family supplies **6,077**, and the difference
+   between that and 6,084 is the two spellings its edge falls short of
+   a whole exponent by.
 6. **Every one of `n_whole`, `n_fraction`, `n_whole_unknown`,
    `n_positive`, `n_negative` and `n_sign_unknown` is recounted from the
    finished cells** and named in the report where it was missed, under
