@@ -35,6 +35,7 @@ WHAT THIS FILE HOLDS THE REPAIR TO:
    put a producer's map back out of reach.
 """
 
+import dataclasses
 import pathlib
 
 import pytest
@@ -600,7 +601,7 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
             assert note.published != note.achieved, seed
 
 
-def test_the_reach_step_is_what_places_the_crowded_ladder(
+def test_the_reach_step_and_the_chain_together_place_the_crowded_ladder(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Mutant 5: put the optimistic count back, and P2-C5-F3 returns.
@@ -611,6 +612,17 @@ def test_the_reach_step_is_what_places_the_crowded_ladder(
     it to a whole number, sees enough of them, and moves nothing. The
     reviewer's own 20/62 comes straight back, so this file is proving
     something about that step rather than about the seed.
+
+    THERE ARE NOW TWO WAYS TO THE SAME COUNT, and this test said there
+    was one. R-P4-69's repair gave the values step a second, independent
+    route -- `_rehomed` asks a stratum HOLDING a whole number for it
+    rather than passing over the number, so a stratum the reach step
+    miscounted as a carrier is repaired after the fact. Reverting either
+    one alone now leaves the published count intact, and the test
+    asserting that reverting the reach step ALONE broke it was asserting
+    something no longer true. Both are reverted here, and each is also
+    measured alone, so the file records which of them is load-bearing:
+    on this column, neither is by itself and the pair is.
     """
     values = (
         ["0.125"] * 10
@@ -632,11 +644,26 @@ def test_the_reach_step_is_what_places_the_crowded_ladder(
         "_reach_sizes",
         lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
     )
+    assert _styles(generation.generate(loaded, 0)) == {
+        "plain": 34, "decimal": 48,
+    }, "the chain alone still covers this column"
+
+    monkeypatch.undo()
+    monkeypatch.setattr(generation, "_rehomed", lambda *a, **k: None)
+    assert _styles(generation.generate(loaded, 0)) == {
+        "plain": 34, "decimal": 48,
+    }, "the reach step alone still covers this column"
+
+    monkeypatch.setattr(
+        generation,
+        "_reach_sizes",
+        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+    )
     written = _styles(generation.generate(loaded, 0))
     assert written.get("plain", 0) < 34, written
 
 
-def test_the_flat_rung_claim_is_what_keeps_the_map_seed_free(
+def test_the_flat_rung_claim_and_the_chain_keep_the_map_seed_free(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Mutant 6: let the walk claim a later stratum's only number.
@@ -688,7 +715,21 @@ def test_the_flat_rung_claim_is_what_keeps_the_map_seed_free(
         for style, count in published.items():
             assert before[step].get(style, 0) >= count, (SEEDS[step], style)
 
+    # AND THE SAME PAIR AS MUTANT 5 (residual R-P4-69). `_rehomed`
+    # reaches the stratum the unheld walk strands -- it asks the stratum
+    # holding the contended number for it, and the chain repeats -- so
+    # withdrawing the bar ALONE no longer parts the column from its
+    # count on any seed. The bar is not therefore idle: withdraw both
+    # and the seed dependence comes back exactly as recorded.
     monkeypatch.setattr(generation, "_held_later", lambda candidate, later: False)
+    unheld = [_styles(generation.generate(loaded, seed)) for seed in SEEDS]
+    assert not any(
+        one.get(style, 0) < count
+        for one in unheld
+        for style, count in published.items()
+    ), unheld
+
+    monkeypatch.setattr(generation, "_rehomed", lambda *a, **k: None)
     after = [_styles(generation.generate(loaded, seed)) for seed in SEEDS]
     assert any(
         one.get(style, 0) < count
@@ -779,6 +820,240 @@ def test_the_counts_the_carrier_step_may_not_spend_are_recounted(
             assert min(held) == column["percentiles"]["min"], (name, seed)
             assert max(held) == column["percentiles"]["max"], (name, seed)
             assert len(set(held)) <= column["n_distinct_folded"], (name, seed)
+
+
+# -- 5. the four bounds the R-P4-69 hold-back rests on ------------------
+#
+# EACH OF THESE IS A BOUND NO COLUMN IN THE BATTERY WITNESSES, and that
+# is exactly why they are here. Mutating any one of them left the whole
+# suite green: the sign bound is unreachable while the named-`plain`
+# bound stands, the two of them cover each other, and the two
+# preferences change which strata are chosen without changing any
+# published count. A bound whose only witness is another bound is a
+# bound that goes when someone simplifies, so each is held to its own
+# contract directly.
+
+
+def _pooled_column(
+    folder: pathlib.Path,
+) -> "tuple[contract.ColumnBlock, contract.NumericFacts]":
+    """The R-P4-69 column: 34 whole numbers and two pooled halves."""
+    values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+    _document, loaded = _described(folder, values)
+    column = loaded.columns[0]
+    return column, column.facts
+
+
+def test_the_held_back_value_never_crosses_zero() -> None:
+    """A stratum's share may straddle zero; its value may not.
+
+    The rung above a column's last negative value is a positive number,
+    so the share interpolated for the stratum just under zero runs from
+    a negative low to a positive high. Halving in from the top of that
+    share lands on the positive side. Measured before the bound was
+    written, on a column of four `-4.5` cells: the negative stratum was
+    handed `2.097` and the twin held ONE negative cell against a
+    published four.
+    """
+    straddling = (-1.0, 3.0)
+    below = generation._fraction_inside(
+        straddling, {}, generation._BAND_NEGATIVE
+    )
+    assert below is None or below < 0.0, below
+    above = generation._fraction_inside(
+        (-3.0, 1.0), {}, generation._BAND_POSITIVE
+    )
+    assert above is None or above > 0.0, above
+    # And the bound is not simply refusing everything: a share wholly
+    # inside one band still yields a value.
+    inside = generation._fraction_inside(
+        (-4.0, -3.0), {}, generation._BAND_NEGATIVE
+    )
+    assert inside is not None and -4.0 < inside < -3.0, inside
+    # A HELD-BACK VALUE IS NEVER ONE THAT WOULD BE WRITTEN POINT-FREE,
+    # which is the whole reason it is held back. The middle of this
+    # share is `2`, and taking it would leave the cell reading `plain`
+    # and the pooled count still unmet.
+    whole_in_reach = generation._fraction_inside(
+        (1.0, 3.0), {}, generation._BAND_POSITIVE
+    )
+    assert whole_in_reach == 1.5, whole_in_reach
+
+
+def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A pooled cell may be point-free, so the pool is not the count.
+
+    Where `plain` is a named count every cell the twin can write
+    point-free it writes plainly, so the cells carrying a point number
+    exactly the pool. Where `plain` is NOT named that arithmetic does
+    not hold: this column's pool of twenty covers `060` and `11` as
+    well as its fractions, and holding back twenty cells would put a
+    point in eleven that never had one.
+    """
+    _document, loaded = _described(tmp_path, FLAT)
+    column = loaded.columns[0]
+    facts = column.facts
+    assert facts.numeric_styles.get("plain", 0) == 0, facts.numeric_styles
+    assert generation._style_pool(facts.numeric_styles) == 20
+    layout, _notes, _content = generation._numeric_layout(column, facts)
+    rungs = generation._merged_rungs(facts)
+    values = [-4.5, -4.0, 15.0, 18.0, 25.0, 60.0]
+    assert generation._pool_enough(
+        column, facts, layout, rungs, list(values)
+    ) == values
+
+
+def test_the_hold_back_takes_the_narrowest_strata(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A held-back form belongs on a rare value, not on a crowded one.
+
+    Nothing publishes the stratum sizes, so which strata keep a value
+    with a point in it is the twin's own choice, and the choice is
+    made where the real column made it: the forms a description holds
+    back are the ones too rare to name, so the twin puts them on the
+    cells it has fewest of. Widest-first meets the same census and
+    spreads a rare form over a crowded value.
+    """
+    column, facts = _pooled_column(tmp_path)
+    built, _notes, _content = generation._numeric_layout(column, facts)
+    rungs = generation._merged_rungs(facts)
+    # THE SIZES THIS COLUMN'S LADDER GIVES CANNOT TELL THE TWO ORDERS
+    # APART, and a test that cannot tell them apart is not measuring the
+    # preference. Its narrowest strata are single cells and its pool is
+    # two, so a walk from the widest end passes over every stratum too
+    # wide to fit and arrives at the same two. One stratum of exactly
+    # the pool's width is what separates them: widest-first takes THAT
+    # one and stops, narrowest-first takes the single cell first.
+    sizes = (3, 4, 1, 5, 3, 4, 4, 4, 4, 2, 2)
+    assert sum(sizes) == column.n_numeric
+    starts: list[int] = []
+    running = 0
+    for size in sizes:
+        starts = starts + [running]
+        running = running + size
+    layout = dataclasses.replace(
+        built, sizes=sizes, starts=tuple(starts)
+    )
+    values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+    assert len(values) == len(layout.sizes)
+    held = generation._pool_enough(
+        column, facts, layout, rungs, list(values)
+    )
+    moved = [
+        place for place in range(len(values)) if held[place] != values[place]
+    ]
+    narrowest = min(layout.sizes)
+    assert moved, held
+    for place in moved:
+        assert layout.sizes[place] == narrowest, (place, layout.sizes)
+
+
+def test_a_stratum_never_hands_its_number_to_a_wider_one(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The chain's trade may not cost cells, which is its whole point.
+
+    `_rehomed` asks a stratum HOLDING a whole number for it, and the
+    holder that cannot step elsewhere gives it up only if it is
+    NARROWER. Traded the other way the walk would take a number off a
+    stratum covering more cells than the one asking, and the count of
+    point-free cells -- the count the walk exists to meet -- would fall.
+
+    The walk is watched where it runs, on every column of the battery
+    and every seed, because the trade fires only where a stratum finds
+    no free whole number left and no fixture reaches that by design.
+    """
+    seen: list[tuple[int, int]] = []
+    traded = [0]
+    walked = generation._whole_enough
+    homed = generation._rehomed
+
+    def watched(column, facts, layout, rungs, values):
+        after = walked(column, facts, layout, rungs, values)
+        seen.append(
+            (
+                _point_free_cells(layout, values),
+                _point_free_cells(layout, after),
+            )
+        )
+        return after
+
+    def counted(*arguments, **named):
+        moves = homed(*arguments, **named)
+        if moves is None:
+            return moves
+        layout = arguments[2]
+        rungs = arguments[3]
+        numbers = arguments[4]
+        # THE HOLDER IS NARROWER, ASSERTED WHERE THE TRADE HAPPENS.
+        # Trading the other way need not show up in the finished
+        # column at all: the walk goes on afterwards and, on this
+        # column, wins back every cell such a trade would cost. So the
+        # bound is asserted on the trade itself rather than read off a
+        # total that does not move. A chain gives its fraction to the
+        # stratum the DEEPEST asker asked, which is the move after it,
+        # not the one that began the chain.
+        if not generation._carries_plainly(moves[0][1], False):
+            traded[0] = traded[0] + 1
+            giving = moves[0][0]
+            asked_by = moves[1][0]
+            assert layout.sizes[giving] < layout.sizes[asked_by], (
+                giving, asked_by, layout.sizes,
+            )
+        # AND NO MOVE TAKES A NUMBER A LATER STRATUM IS STILL WAITING
+        # FOR. The chain asks `_whole_inside` the same question the
+        # plain walk asks and passes it the same `_shares_after`, so a
+        # stratum reaching OUTSIDE its own share never takes the one
+        # number a stratum further on could ever be given.
+        for step in range(len(moves)):
+            seat = moves[step][0]
+            value = moves[step][1]
+            if not generation._carries_plainly(value, False):
+                continue
+            mine = generation._share_of(seat, layout, rungs, numbers)
+            if mine is None or mine[0] <= value <= mine[1]:
+                continue
+            for share in generation._shares_after(
+                seat, layout, rungs, numbers
+            ):
+                assert not share[0] <= value <= share[1], (
+                    seat, value, share,
+                )
+        return moves
+
+    monkeypatch.setattr(generation, "_whole_enough", watched)
+    monkeypatch.setattr(generation, "_rehomed", counted)
+    # THE BATTERY DOES NOT REACH THIS BRANCH AT ALL -- measured: zero
+    # calls to `_rehomed` over every case and every seed of it -- so the
+    # column the trade was written for is walked here as well, and the
+    # test asserts that the trade FIRED before asserting what it costs.
+    # Without that, this reads as a clean pass over a branch never run.
+    _document, pooled = _described(
+        tmp_path, [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+    )
+    for _name, _each, loaded in _cases(tmp_path):
+        for seed in SEEDS:
+            generation.generate(loaded, seed)
+    for seed in SEEDS:
+        generation.generate(pooled, seed)
+    assert seen
+    assert traded[0] > 0, "the trade branch was never reached"
+    for before, after in seen:
+        assert after >= before, (before, after)
+
+
+def _point_free_cells(
+    layout: "generation._NumericLayout", values: "list[float]"
+) -> int:
+    """How many CELLS these stratum values write with no point."""
+    covered = 0
+    for place in range(len(values)):
+        if generation._carries_plainly(values[place], False):
+            covered = covered + layout.sizes[place]
+    return covered
 
 
 def test_no_two_strata_are_given_the_same_whole_number() -> None:

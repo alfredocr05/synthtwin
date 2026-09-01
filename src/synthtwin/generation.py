@@ -3312,6 +3312,19 @@ def _style_quotas(styles: "dict[str, int]") -> "dict[str, int]":
     return quotas
 
 
+def _style_named(styles: "dict[str, int]", wanted: str) -> int:
+    """The count this description NAMED for one style, or zero.
+
+    Read by walking the keys rather than asking the mapping for one,
+    which is the shape the offline audit accepts and the shape
+    `_style_pool` beside it already uses.
+    """
+    for name in sorted(styles):
+        if name == wanted:
+            return styles[name]
+    return 0
+
+
 def _style_pool(styles: "dict[str, int]") -> int:
     """How many cells the description held back below the floor (G6.4).
 
@@ -6437,6 +6450,17 @@ def _numeric_content(
     # After the carrier walk, because that walk moves values onto whole
     # numbers and could itself land two strata on one text.
     values = _apart_enough(column, facts, layout, rungs, values)
+    # AND THE POOLED CELLS ARE HELD BACK LAST (residual R-P4-69), after
+    # the walk that would otherwise write every one of them point-free
+    # and after the step that pulls two strata apart, because the values
+    # it hands out are fresh and no later step may take them away again.
+    values = _pool_enough(column, facts, layout, rungs, values)
+    # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
+    # second report was written here and withdrawn on measurement: the
+    # style recount already names exactly this, as "at least 34 cell(s)
+    # written in the plain form" against the 31 a run wrote, so the twin
+    # was never silent about it and a note beside that one would be the
+    # same fact said twice.
     cells, style_notes = _number_cells(column, facts, layout, values)
     notes = notes + style_notes
     used: dict[str, int] = {cell: 1 for cell in cells}
@@ -6977,6 +7001,246 @@ def _apart_enough(
     return moved
 
 
+def _fraction_inside(
+    share: "tuple[float, float] | None",
+    taken: "dict[float, int]",
+    band: str,
+) -> "float | None":
+    """A value with a point in it inside this stratum's own share (G6.4).
+
+    Strictly inside, so the stratum stays where the ladder put it, and
+    no number another stratum holds, so the count of different values
+    does not fall. The walk halves its way in from the top of the share
+    rather than drawing, because a traded form has to land in the same
+    place for two implementations reading one description.
+
+    AND IT NEVER CROSSES ZERO, which is the bound the share alone does
+    not give. A stratum's share is interpolated from the ladder, and the
+    rung above a column's last negative value is a positive number, so
+    the share of the stratum just under zero STRADDLES it: a column of
+    four `-4.5` cells had its negative stratum handed `2.097` and came
+    out holding one negative cell against a published four. `band` is
+    what the stratum was allotted, and the sign of the answer must agree
+    with it exactly as `_whole_inside` requires of its own candidates.
+    """
+    if share is None:
+        return None
+    low = share[0]
+    high = share[1]
+    if not low < high:
+        return None
+    part = (high - low) / 2.0
+    step = 0
+    while step < 8:
+        pick = low + part
+        part = part / 2.0
+        step = step + 1
+        if not (pick > low and pick < high) or pick in taken:
+            continue
+        if band == _BAND_NEGATIVE and not pick < 0.0:
+            continue
+        if band == _BAND_POSITIVE and not pick > 0.0:
+            continue
+        if band == _BAND_ZERO:
+            continue
+        if not _carries_plainly(pick, False):
+            return pick
+    return None
+
+
+def _share_of(
+    place: int,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+) -> "tuple[float, float] | None":
+    """One stratum's own share of the ladder (method G5.6)."""
+    if rungs is None:
+        return None
+    return (
+        _interpolated(rungs, layout.starts[place], numbers),
+        _interpolated(
+            rungs, layout.starts[place] + layout.sizes[place], numbers
+        ),
+    )
+
+
+def _sole_holder(moved: "list[float]", value: float) -> bool:
+    """True where exactly one stratum is holding this value."""
+    seen = 0
+    for place in range(len(moved)):
+        if moved[place] == value:
+            seen = seen + 1
+    return seen == 1
+
+
+def _rehomed(
+    place: int,
+    moved: "list[float]",
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    taken: "dict[float, int]",
+    ends: "tuple[float, float] | None",
+    reach: int,
+    locked: "dict[int, int]",
+    seen: "dict[int, int]",
+) -> "list[tuple[int, float]] | None":
+    """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
+
+    THE POINT-FREE DEBT IS COUNTED IN CELLS, AND A STRATUM MEETS IT
+    WITH EVERY CELL IT COVERS. Only so many whole numbers lie between a
+    column's published ends, so where the ladder asks for more strata
+    than there are whole numbers to give them, some stratum keeps a
+    value with a point in it whatever the walk does. WHICH stratum is
+    then the whole question, and the plain walk answers it by arrival
+    order, which is not an answer at all: a 36-cell column holding
+    thirty-four whole numbers and two halves publishes `plain: 34` and a
+    pool of 2, and its two single-cell strata took `2` and `8` before
+    the four-cell strata either side of them could, so the twin wrote 28
+    point-free cells against a published 34 and reported a form it could
+    have written.
+
+    A NUMBER ANOTHER STRATUM HOLDS IS ASKED FOR RATHER THAN PASSED OVER.
+    Where the holder can move to a whole number of its own it does, and
+    the chain repeats -- the stratum sitting on `6` steps to the `7` its
+    share also covers and nothing is given up at all. Where it cannot,
+    it hands the number over only if it is NARROWER, and takes a value
+    with a point in it drawn from ITS OWN share of the ladder, so it
+    stays exactly where the ladder put it and the cells that keep a
+    point are the fewest the ladder can leave.
+
+    NOTHING IS SPENT BY EITHER MOVE. The count of different values is
+    the same afterwards, because the number handed over is still written
+    and the value replacing it is one no stratum held; every value stays
+    inside the share that already bounded it, so the rung window of
+    G5.6 is untouched; and no candidate is accepted that `_whole_inside`
+    itself would refuse, which is how the three things a form may never
+    cost stay uncosted.
+
+    THE GUARD THE PLAIN WALK CARRIES IS CARRIED HERE TOO. Every
+    `_whole_inside` question this chain asks passes `_shares_after`, so a
+    stratum reaching OUTSIDE its own share still never takes the one
+    number a stratum further on could ever be given -- the seed
+    dependence review item P2-C5-F3 repaired stays repaired. What this
+    chain adds is only the numbers already HELD, which that guard never
+    reserved for anyone.
+
+    `seen` stops a chain revisiting a stratum, so the search ends;
+    `locked` holds the strata that have already given a number up, so a
+    later one cannot undo the trade.
+
+    THE CHEAPEST ANSWER, NOT THE FIRST ONE. Every holder that could
+    give the number up is asked, and the answer costing the fewest CELLS
+    is the one taken, ties going to the lower stratum. Stopping at the
+    first workable answer took whichever holder came first by position,
+    and on a 36-cell column that ended a chain at a three-cell stratum
+    while a single-cell one stood two steps further along: three cells
+    kept a point where one would have done, on 85 seeds in 200.
+
+    A number two strata are BOTH holding is never asked for, because
+    moving one of them frees nothing. The plain walk reaches such a pair
+    on its own and `_apart_enough` settles them afterwards.
+    """
+    total = len(layout.sizes)
+    band = layout.bands[place]
+    share = _share_of(place, layout, rungs, numbers)
+    later = _shares_after(place, layout, rungs, numbers)
+    want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
+    if want is not None:
+        return [(place, want)]
+    best_moves: "list[tuple[int, float]] | None" = None
+    best_cost = 0
+    for other in range(total):
+        if other == place or other in seen or other in locked:
+            continue
+        if other == 0 or (other == total - 1 and total >= 2):
+            continue
+        if layout.bands[other] == _BAND_ZERO:
+            continue
+        offered = moved[other]
+        if not _carries_plainly(offered, False):
+            continue
+        if not _sole_holder(moved, offered):
+            continue
+        probe: dict[float, int] = {}
+        for value in taken:
+            if value != offered:
+                probe[value] = taken[value]
+        mine = _whole_inside(
+            moved[place], band, share, ends, reach, probe, later
+        )
+        if mine is None or mine != offered:
+            continue
+        ahead: dict[int, int] = {}
+        for step in seen:
+            ahead[step] = seen[step]
+        ahead[place] = 1
+        # THE HOLDER IS ASKED WITH THE NUMBER STILL HELD, and `probe` is
+        # not what to ask it with. `probe` is `taken` WITHOUT the number
+        # being asked for, so a holder asked with it is free to answer
+        # by taking that same number straight back: measured, every one
+        # of 246 chains over 200 seeds came back handing one number to
+        # BOTH strata, and `_apart_enough` pulled them apart afterwards
+        # so no published count ever showed it. The holder must find a
+        # number of its OWN, which is a question only `taken` asks.
+        onward = _rehomed(
+            other,
+            moved,
+            layout,
+            rungs,
+            numbers,
+            taken,
+            ends,
+            reach,
+            locked,
+            ahead,
+        )
+        if onward is not None:
+            best_moves, best_cost = _cheaper(
+                best_moves, best_cost, onward + [(place, mine)], layout
+            )
+            continue
+        if layout.sizes[other] < layout.sizes[place]:
+            fraction = _fraction_inside(
+                _share_of(other, layout, rungs, numbers),
+                taken,
+                layout.bands[other],
+            )
+            if fraction is not None:
+                best_moves, best_cost = _cheaper(
+                    best_moves,
+                    best_cost,
+                    [(other, fraction), (place, mine)],
+                    layout,
+                )
+    return best_moves
+
+
+def _pointed_cost(
+    layout: "_NumericLayout", moves: "list[tuple[int, float]]"
+) -> int:
+    """How many CELLS this set of moves leaves carrying a point."""
+    spent = 0
+    for step in range(len(moves)):
+        if not _carries_plainly(moves[step][1], False):
+            spent = spent + layout.sizes[moves[step][0]]
+    return spent
+
+
+def _cheaper(
+    held: "list[tuple[int, float]] | None",
+    cost: int,
+    offer: "list[tuple[int, float]]",
+    layout: "_NumericLayout",
+) -> "tuple[list[tuple[int, float]] | None, int]":
+    """The cheaper of two answers, the one already held on a tie."""
+    price = _pointed_cost(layout, offer)
+    if held is None or price < cost:
+        return offer, price
+    return held, cost
+
+
 def _whole_enough(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -6994,7 +7258,11 @@ def _whole_enough(
     numbers publishes forty `plain` cells, and its own values prove
     those forty are reachable, so the twin puts whole values on as many
     strata as the map asks for -- the FEWEST it needs, in stratum order
-    -- rather than reporting a form it could have written.
+    -- rather than reporting a form it could have written. Where no
+    whole number is left free for a stratum, `_traded_whole` asks a
+    NARROWER one for the number it holds and gives it a value with a
+    point in it from its own share instead, so the cells that keep a
+    point are the fewest the ladder can leave (residual R-P4-69).
 
     Three things are never traded for a style. The two pinned strata
     hold the published ends of the ladder and are left alone; a stratum
@@ -7024,6 +7292,7 @@ def _whole_enough(
     quotas = _style_quotas(facts.numeric_styles)
     taken = {value: 1 for value in values}
     moved = [value for value in values]
+    locked: dict[int, int] = {}
     # THE LEADING-PLUS SHARE IS SERVED FIRST, AND ONLY WHERE IT CAN BE
     # WRITTEN (review item P2-C4-F3). A plus needs a value that is not
     # negative as well as one with no point, so a walk that stopped as
@@ -7041,46 +7310,84 @@ def _whole_enough(
                 continue
             if _carries_plainly(moved[place], False):
                 carried = carried + layout.sizes[place]
-        for place in range(total):
-            if carried >= wanted:
-                break
-            if place == 0 or (place == total - 1 and total >= 2):
-                continue
-            if layout.bands[place] not in reachable:
-                continue
-            if _carries_plainly(moved[place], False):
-                continue
-            band = layout.bands[place]
-            if band == _BAND_ZERO:
-                continue
-            share = None
-            ends = None
-            if rungs is not None:
-                share = (
-                    _interpolated(
-                        rungs, layout.starts[place], column.n_numeric
-                    ),
-                    _interpolated(
-                        rungs,
-                        layout.starts[place] + layout.sizes[place],
-                        column.n_numeric,
-                    ),
+        # AND THE WALK SETTLES RATHER THAN SWEEPING ONCE (residual
+        # R-P4-69). Giving one stratum a whole number frees the one
+        # it was holding, so a stratum passed over earlier in the
+        # sweep may have an answer by the end of it. One sweep left
+        # three cells carrying a point where one would have done;
+        # the rounds are bounded by the strata, because a round that
+        # moves nothing is the last.
+        for _round in range(total):
+            settled = carried
+            for place in range(total):
+                if carried >= wanted:
+                    break
+                if place == 0 or (place == total - 1 and total >= 2):
+                    continue
+                if place in locked:
+                    continue
+                if layout.bands[place] not in reachable:
+                    continue
+                if _carries_plainly(moved[place], False):
+                    continue
+                band = layout.bands[place]
+                if band == _BAND_ZERO:
+                    continue
+                share = None
+                ends = None
+                if rungs is not None:
+                    share = (
+                        _interpolated(
+                            rungs, layout.starts[place], column.n_numeric
+                        ),
+                        _interpolated(
+                            rungs,
+                            layout.starts[place] + layout.sizes[place],
+                            column.n_numeric,
+                        ),
+                    )
+                    ends = (rungs[0], rungs[-1])
+                want = _whole_inside(
+                    moved[place],
+                    band,
+                    share,
+                    ends,
+                    total + 1,
+                    taken,
+                    _shares_after(place, layout, rungs, column.n_numeric),
                 )
-                ends = (rungs[0], rungs[-1])
-            want = _whole_inside(
-                moved[place],
-                band,
-                share,
-                ends,
-                total + 1,
-                taken,
-                _shares_after(place, layout, rungs, column.n_numeric),
-            )
-            if want is None:
-                continue
-            taken[want] = 1
-            moved[place] = want
-            carried = carried + layout.sizes[place]
+                if want is None:
+                    moves = _rehomed(
+                        place,
+                        moved,
+                        layout,
+                        rungs,
+                        column.n_numeric,
+                        taken,
+                        ends,
+                        total + 1,
+                        locked,
+                        {},
+                    )
+                    if moves is None:
+                        continue
+                    for step in range(len(moves)):
+                        seat = moves[step][0]
+                        value = moves[step][1]
+                        moved[seat] = value
+                        if not _carries_plainly(value, False):
+                            locked[seat] = 1
+                    taken = {value: 1 for value in moved}
+                    carried = 0
+                    for seat in range(total):
+                        if _carries_plainly(moved[seat], False):
+                            carried = carried + layout.sizes[seat]
+                    continue
+                taken[want] = 1
+                moved[place] = want
+                carried = carried + layout.sizes[place]
+            if carried == settled:
+                break
     return moved
 
 
@@ -7216,6 +7523,102 @@ def _style_strata(
         name = contract.NUMERIC_STYLES[packed[place]]
         settled = settled + [name for _step in range(layout.sizes[place])]
     return settled
+
+
+def _pool_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """Keep back the cells the description POOLED (residual R-P4-69).
+
+    A style used by fewer rows than the smallest group size is held back
+    and pooled, exactly as a rare label is, so the description says how
+    MANY cells it covered and never which form they took. On a column
+    publishing `integer_valued: false` that pool is where the values
+    with a point in them went: a 36-cell column of thirty-four whole
+    numbers and two halves publishes `plain: 34` and a pool of 2, and
+    the two are the halves.
+
+    `_whole_enough` asks for the plain count AND the pool, because a
+    held-back form is written plainly wherever it can be, and it is now
+    good enough at asking to be given every one of them -- which on that
+    column writes thirty-six point-free cells, publishes `plain: 36`
+    against a published 34, and loses the two halves so completely that
+    the twin reads back as a column of counts. This is the other half of
+    the same rule: the pool is held back HERE, on the narrowest strata
+    the ladder has, so the cells that carry a point are as few as the
+    description said they were and land where a rare value lands.
+
+    ONLY WHERE `plain` IS A NAMED COUNT, and that condition is the
+    whole of the rule's reach. A held-back cell is one the twin must not
+    write in any style the description NAMED; `_style_quotas` folds the
+    pool into `plain`, so every cell the twin can write point-free it
+    writes plainly, and where `plain` is named that makes the count of
+    cells carrying a point exactly the pooled count. Where `plain` is
+    NOT named the arithmetic is a different one -- a pooled cell may
+    perfectly well be point-free, as `060` and `11` are in a column
+    whose only named style is `leading_plus`, and what binds there is
+    that no unnamed style may reach the floor. This rule says nothing
+    about such a column and leaves it alone.
+
+    Exactly the pooled count or nothing: a stratum wider than the pool
+    still wants is passed over rather than overshot, because a cell
+    written with a point that the description did not pool is a `plain`
+    count missed just as surely as one written without. The value it
+    takes comes from its OWN share of the ladder and is one no stratum
+    holds, so the rung window of G5.6 does not move and the count of
+    different values does not fall: where the whole number it gives up
+    was one another stratum is writing too, that number is still there
+    to be read, and where it was not, the value replacing it stands in
+    its place one for one.
+    """
+    if facts.integer_valued:
+        return values
+    if _style_named(facts.numeric_styles, "plain") < 1:
+        return values
+    pool = _style_pool(facts.numeric_styles)
+    if pool < 1:
+        return values
+    total = len(values)
+    pointed = 0
+    widest = 0
+    for place in range(total):
+        if not _carries_plainly(values[place], False):
+            pointed = pointed + layout.sizes[place]
+        if layout.sizes[place] > widest:
+            widest = layout.sizes[place]
+    if pointed >= pool:
+        return values
+    taken = {value: 1 for value in values}
+    moved = [value for value in values]
+    for width in range(1, widest + 1):
+        for place in range(total):
+            if pointed >= pool:
+                return moved
+            if layout.sizes[place] != width:
+                continue
+            if place == 0 or (place == total - 1 and total >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if not _carries_plainly(moved[place], False):
+                continue
+            if pointed + width > pool:
+                continue
+            fraction = _fraction_inside(
+                _share_of(place, layout, rungs, column.n_numeric),
+                taken,
+                layout.bands[place],
+            )
+            if fraction is None:
+                continue
+            taken[fraction] = 1
+            moved[place] = fraction
+            pointed = pointed + width
+    return moved
 
 
 def _number_cells(
