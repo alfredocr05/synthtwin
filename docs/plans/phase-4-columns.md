@@ -2847,21 +2847,43 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   partners at which widths, which is a change to `_unrepresentable_
   cells`' ordering and its own landing.
 
-- **R-P4-48** (opened by the same round). A COLUMN CAN HOLD MORE
-  DISTINCT UNHOLDABLE FRACTIONS AT ONE WIDTH THAN THE TWIN CAN WRITE.
-  The twin spells a too-small value as `0.`, a run of zeros and a
-  figure body, so at 327 characters only nine distinct ones exist —
-  the body has one character and the zero run is fixed by the need to
-  underflow. A real column reaches twenty-five at that width by using
+- **R-P4-48 — CLOSED 2026-08-31** (opened by the same round; closed by
+  the landing that built method G10.5 revision 5, with R-P4-68). A
+  COLUMN COULD HOLD MORE DISTINCT UNHOLDABLE FRACTIONS AT ONE WIDTH
+  THAN THE TWIN COULD WRITE.
+  The twin spelled a too-small value as `0.`, a run of zeros and a
+  figure body, so at 327 characters only a couple of dozen distinct
+  ones exist — the body is short and the zero run is fixed by the need
+  to underflow. A real column reaches more at that width by using
   another spelling family altogether: `0…0NNe-400` is 327 characters,
   parses as out of range, and there are as many as the digits allow.
-  The twin writes the twenty-fifth one character wider and names the
+  The twin wrote the twenty-fifth one character wider and named the
   `max_length` miss.
 
-  Closing it means the wide-value walk gaining scientific notation as
-  a spelling family, which is a new family for the capacity rule and
-  the recount both, and is its own landing. **Not a defect in the
-  width rule**: every published count is met and the miss is reported.
+  **WHAT CLOSED IT.** The wide-value walk has scientific notation as a
+  second spelling family, and it is a family for the capacity rule and
+  the recount both, exactly as this entry said it would have to be. The
+  digit-string family now says NO where the grown zero run no longer
+  fits the asked width, and the exponent family writes that group at
+  the width the description asks for.
+
+  **THE CAPACITY IS MEASURED AND THE ENTRY'S OWN FIGURE WAS LOW.** At a
+  room of 327 characters the digit-string family supplies **24**
+  spellings and not nine — every one of them exactly 327 wide — and the
+  25th needs a zero more than the width allows. The exponent family
+  supplies every mantissa the room holds. Reproduced end to end on a
+  column of thirty distinct too-small fractions all 327 characters
+  wide, through the real producer, generator and validator: **before,
+  twin widths 327 and 328 with `counts.max_length` MISSED 327 against
+  328; after, every cell 327 wide, all thirty distinct values held, and
+  nothing missed.** The two spelling walks are compared order by order
+  against the independent oracle at four widths and both signs, and
+  that comparison asserts it reached the hand-over rather than hoping
+  it did.
+
+  It was **not a defect in the width rule**, which is why this entry
+  was a residual: every published count was met and the miss was
+  reported. What changed is that the twin no longer has to choose.
 
 - **R-P4-35** (opened by P4-D18's build, 2026-08-25, and NOT caused by
   it). A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
@@ -3039,6 +3061,45 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   the spare spelling is AVAILABLE before choosing which group it is
   offered to, which is a change to G8.1 step 2 and moves the frozen
   `label_variants` vector's own cells.
+
+- **R-P4-100 — OPEN (opened 2026-08-31 while closing R-P4-48 and
+  R-P4-68).** THE ROLE PUBLISHES NO FACT ABOUT HOW ITS NUMBERS ARE
+  SPELLED, SO TWO SOURCES WRITTEN DIFFERENTLY GET ONE TWIN.
+
+  `numeric_unrepresentable` publishes counts, the repetition pattern
+  and the two widths, and nothing at all about the SPELLING of the
+  cells it counts — no style census, unlike every other numeric role.
+  Now that the twin has two spelling families, that omission is
+  visible where it was not before, and it shows in two ways.
+
+  **The FAMILY is not carried.** Two 400-character columns of whole
+  numbers too large for the format to hold — one written as a digit
+  string, one as `0…0Ne400` — describe identically key for key, and
+  both get a twin of digit strings. Measured end to end through the
+  real producer, generator and validator: nothing missed on either,
+  every published fact held on both, and the second twin is written in
+  a family its source did not use.
+
+  **The exponent's LETTER CASE is not carried where the column does not
+  fold.** A column of `1E400` gets a twin of `1e400`: measured, 0
+  upper-case cells out of 120, nothing missed. Where the column DOES
+  fold it is carried, and that is measured too — a column of `1e400`
+  beside `1E400` publishes `n_distinct` 4 against `n_distinct_folded`
+  2, and its twin holds `1E400` beside `1e400` at the published width
+  with nothing missed, because the folded count binds what the
+  spelling itself does not.
+
+  **Nothing is misstated and nothing is silent in the report**, which
+  is why this is a residual and not a defect: every published fact is
+  met, and the description simply does not carry the one that would
+  make the twin's spelling reproducible. Closing it means publishing a
+  spelling fact for this role — the cheapest is which families the real
+  cells used and at what counts — which is a contract change, a
+  producer change, a generation rule and a subcheck, and it is its own
+  landing. **Whoever takes it should price the disclosure first**: a
+  spelling census on a role whose values are withheld says something
+  about the withheld values' text, which is the question section 12
+  prices and the owner has ruled on three times for a different fact.
 
 - **R-P4-80 — CLOSED 2026-08-31 BY A DECISION (opened 2026-08-31 while
   measuring R-P4-34).** A PER-LEVEL FORM CENSUS CANNOT BE SUMMED INTO
@@ -4036,10 +4097,43 @@ declaration for only one of them.
   compares -- done by hand, which is exactly why it is a residual and
   not a guard.
 
-- **R-P4-68 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
-  item 2; PRE-EXISTING, and found the moment a guard was asked for its
-  own premise).** A COLUMN WRITTEN IN COMPACT EXPONENT FORM GETS A TWIN
-  OF THREE-HUNDRED-CHARACTER NUMERALS.
+- **R-P4-68 — CLOSED 2026-08-31 (opened 2026-08-31 by adversarial round
+  P4-A2-R2, item 2; PRE-EXISTING, and found the moment a guard was
+  asked for its own premise).** A COLUMN WRITTEN IN COMPACT EXPONENT
+  FORM GOT A TWIN OF THREE-HUNDRED-CHARACTER NUMERALS.
+
+  **WHAT CLOSED IT.** Method G10.5 revision 5 gives the wide-value walk
+  EXPONENT NOTATION as a second spelling family, so a value too large
+  for this format to hold can be said in five characters (`1e400`) and
+  one too small in six (`1e-400`). Those are the two shapes' floors
+  now, where the digit-string family's 310 and 327 used to be, so a
+  column publishing 5 and 6 carries both its ends instead of neither.
+  Measured on the reproduction below, before and after, through the
+  real producer, generator and validator: **published 5 and 6, twin
+  310 and 311, two width subchecks MISSED -- and afterwards twin 5 and
+  6 with NOTHING missed at all**, all twelve distinct values and every
+  published count still held. R-P4-48 closes with it, from the other
+  end of the same walk.
+
+  **AND THE CLOSING LANDING SAYS WHAT ITS MEASUREMENTS COVER**, because
+  the lesson below applies to a repair as much as to a defect. What was
+  measured is NAMED COLUMN SHAPES end to end -- the compact exponent
+  column here; R-P4-48's thirty too-small fractions at one width of
+  327; the 271-fraction column a reviewer built for the previous
+  landing on this surface; a compact column whose two spellings FOLD
+  together; and a sixteen-value column at five characters -- plus the
+  TOO-SMALL shape's two spelling walks compared order by order against
+  the independent oracle at four widths and both signs, each family's
+  own edge walked to its last spelling, and the frozen
+  `unrepresentable_exponent` vector, whose cells the oracle writes from
+  the method text. **No randomised trial was run and none is claimed.**
+  What is NOT covered by any of it: the too-large shape's two walks are
+  not compared against the oracle order by order, because the
+  comparison that exists was written for the too-small one and only the
+  frozen case binds the other.
+
+  The reproduction as it stood is kept below, because the closure rests
+  on it.
 
   The entry table's `unrepresentable` fixture holds `1e400` and
   `-1e400` — five and six characters. Its description publishes
@@ -4058,9 +4152,15 @@ declaration for only one of them.
   present and never shows one absent, and it covers what its generator
   could build and nothing else.
 
-  Not fixed here: it is the unrepresentable role's own landing, and this
-  landing is the joined role's. It is carried by name in the
-  green-premise guard so it cannot be forgotten.
+  It was not fixed by the landing that found it: it is the
+  unrepresentable role's own landing and that one was the joined role's,
+  so it was carried by name in the green-premise guard until this one.
+  The witness that pinned the broken pair,
+  `test_the_compact_exponent_column_is_still_broken`, is REWRITTEN to
+  assert the repair rather than deleted --
+  `test_the_compact_exponent_column_holds_both_published_widths` in
+  `tests/test_p3v1f2_entry_table.py` -- because deleting it would retire
+  the only end-to-end reach this column shape has.
 
 - **R-P4-69 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
   item 2; PRE-EXISTING).** A CONTINUOUS COLUMN'S TWIN READS BACK AS A
@@ -4074,8 +4174,15 @@ declaration for only one of them.
 
   A twin that reprofiles to a different ROLE is the strongest form of
   the fidelity claim failing: every downstream reading of that column
-  is a reading of a different kind of column. Not fixed here, for the
-  same reason as R-P4-68, and carried by name in the same guard.
+  is a reading of a different kind of column. It was opened rather than
+  fixed for the same reason R-P4-68 was — it is the `continuous` role's
+  own landing, and the landing that found it was the joined role's —
+  and it is asserted as a WITNESS in
+  `tests/test_p3v1f2_entry_table.py`, which fails when the defect is
+  repaired and just as loudly if it gets worse. **R-P4-68 has since
+  closed and this one has not**, so the two no longer travel together;
+  whoever takes this one should read that entry for the shape a
+  witness turns into.
 
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
