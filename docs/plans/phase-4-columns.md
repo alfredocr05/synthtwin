@@ -4484,12 +4484,80 @@ declaration for only one of them.
   walk was already under-reaching on this path before R-P4-69 was
   touched. The affixed core measured clean on the same shape.
 
-  What closes it is finding why the point-free walk under-reaches on the
-  joined path where it does not on a plain column — the pairing step
-  runs after the values are chosen, which is the first place to look.
-  `test_a_nested_numeric_grain_keeps_the_type_it_publishes` holds the
-  grain's TYPE on both roles meanwhile, so the worse failure cannot
-  arrive unnoticed while the count is out.
+  **THE FIRST DIAGNOSIS WAS WRONG, AND ADVERSARIAL ROUND 2 CORRECTED
+  IT (item 4).** It blamed the pairing step, which cannot cause this:
+  `_numeric_content` finishes each position before pairing runs, and
+  pairing only permutes that position's own multiset. The divergence is
+  EARLIER. `_part_view` installed the position's numeric facts but kept
+  the OUTER column's `n_distinct` and `n_distinct_folded`, and
+  `_numeric_layout` divides the cells by those — so a 36-row column
+  whose cells hold 36 different PAIRS laid its first position out in 36
+  strata where a plain column carrying the same numeric facts gets 11.
+  `_core_view` had the same omission; the affixed control read clean
+  only because its fixture has no straggler and therefore never
+  separates cell cardinality from core cardinality.
+
+  **CLOSED ON THE STYLE FLOOR.** Each view now hands the grain its own
+  count of different numbers. Measured on the same column: the first
+  position writes **2 cells carrying a point where it wrote 12 to 15**,
+  and `number 1 styles.published.plain` — MISSED at 22 against a floor
+  of 34 — is not missed at all.
+
+  **THE REPAIR WAS BUILT, MEASURED AND WITHDRAWN.** Laying the position
+  out in 11 strata rather than 36 closes the style floor — 2 cells
+  carrying a point where there were 12 to 15, and
+  `number 1 styles.published.plain` not missed at all — and costs the
+  column's distinct-cell count, because the pairing walk then has fewer
+  combinations to build it from: `distinct.n_distinct` missed at 34 of
+  36 before and at 28 after. Both are published facts, and the twin of
+  the suite's OWN joined description stopped meeting them:
+  `test_a_twin_of_its_own_description_misses_nothing` went red, along
+  with the golden twin, the golden reports and the `joined_readings`
+  reference vector.
+
+  **So it is not landed.** Trading the product's headline claim for a
+  style floor is the shape this project has been caught by before, and
+  the two counts have to move together. That is landing **L7**, which
+  retargets the draw for distinct counts and is the very next one; this
+  entry carries both measurements so L7 starts from them rather than
+  rediscovering them.
+
+  **AND THE TWIN'S OWN REPORT IS SILENT ABOUT THE STYLE MISS.** On a
+  seed writing 14 pointed cells the twin's deviations name `n_distinct`
+  and say nothing about the form census, while `validate` reports
+  `number 1 styles.published.plain` MISSED at 22 against a floor of 34.
+  A person reading the report beside their twin, without running the
+  validator, is told the wrong one of the two. Both are asserted as
+  witnesses in `tests/test_p2c4f3_style_capacity.py`.
+
+- **R-P4-116 — OPEN (opened 2026-09-01 while measuring adversarial
+  round P4-C1-R2 item 4; PRE-EXISTING, and nothing to do with the
+  landing that found it).** GENERATION IS SUPERLINEAR IN THE STRATA,
+  AND A TWELVE-HUNDRED-CELL COLUMN TAKES NEARLY TWO MINUTES.
+
+  Measured on one column of `1..N` twice over plus two halves, at the
+  default floor, one twin per size:
+
+  | cells | strata | seconds |
+  |---|---|---|
+  | 122 | 62 | 0.14 |
+  | 242 | 122 | 0.72 |
+  | 482 | 242 | 5.2 |
+  | 1202 | 602 | 114.2 |
+
+  Roughly a factor of twenty for each doubling of the strata. **It is
+  not the chain of R-P4-69**: the same column measures 114.9 seconds
+  with the chain and 114.2 with it withdrawn, so the chain is under one
+  per cent of it. Nor is it the row count as such — the strata follow
+  the count of different values, so a million-row column of ten values
+  is cheap and a twelve-hundred-row column of six hundred values is
+  not.
+
+  It is opened rather than fixed because it is a cost, not a
+  wrong answer, and because the landing that measured it was about
+  something else. A person profiling a real table of a few thousand
+  different values will meet it, so it should be measured properly —
+  which stage, and at what exponent — before anything is changed.
 
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
