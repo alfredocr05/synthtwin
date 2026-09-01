@@ -4382,9 +4382,17 @@ def _unrepresentable_facts(
     """A column of numbers this format cannot hold (contract 6.2).
 
     Raises ProfileError for a wrong type or an out-of-range count, and
-    for U1, U2 and U3. There is no width fact here to check, because the
-    contract publishes none: the omission is load-bearing and is
-    recorded as a residual rather than closed.
+    for U1, U2, U3 and U5.
+
+    THIS ROLE PUBLISHES A WIDTH PAIR AND THIS DOCSTRING SAID IT
+    PUBLISHED NONE (review item P4-A2-R3, item 4). `min_length` and
+    `max_length` are loaded below, each a counting number from one
+    upward, and U5 refuses the pair where the shortest value is longer
+    than the longest. The sentence this replaces was written while the
+    contract really did publish neither, was carried unchanged through
+    the landing that added both, and stood immediately above the two
+    lines that read them -- so a contributor reading the loader's own
+    stated word was told the opposite of what the loader does.
     """
     n_whole = _whole(mapping["n_whole"], "n_whole", where, 0)
     n_fraction = _whole(mapping["n_fraction"], "n_fraction", where, 0)

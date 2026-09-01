@@ -53,7 +53,15 @@ import math
 import pathlib
 
 import fixtures
-from synthtwin import contract, generation, parsing, profile, reading, taxonomy
+from synthtwin import (
+    contract,
+    generation,
+    parsing,
+    profile,
+    reading,
+    taxonomy,
+    validation,
+)
 
 
 def _round_trip(
@@ -573,25 +581,96 @@ def test_the_oracle_agrees_past_the_ninth_fraction(tmp_path: pathlib.Path) -> No
 # THE MEASURED CAPACITY OF THE EXPONENT FAMILY AT ITS NARROWEST WIDTH,
 # found by walking it and asking the shipped parser rather than by
 # arithmetic written here a second time. The walk steps its exponent
-# outward from 400 -- up to 999, then down from 399 -- and stops at the
-# first spelling the parser no longer reads as the shape.
+# outward from 400 -- up to 999, then down from 399 -- steps PAST every
+# candidate the parser turns down, and gives the family up once a whole
+# exponent's worth of them has gone by without one accepted.
 #
-# The two shapes stop DIFFERENTLY and the difference is worth having in
-# front of a reader. The too-large shape stops on an exponent boundary:
-# every mantissa at an exponent of 309 or more overflows, and `1e308`
-# is the first that does not, so it stops after 691 whole exponents of
-# nine mantissas each. The too-small shape stops PARTWAY THROUGH an
-# exponent: `1e-324` and `2e-324` are below the smallest subnormal and
-# `3e-324` rounds up onto it, so the walk stops two spellings into its
-# 677th exponent. A rule that stopped at the exponent boundary would
-# have thrown two spellings away and a rule that assumed a boundary
-# would have written a holdable value.
-_LARGE_NARROW_CAPACITY = 6219
+# The two shapes end DIFFERENTLY and the difference is worth having in
+# front of a reader, because the pair of them is what makes "step past
+# it" the right rule and "stop at it" the wrong one. Inside one
+# exponent the mantissa ascends, so the refusals are contiguous at one
+# END of it: a SUFFIX for the too-small shape, whose values grow past
+# the smallest subnormal, and a PREFIX for the too-large one, whose
+# values grow past the largest number this format holds.
+#
+# * The too-small shape's first refusal is its last accepted spelling's
+#   successor: `1e-324` and `2e-324` are below the smallest subnormal
+#   and `3e-324` rounds up onto it, so it ends two spellings into its
+#   677th exponent, and stopping there is right.
+# * The too-large shape's first refusal is `1e308`, a number this
+#   format holds -- and `2e308` through `9e308` do not. Stopping there
+#   threw eight spellings away and made a real 6,220-value column
+#   refuse (review item P4-A2-R3, item 1). This number read 6,219 for
+#   one landing and the test below PINNED it.
+_LARGE_NARROW_CAPACITY = 6227
+_LARGE_NARROW_WHOLE_EXPONENTS = 6219
 _SMALL_NARROW_CAPACITY = 6077
 _SMALLEST_HOLDABLE_MANTISSA = int(
     "24703282292062327208828439643411068618"
     "252990130716238221279284125033775363511"
 )
+
+
+def test_the_oracle_agrees_with_the_too_large_shape_across_its_refusal() -> None:
+    """THE COMPARISON R-P4-68'S CLOSURE SAID DID NOT EXIST.
+
+    That closure named what its measurements did NOT cover: "the
+    too-large shape's two walks are not compared against the oracle
+    order by order, because the comparison that exists was written for
+    the too-small one". The item that follows is exactly what that gap
+    hid -- one implementation stopping at `1e308` and one carrying on
+    past it would have parted company at order 6,219 and nothing would
+    have said so.
+
+    Walked here across the refusal at both narrow widths and both
+    signs, order by order, each side by its own rule: 6,215 orders in,
+    over the eight spellings behind `1e308` and up to the family's last.
+    """
+    oracle = _oracle()
+    mismatched: "list[tuple]" = []
+    reached: "list[tuple]" = []
+    for width in (5, 6):
+        for negative in (False, True):
+            sign = oracle.SIGN_NEGATIVE if negative else oracle.SIGN_POSITIVE
+            room = width - (1 if negative else 0)
+            if room < generation._EXPONENT_LARGE_ROOM:
+                continue
+            states: "dict[str, list[int]]" = {}
+            used: "dict[str, int]" = {}
+            spent: "dict[tuple, int]" = {}
+            start = 0
+            if room == generation._EXPONENT_LARGE_ROOM:
+                start = _LARGE_NARROW_WHOLE_EXPONENTS - 4
+                states = {f"exponent/1/{'-' if negative else ''}": [start]}
+                spent[("too_large", sign, oracle.SPELLING_EXPONENT)] = start
+            for step in range(12):
+                key = ("too_large", sign, oracle.SPELLING_EXPONENT)
+                theirs = oracle._unrepresentable_spelling(
+                    "too_large", sign, spent.get(key, 0), width,
+                    oracle.SPELLING_EXPONENT,
+                )
+                spent[key] = spent.get(key, 0) + 1
+                mine = generation._wide_number(
+                    1, negative, states, used, (),
+                    generation._wide_width(1, width, negative),
+                )
+                if mine != theirs:
+                    mismatched = mismatched + [
+                        (width, negative, start + step, mine, theirs)
+                    ]
+                elif mine is not None and mine.endswith("e308"):
+                    reached = reached + [(width, negative, mine)]
+    assert mismatched == [], (
+        "the two implementations do not write the same too-large "
+        f"spelling: {mismatched[:4]}"
+    )
+    # AND THE COMPARISON CROSSED THE REFUSAL, asserted rather than
+    # hoped for: a walk that never reached `1e308` would compare the
+    # part of the family neither rule ever disagreed about.
+    behind = [f"{body}e308" for body in range(2, 10)]
+    assert sorted({cell for _width, _sign, cell in reached}) == sorted(
+        behind + [f"-{cell}" for cell in behind]
+    ), sorted({cell for _width, _sign, cell in reached})
 
 
 def test_the_exponent_family_asks_the_parser_and_that_is_what_ends_it() -> None:
@@ -609,17 +688,49 @@ def test_the_exponent_family_asks_the_parser_and_that_is_what_ends_it() -> None:
     five characters where the shape itself has thousands, and a real
     sixteen-value column was then REFUSED by the generator. The test
     below this one is that column.
+
+    **AND A REFUSED CANDIDATE IS STEPPED PAST rather than ending the
+    walk** (review item P4-A2-R3, item 1). This test pinned the other
+    rule and pinned it wrong: it asserted that the too-large shape was
+    spent at `1e308`, which is a number this format HOLDS, while
+    `2e308` through `9e308` -- eight spellings the shape really has --
+    stood unclaimed behind it. A 6,220-value column of that width was
+    refused for them. The capacity is 6,227.
     """
-    # THE TOO-LARGE SHAPE, stopping on an exponent boundary.
+    # THE TOO-LARGE SHAPE, whose refusal is a PREFIX of its exponent.
     room = generation._EXPONENT_LARGE_ROOM
-    last = generation._wide_exponent_number(1, "", room, _LARGE_NARROW_CAPACITY - 1)
+    last = generation._wide_exponent_number(
+        1, "", room, _LARGE_NARROW_WHOLE_EXPONENTS - 1
+    )
     assert last == "9e309"
     assert generation._wide_reads_back(1, last)
-    over = generation._wide_exponent_number(1, "", room, _LARGE_NARROW_CAPACITY)
+    over = generation._wide_exponent_number(
+        1, "", room, _LARGE_NARROW_WHOLE_EXPONENTS
+    )
     assert over == "1e308"
     assert not generation._wide_reads_back(1, over)
     assert parsing.classify_number(over) == parsing.NUMBER
-    # THE TOO-SMALL SHAPE, stopping two spellings into an exponent.
+    # ...AND THE EIGHT BEHIND IT ARE WRITTEN, which is the whole item.
+    for step in range(1, 9):
+        after = generation._wide_exponent_number(
+            1, "", room, _LARGE_NARROW_WHOLE_EXPONENTS + step
+        )
+        assert after == f"{step + 1}e308", after
+        assert generation._wide_reads_back(1, after), after
+    # The eight accepted candidates sit BEHIND one refused one, so the
+    # last of them stands at candidate 6,227 while the accepted count
+    # is 6,227 -- the one place the two countings differ by exactly the
+    # refusal, which is the arithmetic the old rule threw away.
+    assert (
+        generation._wide_exponent_number(
+            1, "", room, _LARGE_NARROW_WHOLE_EXPONENTS + 8
+        )
+        == "9e308"
+    )
+    assert _LARGE_NARROW_CAPACITY == _LARGE_NARROW_WHOLE_EXPONENTS + 8
+    # THE TOO-SMALL SHAPE, whose refusal is a SUFFIX of its exponent, so
+    # its own last accepted spelling really is the one before the first
+    # refusal and its capacity does not move.
     room = generation._EXPONENT_SMALL_ROOM
     last = generation._wide_exponent_number(2, "", room, _SMALL_NARROW_CAPACITY - 1)
     assert last == "2e-324"
@@ -628,28 +739,71 @@ def test_the_exponent_family_asks_the_parser_and_that_is_what_ends_it() -> None:
     assert over == "3e-324"
     assert not generation._wide_reads_back(2, over)
     assert parsing.classify_number(over) == parsing.NUMBER
-    # AND THE WALK STOPS THERE rather than writing a holdable value
-    # into a column described as holding none.
-    for kind, room, capacity in (
-        (1, generation._EXPONENT_LARGE_ROOM, _LARGE_NARROW_CAPACITY),
-        (2, generation._EXPONENT_SMALL_ROOM, _SMALL_NARROW_CAPACITY),
+    # AND THE WALK ENDS AT THE LAST SPELLING THE SHAPE HAS rather than
+    # at the first candidate turned down, and rather than writing a
+    # holdable value into a column described as holding none. Both
+    # edges are asserted from the walk itself: standing at the last
+    # accepted candidate it hands that spelling back, and asked again
+    # it hands back nothing. The pair is what separates "the family is
+    # spent" from "the family gave up early".
+    for kind, room, standing, last in (
+        (
+            1,
+            generation._EXPONENT_LARGE_ROOM,
+            _LARGE_NARROW_WHOLE_EXPONENTS + 8,
+            "9e308",
+        ),
+        (
+            2,
+            generation._EXPONENT_SMALL_ROOM,
+            _SMALL_NARROW_CAPACITY - 1,
+            "2e-324",
+        ),
     ):
-        states: "dict[str, list[int]]" = {f"exponent/{kind}/": [capacity]}
+        states: "dict[str, list[int]]" = {f"exponent/{kind}/": [standing]}
+        walking: "dict[str, int]" = {}
         assert generation._wide_family_number(
-            generation._WIDE_EXPONENT, kind, "", room, states, {}, (),
+            generation._WIDE_EXPONENT, kind, "", room, states, walking, (),
+        ) == last
+        assert generation._wide_family_number(
+            generation._WIDE_EXPONENT, kind, "", room, states, walking, (),
         ) is None
     # AND THE WHOLE WALK UP TO THAT POINT WRITES NOTHING HOLDABLE,
     # which is the claim the two numbers above are only the edge of.
-    for kind, room, capacity in (
-        (1, generation._EXPONENT_LARGE_ROOM, _LARGE_NARROW_CAPACITY),
-        (2, generation._EXPONENT_SMALL_ROOM, _SMALL_NARROW_CAPACITY),
+    # Counted over the ACCEPTED spellings, since the walk now steps past
+    # candidates rather than stopping at the first one it turns down.
+    for kind, room, capacity, visited in (
+        (1, generation._EXPONENT_LARGE_ROOM, _LARGE_NARROW_CAPACITY, 6238),
+        (2, generation._EXPONENT_SMALL_ROOM, _SMALL_NARROW_CAPACITY, 6087),
     ):
+        states = {}
+        used: "dict[str, int]" = {}
         holdable = []
-        for index in range(capacity):
-            spelling = generation._wide_exponent_number(kind, "", room, index)
+        written = 0
+        while True:
+            spelling = generation._wide_family_number(
+                generation._WIDE_EXPONENT, kind, "", room, states, used, (),
+            )
+            if spelling is None:
+                break
+            written = written + 1
             if parsing.classify_number(spelling) != parsing.NUMBER_OUT_OF_RANGE:
                 holdable = holdable + [spelling]
         assert holdable == [], (kind, holdable[:3])
+        assert written == capacity, (kind, written, capacity)
+        # AND THE WALK GAVE THE FAMILY UP rather than walking the whole
+        # three-figure field to its end. That is the other half of the
+        # stopping rule and it is what makes "step past a refusal" safe
+        # to state at every width: one exponent's worth of consecutive
+        # refusals ENDS it, so the walk visits eleven candidates past
+        # its last spelling and not the 1,873 the field still holds.
+        # A room where the mantissa is wide has a rejection run wider
+        # than any column could walk, and an unbounded skip would sit
+        # in it.
+        assert states[f"exponent/{kind}/"][0] == visited, (
+            kind, states[f"exponent/{kind}/"][0]
+        )
+        assert visited < generation._exponent_span(kind, room) * 900
     # THE MANTISSA'S OWN EDGE, measured and much further out: it needs a
     # room of 82 characters, so no width a description carries reaches
     # it and the exponent's edge is the one that binds.
@@ -693,3 +847,187 @@ def test_a_real_column_of_many_narrow_wide_values_still_generates(
     assert _holdable(cells) == []
     assert [note.fact for note in notes] == []
     assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
+
+
+def test_a_real_column_of_6220_narrow_wide_values_still_generates(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE EIGHT SPELLINGS THE FIRST REFUSAL THREW AWAY (P4-A2-R3, item 1).
+
+    Every five-character positive whole value this format cannot hold,
+    and there are 6,227 of them: `1e309` through `9e999`, which is 691
+    whole exponents of nine mantissas each, and `2e308` through `9e308`,
+    which sit BEHIND the refused `1e308`. A real table can hold any
+    6,220 of them.
+
+    The walk used to read `1e308` as the family being spent, so it
+    offered 6,219 spellings to a description asking for 6,220 and
+    `synthtwin generate` REFUSED with the domain-too-small message of
+    G9.4 -- a shipped command refusing a description the profiler had
+    just written from a real table, which is the same hazard the fixed
+    exponent moved here in the first place. Measured end to end before
+    and after: **refused, against 6,220 distinct values at the published
+    width of five, no deviation named, and nothing missed by
+    `synthtwin validate`.**
+    """
+    values: "list[str]" = []
+    for power in range(309, 1000):
+        for body in range(1, 10):
+            values = values + [f"{body}e{power}"]
+    values = values + ["2e308"]
+    assert len(set(values)) == 6220
+    assert {len(value) for value in values} == {5}
+    source, cells, again, notes = _round_trip(tmp_path, "sixthousand", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert source["n_distinct"] == 6220
+    assert (source["min_length"], source["max_length"]) == (5, 5)
+    assert len(set(cells)) == 6220, len(set(cells))
+    assert sorted({len(cell) for cell in cells}) == [5]
+    assert _holdable(cells) == []
+    assert [note.fact for note in notes] == []
+    assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert again["n_distinct"] == 6220
+
+
+def _hole_round_trip(
+    folder: pathlib.Path,
+    name: str,
+    header: "list[str]",
+    rows: "list[list[str]]",
+    declared: "tuple[str, ...]",
+) -> "tuple[dict, list[list[str]], list[str], list[str]]":
+    """Describe a table under a declaration, build its twin, check it.
+
+    Returns the description, the twin's columns, the facts the twin's
+    own report named as deviations, and the `column/fact` of every
+    subcheck `synthtwin validate` reported MISSED -- the real
+    profile-generate-validate path and no unit stub.
+    """
+    settings = taxonomy.Settings(declared_missing_values=declared)
+    table = folder / f"{name}.csv"
+    with table.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(header)
+        for row in rows:
+            writer.writerow(row)
+    document = profile.build_document(
+        reading.read_table(f"{table}"), settings, []
+    )
+    written = fixtures.write_profile(folder, f"{name}-profile.json", document)
+    loaded = contract.load_profile(f"{written}")
+    twin = generation.generate(loaded, 5)
+    twin_table = folder / f"{name}-twin.csv"
+    with twin_table.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(header)
+        for place in range(len(twin.columns[0])):
+            writer.writerow([column[place] for column in twin.columns])
+    outcome = validation.measure(loaded, f"{twin_table}")
+    missed = [
+        f"{check.column}/{check.fact}"
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    return (
+        document,
+        [list(column) for column in twin.columns],
+        sorted({note.fact for note in twin.deviations}),
+        missed,
+    )
+
+
+def test_the_wide_walk_refuses_a_hole_spelling_another_column_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE CROSS-COLUMN CASE (review item P4-A2-R3, item 2).
+
+    A `--missing-value` declaration is made once and reaches the whole
+    table. This role publishes NOTHING -- it is one of
+    `taxonomy.ROLES_PUBLISHING_NOTHING` -- so its own
+    `missing_by_source` is empty on every column there is, and a walk
+    reading only that map was reading a map that is always empty. The
+    exponent family then handed the wide column its very first
+    spelling, `1e400`, as a PRESENT cell.
+
+    Measured before and after on this table: **eight subchecks MISSED
+    on the wide column -- `universal.n_present`, `universal.n_missing`,
+    `universal.n_out_of_range` and five of the role's own counts --
+    against a generation report that named nothing at all; and
+    afterwards nothing missed.**
+    """
+    left = ["alpha"] * 14 + ["beta"] * 14 + ["1e400"] * 12
+    right = [
+        f"{body}e{power}" for power in (700, 701, 702) for body in range(1, 10)
+    ]
+    right = right + ["3e703"] * 13
+    rows = [[left[place], right[place]] for place in range(len(left))]
+    document, columns, named, missed = _hole_round_trip(
+        tmp_path, "crosshole", ["kind", "reading"], rows, ("1e400",)
+    )
+    # The premise: the declaration IS published, by the other column.
+    assert document["columns"][0]["missing_by_source"] == {"1e400": 12}
+    assert document["columns"][1]["missing_by_source"] == {}, (
+        "this role publishes no hole spellings of its own, which is why "
+        "the table-wide set is the only way it can learn one"
+    )
+    assert document["columns"][1]["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert "1e400" not in columns[1], (
+        "the wide walk claimed a spelling the table publishes as absent"
+    )
+    assert named == []
+    assert missed == [], missed
+
+
+def test_the_wide_walk_refuses_a_hole_its_own_cells_wore(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE SAME-COLUMN CASE, which this role cannot see on its own.
+
+    Here the wide column's OWN absent cells wore `1e400`, and it still
+    publishes an empty `missing_by_source`, because the role publishes
+    no value of the table anywhere in its block. So even the same
+    column's holes reach this walk only through the document, which is
+    what makes the table-wide set the whole of the rule rather than a
+    cross-column extra.
+    """
+    wide = [f"{body}e{power}" for power in (700, 701) for body in range(1, 10)]
+    wide = wide + ["1e400"] * 12
+    labels = ["alpha"] * 15 + ["beta"] * 3 + ["1e400"] * 12
+    rows = [[labels[place], wide[place]] for place in range(len(wide))]
+    document, columns, named, missed = _hole_round_trip(
+        tmp_path, "ownhole", ["kind", "reading"], rows, ("1e400",)
+    )
+    assert document["columns"][1]["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert document["columns"][1]["missing_by_source"] == {}
+    assert document["columns"][1]["n_missing"] == 12
+    assert named == []
+    assert missed == [], missed
+
+
+def test_a_reserved_spelling_costs_the_family_one_and_the_count_says_so(
+) -> None:
+    """CAPACITY EXCLUDES THE RESERVED SPELLINGS (P4-A2-R3, item 2).
+
+    A refused candidate is a spelling the family does not have, so the
+    number the refusal of G9.4 reports has to count it out. Walked at
+    the narrowest width with one spelling reserved and with none: the
+    reserved walk writes exactly one fewer, and the one it does not
+    write is the reserved one.
+    """
+    room = generation._EXPONENT_LARGE_ROOM
+    written: "dict[bool, list[str]]" = {}
+    for reserving in (False, True):
+        holes = ("2e400",) if reserving else ()
+        states: "dict[str, list[int]]" = {}
+        used: "dict[str, int]" = {}
+        walked: "list[str]" = []
+        for _each in range(40):
+            spelling = generation._wide_family_number(
+                generation._WIDE_EXPONENT, 1, "", room, states, used, holes
+            )
+            assert spelling is not None
+            walked = walked + [spelling]
+        written[reserving] = walked
+    assert "2e400" in written[False]
+    assert "2e400" not in written[True]
+    assert set(written[False]) - set(written[True]) == {"2e400"}

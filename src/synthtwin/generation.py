@@ -6278,6 +6278,36 @@ def _hole_spellings(
     return tuple(found)
 
 
+def _holes_reserved(
+    column: contract.ColumnBlock, everywhere: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """Every hole spelling this column's own walks must not INVENT.
+
+    The column's own published hole spellings and every other column's
+    together, because a `--missing-value` declaration is made once and
+    reaches the whole table -- and because a role in
+    `taxonomy.ROLES_PUBLISHING_NOTHING` publishes an empty map of its
+    own however many of its cells wore a declared spelling, so its own
+    map alone reserves nothing at all (review item P4-A2-R3, item 2).
+
+    ``everywhere`` may be empty, which is what a caller holding no
+    document hands over; the column's own map then stands alone,
+    exactly as it did before.
+
+    Guarantees: accepts a loaded column and the document's own hole
+    spellings; returns them together, sorted and without repeats.
+    Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    for spelling in _hole_spellings(column):
+        if spelling not in found:
+            found = found + [spelling]
+    for spelling in everywhere:
+        if spelling not in found:
+            found = found + [spelling]
+    return tuple(sorted(found))
+
+
 def _unaffixed_numbers(
     count: int,
     pair: "tuple[str, str]",
@@ -12426,9 +12456,27 @@ def _walked_cell(
 
 
 def _unrepresentable_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    everywhere: "tuple[str, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers that cannot be held.
+
+    ``everywhere`` is every spelling ANY column of the document calls
+    absent, and this role cannot do without it (review item P4-A2-R3,
+    item 2). A `--missing-value` declaration is made once and reaches
+    the whole table, and this role publishes NOTHING -- it is one of
+    `taxonomy.ROLES_PUBLISHING_NOTHING` -- so its own
+    `missing_by_source` is empty on every column there is and the walk
+    that read only that map was reading a map that is always empty.
+    Measured on a two-column table where a label column publishes
+    `missing_by_source {"1e400": 12}` under `--missing-value 1e400`
+    while the wide column beside it holds only present values: the wide
+    column's twin was given `1e400` -- the exponent family's very first
+    spelling -- as a PRESENT cell, its own recount stayed silent
+    because its own map is empty, no deviation was named, and
+    re-describing the twin under the profile's own settings moved that
+    column from 40 present and 0 absent to 39 and 1.
 
     THE DESCRIPTION PUBLISHES A WIDTH NOW (residual R-P4-37), and this
     docstring said the opposite until 2026-08-26. `min_length` and
@@ -12458,6 +12506,7 @@ def _unrepresentable_cells(
     facts = column.facts
     if not isinstance(facts, contract.UnrepresentableFacts):
         raise _wrong_facts(column.name)
+    reserved = _holes_reserved(column, everywhere)
     kinds, signs = _unrepresentable_families(column, facts, groups)
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
@@ -12531,7 +12580,7 @@ def _unrepresentable_cells(
             continue
         spelling = _wide_number(
             kinds[index], signs[index], states, used,
-            _hole_spellings(column),
+            reserved,
             _wide_width(kinds[index], asked[index], signs[index]),
         )
         if spelling is None:
@@ -13113,20 +13162,54 @@ def _wide_exponent_number(
     or None where the room holds no mantissa at all or the walk has
     left the three-figure exponent field. Raises nothing. No I/O.
     """
-    tail = 5
-    power_sign = "-"
-    if kind == 1:
-        tail = 4
-        power_sign = ""
-    places = room - tail
+    places = _exponent_places(kind, room)
     if places < 1:
         return None
+    power_sign = "-"
+    if kind == 1:
+        power_sign = ""
     span = 10 ** places - 1
     power = _exponent_power(index // span)
     if power is None:
         return None
     body = f"{index % span + 1}"
     return f"{lead}{'0' * (places - len(body))}{body}e{power_sign}{power}"
+
+
+def _exponent_places(kind: int, room: int) -> int:
+    """How many figures the mantissa gets at one room (method G10.5).
+
+    The exponent field is four characters wide for the too-large shape
+    and five for the too-small one, whatever exponent it holds, and the
+    mantissa fills what that leaves of the room. Zero or less says the
+    room holds no mantissa at all.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    mantissa's own width in figures, which may be zero or negative.
+    Raises nothing. No I/O.
+    """
+    if kind == 1:
+        return room - 4
+    return room - 5
+
+
+def _exponent_span(kind: int, room: int) -> int:
+    """How many spellings ONE exponent of this shape holds at one room.
+
+    The mantissa is spent before the exponent moves, so this is the
+    length of one exponent's own run of spellings -- and it is what
+    tells the walk that a shape has left the field for good. See
+    `_wide_family_number` for the argument that makes it a stopping
+    rule rather than a curiosity.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    count of mantissas at that room, zero where the room holds none.
+    Raises nothing. No I/O.
+    """
+    places = _exponent_places(kind, room)
+    if places < 1:
+        return 0
+    return 10 ** places - 1
 
 
 def _wide_reads_back(kind: int, candidate: str) -> bool:
@@ -13140,17 +13223,20 @@ def _wide_reads_back(kind: int, candidate: str) -> bool:
     would have filed under another class, which is the defect the
     refusal exists to prevent rather than a deviation to report.
 
-    THIS IS WHAT ENDS THE WALK, which is why no 309 and no 325 is
-    written into the exponent family's construction. The exponent
-    steps outward from 400 until this answers no, and the two shapes
-    stop DIFFERENTLY: the too-large shape stops on an exponent
-    boundary, at `1e308`, because every mantissa at 309 or more
-    overflows; the too-small shape stops two spellings INTO an
-    exponent, at `3e-324`, because `1e-324` and `2e-324` fall below the
-    smallest subnormal and `3e-324` rounds up onto it. A rule that
-    stopped at the exponent boundary would throw two spellings away and
-    a rule that assumed one would write a value this format holds into
-    a column described as holding none.
+    THIS IS WHAT DECIDES THE WALK'S REACH, which is why no 309 and no
+    325 is written into the exponent family's construction. The
+    exponent steps outward from 400 and this is asked of every
+    candidate; the two shapes are turned down DIFFERENTLY, and neither
+    of them at a place a constant could name. The too-small shape's
+    first refusal is `3e-324`, two spellings INTO its exponent, because
+    `1e-324` and `2e-324` fall below the smallest subnormal and
+    `3e-324` rounds up onto it, and every later candidate is refused
+    with it. The too-large shape's first refusal is `1e308`, a number
+    this format holds -- and `2e308` through `9e308` are turned down by
+    NOTHING, so the walk steps past `1e308` and carries on. A rule that
+    stopped at a refusal threw those eight away; a rule that assumed an
+    exponent boundary would write a value this format holds into a
+    column described as holding none.
 
     IT SAID SOMETHING ELSE FOR ONE DRAFT, and the correction is worth
     keeping. While the exponent was FIXED at 400 this could not answer
@@ -13186,19 +13272,56 @@ def _wide_family_number(
     family's next spelling, and a column that uses both writes each
     from its own start.
 
+    A TURNED-DOWN CANDIDATE IS STEPPED PAST AND IS NOT THE END OF THE
+    WALK (review item P4-A2-R3, item 1). Revision 5 read the first
+    refusal as the family being spent, which is true of the too-SMALL
+    shape and false of the too-large one: within one exponent the
+    mantissa ascends, so a value too small stops being out of range
+    once and stays in range for the rest of that exponent, while a
+    value too LARGE starts in range and becomes out of range as the
+    mantissa grows. At five characters `1e308` is a number this format
+    holds and `2e308` through `9e308` are not, so stopping on `1e308`
+    threw eight spellings away and made the family's asserted capacity
+    6,219 where the shape's own count is **6,227**. A real 6,220-row
+    column of `1e309` through `9e999` beside `2e308` was then REFUSED
+    by `synthtwin generate` on a description the profiler had just
+    written from it.
+
+    AND WHAT ENDS THE WALK INSTEAD IS ONE WHOLE EXPONENT TURNED DOWN.
+    The refusals inside one exponent are contiguous by the same
+    monotonicity -- a prefix for the too-large shape, a suffix for the
+    too-small one -- and the exponent itself walks outward from 400 and
+    then inward, so an exponent every one of whose mantissas is turned
+    down is an exponent past which nothing is ever accepted again. That
+    is a rule of the SHAPE and not a step budget: it needs no number
+    written here, it cannot stop a family that still holds a spelling,
+    and it bounds the walk, which a bare "step past it and carry on"
+    does not.
+
+    AND A HOLE SPELLING IS REFUSED BEFORE IT IS CLAIMED (review item
+    P4-A2-R3, item 2). Neither family asked: the exponent branch
+    ignored its `holes` argument outright, and the digit-string branch
+    asked only inside its ordinary-text arm. A `--missing-value`
+    declaration reaches the whole table, so a column whose own absent
+    cells wore nothing still has the table's hole spellings reserved
+    against it -- see `_unrepresentable_cells` for where the wider set
+    comes from. A refused candidate costs the family one spelling, so
+    the capacity a refusal leaves is the capacity this walk reports.
+
     Guarantees: accepts a family, a kind, the sign's own text, the room
     after that sign, the per-family walk states, the column's used
-    spellings and its hole spellings; returns an unused spelling of
-    that family, or None where the family is spent at that room.
-    Raises nothing. No I/O.
+    spellings and every hole spelling reserved against it; returns an
+    unused spelling of that family that is no hole spelling, or None
+    where the family is spent at that room. Raises nothing. No I/O.
     """
     key = f"{family}/{kind}/{lead}"
     if key not in states:
         states[key] = [0]
     state = states[key]
-    steps = 0
-    while steps < len(used) + 2:
-        steps = steps + 1
+    span = _exponent_span(kind, room)
+    turned_down = 0
+    refused = 0
+    while refused <= len(used) + len(holes) + 1:
         index = state[0]
         state[0] = state[0] + 1
         if family == _WIDE_EXPONENT:
@@ -13206,15 +13329,27 @@ def _wide_family_number(
             if candidate is None:
                 return None
             if not _wide_reads_back(kind, candidate):
-                return None
+                turned_down = turned_down + 1
+                if turned_down > span:
+                    return None
+                continue
+            turned_down = 0
+            if _is_a_hole_spelling(candidate, holes):
+                refused = refused + 1
+                continue
             if _unused(candidate, used):
                 return _take(candidate, used)
+            refused = refused + 1
             continue
         plain = _wide_plain_number(kind, lead, room, index, used, holes)
         if plain is None:
             return None
+        if _is_a_hole_spelling(plain, holes):
+            refused = refused + 1
+            continue
         if _unused(plain, used):
             return _take(plain, used)
+        refused = refused + 1
     return None
 
 
@@ -13610,7 +13745,13 @@ def _plan_column(
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
-        cells, notes = _unrepresentable_cells(column, groups)
+        # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE (review item
+        # P4-A2-R3, item 2). Planning computed them for the whole
+        # document and then handed this role nothing, so the one role
+        # that publishes no `missing_by_source` of its own -- and
+        # therefore has no other way to learn a declared spelling --
+        # was the one role that could not see them.
+        cells, notes = _unrepresentable_cells(column, groups, all_holes)
     return _ColumnPlan(
         column=column,
         all_holes=all_holes,
