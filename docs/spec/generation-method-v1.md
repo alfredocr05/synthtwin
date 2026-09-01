@@ -4021,6 +4021,14 @@ check on the length of a field — reads a different answer on the twin
 from the one it reads on the real table, and nothing in the description
 let the generator do better.
 
+**REVISION 5 GIVES THE WIDE-VALUE WALK A SECOND SPELLING FAMILY**
+(residuals R-P4-48 and R-P4-68, both closed). Revision 4 published the
+two widths and then could not write them on a column spelled compactly,
+because the only spelling either out-of-range shape had was a digit
+string and a digit string cannot say `1e400` in five characters. The
+family, its floors, its capacity and its recount are the clauses marked
+revision 5 below.
+
 **The two published widths are the width window, and both ends are
 carried where the column's own shapes can carry them.** The rule has
 three parts and they apply in this order.
@@ -4036,14 +4044,127 @@ three parts and they apply in this order.
 * **A shape may have a floor of its own, and the floor wins.** A whole
   number is out of binary64's range only past about 1.8e308, and a
   fraction is below its smallest subnormal only past about 5e-324, so
-  the too-large shape is written at no fewer than **310 figures** and
-  the too-small shape at no fewer than **325 decimal places** whatever
-  width it was asked for. A value narrow enough for the format to hold
-  is a value of a different kind from the one the description publishes,
-  so the shape's floor takes precedence over the asked width and the
-  report names the widening in those words. The other four shapes have
-  no floor: contradictory notation, ordinary text and the two in-range
-  shapes are written at exactly the width they are asked for.
+  a value narrow enough for the format to hold is a value of a
+  different kind from the one the description publishes. The shape's
+  floor therefore takes precedence over the asked width and the report
+  names the widening in those words. **What that floor IS depends on
+  the spelling family, and revision 5 is the clause that says so:**
+  spelled as a digit string the too-large shape needs **310
+  characters** of room and the too-small shape **327** (a leading
+  `0.` and 325 decimal places); spelled in exponent notation the two
+  need **five** and **six**. The floor that binds is the narrower of
+  the two, so it is five for the too-large shape and six for the
+  too-small one. The other four shapes have no floor: contradictory
+  notation, ordinary text and the two in-range shapes are written at
+  exactly the width they are asked for.
+* **EXPONENT NOTATION IS A SPELLING FAMILY OF ITS OWN, AND IT IS WHAT
+  CARRIES A NARROW COLUMN OF WIDE VALUES** (revision 5, closing
+  residuals R-P4-48 and R-P4-68). Revision 4 spelled the two
+  out-of-range shapes as DIGIT STRINGS and nothing else, so their
+  floors above were the narrowest cell either could be written at at
+  all — and a real column whose cells are `1e400`, `-1e400`, `2e400`,
+  five and six characters, publishing `min_length` 5 and `max_length`
+  6 exactly right, got a twin of 310- and 311-character numerals.
+  Somebody who develops `len(x) == 5`, a fixed-width read or a slice
+  against that twin meets a value sixty times wider than anything
+  their real column held.
+
+  A value too large or too small for the format has a second spelling:
+  a mantissa, the letter `e`, and a signed exponent. Both families
+  write the same two shapes and answer for the same published counts —
+  the table of step 1 is untouched, because what a cell answers for is
+  what the shipped parser says of it and the parser says the same of
+  both. What separates the families is the width each can be written
+  at and how many distinct values each supplies there.
+
+  **Which family writes a group is settled by the ASKED WIDTH and then
+  by capacity, in that order.** The digit-string family is asked
+  first, and it writes the group where the asked width is at or above
+  ITS OWN floor and the spelling it would write lands at exactly that
+  width. Where it cannot — the asked width is below its floor, or the
+  candidate it would write is wider than the width asked for, or its
+  spellings at that width are already spent — the exponent family
+  writes instead. Asking the digit-string family first is what keeps
+  every column revision 4 wrote byte-identical: at 310 characters and
+  above nothing moves.
+
+  **THE EXPONENT FAMILY'S SPELLINGS ARE ONE CONSTRUCTION FOR BOTH
+  SHAPES.** A cell of this family is the value's sign, a mantissa of
+  decimal figures, the letter `e`, and a THREE-FIGURE exponent, which
+  carries a minus for the too-small shape. The exponent field is
+  therefore four characters wide for the too-large shape and five for
+  the too-small one, whatever exponent it holds, and the mantissa
+  fills whatever that field leaves of the asked width. **What
+  separates one spelling from the next is the mantissa read as a
+  number** — 1, 2, 3 and so on — written at the right of that room
+  behind a run of leading zeros. That is step 4's own rule (the zeros
+  are the width and the figures are the difference) applied to this
+  family, and it is why a group asked for a width writes exactly that
+  width. So at a room of five the too-large shape writes `1e400`
+  through `9e400`, and at a room of 327 the too-small shape writes
+  `0…01e-400`, `0…02e-400` and onward, which is the family a real
+  column reaches twenty-five distinct values with where the
+  digit-string family reaches nine.
+
+  **THE MANTISSA IS SPENT BEFORE THE EXPONENT MOVES, AND THE EXPONENT
+  MOVES.** When the mantissas at one exponent are gone the exponent
+  steps OUTWARD from 400 — up to 999, then down from 399 — and the
+  mantissa starts again. Both move, so the family's capacity at a
+  width is the SHAPE's own count of spellings there rather than one
+  exponent's.
+
+  **That is a repair of the first build of this family and the
+  measurement is the reason it is written here rather than left as a
+  detail.** With the exponent fixed at 400 the family had nine
+  spellings at five characters, and a real column has thousands
+  (`1e309` through `9e999`). A 160-row column of sixteen distinct
+  five-character values then made `synthtwin generate` REFUSE — the
+  domain-too-small refusal of G9.4 — on a description the profiler had
+  just written from a real table, where the same column before this
+  family existed generated at 310 characters with both widths missed.
+  A repair that met the width had turned a reported miss into a stopped
+  command; **a repair can move a hazard, and a capacity rule is where
+  this one moved to.**
+
+  400 is where the walk STARTS and not a bound: it is deep inside both
+  shapes' ranges at every width this method writes, and starting there
+  is what lets two implementations agree on the first cell rather than
+  on a search.
+
+  **AND EACH CANDIDATE IS ASKED THE QUESTION rather than trusted to
+  the constant.** A spelling of this family is written only where the
+  shipped parser reads it back as out of range AND settles it as the
+  shape's own whole-number status — the same two questions step 6's
+  recount asks of the finished cell. Where a candidate fails either,
+  the family is spent at that width and the walk moves on. That is the
+  rule the too-small shape's zero run already follows, and the only
+  form two implementations can agree on without sharing a number.
+
+  **AND THE QUESTION IS WHAT ENDS THE WALK**, which is why no 309 and
+  no 325 appears in this family's construction. Measured at each
+  shape's narrowest width, and the two shapes stop DIFFERENTLY:
+
+  * the too-large shape stops on an EXPONENT boundary. Every mantissa
+    at an exponent of 309 or more overflows, so the first refused
+    spelling is `1e308` and the capacity at five characters is
+    **6,219** — nine mantissas at each of 691 exponents, which is the
+    shape's own count of five-character spellings;
+  * the too-small shape stops PARTWAY THROUGH an exponent. `1e-324`
+    and `2e-324` are below the smallest subnormal and `3e-324` rounds
+    up onto it, so the walk stops two spellings into its 677th
+    exponent and the capacity at six characters is **6,077**.
+
+  A rule that stopped at the exponent boundary would throw two
+  spellings away; a rule that ASSUMED a boundary would write a value
+  the format holds into a column described as holding none. Asking each
+  candidate is what gets both right without either number being
+  written down.
+
+  The mantissa has an edge of its own, measured the same way and far
+  further out: a too-small spelling stops underflowing at a mantissa of
+  seventy-seven figures, which needs a room of 82 characters. So the
+  exponent's edge is the one a column can reach and the mantissa's is
+  not.
 * **The asked width is the width of the WHOLE CELL.** A minus sign, a
   leading `0.` and a trailing figure are all spent inside it, so a group
   asked for 400 characters writes a cell 400 characters long and not
@@ -4070,7 +4191,10 @@ three parts and they apply in this order.
   ordinary text is a stand-in drawn by the text rule — so neither may
   be chosen to carry either published end. Of the four that may, each
   has a narrowest spelling as well as a magnitude floor: the in-range
-  fraction needs three characters (`1.5`) however narrow the ask.
+  fraction needs three characters (`1.5`) however narrow the ask, and
+  the two out-of-range shapes need five and six by the exponent
+  family's floors above — which is what lets a column published at 5
+  and 6 characters carry BOTH its ends rather than neither.
   **And the floor is only assigned when some OTHER group can still
   carry the ceiling**: a column with exactly one carrying group must
   spend it on the ceiling, because the groups that carry nothing land
@@ -4162,9 +4286,42 @@ Construction, in this fixed order, so the counts land exactly:
    width to hold to — makes every group after the first one character
    wider than the width it was asked for, so a column published as at
    most 372 characters wide holds a 373-character cell.
+
+   **EACH SHAPE-AND-SIGN PAIR WALKS EACH FAMILY FROM THAT FAMILY'S OWN
+   START** (stated in revision 5). This document had left the walk's
+   bookkeeping unsaid, so one conforming program could count per shape
+   and another per shape and sign, and the two would write different
+   cells the first time a column carried a positive and a negative
+   group of one shape. No frozen case carried one, which is why it
+   took until revision 5 to notice. The rule is the second: the
+   positive and the negative groups of a shape each begin at that
+   shape's first spelling, and a group refused by one family does not
+   move another family's place.
 5. The repetition pattern is `n_distinct_by_occurrences`, exactly as in
    G9.5 step 1; the capacity rule and its refusal (G9.4) apply, with the
    digit alphabet over the width each group was asked for.
+
+   **A SHAPE'S CAPACITY IS THE SUM OVER ITS FAMILIES** (revision 5).
+   The two out-of-range shapes have two spelling families, so the count
+   of distinct values either can supply at one width is what the
+   digit-string family supplies there PLUS what the exponent family
+   supplies there, and the refusal is raised only when both are spent.
+   The two counts are very different and a reader who prices one for
+   the other gets a wrong answer: at a room of 327 characters the
+   too-small shape's digit-string family runs out at twenty-four
+   spellings — the next is a value the format holds unless its zero run
+   grows, and a grown run is a character wider than the description
+   asks — while its exponent family supplies every mantissa the room
+   holds at each exponent it visits. At a room of five the too-large
+   shape's digit-string family supplies NOTHING at all, because its own
+   floor is 310, and its exponent family supplies **6,219**: nine
+   mantissas at each of the 691 three-figure exponents the shape has
+   there. A rule that fixed the exponent would supply nine, and nine is
+   fewer than a real column of that width holds — which is how the
+   refusal of G9.4 came to be raised on a description a profiler wrote.
+   At six characters the too-small shape's exponent family supplies
+   **6,077**, and the difference between that and 6,084 is the two
+   spellings its edge falls short of a whole exponent by.
 6. **Every one of `n_whole`, `n_fraction`, `n_whole_unknown`,
    `n_positive`, `n_negative` and `n_sign_unknown` is recounted from the
    finished cells** and named in the report where it was missed, under
@@ -4182,6 +4339,19 @@ Construction, in this fixed order, so the counts land exactly:
    recounted the same way on every role (G10.2). A miss on this path is
    never silent, and a miss the search could have avoided is a defect
    rather than a deviation.
+
+   **THE RECOUNT SPANS BOTH SPELLING FAMILIES** (revision 5), and it is
+   worth saying why it needed no clause of its own to do so: it asks
+   the shipped parser rather than reading the writer's intention. The
+   parser answers of `1e400` exactly what it answers of a 310-figure
+   numeral — out of range, whole, and the sign its leading character
+   carries — and of `1e-400` exactly what it answers of `0.` behind
+   325 zeros and a figure. So a cell of the exponent family recounts
+   under the same class as the digit string it stands in for, and the
+   twelve counts of this step bind it unchanged. A recount that read
+   the class off the FAMILY instead would have had to move; there is no
+   such recount on either side of this product, and this sentence is
+   what a second implementer should check rather than assume.
 7. **AND BOTH PUBLISHED WIDTHS ARE RECOUNTED THE SAME WAY** (revision
    4). Nothing in steps 1 to 5 promises them: the in-range shapes take
    the width they were asked for, the out-of-range shapes take whatever
@@ -5056,14 +5226,21 @@ construction cannot keep.
 
 ## G13. Residuals this method carries
 
-- **R-P2-1 — CLOSED in revision 4.** Unrepresentable values now publish
-  `min_length` and `max_length`, and the twin carries both ends where
-  the column's own shapes can be written at them (G10.5). What remains
-  is not a residual but a named deviation: where a shape's own floor —
-  310 figures for a value too large to hold, 325 places for one too
-  small — is wider than the published width, the twin writes the floor
-  and the report says the published width was not held. The invented
-  400-digit canonical width this residual was opened for is gone.
+- **R-P2-1 — CLOSED in revision 4, and its remaining deviation
+  narrowed almost to nothing in revision 5.** Unrepresentable values
+  publish `min_length` and `max_length`, and the twin carries both ends
+  where the column's own shapes can be written at them (G10.5). The
+  invented 400-digit canonical width this residual was opened for is
+  gone. What remains is not a residual but a named deviation: where a
+  shape's own floor is wider than the published width, the twin writes
+  the floor and the report says the published width was not held.
+  **Revision 4 measured that floor against the digit-string family
+  alone — 310 characters for a value too large to hold, 327 for one
+  too small — and revision 5's exponent family brings it down to five
+  and six**, so a column of `1e400` is now written at the width it
+  publishes instead of sixty times wider. The deviation survives only
+  for a published width of four characters or fewer, which no
+  out-of-range cell a real table holds can have.
 - **R-P2-2** — absent-value spellings and classes are not reproduced.
 - **R-P2-7** — the twin keeps a datetime column's precision and offset
   state but not the source's lexical date family; a month-first table
@@ -5219,8 +5396,10 @@ cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
 added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
-(residual R-P4-17, now closed). **All twenty are required.** The
-first nine are the first committed file and the last eleven the second
+(residual R-P4-17, now closed), and one for the second spelling family
+of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68).
+**All twenty-one are required.** The
+first nine are the first committed file and the last twelve the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -5239,6 +5418,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_fold_collisions` | G9.3 with `n_distinct_folded < n_distinct`, and G9.2's length pins |
 | `identifier_whole_numbers` | G9.6 with `all_whole_numbers: true` reaching all three bands, and the whole-group alphabet packing |
 | `unrepresentable_joint` | G10.5's three margins packed together, on the six-row column of its step 2 whose out-of-range cell no two of them place |
+| `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
@@ -5299,6 +5479,20 @@ G9.3. Each of the four reaches exactly one of those branches:
   off the finished cells. Withdrawing the too-small shape — which is
   what spending `n_whole` on the too-large cells amounts to — leaves the
   column with no packing at all, and that is the committed mutant.
+
+  **It reaches this role and NOT the second spelling family**, which is
+  why revision 5 adds a case rather than widening this one: every cell
+  it freezes is a four-hundred-character digit string or the fixed
+  contradictory construction, so the exponent family could have been
+  withdrawn whole with both committed files byte-identical.
+  `unrepresentable_exponent` is six cells published at five and six
+  characters, widths no digit string can be written at; its mutant puts
+  the too-large shape's floor back to the digit string's own 310 and
+  the recount then reads `min_length` as 310 against a published 5.
+  Writing it is also what found that this section had never said
+  whether the walk counts per shape or per shape and sign — no earlier
+  case carried a positive and a negative group of one shape, so two
+  conforming programs could differ and agree on every committed byte.
 - **`free_text_joint`** is four cells over three groups whose class
   counts and alphabet counts have a joint answer that neither margin
   settles alone: deciding the classes first hands the two singletons to

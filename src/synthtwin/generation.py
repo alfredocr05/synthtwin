@@ -420,6 +420,64 @@ _CANONICAL_WIDTH = 400
 _OVERFLOW_FIGURES = 310
 _UNDERFLOW_PLACES = 327
 
+# THE EXPONENT SPELLING FAMILY AND ITS OWN TWO FLOORS (method G10.5
+# revision 5, closing residuals R-P4-48 and R-P4-68). The two floors
+# above are the floors of the DIGIT-STRING family, and until revision 5
+# that was the only family either out-of-range shape had -- so a real
+# column of `1e400` and `-1e400`, five and six characters, publishing
+# `min_length` 5 and `max_length` 6 exactly right, got a twin of
+# 310- and 311-character numerals. A person developing `len(x) == 5`, a
+# fixed-width read or a slice against that twin met a value sixty times
+# wider than anything their table held.
+#
+# A mantissa, the letter `e` and a signed exponent says the same
+# magnitude in five characters. `1e400` is the narrowest too-large
+# spelling -- one figure, `e`, and three exponent figures, because an
+# exponent that certainly leaves binary64's range needs three -- and
+# `1e-400` the narrowest too-small one, which is the same plus the
+# exponent's sign. These are counts of the ROOM after the value's own
+# sign, exactly as the two floors above are.
+#
+# `400` IS FIXED RATHER THAN MEASURED, and does not have to be
+# measured: it is past every magnitude either shape can reach at any
+# width this method writes, and fixing it is what lets two
+# implementations agree on the cell rather than on a search. What IS
+# asked of each candidate is the question itself -- the shipped parser
+# reads it back, and a spelling it does not read as this shape is not
+# written.
+_EXPONENT_LARGE_ROOM = 5
+_EXPONENT_SMALL_ROOM = 6
+
+# THE EXPONENT ITSELF IS A THREE-FIGURE FIELD AND IT MOVES, which the
+# first build of this family got wrong and a measurement caught. Fixing
+# the exponent at 400 gave the family nine spellings at five characters
+# -- and a REAL column holds thousands there, `1e309` through `9e999`.
+# Measured: a 160-row column of sixteen distinct five-character values
+# made `synthtwin generate` REFUSE with the domain-too-small message,
+# on a description the profiler had just written from a real table.
+# Before this family existed the same column generated -- three hundred
+# characters wide, with both widths missed -- so a repair that met the
+# width had turned a reported miss into a stopped command. A repair can
+# move a hazard.
+#
+# So the walk spends the MANTISSA first at one exponent and then steps
+# the exponent OUTWARD from 400 -- up to 999, then down from 399 -- and
+# the tail stays four characters (`e400`) or five (`e-400`) throughout,
+# because every exponent it visits has three figures. Where it stops is
+# not written here: it is where the shipped parser stops reading the
+# spelling as this shape, which is the question this family asks of
+# every candidate anyway.
+_EXPONENT_HOME = 400
+_EXPONENT_CEILING = 999
+_EXPONENT_FLOOR = 100
+
+# The two spelling families a wide value may be written in. Four of the
+# six shapes have only the first; the two out-of-range shapes have both,
+# and which one writes a group is settled by the asked width and then by
+# capacity, in that order (G10.5 revision 5).
+_WIDE_PLAIN = "plain"
+_WIDE_EXPONENT = "exponent"
+
 # AND THE ZERO RUN ITSELF TAKES A FLOOR, which the width floor above
 # does NOT imply. The fraction spelling spends its width on `0.`, a run
 # of zeros and a FIGURE BODY that grows as the walk enumerates distinct
@@ -12730,6 +12788,15 @@ def _wide_width(kind: int, asked: int, negative: bool = False) -> int:
     width unconditionally, because nothing about their width decides
     whether they are holdable.
 
+    THE FLOOR IS THE NARROWER OF THE TWO SPELLING FAMILIES' FLOORS
+    (method G10.5 revision 5). It read 310 and 327 here until then,
+    which were the DIGIT-STRING family's floors and the only ones there
+    were; the exponent family says the same magnitudes in five and six
+    characters, so a column publishing widths of five and six carries
+    both its ends instead of neither. Nothing at or above the old
+    floors moves: the digit-string family is still asked first and
+    still writes every width it can.
+
     Guarantees: accepts a kind and the width its group was asked for;
     returns a width of at least 1. Raises nothing. No I/O.
     """
@@ -12738,9 +12805,9 @@ def _wide_width(kind: int, asked: int, negative: bool = False) -> int:
     if negative:
         sign = 1
     if kind == 1:
-        return max(asked, _OVERFLOW_FIGURES + sign)
+        return max(asked, _EXPONENT_LARGE_ROOM + sign)
     if kind == 2:
-        return max(asked, _UNDERFLOW_PLACES + sign)
+        return max(asked, _EXPONENT_SMALL_ROOM + sign)
     return asked
 
 
@@ -12922,92 +12989,333 @@ def _wide_number(
 ) -> "str | None":
     """One value at the asked width, of one kind and one sign.
 
-    Every index writes a different spelling, so the walk ends: at most
-    one index per piece of text already written in this column can be
-    refused, and the ceiling says exactly that. None says the family is
-    spent, which no producible description reaches, and the caller
-    refuses generation rather than searching on.
+    A WIDE VALUE HAS TWO SPELLING FAMILIES NOW (method G10.5 revision
+    5, closing residuals R-P4-48 and R-P4-68), and this function is
+    where the choice between them is made. Four of the six kinds have
+    only the leading-zero construction below; the two out-of-range
+    kinds also have exponent notation, which says the same magnitude
+    in five or six characters where the digit string needs 310 or 327.
+
+    **The families are asked in a fixed order and the first that can
+    write wins**: the digit-string family first, so every column
+    revision 4 wrote comes out byte-identical, then the exponent
+    family where the digit string cannot write at the asked width or
+    has spent its spellings there. A kind that neither family can
+    write at the asked width has already been widened to the narrower
+    floor by `_wide_width`, and the caller names that widening.
+
+    Every index writes a different spelling, so each family's walk
+    ends: at most one index per piece of text already written in this
+    column can be refused, and the ceiling says exactly that. None says
+    every family is spent, and the caller refuses generation rather
+    than searching on.
+
+    Guarantees: accepts a kind, a sign, the per-family walk states, the
+    column's used spellings, its hole spellings and the width the group
+    was asked for; returns one spelling of that kind at that width, or
+    None where no family of that kind can supply another. Raises
+    nothing. No I/O.
     """
-    key = f"{kind}/{negative}"
+    lead = "-" if negative else ""
+    room = width - len(lead)
+    for family in _wide_families(kind, room):
+        spelling = _wide_family_number(
+            family, kind, lead, room, states, used, holes
+        )
+        if spelling is not None:
+            return spelling
+    return None
+
+
+def _wide_families(kind: int, room: int) -> "list[str]":
+    """The spelling families one kind may use at one room, in order.
+
+    Method G10.5 revision 5. The digit-string family is first wherever
+    it can write at all, which is at or above its own magnitude floor
+    -- 310 characters of room for a value too large to hold, 327 for
+    one too small. The exponent family follows from five and six. The
+    four kinds that carry no magnitude have one family and no floor.
+
+    Guarantees: accepts a kind and the room a cell of it has after its
+    sign; returns the families in the order they are asked, possibly
+    empty. Raises nothing. No I/O.
+    """
+    if kind == 1:
+        families: "list[str]" = []
+        if room >= _OVERFLOW_FIGURES:
+            families = families + [_WIDE_PLAIN]
+        if room >= _EXPONENT_LARGE_ROOM:
+            families = families + [_WIDE_EXPONENT]
+        return families
+    if kind == 2:
+        families = []
+        if room >= _UNDERFLOW_PLACES:
+            families = families + [_WIDE_PLAIN]
+        if room >= _EXPONENT_SMALL_ROOM:
+            families = families + [_WIDE_EXPONENT]
+        return families
+    return [_WIDE_PLAIN]
+
+
+def _exponent_power(step: int) -> "int | None":
+    """The ``step``-th exponent of the walk, counting outward from 400.
+
+    Method G10.5 revision 5. The exponent starts at 400 and walks UP to
+    999, then DOWN from 399, so the first spelling of the family is
+    `1e400` and the field stays three figures wide the whole way. None
+    says the walk would leave that field, which is a change of width
+    rather than another spelling of the same one.
+
+    WHERE THE WALK ACTUALLY STOPS IS EARLIER, AND IS NOT WRITTEN HERE:
+    it stops where the shipped parser stops reading the spelling as the
+    shape it is writing, which `_wide_reads_back` asks of every
+    candidate. That is the only form two implementations can agree on
+    without sharing a number, and it is why no 309 and no 325 appears
+    in this function.
+
+    Guarantees: accepts a zero-based step; returns a three-figure
+    exponent, or None once the walk would leave that field. Raises
+    nothing. No I/O.
+    """
+    up = _EXPONENT_CEILING - _EXPONENT_HOME
+    if step <= up:
+        return _EXPONENT_HOME + step
+    power = _EXPONENT_CEILING - step
+    if power < _EXPONENT_FLOOR:
+        return None
+    return power
+
+
+def _wide_exponent_number(
+    kind: int, lead: str, room: int, index: int
+) -> "str | None":
+    """The ``index``-th exponent spelling of one out-of-range kind.
+
+    ONE CONSTRUCTION FOR BOTH SHAPES (method G10.5 revision 5): the
+    value's sign, a mantissa of decimal figures, the letter `e`, and a
+    three-figure exponent that carries a minus for the too-small shape.
+    The mantissa fills whatever the exponent field leaves of the asked
+    width, and what separates one spelling from the next is the
+    mantissa read as a NUMBER -- 1, 2, 3 and so on -- written at the
+    right of that room behind a run of leading zeros. That is step 4's
+    own rule, which keeps the width fixed while the value moves;
+    counting by adding a figure instead would make every group after
+    the first one character wider than the width it was asked for.
+
+    THE MANTISSA IS SPENT BEFORE THE EXPONENT MOVES, and both move,
+    which is what makes this family's capacity the SHAPE's own. At five
+    characters one exponent supplies nine spellings and the shape has
+    thousands; a family that fixed the exponent refused to build a real
+    sixteen-value column. The constants above carry that measurement.
+
+    Guarantees: accepts an out-of-range kind, the sign's own text, the
+    room after that sign and a zero-based index; returns that spelling,
+    or None where the room holds no mantissa at all or the walk has
+    left the three-figure exponent field. Raises nothing. No I/O.
+    """
+    tail = 5
+    power_sign = "-"
+    if kind == 1:
+        tail = 4
+        power_sign = ""
+    places = room - tail
+    if places < 1:
+        return None
+    span = 10 ** places - 1
+    power = _exponent_power(index // span)
+    if power is None:
+        return None
+    body = f"{index % span + 1}"
+    return f"{lead}{'0' * (places - len(body))}{body}e{power_sign}{power}"
+
+
+def _wide_reads_back(kind: int, candidate: str) -> bool:
+    """Whether the shipped parser reads one spelling back as its kind.
+
+    THE QUESTION ITSELF, ASKED OF EACH CANDIDATE (method G10.5 revision
+    5), rather than a constant trusted to have been measured widely
+    enough. The two questions are the two step 6's recount asks of the
+    finished cell -- what the notation classifies as, and whether the
+    value is whole -- so a spelling this refuses is one the recount
+    would have filed under another class, which is the defect the
+    refusal exists to prevent rather than a deviation to report.
+
+    THIS IS WHAT ENDS THE WALK, which is why no 309 and no 325 is
+    written into the exponent family's construction. The exponent
+    steps outward from 400 until this answers no, and the two shapes
+    stop DIFFERENTLY: the too-large shape stops on an exponent
+    boundary, at `1e308`, because every mantissa at 309 or more
+    overflows; the too-small shape stops two spellings INTO an
+    exponent, at `3e-324`, because `1e-324` and `2e-324` fall below the
+    smallest subnormal and `3e-324` rounds up onto it. A rule that
+    stopped at the exponent boundary would throw two spellings away and
+    a rule that assumed one would write a value this format holds into
+    a column described as holding none.
+
+    IT SAID SOMETHING ELSE FOR ONE DRAFT, and the correction is worth
+    keeping. While the exponent was FIXED at 400 this could not answer
+    no at any width a description carries, so it was a boundary of the
+    construction and nothing a column reached -- and withdrawing it
+    turned no test red at all. That was true and it was also the symptom
+    of the real defect: a family that can never be asked to stop is a
+    family with one exponent's worth of spellings, which is nine at five
+    characters where a real column has thousands.
+    `tests/test_p4d44_unrepresentable_widths.py` pins both edges and the
+    capacity each one leaves.
+
+    Guarantees: accepts an out-of-range kind and a candidate spelling;
+    returns whether the parser reads it as out of range and settles it
+    as that kind's own whole-number status. Raises nothing. No I/O.
+    """
+    if parsing.classify_number(candidate) != parsing.NUMBER_OUT_OF_RANGE:
+        return False
+    if kind == 1:
+        return parsing.numeric_whole(candidate) == parsing.WHOLE_YES
+    return parsing.numeric_whole(candidate) == parsing.WHOLE_NO
+
+
+def _wide_family_number(
+    family: str, kind: int, lead: str, room: int,
+    states: "dict[str, list[int]]", used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> "str | None":
+    """One value from one spelling family of one kind at one room.
+
+    Each family keeps its own place in its own walk, so asking the
+    digit-string family and being refused does not move the exponent
+    family's next spelling, and a column that uses both writes each
+    from its own start.
+
+    Guarantees: accepts a family, a kind, the sign's own text, the room
+    after that sign, the per-family walk states, the column's used
+    spellings and its hole spellings; returns an unused spelling of
+    that family, or None where the family is spent at that room.
+    Raises nothing. No I/O.
+    """
+    key = f"{family}/{kind}/{lead}"
     if key not in states:
         states[key] = [0]
     state = states[key]
-    lead = "-" if negative else ""
     steps = 0
     while steps < len(used) + 2:
         steps = steps + 1
         index = state[0]
         state[0] = state[0] + 1
-        # THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL, sign and
-        # decimal point included (item P4-G3-F1). Each arm below spends
-        # `room` on the part it varies and lets the fixed characters --
-        # the minus sign, the leading `0.`, the trailing figure -- take
-        # the rest, so a group asked for 400 characters writes 400. The
-        # fraction arm used to count only its zeros and its figures and
-        # so came out two characters wide of every width it was given.
-        room = width - len(lead)
-        if kind == 0:
-            candidate = _contradictory_spelling(index + 1)
-        elif kind == 1:
-            figures = _spelling_at(_DIGITS, max(room - 1, 0), index // 9)
-            candidate = f"{lead}{(index % 9) + 1}{figures}"
-        elif kind == 2:
-            # THE ZERO RUN GROWS UNTIL THE VALUE ACTUALLY UNDERFLOWS,
-            # rather than to a fixed floor (review item P4-G3-R6-F2). A
-            # single number cannot answer this: what decides is the
-            # value, so the FIGURES decide it too. Behind 323 zeros the
-            # body `10` underflows and the body `9` does not, and a
-            # six-figure body needs only 319 -- so a floor high enough
-            # for the worst body writes every better one wider than the
-            # description asks. The rule is the question itself, asked
-            # of each spelling, which is also the only form two
-            # implementations can agree on without sharing a constant.
-            figures = f"{index + 1}"
-            zeros = max(room - 2 - len(figures), 1)
-            candidate = f"{lead}0.{'0' * zeros}{figures}"
-            while float(candidate) != 0.0:
-                zeros = zeros + 1
-                candidate = f"{lead}0.{'0' * zeros}{figures}"
-        elif kind == 3:
-            # THE LEADING ZEROS ARE THE WIDTH, AND THE DIGITS ARE THE
-            # DIFFERENCE (item P4-G3-F1). These two kinds are the cells
-            # of this column that ARE holdable numbers, and they used to
-            # accept `width` and ignore it -- writing `1` and `0.5` into
-            # a column whose description publishes that nothing in it is
-            # shorter than hundreds of characters. Padding with zeros
-            # changes neither the value nor the kind, so the asked width
-            # is taken here.
-            #
-            # WHAT SEPARATES ONE SPELLING FROM THE NEXT IS THE VALUE AND
-            # NOT THE WIDTH. An earlier revision added `index` zeros for
-            # distinctness, which made every group after the first one
-            # character wider than the width it was asked for -- so a
-            # column published as at most 372 characters had a
-            # 373-character cell in its twin, reported as a miss on
-            # every column with two such groups. Counting up in the
-            # digits instead leaves the width fixed.
-            body = f"{index + 1}"
-            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
-        elif kind == 4:
-            # `.5` IS A FRACTION THIS FORMAT HOLDS, and leaving it out
-            # cost a published width (review item P4-G3-R6-F3). The
-            # ordinary body is `1.5`, `2.5`, `3.5` behind a run of
-            # zeros, which needs three characters -- so a column whose
-            # narrowest numeric-looking cell is the two characters `.5`
-            # had no group able to carry that floor and missed it. The
-            # leading zero is optional to the parser, so at two
-            # characters the body is the point and one figure, which
-            # gives nine distinct spellings there.
-            if room == 2:
-                candidate = f"{lead}.{(index % 9) + 1}"
-            else:
-                body = f"{index + 1}.5"
-                candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
-        else:
-            candidate = _text_spelling(index + 1, used, holes)
-        if _unused(candidate, used):
-            return _take(candidate, used)
+        if family == _WIDE_EXPONENT:
+            candidate = _wide_exponent_number(kind, lead, room, index)
+            if candidate is None:
+                return None
+            if not _wide_reads_back(kind, candidate):
+                return None
+            if _unused(candidate, used):
+                return _take(candidate, used)
+            continue
+        plain = _wide_plain_number(kind, lead, room, index, used, holes)
+        if plain is None:
+            return None
+        if _unused(plain, used):
+            return _take(plain, used)
     return None
+
+
+def _wide_plain_number(
+    kind: int, lead: str, room: int, index: int,
+    used: "dict[str, int]", holes: "tuple[str, ...]",
+) -> "str | None":
+    """The ``index``-th leading-zero spelling of one kind at one room.
+
+    The construction revision 4 shipped, unchanged except that it now
+    says NO where it used to write a cell wider than the width it was
+    asked for. That happened on one shape only -- the too-small
+    fraction, whose zero run grows until the value underflows -- and it
+    is what residual R-P4-48 measured: at 327 characters this family
+    reaches twenty-four spellings and the twenty-fifth needs a zero
+    more than the width allows. Writing it anyway held a published
+    count by breaking a published width. Refusing hands the group to
+    the exponent family, which writes it at the width the description
+    asks for, and every published fact is met.
+
+    Guarantees: accepts a kind, the sign's own text, the room after
+    that sign, a zero-based index, the column's used spellings and its
+    hole spellings; returns that spelling, or None where this family
+    cannot write it at exactly that room. Raises nothing. No I/O.
+    """
+    # THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL, sign and
+    # decimal point included (item P4-G3-F1). Each arm below spends
+    # `room` on the part it varies and lets the fixed characters --
+    # the minus sign, the leading `0.`, the trailing figure -- take
+    # the rest, so a group asked for 400 characters writes 400. The
+    # fraction arm used to count only its zeros and its figures and
+    # so came out two characters wide of every width it was given.
+    if kind == 0:
+        candidate = _contradictory_spelling(index + 1)
+    elif kind == 1:
+        figures = _spelling_at(_DIGITS, max(room - 1, 0), index // 9)
+        candidate = f"{lead}{(index % 9) + 1}{figures}"
+    elif kind == 2:
+        # THE ZERO RUN GROWS UNTIL THE VALUE ACTUALLY UNDERFLOWS,
+        # rather than to a fixed floor (review item P4-G3-R6-F2). A
+        # single number cannot answer this: what decides is the
+        # value, so the FIGURES decide it too. Behind 323 zeros the
+        # body `10` underflows and the body `9` does not, and a
+        # six-figure body needs only 319 -- so a floor high enough
+        # for the worst body writes every better one wider than the
+        # description asks. The rule is the question itself, asked
+        # of each spelling, which is also the only form two
+        # implementations can agree on without sharing a constant.
+        #
+        # AND WHERE THE GROWN RUN NO LONGER FITS, THIS FAMILY SAYS
+        # NO (method G10.5 revision 5, residual R-P4-48). It used to
+        # write the wider cell and let the recount name the width
+        # miss, which held a published count by breaking a published
+        # width; the exponent family writes that group at the asked
+        # width instead, and the column meets both.
+        figures = f"{index + 1}"
+        zeros = max(room - 2 - len(figures), 1)
+        candidate = f"{lead}0.{'0' * zeros}{figures}"
+        while float(candidate) != 0.0:
+            zeros = zeros + 1
+            candidate = f"{lead}0.{'0' * zeros}{figures}"
+        if len(candidate) - len(lead) > room:
+            return None
+    elif kind == 3:
+        # THE LEADING ZEROS ARE THE WIDTH, AND THE DIGITS ARE THE
+        # DIFFERENCE (item P4-G3-F1). These two kinds are the cells
+        # of this column that ARE holdable numbers, and they used to
+        # accept `width` and ignore it -- writing `1` and `0.5` into
+        # a column whose description publishes that nothing in it is
+        # shorter than hundreds of characters. Padding with zeros
+        # changes neither the value nor the kind, so the asked width
+        # is taken here.
+        #
+        # WHAT SEPARATES ONE SPELLING FROM THE NEXT IS THE VALUE AND
+        # NOT THE WIDTH. An earlier revision added `index` zeros for
+        # distinctness, which made every group after the first one
+        # character wider than the width it was asked for -- so a
+        # column published as at most 372 characters had a
+        # 373-character cell in its twin, reported as a miss on
+        # every column with two such groups. Counting up in the
+        # digits instead leaves the width fixed.
+        body = f"{index + 1}"
+        candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
+    elif kind == 4:
+        # `.5` IS A FRACTION THIS FORMAT HOLDS, and leaving it out
+        # cost a published width (review item P4-G3-R6-F3). The
+        # ordinary body is `1.5`, `2.5`, `3.5` behind a run of
+        # zeros, which needs three characters -- so a column whose
+        # narrowest numeric-looking cell is the two characters `.5`
+        # had no group able to carry that floor and missed it. The
+        # leading zero is optional to the parser, so at two
+        # characters the body is the point and one figure, which
+        # gives nine distinct spellings there.
+        if room == 2:
+            candidate = f"{lead}.{(index % 9) + 1}"
+        else:
+            body = f"{index + 1}.5"
+            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
+    else:
+        candidate = _text_spelling(index + 1, used, holes)
+    return candidate
 
 
 # -- the generation refusals (method G12) -----------------------------

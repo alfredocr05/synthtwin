@@ -229,14 +229,23 @@ def _unrepresentable_table() -> str:
     group is bound by nothing on any fixture, and the totality assertion
     below would pass while nine facts went unchecked.
     """
-    # LONG DIGIT STRINGS, not compact exponents, and the difference is
-    # a defect rather than a preference. `1e400` is five characters and
-    # its twin is written three hundred and ten wide, which is residual
-    # R-P4-68 -- so a battery built on that shape has a GREEN witness
-    # that is already red, and every red case measured against it
-    # proves nothing (review item P4-A2-R3-F1). The exponent shape is
-    # asserted red in its own test, against its residual, which says
-    # more than excusing it here ever did.
+    # LONG DIGIT STRINGS, not compact exponents, and the reason has
+    # CHANGED even though the fixture has not. It was written this way
+    # because `1e400` is five characters and its twin came out three
+    # hundred and ten wide -- residual R-P4-68 -- so a battery built on
+    # that shape had a GREEN witness that was already red, and every
+    # red case measured against it proved nothing (review item
+    # P4-A2-R3-F1). R-P4-68 is CLOSED: method G10.5 revision 5 gives
+    # the walk exponent notation as a second spelling family and the
+    # compact column now holds both its published widths.
+    #
+    # The fixture stays on the digit-string family anyway, and that is
+    # a decision rather than an oversight. THIRTY registered red cases
+    # are measured against these cells; moving the fixture would move
+    # every one of them, to cover a family that has an end-to-end test
+    # of its own below and a frozen reference vector the oracle writes
+    # from the method text. What this fixture covers is the
+    # digit-string family, and that is now what it says.
     values = []
     for index in range(60):
         body = "9" * (320 + index % 3)
@@ -5745,23 +5754,30 @@ def _residual_is_open(residual: str) -> bool:
     return len(entries) == 1 and "— OPEN" in entries[0]
 
 
-def test_the_compact_exponent_column_is_still_broken(
+def test_the_compact_exponent_column_holds_both_published_widths(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-68 asserted as a WITNESS, not excused as an exception.
+    """R-P4-68 REPAIRED, and this test used to assert the defect.
 
-    A column of `1e400` is five characters and publishes `min_length`
-    5; its twin is written three hundred and ten wide. This shape used
-    to BE the battery's unrepresentable fixture, which made its green
-    witness already red -- and a red case measured against an
-    already-red witness proves nothing about the edit it names (review
-    item P4-A2-R3-F1).
+    A column of `1e400` and `-1e400` is five and six characters and
+    publishes `min_length` 5 and `max_length` 6, exactly right. Its
+    twin was written three hundred and ten and three hundred and
+    eleven characters wide, and this test pinned that pair -- which is
+    the witness form a defect gets when it belongs to another
+    landing's surface (review item P4-A2-R3-F1).
 
-    The fixture moved to long digit strings, which are green. The
-    broken shape is asserted HERE instead, so the defect is watched
-    rather than tolerated: this test fails when R-P4-68 is fixed, which
-    is when it should be deleted, and it fails just as loudly if the
-    defect gets worse.
+    Method G10.5 revision 5 gives the wide-value walk EXPONENT
+    NOTATION as a second spelling family, so a value too large for
+    this format to hold can be said in five characters and the two
+    published widths are met rather than missed. The test asserts the
+    repair now, which is what a witness turns into when its defect
+    closes -- deleting it would retire the only end-to-end reach this
+    shape has.
+
+    THE ASSERTION IS THE WHOLE OUTCOME AND NOT A SUBSET. Checking only
+    that the two width subchecks stopped missing would pass a repair
+    that met the widths by breaking a count, which is the same trade
+    the digit-string family was making in the other direction.
     """
     values = []
     for index in range(60):
@@ -5770,25 +5786,31 @@ def test_the_compact_exponent_column_is_still_broken(
         tmp_path, fixtures.single_column_table("overflow", values),
         stem="exponent-witness",
     )
+    facts = described.columns[0].facts
+    assert (facts.min_length, facts.max_length) == (5, 6)
     twin = rendering.twin_csv(generation.generate(described, SEED))
     outcome = _measured(tmp_path, described, twin, "exponent-witness.csv")
-    # THE EXACT VALUES, not the set of names. Keeping only the names
-    # let the defect WORSEN and still pass: cells a thousand characters
-    # wide miss the same two subchecks as cells three hundred wide
-    # (review item P4-A2-R4-F5). What is pinned is the shape of the
-    # defect as recorded, so this test moves when the defect does.
     missed = {
         check.subcheck: (check.published, check.achieved)
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
-    assert missed == {
-        "counts.min_length": ("5", "310"),
-        "counts.max_length": ("6", "311"),
-    }, missed
-    assert _residual_is_open("R-P4-68"), (
-        "this witness asserts a defect R-P4-68 records; if that residual "
-        "has closed, the witness is what should go"
+    assert missed == {}, missed
+    # AND THE TWIN'S OWN CELLS ARE THE TWO PUBLISHED WIDTHS, measured
+    # rather than read off a clean verdict: a subcheck that stopped
+    # being filed at all would leave `missed` empty just as quietly.
+    cells = [line for line in twin.splitlines()[1:] if line != ""]
+    assert sorted({len(cell) for cell in cells}) == [5, 6]
+    assert len(cells) == 120
+    filed = {
+        check.subcheck
+        for check in outcome.checks
+        if check.subcheck in ("counts.min_length", "counts.max_length")
+    }
+    assert filed == {"counts.min_length", "counts.max_length"}, filed
+    assert not _residual_is_open("R-P4-68"), (
+        "this test asserts the repair the register records as closed; if "
+        "R-P4-68 is open again, the two must be reconciled"
     )
 
 

@@ -179,6 +179,18 @@ BRANCH_CASES = (
     "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
+    # THE SECOND SPELLING FAMILY OF G10.5, added with revision 5
+    # (residuals R-P4-48 and R-P4-68). `unrepresentable_joint` below
+    # reaches this role, and every cell it freezes is a digit string
+    # four hundred characters wide or the fixed contradictory
+    # construction -- so the exponent family could have been withdrawn
+    # entirely with both committed files byte-identical. This case is
+    # six cells published at five and six characters, widths no digit
+    # string can be written at.
+    #
+    # THE ORDER OF THIS TUPLE IS ITS SORTED ORDER, which one test below
+    # compares against the committed file's own key order.
+    "unrepresentable_exponent",
     "unrepresentable_joint",
 )
 
@@ -199,6 +211,7 @@ SEEDS = {
     "identifier_whole_numbers": 109,
     "numeric_point_free_styles": 110,
     "unrepresentable_joint": 111,
+    "unrepresentable_exponent": 121,
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
     "leap_second_endpoint": 114,
@@ -1415,6 +1428,16 @@ CASE_MUTANTS = {
             shape for shape in gen.UNREPRESENTABLE_SHAPES if shape[0] != "too_small"
         ),
         outcome="no assignment of whole groups meets every quota",
+    ),
+    "unrepresentable_exponent": Mutant(
+        branch="G10.5 revision 5's exponent spelling family; the mutant "
+        "puts the too-large shape's floor back to the digit string's own "
+        "310 characters, which is the rule revision 4 carried, and the "
+        "column published at five and six characters is then written "
+        "three hundred and ten wide with neither published end held",
+        attribute="EXPONENT_LARGE_ROOM",
+        replacement=gen.OVERFLOW_FIGURES,
+        outcome="recount min_length as 310",
     ),
 }
 

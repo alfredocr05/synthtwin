@@ -6,6 +6,47 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a column of very large or very small numbers keeps its width
+
+- **A column whose numbers are written compactly -- `1e400`, `-1e400`,
+  `2e400` -- now gets a twin written the same width** (closing
+  residuals R-P4-68 and R-P4-48; generation method G10.5 revision 5).
+  Values too large or too small for a computer's ordinary number format
+  to hold are described with the width of the narrowest and the widest
+  cell in your table, and the twin could write them only as long runs
+  of figures. So a column whose cells were five and six characters wide
+  got a twin whose cells were three hundred and ten and three hundred
+  and eleven characters wide: the description was right and the report
+  said the two widths were missed, but anybody who had written
+  `len(x) == 5`, a fixed-width read or a slice against the twin met a
+  value sixty times wider than anything their real column held.
+
+  The twin can write these values in scientific notation now, which
+  says the same magnitude in five characters. Measured on the column
+  above, end to end through all three commands: five and six characters
+  published, five and six written, and no fact of that column missed at
+  all where two were missed before. A column of thirty very small
+  fractions all three hundred and twenty-seven characters wide is now
+  written at that width throughout, where its widest cells used to come
+  out one character over.
+
+  Nothing about a column already written as long runs of figures moves:
+  the twin still writes those the way it did, and the frozen reference
+  cells for that shape are unchanged byte for byte.
+
+- **And a column of many such values no longer stops the command.**
+  While this was being built, the first version wrote every one of
+  these numbers with the same exponent, which left it nine different
+  five-character values to spend -- and a real column of sixteen made
+  `synthtwin generate` refuse to build a twin at all, saying the
+  description asked for more different values than it could write.
+  A column that had generated before, wrongly wide, would have stopped
+  instead. The exponent moves now, so what the twin can write at a
+  width is what a real column of that width can hold: six thousand two
+  hundred and nineteen different five-character values rather than
+  nine.
+
+
 ### Fixed: a twin's invented codes now wear the shape the real ones wore
 
 - **Every published label of a category column records how many of its
