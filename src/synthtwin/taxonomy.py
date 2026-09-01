@@ -4525,6 +4525,51 @@ def _variants(
     return (named, _multiplicity_map(withheld))
 
 
+def shape_form_cells(spellings: dict[str, int]) -> int:
+    """How many cells of ONE level were written in a form (plan A-P4-47).
+
+    THE FACT THAT LETS A LEVEL'S STAND-IN SPELLINGS KEEP ITS SHAPE.
+    `shape_forms` beside it is a census of the whole COLUMN, and the
+    twin covers that census out of whatever cells it writes;
+    which of a level's held-back spellings wore the label's form is a
+    fact the column census cannot carry, so the twin guessed and was
+    wrong in both directions (residual R-P4-34). This is that fact,
+    published for each level of its own.
+
+    IT IS ONE NUMBER AND NOT A MAP, and that is a property rather than
+    a simplification. A spelling belongs to a level when trimming and
+    case folding it gives the label. A spelling that HAS a form holds
+    only ASCII letters, ASCII figures and the marks -- no space, so
+    trimming changes nothing -- and folding an ASCII letter leaves an
+    ASCII letter in the same place, so `parsing.shape_form` answers the
+    same string for the spelling and for its fold. Every form-bearing
+    spelling of a level therefore wears exactly `shape_form(label)`,
+    and a level's census can name at most that one form. A label with
+    no form of its own has no form-bearing spelling at all, so this
+    answers 0 for it.
+
+    WHAT IT DOES NOT PUBLISH. No spelling, and no form key: the form
+    this counts is `shape_form` of the level's own published label,
+    which the reader already holds. The floor governs which VALUES are
+    named and it still does; this names none.
+
+    Guarantees:
+
+    - Inputs: the exact spellings of ONE folded identity with how many
+      rows wrote each -- the same mapping `_variants` above is handed.
+    - Determinism: the answer depends only on that mapping, and the
+      spellings are walked in sorted order.
+    - Errors raised: none.
+    - Boundary: the answer is between 0 and the level's own row count,
+      and no character of any spelling reaches it.
+    """
+    shaped = 0
+    for spelling in sorted(spellings):
+        if parsing.shape_form(spelling):
+            shaped = shaped + spellings[spelling]
+    return shaped
+
+
 def _levels(
     counts: dict[str, int],
     spellings_by_folded: dict[str, dict[str, int]],
@@ -4547,6 +4592,13 @@ def _levels(
     carries neither, because it has no entry to carry them in: a
     spelling of a label the profile refuses to name may not appear
     beside its count under any other key.
+
+    **And `shape_form_cells`**, how many of the level's cells were
+    written in the label's own form (plan amendment A-P4-47).
+    `shape_form_cells` above states the rule and what it does and does
+    not disclose; it is what lets the twin give a level's made-up
+    spellings the shape the source's held-back spellings actually
+    wore, which the column-wide `shape_forms` census cannot say.
 
     `suppressed_counts` is the anonymous multiset of the withheld
     levels' sizes. Without it a binary column split 1/9 and one split
@@ -4579,6 +4631,16 @@ def _levels(
                     "count": count,
                     "variants": named,
                     "variants_withheld": withheld,
+                    # ...AND HOW MANY OF ITS CELLS WORE ITS OWN WRITTEN
+                    # FORM (plan amendment A-P4-47). Written on every
+                    # published level of every label role, including
+                    # the ones whose label has no form and whose answer
+                    # is therefore 0: this format has no optional keys,
+                    # and a key that appears only where the answer is
+                    # interesting is a key whose ABSENCE speaks.
+                    "shape_form_cells": shape_form_cells(
+                        spellings_by_folded[label]
+                    ),
                 }
             ]
         else:

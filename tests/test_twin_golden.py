@@ -109,6 +109,25 @@ NARROW_CHECK_COUNT = 407
 NARROW_CHECK_DIGEST = (
     "092371c4fead2ac71a787d56f71b070d5e65b4ce8dfb2c0cda84883448bc2a63"
 )
+# THE KEY THAT ARRIVED AFTER THAT BASELINE WAS FROZEN, and it is
+# subtracted rather than folded in (plan amendment A-P4-47). Every
+# published level of a label role now carries `shape_form_cells`, so
+# the narrow demonstration files nine checks it did not file before:
+# two on `answer`, one on `batch`, two on `note` and four on `region`.
+#
+# THE FROZEN 407 ARE STILL ASSERTED WHOLE. Re-recording the digest
+# against 416 would have retired the only thing this test buys -- a
+# baseline that cannot move with the code -- and blessed whatever else
+# moved in the same commit. Setting the new key's checks aside instead
+# reproduces the 2026-08-31 digest character for character, which is
+# what says nothing was lost by IDENTITY rather than by count. That is
+# review item P4-A2-R5-F2's own lesson, applied to the landing that
+# came after it.
+LEVEL_FORM_SUBCHECK = "shape_form_cells"
+WIDE_CHECK_COUNT = 416
+WIDE_CHECK_DIGEST = (
+    "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
+)
 NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
     "90feb6ab2bc50119ea0f59417c383a3d4474343b4e5a559aa9dbb07b45e1d09f"
@@ -162,15 +181,50 @@ def test_widening_the_demonstration_lost_no_obligation(
         f"{entry.column}|{entry.fact}|{entry.subcheck}"
         for entry in outcome.listings
     )
-    assert len(checks) == NARROW_CHECK_COUNT, len(checks)
+    # THE WHOLE RUN, frozen as it stands, so an obligation cannot be
+    # added or dropped without this moving.
+    assert len(checks) == WIDE_CHECK_COUNT, len(checks)
     assert (
         hashlib.sha256("\n".join(checks).encode("utf-8")).hexdigest()
-        == NARROW_CHECK_DIGEST
+        == WIDE_CHECK_DIGEST
     ), (
         "the demonstration's own obligations changed. That is not a "
         "widening -- the narrow table is untouched -- so a check was "
         "added, removed or renamed. Read which before moving this."
     )
+    # ...and the 407 that stood BEFORE `shape_form_cells` existed, whole
+    # and by identity. This is the assertion that cannot be satisfied by
+    # re-recording: set the new key's checks aside and the older digest
+    # must come back character for character.
+    before = [
+        entry for entry in checks if LEVEL_FORM_SUBCHECK not in entry
+    ]
+    assert len(before) == NARROW_CHECK_COUNT, len(before)
+    assert (
+        hashlib.sha256("\n".join(before).encode("utf-8")).hexdigest()
+        == NARROW_CHECK_DIGEST
+    ), (
+        "an obligation the demonstration carried before amendment "
+        "A-P4-47 is gone or renamed. A key added since then cannot "
+        "excuse that: this list is the run with the new key's own "
+        "checks taken out, so it must reproduce the frozen baseline."
+    )
+    # ...and the nine the new key adds are the nine it should, named
+    # rather than counted.
+    added = sorted(
+        entry for entry in checks if LEVEL_FORM_SUBCHECK in entry
+    )
+    assert added == [
+        "answer|label.shape_form_cells|levels.no.shape_form_cells",
+        "answer|label.shape_form_cells|levels.yes.shape_form_cells",
+        "batch|label.shape_form_cells|levels.one.shape_form_cells",
+        "note|label.shape_form_cells|levels.clinic.shape_form_cells",
+        "note|label.shape_form_cells|levels.referral.shape_form_cells",
+        "region|label.shape_form_cells|levels.east.shape_form_cells",
+        "region|label.shape_form_cells|levels.north.shape_form_cells",
+        "region|label.shape_form_cells|levels.south.shape_form_cells",
+        "region|label.shape_form_cells|levels.west.shape_form_cells",
+    ], added
     assert len(listings) == NARROW_LISTING_COUNT, len(listings)
     assert (
         hashlib.sha256("\n".join(listings).encode("utf-8")).hexdigest()
@@ -409,8 +463,20 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # numeric-spelling censuses, the rank-agreement helper and the joined
 # approximations; if any of them had reached a cell of an UNDECLARED
 # column, the twin's own bytes would have moved. They did not.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47, and the counted
+# difference was read first: the description gains NINE lines and loses
+# none, every one of them `"shape_form_cells": 0` on a published level
+# of `region`, `answer`, `batch` and `note`. Nought on all nine because
+# every label of this demonstration is letters alone, and letters are
+# one kind where a written form carries two -- so the new key adds a
+# fact here and moves no number that was already on the page.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, again, and that is what says
+# the change is to what a description RECORDS rather than to what the
+# twin holds: the demonstration's twin is byte-identical, measured
+# against the tree at the commit before this landing.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "e2bd5464232447a1e73535275b4a3f3ca61429939fe95076a362ce4f628b0dcc"
+    "460a283a24743412d2a12588f09f7e40af792f6e10d811dd0008612ee6bdda6d"
 )
 
 
@@ -1145,8 +1211,17 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # carried. `tests/test_method_citations_resolve.py` now refuses any
 # citation that names a section the method does not define, so this
 # cannot happen again silently.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47, under a counted
+# difference read against the tree at the commit before this landing:
+# THIRTY lines added, THREE removed, and the three removed are the same
+# three restated -- 479 obligations become 488, 402 HELD become 411, and
+# the sentence that adds the five numbers up. The twenty-seven that
+# remain are nine new `levels.<label>.shape_form_cells` records, three
+# lines each, every one HELD. NOTHING was lost and no verdict moved:
+# the census carries nine obligations more than it did and not one
+# fewer, which is the thing this digest exists to make somebody check.
 GOLDEN_QUALITY_SHA256 = (
-    "9c45808a0eb962a2e78b2468e56c5baff9c916ad5f88b96dd31cfd8ac09eabf5"
+    "4ab4f51f5d91c2b1814f08a70a6b73f7f1563ed3a4272e01a1a7714670340e4c"
 )
 
 

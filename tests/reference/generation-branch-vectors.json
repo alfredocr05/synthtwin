@@ -2642,6 +2642,7 @@
           {
             "count": 11,
             "label": "note alpha",
+            "shape_form_cells": 0,
             "variants": {
               "Note Alpha": 11
             },

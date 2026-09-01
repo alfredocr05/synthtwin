@@ -262,8 +262,13 @@ def test_nothing_that_varies_between_runs_is_written(
 # tests/test_twin_golden.py did not move at all -- which is what says
 # this is a change to what a description RECORDS and not to what it
 # says about the data.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47: every published
+# level of a label role gains `shape_form_cells`, so this description
+# gains nine lines and loses none. No count, no statistic, no label, no
+# role and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all.
 GOLDEN_SHA256 = (
-    "c2944912e49b40f8a03d77a478b32c0321de1074f1c81942ccdebaf28eb56e67"
+    "200bc7c1d318a3b9deb88fdddb3467578c5ceea678c62a1970ac10280a353b52"
 )
 
 
