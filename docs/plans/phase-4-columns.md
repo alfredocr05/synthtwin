@@ -4489,6 +4489,38 @@ declaration for only one of them.
   belongs to had already closed the defect it was found under, and the
   ordering question is its own piece of work.
 
+- **R-P4-115 — OPEN (opened 2026-09-01 by landing L6's own mutation
+  run).** THREE OF METHOD G6.6's MOVE RULES HAVE NO WITNESS.
+
+  Fifteen mutations were run against the landing, each a single named
+  rule withdrawn, against a set of eighteen test files collecting 785
+  tests. Twelve turned it red. **Three did not**, and each is a GUARD
+  inside the move search rather than a rule that produces the repair:
+
+  1. **the overshoot guard** (`layout.sizes[place] > owed`), which
+     stops a stratum wider than the shortfall moving and carrying the
+     width past its published count;
+  2. **the cover guard** (`spare[figures[place]] < layout.sizes[place]`),
+     which stops a stratum moving out of a demand it is half serving
+     when no surplus of its own figure count can take its place;
+  3. **the order of service** (G6.6.2's exact demands before the
+     ceilings), which is what stops a ceiling spending a value only an
+     exact demand can use.
+
+  Each is argued in G6.6 and each is believed right; what is missing is
+  a column on which withdrawing it changes a byte. On every column the
+  eighteen files build, the search finds the same move with the guard
+  and without it, which is the honest reading of a silent mutation:
+  either the guard is inert on every shape reached, or the shapes that
+  reach it were not built.
+
+  What closes it is a column per guard, built through the real producer
+  and measured, on the model of `_gap_rows` in
+  `tests/test_p4d30_field_widths.py` — which is what closed the fourth
+  silent mutation of the same run, the padded cells' own ceiling
+  demand, whose witness needed a column with a four-thousand-wide gap
+  between its two groups before it bound at all.
+
 - **R-P4-114 — OPEN (opened 2026-09-01 by landing L6; PRE-EXISTING,
   and it is what stops that landing being three closures instead of
   two-and-a-half).** THE CELL ALLOTMENT READS THE LADDER AND NOT THE
