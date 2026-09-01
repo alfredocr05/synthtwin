@@ -1366,45 +1366,6 @@ def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
     return isinstance(column.facts, (NumericFacts, UnrepresentableFacts))
 
 
-def scored_pairs(n_parts: int) -> "tuple[int, ...]":
-    """The seats of `part_agreements` the pairing walk actually aims at.
-
-    The seats run over the pairs `(first, second)` with `first <
-    second`, in that order, which is the order the profiler writes them
-    in. Method G6B.4's walk moves a cell's LAST position and no other,
-    so a pair is aimed at exactly where the last position is one of its
-    two: for two positions the only pair, for three seats 1 and 2, for
-    four seats 2, 4 and 5.
-
-    IT LIVES HERE BECAUSE TWO MODULES NEED IT AND NEITHER MAY IMPORT
-    THE OTHER (review item P4-G3-R2-F3). The generator decides which
-    pairs it approximates; the validator decides which pairs it holds
-    to G12.9's window. They were written separately, only one was
-    corrected, and the twin's own report then called a pair unscored
-    while the quality report handed the same pair the window of the
-    section that excludes it. The validator may not import the
-    generator, so the rule sits in the module that owns `JoinedFacts`
-    and that both already read.
-
-    Guarantees: accepts the published part count; returns the seats in
-    rising order. Determinism: a fixed function of that one number.
-    Raises nothing. No I/O of any kind.
-
-    Built by list concatenation rather than by a set, because the
-    offline audit refuses a method call on a value it cannot trace and
-    that is the rule keeping this package's surface readable.
-    """
-    last = n_parts - 1
-    found: "list[int]" = []
-    seat = 0
-    for first in range(n_parts):
-        for second in range(first + 1, n_parts):
-            if first == last or second == last:
-                found = found + [seat]
-            seat = seat + 1
-    return tuple(found)
-
-
 @dataclasses.dataclass(frozen=True)
 class RelationshipManifest:
     """The eight reserved names, every one of them empty (S12).

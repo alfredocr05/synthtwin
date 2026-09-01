@@ -6,6 +6,52 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: two numbers in one cell now repeat the way your own readings did
+
+- **A column of readings like `120/80` now holds as many different
+  readings as your table did** (closing residuals R-P4-40, R-P4-51 and
+  R-P4-112). Each number of such a cell is built by the same machinery
+  a plain column of numbers uses -- and it was told how many different
+  values to make from the count of different whole CELLS, not from a
+  count of its own numbers. So a 400-row blood pressure whose first
+  numbers take thirteen different values got a twin whose first numbers
+  took thirty-four to forty-one, and the column held a hundred and
+  fifty-seven to a hundred and sixty-nine different readings where the
+  description says a hundred and ten. Somebody grouping rows by the
+  first number found three times as many groups as their real table
+  had, and the quality report said so on every run.
+
+  Measured end to end through all three commands over ten seeds, that
+  column now holds exactly thirteen first numbers, nine second numbers
+  and a hundred and ten different readings at every seed, and
+  `synthtwin validate` reports nothing missed at all.
+
+- **And a cell holding THREE or more numbers now reproduces how every
+  pair of them moves together, not just the last one's.** The step that
+  decides which numbers meet in a row moved the last number of a cell
+  and no other, so on a column like `1/4/10` the relationship between
+  the first two numbers was never aimed at: a column whose first two
+  move in exact opposition -- published as -1.0 -- got a twin holding
+  +1.0, the exact opposite. Every number but the first moves now.
+  Measured over a battery of twelve three- and four-number columns at
+  ten seeds, 540 pairs in all: of the 240 pairs between two earlier
+  numbers, every one used to land outside the range this tool promises
+  and a hundred and six do now, and the count of rows holding one above
+  the other went from 236 missed to none.
+
+  Holding the first number still loses no arrangement at all, and it
+  is why a column of exactly two numbers -- every blood pressure, every
+  ratio -- still has exactly one number moved, by the same rule as
+  before. Such a column's cells DO change in this release, for the
+  first reason above rather than this one.
+
+- **What is still short is reported and named.** A column of three or
+  four numbers sets three or six relationships that pull against each
+  other inside one bounded search, and a hundred and eighty-eight of
+  those 540 pairs still land outside the promised range -- reported as
+  misses by both the twin's own report and `synthtwin validate`, with
+  the achieved value beside the published one.
+
 ### Fixed: a column of very large or very small numbers keeps its width
 
 - **A column whose numbers are written compactly -- `1e400`, `-1e400`,
