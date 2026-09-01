@@ -1063,19 +1063,20 @@ def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
     return produced
 
 
-def _spaces_before_flips(parent, used, wanted):
-    """G8.2's order turned over: the trailing spaces before the case flips."""
-    produced: list = []
+def _spaces_before_flips(parent, used, _target):
+    """G8.2's order turned over: the trailing spaces before the case flips.
+
+    It ignores the target form G8.2a asks for, which is the point: the
+    order and the form rule are one walk, and turning the order over
+    loses the form as well as the spelling.
+    """
     seen = set(used)
     spaces = 1
-    while len(produced) < wanted:
+    while True:
         candidate = parent + " " * spaces
         spaces += 1
-        if candidate in seen:
-            continue
-        produced.append(candidate)
-        seen.add(candidate)
-    return produced
+        if candidate not in seen:
+            return candidate
 
 
 def _no_length_pins(slot, low, high):
@@ -1326,7 +1327,7 @@ CASE_MUTANTS = {
         branch="G8.2's order, case flips before trailing spaces; the "
         "mutant goes straight to the spaces and every invented variant "
         "moves",
-        attribute="invented_variants",
+        attribute="invented_variant",
         replacement=_spaces_before_flips,
         outcome=CHANGES_THE_CELLS,
     ),

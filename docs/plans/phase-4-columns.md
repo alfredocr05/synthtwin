@@ -2115,6 +2115,39 @@ not a decomposition of it, and no sum invariant may be written. That is
 an engineering question, not an owner question, and it is settled in
 the landing rather than here.
 
+**WHAT WAS BUILT, and its disposition.** Every published level of every
+label role carries `shape_form_cells`: how many of its rows wrote the
+label in that label's own written form. `shape_form_cells` is
+EXACT-OBSERVABLE, on the same terms `shape_forms` beside it is — a
+person opens the twin, reads the shape off each cell of one published
+label, and gets the published number back — and the validator asks for
+it level by level.
+
+It is ONE NUMBER and not a census, because every form-bearing spelling
+of a level wears exactly the form of its label: such a spelling holds
+no space, so trimming changes nothing, and folding an ASCII letter
+leaves an ASCII letter in the same place. A label with no form of its
+own therefore carries 0.
+
+**The wire rule is W8 and it is TWO BOUNDS AND NO SUM.** A level's
+number is at least the rows its own named form-bearing spellings cover
+and at most those plus every row the floor held back, and a label with
+no written form carries none. Both ends are facts of the entry alone.
+Nothing compares it against the column census, for R-P4-80's three
+reasons.
+
+**The generation rule is G8.1a and G8.2a.** The published spellings are
+written first and cover what they cover; the rest is the level's form
+DEBT, and the walk picks the sub-multiset of held-back group sizes
+adding up to it, largest groups first, deciding the remainder by a
+bounded reachability walk where the plain one does not reach it. Each
+group is then asked for a spelling wearing the form it was allotted.
+The closure is EXACT on a description the producer wrote. Where a
+hand-written description asks for more form-bearing cells than the
+label's case flips can spell, the twin covers what it can and the
+report NAMES the rest, which is what this package does with every
+bounded search.
+
 ## P4-D13. Residuals
 
 Opened by this plan, each a limit accepted rather than work forgotten:
@@ -2844,10 +2877,27 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   P4-D18's to fix: the shape census does not reach numeric roles, and
   it should not — a number's spelling is `numeric_styles`' subject.
 
-- **R-P4-34 — OPEN (opened by P4-D18, 2026-08-25; MEASURED 2026-08-31,
-  and the entry understated its own defect).** THE FORM CENSUS MISSES
-  WHEN A PUBLISHED LABEL HAS MORE THAN ONE HELD-BACK SPELLING, AND IT
-  MISSES IN BOTH DIRECTIONS.
+- **R-P4-34 — CLOSED 2026-08-31 (opened by P4-D18, 2026-08-25;
+  MEASURED 2026-08-31, and the entry understated its own defect;
+  closed by the landing that built amendment A-P4-47's key).** THE FORM
+  CENSUS MISSED WHEN A PUBLISHED LABEL HAD MORE THAN ONE HELD-BACK
+  SPELLING, AND IT MISSED IN BOTH DIRECTIONS.
+
+  **WHAT CLOSED IT.** Every published level carries `shape_form_cells`
+  now — how many of its rows wrote it in the label's own form — so the
+  fact the description did not carry is carried. The reproduction pair
+  is the measure of the repair: the two 209-row columns still publish
+  identical `label`, `count`, `variants` and `variants_withheld`, they
+  now publish 25 and 23 under the new key, their twins are DIFFERENT
+  cell for cell, and `synthtwin validate` says `HELD 206 -> 206` on the
+  first and `HELD 204 -> 204` on the second where it used to call one of
+  them a miss whatever rule was used. The witnesses in
+  `tests/test_p4r34_form_census_per_level.py` are rewritten to the
+  repaired behaviour and keep every measured number.
+
+  The entry as it was measured stands below, because the measurement is
+  what the closure rests on.
+
 
   A made-up spelling of a published label must fold onto that label,
   and the fold-preserving supply is the case flips and then edge spaces
@@ -2936,14 +2986,82 @@ Opened by this plan, each a limit accepted rather than work forgotten:
      key; two goldens; and three plain expectations. Everything the
      landing actually needs is on top of that.
 
-  Until it is ruled on, the defect is a WITNESS rather than a silence:
-  `tests/test_p4r34_form_census_per_level.py` pins both directions at
-  their exact published and achieved counts, and the indistinguishable
-  pair that says no rule can close it.
+  It was ruled on the same day: amendment A-P4-47 rules the fact IN,
+  and the paragraph above records what closed the residual.
 
-- **R-P4-80 — OPEN (opened 2026-08-31 while measuring R-P4-34).** A
-  PER-LEVEL FORM CENSUS CANNOT BE SUMMED INTO THE COLUMN'S, AND THE
-  COMMITTED ARTIFACT THAT SETTLES IT IS ALREADY IN THE TREE.
+- **R-P4-90 — OPEN (opened 2026-08-31 while closing R-P4-34).**
+  SECURITY.md'S DISCLOSURE RECORD STOPS AT VERSION 5, AND EVERY FACT
+  VERSION 6 ADDED IS ABSENT FROM IT.
+
+  That document records, version by version, what a description
+  additionally carries off the machine, and an institution reads it
+  rather than the contract. Its last two such entries are version 5's.
+  Measured on the tree: `shape_forms`, `fraction_widths`, `pad_widths`,
+  `value_histogram`, `mode` and `mode_count`, `percentiles_between`,
+  `n_distinct_values`, the joined role's per-position blocks, the
+  unrepresentable role's two widths and now `shape_form_cells` are
+  named in the contract's own section 12 and in NO entry of SECURITY.md.
+
+  It is a documentation gap and not a leak — nothing is published that
+  the contract does not record, and the summary still warns on every
+  run about the floor. But the document that exists to tell an
+  institution what travels understates what travels, and by omission
+  rather than by a wrong sentence, which is the harder kind to notice.
+
+  NOT fixed by this landing on purpose: writing one honest entry per
+  fact means reviewing every Phase 4 addition against the delta
+  SECURITY.md's existing entries state, which is a landing of its own
+  and not a paragraph appended to somebody else's.
+
+- **R-P4-91 — OPEN (opened 2026-08-31 while closing R-P4-34).** THE
+  LABEL'S OWN SPELLING IS AIMED AT A GROUP THAT MAY NOT BE ABLE TO
+  TAKE IT, AND THE SHORTFALL IS NAMED RATHER THAN AVOIDED.
+
+  `_spare_variant_group` (method G8.1 step 2) picks the largest
+  form-keeping group for the label's own spelling. Where that spelling
+  is ALREADY a published variant it cannot be spent at all, so the
+  offer is wasted and the group falls through to a trailing space,
+  while a smaller form-keeping group takes the one case flip.
+
+  **It costs nothing on a description the producer wrote**, and that is
+  measured rather than argued: there the debt is exactly coverable and
+  the supply is exactly sufficient, because the source spelled those
+  groups itself. It shows only where a HAND-WRITTEN description asks
+  more groups of a label to keep the form than the label has
+  form-keeping spellings — which no producer writes, since a source
+  cannot have three form-bearing spellings of a one-letter label.
+  Measured on such a description: 28 rows asked for, 23 held, where
+  aiming the one flip at the larger group would have held 25.
+
+  Nothing is silent — the twin's own report names both numbers and the
+  quality report files the miss — so this is a shortfall that could be
+  narrower rather than a wrong verdict. Fixing it means asking whether
+  the spare spelling is AVAILABLE before choosing which group it is
+  offered to, which is a change to G8.1 step 2 and moves the frozen
+  `label_variants` vector's own cells.
+
+- **R-P4-80 — CLOSED 2026-08-31 BY A DECISION (opened 2026-08-31 while
+  measuring R-P4-34).** A PER-LEVEL FORM CENSUS CANNOT BE SUMMED INTO
+  THE COLUMN'S, AND THE COMMITTED ARTIFACT THAT SETTLES IT IS ALREADY
+  IN THE TREE.
+
+  **THE DECISION: NO SUM INVARIANT IS WRITTEN.** The per-level numbers
+  are facts of their own beside the column census, not a decomposition
+  of it, and the format says so where a reader would otherwise assume
+  otherwise — in W8's own statement, in contract 7.4.8, and in the
+  docstrings of the loader rule and the twin's report note. The
+  alternative the entry named — an inequality that admits every
+  arrangement — is not much of an invariant, and rewriting a frozen
+  reference vector to make a false rule true is the wrong trade.
+
+  What replaces it is a rule that binds and is cheap: a level's number
+  is at least the rows its own named form-bearing spellings cover and
+  at most those plus every row the floor held back. Both ends are facts
+  of the entry alone, so neither is troubled by any of the three
+  reasons below.
+
+  The three reasons stand as written, and each is now a sentence of the
+  format rather than a note in a register:
 
   The natural invariant for the R-P4-34 closure is that the column's
   `shape_forms` is the sum of the published levels' own. It is false
@@ -2980,8 +3098,16 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   an inequality — and an inequality that admits every arrangement is
   not much of an invariant.
 
-  Not decided here, because the decision belongs beside the owner
-  question R-P4-34 records rather than under it.
+  **The committed artifact keeps its cells.** `_label_variants` is
+  re-recorded with the new key and NOT rewritten: `north` and `south`
+  are letters alone and carry 0, `7-11` wears `%-%%` and carries 4 —
+  one of its three held-back groups, which is what a source of that
+  shape could have written, since a label with no letters has no case
+  flip and the only form-bearing spelling of it is the label's own. The
+  vector's own cells are byte-identical after the change, which is the
+  measure of a fact added rather than a construction moved. Its
+  column census stays what it was and stays unproducible, which is the
+  point the entry makes and the reason no sum rule may read it.
 
 - **R-P4-33** (opened at the third read of P4-D17, 2026-08-25). A
   DECIMAL COMMA THE AFFIX RULE HAS SWALLOWED IS NOT DETECTED, AND THE

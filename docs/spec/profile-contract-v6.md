@@ -3168,7 +3168,7 @@ reaches — this section's `suppressed_levels`, `suppressed_rows`,
 
 #### 6.3.1 A level entry
 
-An object with exactly these four keys. A loader refuses an entry that
+An object with exactly these FIVE keys. A loader refuses an entry that
 carries any other key, or that is missing one of these, naming the key
 and the column.
 
@@ -3176,12 +3176,14 @@ and the column.
 |---|---|---|
 | `label` | string | the published label, as a FOLDED identity: trimmed and case-folded |
 | `count` | integer ≥ 1 | how many present rows carry this folded identity |
+| `shape_form_cells` | integer ≥ 0 | how many of those rows wrote the label in the label's own WRITTEN FORM, section 7.4.8 |
 | `variants` | object | exact spelling → count, for every spelling of this label that cleared the floor |
 | `variants_withheld` | multiplicity map | how many different spellings of this label covered one row, two rows, … below the floor |
 
 Section 7.4 specifies `variants` and `variants_withheld` in full: what
 their keys hold, what a value means, where the two keys may and may not
-appear, and invariants W1 to W7. Section 5.3 fixes the form of a
+appear, and invariants W1 to W7. Section 7.4.8 specifies
+`shape_form_cells` and invariant W8. Section 5.3 fixes the form of a
 multiplicity map.
 
 #### 6.3.2 Label invariants
@@ -5915,6 +5917,85 @@ was written some way.
 checkable list of §8.8 restates them, which is that list's stated
 purpose. Add `W-P` to that list's producer rows.]
 
+#### 7.4.8 `shape_form_cells` — the level's own form count
+
+**C6-96 (what it counts).** `shape_form_cells` is how many of the
+level's present rows wrote the label in the LABEL'S OWN WRITTEN FORM,
+where a written form is what 7.9 defines. It is REQUIRED on every entry
+of `levels` on the four label roles and FORBIDDEN everywhere else, and
+it is written even when it is nought, because this format has no
+optional keys and a key that appears only where the answer is
+interesting is a key whose absence speaks.
+
+**C6-97 (why it is ONE NUMBER and not a census).** A spelling belongs
+to a level when trimming and case folding it gives the label. A
+spelling that HAS a form holds only ASCII letters, ASCII figures and
+the thirteen marks — no space, so trimming changes nothing — and
+folding an ASCII letter leaves an ASCII letter in the same place, so
+`shape_form` answers the same string for a spelling and for its fold.
+**Every form-bearing spelling of a level therefore wears exactly the
+form of its label**, a level's census can name at most that one form,
+and the fact is a count rather than a map. A label with no form of its
+own has no form-bearing spelling at all and carries nought.
+
+**C6-98 (why the format carries it).** Owner ruling of 2026-08-31,
+plan amendment A-P4-47. The column-wide census of 7.9 cannot say WHICH
+of a published label's held-back spellings wore that label's form, and
+the twin has to decide: the made-up spellings of 7.4 come from the case
+flips and then the edge spaces (generation method G8.2), and only the
+case flips keep the form. Without this number the generator guessed,
+and the guess was wrong in BOTH directions — short by a held-back
+group's rows on some columns and past the published count on others.
+Two source columns whose entries were identical key for key published
+different censuses, so no rule reading the description could be right
+about both. That is residual R-P4-34, and this key closes it.
+
+**WHAT IT DOES AND DOES NOT DISCLOSE.** It names no spelling and no
+form KEY: the form it counts is the form of the level's own published
+`label`, which the reader already holds. What a reader CAN take from it
+is which held-back group of that level was written in the label's shape
+— presence and shape, attached to a group the floor does not name. The
+owner ruled that in on the ground that a code's SHAPE identifies
+nobody, and weighed against it that category columns are what analysis
+code is written against, so a twin whose invented codes wear the wrong
+shape breaks that code silently. The floor still governs which VALUES
+are named, and this names none. Section 12 carries the row.
+
+**Invariant W8 (two bounds, and NO SUM).** `shape_form_cells` is at
+least the rows covered by the entry's own `variants` whose spelling has
+a form, and at most those plus every row `variants_withheld` accounts
+for; and where the `label` has no written form it is exactly nought.
+Both ends are facts of THIS ENTRY.
+
+**AND THERE IS NO SUM RULE AGAINST `shape_forms`, WHICH A READER WILL
+LOOK FOR.** The column census is a fact of its own beside these and not
+their total, for three reasons, each of which breaks the sum on its own
+(residual R-P4-80):
+
+1. **Suppressed levels' cells belong to no published level.** The
+   column census counts every present cell that has a form; a level the
+   floor held back publishes no entry, so its cells are in the column
+   total and in no level's number.
+2. **The floor applies to a smaller population.** A form shared by
+   fewer than `small_cell_floor` cells of ONE level would pool there
+   while the same form clears the floor column-wide.
+3. **The room refusal is column-wide.** `form_room` is compared against
+   `n_distinct` plus the floor (7.9), which is a fact about the COLUMN;
+   a refused form's cells are counted nowhere in the column census and
+   are still counted in their level's number.
+
+**WHAT A LOADER DOES NOT CHECK, stated rather than left to be
+noticed.** That the rows outstanding after the named spellings can be
+made up of WHOLE held-back groups is a subset-sum question whose cost
+is bounded by nothing this document states. The generator asks it under
+a budget of its own (G8.1a) and names the shortfall where it cannot
+settle it exactly.
+
+**Disposition: EXACT-OBSERVABLE**, on the same terms `shape_forms` is:
+a person opens the twin, reads the shape off each cell carrying one
+published label, and gets the published number back. The quality report
+asks it level by level.
+
 ---
 
 <!-- a7c: numeric styles and fraction widths -->
@@ -6473,27 +6554,37 @@ does not say every suppressed level wears a form**, and a reader must
 not take it that way: it says a stand-in the census owes a form to is
 written in it.
 
-**WHAT THE SPELLING SUPPLY CANNOT ALWAYS REACH, stated because it is a
-real limit and not an oversight.** A made-up spelling of a PUBLISHED
-label must fold onto that label, and the fold-preserving supply is the
-case flips and then edge spaces (G8.2) — of which only the case flips
-keep the written form. A label with few letters whose flips are already
-published therefore has few form-preserving spellings, and the census
-can go short by a held-back group's rows.
+**WHICH MADE-UP SPELLINGS OF A PUBLISHED LABEL KEEP ITS FORM IS THE
+LEVEL'S OWN FACT.** A made-up spelling of a PUBLISHED label must fold
+onto that label, and the fold-preserving supply is the case flips and
+then edge spaces (G8.2) — of which only the case flips keep the written
+form. Which held-back group takes a form-keeping spelling is fixed by
+that level's `shape_form_cells` (7.4.8): the published spellings cover
+what they cover, and the walk gives the form to whole held-back groups
+adding up to the rest (G8.1a).
 
-**AND IT CAN RUN PAST THE PUBLISHED COUNT, BY THE SAME RULE READ THE
-OTHER WAY.** The label's own spelling is offered where nothing else of
-the level needs it, and it is offered to the LARGEST held-back group,
-since that is where the scarce form-keeping spelling covers the most
-cells. Where the source's own form-bearing held-back spelling covered a
-SMALLER group, that offer writes the form MORE often than any source
-cell wore it. So the offer narrows the miss in one direction and widens
-it in the other, and this passage claimed only the first until both
-were measured. Which of the two happens turns on which held-back
-spelling wore the form — and the description does not say, because
-`variants_withheld` publishes group SIZES and names no spelling. No
-generator can recover it. Residual R-P4-34 carries the measurement of
-both directions and the count of columns each was seen on.
+**THIS PASSAGE ONCE DESCRIBED A DEFECT AND NOW DESCRIBES A RULE**, and
+the history is kept because it is the argument for the key. The
+description did not carry the fact, so the walk guessed: it offered the
+label's own spelling to the LARGEST held-back group, on the reasoning
+that the scarce form-keeping spelling covers the most cells there.
+Where the source's own form-bearing held-back spelling covered a
+SMALLER group, that offer wrote the form MORE often than any source
+cell wore it, and where the largest group's flip was already published
+it wrote it LESS often — a miss in both directions, measured on 120
+columns of one family at a floor of eleven as 57 met, 31 short and 32
+past. Two source columns whose entries were identical key for key
+published different censuses, so no rule reading the description could
+be right about both. Residual R-P4-34 carries that measurement;
+amendment A-P4-47 publishes the fact and closes it.
+
+**WHAT A SUPPLY STILL CANNOT ALWAYS REACH, stated because it is a real
+limit and not an oversight.** A label of one letter has one case flip.
+A hand-written description asking more held-back groups of such a label
+to keep the form than the supply can spell is met as far as the supply
+goes, and the twin's own report names the rest; no producer writes such
+a description, because a source that spelled those groups had the
+spellings to do it.
 
 ---
 
@@ -6719,6 +6810,7 @@ These bind `n_distinct_by_occurrences` and `variants_withheld`.
 | W5 | every `variants` value is at least the floor; every `variants_withheld` key is in `1 .. floor - 1` | yes |
 | W6 | variant keys are distinct | yes |
 | W7 | `variants` and `variants_withheld` are not both empty on one entry | yes |
+| W8 | `shape_form_cells` is at least the `variants` rows whose spelling has a form and at most those plus the rows `variants_withheld` accounts for; a label with no written form carries nought. There is NO sum against the column's `shape_forms` (7.4.8, R-P4-80) | yes |
 
 **The list continues** in the next section: the remaining roles, the
 ladder and stand-in rules, and the producer obligations.
@@ -7202,11 +7294,12 @@ and names the description change that would close it.
 |---|---|
 | `levels` (normalized `label` and `count`) | EXACT-OBSERVABLE |
 | `variants`, `variants_withheld` | EXACT-OBSERVABLE |
+| `shape_form_cells` (all four label roles) | EXACT-OBSERVABLE, per published level: a person reads the shape off each cell carrying one published label and gets the number back. It is a fact of its own beside `shape_forms` below and NOT a part of it — 7.4.8 states the three reasons no sum holds (residual R-P4-80) |
 | `suppressed_levels`, `suppressed_level_counts`, `suppressed_rows` | EXACT-OBSERVABLE |
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
-| `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, and then by the STAND-INS; where the floor holds back more than one spelling of a published label the description does not say which of them wore that label's form, so the census can fall short of the published count OR run past it, and the report names either (residual R-P4-34) |
+| `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, then by the made-up spellings of each published label, whose forms are fixed by that level's own `shape_form_cells` (7.4.8), and then by the STAND-INS. The description used to say nothing about which held-back spelling of a label wore that label's form, so the census could fall short of the published count OR run past it; amendment A-P4-47 publishes the fact and closes residual R-P4-34. What can still fall short is the STAND-IN half, where a form's supply is spent or every spelling of it is refused, and the report names it |
 
 The first five rows bind `long_tail_labels` exactly as they bind the
 other three label roles: it publishes the five shared label keys under
@@ -7955,7 +8048,7 @@ this document, and the battery the plan requires turns red on it.
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
 | `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; empty on a nothing-publishing column |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
-| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain |
+| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
 | ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the FIELD-WIDTH census and the offset map; `resolution_mix`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |

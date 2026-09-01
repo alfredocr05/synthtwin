@@ -428,12 +428,17 @@ def test_a_binary_column_publishes_exactly_two_labels() -> None:
             "count": 71,
             "variants": {"YES": 11, "yes": 60},
             "variants_withheld": {},
+            # `yes` is three letters, and a form carries two of the
+            # three kinds -- so this label has no written form and no
+            # spelling of it can wear one (7.4.8, A-P4-47).
+            "shape_form_cells": 0,
         },
         {
             "label": "no",
             "count": 59,
             "variants": {"no": 59},
             "variants_withheld": {},
+            "shape_form_cells": 0,
         },
     ]
     assert described.n_distinct == 3

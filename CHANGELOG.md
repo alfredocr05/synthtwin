@@ -6,6 +6,45 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a twin's invented codes now wear the shape the real ones wore
+
+- **Every published label of a category column records how many of its
+  rows were written in that label's own SHAPE** (`shape_form_cells`;
+  owner ruling of 2026-08-31, plan amendment A-P4-47, closing residual
+  R-P4-34). A column of clinical codes publishes how many of its cells
+  were written in each shape -- a letter, two figures, a point and a
+  figure -- so that the values the disclosure floor holds back get
+  stand-ins of the right shape rather than `group-14`. Where the floor
+  held back more than one spelling of a published label, the
+  description did not say which of them wore the label's shape, and the
+  twin had to guess: measured over 120 built columns, 57 met the
+  published census, 31 wrote too few cells in the shape and 32 wrote
+  too many. It is a single number per label, because every spelling of
+  a label that has a shape wears exactly that label's shape. Given it,
+  the generator writes the shape onto exactly the held-back groups that
+  add up to the number, and the census is met exactly. The
+  reproduction that could not be told apart before now publishes 25
+  against 23, produces two different twins, and both hold their own
+  census.
+
+  What this means for a person reading a description: a category
+  column's entries carry one more whole number each. It publishes no
+  spelling and no shape KEY -- the shape it counts is the shape of the
+  label already printed beside it -- and the floor still decides which
+  values are named. What a reader can take from it is that one of a
+  label's held-back spellings was written in the label's own shape,
+  which is presence and shape and not content.
+
+  The twin's cells for the demonstration table are byte-identical, and
+  its quality report carries nine obligations more than it did and not
+  one fewer.
+
+- **A description asking for more than the spelling supply can write is
+  told so.** A label of one letter has one alternative spelling that
+  keeps its shape. Where a description asks more of its held-back
+  groups to keep the shape than that, the twin writes what it can and
+  the report beside it names the shortfall with both numbers.
+
 ### Fixed: the contract said a rule narrowed a shortfall that it also widens
 
 - **The census of written forms misses in BOTH directions, and two
@@ -25,15 +64,17 @@ exists).
   twin cell is different and no obligation changes: what changes is
   that the document states the bound the tool already had.
 
-### Added: the shortfall is a witness rather than a silence
+### Added: the shortfall was a witness, and the witnesses have gone
 
-- **Both directions are pinned at their exact counts**
-  (`tests/test_p4r34_form_census_per_level.py`). Two source columns
-  differing only in which held-back spelling wore the shape publish
-  identical level entries, produce identical twins, and publish
-  different censuses -- which is what says no rule reading the
-  description can be right about both. Each test fails when the defect
-  is repaired, which is when it should go.
+- **Both directions were pinned at their exact counts**
+  (`tests/test_p4r34_form_census_per_level.py`), and the repair above
+  turned all four of those tests red, which is when a witness should
+  go. The file is rewritten to the repaired behaviour and keeps every
+  measured number -- the same two columns, the same 206 and 204 -- so
+  it reads as a repair of what was reported rather than as a fresh case
+  built to pass. The fifth test stands unchanged: every spelling of a
+  label that has a shape wears exactly that label's shape, which was a
+  property rather than a defect and is what the repair rests on.
 
 ### Added: four columns that were described correctly and silently now speak
 

@@ -400,7 +400,13 @@ REASONS = (
     "kept_by_you",
 )
 
-LEVEL_KEYS = ("count", "label", "variants", "variants_withheld")
+LEVEL_KEYS = (
+    "count",
+    "label",
+    "shape_form_cells",
+    "variants",
+    "variants_withheld",
+)
 
 LABEL_KEYS = (
     "levels",
@@ -1091,6 +1097,12 @@ INVARIANTS = {
         "a published label was written some way, so it has a named "
         "spelling or a held-back one"
     ),
+    "W8": (
+        "the rows that wrote a label in its own written form are at "
+        "least the named spellings that wear one and at most those "
+        "plus every row the floor held back, and a label with no "
+        "written form was written in none"
+    ),
     "P1": (
         "the cells counted by the form they were written in come to the "
         "cells that read as numbers"
@@ -1432,12 +1444,22 @@ class MissingByClass:
 
 @dataclasses.dataclass(frozen=True)
 class LevelEntry:
-    """One published label, its rows, and how those rows wrote it."""
+    """One published label, its rows, and how those rows wrote it.
+
+    `shape_form_cells` is how many of those rows wrote it in the
+    label's own written form (7.4.8, plan amendment A-P4-47). It is one
+    number and not a census because every form-bearing spelling of a
+    level wears exactly `parsing.shape_form(label)`; a label with no
+    form of its own carries 0. It is the fact the twin needs to give
+    the level's made-up spellings the shape the source's held-back ones
+    wore, which the column-wide `shape_forms` cannot say.
+    """
 
     label: str
     count: int
     variants: "dict[str, int]"
     variants_withheld: "dict[str, int]"
+    shape_form_cells: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4575,6 +4597,9 @@ def _levels(
                 count=count,
                 variants=variants,
                 variants_withheld=withheld,
+                shape_form_cells=_shape_form_cells(
+                    block, seat, label, variants, withheld
+                ),
             )
         ]
         seen = seen + [label]
@@ -4606,6 +4631,91 @@ def _levels(
             f"the column holds {n_present} values",
         )
     return tuple(entries), suppressed_levels, suppressed_rows, tuple(sizes)
+
+
+def _shape_form_cells(
+    block: "dict[str, object]",
+    seat: str,
+    label: str,
+    variants: "dict[str, int]",
+    withheld: "dict[str, int]",
+) -> int:
+    """How many rows wrote this label in its own form (7.4.8, W8).
+
+    THE FACT THAT LETS A LEVEL'S MADE-UP SPELLINGS KEEP ITS SHAPE. The
+    column-wide `shape_forms` census cannot say which of a level's
+    held-back spellings wore the label's form, so a generator reading
+    the description alone guessed -- and missed in both directions
+    (residual R-P4-34, plan amendment A-P4-47).
+
+    **W8, and it is TWO bounds and no sum.** The named spellings that
+    have a form already account for cells this number may not fall
+    below; the cells that could still be wearing one are the rows the
+    floor held back, so the number may not rise above the two together.
+    Both ends are facts of THIS ENTRY -- nothing here is compared
+    against the column's own census, and residual R-P4-80 is why: the
+    column census pools below the floor, refuses a form the column has
+    no room for, and counts cells of levels that are not published at
+    all, so it is a fact of its own beside these and not their sum. A
+    reader looking here for a sum rule is looking for something this
+    format deliberately does not state.
+
+    **AND A LABEL WITH NO FORM CARRIES 0.** A spelling belongs to this
+    level when trimming and folding it gives the label; a spelling that
+    has a form holds no space, so trimming changes nothing, and folding
+    an ASCII letter leaves an ASCII letter in place -- so a
+    form-bearing spelling and its fold wear the same form, which is the
+    label's. A label with no form of its own therefore has no
+    form-bearing spelling, and a document saying otherwise describes a
+    column no table can hold.
+
+    **WHAT IS NOT CHECKED HERE, said rather than left to be noticed.**
+    That the outstanding cells can be MADE UP of whole held-back groups
+    is a subset-sum question, and its cost is bounded by nothing this
+    document states. The generator asks it under a budget of its own
+    and NAMES the shortfall where it cannot pay it exactly, which is
+    what this package does with every other search.
+
+    Raises ProfileError for a wrong type, a negative count, and for W8.
+    """
+    shaped = _whole(block["shape_form_cells"], "shape_form_cells", seat, 0)
+    named_in_form = 0
+    for spelling in sorted(variants):
+        if parsing.shape_form(spelling):
+            named_in_form = named_in_form + variants[spelling]
+    _things, held_back_rows = _multiplicity_totals(
+        [(int(key), withheld[key]) for key in sorted(withheld)]
+    )
+    if not parsing.shape_form(label):
+        if shaped:
+            raise _broken(
+                "W8",
+                seat,
+                f"{shaped} rows are said to have written the label in a "
+                "form",
+                f"the label '{label}' has no written form, so no spelling "
+                "of it can have one",
+            )
+        return shaped
+    if shaped < named_in_form:
+        raise _broken(
+            "W8",
+            seat,
+            f"{shaped} rows are said to have written the label in a form",
+            f"the named spellings that wear one already cover "
+            f"{named_in_form}",
+        )
+    if shaped > named_in_form + held_back_rows:
+        raise _broken(
+            "W8",
+            seat,
+            f"{shaped} rows are said to have written the label in a form",
+            (
+                f"{named_in_form} named rows wear one and only the "
+                f"{held_back_rows} held-back rows could join them"
+            ),
+        )
+    return shaped
 
 
 def _variants(
