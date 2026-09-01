@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,229 collected / 52 skipped |
+| suite | 4,231 collected / 52 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now

@@ -5884,25 +5884,48 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
         "styles.published.plain",
     }, filed
 
-    # 2. Two hundred seeds: inside the range, or said out loud.
+    # 2. Two hundred seeds. THE VALUES ARE PARSED, NOT SEARCHED FOR A
+    # DOT (round 1, item 7): `integer_valued` is a fact about the
+    # numbers a column holds, and `1.0` carries a dot while holding a
+    # whole number, so counting dots would pass a twin whose every value
+    # is whole and whose role has moved.
     exact = 0
     for seed in range(200):
         built = generation.generate(described, seed)
         written = [cell for cell in built.columns[0] if cell != ""]
-        pointed = len([cell for cell in written if "." in cell])
+        numbers = [parsing.parse_number(cell) for cell in written]
+        held = [one for one in numbers if one is not None]
+        assert len(held) == 36, (seed, written)
+        pointed = len([one for one in held if one != int(one)])
+        # THE ROLE, ON EVERY SEED. This is the fact the defect moved,
+        # and it is asserted here rather than only on the seed that runs
+        # the validator -- a twin that flips the role on the other 199
+        # would have passed the loop this replaces.
+        assert pointed >= 1, (seed, written)
+        forms: dict[str, int] = {}
+        for cell in written:
+            style = parsing.numeric_style(cell)
+            forms[style] = forms.get(style, 0) + 1
+        plain = forms.get("plain", 0)
+        # AND THE OBLIGATION BY NAME, not any deviation that mentions
+        # the census. `plain` is met from the NAMED count up to that
+        # count plus the pool; below the floor it must be reported.
         said = [
             note for note in built.deviations
-            if note.fact == "numeric_styles"
+            if note.fact == "numeric_styles" and "plain" in note.published
         ]
         if pointed == 2:
             exact = exact + 1
-        if 1 <= pointed <= 2:
-            assert not said, (seed, pointed, said)
+        if 34 <= plain <= 36:
+            assert not said, (seed, plain, said)
         else:
-            assert said, (seed, pointed)
-    # The measured quality of the repair, so a regression shows as one.
-    # Before it, NO seed reached the published count by either road.
-    assert exact >= 180, exact
+            assert said, (seed, plain, pointed)
+    # A TRIPWIRE, NOT A DERIVED BOUND, and said plainly so nobody reads
+    # it as one. Measured on 2026-09-01: 182 of these 200 seeds write
+    # exactly the published two, where before the repair NO seed reached
+    # the count by either road. The number here is round and well under
+    # that, so it catches a collapse without being fitted to the run.
+    assert exact >= 150, exact
     assert not _residual_is_open("R-P4-69"), (
         "this test asserts the repair the register records as closed; if "
         "R-P4-69 is open again, the two must be reconciled"

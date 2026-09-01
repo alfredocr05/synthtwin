@@ -2268,6 +2268,17 @@ def _canonical_number(value: float, whole_column: bool) -> str:
 # it holds can be written with neither mark.
 _WHOLE_STYLES = ("plain", "leading_zero", "leading_plus")
 
+# HOW FAR THE WALK FOR WHOLE NUMBERS MAY CHAIN, AND HOW MUCH IT MAY LOOK
+# AT (round 1, item 4). A chain nests one call per stratum it steps
+# through, and a column may be allotted more strata than the interpreter
+# will nest calls for; the search also asks every holder for its cheapest
+# answer, so the strata it examines is not linear in their number. Both
+# are capped, and a search that reaches either cap gives back what it
+# has -- a stratum keeping a value with a point in it, which the report
+# names -- rather than a wrong answer or a crash.
+_CHAIN_DEPTH = 16
+_CHAIN_WORK = 4096
+
 
 # THE ONE PAIR OF STYLES THAT DIFFER BY CASE ALONE. `1e+15` and `1E+15`
 # are two RAW spellings of one value and one FOLDED identity, and a
@@ -7009,39 +7020,60 @@ def _fraction_inside(
     """A value with a point in it inside this stratum's own share (G6.4).
 
     Strictly inside, so the stratum stays where the ladder put it, and
-    no number another stratum holds, so the count of different values
-    does not fall. The walk halves its way in from the top of the share
-    rather than drawing, because a traded form has to land in the same
-    place for two implementations reading one description.
+    no number another stratum holds, so no value is written twice. The
+    search is fixed rather than drawn, because a held-back form has to
+    land in the same place for two implementations reading one
+    description.
 
-    AND IT NEVER CROSSES ZERO, which is the bound the share alone does
-    not give. A stratum's share is interpolated from the ladder, and the
+    IT NEVER CROSSES ZERO, which is the bound the share alone does not
+    give. A stratum's share is interpolated from the ladder, and the
     rung above a column's last negative value is a positive number, so
     the share of the stratum just under zero STRADDLES it: a column of
     four `-4.5` cells had its negative stratum handed `2.097` and came
-    out holding one negative cell against a published four. `band` is
-    what the stratum was allotted, and the sign of the answer must agree
-    with it exactly as `_whole_inside` requires of its own candidates.
+    out holding one negative cell against a published four. The share is
+    cut back to the stratum's own side of zero before anything is
+    chosen, so a straddling share still yields a value rather than none.
+
+    AND THE SEARCH IS COMPLETE, WHICH HALVING ALONE WAS NOT (round 1,
+    item 3). Eight halvings of a share whose width is a power of two
+    land on eight whole numbers: `(1, 257)` gave `129, 65, 33, 17, 9, 5,
+    3, 2` and this answered None, though `1.5` was there to be had, and
+    the stratum was then passed over in silence. The middle of the share
+    is tried first, and where the middle is WHOLE the answer is the
+    middle plus a step of at most half a unit -- which cannot be whole,
+    because a whole number and a part of one do not add to a whole
+    number -- halved again only to step around a value another stratum
+    holds. So a share of any width at all yields a value unless every
+    candidate is one somebody else is writing.
     """
     if share is None:
         return None
     low = share[0]
     high = share[1]
+    if band == _BAND_ZERO:
+        return None
+    if band == _BAND_NEGATIVE and high > 0.0:
+        high = 0.0
+    if band == _BAND_POSITIVE and low < 0.0:
+        low = 0.0
     if not low < high:
         return None
-    part = (high - low) / 2.0
+    middle = low + (high - low) / 2.0
+    part = (high - middle) / 2.0
+    if part > 0.5:
+        part = 0.5
     step = 0
-    while step < 8:
-        pick = low + part
-        part = part / 2.0
+    while step < 16:
+        pick = middle
+        if step > 0:
+            pick = middle + part
+            part = part / 2.0
         step = step + 1
         if not (pick > low and pick < high) or pick in taken:
             continue
         if band == _BAND_NEGATIVE and not pick < 0.0:
             continue
         if band == _BAND_POSITIVE and not pick > 0.0:
-            continue
-        if band == _BAND_ZERO:
             continue
         if not _carries_plainly(pick, False):
             return pick
@@ -7085,6 +7117,7 @@ def _rehomed(
     reach: int,
     locked: "dict[int, int]",
     seen: "dict[int, int]",
+    budget: "list[int]",
 ) -> "list[tuple[int, float]] | None":
     """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
 
@@ -7138,6 +7171,18 @@ def _rehomed(
     while a single-cell one stood two steps further along: three cells
     kept a point where one would have done, on 85 seeds in 200.
 
+    IT IS BOUNDED IN DEPTH AND IN WORK, and neither bound is tidiness
+    (round 1, item 4). `seen` alone makes the search finite over finitely
+    many strata, which is not the same as safe: a column may be allotted
+    more strata than the interpreter will nest calls for, and a chain
+    through all of them would end in a crash rather than an answer.
+    `_CHAIN_DEPTH` caps the nesting well under that. `budget` caps the
+    strata examined across the whole search, because asking every holder
+    for its cheapest answer explores every simple chain and that count is
+    not linear in the strata. Both give up by returning what they have,
+    which is a stratum keeping a value with a point in it -- a cost the
+    report names -- and never a wrong answer.
+
     A number two strata are BOTH holding is never asked for, because
     moving one of them frees nothing. The plain walk reaches such a pair
     on its own and `_apart_enough` settles them afterwards.
@@ -7149,9 +7194,14 @@ def _rehomed(
     want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
     if want is not None:
         return [(place, want)]
+    if len(seen) >= _CHAIN_DEPTH:
+        return None
     best_moves: "list[tuple[int, float]] | None" = None
     best_cost = 0
     for other in range(total):
+        budget[0] = budget[0] - 1
+        if budget[0] < 0:
+            return best_moves
         if other == place or other in seen or other in locked:
             continue
         if other == 0 or (other == total - 1 and total >= 2):
@@ -7195,6 +7245,7 @@ def _rehomed(
             reach,
             locked,
             ahead,
+            budget,
         )
         if onward is not None:
             best_moves, best_cost = _cheaper(
@@ -7368,6 +7419,7 @@ def _whole_enough(
                         total + 1,
                         locked,
                         {},
+                        [_CHAIN_WORK],
                     )
                     if moves is None:
                         continue
@@ -7569,19 +7621,33 @@ def _pool_enough(
     written with a point that the description did not pool is a `plain`
     count missed just as surely as one written without. The value it
     takes comes from its OWN share of the ladder and is one no stratum
-    holds, so the rung window of G5.6 does not move and the count of
-    different values does not fall: where the whole number it gives up
-    was one another stratum is writing too, that number is still there
-    to be read, and where it was not, the value replacing it stands in
-    its place one for one.
+    holds, so the rung window of G5.6 does not move. WHAT IT DOES TO THE
+    COUNT OF DIFFERENT VALUES DEPENDS ON WHO ELSE HELD THE NUMBER, and
+    an earlier draft of this said otherwise (round 1, item 2). Where the
+    whole number given up was that stratum's alone, the value replacing
+    it stands in its place one for one and the count is unchanged. Where
+    another stratum was writing it too, that number is still there to be
+    read and a value is ADDED, so the count rises by one. Neither
+    direction breaks a published obligation -- `n_distinct_values` is
+    REPORT-ONLY and the spelling budgets are met by the style stage
+    downstream -- but the count is not untouched, and a rule claiming to
+    spend nothing should be right about what it spends.
     """
     if facts.integer_valued:
         return values
-    if _style_named(facts.numeric_styles, "plain") < 1:
-        return values
     pool = _style_pool(facts.numeric_styles)
-    if pool < 1:
-        return values
+    # THE ROLE IS OWED ONE CELL WHATEVER THE CENSUS SAYS (round 1, items
+    # 1 and 5). A column publishing `integer_valued: false` whose twin
+    # holds whole numbers in every cell re-describes as `count`, and the
+    # pooled count is only ONE of the roads there: a description with no
+    # pool at all can name a `decimal` quota its twin then writes as
+    # `1.0`, whole-valued in every cell with the form map still met. So
+    # one cell is owed always, and the pooled count is what is owed on
+    # top of it where `plain` is a named count and the fold makes every
+    # point-free cell a plain one.
+    owed = 1
+    if _style_named(facts.numeric_styles, "plain") >= 1 and pool >= 1:
+        owed = pool
     total = len(values)
     pointed = 0
     widest = 0
@@ -7590,13 +7656,13 @@ def _pool_enough(
             pointed = pointed + layout.sizes[place]
         if layout.sizes[place] > widest:
             widest = layout.sizes[place]
-    if pointed >= pool:
+    if pointed >= owed:
         return values
     taken = {value: 1 for value in values}
     moved = [value for value in values]
     for width in range(1, widest + 1):
         for place in range(total):
-            if pointed >= pool:
+            if pointed >= owed:
                 return moved
             if layout.sizes[place] != width:
                 continue
@@ -7606,7 +7672,38 @@ def _pool_enough(
                 continue
             if not _carries_plainly(moved[place], False):
                 continue
-            if pointed + width > pool:
+            if pointed + width > owed:
+                continue
+            fraction = _fraction_inside(
+                _share_of(place, layout, rungs, column.n_numeric),
+                taken,
+                layout.bands[place],
+            )
+            if fraction is None:
+                continue
+            taken[fraction] = 1
+            moved[place] = fraction
+            pointed = pointed + width
+    if pointed >= 1:
+        return moved
+    # AND THE ROLE IS NOT TRADED FOR AN EXACT FIT. Above, a stratum
+    # wider than the count still wanted is passed over rather than
+    # overshot, because a cell written with a point the description did
+    # not pool is a `plain` count missed. That is a COUNT; this is the
+    # column's TYPE, and a twin of the wrong type is read wrongly by
+    # everything downstream. Where no stratum fits exactly, the
+    # narrowest one there is takes the value anyway.
+    for width in range(1, widest + 1):
+        for place in range(total):
+            if pointed >= 1:
+                return moved
+            if layout.sizes[place] != width:
+                continue
+            if place == 0 or (place == total - 1 and total >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if not _carries_plainly(moved[place], False):
                 continue
             fraction = _fraction_inside(
                 _share_of(place, layout, rungs, column.n_numeric),
