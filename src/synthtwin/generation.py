@@ -357,7 +357,7 @@ _FORMULA_LEADERS = ("=", "+", "-", "@")
 _SPACE = " "
 
 # The four classes every present cell of every role belongs to, in the
-# order method G6.5 shares a distinctness budget out among them.
+# order method G6.6 shares a distinctness budget out among them.
 _CLASS_NUMBER = "number"
 _CLASS_OUT_OF_RANGE = "out_of_range"
 _CLASS_CONTRADICTORY = "contradictory"
@@ -712,7 +712,7 @@ class Twin:
 
 @dataclasses.dataclass(frozen=True)
 class _NumericLayout:
-    """How the cells of a column of numbers divide (method G5.2, G6.5).
+    """How the cells of a column of numbers divide (method G5.2, G6.6).
 
     `sizes` and `starts` are the strata in the fixed order negatives
     ascending, then the zero stratum, then positives ascending; `bands`
@@ -926,7 +926,7 @@ def _case_variant(spelling: str, order: int) -> "str | None":
 
 
 def _budget_split(total: int, counts: "tuple[int, ...]") -> "tuple[int, ...]":
-    """Share a distinctness budget out among the classes (method G6.5).
+    """Share a distinctness budget out among the classes (method G6.6).
 
     Every non-empty class receives one spelling, then the remainder is
     offered to the classes in the fixed order of `_CLASSES`, each taking
@@ -3817,7 +3817,7 @@ def _class_spellings(
     """Every cell of one straggler class, in one fixed order (G10.3).
 
     Distinctness inside a class is supplied by stepping the order on
-    from one; the budget of method G6.5 says how many different
+    from one; the budget of method G6.6 says how many different
     spellings the class may use, and a class that has spent its budget
     repeats its last spelling. A class whose raw budget is above its
     folded budget spends the difference on case variants, which is the
@@ -5895,7 +5895,7 @@ def _unaffixed_spellings(
     What must be refused is a spelling used BEFORE this walk began, so
     the snapshot is taken at entry. A repeat WITHIN the walk is not a
     collision: a class whose spelling budget is spent repeats its last
-    spelling on purpose (G6.5).
+    spelling on purpose (G6.6).
     """
     built: list[str] = []
     already = {spelling: 1 for spelling in used}
@@ -6496,6 +6496,14 @@ def _numeric_content(
     # and after the step that pulls two strata apart, because the values
     # it hands out are fresh and no later step may take them away again.
     values = _pool_enough(column, facts, layout, rungs, values)
+    # AND THE VALUES ARE WIDE ENOUGH FOR THE FIELDS THE CENSUS NAMES
+    # (residuals R-P4-30, R-P4-35 and R-P4-27). LAST, because it moves
+    # a whole value onto another whole value that no stratum holds, so
+    # every guarantee the three passes above just established -- the
+    # point-free count, the strata being apart, the held-back pool --
+    # comes through it untouched, and none of them has to be re-argued
+    # against a value this pass chose.
+    values = _wide_enough(column, facts, layout, rungs, values)
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -6947,7 +6955,7 @@ def _apart_enough(
     hundredths apart where the real values near there are more than a
     unit apart. Written at the published one figure they are both
     `253.0`, so the twin holds 98 numbers against a published 99. The
-    leading-zero rule of G6.5 then supplies the 99th SPELLING the only
+    leading-zero rule of G6.6 then supplies the 99th SPELLING the only
     way it can, by writing one number a second way: `0250.4`, four
     figures before the point where no source cell had more than three.
     The count of different values was still missed, and the width was
@@ -7748,13 +7756,406 @@ def _pool_enough(
     return moved
 
 
+# HOW FAR THE FIGURE SEARCH REACHES, and why it stops there. Whole
+# numbers are exact in binary64 up to 2**53, which is sixteen figures
+# with the last one only partly covered, so fifteen is the widest field
+# every value of which the twin can write and read back unchanged. A
+# census naming a wider field is left to the report rather than served
+# with a value that is not the value it looks like.
+_FIGURE_REACH = 15
+# ...and how many whole numbers the walk examines around its start
+# before giving the width up. The same bound the exchange chain uses,
+# for the same reason: a search over a share holding 1e15 candidates
+# has to stop somewhere, and stopping is reported rather than silent.
+_FIGURE_WORK = 4096
+
+
+def _figure_count(value: float, whole_column: bool) -> int:
+    """How many figures this value's own point-free spelling writes."""
+    return _pad_need(value, whole_column)
+
+
+def _under(value: float) -> int:
+    """The largest whole number at or below this one.
+
+    Written out rather than taken from the running library: the import
+    allowlist enumerates the five names this package may use from
+    `math`, and rounding downward is not one of them (plan D6). `int`
+    truncates TOWARD ZERO, which is the same answer above zero and one
+    too high below it, so the correction is applied by comparison
+    rather than assumed.
+    """
+    whole = int(value)
+    if float(whole) > value:
+        whole = whole - 1
+    return whole
+
+
+def _over(value: float) -> int:
+    """The smallest whole number at or above this one."""
+    whole = int(value)
+    if float(whole) < value:
+        whole = whole + 1
+    return whole
+
+
+def _figured_inside(
+    share: "tuple[float, float] | None",
+    taken: "dict[float, int]",
+    band: str,
+    figures: int,
+    near: float,
+    whole_column: bool,
+) -> "float | None":
+    """A whole value of exactly this many figures for this stratum (G6.6).
+
+    WHICH WHOLE NUMBERS A STRATUM MAY HOLD IS NOT "the ones strictly
+    inside its share", and getting that wrong left a floor-one column
+    two cells short of a width it could reach. G5.3 draws a position
+    inside the stratum's share and G5.4 rounds it to the NEAREST whole
+    number, so every whole number within half a unit of the share is
+    one an ordinary run could have produced for this stratum -- a share
+    of `(9.18, 11.55)` yields 9, 10, 11 and 12, not 10 and 11. The
+    half unit is the one G5.4 already spends and G12.2 already widens
+    the rung window by, so this rule buys nothing the method had not
+    already granted.
+
+    IT IS NOT A WIDENING OF AMENDMENT A-P4-18 either, and the
+    difference is what that amendment measures. A-P4-18 bounds a
+    snap's REACH by the stratum's stretch; the reach here is half a
+    unit, and a stratum whose stretch is narrower than that gets the
+    two whole numbers its own rounding could have reached and no
+    others. A share of `(99.23, 99.79)` holds no whole number at all
+    and yields exactly 99 and 100 -- which is the case the ladder
+    itself does not settle, the crossing of a decade falling between
+    two rungs, and the census is what settles it.
+
+    NEVER ACROSS ZERO, so the counts of negative and zero values stay
+    exactly what they were, and never onto a value another stratum
+    holds unless the caller has established that the value being given
+    up is shared. Both are the rules `_whole_inside` and
+    `_fraction_inside` keep.
+
+    THE NEAREST CANDIDATE TO WHERE THE STRATUM ALREADY IS, so the move
+    is the smallest one that buys the width, and the walk is outward
+    from that point rather than drawn, because two implementations
+    reading one description have to land on the same value.
+
+    Guarantees: accepts a share, the values other strata hold, the
+    stratum's band, a figure count of one or more, the value the
+    stratum holds now and whether the column is whole; returns a value
+    with exactly that many figures that this stratum's own share and
+    rounding could have reached, held by no other stratum -- or None
+    where there is no such value. Determinism: the answer depends only
+    on those inputs. Raises nothing. No I/O of any kind.
+    """
+    if share is None or figures < 1 or figures > _FIGURE_REACH:
+        return None
+    if band == _BAND_ZERO:
+        return None
+    low = share[0]
+    high = share[1]
+    if band == _BAND_NEGATIVE and high > 0.0:
+        high = 0.0
+    if band == _BAND_POSITIVE and low < 0.0:
+        low = 0.0
+    if not low < high:
+        return None
+    smallest = 0 if figures == 1 else 10 ** (figures - 1)
+    largest = 10 ** figures - 1
+    first = smallest
+    last = largest
+    if band == _BAND_NEGATIVE:
+        first = -largest
+        last = -smallest
+    # THE WHOLE NUMBERS THIS STRATUM'S OWN ROUNDING CAN REACH: every
+    # one within half a unit of the share, which is every one some
+    # position inside the share rounds to.
+    reach_low = _under(low - 0.5) + 1
+    reach_high = _over(high + 0.5) - 1
+    if first < reach_low:
+        first = reach_low
+    if last > reach_high:
+        last = reach_high
+    if first > last:
+        return None
+    start = int(round(near))
+    if start < first:
+        start = first
+    if start > last:
+        start = last
+    for step in range(_FIGURE_WORK):
+        below = start - step
+        above = start + step
+        if below < first and above > last:
+            return None
+        for pick in (above, below):
+            if pick < first or pick > last:
+                continue
+            value = float(pick)
+            if value in taken:
+                continue
+            if band == _BAND_NEGATIVE and not value < 0.0:
+                continue
+            if band == _BAND_POSITIVE and not value > 0.0:
+                continue
+            if not _carries_plainly(value, whole_column):
+                continue
+            if _figure_count(value, whole_column) != figures:
+                continue
+            return value
+    return None
+
+
+def _field_demands(facts: contract.NumericFacts) -> "list[tuple[int, int, int]]":
+    """What the two width censuses ask of the VALUES (method G6.6).
+
+    THIS IS THE ARITHMETIC R-P4-30 NAMES, written out. `field_widths`
+    says how many cells were written at each field width and
+    `pad_widths` how many of those wore a leading zero, so subtracting
+    one from the other says how many cells at that width wore NO
+    leading zero -- and a cell with no padding is exactly as wide as
+    its value. Two demands come out of the pair:
+
+    * a padded cell at field width *w* needs a value of AT MOST *w*
+      minus one figures, because the zero in front of it is a figure
+      of the field and not of the value;
+    * an unpadded cell at field width *w* needs a value of EXACTLY *w*
+      figures, there being nothing else to make up the difference.
+
+    A dental-code column publishing `pad_widths {4: 97}` beside
+    `field_widths {4: 300}` therefore asks for 97 values below a
+    thousand and 203 at four figures, which is the magnitude constraint
+    residual R-P4-30 says the description was already carrying and the
+    draw was not reading.
+
+    Each entry is (figures, exact, cells): `exact` is 1 where the value
+    must have that many figures and 0 where that is a ceiling. The list
+    is sorted narrowest first, because a value that fits a narrow
+    ceiling fits every wider one and spending it on a wide one is what
+    leaves the narrow one unfillable -- the rule `_pad_places` keeps
+    over the cells, kept here over the values.
+
+    Guarantees: accepts one numeric block's facts; returns a sorted
+    list of demands, possibly empty. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    named: dict[int, int] = {}
+    for key in sorted(facts.field_widths):
+        if key == contract.WITHHELD:
+            continue
+        named[int(key)] = facts.field_widths[key]
+    if not named:
+        return []
+    padded: dict[int, int] = {}
+    for key in sorted(facts.pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        padded[int(key)] = facts.pad_widths[key]
+    demands: "list[tuple[int, int, int]]" = []
+    for width in sorted(padded):
+        if width - 1 < 1:
+            continue
+        demands = demands + [(width - 1, 0, padded[width])]
+    for width in sorted(named):
+        spare = named[width] - (padded[width] if width in padded else 0)
+        if spare > 0:
+            demands = demands + [(width, 1, spare)]
+    return sorted(demands)
+
+
+def _fields_served(
+    demands: "list[tuple[int, int, int]]",
+    values: "list[float]",
+    layout: "_NumericLayout",
+    whole_column: bool,
+) -> "tuple[tuple[int, int, int] | None, list[int], list[int]]":
+    """Serve every demand from the values already drawn (method G6.6).
+
+    Returns the NARROWEST demand the drawn values cannot cover, with
+    the cells it is still owed, and how many cells of each stratum no
+    demand claimed.
+
+    WHOLE STRATA FIRST, ONE SPLIT AT THE END, which is `_pad_places`'
+    rule and is kept here for a second reason of its own: a stratum
+    holds one value, so a stratum that is only PARTLY spare cannot be
+    moved without breaking a demand it is half serving. Filling from
+    whole strata is what leaves the surplus in strata that can move.
+    """
+    total = len(values)
+    figures = [0 for _place in range(total)]
+    left = [0 for _place in range(total)]
+    for place in range(total):
+        if not _carries_plainly(values[place], whole_column):
+            figures[place] = -1
+            continue
+        figures[place] = _figure_count(values[place], whole_column)
+        left[place] = layout.sizes[place]
+    short: "tuple[int, int, int] | None" = None
+    for exact in (1, 0):
+        for wanted, kind, cells in demands:
+            if kind != exact:
+                continue
+            owed = cells
+            reach = [wanted] if exact else list(range(1, wanted + 1))
+            for round_ in (0, 1):
+                for width in reach:
+                    for place in range(total):
+                        if owed < 1:
+                            break
+                        if figures[place] != width or left[place] < 1:
+                            continue
+                        if round_ == 0 and left[place] > owed:
+                            continue
+                        take = left[place]
+                        if take > owed:
+                            take = owed
+                        left[place] = left[place] - take
+                        owed = owed - take
+            if owed > 0 and (short is None or wanted < short[0]):
+                short = (wanted, exact, owed)
+    return short, left, figures
+
+
+def _wide_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """Draw values the published field widths can be worn by (G6.6).
+
+    THE VALUE STAGE READS THE WIDTH CENSUSES, which is what residual
+    R-P4-27 asks for and what closes R-P4-30 and R-P4-35 with it. Until
+    this pass the value stage ran first and read neither census: it
+    drew from the ladder alone and handed the width stages whatever it
+    had. Where the drawn values could not wear the fields the census
+    named -- and they often could not, a ladder of eleven rungs saying
+    nothing about how many cells lie below a point INSIDE a gap -- the
+    width stages did the best they could and the twin came out at two
+    lengths. A dental-code column of `D0120`, `D1110` and `D2740`, all
+    four figures, published `pad_widths {4: 97}`; the twin drew 78
+    values below a thousand where 97 were needed, and no assignment of
+    78 small values fills 97 narrow fields.
+
+    NOTHING NEW IS PUBLISHED FOR THE PADDED HALF OF THAT. `pad_widths`
+    already said 97 cells hold values of at most three figures; what
+    was missing is a rule that read it. `field_widths` is what the
+    UNPADDED half needed, and it is the key this landing adds.
+
+    THREE RULES ARE NEVER TRADED FOR A WIDTH, and they are the three
+    the sibling passes keep. The two pinned strata hold the published
+    ends of the ladder and are left alone. A stratum in the zero band
+    is left alone, so the count of zero values does not move. And no
+    stratum takes a value another stratum holds, so the count of
+    different values does not fall.
+
+    A STRATUM MOVES ONLY WHERE ITS CELLS ARE SERVING NOTHING, and only
+    where it fits inside what the demand is still owed. A stratum whose
+    cells are half-claimed cannot move without breaking the demand it
+    is half serving, and a stratum wider than the shortfall would
+    overshoot the width it moves to -- which is the same miss in the
+    other direction, and just as visible to somebody checking how long
+    a code is.
+
+    WHERE THE LADDER CANNOT SUPPLY THE WIDTH, THE WIDTH IS GIVEN UP AND
+    `_field_notes` NAMES IT. That is amendment A-P4-18's rule: a value
+    may move no further than the stretch of the ladder its own stratum
+    covers, and a description asking for a width no stratum's stretch
+    holds is one the twin reports rather than buys with a value the
+    windows would then miss.
+    """
+    demands = _field_demands(facts)
+    if not demands:
+        return values
+    total = len(values)
+    moved = [value for value in values]
+    for _round in range(total + 1):
+        short, left, figures = _fields_served(
+            demands, moved, layout, facts.integer_valued
+        )
+        if short is None:
+            return moved
+        wanted, exact, owed = short
+        reach = [wanted]
+        if not exact:
+            reach = list(range(wanted, 0, -1))
+        # HOW MANY CELLS AT EACH FIGURE COUNT NO DEMAND CLAIMED. A
+        # stratum whose cells are half claimed can still move, provided
+        # its whole size is covered by cells of its own figure count
+        # that are serving nothing -- those cells take its place in
+        # whatever it was serving, cell for cell, because a cell serves
+        # a demand by its figure count and by nothing else. Requiring
+        # the STRATUM to be wholly spare instead is the rule this
+        # started with, and it left a 230-row code column one cell
+        # short at every seed the surplus happened to straddle.
+        spare: "dict[int, int]" = {}
+        for place in range(total):
+            if left[place] < 1:
+                continue
+            count = figures[place]
+            spare[count] = (spare[count] if count in spare else 0) + left[place]
+        # WHO ELSE IS HOLDING EACH VALUE. A stratum giving up a value
+        # ANOTHER stratum is also holding takes nothing away from the
+        # count of different values, so it may land on a value already
+        # held: what it vacates stays behind and what it lands on was
+        # there or is new. A stratum holding a value alone may land
+        # only on a fresh one, which is the rule the sibling passes
+        # keep. Drawn values ARE shared -- two strata either side of a
+        # rung can round onto one whole number -- so this is a case
+        # that arises rather than one imagined for it.
+        holders: "dict[float, int]" = {}
+        for value in moved:
+            holders[value] = (holders[value] if value in holders else 0) + 1
+        taken = {value: 1 for value in moved}
+        chosen = -1
+        picked = 0.0
+        for place in range(total):
+            if place == 0 or (place == total - 1 and total >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if figures[place] < 1 or layout.sizes[place] > owed:
+                continue
+            held = spare[figures[place]] if figures[place] in spare else 0
+            if held < layout.sizes[place]:
+                continue
+            mine = taken
+            if holders[moved[place]] > 1:
+                mine = {}
+            for count in reach:
+                if figures[place] == count:
+                    break
+                share = _share_of(place, layout, rungs, column.n_numeric)
+                found = _figured_inside(
+                    share,
+                    mine,
+                    layout.bands[place],
+                    count,
+                    moved[place],
+                    facts.integer_valued,
+                )
+                if found is None:
+                    continue
+                chosen = place
+                picked = found
+                break
+            if chosen >= 0:
+                break
+        if chosen < 0:
+            return moved
+        moved[chosen] = picked
+    return moved
+
+
 def _number_cells(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     layout: "_NumericLayout",
     values: "list[float]",
 ) -> "tuple[list[str], list[Deviation]]":
-    """Write every cell that reads as a number (method G6.4, G6.5).
+    """Write every cell that reads as a number (method G6.4, G6.6).
 
     Styles are shared out over the cells in stratum order by largest
     remaining quota, narrowed to the styles each cell's own value can
@@ -14824,6 +15225,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _width_notes(column, written)
             + _fraction_notes(column, measured)
             + _pad_notes(column, measured)
+            + _field_notes(column, measured)
             + _whole_notes(column, measured)
             + _magnitude_notes(column, measured)
             + _style_notes(column, measured)
@@ -15536,6 +15938,98 @@ def _pad_notes(
                 "pad_widths",
                 f"{published[width]} cell(s) written {width} "
                 f"figure(s) wide with a leading zero",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _field_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published field width the whole-written cells missed.
+
+    THE THIRD CENSUS OWES THE SAME SENTENCE THE OTHER TWO OWE. It is
+    EXACT-OBSERVABLE for the reason they are: a person opens the twin,
+    counts the figures each whole-written cell carries, and gets the
+    published census back. Where the twin cannot pay -- because no
+    stratum's own stretch of the ladder holds a value of the figure
+    count a width needs (amendment A-P4-18) -- it owes the reader a
+    sentence rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the census itself used, and over the CORES on the affixed role for
+    the reason `_pad_notes` gives: reading a core still wearing its
+    prefix as a bare number finds no number at all.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.field_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.field_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.field_widths:
+        pooled = facts.field_widths[contract.WITHHELD]
+    # AND THE FORMS MAP'S OWN POOL WIDENS THE WINDOW, exactly as it does
+    # in the validator's reading of this census: a cell the forms map
+    # held back may be written point-free, and a point-free cell lands
+    # at some field width. Contract 7.10's P9c is that bound stated over
+    # the whole census; this is it read at one width.
+    if contract.WITHHELD in facts.numeric_styles:
+        pooled = pooled + facts.numeric_styles[contract.WITHHELD]
+    prefix = ""
+    suffix = ""
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+    counted: dict[int, int] = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(body) not in taxonomy.POINT_FREE_STYLES:
+            continue
+        width = parsing.pad_width(body)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each field width as a whole number, padded or not, and the "
+        "twin wrote a different number of them at that width. The "
+        "values are within the bounds the description sets; what "
+        "changes is how many FIGURES each cell appears to carry, so "
+        "code developed against the twin that checks a length, slices "
+        "a fixed-width code, or joins on one can behave differently on "
+        "the real table."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "field_widths",
+                f"{published[width]} cell(s) written {width} "
+                f"figure(s) wide as a whole number",
                 f"{found}",
                 sense,
             )

@@ -2936,8 +2936,32 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   was a residual: every published count was met and the miss was
   reported. What changed is that the twin no longer has to choose.
 
-- **R-P4-35** (opened by P4-D18's build, 2026-08-25, and NOT caused by
-  it). A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
+- **R-P4-35 — CLOSED 2026-09-01 by landing L6** (opened by P4-D18's
+  build, 2026-08-25, and NOT caused by it). The census was widened to
+  cover the unpadded cells, which is what this entry asked for:
+  `field_widths` counts every cell written as a whole number, padded or
+  not, and plan P4-D30 states it.
+
+  **MEASURED end to end on the entry's own shape**, a 230-row column
+  running `000` to `199` with 127 padded cells and 103 unpadded:
+  **before, the 103 unpadded cells had their width published NOWHERE,
+  20 of 40 seeds wrote one of them two figures wide, and no page said
+  anything about it; after, 2 of 40 seeds do, and on both the twin's
+  own report NAMES the shortfall and `synthtwin validate` lists the
+  census beside it.** The width is published, it is consumed by the
+  value stage, and where it is missed it is said out loud.
+
+  **WHAT THE REMAINING TWO SEEDS ARE, so nobody reads this closure
+  wider than it is.** The ladder puts 128 cells below a hundred where
+  the source holds 127, the rung above the crossing being interpolated
+  across a jump; the value stage repairs that at 38 seeds in 40 by
+  moving one stratum, and at the other two the move would cost a value
+  no other stratum holds. That is the CELL ALLOTMENT, not this census,
+  and it is opened as **R-P4-114**.
+
+  The entry as it was measured stands below.
+
+  A FIXED-WIDTH CODE COLUMN WHOSE LARGER CODES NEED NO LEADING
   ZERO LOSES THAT WIDTH ON THE UNPADDED HALF. A vaccine-code column
   running `000` to `199` is a column of numbers, so `pad_widths`
   governs it — and that census counts LEADING-ZERO cells only (C6-28b).
@@ -4465,6 +4489,80 @@ declaration for only one of them.
   belongs to had already closed the defect it was found under, and the
   ordering question is its own piece of work.
 
+- **R-P4-114 — OPEN (opened 2026-09-01 by landing L6; PRE-EXISTING,
+  and it is what stops that landing being three closures instead of
+  two-and-a-half).** THE CELL ALLOTMENT READS THE LADDER AND NOT THE
+  WIDTH CENSUS, SO A BOUNDARY BETWEEN TWO FIELD WIDTHS FALLS UP TO ONE
+  STRATUM OUT.
+
+  G5.2 divides the cells among the strata from the published ladder
+  alone. Where a decade boundary falls INSIDE a gap between two rungs
+  the linear interpolation across that gap puts the boundary in the
+  wrong place, and the twin then holds the wrong NUMBER of cells below
+  it. L6's value stage repairs what it can by moving a stratum's value,
+  but no move of a value changes a cell COUNT, so where the shortfall
+  is a whole stratum's worth the census cannot be met at all.
+
+  **THREE MEASUREMENTS, all through the real reader, producer, loader,
+  generator and validator, and all one cause.**
+
+  1. A 230-row vaccine-code column `000`–`199`: the source holds 127
+     cells below a hundred, the ladder puts 128 there. Repaired at 38
+     seeds in 40 by moving the boundary stratum; at the other 2 the
+     move would cost a value no other stratum holds, and the twin
+     writes one cell two figures wide.
+  2. The `+1` / `-99` / `-02` column of R-P4-27, 33 cells, 11 of each:
+     the layout gives its three strata **12, 10 and 11** cells. Only
+     ten cells can then carry the padded style, the eleventh is written
+     `-099`, and `numeric.pad_widths` is MISSED 11 → 10 at every seed
+     tried. The VALUES are right — `-99`, `-2`, `+1`, the three the
+     source held — and the counts are not.
+  3. The floor-one demonstration column of
+     `tests/test_p3v5f1_floor_one.py`, 225 numeric cells publishing
+     `field_widths {1: 7, 2: 43, 3: 175}`: the twin reaches 6, 44, 175.
+     Five strata carry the values below ten and their sizes come to
+     six cells where the description says seven.
+
+  **THIS IS WHY `field_widths` IS REPORT-ONLY** (plan P4-D30), and
+  closing this residual is what would let it be exact. Measured over
+  eighty runs of forty described columns at the default floor, 36
+  missed at least one named width and the widest gap was 71 cells.
+
+  What closes it is the allotment reading the census: the strata sizes
+  chosen so that the cells on each side of a published width boundary
+  come to the published counts, which is G5.2's stage and interacts
+  with the distinctness budget, the zero stratum and the sign counts
+  that stage already places exactly. It is design work and not a
+  repair, which is why it is a residual.
+
+- **R-P4-113 — OPEN (opened 2026-09-01 by landing L6; PRE-EXISTING).**
+  THE CONTRACT ASSEMBLER REBUILDS A DOCUMENT FIVE DAYS STALE, AND
+  NOTHING SAYS SO.
+
+  `docs/spec/profile-contract-v6.md` is described by
+  `tools/spec/assemble_v6.py` as assembled from the section files in
+  `docs/spec/v6-build/`, and that script's own docstring says the
+  assembly "is not a one-time act: a repair lands in a section and the
+  document is rebuilt, so that no fix ever exists only in the assembled
+  copy". The build folder has not moved since 2026-08-26; the assembled
+  document has moved on five commits since.
+
+  **MEASURED**: running `tools/spec/assemble_v6.py` on the tree of
+  2026-09-01 rewrites the shipped contract with **298 inserted lines
+  and 1,875 deleted ones**, silently discarding every repair the
+  document has taken since the build folder was last touched — the
+  per-level form census, the mode, the finer ladder, the version
+  ruling of section 1.7a among them. Nothing in the tree refuses that
+  run, and the assembly checker `tools/spec/check_assembly.py` reads
+  the stale folder, so it reports clean on sections nothing ships.
+
+  Nobody has been bitten by it because nobody has run the script. It is
+  opened rather than fixed because the choice it needs is not an
+  implementer's: either the sections become the source again — which
+  means back-porting five commits of repairs section by section — or
+  the assembled document is declared the source and the build folder
+  and both tools are retired with a sentence saying so.
+
 - **R-P4-112 — OPEN (opened 2026-09-01 by adversarial round P4-C1-R1,
   item 6; PRE-EXISTING, and unchanged by the landing that found it).**
   A JOINED POSITION MISSES ITS `plain` FLOOR BY TWELVE CELLS.
@@ -4750,7 +4848,7 @@ declaration for only one of them.
   values near there are 252.2, 253.3 and 254.4 -- more than a unit
   apart. `fraction_widths` publishes one figure after the point for
   every cell, so both strata are written `253.0` and the column's
-  spellings fall to 98. The leading-zero raise of G6.5 then supplies
+  spellings fall to 98. The leading-zero raise of G6.6 then supplies
   the 99th, and the spelling it supplies is `0250.4`.
 
   **WHAT EACH PUBLISHED COUNT DOES.** `n_distinct` 99 comes out
@@ -4880,7 +4978,7 @@ declaration for only one of them.
   supply -- and compared that number against `n_distinct_folded`.
 
   Those are two different quantities. `1e+15` and `1E+15` are two raw
-  spellings of one folded identity, and G6.5 names that pair as the
+  spellings of one folded identity, and G6.6 names that pair as the
   ONLY construction a numeric column has for reaching a raw count above
   a folded one. So the guard fired on the very columns the pair exists
   for, packed it away, and left the column one raw spelling short of
@@ -4890,7 +4988,7 @@ declaration for only one of them.
   **FOUND BY THE ORACLE, and it could not have been found any other
   way.** `numeric_decimal_styles` publishes `n_distinct` 24 against
   `n_distinct_folded` 23, so it needs exactly one case pair. The
-  reference implementation of G6.4 and G6.5 wrote the pair; this one
+  reference implementation of G6.4 and G6.6 wrote the pair; this one
   did not; the committed vector is what put the two answers side by
   side. Every style count and every folded identity was met by BOTH
   columns, so no check over published facts alone would have separated
@@ -5054,8 +5152,28 @@ declaration for only one of them.
   the columns it was not meant for. Which columns it reaches is a
   decision of its own, and until it is taken the route is the one the
   remark names: write the column with a decimal point.
-- **R-P4-30** (opened 2026-08-24, from the survey of healthcare code
-  columns). A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
+- **R-P4-30 — CLOSED 2026-09-01 by landing L6** (opened 2026-08-24,
+  from the survey of healthcare code columns). What closed it is the
+  route this entry itself named: the description already said how many
+  cells hold a value of at most three figures, and the VALUE STAGE now
+  reads it. Method G6.6 turns `pad_widths` and the new `field_widths`
+  into demands on each stratum's value and moves a stratum inside the
+  half unit G5.4's integer rule already spends.
+
+  **MEASURED end to end through the real reader, producer, loader,
+  generator and validator**, on a 300-row dental-code column of `D`
+  plus four figures, 85 distinct codes, publishing `pad_widths {4: 97}`
+  and `numeric_styles {plain: 203, leading_zero: 97}` — the entry's own
+  shape, rebuilt rather than the entry's own column, which no longer
+  exists: **before, 14 of 40 seeds wrote at least one core at a width
+  the source never used and 56 cores were misplaced in all; after, 0 of
+  40 and none.** The census `field_widths {4: 300}` is met at every
+  seed.
+
+  The entry as it was measured stands below, because the measurement is
+  what the closure rests on.
+
+  A PLAIN NUMERIC CELL CARRIES NO WIDTH FACT, so a code
   column whose values are uniformly wide can still be written at two
   lengths. `pad_widths` censuses the cells written with a leading zero
   and nothing censuses the rest — but a column of dental codes is
@@ -5130,9 +5248,35 @@ declaration for only one of them.
   What is new is only that the second read found a shape where the
   choice is visible. It is named here so that the next reader meets it
   rather than rediscovering it.
-- **R-P4-27** (opened by amendment A-P4-34, 2026-08-24; RESTATED at
-  the third adversarial read, which showed the first wording was
-  wrong). THE VALUE STAGE DOES NOT KNOW WHAT FIELDS THE CENSUS ASKS
+- **R-P4-27 — CLOSED 2026-09-01 by landing L6, on this entry's own
+  criterion, with what survives named** (opened by amendment A-P4-34,
+  2026-08-24; RESTATED at the third adversarial read). This entry says
+  in as many words what closing it means: "letting the value stage see
+  what fields the census asks for". Method G6.6 is that, and
+  `docs/spec/generation-method-v1.md` carries it: the value stage now
+  reads both width censuses, turns them into demands on each stratum's
+  value, and moves a stratum to meet one.
+
+  **DEMONSTRATED on the harder of the two shapes this entry names** —
+  "where the padded cells are a minority holding a range of their own",
+  which is the dental-code column of R-P4-30 above: 97 four-figure
+  codes below a thousand beside 203 plain four-figure numbers above it,
+  14 of 40 seeds misplacing a core before and 0 of 40 after.
+
+  **AND NOT ON THE `+1` / `-99` / `-02` COLUMN THIS ENTRY OPENS WITH,
+  which is said plainly rather than left for a reader to find.** Built
+  again through the real path, that column no longer draws `-33`: it
+  draws `-99`, `-2` and `+1`, the three values the source held. It
+  still misses, at 40 seeds in 40, and the cause is not the value
+  stage. The layout gives its three strata 12, 10 and 11 cells where
+  the source holds 11 each, so only ten cells can carry the padded
+  style and the eleventh is written `-099`, three figures wide. No move
+  of any value repairs a cell COUNT. That is **R-P4-114**, opened
+  below.
+
+  The entry as it was restated stands below.
+
+  THE VALUE STAGE DOES NOT KNOW WHAT FIELDS THE CENSUS ASKS
   FOR. It was first written here as though the profile could ask for
   facts that cannot hold together. It cannot, and saying so blamed the
   description for the tool's own limit: the source column is a
@@ -6112,6 +6256,114 @@ and is met exactly.
 **Disposition: EXACT-OBSERVABLE**, against a recount of the twin's own
 finished cells, exactly as the fraction census is, and reported rather
 than met wherever the paragraph above bites.
+
+### P4-D30 The whole-number field width fact (owner ruling 2026-08-26)
+
+The numeric styles machinery gains its THIRD census, carried beside the
+styles block as the other two are: over every cell written as a WHOLE
+NUMBER — padded or not — the count sharing each field width, the
+figures written before any point with the sign not counted,
+floor-governed with a pooled remainder like every styles fact. The key
+is `field_widths` and the contract states it at 7.10.
+
+**The owner ruled it in** on 2026-08-26, close-plan decision 2, in
+these words: "R-P4-30 width of plain numbers — yes. Agree. A count of
+characters per width; no value leaves the building."
+
+**What it is for.** P4-D14 gave the padded cells a width and left the
+rest of the column with none. `pad_widths` censuses the cells wearing a
+redundant zero and `fraction_widths` the figures after a point, so a
+cell written `199` is in neither and its width was published NOWHERE. A
+vaccine-code column running `000` to `199` publishes a width for its
+padded half and nothing at all for the hundred and three cells written
+`100` to `199`, and the twin wrote some of them two figures wide with
+no report naming it (**R-P4-35**). A column of plain codes is the same
+shape with no padded half at all (**R-P4-30**).
+
+**Which cells it covers, and why that boundary and no other.** Three of
+the six styles carry neither a point nor an exponent — `plain`,
+`leading_plus` and `leading_zero` — and those three are exactly the
+cells that have a figure field and nothing else. A cell with a point
+has its figures counted by `fraction_widths` on the other side of it,
+and counting the figures before its point here would say that a column
+of `12.5` and a column of `12` were written alike. A cell this census
+does not describe is counted nowhere, `(withheld)` included, which is
+the rule the form census already keeps for a cell with no form.
+
+**IT OVERLAPS `pad_widths` DELIBERATELY.** A padded cell is a
+whole-written cell, so it is in both censuses, and the difference
+between them is how many cells at that width wore no padding. That
+difference is the point of the key: an unpadded cell is exactly as wide
+as its VALUE, so the pair states a magnitude constraint. A dental-code
+column publishing `pad_widths {4: 97}` beside `field_widths {4: 300}`
+says 97 cells hold a value below a thousand and 203 hold one of four
+figures.
+
+**How the twin meets it, and why this is the HARDER of the three width
+rules.** A padded width is bought with a zero and spends nothing; a
+fraction width is bought by adjusting the value and spends the guards
+P4-D4.5 built. This one cannot be bought at the writing stage at all,
+because an unpadded cell's width IS its value's magnitude. So the
+VALUE STAGE reads the census — which is what residual **R-P4-27** asks
+for and is the third residual this decision closes. Method G6.6 states
+the rule: the two censuses are turned into demands on each stratum's
+value (so many cells of at most *w* minus one figures for the padded
+cells at width *w*, so many of exactly *w* figures for the rest), the
+demands are served from the values already drawn narrowest first, and
+where one is short a stratum whose cells are serving nothing — or
+whose duty is covered cell for cell by surplus of its own figure count
+— moves inside its own share of the ladder to a value of the figure
+count wanted.
+
+**THE BOUND, WHICH IS AMENDMENT A-P4-18's AND NOT A NEW ONE.** A value
+moves no further than the stretch of the published ladder its own
+stratum covers. Where a width the census names has no such value to
+reach it, the width is given up rather than bought with a value the
+rung windows would then miss, and BOTH pages say so: the twin's report
+names the shortfall and `synthtwin validate` reports
+`numeric.field_widths` MISSED with the published count beside the
+achieved one.
+
+**One case the stretch does not settle, and this decision settles it.**
+A stratum whose stretch holds NO whole number has already stepped
+outside it — a share of `(99.23, 99.79)` on a column of whole numbers
+takes 99 or it takes 100 — and until this census existed nothing
+preferred one neighbour over the other. The census now decides between
+those two and between no others. That is not a widening of A-P4-18: it
+is a choice A-P4-18 never made.
+
+**What it costs a person, stated here and priced in contract 12.3 row
+19.** On the padded cells a width is a fact about the writing alone.
+On the UNPADDED cells it is the value's decimal order of magnitude, so
+this census is a BINNED count of the column's own magnitudes at decade
+resolution, computed over real cells and floor-governed like every
+other census here. It publishes no value, no endpoint and no rung, and
+it says nothing about which cells fall in a decade. That is the trade
+the owner took, and the argument for it is the one P4-D14 makes: a
+fixed-width code column whose twin comes back at two lengths breaks a
+length check, a fixed-width slice and a join, silently, on the one kind
+of column a person is least likely to re-measure.
+
+**Disposition: REPORT-ONLY, and it was MEASURED before the class was
+chosen.** The twin follows
+the count sharing each whole-number field width, and is not held to it.
+The other two censuses are facts about SPELLING and the writing stage
+can meet either exactly; an unpadded cell is exactly as wide as its
+VALUE, so this one is a magnitude fact and magnitudes are placed by the
+ladder. Eighty generation runs over forty described columns at the
+default floor: thirty-six missed at least one named width and the
+widest gap was seventy-one cells. A check would have called the shipped
+generator's own twin broken on nearly half the columns it is handed,
+which is this phase's standing trap and the fifth fact to walk into it.
+
+**What REPORT-ONLY does NOT mean here.** The census is consumed by the
+value stage, which is the whole of this decision, and the shortfall is
+NAMED on both pages: the twin's report carries a deviation with the
+published count beside the achieved one, and `synthtwin validate`
+lists the census with a sentence saying the twin follows it without
+being held to it. Making it exact means the CELL ALLOTMENT reading the
+census as well as the values, which is G5.2's stage and a different
+landing: residual R-P4-114.
 
 ### P4-D15 The date shapes a spreadsheet actually writes
 

@@ -324,6 +324,13 @@ PLAN4_REGIONS = {
         "(closes R-P3-12's route)"
     ),
     "padding": "### P4-D14 The padded-field width fact",
+    # The THIRD width census, over every whole-written cell rather than
+    # over one style of them. The owner ruled it in on 2026-08-26
+    # (close-plan decision 2) and the plan states it at P4-D30.
+    "whole-widths": (
+        "### P4-D30 The whole-number field width fact "
+        "(owner ruling 2026-08-26)"
+    ),
     # The two widths of the unrepresentable role. Version 4's matrix has
     # no row for them -- version 4 had no such key, and they were what
     # settled R-P2-1 -- so they are held to the Phase 4 decision that
@@ -864,6 +871,27 @@ REGISTRY += [
         plan_words="the count sharing each field width",
         plan_region="padding",
         aliases=("padding census", "field-width census"),
+    ),
+    # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
+    # sibling of the styles map and is the ONE of the three that is not
+    # exact. Its two siblings are facts about SPELLING and are bought
+    # at the writing stage; an unpadded cell is exactly as wide as its
+    # VALUE, so this one is a magnitude fact and magnitudes are placed
+    # by the ladder. Measured before the class was chosen: eighty runs
+    # over forty described columns at the default floor, thirty-six
+    # missing at least one named width and the widest gap seventy-one
+    # cells. The twin FOLLOWS the census -- a dental-code column went
+    # from fourteen seeds in forty writing a cell at a width the source
+    # never used to none -- and the report names every shortfall, which
+    # is what REPORT-ONLY means here. Upgrading it is residual
+    # R-P4-114.
+    Fact(
+        "numeric",
+        "field_widths",
+        REPORT_ONLY,
+        plan_words="the count sharing each whole-number field width",
+        plan_region="whole-widths",
+        aliases=("whole-number field width", "whole-width census"),
     ),
     # Plan P4-D4.7. REPORT-ONLY, and the reason is worth stating where
     # a reader meets it. The twin's shape FOLLOWS this census -- on a

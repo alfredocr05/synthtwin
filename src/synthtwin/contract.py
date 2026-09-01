@@ -450,6 +450,7 @@ DATETIME_KEYS = (
 NUMERIC_KEYS = (
     "fraction_widths",
     "pad_widths",
+    "field_widths",
     "value_histogram",
     "integer_valued",
     "mean",
@@ -709,6 +710,10 @@ AFFIXED_REMARK_PARTS = (
 # spelling repeated at two sites is a spelling one site can change.
 DECIMAL_STYLE = "decimal"
 LEADING_ZERO_STYLE = "leading_zero"
+# ...and the three of the six that carry no point and no exponent,
+# which are exactly the cells the FIELD-width census counts (P4-D30).
+PLAIN_STYLE = "plain"
+LEADING_PLUS_STYLE = "leading_plus"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -1164,6 +1169,22 @@ INVARIANTS = {
         "the cells held back from the forms map fit inside the forms "
         "that map does not name, once both width censuses have said "
         "how many of them they account for"
+    ),
+    # The census of WHOLE-WRITTEN field widths (plan P4-D30). Its sum
+    # is bounded on two sides rather than pinned on one, because it
+    # counts three of the six forms rather than one.
+    "P6c": (
+        "every whole-number field width the census names was written "
+        "by at least the smallest group size"
+    ),
+    "P7c": (
+        "a field width of no figures at all is a width no cell written "
+        "as a whole number can wear"
+    ),
+    "P9c": (
+        "the cells counted by the width of the field they wrote come "
+        "to the cells written in a form that carries no point, give or "
+        "take the cells the forms map held back"
     ),
     # The census of written forms. Registered here because a rule this
     # module RAISES and this table does not hold reaches a person as a
@@ -1685,6 +1706,12 @@ class NumericFacts:
     numeric_styles: "dict[str, int]"
     fraction_widths: "dict[str, int]"
     pad_widths: "dict[str, int]"
+    # HOW WIDE EVERY WHOLE-WRITTEN CELL WROTE ITS FIGURE FIELD (plan
+    # P4-D30, closing R-P4-30 and R-P4-35). The other two censuses
+    # cover the padded cells and the figures after a point; a cell
+    # written `199` is in neither, so nothing published said how wide
+    # it was.
+    field_widths: "dict[str, int]"
     # HOW MANY OF THIS COLUMN'S NUMBERS FALL IN EACH OF THE THIRTY-TWO
     # EQUAL BINS between its published ends (plan P4-D4.7). A ladder and
     # the moments cannot show two peaks; this can, and it is the one
@@ -5674,6 +5701,7 @@ def _numeric_facts(
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
+    fields = _field_widths(mapping, where, frame.floor, styles)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
     # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
@@ -5760,6 +5788,7 @@ def _numeric_facts(
         numeric_styles=styles,
         fraction_widths=widths,
         pad_widths=padded,
+        field_widths=fields,
         value_histogram=histogram,
     )
 
@@ -6028,6 +6057,112 @@ def _padded_widths(
         "a padded cell writes at least one zero in front of at least "
         "one figure, so its narrowest field is two",
     )
+
+
+POINT_FREE_STYLES = (PLAIN_STYLE, LEADING_PLUS_STYLE, LEADING_ZERO_STYLE)
+
+
+def _field_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How wide every whole-written cell wrote its figure field (7.9).
+
+    THE THIRD CENSUS, AND IT IS NOT READ UNDER `_width_census` (plan
+    P4-D30). That reading is written for a census of ONE form, whose
+    sum equals that form's count exactly or else lives inside the
+    styles map's pooled remainder. This census covers THREE forms at
+    once -- `plain`, `leading_plus` and `leading_zero`, which are
+    exactly the forms carrying no point and no exponent -- so its sum
+    is bounded on two sides rather than pinned on one, and forcing it
+    through the other reading would have meant asking a rule a question
+    it was not written to answer.
+
+    WHAT BINDS IT, and each of the three is provable from the
+    definition rather than assumed:
+
+    1. every cell counted by a NAMED point-free style is a cell this
+       census counts, so the total is at least their sum;
+    2. every further cell it counts was held back from the styles map,
+       so the total is at most that sum plus the pooled remainder;
+    There is deliberately no THIRD condition against `n_numeric`: P1
+    makes the styles map sum to the numeric count exactly, so the
+    second bound above IS that ceiling, and writing it again would be
+    a check that cannot fail.
+
+    WHAT IT DOES NOT CHECK IS STATED RATHER THAN LEFT TO BE FOUND. A
+    loader holds no table, so nothing here checks that a width count IS
+    the count of source cells at that width -- that is producer
+    obligation XW-P -- and nothing here compares this census against
+    `pad_widths`, whose cells are a SUBSET of these and whose widths
+    are reached by padding rather than by magnitude.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    width, a named width below the floor, a width of nought, and for
+    either end of the sum bound.
+    """
+    widths = _counts(mapping["field_widths"], "field_widths", where, 1)
+    for name in sorted(widths):
+        if name == WITHHELD:
+            continue
+        if not _is_canonical_width(name):
+            raise _out_of_range(
+                f"field_widths -> {name}",
+                where,
+                f"'{name}'",
+                "a whole number of figures written without padding",
+            )
+        if int(name) < 1:
+            # A CELL WRITTEN WHOLE WRITES AT LEAST ONE FIGURE. A census
+            # naming width 0 describes cells no producer can have read
+            # and no twin can write.
+            raise _broken(
+                "P7c",
+                where,
+                "the width '0' is named",
+                "a cell written as a whole number writes at least one "
+                "figure",
+            )
+        if widths[name] < floor:
+            raise _broken(
+                "P6c",
+                where,
+                f"the width '{name}' was written by {widths[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(widths)
+    named = 0
+    for style in POINT_FREE_STYLES:
+        if style in styles:
+            named = named + styles[style]
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    if total < named:
+        raise _broken(
+            "P9c",
+            where,
+            f"{total} cells are counted by the width of the field they "
+            f"wrote",
+            f"{named} cells were written in a form that carries no point",
+        )
+    if total > named + pooled:
+        raise _broken(
+            "P9c",
+            where,
+            f"{total} cells are counted by the width of the field they "
+            f"wrote",
+            f"{named} cells were written in a named form that carries no "
+            f"point, and {pooled} cells in all were held back from the "
+            f"forms map",
+        )
+    # AND THERE IS NO SEPARATE CEILING AGAINST `n_numeric`, which is
+    # stated here rather than left as a gap. P1 makes the styles map
+    # sum to the numeric count exactly, so `named + pooled` IS
+    # `n_numeric` and the bound above is that ceiling already. A third
+    # comparison would be a check that cannot fail, which this
+    # repository counts as a defect rather than as caution.
+    return widths
 
 
 def _width_census(

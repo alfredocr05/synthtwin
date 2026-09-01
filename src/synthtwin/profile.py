@@ -913,6 +913,9 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "field_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "field_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
@@ -943,6 +946,11 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    # ...and the third census, over EVERY whole-written cell rather
+    # than over one form of them (P4-D30). Same grammar, same floor.
+    ("columns", _EACH, "field_widths"): _OBJECT,
+    ("columns", _EACH, "field_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
