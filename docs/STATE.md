@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,225 collected / 51 skipped |
+| suite | 4,230 collected / 51 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
@@ -1357,20 +1357,21 @@ hundred characters wide, with both widths reported missed. **A repair
 that met the width had turned a reported miss into a stopped command.**
 The exponent moves now — mantissa first, then the exponent outward from
 400, up to 999 and down from 399 — so the capacity at a width is the
-SHAPE's own: 6,219 five-character spellings for the too-large shape
+SHAPE's own: 6,227 five-character spellings for the too-large shape
 where a fixed exponent gave nine. That column generates, holds all
 sixteen values at five characters, and misses nothing. *A repair can
 move a hazard, and a capacity rule is where this one moved to.*
 
 **AND WHERE THE WALK STOPS IS ASKED OF THE PARSER, NOT WRITTEN DOWN.**
-Measured, and the two shapes stop DIFFERENTLY: the too-large shape
-stops on an exponent boundary at `1e308` (capacity 6,219 at five
-characters), the too-small shape two spellings INTO an exponent at
-`3e-324`, because `1e-324` and `2e-324` fall under the smallest
-subnormal and `3e-324` rounds up onto it (capacity 6,077 at six). A
-rule that stopped at the boundary would throw two spellings away; a
-rule that assumed one would write a value the format holds into a
-column described as holding none.
+Measured, and the two shapes end DIFFERENTLY: the too-small shape ends
+two spellings INTO an exponent at `3e-324`, because `1e-324` and
+`2e-324` fall under the smallest subnormal and `3e-324` rounds up onto
+it and every candidate after it is refused with it (capacity 6,077 at
+six characters); the too-large shape's first refusal is `1e308` and it
+carries ON past it, because `2e308` through `9e308` are refused by
+nothing (capacity 6,227 at five). **That second half read "stops on an
+exponent boundary at 6,219" for one landing and was wrong** — see the
+section below, which is the round that found it.
 
 **WHAT THE MEASUREMENTS COVER, said because this residual exists on
 account of a trial that did not say it.** Five named column shapes end
@@ -1383,10 +1384,14 @@ its last spelling and checked that nothing before it is a value the
 format holds; and a frozen reference vector. **No randomised trial was
 run and none is claimed** — "gap 3" closed this surface on 93 randomly
 built columns, all 93 of them long digit strings, and the compact
-spelling is a shape that trial could not build. **What is not covered:**
-the TOO-LARGE shape's two walks are not compared against the oracle
+spelling is a shape that trial could not build. **What was not covered:**
+the TOO-LARGE shape's two walks were not compared against the oracle
 order by order — that comparison was written for the too-small shape —
-so only the frozen case binds the other side.
+so only the frozen case bound the other side. **That named gap is
+exactly where the next round found a HIGH item, and it is closed now**
+(see the section below): the comparison walks the too-large shape at
+both narrow widths and both signs, across the refusal the two
+implementations would have parted company at.
 
 **THE TWENTY-FIRST FROZEN VECTOR EXISTS: `unrepresentable_exponent`.**
 `unrepresentable_joint` already reaches this role and could not reach
@@ -1463,6 +1468,99 @@ gets a lower-case twin where it does not fold. Nothing is misstated and
 every published fact is met; what is missing is a published fact, and
 publishing one is a disclosure question before it is a landing.
 
+## THE EXPONENT WALK'S BOUNDARY AND ITS HOLE SPELLINGS — LANDED
+
+**THE ROUND ABOVE WAS REVIEWED AND REJECTED, AND BOTH HIGH ITEMS WERE
+RIGHT.** Neither was a wording item. The first was a walk that stopped
+eight spellings early with four surfaces certifying the same wrong
+boundary; the second was a family that ignored the argument it was
+handed.
+
+**ITEM 1 — THE WALK STOPPED AT THE FIRST CANDIDATE IT TURNED DOWN, AND
+FOR ONE OF THE TWO SHAPES THAT IS WRONG.** Inside one exponent the
+mantissa ascends, so the refusals are contiguous at one END: a SUFFIX
+for the too-small shape, whose values grow past the smallest subnormal,
+and a PREFIX for the too-large one, whose values grow past the largest
+number the format holds. At five characters `1e308` is a number this
+format HOLDS and `2e308` through `9e308` are not, so stopping at the
+first refusal threw eight spellings away. **Measured by walking the
+whole three-figure field and asking the shipped parser: 8,100
+candidates at that width, 6,227 accepted, 1,873 turned down, and the
+first refusal at candidate 6,219. The capacity read 6,219 and the
+shape's own count is 6,227.**
+
+The cost was a stopped command, which is the same hazard the fixed
+exponent moved onto this walk once already. A real 6,220-row column of
+`1e309` through `9e999` beside `2e308` — every value five characters,
+positive, whole and out of range — describes correctly and then made
+`synthtwin generate` REFUSE with G9.4's domain-too-small message,
+saying it could write only 6,219. **After: 6,220 distinct values at the
+published width of five, no deviation named, and nothing missed by
+`synthtwin validate`.**
+
+**FOUR SURFACES CERTIFIED THE SAME WRONG BOUNDARY** — the generator,
+method G10.5, the independent oracle, and a test that PINNED 6,219 as
+the capacity — and all four are corrected, each from the rule rather
+than from each other. What ends the walk now is ONE WHOLE EXPONENT
+turned down: the exponent moves monotonically away from the shape once
+it leaves 999, so an exponent none of whose mantissas is accepted is
+one past which nothing ever is again. That is a rule of the shape, it
+needs no number written down, and it BOUNDS the walk — measured, the
+too-large shape visits 6,238 candidates of 8,100 before giving up and
+the too-small one 6,087. *Four places said one thing and the thing was
+false; the count of places agreeing is not evidence.*
+
+**AND THE COMPARISON THE PREVIOUS CLOSURE SAID DID NOT EXIST IS
+BUILT.** That closure named its own gap — "the too-large shape's two
+walks are not compared against the oracle order by order" — and that
+gap is exactly what hid this item: one implementation stopping at
+`1e308` and one carrying on would have parted company at order 6,219
+with nothing to say so. The comparison now walks both narrow widths and
+both signs ACROSS the refusal, and asserts it reached the eight
+spellings behind it rather than hoping.
+
+**ITEM 2 — NEITHER WIDE FAMILY REFUSED A PUBLISHED HOLE SPELLING, AND
+THIS ROLE CANNOT LEARN ONE ANY OTHER WAY.** The exponent branch ignored
+its `holes` argument outright, and the walk was handed only the current
+column's map. `numeric_unrepresentable` is one of
+`taxonomy.ROLES_PUBLISHING_NOTHING`, so its own `missing_by_source` is
+empty on EVERY column there is however many of its cells wore a
+declared spelling — the walk was reading a map that is always empty.
+Planning had already computed the table-wide set and threaded it to
+`_ColumnPlan.all_holes`; this role was the one that never received it.
+
+**Measured end to end, before and after.** A label column publishing
+`missing_by_source {"1e400": 12}` under `--missing-value 1e400`, beside
+a wide column of five-character values that never held that spelling:
+the wide column's twin was given `1e400` — the exponent family's very
+first spelling — as a PRESENT cell. **Its own report named nothing, and
+`synthtwin validate` reported EIGHT subchecks missed on that column:
+`universal.n_present`, `universal.n_missing`,
+`universal.n_out_of_range` and five of the role's own counts. After:
+nothing named and nothing missed.** Both families ask now, the capacity
+counts the reserved spellings out, and a same-column case is tested
+beside the cross-column one.
+
+**SIX MUTATIONS, SIX RED, EACH ON A NAMED TEST.** The walk put back to
+stopping at the first refusal (three red); the oracle put back to the
+same (one red); the exponent family's hole question withdrawn (three
+red); planning withholding the table's holes (two red); the reserved
+set narrowed to the column's own map (two red); and the stopping bound
+loosened from one exponent to two (one red — the walk then visits 6,247
+candidates where it should visit 6,238). Caches cleared on both sides
+of every run, and the unmutated run asserted green first.
+
+**WHAT IS FOUND AND NOT FIXED: R-P4-101 and R-P4-102, both OPEN.** The
+first is item 2's shape in eight other places — two straggler classes
+that never ask about hole spellings at all, and six walks that ask only
+their own column — recorded with the code-level measurement and with an
+explicit statement that no end-to-end reproduction was built for any of
+them. The second is the case no generator can close: a declared missing
+value that NO column publishes is invisible to the generator and to the
+validator alike, so a twin of a table whose every column publishes
+nothing can write a present cell the person's own declaration calls
+absent, with nothing on any surface to report it.
+
 ## What the owner has decided, and must not be re-asked
 
 These are settled. A new conversation that re-opens one is wasting the
@@ -1534,11 +1632,14 @@ the recoverable-distribution advice is TIGHTENED rather than softened
 (L1).
 
 What is owed to the owner rather than from them is a decision about
-the TEN lint errors this tree carries — whether to fix them or record
+the NINE lint errors this tree carries — whether to fix them or record
 them — and that does not stop any landing. (The 183 that stood here
 were a different matter and were closed by pinning the rule set; the
-ten are what remains under that pinned set. See "What is broken right
-now".)
+nine are what remains under that pinned set. See "What is broken right
+now".) **This paragraph said TEN while the table at the head of the
+page and the entry below both said nine**, which is this page's own
+standing lesson — one fact written twice, one copy updated — caught
+while landing the exponent-walk repair and corrected in the same pass.
 
 ## The joined role's own gaps, all opened by review and all owed
 

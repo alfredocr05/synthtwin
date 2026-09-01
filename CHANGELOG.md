@@ -43,8 +43,34 @@ exists).
   A column that had generated before, wrongly wide, would have stopped
   instead. The exponent moves now, so what the twin can write at a
   width is what a real column of that width can hold: six thousand two
-  hundred and nineteen different five-character values rather than
+  hundred and twenty-seven different five-character values rather than
   nine.
+
+- **And it stopped eight values short of that, which stopped the
+  command on a bigger column.** The walk gave up at the first spelling
+  it worked out was a number this format CAN hold -- and for a value
+  too large, the ones just past that point are exactly the ones it
+  cannot. So a real column holding six thousand two hundred and twenty
+  different such values, every one of them five characters wide, made
+  `synthtwin generate` refuse again. The walk steps past such a
+  spelling now and carries on, and that column gets a twin with all six
+  thousand two hundred and twenty values at the published width and
+  nothing missed.
+
+### Fixed: a twin no longer writes a value you told it means "no value"
+
+- **A value named with `--missing-value` is left alone by every column
+  of the table, including the columns that publish nothing.** A column
+  of numbers too large or too small for the format to hold publishes no
+  value of your table anywhere -- that is what its role means -- so it
+  had no way to know which spellings you had declared, and it was never
+  given the list the rest of the run uses. Measured on a two-column
+  table where `1e400` was declared missing: the second column's twin
+  was handed `1e400` as a real value, its own report said nothing about
+  it, and `synthtwin validate` reported eight of that column's counts
+  missed. It leaves those spellings alone now, on both of the ways it
+  writes such numbers, and counts them out when it works out how many
+  different values it can write.
 
 
 ### Fixed: a twin's invented codes now wear the shape the real ones wore

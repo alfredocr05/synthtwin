@@ -3062,6 +3062,71 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   offered to, which is a change to G8.1 step 2 and moves the frozen
   `label_variants` vector's own cells.
 
+- **R-P4-101 — OPEN (opened 2026-09-01 while closing review item
+  P4-A2-R3, item 2).** THE STRAGGLER CLASSES OF METHOD G10.3 CHOOSE A
+  SPELLING WITHOUT ASKING WHETHER IT IS A HOLE, AND SIX MORE WALKS ASK
+  ONLY THEIR OWN COLUMN.
+
+  Item 2 of that review named the wide role's two spelling families and
+  said to look for siblings. There are two shapes of sibling and both
+  are recorded here rather than repaired in a landing whose subject was
+  the wide role.
+
+  **The straggler classes do not ask at all.** `_base_spelling` routes
+  three classes: ordinary text goes through `_text_spelling`, which
+  steps past a hole spelling, and the other two do not ask. Measured
+  directly on the shipped functions: `_base_spelling` for the
+  out-of-range class returns `1e999` with `1e999` reserved, and for the
+  contradictory class returns `(-1)` with `(-1)` reserved, while the
+  text class returns `text-2` with `text-1` reserved.
+
+  **Six walks ask only their own column.** `_class_spellings` is handed
+  `_hole_spellings(column)` at four sites — the joined role's
+  stragglers and the numeric role's out-of-range, contradictory and
+  text classes — and so are `_shared_out` for a long tail's withheld
+  forms and `_made_up_cell` for free text. Planning already computes
+  the table-wide set and threads it to `_ColumnPlan.all_holes`, where
+  exactly one walk reads it.
+
+  **What is NOT established, and this entry says so rather than
+  implying it.** No end-to-end reproduction was built for any of the
+  eight sites. Four attempts to reach the numeric role's out-of-range
+  branch through the real profiler failed: every column carrying an
+  out-of-range cell was described as `numeric_unrepresentable` and not
+  as a numeric role — at 3, 8 and 20 such cells among 200 numbers, and
+  again under `--measurement`. Whoever takes this should establish
+  reachability per site FIRST: a walk no description can reach is a
+  hole-blind branch and not a live defect, and saying which is which is
+  the work.
+
+- **R-P4-102 — OPEN (opened 2026-09-01 while closing review item
+  P4-A2-R3, item 2).** A DECLARED MISSING VALUE THAT NO COLUMN
+  PUBLISHES IS INVISIBLE TO THE GENERATOR AND TO THE VALIDATOR ALIKE.
+
+  The spellings a `--missing-value` declaration named are not in the
+  settings block, by design (review item P1-R7-F2): what the generator
+  and the validator both recover is the union of the columns' own
+  `missing_by_source` maps. So a table whose every column takes a role
+  in `taxonomy.ROLES_PUBLISHING_NOTHING` publishes the declaration
+  nowhere at all, and the twin can write a present cell the person's
+  own declaration calls absent.
+
+  Measured, two shapes, both single-role tables under
+  `--missing-value 1e400`: a wide column of 18 present values beside
+  twelve absent cells spelled `1e400` gets a twin holding `1e400` as a
+  present cell, and re-describing it under the person's own settings
+  reads 17 present where the source holds 18; a two-column table of
+  wide columns moves 30 present to 29 on the second column.
+
+  **Nothing published is misstated**, which is why this is a residual
+  and not a defect: the validator reads back the same empty set that
+  the generator did, so no report claims otherwise and nothing misses.
+  What is lost is fidelity against a fact the description cannot carry.
+  Closing it means publishing the declared spellings somewhere a
+  nothing-publishing column's document can carry them, which is a
+  disclosure question — the spellings are the person's own text — and a
+  contract change before it is a landing.
+
 - **R-P4-100 — OPEN (opened 2026-08-31 while closing R-P4-48 and
   R-P4-68).** THE ROLE PUBLISHES NO FACT ABOUT HOW ITS NUMBERS ARE
   SPELLED, SO TWO SOURCES WRITTEN DIFFERENTLY GET ONE TWIN.
@@ -4127,10 +4192,26 @@ declaration for only one of them.
   own edge walked to its last spelling, and the frozen
   `unrepresentable_exponent` vector, whose cells the oracle writes from
   the method text. **No randomised trial was run and none is claimed.**
-  What is NOT covered by any of it: the too-large shape's two walks are
-  not compared against the oracle order by order, because the
+  What was NOT covered by any of it: the too-large shape's two walks
+  were not compared against the oracle order by order, because the
   comparison that exists was written for the too-small one and only the
-  frozen case binds the other.
+  frozen case bound the other.
+
+  **THAT NAMED GAP IS WHERE THE NEXT ROUND FOUND A HIGH ITEM, AND BOTH
+  ARE CLOSED NOW (2026-09-01, review item P4-A2-R3, item 1).** This
+  landing's walk stopped at the first candidate the parser turned down,
+  which is right for the too-small shape and wrong for the too-large
+  one: inside an exponent the refusals are a SUFFIX for the first and a
+  PREFIX for the second, so `1e308` — a number this format holds —
+  ended the walk while `2e308` through `9e308` stood unclaimed. The
+  capacity asserted here and in three other places was 6,219 and the
+  shape's own count is **6,227**, and a real 6,220-value column at that
+  width was refused for the difference. The walk steps past a refusal
+  now and gives the family up on one WHOLE exponent of them; the
+  oracle, the method and the boundary test are each corrected from the
+  rule; and the missing order-by-order comparison is built, across the
+  refusal, at both narrow widths and both signs. *The gap a closure
+  names is worth reading as a prediction.*
 
   The reproduction as it stood is kept below, because the closure rests
   on it.
