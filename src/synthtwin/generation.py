@@ -5236,6 +5236,18 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     and G6 then applies unchanged, which is the point -- the numbers
     inside an affixed column are built by exactly the code that builds
     a plain numeric column, and the pair is put on afterwards.
+
+    AND THE COUNT OF DIFFERENT THINGS IS STILL THE CELL'S, WHICH IS
+    WRONG AND IS NOT REPAIRED HERE (round 2, item 4; residual
+    R-P4-112). `_numeric_layout` divides the cells by `n_distinct` and
+    `n_distinct_folded`, which on the column itself count different
+    CELLS while the cores laid out below may hold far fewer different
+    numbers. Handing the grain its own count was built and MEASURED and
+    then withdrawn: it closes the style floor and costs the column's
+    distinct-cell count, because the pairing walk then has fewer
+    combinations to build that count from. Both are published facts, so
+    the two must move together, and they do in the landing that
+    retargets the draw. R-P4-112 carries the measurement.
     """
     facts = column.facts
     if not isinstance(facts, contract.AffixedFacts):
@@ -5268,6 +5280,21 @@ def _part_view(
     ladder, the mean, the spread, the styles and the widths of every
     number in the twin are built by exactly the code that builds a
     plain numeric column. Nothing about the arithmetic is written twice.
+
+    AND THE COUNT OF DIFFERENT THINGS IS STILL THE CELL'S, WHICH IS
+    THE ROOT OF RESIDUAL R-P4-112 AND IS NOT REPAIRED HERE (round 2,
+    item 4). A 36-row column of `N/M` holds 36 different CELLS while its
+    first position holds 11 different numbers, and `_numeric_layout`
+    divides by the column's count: the position is laid out in 36 strata
+    where a plain column carrying the same numeric facts gets 11. That
+    is why the same walk reaches its point-free count on a plain column
+    and falls short through a joined position -- and NOT the pairing
+    step, which the first diagnosis blamed.
+
+    Handing the position its own count was built and MEASURED here and
+    then withdrawn, because it moves the defect rather than closing it:
+    see R-P4-112 for both numbers. The two published counts have to move
+    together, which is the landing that retargets the draw.
     """
     facts = column.facts
     if not isinstance(facts, contract.JoinedFacts):
@@ -6495,7 +6522,10 @@ def _numeric_content(
     # the walk that would otherwise write every one of them point-free
     # and after the step that pulls two strata apart, because the values
     # it hands out are fresh and no later step may take them away again.
-    values = _pool_enough(column, facts, layout, rungs, values)
+    layout, values, pool_notes = _pool_enough(
+        column, facts, layout, rungs, values
+    )
+    notes = notes + pool_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -7064,17 +7094,28 @@ def _fraction_inside(
     cut back to the stratum's own side of zero before anything is
     chosen, so a straddling share still yields a value rather than none.
 
-    AND THE SEARCH IS COMPLETE, WHICH HALVING ALONE WAS NOT (round 1,
-    item 3). Eight halvings of a share whose width is a power of two
-    land on eight whole numbers: `(1, 257)` gave `129, 65, 33, 17, 9, 5,
-    3, 2` and this answered None, though `1.5` was there to be had, and
-    the stratum was then passed over in silence. The middle of the share
-    is tried first, and where the middle is WHOLE the answer is the
-    middle plus a step of at most half a unit -- which cannot be whole,
-    because a whole number and a part of one do not add to a whole
-    number -- halved again only to step around a value another stratum
-    holds. So a share of any width at all yields a value unless every
-    candidate is one somebody else is writing.
+    AND THE SEARCH GOES BOTH WAYS, WHICH HALVING UPWARD DID NOT (round
+    1 item 3, round 2 item 1). Eight halvings of a share whose width is
+    a power of two land on eight whole numbers: `(1, 257)` gave `129,
+    65, 33, 17, 9, 5, 3, 2` and this answered None though `1.5` was
+    there to be had, and the stratum was passed over in silence. The
+    middle of the share is tried first, and where the middle is whole
+    the step of at most half a unit added to it is not; the steps then
+    halve, and each is tried ABOVE the middle and BELOW it, because
+    probing one side only exhausts on a share whose upper half is taken
+    while its lower half is free -- `(1, 2)` with the middle and every
+    upper step held answered None with `1.25` available.
+
+    WHAT IT CANNOT DO IS FIND A VALUE THAT IS NOT THERE, and above about
+    two to the fifty-third there are none: the gap between one
+    representable number and the next is more than a whole unit -- at
+    two to the fifty-fifth it is eight -- so every double in that region
+    IS whole and a share up there holds no value with a point in it at
+    all. A column of 995 such numbers beside one `0.5` publishes
+    `integer_valued: false` and has nowhere to put the half. This
+    answers None, `_pool_enough` names the miss, and the twin says what
+    it could not do rather than changing type in silence (round 2, item
+    1).
     """
     if share is None:
         return None
@@ -7089,16 +7130,21 @@ def _fraction_inside(
     if not low < high:
         return None
     middle = low + (high - low) / 2.0
-    part = (high - middle) / 2.0
-    if part > 0.5:
-        part = 0.5
+    above = (high - middle) / 2.0
+    if above > 0.5:
+        above = 0.5
+    below = (middle - low) / 2.0
+    if below > 0.5:
+        below = 0.5
+    tries = [middle]
     step = 0
     while step < 16:
-        pick = middle
-        if step > 0:
-            pick = middle + part
-            part = part / 2.0
+        tries = tries + [middle + above, middle - below]
+        above = above / 2.0
+        below = below / 2.0
         step = step + 1
+    for order in range(len(tries)):
+        pick = tries[order]
         if not (pick > low and pick < high) or pick in taken:
             continue
         if band == _BAND_NEGATIVE and not pick < 0.0:
@@ -7374,6 +7420,16 @@ def _whole_enough(
     taken = {value: 1 for value in values}
     moved = [value for value in values]
     locked: dict[int, int] = {}
+    # ONE BUDGET FOR THE WHOLE COLUMN, not one for each question asked
+    # (round 2, item 4). A budget spent per call bounds one search and
+    # not the walk, and the walk asks once per stranded stratum per
+    # round: measured on a 482-cell column of 242 strata, the chain took
+    # 15.8 seconds against 5.2 with it withdrawn, and the cost grew
+    # faster than the strata did. Shared, the work the chain can do is
+    # bounded by the column rather than by its own recursion, and a
+    # column that spends it gets the walk without the chain -- and the
+    # recount names whatever that leaves short.
+    budget = [_CHAIN_WORK]
     # THE LEADING-PLUS SHARE IS SERVED FIRST, AND ONLY WHERE IT CAN BE
     # WRITTEN (review item P2-C4-F3). A plus needs a value that is not
     # negative as well as one with no point, so a walk that stopped as
@@ -7449,7 +7505,7 @@ def _whole_enough(
                         total + 1,
                         locked,
                         {},
-                        [_CHAIN_WORK],
+                        budget,
                     )
                     if moves is None:
                         continue
@@ -7607,13 +7663,81 @@ def _style_strata(
     return settled
 
 
+def _carrier_cell(
+    layout: "_NumericLayout",
+    place: int,
+) -> "_NumericLayout | None":
+    """Narrow this stratum to ONE cell, its neighbour taking the rest.
+
+    THE HOLD-BACK MOVES A STRATUM, AND A STRATUM IS NOT A CELL (round 2,
+    item 2). A 200-row column of two `0`, one `0.5` and 197 `2` is
+    allotted strata of 2, 2 and 196, and its pool is one cell: no
+    single-cell stratum exists, so keeping the column's TYPE meant
+    giving the two-cell middle stratum a value with a point in it and
+    missing an exactly achievable `plain: 199` by one. Both obligations
+    are reachable together, and the source itself proves it -- its own
+    `0.5` covers exactly one row.
+
+    A CELL IS MOVED, NOT A VALUE ADDED. Dividing the stratum in place
+    and keeping both values would buy the style floor with the count of
+    different values, which is published too: measured, `n_distinct` 3
+    against an achieved 4. So the stratum gives its spare cells to the
+    neighbour it already touches, which writes a value the twin was
+    writing anyway, and the count of different values does not move at
+    all. Cells go to the neighbour ABOVE where there is one in the same
+    band, otherwise the one below; where there is no neighbour in the
+    band at all the answer is None and the caller takes the wider
+    stratum whole.
+
+    A PINNED END MAY TAKE THEM, and that is not a contradiction of the
+    rule that leaves the pinned ends alone. What is pinned is a pinned
+    stratum's VALUE -- it holds the published `min` or `max`, and both
+    are EXACT-OBSERVABLE -- and not how many cells hold it. On a column
+    of three strata the two ends are the only neighbours there are, and
+    refusing them left the very shape this rule exists for unrepaired.
+
+    What it costs is a rank: up to this stratum's own width, which is
+    the width G5.6's window already bounds a rank by.
+    """
+    total = len(layout.sizes)
+    if layout.sizes[place] <= 1:
+        return layout
+    band = layout.bands[place]
+    taker = -1
+    for step in (place + 1, place - 1):
+        if step < 0 or step >= total:
+            continue
+        if layout.bands[step] != band:
+            continue
+        taker = step
+        break
+    if taker < 0:
+        return None
+    sizes: list[int] = []
+    for step in range(total):
+        size = layout.sizes[step]
+        if step == place:
+            size = 1
+        if step == taker:
+            size = size + layout.sizes[place] - 1
+        sizes = sizes + [size]
+    starts: list[int] = []
+    running = 0
+    for size in sizes:
+        starts = starts + [running]
+        running = running + size
+    return dataclasses.replace(
+        layout, sizes=tuple(sizes), starts=tuple(starts)
+    )
+
+
 def _pool_enough(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
-) -> "list[float]":
+) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
     """Keep back the cells the description POOLED (residual R-P4-69).
 
     A style used by fewer rows than the smallest group size is held back
@@ -7664,7 +7788,7 @@ def _pool_enough(
     spend nothing should be right about what it spends.
     """
     if facts.integer_valued:
-        return values
+        return layout, values, []
     pool = _style_pool(facts.numeric_styles)
     # THE ROLE IS OWED ONE CELL WHATEVER THE CENSUS SAYS (round 1, items
     # 1 and 5). A column publishing `integer_valued: false` whose twin
@@ -7687,22 +7811,20 @@ def _pool_enough(
         if layout.sizes[place] > widest:
             widest = layout.sizes[place]
     if pointed >= owed:
-        return values
+        return layout, values, []
     taken = {value: 1 for value in values}
     moved = [value for value in values]
     for width in range(1, widest + 1):
-        for place in range(total):
+        for place in range(len(moved)):
             if pointed >= owed:
-                return moved
+                return layout, moved, []
             if layout.sizes[place] != width:
                 continue
-            if place == 0 or (place == total - 1 and total >= 2):
+            if place == 0 or (place == len(moved) - 1 and len(moved) >= 2):
                 continue
             if layout.bands[place] == _BAND_ZERO:
                 continue
             if not _carries_plainly(moved[place], False):
-                continue
-            if pointed + width > owed:
                 continue
             fraction = _fraction_inside(
                 _share_of(place, layout, rungs, column.n_numeric),
@@ -7711,11 +7833,20 @@ def _pool_enough(
             )
             if fraction is None:
                 continue
+            if pointed + width > owed:
+                # WIDER THAN THE COUNT STILL WANTED, SO IT IS PASSED
+                # OVER HERE. Narrowing it would meet the pooled count in
+                # cells while moving as many ranks as the stratum is
+                # wide, and this loop is spending a count it can spend
+                # exactly. The rule below narrows, because what it is
+                # buying there is the column's TYPE and there is nothing
+                # else to buy it with.
+                continue
             taken[fraction] = 1
             moved[place] = fraction
             pointed = pointed + width
     if pointed >= 1:
-        return moved
+        return layout, moved, []
     # AND THE ROLE IS NOT TRADED FOR AN EXACT FIT. Above, a stratum
     # wider than the count still wanted is passed over rather than
     # overshot, because a cell written with a point the description did
@@ -7724,12 +7855,12 @@ def _pool_enough(
     # everything downstream. Where no stratum fits exactly, the
     # narrowest one there is takes the value anyway.
     for width in range(1, widest + 1):
-        for place in range(total):
+        for place in range(len(moved)):
             if pointed >= 1:
-                return moved
+                return layout, moved, []
             if layout.sizes[place] != width:
                 continue
-            if place == 0 or (place == total - 1 and total >= 2):
+            if place == 0 or (place == len(moved) - 1 and len(moved) >= 2):
                 continue
             if layout.bands[place] == _BAND_ZERO:
                 continue
@@ -7742,10 +7873,35 @@ def _pool_enough(
             )
             if fraction is None:
                 continue
+            narrowed = _carrier_cell(layout, place)
+            if narrowed is not None:
+                layout = narrowed
             taken[fraction] = 1
             moved[place] = fraction
-            pointed = pointed + width
-    return moved
+            pointed = pointed + 1
+            return layout, moved, []
+    # AND WHERE NO STRATUM CAN CARRY ONE AT ALL, THE TWIN SAYS SO
+    # (round 2, item 1). Above about two to the fifty-third, the gap
+    # between one representable number and the next is more than a
+    # whole unit -- at two to the fifty-fifth it is eight -- so a share
+    # up there holds NO value with a point in it, and a column of 995
+    # such numbers beside one `0.5` has nowhere to put the half. The
+    # twin then writes a column of whole numbers whatever this rule
+    # does, and the honest outcome is to name it: a re-description reads
+    # `count` where `continuous` was published, and a silent role is the
+    # worst way for a reader to meet that.
+    return layout, moved, [
+        _deviation(
+            column.name,
+            "integer_valued",
+            "no",
+            "yes",
+            "No value between this column's published ends can be "
+            "written with anything after the point, so every cell of "
+            "the twin holds a whole number and the twin re-describes "
+            "as a column of counts.",
+        )
+    ]
 
 
 def _number_cells(

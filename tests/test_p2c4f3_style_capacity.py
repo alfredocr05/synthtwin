@@ -47,7 +47,9 @@ from synthtwin import (
     parsing,
     profile,
     reading,
+    rendering,
     taxonomy,
+    validation,
 )
 
 # The seeds of the item's own closure check, and the seed of every
@@ -906,6 +908,19 @@ def test_the_held_back_value_never_crosses_zero() -> None:
         (-1.0, 3.0), {}, generation._BAND_NEGATIVE
     )
     assert straddling is not None and -1.0 < straddling < 0.0, straddling
+    # AND IT LOOKS BELOW THE MIDDLE AS WELL AS ABOVE IT (round 2, item
+    # 1). Probing one side only exhausts on a share whose upper half is
+    # spoken for while its lower half is free: the middle of `(1, 2)`
+    # and every step above it held, `1.25` is still there.
+    upper: dict[float, int] = {1.5: 1}
+    step = (2.0 - 1.5) / 2.0
+    for _each in range(20):
+        upper[1.5 + step] = 1
+        step = step / 2.0
+    lower = generation._fraction_inside(
+        (1.0, 2.0), upper, generation._BAND_POSITIVE
+    )
+    assert lower is not None and 1.0 < lower < 1.5, lower
 
 
 def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
@@ -928,9 +943,12 @@ def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
     layout, _notes, _content = generation._numeric_layout(column, facts)
     rungs = generation._merged_rungs(facts)
     values = [-4.5, -4.0, 15.0, 18.0, 25.0, 60.0]
-    assert generation._pool_enough(
+    kept, held, notes = generation._pool_enough(
         column, facts, layout, rungs, list(values)
-    ) == values
+    )
+    assert held == values
+    assert kept is layout
+    assert notes == []
 
 
 def test_the_hold_back_takes_the_narrowest_strata(
@@ -967,7 +985,7 @@ def test_the_hold_back_takes_the_narrowest_strata(
     )
     values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
     assert len(values) == len(layout.sizes)
-    held = generation._pool_enough(
+    _kept, held, _notes = generation._pool_enough(
         column, facts, layout, rungs, list(values)
     )
     moved = [
@@ -1019,17 +1037,24 @@ def test_the_type_is_owed_a_cell_no_stratum_fits_exactly(
         bands=tuple([generation._BAND_POSITIVE] * len(sizes)),
     )
     whole = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-    held = generation._pool_enough(
+    narrowed, held, notes = generation._pool_enough(
         column, facts, layout, rungs, list(whole)
     )
     assert any(value != int(value) for value in held), held
-    # AND IT TAKES ONE CELL, NOT A STRATUM MORE THAN IT HAS TO: the
-    # overshoot is the price of the type and is not a licence to spend
-    # the `plain` floor twice over.
+    assert notes == [], notes
+    # AND IT TAKES ONE CELL, NOT THE STRATUM (round 2, item 2). Taking
+    # the stratum whole would meet the type by writing four cells with a
+    # point in them where the description pooled one, which is a `plain`
+    # floor missed to buy a type that one cell would have bought. The
+    # stratum is narrowed to a single cell and its neighbour takes the
+    # rest, so the count of different values does not move either.
     moved = [
         place for place in range(len(whole)) if held[place] != whole[place]
     ]
     assert len(moved) == 1, (moved, held)
+    assert narrowed.sizes[moved[0]] == 1, (moved, narrowed.sizes)
+    assert sum(narrowed.sizes) == sum(layout.sizes), narrowed.sizes
+    assert len(narrowed.sizes) == len(layout.sizes), narrowed.sizes
 
 
 def test_a_stratum_never_hands_its_number_to_a_wider_one(
@@ -1218,6 +1243,170 @@ def _pieces(cell: str) -> "list[str]":
         else:
             stripped = stripped + " "
     return [piece for piece in stripped.split(" ") if piece != ""]
+
+
+# -- 7. what adversarial round 2 reproduced -----------------------------
+
+
+def test_a_grain_is_laid_out_by_the_CELL_count_which_is_R_P4_112(
+    tmp_path: pathlib.Path,
+) -> None:
+    """R-P4-112 asserted as a WITNESS, with its root cause pinned.
+
+    `_numeric_layout` divides a column's cells into strata by the count
+    of different things it publishes, and for an affixed or joined
+    column that count is over CELLS. A 36-row column of `N/M` holds 36
+    different pairs while its first position holds 11 different numbers,
+    so the position is laid out in 36 strata where a plain column
+    carrying the same numeric facts gets 11.
+
+    THAT IS THE ROOT, and adversarial round 2 found it; the residual's
+    first diagnosis blamed the pairing step, which cannot cause it --
+    each position is finished before pairing runs, and pairing only
+    permutes that position's own multiset.
+
+    IT IS ASSERTED RATHER THAN REPAIRED, and the reason is measured.
+    Handing the grain its own count closes the style floor -- the first
+    position writes 2 cells with a point in them where it wrote 12 to
+    15 -- and costs the column's distinct-cell count, which falls from
+    34 of 36 to 28, because the pairing walk then has fewer
+    combinations to build it from. `distinct.n_distinct` and
+    `distinct.n_distinct_folded` are published facts too, and the twin
+    of the suite's own joined description stopped meeting them: the
+    product's headline claim, that a twin of its own description misses
+    nothing, went red. The two counts have to move together, which is
+    the landing that retargets the draw.
+
+    This witness fails when the root is repaired, which is when it
+    should be rewritten to assert the repair.
+    """
+    joined = [
+        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
+    ] + ["1.5/2", "2.5/3"]
+    _document, loaded = _described(tmp_path, joined, ["amount"])
+    column = loaded.columns[0]
+    assert column.role == "joined_numbers", column.role
+    part = column.facts.parts[0]
+    # THE FIXTURE SEPARATES THE TWO COUNTS, asserted before anything
+    # rests on it: where they are equal this test measures nothing.
+    assert part.n_distinct_values == 11, part.n_distinct_values
+    assert column.n_distinct == 36, column.n_distinct
+    view = generation._part_view(column, 0)
+    assert view.n_distinct == column.n_distinct, view.n_distinct
+    assert view.n_distinct_folded == column.n_distinct_folded
+
+
+def test_the_joined_position_misses_its_plain_floor_which_is_R_P4_112(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same residual from the other side, and it is REPORTED.
+
+    The first position publishes `plain: 34` with a pool of 2 and writes
+    many more cells with a point in them than the pool covers, because
+    of the cardinality above.
+
+    AND THE TWIN'S OWN REPORT DOES NOT NAME IT, while `validate` does.
+    Measured: on a seed writing 14 such cells the twin's deviations
+    carry `n_distinct` and nothing about the styles, and the quality
+    report has `number 1 styles.published.plain` MISSED at 22 against a
+    floor of 34. A person who reads the report beside their twin and
+    does not run the validator is told the count of different values
+    moved and is not told the form census did. That silence is recorded
+    in R-P4-112 and is asserted here, so that closing it is noticed.
+    """
+    joined = [
+        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
+    ] + ["1.5/2", "2.5/3"]
+    _document, loaded = _described(tmp_path, joined, ["amount"])
+    column = loaded.columns[0]
+    assert column.facts.parts[0].numeric_styles == {
+        "plain": 34, contract.WITHHELD: 2,
+    }
+    over = 0
+    for seed in SEEDS:
+        twin = generation.generate(loaded, seed)
+        written = [cell for cell in twin.columns[0] if cell != ""]
+        firsts = [cell.split("/")[0] for cell in written]
+        held = [parsing.parse_number(piece) for piece in firsts]
+        numbers = [one for one in held if one is not None]
+        pointed = len([one for one in numbers if one != int(one)])
+        # THE TYPE SURVIVES on every seed even while the count does not,
+        # which is the part that must not slip while the residual waits.
+        assert pointed >= 1, (seed, sorted(set(firsts))[:8])
+        if pointed > 2:
+            over = over + 1
+    assert over > 0, "the residual this witness records is not reproducing"
+
+    # THE VALIDATOR NAMES IT, and the twin's own report does not.
+    twin = generation.generate(loaded, SEEDS[0])
+    folder = tmp_path / "joined-witness"
+    folder.mkdir(exist_ok=True)
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(loaded, str(written))
+    missed = {
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    }
+    assert "number 1 styles.published.plain" in missed, sorted(missed)
+    assert not [
+        note for note in twin.deviations if note.fact == "numeric_styles"
+    ], twin.deviations
+
+
+def test_numbers_too_large_to_hold_a_fraction_are_named_not_hidden(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The twin cannot always keep the type, and must never hide it.
+
+    Above about two to the fifty-third the gap between one representable
+    number and the next is more than a whole unit — at two to the
+    fifty-fifth it is eight — so a share up there holds no value with a
+    point in it at all. A column of 995 such numbers beside one `0.5`
+    publishes `integer_valued: false` and has nowhere to put the half.
+    The twin writes whole numbers throughout and re-describes as a
+    column of counts, which is permitted; doing it in SILENCE is not,
+    and it did (round 2, item 1).
+    """
+    values = ["0"] * 5 + ["0.5"] + ["36028797018963968"] * 995
+    document, loaded = _described(tmp_path, values)
+    assert document["columns"][0]["integer_valued"] is False
+    for seed in (0, 1, 2):
+        twin = generation.generate(loaded, seed)
+        named = [
+            note for note in twin.deviations
+            if note.fact == "integer_valued"
+        ]
+        assert named, (seed, twin.deviations)
+        assert named[0].published == "no"
+        assert named[0].achieved == "yes"
+
+
+def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Round 2, item 2, end to end: both obligations, not one of them.
+
+    Two `0`, one `0.5` and 197 `2` publish `plain: 199` with a pool of
+    one, and the ladder allots strata of 2, 2 and 196. No single-cell
+    stratum exists, so keeping the type meant giving the two-cell middle
+    stratum a value with a point in it and missing an exactly achievable
+    `plain: 199` by one. The source's own `0.5` covers one row, so both
+    were always reachable together.
+    """
+    values = ["0"] * 2 + ["0.5"] + ["2"] * 197
+    document, loaded = _described(tmp_path, values)
+    published = document["columns"][0]
+    assert published["numeric_styles"] == {"plain": 199, "(withheld)": 1}
+    for seed in SEEDS:
+        twin = generation.generate(loaded, seed)
+        written = [cell for cell in twin.columns[0] if cell != ""]
+        held = [parsing.parse_number(cell) for cell in written]
+        numbers = [one for one in held if one is not None]
+        pointed = len([one for one in numbers if one != int(one)])
+        assert pointed == 1, (seed, sorted(set(written)))
+        assert _styles(twin).get("plain", 0) == 199, (seed, _styles(twin))
+        assert list(twin.deviations) == [], (seed, twin.deviations)
 
 
 def test_no_two_strata_are_given_the_same_whole_number() -> None:

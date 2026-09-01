@@ -1406,7 +1406,18 @@ still wanted is passed over rather than overshot: a cell written with a
 point that the description did not pool is a `plain` floor missed just
 as surely as one written without. The one exception is the type, which
 is not a count and is not traded for an exact fit: where no stratum
-fits, the narrowest there is takes the value anyway. The value it takes
+fits, the narrowest there is NARROWED TO A SINGLE CELL, the neighbour
+it already touches taking the rest, and that one cell carries the value.
+Taking the stratum whole instead spends a `plain` floor that was
+reachable — a 200-row column of two `0`, one `0.5` and 197 `2` is
+allotted strata of 2, 2 and 196 and its pool is one cell, so the whole
+two-cell stratum missed an achievable `plain: 199` by one. Dividing the
+stratum in place and keeping both its values would buy the floor with
+the count of different values instead, which is published too; moving
+the spare cells to a neighbour writes a value the twin was writing
+anyway and moves neither. A pinned end may TAKE those cells — what is
+pinned is its value, not how many cells hold it — and on a column of
+three strata the ends are the only neighbours there are. The value it takes
 is chosen by the rule of G6.4's exchange above, so it stays inside its
 own share and on its own side of zero.
 
@@ -1643,18 +1654,34 @@ over the strata REPEATS until a pass moves nothing, because giving one
 stratum a whole number frees the one it was holding, and the number of
 passes is bounded by the strata.
 
-**THE CHAIN IS BOUNDED IN DEPTH AND IN WORK.** A conforming
-implementation must cap both: the chain's length, because a column may
-be allotted more strata than an implementation can nest that question
-for, and the strata examined across one search, because asking every
-holder for its cheapest answer explores every simple chain and that
-count is not linear in the strata. A search that reaches either cap
+**THE CHAIN IS BOUNDED IN DEPTH AND IN WORK, AND THE WORK IS BOUNDED
+OVER THE WHOLE COLUMN.** A conforming implementation must cap both: the
+chain's length, because a column may be allotted more strata than an
+implementation can nest that question for, and the strata examined,
+because asking every holder for its cheapest answer explores every
+simple chain and that count is not linear in the strata. The work cap
+is spent ACROSS the column and not renewed for each question, because
+the walk asks one question per stranded stratum per pass and a
+per-question cap therefore bounds no total at all: measured on a
+482-cell column of 242 strata, a per-question cap cost 15.8 seconds
+against 5.2 with the chain withdrawn, and shared it costs 5.4. A search that reaches either cap
 gives back the best answer it has found, which is a stratum keeping a
 value with a point in it — a cost G13's recount names — and never a
 different answer. The caps are an implementation's own, and two
 implementations that both reach them may differ; a description whose
 walk reaches them is one whose twin the report already says is
 approximate.
+
+**A GRAIN INSIDE A ROLE IS LAID OUT BY ITS OWN COUNT OF DIFFERENT
+NUMBERS.** An affixed core and a joined position are handed to this
+method as columns of their own, and the division of cells into strata
+reads the count of different things the column publishes. That count
+answers a different question for those roles: a 36-row column of `N/M`
+holds 36 different CELLS while its first position holds 11 different
+numbers, and dividing by 36 lays the position out in strata no rule of
+this method intends. The grain's own count governs, capped by the
+column's, and where the description carries none for the grain the
+column's stands in.
 
 **THE VALUE A STRATUM TAKES IN EXCHANGE** is chosen from its own share
 of the ladder, so the stratum stays where the ladder put it, and is
@@ -1665,11 +1692,25 @@ STRADDLES zero, and a column of four `-4.5` cells whose negative stratum
 was handed `2.097` came out holding one negative cell against a
 published four. The middle of the cut share is taken where it has no
 point-free spelling; where the middle IS whole, the value is the middle
-plus a step of at most half a unit, which cannot be whole, halved again
-only to step around a value another stratum holds. **Halving alone is
-not enough**: eight halvings of a share `(1, 257)` are `129, 65, 33, 17,
-9, 5, 3, 2`, every one of them whole, and an implementation that gave up
-there passed the stratum over in silence though `1.5` was available.
+plus a step of at most half a unit, which cannot be whole, the step
+halving again only to move around a value another stratum holds — and
+each step is tried BOTH above the middle and below it. **Halving alone
+is not enough, and neither is halving upward**: eight halvings of a
+share `(1, 257)` are `129, 65, 33, 17, 9, 5, 3, 2`, every one whole, and
+`(1, 2)` with the middle and every upper step already held leaves `1.25`
+free below. An implementation that gave up in either case passed the
+stratum over in silence.
+
+**AND ABOVE ABOUT TWO TO THE FIFTY-THIRD THERE IS NOTHING TO FIND.**
+The gap between one representable number and the next is more than a
+whole unit there — at two to the fifty-fifth it is eight — so every
+number a share up there can hold is whole, and a column of such numbers
+publishing `integer_valued: false` has nowhere to put a value with a
+point in it. The twin then writes whole numbers throughout and
+re-describes as a column of COUNTS. That outcome is permitted and it is
+NOT permitted to be silent: the twin names `integer_valued` as a fact it
+could not meet, and a reader meets the changed type in the report rather
+than by measuring the twin.
 
 **A quota that cannot be placed is a MISS, and naming it is not a
 licence to leave it unplaced.** Where a quota's own cells exist, an
