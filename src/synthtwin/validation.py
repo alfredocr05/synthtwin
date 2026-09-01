@@ -540,6 +540,17 @@ _NOT_CHECKABLE_HISTOGRAM = (
     "ladder instead. A file whose numbers fall in different bins "
     "misses no obligation this description makes"
 )
+_NOT_CHECKABLE_FIELD_WIDTHS = (
+    "the description records how many of the real column's cells were "
+    "written as a whole number at each field width, and the twin "
+    "follows that census without being held to it: an unpadded cell is "
+    "exactly as wide as its value, so meeting a width exactly would "
+    "mean the values being placed by the census, and they are placed "
+    "by the runs of the published ladder instead. Where a width is "
+    "missed the report beside the twin names it with the count it "
+    "reached, and a file whose cells fall at different widths misses "
+    "no obligation this description makes"
+)
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -11622,6 +11633,22 @@ def _numeric_listings(
     # nowhere while the report claimed the census accounts for every
     # obligation.
     listings = listings + [
+        # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never
+        # silent (plan P4-D30). It is published on every column of this
+        # role, so like the value count beside it, its listing hangs
+        # off nothing else. REPORT-ONLY because an unpadded cell's
+        # width IS its value's magnitude and magnitudes are placed by
+        # the ladder: measured over eighty runs of forty described
+        # columns at the default floor, thirty-six missed at least one
+        # named width and the widest gap was seventy-one cells, so a
+        # check here would call the shipped generator's own twin
+        # broken on nearly half the columns it is handed.
+        Listing(
+            column.name,
+            "numeric.field_widths",
+            "",
+            _NOT_CHECKABLE_FIELD_WIDTHS,
+        ),
         Listing(
             column.name,
             "numeric.n_distinct_values",

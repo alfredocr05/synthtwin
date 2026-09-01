@@ -1017,7 +1017,7 @@ def _numeric_classes(
 # showed that no vocabulary check can see a lowering written in
 # ordinary words (review item P4-A1-R5-F1).
 AFFIXED_REGION_DIGEST = (
-    "4fb4d395b91b9e059909509f585eac215768f45b9a857318102547ff863c0a6f"
+    "f4f51b7938ffd751613b8dfb8081372284415826cb08fe4379eb79615fdff325"
 )
 
 

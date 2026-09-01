@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,244 collected / 52 skipped |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed |
+| suite | 4,256 collected / 52 skipped |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them |
 
 ## What is being built right now
 
@@ -38,6 +38,102 @@ without the same help.
 consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
+
+* **THE WIDTH LANDING (L6) HAS LANDED: a plain number now carries a
+  width, and the VALUE STAGE reads it.** The owner's close-plan
+  decision 2. `field_widths` is the third census beside
+  `numeric_styles` — over every cell written as a WHOLE NUMBER, padded
+  or not, how many figures it wrote, under the floor with a pooled
+  remainder. `pad_widths` covered only the cells wearing a redundant
+  zero and `fraction_widths` only the figures after a point, so a cell
+  written `199` had its width published NOWHERE.
+
+  **What actually changed the twin is not the key.** Method **G6.6**
+  turns both width censuses into demands on each stratum's VALUE — so
+  many cells of at most *w*−1 figures for the padded cells at width
+  *w*, so many of exactly *w* figures for the rest — and moves a
+  stratum to meet one, within the half unit G5.4's integer rule
+  already spends. That is residual **R-P4-27** in one sentence, and it
+  is what closes **R-P4-30** with it.
+
+  **MEASURED before and after, through the real reader, producer,
+  loader, generator and validator, over forty seeds each:**
+
+  - **R-P4-30, a 300-row dental-code column** (`D` plus four figures,
+    85 codes, `pad_widths {4: 97}`): 14 seeds in 40 wrote a core at a
+    width the source never used, 56 cores misplaced in all → **0 in
+    40**. CLOSED.
+  - **R-P4-35, a 230-row vaccine-code column** `000`–`199`: the 103
+    unpadded cells had their width published nowhere and 20 seeds in 40
+    wrote one two figures wide, SILENTLY → **2 in 40, and on both the
+    twin's report NAMES the shortfall** and the summary says the width
+    in words. CLOSED.
+  - **R-P4-27's own `+1`/`-99`/`-02` column**: the value stage now
+    reads the census, and the twin draws the three values the source
+    held rather than `-33`. It still misses at every seed, for a reason
+    the entry never named — the layout gives its three strata 12, 10
+    and 11 cells where the source holds 11 each — so only ten cells can
+    wear the padding and the eleventh is written `-099`. Closed on the
+    entry's own criterion, with that named as **R-P4-114**.
+
+  **THE KEY IS REPORT-ONLY, AND THAT WAS MEASURED RATHER THAN
+  ASSUMED.** The first draft made it EXACT-OBSERVABLE, which is what
+  its two siblings are. Eighty runs over forty described columns at the
+  default floor: **36 missed at least one named width and the widest
+  gap was 71 cells**, and the floor-one battery turned red on the
+  product's own headline claim. The reason is structural and now
+  written down: the other two censuses are facts about SPELLING and the
+  writing stage buys them, while an unpadded cell is exactly as wide as
+  its VALUE — so this is a MAGNITUDE fact, and magnitudes are placed by
+  the ladder, which says nothing about how many cells lie below a
+  decade boundary falling inside a gap between two rungs. That is the
+  fifth fact this phase to walk into the trap and the rule from the
+  first four applies.
+
+  **What REPORT-ONLY does not mean here**: the census is CONSUMED by
+  the value stage, the twin's report names every shortfall with the
+  published count beside the achieved one, and `synthtwin validate`
+  lists it with a sentence saying the twin follows it without being
+  held to it.
+
+  **AND THE OBSTACLE TO MAKING IT EXACT IS ONE THING, OPENED AS
+  R-P4-114**: the cell allotment reads the ladder and not the census,
+  so a boundary between two field widths falls up to one stratum out.
+  Three measurements, one cause — the vaccine column's last two seeds,
+  the `+1`/`-99`/`-02` column's 12/10/11 split, and the floor-one
+  demonstration column reaching 6 cells below ten where 7 are
+  published.
+
+  **A SECOND RESIDUAL WAS OPENED WITHOUT BEING LOOKED FOR: R-P4-113.**
+  The contract is described as assembled from `docs/spec/v6-build/` by
+  `tools/spec/assemble_v6.py`, whose own docstring says a repair lands
+  in a section and the document is rebuilt. The build folder has not
+  moved since 2026-08-26 and the document has, five times. **Running
+  the assembler today rewrites the shipped contract with 298 inserted
+  lines and 1,875 deleted ones**, discarding every repair since — and
+  `check_assembly.py` reads the stale folder, so it reports clean on
+  sections nothing ships. Found by running it once; restored
+  immediately; nobody has been bitten because nobody runs it.
+
+  **FIFTEEN MUTATIONS, TWELVE RED, THREE SILENT.** Each is one named
+  rule withdrawn, run against eighteen files collecting 785 tests. The
+  fourth silent one was closed by BUILDING the column it needed: the
+  padded cells' own ceiling demand — `pad_widths {4: 97}` saying
+  ninety-seven cells hold a value below a thousand — is inert on the
+  dental column, because there the twin drew enough small values on
+  its own, and binds only where the ladder must interpolate across a
+  wide gap. `_gap_rows` is that column and it goes red at 20 seeds in
+  20 with the demand withdrawn. **The three that stay silent are
+  GUARDS inside the move search** — the overshoot guard, the cover
+  guard and the order of service — and they are opened as
+  **R-P4-115** rather than left as a green run's silence.
+
+  **NO FROZEN VECTOR EXERCISES G6.6, and that is stated rather than
+  implied.** Both reference files were re-recorded for the new key and
+  **not one frozen cell moved**, which says the six numeric cases
+  already satisfied their own censuses — so a mutant that withdraws the
+  pass leaves every vector green. The pass is pinned by mutation
+  testing and by the measured columns above, not by the oracle.
 
 * **Gap 1 — the address rule.** An affixed-number column no longer
   reads an e-mail address as a number wrapped in affixes.

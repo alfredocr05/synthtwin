@@ -569,12 +569,27 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         # widths because that would spend the count of different
         # spellings this test recounts one line above. So a width goes
         # unplaced, the report says which, and nothing else moves.
+        # AND THE WHOLE-NUMBER FIELD CENSUS IS THE SAME SHORTFALL READ
+        # ON THE OTHER SIDE OF THE POINT (plan P4-D30). This column's
+        # twenty `1` cells and fourteen `-32` cells publish
+        # `field_widths {"1": 20, "2": 14}`, and the strata sizes that
+        # cannot reach the fraction quotas cannot reach these either --
+        # an unpadded cell is exactly as wide as its value, and a
+        # stratum of eleven cells cannot be split into a group of
+        # twenty. That census is REPORT-ONLY for exactly this reason,
+        # and the twin's report NAMES it, which the line below asserts
+        # rather than allowing this exclusion to hide a silence.
         other = [
             note
             for note in twin.deviations
-            if note.fact not in ("fraction_widths", "n_distinct_values")
+            if note.fact not in (
+                "fraction_widths", "n_distinct_values", "field_widths"
+            )
         ]
         assert other == [], seed
+        assert [
+            note for note in twin.deviations if note.fact == "field_widths"
+        ], seed
         # AND THE SECOND THING IT CANNOT ALWAYS CARRY, which this
         # column is the clearest demonstration of in the suite (plan
         # P4-D4.9, closing residual R-P4-20). At seeds 3 and 17 the
