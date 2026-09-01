@@ -1001,6 +1001,33 @@ def battery() -> list[Mutation]:
                 pad_widths={"1": 11},
             ),
         ),
+        # -- the census of whole-number field widths (P4-D30) --------
+        # Each of these is a document the loader must REFUSE. The
+        # census counts THREE of the six forms rather than one, so its
+        # sum is bounded on both sides rather than pinned, and each end
+        # is registered here.
+        Mutation(
+            "P9c",
+            "a whole-number width census counting fewer cells than the "
+            "forms map says were written without a point",
+            edit("visits", field_widths={}),
+        ),
+        Mutation(
+            "P9c",
+            "a whole-number width census counting more cells than the "
+            "column holds",
+            edit("visits", field_widths={"5": 9999}),
+        ),
+        Mutation(
+            "P6c",
+            "a whole-number field width written by too few cells to name",
+            edit("visits", field_widths={"5": 10}),
+        ),
+        Mutation(
+            "P7c",
+            "a whole-number field width of no figures at all",
+            edit("visits", field_widths={"0": 228}),
+        ),
         # -- clock times --------------------------------------------
         Mutation(
             "T1", "a clock rung written in the other form",

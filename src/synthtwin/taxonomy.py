@@ -706,7 +706,7 @@ REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
 REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
-# THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D27, residual
+# THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D30, residual
 # R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
 # `user12345@example.org` as a number wearing affixes, and the refusal
 # was SILENT: a column that had been publishing a mean, a spread and a
@@ -5196,6 +5196,82 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+POINT_FREE_STYLES = (
+    parsing.STYLE_PLAIN,
+    parsing.STYLE_LEADING_PLUS,
+    parsing.STYLE_LEADING_ZERO,
+)
+
+
+def _field_widths(cells: _Cells) -> dict[str, int]:
+    """How many figures each WHOLE-WRITTEN numeric cell wrote (P4-D30).
+
+    THE THIRD CENSUS, AND THE ONE THAT COVERS THE CELLS THE OTHER TWO
+    LEAVE OUT. `pad_widths` counts only the cells written with a
+    redundant zero and `fraction_widths` only the figures after a
+    point, so a cell written `199` -- no padding, no point -- has its
+    width published NOWHERE. A vaccine-code column running `000` to
+    `199` is the shape that shows it: the padded half is censused, the
+    hundred and three cells of the unpadded half are not, and a twin
+    honouring every published fact wrote some of them two figures wide
+    (residual R-P4-35). A plain code column is the same shape with no
+    padded half at all (residual R-P4-30).
+
+    WHICH CELLS IT COVERS IS THE STYLES MAP'S OWN QUESTION, ASKED
+    ONCE. Three of the six forms carry no point and no exponent --
+    `plain`, `leading_plus` and `leading_zero` -- and those three are
+    exactly the cells that HAVE a figure field to count. A `decimal`
+    cell's figures before the point are a different fact about a
+    different shape of cell, and counting them here would say a column
+    of `12.5` and a column of `12` were written alike.
+
+    IT OVERLAPS `pad_widths` DELIBERATELY rather than partitioning the
+    column with it. A padded cell is a whole-written cell, so it is
+    counted in both, and the pair then says two different things: the
+    padded census says how wide the PADDING was written, and this one
+    how wide the FIELD is however it was written. Subtracting one from
+    the other is what tells a generator how many cells must hold a
+    value of a given magnitude, which is what closes R-P4-30.
+
+    THE FLOOR GOVERNS A WIDTH AS IT DOES IN THE OTHER TWO CENSUSES,
+    and for the same reason: a width fewer than `small_cell_floor`
+    cells share has no key of its own and its cells are counted into a
+    `(withheld)` remainder.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
+    leading zero, no sign, no padding -- which is the one grammar the
+    contract fixes for a width key.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that
+    sum to how many cells of this column were written in one of the
+    three point-free forms. Determinism: the answer depends only on the
+    tally, and the keys are built in ascending width order. Raises
+    nothing. No I/O of any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) not in POINT_FREE_STYLES:
+            continue
+        width = pad_width(cell.numeric_text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
 def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     """How many of this column's numbers fall in each bin.
 
@@ -5454,6 +5530,15 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # every value of the forms map to be an integer summing to the
         # numeric count.
         "pad_widths": _pad_widths(cells),
+        # ...and how wide EVERY whole-written cell wrote its figure
+        # field, which neither of the other two censuses can say
+        # (P4-D30, closing R-P4-30 and R-P4-35). The padded census
+        # covers the cells wearing a redundant zero and the fraction
+        # census the figures after a point; a cell written `199` is in
+        # neither, so its width was published nowhere and a twin wrote
+        # it at whatever width its drawn value needed. A SIBLING for
+        # the reason both the others are.
+        "field_widths": _field_widths(cells),
     }
     moments = _moments(numbers)
     for key in sorted(moments):

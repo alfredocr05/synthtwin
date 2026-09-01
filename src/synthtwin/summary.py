@@ -365,10 +365,11 @@ def _missing_spelling_words(
 def _width_lines(column: "dict[str, object]") -> "list[str]":
     """How wide this column was read to be, in words (residual R-P4-26).
 
-    THE PROFILE PUBLISHES TWO WIDTH CENSUSES AND SAID NEITHER OF THEM
-    OUT LOUD. `pad_widths` records how many characters the cells
-    written with a leading zero were written in, and `fraction_widths`
-    how many figures came after the point. The twin honours both, and
+    THE PROFILE PUBLISHES THREE WIDTH CENSUSES AND SAID NONE OF THEM
+    OUT LOUD. `field_widths` records how many figures every cell
+    written as a whole number wrote, `pad_widths` how many characters
+    the cells written with a leading zero were written in, and
+    `fraction_widths` how many figures came after the point. The twin honours both, and
     the twin's report names either one the twin could not reach -- but
     where they are HONOURED, no surface said in words that a column of
     five-figure codes was read as five figures wide and that the twin
@@ -380,6 +381,7 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
     """
     said: "list[str]" = []
     for key, words in (
+        ("field_widths", "written as a whole number"),
         ("pad_widths", "written with a leading zero"),
         ("fraction_widths", "written after the point"),
     ):

@@ -376,6 +376,13 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     # kept the old census would be refused before this placement is
     # reached.
     document["columns"][0]["fraction_widths"] = {}
+    # ...and so does the census of WHOLE-NUMBER field widths, by the
+    # same tie read at the other end (P9c, contract 7.10): it counts
+    # every cell written in a form that carries no point, so a map
+    # naming forty-six `leading_plus` cells is a map whose field census
+    # counts forty-six. The source's own census counted the forty
+    # `plain` cells, all one figure wide.
+    document["columns"][0]["field_widths"] = {"1": 46}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)

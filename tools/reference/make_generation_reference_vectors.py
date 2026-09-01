@@ -4929,6 +4929,21 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # naming no padded cells takes a census of none.
     if "numeric_styles" in block and "pad_widths" not in block:
         block["pad_widths"] = {}
+    # ...and the census of WHOLE-NUMBER field widths (P4-D30) is NOT
+    # defaulted, which is deliberate.  The two above are empty for
+    # almost every case here because almost no case has a decimal or a
+    # padded cell.  This one covers `plain`, `leading_plus` and
+    # `leading_zero` together, so a block naming any of those has cells
+    # in it and an empty census would be a false statement about the
+    # column rather than a quiet default.  Each case states its own,
+    # from the source column it describes, and a case that forgets
+    # stops the run here rather than being given a census nobody chose.
+    if "numeric_styles" in block and "field_widths" not in block:
+        raise SystemExit(
+            "a numeric block states no `field_widths`: contract 7.10 "
+            "requires the census on every block carrying a forms map, "
+            "and it may not be defaulted (P4-D30)"
+        )
     # The value histogram (contract C6-31, plan P4-D4.7), on the three
     # roles that carry a ladder.  It is REPORT-ONLY: the twin is not
     # held to it, so the cells this oracle freezes do not depend on it,
@@ -5573,6 +5588,18 @@ def _numeric_integer():
         n_zero=4, n_negative=6, n_negative_unrepresentable=0,
         n_used_in_statistics=20, n_left_out_of_statistics=0,
         integer_valued=True, n_rows=22, numeric_styles={"plain": 20},
+        # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS (contract 7.10).
+        # Every one of this column's twenty cells is `plain`, so every
+        # one of them is counted here and the total is twenty exactly
+        # (invariant P9c).  The described source wrote sixteen of them
+        # with a SINGLE figure and four with two: its ladder puts the
+        # p75 rung at 2.5 and the p90 at 11, so three quarters of the
+        # column is at or under 3 and the wide cells are the top of it.
+        # Four is below the smallest group size, so that width has no
+        # key and its cells are pooled -- which is why this case pins
+        # the narrow width alone and leaves the twin the room the pool
+        # gives it.  The case is not otherwise about widths.
+        field_widths={"1": 16, "(withheld)": 4},
         **moments,
     )
     return {
@@ -5647,9 +5674,18 @@ def _numeric_pooled_spelling():
         # written at its own value's spelling, which is the pooled
         # remainder's rule of G6.4 unchanged.
         fraction_widths={"(withheld)": 1},
-        # No cell of this case is padded, so the field-width census is
-        # empty and pins nothing.
+        # No cell of this case is padded, so the padded-field-width
+        # census is empty and pins nothing.
         pad_widths={},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, WHOLLY POOLED (contract
+        # 7.10).  Eleven cells are published `plain` and the twelfth is
+        # the held-back one that carries a point, so this census counts
+        # eleven -- P9c's two bounds being 11 and 12 here.  The
+        # described source wrote those eleven at two widths, neither
+        # shared by as many as eleven cells, so NEITHER is named and
+        # the census is the pooled remainder alone.  It therefore pins
+        # no width at all, which is right for a case about spellings.
+        field_widths={"(withheld)": 11},
         **moments,
     )
     return {
@@ -5699,6 +5735,13 @@ def _numeric_decimal_styles():
         integer_valued=False, n_rows=25,
         numeric_styles={"(withheld)": 3, "exponent_lower": 11,
                         "exponent_upper": 11},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS (contract 7.10).  This
+        # map names NO point-free form -- the three plain cells are the
+        # held-back remainder -- so P9c bounds this census between
+        # nought and three, and three cells cannot reach the smallest
+        # group size at any width.  The census is the pooled remainder
+        # alone and pins no width.
+        field_widths={"(withheld)": 3},
         **moments,
     )
     return {
@@ -6012,6 +6055,19 @@ def _numeric_point_free_styles():
         # two, so the one zero the style already wrote is the one the
         # width asks for and the committed bytes do not move (P4-D14).
         pad_widths={"2": 11},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, AND THE ONE CASE THAT
+        # NAMES TWO WIDTHS (contract 7.10).  Twenty-two of the
+        # thirty-three cells carry no point -- the eleven `leading_plus`
+        # and the eleven `leading_zero` -- and the eleven `decimal`
+        # cells are counted nowhere here.  The described source wrote
+        # its plus-signed cells one figure wide and its padded cells
+        # two, and eleven is the smallest group size, so both widths
+        # are named rather than pooled.  Read against `pad_widths`
+        # above, the pair asks G6.6 for eleven values of at most one
+        # figure to carry the padding and eleven more of exactly one
+        # figure for the rest: every value of this column is 5, so both
+        # demands are met and no cell moves.
+        field_widths={"1": 11, "2": 11},
         **moments,
     )
     return {
@@ -6328,6 +6384,17 @@ def _affixed_brackets():
         # say so, which is what that fact being REPORT-ONLY means.
         n_distinct_values=12,
         integer_valued=True, n_rows=12, numeric_styles={"plain": 12},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, READ OVER THE CORES
+        # (contract 7.10 and AF7).  All twelve cores are `plain`, so
+        # all twelve are counted, and the described source wrote every
+        # one of them at TWO figures -- which is what a bracketed code
+        # column looks like and is the shape residual R-P4-30 was
+        # opened on.  Twelve clears the smallest group size, so the
+        # width is named, and it asks G6.6 for twelve values of exactly
+        # two figures.  The column's own ends are 12 and 45, so every
+        # value the ladder yields is already two figures wide and no
+        # core moves.
+        field_widths={"2": 12},
         # THE REMARK THIS ROLE MUST CARRY (contract invariant AF-R).
         # A block of this role with no remark, or with any other
         # sentence in its place, is refused by the loader: the reader
@@ -6424,6 +6491,13 @@ def _joined_readings():
             "n_used_in_statistics": 12, "n_left_out_of_statistics": 0,
             "integer_valued": True, "numeric_styles": {"plain": 12},
             "fraction_widths": {}, "pad_widths": {},
+            # The whole-number field-width census of this POSITION
+            # (contract 7.10 read at that depth).  Every one of the
+            # twelve readings a position holds is `plain`, and the
+            # described source wrote all of them at two figures -- a
+            # blood pressure is written `120/80`, never `120/8` -- so
+            # the census names one width for all twelve.
+            "field_widths": {"2": 12},
             "std_unrepresentable": False, "value_histogram": {},
             "n_distinct_values": 9 if place == 0 else 5,
             # Each position carries the mode pair like any block of
@@ -6897,7 +6971,8 @@ INTEGER_COLUMN_KEYS = frozenset({
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
-    "fraction_widths", "pad_widths", "resolution_mix", "shape_forms",
+    "fraction_widths", "pad_widths", "field_widths", "resolution_mix",
+    "shape_forms",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry
 # (contract 6.7 read at that depth).  It is deliberately narrower than

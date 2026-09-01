@@ -701,6 +701,9 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "field_widths": {
+          "(withheld)": 3
+        },
         "fraction_widths": {},
         "integer_valued": false,
         "kurtosis": {
@@ -2234,6 +2237,10 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "field_widths": {
+          "(withheld)": 4,
+          "1": 16
+        },
         "fraction_widths": {},
         "integer_valued": true,
         "kurtosis": {

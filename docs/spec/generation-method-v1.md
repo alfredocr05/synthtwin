@@ -1922,6 +1922,143 @@ decision 7 permits, falling back to the two-sided envelope only where
 even those cannot supply the count" — and it is stated here so two
 implementations cannot resolve the conflict in opposite directions.
 
+### G6.6 The published field widths reach the VALUES
+
+**THE CENSUS THIS SECTION SERVES IS `field_widths`** (contract 7.10,
+plan P4-D30), and it is served here rather than among the spelling
+walks for one reason: an unpadded cell is exactly as wide as its value.
+`pad_widths` is bought with a zero and `fraction_widths` by adjusting a
+value inside its own stretch, so both are the writing stage's business.
+A cell written `199` can be made three figures wide only by holding a
+value between 100 and 999, which is the VALUE stage's business and
+nothing else's.
+
+Until this section existed the value stage ran first and read neither
+census. That is residual R-P4-27 in one sentence, and R-P4-30 and
+R-P4-35 are what it produced: a dental-code column of `D0120`, `D1110`
+and `D2740`, every core four figures, published `pad_widths {4: 97}`
+and a twin that drew 78 values below a thousand where 97 were needed.
+No assignment of 78 small values fills 97 narrow fields, and the
+padding walk was not at fault.
+
+**G6.6.1 The two censuses become demands on the values.** Let *P* be
+`pad_widths` and *X* be `field_widths`, each read over its NAMED keys
+alone; the pooled remainder of either names no width and asks for
+nothing. Then:
+
+- for every width *w* named by *P*: **P(w)** cells must hold a value of
+  AT MOST *w* − 1 figures, the leading zero being a figure of the field
+  and not of the value. A width of 1 asks for nothing and is skipped,
+  no value having fewer than one figure;
+- for every width *w* named by *X*: **X(w) − P(w)** cells must hold a
+  value of EXACTLY *w* figures, there being nothing else to make up the
+  difference. Where *P* does not name *w*, *P(w)* is nought.
+
+The figure count of a value is the count of figures in its own
+point-free spelling, the sign not counted — the reading
+`pad_widths` is taken with, applied to the twin's own text.
+
+**G6.6.2 The demands are served from the values already drawn, and the
+order is fixed.** The EXACT demands are served first, because only one
+figure count can serve one of them while a ceiling demand accepts every
+count at or under its own. The ceiling demands are then served in
+ASCENDING order of width, each from the NARROWEST values still
+unclaimed: a value that fits a narrow ceiling fits every wider one, so
+spending it on a wide one is what leaves the narrow one unfillable.
+Within a demand, WHOLE STRATA are taken first and one stratum is split
+only to finish a count nothing else can — the rule G6.4's padded walk
+keeps over the cells, kept here over the values, and for a second
+reason of its own: a stratum holds ONE value, so a stratum that is only
+partly spare cannot move without breaking the demand it is half
+serving.
+
+**G6.6.3 One stratum moves, and the rules it may not break.** Where a
+demand is short, one stratum takes a value of the figure count that
+demand wants. The stratum must be
+
+1. not one of the two PINNED strata, which hold the published ends of
+   the ladder;
+2. not in the ZERO band, so the count of zero values does not move;
+3. holding a value that can be written point-free, so that the pass
+   moves nothing the point-free count, the strata-apart rule or the
+   held-back pool has just settled;
+4. no wider than the cells the short demand is still owed, a wider
+   stratum overshooting the width it moves to — which is the same miss
+   in the other direction;
+5. covered, cell for cell, by cells of its OWN figure count that no
+   demand claimed. A stratum wholly spare satisfies this trivially; a
+   stratum half claimed satisfies it when the surplus can take its
+   place, which is sound because a cell serves a demand by its figure
+   count and by nothing else.
+
+The value it takes is the one nearest the value it holds, among the
+whole numbers of the wanted figure count this stratum could have been
+GIVEN. **Which whole numbers those are is not "the ones strictly inside
+its share", and writing it that way first left a floor-one column two
+cells short of a width it could reach.** G5.3 draws a position inside
+the stratum's share and G5.4 rounds it to the nearest whole number, so
+every whole number within HALF A UNIT of the share is one an ordinary
+run could have produced for this stratum: a share of `(9.18, 11.55)`
+yields 9, 10, 11 and 12, not 10 and 11 alone.
+
+That half unit is G5.4's own, the one G12.2 already widens the rung
+window by, so this rule grants nothing the method had not granted
+already. **It is not a widening of amendment A-P4-18**, which bounds a
+move's REACH by the stratum's stretch: the reach here is half a unit,
+and a stratum whose stretch is narrower than that gets the two whole
+numbers its own rounding could have reached and no others. A share of
+`(99.23, 99.79)` holds no whole number at all and yields exactly 99 and
+100 — which is the case the ladder itself does not settle, a decade
+crossing falling between two rungs, and the census is what settles it.
+
+It never crosses zero, for the reason G6.4's searches do not.
+
+**It may not take a value another stratum holds, EXCEPT where the value
+it gives up is one another stratum also holds.** Then the count of
+different values cannot fall: what it vacates stays behind and what it
+lands on was there or is new. Drawn values ARE shared — two strata
+either side of a rung can round onto one whole number — so this is a
+case that arises rather than one imagined for it.
+
+**G6.6.4 What the half unit buys, measured rather than argued.** The
+rule above was written twice. The first version took only the whole
+numbers strictly inside the share, and the second takes every one the
+stratum's own rounding could reach; the difference is not a nicety.
+
+Measured on a 230-row vaccine-code column running `000` to `199`
+(residual R-P4-35), where the rung above the crossing is interpolated
+across a jump and the ladder puts 128 cells below a hundred against the
+source's 127: over forty seeds, 20 wrote a cell at a width the source
+never used before this section and 2 after it — and the 2 are named by
+`synthtwin validate` where before nothing said anything at all.
+
+**G6.6.5 The pass runs LAST among the value passes**, after G6.4's
+point-free carrier walk, after the step that pulls two strata apart and
+after the held-back pool. It moves a whole value onto another whole
+value no stratum holds alone, so every guarantee those three
+established comes through it untouched and none has to be re-argued
+against a value this pass chose.
+
+**G6.6.6 What it does NOT do, stated so no reader assumes it.** It does
+not move a value outside its stretch except by G6.6.4's single
+neighbour. It does not change how many cells a stratum holds — the
+allotment is G5.2's and is not read here — so a census whose widths
+disagree with the allotment by a whole stratum is reported rather than
+met. And its search over the whole numbers of a share stops at 4096
+candidates and at fifteen figures, fifteen being the widest field every
+value of which is exact in binary64; beyond either, the width is given
+up and named rather than met with a value that is not the value it
+looks like.
+
+**G6.6.7 Where the width is given up.** `field_widths` is
+EXACT-OBSERVABLE, so a width the pass cannot reach is RECOUNTED off the
+finished cells and named — in the twin's own report as a deviation
+carrying the published count and the achieved one, and by `synthtwin
+validate` as `numeric.field_widths` MISSED at the subcheck
+`fields.published.<width>`. Both pages read the census with the
+producer's own reader, so a width the writer intended and a width a
+cell actually wears cannot come apart between them.
+
 ## G6A. Affixed-number columns (`affixed_number`)
 
 Added by Phase 4; like G7A this section was written after the
