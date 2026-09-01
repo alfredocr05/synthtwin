@@ -4162,9 +4162,9 @@ declaration for only one of them.
   `tests/test_p3v1f2_entry_table.py` -- because deleting it would retire
   the only end-to-end reach this column shape has.
 
-- **R-P4-69 — OPEN (opened 2026-08-31 by adversarial round P4-A2-R2,
-  item 2; PRE-EXISTING).** A CONTINUOUS COLUMN'S TWIN READS BACK AS A
-  COLUMN OF COUNTS.
+- **R-P4-69 — CLOSED 2026-08-31 (opened 2026-08-31 by adversarial round
+  P4-A2-R2, item 2; PRE-EXISTING).** A CONTINUOUS COLUMN'S TWIN READS
+  BACK AS A COLUMN OF COUNTS.
 
   The entry table's `pooled` fixture publishes `continuous` with
   `integer_valued` false. Its twin holds `2`, `1`, `7`, `9` — whole
@@ -4172,17 +4172,118 @@ declaration for only one of them.
   and the quality report misses `axes.role`,
   `axes.statistical_type` and `type.integer_valued`.
 
-  A twin that reprofiles to a different ROLE is the strongest form of
-  the fidelity claim failing: every downstream reading of that column
-  is a reading of a different kind of column. It was opened rather than
-  fixed for the same reason R-P4-68 was — it is the `continuous` role's
-  own landing, and the landing that found it was the joined role's —
-  and it is asserted as a WITNESS in
-  `tests/test_p3v1f2_entry_table.py`, which fails when the defect is
-  repaired and just as loudly if it gets worse. **R-P4-68 has since
-  closed and this one has not**, so the two no longer travel together;
-  whoever takes this one should read that entry for the shape a
-  witness turns into.
+  **THE RECORDED DEFECT WAS ONE SEED'S FACE OF A WIDER ONE.** The same
+  column measured across seeds wrote no pointed cell on the seed this
+  file pins, FOUR on two others and EIGHT on two more, against a
+  published pool of two — so on the seeds where the role survived, the
+  report missed `styles.published.plain` instead, 34 published against
+  30 and against 28. Role and style census are one defect seen from two
+  sides: the cells that carry a point were being lost or multiplied,
+  never written in the number the description gave.
+
+  **WHY.** Only so many whole numbers lie between a column's published
+  ends — nine, here, for eleven strata — so some stratum keeps a value
+  with a point in it whatever the walk does. WHICH stratum was left to
+  arrival order, and the two single-cell strata took `2` and `8` before
+  the four-cell strata either side could, stranding four cells apiece.
+  The other side of it: `_whole_enough` asks for the plain count AND
+  the pool, because a held-back form is written plainly wherever it can
+  be, so a walk good enough to be given every one of them writes
+  thirty-six point-free cells and loses both halves completely.
+
+  **WHAT CLOSED IT**, in method G6.4 and both halves of the rule.
+  `_rehomed` asks for a whole number another stratum is holding instead
+  of passing over it: where that holder can step to a whole number of
+  its own it does and the chain repeats, and where it cannot it hands
+  the number over only if it is NARROWER, taking a value with a point
+  in it from its OWN share of the ladder. `_pool_enough` then holds
+  back exactly the POOLED count of cells, on the narrowest strata the
+  ladder has, so the cells that carry a point are as few as the
+  description said they were and land where a rare value lands.
+  Neither move spends anything: every value stays inside the share that
+  already bounded it, so the rung window of G5.6 does not move, and the
+  count of different values does not fall.
+
+  **WHAT THE PUBLISHED MAP ACTUALLY ASKS**, read off the validator
+  rather than assumed, because the first repair aimed at the wrong
+  number. A pooled cell may perfectly well be written point-free — the
+  battery's own flat-rung column pools `060` and `11` — so `plain` is
+  met anywhere from the NAMED count up to that count plus the pool: 34
+  to 36 here. The defect ran off BOTH ends of that range.
+
+  **MEASURED** through the real producer, generator and validator on
+  the recorded column — 34 whole numbers, `1.5` and `2.5`, floor 11,
+  publishing `plain: 34` and a pool of 2. Before: 0, 4 or 8 cells
+  carrying a point depending on seed; `axes.role`,
+  `axes.statistical_type` and `type.integer_valued` missed where there
+  were none, and `styles.published.plain` missed at 30 and 28 where
+  there were too many. After, over **two hundred seeds: 182 write
+  exactly the published two and miss nothing at all**; the other 18
+  write three or five, come out at 33 or 31 `plain`, and **say so** —
+  the style recount already names it, "at least 34 cell(s) written in
+  the plain form" against the 31 the run wrote, so no run reports a
+  count it did not write. Those eighteen are **R-P4-111**, opened
+  below. A SECOND note was written for that shortfall and withdrawn:
+  measured, the recount was already naming it, and a note beside it
+  would have been the same fact said twice. What was measured is that column over two hundred seeds plus
+  the suite's own fixtures; **no randomised trial over column shapes
+  was run and none is claimed.**
+
+  **THREE THINGS THE REPAIR GOT WRONG FIRST**, each found by measuring
+  rather than by reading. Holding back the whole POOL put a point in
+  eleven cells of a column that never had one, so the rule now runs only
+  where `plain` is a named count. The held-back value was drawn from the
+  stratum's interpolated share, and the share of the stratum just under
+  zero STRADDLES zero, so a column of four `-4.5` cells came out holding
+  one negative cell against a published four. And the chain let a
+  stratum re-take the very number it was giving up: **246 chains in 246
+  over 200 seeds** handed one number to BOTH strata, with
+  `_apart_enough` pulling them apart afterwards so no published count
+  ever showed it.
+
+  **THE MUTATION BATTERY: eleven run, ten red.** The silent one
+  withdraws the guard the plain walk carries — the chain asks
+  `_whole_inside` with `_shares_after`, so a stratum reaching outside
+  its own share never takes the one number a stratum further on could
+  be given. Measured with it withdrawn, the pointed-cell distribution
+  over 200 seeds is IDENTICAL, so nothing this column does depends on
+  it; it is kept because the walk it extends carries it and a chain
+  that quietly did not would be the harder thing to find later. Its
+  contract is asserted directly instead, in
+  `test_a_stratum_never_hands_its_number_to_a_wider_one`.
+
+  The witness that asserted the defect is rewritten to assert the
+  repair rather than deleted, as
+  `test_the_pooled_fraction_column_holds_its_role_and_its_census` in
+  `tests/test_p3v1f2_entry_table.py`. It pins the count in the twin's
+  own bytes over two hundred seeds as well as through the report, and
+  requires every seed that runs over to have SAID so: a run that met the
+  role by writing four pointed cells would satisfy `axes.role` and still
+  be wrong, and one that missed `plain` in silence would be worse.
+
+- **R-P4-111 — OPEN (opened 2026-09-01 by the R-P4-69 landing;
+  MEASURED, NOT INFERRED).** THE WALK FOR WHOLE NUMBERS IS GREEDY, AND
+  ON A MINORITY OF SEEDS IT LEAVES MORE CELLS CARRYING A POINT THAN THE
+  PUBLISHED `plain` FLOOR ALLOWS.
+
+  `_rehomed` asks every stratum that could give up the number it wants
+  and takes the answer costing the fewest cells, but that is the
+  cheapest answer at ONE step, not over the whole column: a chain ending
+  at a three-cell stratum is taken where a longer one ending at a
+  single-cell stratum was available. Measured on the R-P4-69 column, 34
+  whole numbers and two halves publishing `plain: 34` and a pool of 2:
+  **18 seeds in 200** write three or five cells with a point in them and
+  come out at 33 or 31 `plain` against a floor of 34.
+
+  It is REPORTED, not silent — the style recount names it on exactly
+  those runs, and
+  `test_the_pooled_fraction_column_holds_its_role_and_its_census`
+  requires a run that goes over to have said so — and it is bounded
+  below by the same test at 180 seeds in 200. What closes it is a search that is cheapest OVER THE COLUMN
+  rather than at each step; the strata are few enough that an exact one
+  is affordable. It was opened rather than fixed because the landing it
+  belongs to had already closed the defect it was found under, and the
+  ordering question is its own piece of work.
 
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,

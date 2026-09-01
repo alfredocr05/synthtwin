@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,225 collected / 51 skipped |
+| suite | 4,229 collected / 52 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
@@ -761,10 +761,29 @@ reproduce.
   310-character numerals. That is residual R-P2-1's own symptom, which
   "gap 3" reported closed on 93 randomly built columns; **all 93 were
   long digit strings**, and a compact exponent spelling is a shape that
-  trial could not build. **R-P4-69 — still open:** a `continuous`
+  trial could not build. **R-P4-69 (SINCE CLOSED — see the entry
+  below):** a `continuous`
   column's twin
   holds whole numbers, so it re-describes as `count` with
   `integer_valued` true — a twin that reads back as a different ROLE.
+**R-P4-69 IS CLOSED (2026-09-01). THE ROLE FLIP WAS ONE SEED'S FACE OF
+A WIDER DEFECT**, and measuring across seeds is what showed it. The
+same column wrote 0, 4 or 8 cells carrying a point against a published
+2: with none the role moved, with too many `plain` came out at 30 or 28
+against a floor of 34. Only nine whole numbers lie between that
+column's published ends and its ladder asks for eleven strata, so some
+stratum keeps a fraction whatever the walk does — and WHICH one was
+left to arrival order, stranding four-cell strata while single-cell
+ones took the numbers first. `_rehomed` now asks a stratum holding a
+whole number for it and takes the answer costing the fewest cells,
+chaining where the holder can step aside; `_pool_enough` then holds
+back the pooled count on the narrowest strata. **182 seeds in 200 now
+write exactly two and miss nothing**; the other 18 are R-P4-111, and
+the style recount names their shortfall rather than passing it in
+silence. Three wrong turns were caught by measurement and are recorded
+in the plan entry: holding back the whole pool where `plain` is not
+named, a held-back value crossing zero, and a chain letting a stratum
+re-take the number it was giving up on 246 chains out of 246.
 **R-P4-53 IS CLOSED (2026-08-31, landing A3). A CORRECT FILE WAS TOLD
 IT MISSED, and the twin the tool writes itself was one of them.** A
 description publishes its style census over the cells IT counts as

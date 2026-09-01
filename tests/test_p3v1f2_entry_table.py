@@ -281,13 +281,18 @@ def _pooled_styles_table() -> str:
     are still one cell each and still pooled.
     """
     # A PUBLISHED fraction beside a POOLED one, and the published one
-    # is what keeps this witness green. With both fractions under the
+    # is what keeps this fixture green. With both fractions under the
     # floor the twin held whole numbers only, so the column re-described
     # as `count` -- residual R-P4-69 -- and a red battery measured
     # against an already-red witness proves nothing (review item
     # P4-A2-R3-F1). Twelve decimal cells hold the role; the single
     # exponent cell is still pooled, so the canonical-split subcheck
-    # this fixture exists for still has its shape.
+    # this fixture exists for still has its shape. R-P4-69 has CLOSED
+    # and the pooled-only shape it recorded is asserted on its own in
+    # `test_the_pooled_fraction_column_holds_its_role_and_its_census`;
+    # this fixture keeps the published fraction anyway, because a
+    # battery whose premise depends on a repair holding is a battery
+    # that reports a regression somewhere else as its own collapse.
     values = (
         [f"{index % 9 + 1}" for index in range(34)]
         + ["1.5"] * 12
@@ -5814,40 +5819,97 @@ def test_the_compact_exponent_column_holds_both_published_widths(
     )
 
 
-def test_the_pooled_fraction_column_still_changes_role(
+def test_the_pooled_fraction_column_holds_its_role_and_its_census(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-69 asserted as a WITNESS, on the same terms.
+    """R-P4-69 asserted as the REPAIR, on the same terms as the witness.
 
     A `continuous` column whose only fractions fall under the
-    publication floor has no published form for them, so its twin holds
-    whole numbers and re-describes as `count`. A twin that reads back as
-    a different ROLE is the strongest form of the fidelity claim
-    failing, and it used to be the battery's own pooled fixture.
+    publication floor has no NAMED form for them -- the description says
+    only how many cells the pool covered -- and its twin used to hold
+    whole numbers in all of them and re-describe as `count`. A twin that
+    reads back as a different ROLE is the strongest form of the fidelity
+    claim failing, and this was the entry table's own pooled fixture.
+
+    WHAT THE PUBLISHED MAP ACTUALLY ASKS, measured off the validator
+    rather than assumed. A pooled cell may perfectly well be written
+    point-free, so `plain` is met anywhere from the NAMED count up to
+    that count plus the pool -- 34 to 36 on this column. The defect ran
+    off BOTH ends of that range: no cell carrying a point at all, which
+    moved the role, and four or eight of them, which put `plain` at 30
+    or 28 against a floor of 34.
+
+    THE COUNT IS PINNED IN THE TWIN'S OWN BYTES over two hundred seeds,
+    because the defect had three faces across seeds and a single-seed
+    assertion would leave two of them unmeasured. Where a seed still
+    runs over, the twin must SAY so: a published count missed in silence
+    is the failure this file exists to catch, and residual R-P4-111
+    carries the remaining seeds.
     """
     values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
     described = _described(
         tmp_path, fixtures.single_column_table("reading", values),
-        stem="pooled-witness",
+        stem="pooled-repair",
     )
+    facts = described.columns[0].facts
+    assert facts.numeric_styles == {"plain": 34, contract.WITHHELD: 2}, (
+        facts.numeric_styles
+    )
+    assert facts.integer_valued is False
+
+    # 1. The seed this file pins, end to end through the validator.
     twin = rendering.twin_csv(generation.generate(described, SEED))
-    outcome = _measured(tmp_path, described, twin, "pooled-witness.csv")
-    # THE ACHIEVED VALUES TOO, so the witness pins what the twin turns
-    # this column INTO and not merely that something moved (review item
-    # P4-A2-R4-F5).
+    cells = [line for line in twin.splitlines()[1:] if line != ""]
+    assert len(cells) == 36
+    assert len([cell for cell in cells if "." in cell]) == 2, cells
+    outcome = _measured(tmp_path, described, twin, "pooled-repair.csv")
     missed = {
         check.subcheck: (check.published, check.achieved)
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
-    assert missed == {
-        "axes.role": ("continuous", "count"),
-        "axes.statistical_type": ("continuous", "count"),
-        "type.integer_valued": ("no", "yes"),
-    }, missed
-    assert _residual_is_open("R-P4-69"), (
-        "this witness asserts a defect R-P4-69 records; if that residual "
-        "has closed, the witness is what should go"
+    assert missed == {}, missed
+    # AND THE SITES THAT ASSERTION RESTS ON WERE FILED AT ALL. An empty
+    # `missed` reads the same way whether every subcheck held or none of
+    # them ran, which is a shape this file has been caught by before.
+    filed = {
+        check.subcheck
+        for check in outcome.checks
+        if check.subcheck
+        in ("axes.role", "type.integer_valued", "styles.published.plain")
+    }
+    assert filed == {
+        "axes.role",
+        "type.integer_valued",
+        "styles.published.plain",
+    }, filed
+
+    # 2. Two hundred seeds: inside the range, or said out loud.
+    exact = 0
+    for seed in range(200):
+        built = generation.generate(described, seed)
+        written = [cell for cell in built.columns[0] if cell != ""]
+        pointed = len([cell for cell in written if "." in cell])
+        said = [
+            note for note in built.deviations
+            if note.fact == "numeric_styles"
+        ]
+        if pointed == 2:
+            exact = exact + 1
+        if 1 <= pointed <= 2:
+            assert not said, (seed, pointed, said)
+        else:
+            assert said, (seed, pointed)
+    # The measured quality of the repair, so a regression shows as one.
+    # Before it, NO seed reached the published count by either road.
+    assert exact >= 180, exact
+    assert not _residual_is_open("R-P4-69"), (
+        "this test asserts the repair the register records as closed; if "
+        "R-P4-69 is open again, the two must be reconciled"
+    )
+    assert _residual_is_open("R-P4-111"), (
+        "the seeds this test allows to run over are what R-P4-111 "
+        "records; if that residual has closed, this bound should go"
     )
 
 
