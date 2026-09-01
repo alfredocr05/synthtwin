@@ -336,16 +336,27 @@ def test_a_collision_inside_one_width_keeps_its_fold(
     twin held 2, a published count given up to hold a width, which is
     the wrong way round.
 
-    So the pin falls back to an open window, and this test pins the
+    So the pin falls back to an open window, and this test pinned the
     ORDER of the two: the fold is the obligation, the width is the
-    preference, and the width that could not be held is named.
+    preference, and the width that could not be held was named.
+
+    **AND THE WIDTH IS HELD NOW, WHICH IS WHY THIS TEST NO LONGER
+    PERMITS THE MISS** (residual R-P4-47, closed 2026-09-01). The
+    permission was a fair shape while the twin could not hold both --
+    and it read `if longest != max_length: assert the deviation is
+    named`, so the moment the width COULD be held the branch stopped
+    being taken and the test went on passing about nothing. That is the
+    same shape as the check that cannot fail this whole file exists to
+    refuse, so both widths are asserted unconditionally here. The
+    parent carries the space its partner needs, which is the answer the
+    source column's own cells took.
     """
     body = "9" * 310
     values = [body + " "] * 100 + [" " + body] * 100
     source, cells, again, notes = _round_trip(tmp_path, "onewidth", values)
     assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
     # The premise the old argument denied: one width, and a collision.
-    assert source["min_length"] == source["max_length"]
+    assert source["min_length"] == source["max_length"] == 311
     assert source["n_distinct"] == 2
     assert source["n_distinct_folded"] == 1, (
         "the fixture no longer collides, so it pins nothing"
@@ -355,10 +366,126 @@ def test_a_collision_inside_one_width_keeps_its_fold(
         "the twin gave up the published folded count to hold a width"
     )
     assert not [note for note in notes if note.fact == "n_distinct_folded"]
-    # AND THE WIDTH IT COULD NOT HOLD IS NAMED, not faked.
-    longest = max(len(cell) for cell in cells)
-    if longest != source["max_length"]:
-        assert "max_length" in {note.fact for note in notes}
+    # AND SO IS THE WIDTH, unconditionally.
+    assert sorted({len(cell) for cell in cells}) == [311], (
+        "the one published width is not held: the twin holds "
+        f"{sorted({len(cell) for cell in cells})}"
+    )
+    assert (again["min_length"], again["max_length"]) == (311, 311)
+    assert [note.fact for note in notes] == []
+    # AND THE PARENT REALLY DID RESERVE THE ROOM, measured on the cells
+    # rather than read off a clean verdict: one cell carries its space
+    # at the end and its partner carries one at the front, over one
+    # 310-figure core, which is the shape the source's own cells took.
+    written = sorted(set(cells))
+    assert len(written) == 2, written
+    leading, trailing = written
+    assert leading == " " + trailing[:-1], (leading[:6], trailing[:6])
+    assert trailing[-1] == " " and leading[0] == " "
+    assert len(trailing[:-1]) == 310
+    assert trailing[:-1].isdigit()
+
+
+def test_a_one_width_fold_holds_both_widths_on_every_shape_that_can(
+    tmp_path: pathlib.Path,
+) -> None:
+    """R-P4-47 ON ITS SIBLINGS, and on the shapes that already held.
+
+    The residual named one shape. Four more of this role reach the same
+    state -- a fold whose partner is spacing, inside a window pinned at
+    one width -- and the repair has to hold on all of them or it is a
+    repair of one fixture. Measured end to end through the real
+    producer, generator and validator, before and after:
+
+    * `N ` beside ` N`, published 311: widths 311 and 312 with
+      `max_length` MISSED, against 311 alone and nothing missed;
+    * three spacings of a 309-figure core, published 311: 311 and 312
+      missed, against 311 alone;
+    * a too-small fraction spaced both ways, published 328: 328 and 329
+      missed, against 328 alone;
+    * a NEGATIVE 310-figure numeral spaced both ways, published 312:
+      312 and 313 missed, against 312 alone;
+    * two folded identities at 311 over four spellings: 311 and 312
+      missed, against 311 alone.
+
+    **And the three shapes that already held are asserted too**, because
+    the reservation must not be made where it is not needed: a compact
+    `1e400 `/` 1e400` pair folds by CASE on the letter `e` and keeps its
+    six characters without any spacing at all, `1e400` beside `1E400`
+    likewise at five, and a column that does not fold has no partner to
+    reserve for. A repair that reserved room on those would have moved
+    bytes no defect asked it to move.
+    """
+    body = "9" * 310
+    core = "9" * 309
+    small = "0." + "0" * 324 + "9"
+    columns = {
+        "named": ([body + " "] * 100 + [" " + body] * 100, 311),
+        "three": (
+            [core + "  "] * 40 + [" " + core + " "] * 40 + ["  " + core] * 40,
+            311,
+        ),
+        "smallfold": ([small + " "] * 60 + [" " + small] * 60, 328),
+        "negative": (["-" + body + " "] * 60 + [" -" + body] * 60, 312),
+        "twoidentities": (
+            ["1" + body[1:] + " "] * 30 + [" 1" + body[1:]] * 30
+            + ["2" + body[1:] + " "] * 30 + [" 2" + body[1:]] * 30,
+            311,
+        ),
+        "compactfold": (["1e400 "] * 40 + [" 1e400"] * 40, 6),
+        "atthefloor": (["1e400"] * 40 + ["1E400"] * 40, 5),
+        "nofold": ([body] * 40 + [body[:-1] + "8"] * 40, 310),
+    }
+    for name in sorted(columns):
+        values, width = columns[name]
+        source, cells, again, notes = _round_trip(tmp_path, name, values)
+        assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE, name
+        assert source["min_length"] == source["max_length"] == width, name
+        assert sorted({len(cell) for cell in cells}) == [width], (
+            name, sorted({len(cell) for cell in cells})
+        )
+        assert (again["min_length"], again["max_length"]) == (width, width), name
+        assert again["n_distinct"] == source["n_distinct"], name
+        assert again["n_distinct_folded"] == source["n_distinct_folded"], name
+        assert [note.fact for note in notes] == [], (name, notes)
+        assert _holdable(cells) == [], name
+
+
+def test_the_partner_family_is_the_parents_folded_identity_respelt() -> None:
+    """THE MECHANISM R-P4-47 NEEDED, at the level the rule lives.
+
+    G9.3 enumerates a parent's partners by ascending total edge spacing
+    and, inside one total, by ascending leading share. Written over the
+    parent AS WRITTEN, that family can only lengthen -- so a parent
+    already filling a pinned width has no partner there at all. Written
+    over the parent's TRIMMED text, with the parent's own placement
+    stepped over, the same order gives ` N` for a parent `N ` at the
+    same width.
+
+    **Every case where the parent carries no spacing is unchanged**,
+    which is every parent the invention roles wrote before this, and
+    the two assertions below are the method's own worked example and
+    its case-flip order.
+    """
+    # THE METHOD'S OWN WORKED EXAMPLE (G9.3 step 2), unmoved.
+    assert [
+        generation._partner_at("1", order, 1, 3) for order in range(1, 7)
+    ] == ["1 ", " 1", "1  ", " 1 ", "  1", None]
+    assert [
+        generation._partner_at("1", order, 3, 3) for order in range(1, 5)
+    ] == ["1  ", " 1 ", "  1", None]
+    # AND THE CASE FLIPS, in the binary-counter order of G8.2.
+    assert [
+        generation._partner_at("aB", order, 1, 2) for order in range(1, 5)
+    ] == ["AB", "ab", "Ab", None]
+    # THE NEW CASE: a parent that already carries its own edge spacing
+    # has partners at its own width, which is what the reservation
+    # exists to reach.
+    assert generation._partner_at("9 ", 1, 2, 2) == " 9"
+    assert generation._partner_at(" 9", 1, 2, 2) == "9 "
+    assert [
+        generation._partner_at("9  ", order, 3, 3) for order in range(1, 4)
+    ] == [" 9 ", "  9", None]
 
 
 def test_the_zero_run_is_no_wider_than_the_value_needs(

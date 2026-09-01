@@ -10664,26 +10664,37 @@ def _partner_at(
     The family is enumerated in a fixed order, so two implementations
     build the same partners:
 
-    * the spacing is taken in ascending TOTAL, and within one total the
-      leading share ascends: no spacing, then one space (trailing, then
-      leading), then two (trailing pair, one each side, leading pair),
-      and so on;
+    * the spacing is a TOTAL over the whole cell, taken in ascending
+      order, and within one total the leading share ascends: no
+      spacing, then one space (trailing, then leading), then two
+      (trailing pair, one each side, leading pair), and so on;
     * within one spacing, the case flips of method G8.2 are taken in
       ascending binary-counter order, the unflipped parent first;
-    * the parent itself -- no spacing and no flip -- is not one of its
-      own partners and is stepped over.
+    * the parent's OWN placement -- its own total, its own leading
+      share and no flip -- is not one of its own partners and is
+      stepped over.
 
     Case flips therefore come first and in exactly the order they came
     in before this family was widened, so a column whose collisions case
     alone could carry writes what it wrote before.
 
+    THE TOTAL IS COUNTED OVER THE CELL AND NOT ADDED TO THE PARENT
+    (residual R-P4-47). Those are the same thing for every parent
+    carrying no edge spacing of its own, which is every parent the
+    invention roles wrote before this one; where a parent DOES carry
+    spacing they differ, and the difference is what a pinned width
+    needs. A parent `N ` at a window pinned to its own length has ` N`
+    as its next partner rather than ` N ` one character past it, so
+    both cells land where the description says. See
+    `_unrepresentable_cells` for the walk that writes such a parent.
+
     ``shortest`` and ``longest`` are the lengths this partner is
     permitted to take -- the published length range of the column, or
     the one pinned length where this value carries a published end.
     ``longest`` of None says the description publishes no longest
-    length, and the spacing then has no end. Spacing only ever LENGTHENS
-    a value, so a parent already longer than ``longest`` has no partner
-    at all and None is handed back.
+    length, and the spacing then has no end. A parent whose own TRIMMED
+    text is longer than ``longest`` has no partner at all and None is
+    handed back.
 
     Guarantees: accepts text, a counting number from one upward and a
     length window; returns text or None, where None says this parent's
@@ -10692,24 +10703,46 @@ def _partner_at(
     """
     if order < 1:
         return None
-    places = len([place for place in range(len(parent))
-                  if _has_case(parent[place])])
+    # THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS THE
+    # TRIMMED TEXT AND NOT THE PARENT AS WRITTEN (residual R-P4-47).
+    # Every rule below is unchanged where the parent carries no edge
+    # spacing of its own, which is every parent the invention roles
+    # wrote before this: the trimmed text IS the parent, its own
+    # placement is the no-spacing one, and the walk starts and steps
+    # exactly where it did. What it adds is the case a parent WITH
+    # edge spacing needs -- the total is counted over the whole family
+    # rather than added to the parent, so a parent written `N ` at a
+    # pinned width has ` N` as its partner at that same width instead
+    # of ` N ` one character past it.
+    body = parsing.trimmed(parent)
+    own = len(parent) - len(body)
+    # HOW MUCH OF THAT SPACING IS AT THE FRONT, counted by asking the
+    # SHIPPED TRIM of each leading character rather than by a second
+    # notion of what a space is -- and by indexing rather than by a
+    # method call, which the offline audit refuses on a value it cannot
+    # trace. `str.find` was written here first and turned two source
+    # audits red, which is the policy working.
+    own_lead = 0
+    while own_lead < len(parent) and not parsing.trimmed(parent[own_lead]):
+        own_lead = own_lead + 1
+    places = len([place for place in range(len(body))
+                  if _has_case(body[place])])
     flips = 1 << places
-    spread = max(0, shortest - len(parent))
+    spread = max(0, shortest - len(body))
     left = order
-    while longest is None or len(parent) + spread <= longest:
+    while longest is None or len(body) + spread <= longest:
         room = (spread + 1) * flips
-        if spread == 0:
+        if spread == own:
             room = room - 1
         if left <= room:
             seat = left - 1
-            if spread == 0:
+            if spread == own and seat >= own_lead * flips:
                 seat = seat + 1
             lead = seat // flips
             flip = seat % flips
-            built = parent
+            built = body
             if flip:
-                turned = _case_variant(parent, flip)
+                turned = _case_variant(body, flip)
                 if turned is None:
                     return None
                 built = turned
@@ -12567,32 +12600,82 @@ def _unrepresentable_cells(
     open_windows: list[tuple[int, int | None]] = [
         (1, None) for _each in groups
     ]
-    for index in range(len(groups)):
-        partner = _partner_of(
-            index, folded, spellings, families, used, windows
-        )
-        if partner is None:
+    # THE PARENT KEEPS ROOM FOR THE PARTNERS IT WILL BE ASKED FOR
+    # (residual R-P4-47, contract 9.7's own sentence). A partner is
+    # reached by edge spacing and spacing only LENGTHENS, so a parent
+    # already filling a PINNED width has no partner at that width and
+    # the walk fell back to the open window: the fold was kept, the
+    # ceiling was missed by one character, and the report named it. The
+    # source column shows the answer its own cells took -- `N + " "`
+    # beside `" " + N` are one width because the PARENT carries a space
+    # too -- so a parent that will be asked for partners at its own
+    # pinned width is written with that many fewer figures and that
+    # many spaces, and both cells land where the description says.
+    #
+    # TWO PASSES, AND THE FIRST IS EXACTLY WHAT REVISION 5 WROTE. The
+    # reservation is not predicted: pass one writes every parent at its
+    # full width and records which parents had a partner fall back to
+    # the open window, and only a column that HAD such a fallback is
+    # built again. So every column whose widths were already held comes
+    # out byte for byte as it did, and the second pass is reached only
+    # where the twin was missing a width. Where the reserved room would
+    # take a parent below its own kind's floor the reservation is not
+    # made and the fallback stands, which is the old outcome with the
+    # miss still named.
+    spacing = [0 for _each in groups]
+    for _pass in range(2):
+        used = {}
+        states = {}
+        spellings = []
+        fallbacks: "dict[int, int]" = {}
+        for index in range(len(groups)):
             partner = _partner_of(
-                index, folded, spellings, families, used, open_windows
+                index, folded, spellings, families, used, windows
             )
-        if partner is not None:
-            spellings = spellings + [_take(partner, used)]
-            continue
-        spelling = _wide_number(
-            kinds[index], signs[index], states, used,
-            reserved,
-            _wide_width(kinds[index], asked[index], signs[index]),
-        )
-        if spelling is None:
-            raise errors.ProfileError(
-                _domain_too_small(
-                    column.name,
-                    _wide_shape_words(kinds[index], signs[index]),
-                    len(groups),
-                    index,
+            if partner is None:
+                partner = _partner_of(
+                    index, folded, spellings, families, used, open_windows
                 )
+                if partner is not None:
+                    fallbacks = _fallback_counted(
+                        fallbacks, partner, spellings, folded
+                    )
+            if partner is not None:
+                spellings = spellings + [_take(partner, used)]
+                continue
+            room = asked[index] - spacing[index]
+            spelling = _wide_number(
+                kinds[index], signs[index], states, used,
+                reserved,
+                _wide_width(kinds[index], room, signs[index]),
             )
-        spellings = spellings + [spelling]
+            if spelling is None:
+                raise errors.ProfileError(
+                    _domain_too_small(
+                        column.name,
+                        _wide_shape_words(kinds[index], signs[index]),
+                        len(groups),
+                        index,
+                    )
+                )
+            if spacing[index] and len(spelling) == room:
+                spelling = _take(
+                    f"{spelling}{_SPACE * spacing[index]}", used
+                )
+            spellings = spellings + [spelling]
+        if not fallbacks:
+            break
+        moved = False
+        for place in sorted(fallbacks):
+            wanted = fallbacks[place]
+            floor = _wide_width(kinds[place], 1, signs[place])
+            if asked[place] - wanted < floor:
+                continue
+            if spacing[place] != wanted:
+                spacing[place] = wanted
+                moved = True
+        if not moved:
+            break
     notes: "list[Deviation]" = []
     # ONLY A WIDTH PAST THE PUBLISHED CEILING IS A WIDENING (item
     # P4-G3-F1). The test was once "not equal to `max_length`", which
@@ -12635,6 +12718,39 @@ def _unrepresentable_cells(
     # above, which is exactly the case it exists for.
     notes = notes + _wide_width_notes(column.name, facts, spellings, kinds)
     return _grouped(groups, spellings), notes
+
+
+def _fallback_counted(
+    fallbacks: "dict[int, int]",
+    partner: str,
+    spellings: "list[str]",
+    folded: int,
+) -> "dict[int, int]":
+    """Record that one parent owed a partner its pinned width could not hold.
+
+    A partner is found by `_partner_of`, which hands back the spelling
+    and not the parent it was built from; the parent is the one value
+    already written that this partner FOLDS onto, which is the same
+    question the published folded count asks. Counting it here is what
+    lets the second pass reserve exactly the room the first pass found
+    wanting, rather than predicting an assignment `_partner_of` makes
+    from three preferences.
+
+    Guarantees: accepts the counts so far, one partner spelling, the
+    spellings written so far and how many of them are parents; returns
+    the counts with this partner's parent incremented, or unchanged
+    where no written parent folds onto it. Raises nothing. No I/O.
+    """
+    key = parsing.folded(partner)
+    for place in range(min(folded, len(spellings))):
+        if parsing.folded(spellings[place]) != key:
+            continue
+        if place in fallbacks:
+            fallbacks[place] = fallbacks[place] + 1
+        else:
+            fallbacks[place] = 1
+        return fallbacks
+    return fallbacks
 
 
 def _wide_width_notes(

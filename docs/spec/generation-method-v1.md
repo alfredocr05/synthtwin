@@ -3065,6 +3065,46 @@ The construction, in this order:
    partners, in exactly the order revision 4 gave them, so a column whose
    collisions case alone could carry writes what it wrote before.
 
+   **THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS ITS
+   TRIMMED TEXT** (residual R-P4-47). The three rules above are stated
+   over the parent, and for every parent an invention role produced
+   before this those are the same thing: a parent carrying no edge
+   spacing of its own IS its own trimmed text, its own placement is the
+   no-spacing one, and the walk starts and steps exactly where revision
+   5 said it did. Where a parent DOES carry edge spacing the total is
+   counted over the whole cell rather than added to what the parent
+   already has, so a parent written `N ` inside a window pinned at
+   `len(N) + 1` has ` N` as its next partner AT THAT SAME WIDTH, and
+   not ` N ` one character past it. The placement stepped over is the
+   parent's own — its own total, its own leading share, and `k = 0`.
+
+   **AND A PARENT THAT WILL BE ASKED FOR PARTNERS AT A PINNED WIDTH IS
+   WRITTEN WITH ROOM FOR THEM** (residual R-P4-47; section 9.7 of the
+   profile contract says this in its own words about the partner, and
+   this is the same sentence applied to the parent). Spacing only
+   LENGTHENS, so a parent already filling a pinned width has no partner
+   at that width at all: `N + " "` beside `" " + N` is ONE published
+   width and one folded identity, and the walk kept the fold, fell back
+   to the open window, and missed the ceiling by one character. The
+   source column shows the answer its own cells took, which is that the
+   PARENT carries a space too. So the parent of such a slot is written
+   with that many fewer figures and that many spaces, and both cells
+   land where the description says a cell of that column sits.
+
+   **THE ROOM IS NOT FORECAST, IT IS MEASURED IN A FIRST PASS.** Which
+   parent a slot takes is settled by step 4's preferences, so a rule
+   that predicted the assignment would be a second implementation of
+   it, free to disagree with the first. Instead the column is built
+   once exactly as it was built before, the parents whose partners fell
+   back to the open window are counted, and ONLY such a column is built
+   again with that many spaces reserved in each of those parents. A
+   column whose widths were already held has no fallback, so it is
+   never built twice and none of its bytes move — which includes every
+   column whose parent holds a letter, since a case flip keeps the
+   length exactly where it was. Where the reserved room would take a
+   parent below its own shape's floor the reservation is not made, the
+   fallback stands, and the recount names the width as before.
+
    **WHICH MEMBER OF THAT ORDER A SLOT TAKES** (review item P2-C4-F4).
    The three rules above say what the family IS; this says which member
    of it a slot gets, and the twin's bytes are fixed only by the two

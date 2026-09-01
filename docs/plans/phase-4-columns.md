@@ -2823,9 +2823,60 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   touches the allotment. Whoever takes R-P4-49 should start at the
   allotment and not at the values.
 
-- **R-P4-47** (opened by adversarial round 7 of the width work,
-  2026-08-27). ON A COLUMN OF ONE PUBLISHED WIDTH THAT ALSO FOLDS, THE
-  TWIN KEEPS THE FOLD AND MISSES THE WIDTH. `N + " "` beside `" " + N`
+- **R-P4-47 — CLOSED 2026-09-01** (opened by adversarial round 7 of
+  the width work, 2026-08-27; closed under review item P4-A2-R3, item
+  3, which asked for it to be MEASURED before it was landed or the
+  contract narrowed). ON A COLUMN OF ONE PUBLISHED WIDTH THAT ALSO
+  FOLDS, THE TWIN KEPT THE FOLD AND MISSED THE WIDTH.
+
+  **WHAT CLOSED IT, and the measurement came first.** This entry's own
+  repair — reserve the edge-spacing room in the PARENT while both cells
+  stay at the pinned width — was built and measured before anything was
+  landed, on the named shape and on seven siblings, end to end through
+  the real producer, generator and validator. It holds on all of them.
+  Five shapes moved from a width miss to none:
+
+  * `N + " "` beside `" " + N`, published 311: twin widths 311 and 312
+    with `numeric_unrepresentable.max_length` MISSED, against 311 alone
+    and nothing missed;
+  * three spacings of a 309-figure core at 311: 311 and 312 missed,
+    against 311 alone;
+  * a too-small fraction spaced both ways at 328: 328 and 329 missed,
+    against 328 alone;
+  * a NEGATIVE 310-figure numeral spaced both ways at 312: 312 and 313
+    missed, against 312 alone;
+  * two folded identities over four spellings at 311: 311 and 312
+    missed, against 311 alone.
+
+  **And three shapes that already held are unchanged**, which is the
+  other half of the measurement: `1e400 ` beside ` 1e400` folds by CASE
+  on the letter `e` and kept its six characters all along, `1e400`
+  beside `1E400` likewise at five, and a column that does not fold has
+  no partner to reserve for. The reservation is therefore reached only
+  where the twin was missing a width.
+
+  **TWO PASSES, BECAUSE THE ASSIGNMENT IS NOT FORECAST.** Which parent
+  a slot takes is settled by G9.3 step 4's three preferences, so a rule
+  that predicted it would be a second implementation of it. The column
+  is built once exactly as before; the parents whose partners fell back
+  to the open window are counted; and only such a column is built again
+  with that many spaces reserved. Every column whose widths were
+  already held has no fallback and its bytes do not move.
+
+  **AND THE FAMILY IS NOW STATED OVER THE PARENT'S TRIMMED TEXT**
+  (G9.3 step 2). Reserving room in the parent buys nothing on its own,
+  because the partner family only ever ADDED spacing to the parent as
+  written: a parent `N ` had ` N ` as its next member and not ` N`. The
+  family is the folded identity respelt, with the parent's own
+  placement stepped over, which reduces to the rule as written for
+  every parent carrying no spacing — that is every parent the invention
+  roles produced before this, and the method's own worked example is
+  asserted unmoved.
+
+  The entry as it stood is kept below, because the closure rests on it.
+
+  **The entry as it was opened.** ON A COLUMN OF ONE PUBLISHED WIDTH
+  THAT ALSO FOLDS, THE TWIN KEEPS THE FOLD AND MISSES THE WIDTH. `N + " "` beside `" " + N`
   publishes `min_length = max_length = 311` with two values folding to
   one. A fold partner is reached by adding edge spacing, and spacing
   only lengthens, so a partner of a cell already 311 characters wide is

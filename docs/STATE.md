@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,230 collected / 51 skipped |
-| lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
+| suite | 4,232 collected / 51 skipped |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed |
 
 ## What is being built right now
 
@@ -1550,6 +1550,55 @@ loosened from one exponent to two (one red — the walk then visits 6,247
 candidates where it should visit 6,238). Caches cleared on both sides
 of every run, and the unmutated run asserted green first.
 
+**ITEM 3 — R-P4-47 IS CLOSED, AND IT WAS MEASURED BEFORE IT WAS
+LANDED.** The review asked for that order in terms: measure whether the
+residual's own stated repair holds; land it if it does; and if it
+provably cannot, narrow the contract sentence rather than leave it
+claiming a fact the twin cannot meet. It holds, so nothing is narrowed
+and the contract's unconditional EXACT-OBSERVABLE statement stands.
+
+The shape: `N + " "` beside `" " + N` publishes ONE width and two
+spellings folding to one identity. A partner is reached by edge spacing
+and spacing only LENGTHENS, so a parent already filling a pinned width
+had no partner at that width; the walk kept the fold, took the open
+window, and missed the ceiling by one character. **Measured end to end
+on eight shapes, before and after.** Five moved from a `max_length`
+miss to none: the named pair at 311; three spacings of a 309-figure
+core at 311; a too-small fraction spaced both ways at 328; a NEGATIVE
+310-figure numeral at 312; and two folded identities over four
+spellings at 311. **Three that already held are unchanged**, which is
+the other half of the measurement — `1e400 ` beside ` 1e400` folds by
+CASE on the letter `e`, `1e400` beside `1E400` likewise, and a column
+that does not fold has no partner to reserve for.
+
+Two things were needed and one of them was not obvious. Reserving room
+in the parent buys nothing on its own, because the partner family only
+ever ADDED spacing to the parent as written — a parent `N ` had ` N `
+next, not ` N`. **The family is stated over the parent's TRIMMED text
+now**, with the parent's own placement stepped over, which reduces to
+the old rule exactly for every parent carrying no spacing; the method's
+own worked example is asserted unmoved. And the reservation itself is
+**not forecast but measured in a first pass**: which parent a slot
+takes is settled by three preferences, so the column is built once as
+before, the parents whose partners fell back are counted, and only such
+a column is built again. A column whose widths were already held is
+never built twice and none of its bytes move.
+
+Three more mutations, three red: the family stated over the parent as
+written again, the reservation never made, and the reserved room never
+written into the parent.
+
+**AND THE OFFLINE AUDIT CAUGHT THE FIRST DRAFT OF IT.** Finding how
+much of a parent's spacing sits at the FRONT was written as
+`parent.find(body)`, and two source audits went red on the same line:
+a method call on a value the audit cannot trace to an allowlisted API,
+which the policy refuses because a caller-supplied object may define a
+method of any name. It counts the leading characters the SHIPPED trim
+removes instead, by indexing — which is both traceable and the right
+rule, since it asks the fold's own notion of a space rather than a
+second one. *The control fired on a line no test of the behaviour
+would have questioned.*
+
 **WHAT IS FOUND AND NOT FIXED: R-P4-101 and R-P4-102, both OPEN.** The
 first is item 2's shape in eight other places — two straggler classes
 that never ask about hole spellings at all, and six walks that ask only
@@ -1632,14 +1681,15 @@ the recoverable-distribution advice is TIGHTENED rather than softened
 (L1).
 
 What is owed to the owner rather than from them is a decision about
-the NINE lint errors this tree carries — whether to fix them or record
+the TEN lint errors this tree carries — whether to fix them or record
 them — and that does not stop any landing. (The 183 that stood here
 were a different matter and were closed by pinning the rule set; the
-nine are what remains under that pinned set. See "What is broken right
+ten are what remains under that pinned set. See "What is broken right
 now".) **This paragraph said TEN while the table at the head of the
-page and the entry below both said nine**, which is this page's own
-standing lesson — one fact written twice, one copy updated — caught
-while landing the exponent-walk repair and corrected in the same pass.
+page and the entry below said nine**, which is this page's own standing
+lesson — one fact written twice, one copy updated. Re-measured on the
+whole tree while landing the exponent-walk repair: ten is the number
+and this paragraph was the copy that had stayed right.
 
 ## The joined role's own gaps, all opened by review and all owed
 
@@ -2253,20 +2303,25 @@ say which.
 
 ## What is broken right now
 
-- **LINT IS NOT CLEAN: nine errors stand** (`ruff check .` under the
-  pinned rule set, re-measured 2026-08-31 on this tree, so the count is
+- **LINT IS NOT CLEAN: ten errors stand** (`ruff check .` under the
+  pinned rule set, re-measured 2026-09-01 on this tree, so the count is
   the tree's and not this landing's). Two are in `src/` -- a mid-file
   import in `generation.py` and one in `validation.py`. Seven are in
   `tools/measurements/`: four `E401`, two unused imports and one
-  unused local.
+  unused local. **The tenth is in `tools/reference/make_generation_
+  reference_vectors.py`**, an unused local at the label-variants walk.
 
-  **It said TEN here until the R-P4-53 landing counted them again**,
-  and the tenth was the dead `mine = _position_cells(...)` that
-  residual R-P4-58's drafting left in `validation.py`. The joined
-  role's landing removed it and this line did not move with it -- which
-  is the same class of defect as the paragraph below, a count of a
-  check that was not re-run on the tree being described, in the other
-  direction. The measurement behind it stands as it was written: the
+  **It said TEN, then NINE, and ten is right.** The R-P4-53 landing
+  counted them again after the dead `mine = _position_cells(...)` went
+  from `validation.py` with the joined role's landing, and lowered the
+  count -- but its re-count walked `src/` and `tools/measurements/` and
+  never looked at `tools/reference/`, so one real error was left with
+  no line to stand on and the total came out one short. Measured again
+  here on the WHOLE tree, with `git stash` holding this landing's edits
+  out and putting them back: ten before and ten after, none of them in
+  anything this landing changed. *A count is only as wide as the walk
+  that took it, and a narrowed walk reads as a repair.* The
+  measurement behind the earlier lowering stands as it was written: the
   dead recount was BENIGN rather than a wrong population, because the
   joined ladder and moment checks read the profiler's re-description
   and not a recount there.

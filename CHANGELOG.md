@@ -72,6 +72,21 @@ exists).
   writes such numbers, and counts them out when it works out how many
   different values it can write.
 
+### Fixed: a column of one width whose values repeat keeps that width
+
+- **Where a column of very large or very small numbers is all one width
+  and two of its cells are the same value written differently, the twin
+  now holds both at that width** (closing residual R-P4-47). Two cells
+  spelled with a space -- one at the end, one at the front -- are the
+  same value to a spreadsheet and to this tool, and they are the same
+  number of characters long. The twin used to write the first at the
+  published width and the second one character longer, and its report
+  said the widest cell was missed. It writes the value with room for
+  the space now, exactly as your own two cells did, so both come out at
+  the published width and nothing is missed. Measured end to end on
+  eight such columns: five that missed the width now hold it, and the
+  three that already held it are written exactly as before.
+
 
 ### Fixed: a twin's invented codes now wear the shape the real ones wore
 
