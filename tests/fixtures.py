@@ -347,15 +347,23 @@ def joined_numbers_table(n_rows: int = 120) -> str:
 
     THE SHAPE IS CHOSEN, not arbitrary, and each choice was measured:
 
-    * **TWO positions, never three.** A three-position column cannot
-      honour its (1,2) pair -- the pairing walk moves only the last
-      position (residual R-P4-51) -- so it would build a known miss
-      into a battery that requires none.
-    * **All different.** A column whose cells repeat overshoots its
+    * **TWO positions, never three.** A three-position column could not
+      honour its (1,2) pair when this was written -- the pairing walk
+      moved only the last position (residual R-P4-51) -- so it would
+      have built a known miss into a battery that requires none.
+      Landing L7 closed that residual and the walk now aims at every
+      pair; the choice STANDS on the other reason a wider column would
+      have to answer for, which is that a three-position column cannot
+      reach every agreement target at once (R-P4-121), and on the cost
+      of moving every golden in the suite.
+    * **All different.** A column whose cells repeat overshot its
       published count of different cells badly: 80 published against
-      210 held on one measured column, because each position is drawn
-      to its own ladder and the pairing then makes more distinct pairs
-      than a repeating source had.
+      210 held on one measured column, because each position was drawn
+      to its own ladder and the pairing then made more distinct pairs
+      than a repeating source had. Landing L7 closed that too -- a
+      position is laid out by its own count of different numbers now --
+      and the choice stands because this battery's shape is fixed by
+      the goldens built on it.
     * **Bands that OVERLAP, on purpose.** An earlier version put the
       two numbers in bands that could not meet, so the upper was above
       the lower on every row and `part_above` equalled `n_joined`

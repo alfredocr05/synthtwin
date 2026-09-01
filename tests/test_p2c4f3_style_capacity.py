@@ -955,7 +955,9 @@ def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
     facts = column.facts
     assert facts.numeric_styles.get("plain", 0) == 0, facts.numeric_styles
     assert generation._style_pool(facts.numeric_styles) == 20
-    layout, _notes, _content = generation._numeric_layout(column, facts)
+    layout, _notes, _content = generation._numeric_layout(
+        column, facts, None
+    )
     rungs = generation._merged_rungs(facts)
     values = [-4.5, -4.0, 15.0, 18.0, 25.0, 60.0]
     kept, held, notes = generation._pool_enough(
@@ -979,7 +981,9 @@ def test_the_hold_back_takes_the_narrowest_strata(
     spreads a rare form over a crowded value.
     """
     column, facts = _pooled_column(tmp_path)
-    built, _notes, _content = generation._numeric_layout(column, facts)
+    built, _notes, _content = generation._numeric_layout(
+        column, facts, None
+    )
     rungs = generation._merged_rungs(facts)
     # THE SIZES THIS COLUMN'S LADDER GIVES CANNOT TELL THE TWO ORDERS
     # APART, and a test that cannot tell them apart is not measuring the
@@ -1034,7 +1038,9 @@ def test_the_type_is_owed_a_cell_no_stratum_fits_exactly(
     owed is what reaches it.
     """
     column, facts = _pooled_column(tmp_path)
-    built, _notes, _content = generation._numeric_layout(column, facts)
+    built, _notes, _content = generation._numeric_layout(
+        column, facts, None
+    )
     rungs = generation._merged_rungs(facts)
     # Every stratum at least two cells wide, so the exact-fit rule above
     # passes over all of them while one cell is still owed.
@@ -1273,33 +1279,31 @@ def _joined_witness(
     return _described(folder, rows, ["amount"])
 
 
-def test_a_grain_is_laid_out_by_the_CELL_count_which_is_R_P4_112(
+def test_a_grain_is_laid_out_by_ITS_OWN_count_which_closes_R_P4_112(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-112 asserted as a WITNESS, on the number that IS the defect.
+    """The repair, asserted on the number that WAS the defect.
 
-    `_numeric_layout` divides a column's cells into strata by the count
-    of different things it publishes, and for a joined column that count
-    is over CELLS. This column holds 36 different pairs while its first
-    position holds 11 different numbers, so the position is divided into
-    36 strata where a plain column carrying the same numeric facts is
-    divided into 11.
+    `_numeric_layout` divides a column's cells into strata by a count of
+    different things, and for a grain inside a role it took the OUTER
+    column's -- which counts CELLS. This column holds 36 different pairs
+    while its first position holds 11 different numbers, so the position
+    was divided into 36 strata where a plain column carrying the same
+    numeric facts is divided into 11.
+
+    THIS FILE HELD THE DEFECT AS A WITNESS UNTIL LANDING L7, asserting
+    the stratum count was 36 and not 11, because dividing by the grain's
+    count closed the position's style floor and cost the column's own
+    count of different cells -- 34 of 36 falling to 28 -- since the
+    pairing walk then had fewer combinations to build it from. L7 moved
+    both: the division takes the grain's count and the walk moves every
+    position but the first, so the assertions are inverted here rather
+    than deleted.
 
     THE STRATUM COUNT IS ASSERTED, not the view's fields (round 3, item
     5). An earlier form of this checked only that `_part_view` kept the
     outer counts, which a repair inside `_numeric_layout` would leave
-    untouched while closing the defect: the witness would have gone on
-    passing over a repair it exists to notice.
-
-    IT IS ASSERTED RATHER THAN REPAIRED, and the reason is measured
-    TWICE. Dividing by the grain's count closes the position's
-    point-free floor and costs the column's own count of different
-    cells, 34 of 36 falling to 28, because the pairing walk then has
-    fewer combinations to build it from -- and the same happens with the
-    spelling budgets left at the column's 36 and only the division
-    taking 11, so the budget was never what carried it. A twin of its
-    own description then misses facts it used to meet. Both counts move
-    together in the landing that retargets the draw.
+    untouched.
     """
     _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
@@ -1308,23 +1312,31 @@ def test_a_grain_is_laid_out_by_the_CELL_count_which_is_R_P4_112(
     assert part.n_distinct_values == 11, part.n_distinct_values
     assert column.n_distinct == 36, column.n_distinct
     layout, _notes, _content = generation._numeric_layout(
-        generation._part_view(column, 0), part
+        generation._part_view(column, 0), part, part.n_distinct_values
     )
-    assert len(layout.sizes) == column.n_distinct, len(layout.sizes)
-    assert len(layout.sizes) != part.n_distinct_values, len(layout.sizes)
+    assert len(layout.sizes) == part.n_distinct_values, len(layout.sizes)
+    assert len(layout.sizes) != column.n_distinct, len(layout.sizes)
 
 
-def test_the_joined_position_misses_its_plain_floor_which_is_R_P4_112(
+def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The same residual from the other side, on the exact numbers.
+    """The same repair from the other side, on the exact numbers.
 
-    The first position publishes `plain: 34` with a pool of 2 and writes
-    many more cells with a point in them than the pool covers, because
-    of the division above. The seed this file pins is asserted through
-    the real validator at the count it actually reaches, so a different
-    style defect arriving later cannot stand in for this one (round 3,
-    item 5).
+    The first position publishes `plain: 34` with a pool of 2 and wrote
+    12 to 15 cells with a point in them across seeds, missing
+    `number 1 styles.published.plain` at 22 against a floor of 34. At
+    the seed this file pins it now writes exactly TWO and misses
+    nothing at all, measured through the real validator.
+
+    WHAT IS NOT CLAIMED, because it was measured and is not true: this
+    position does not meet its style floor at every seed. Over ten
+    seeds it misses at seven -- at 31 or 32 of 34 rather than at 22 --
+    and a PLAIN column carrying the same numeric facts misses the same
+    four subchecks at the same seeds. That is the point of the repair
+    and the evidence for it: the grain now behaves as the plain column
+    does, and what is left is a plain-column defect opened as residual
+    R-P4-119.
     """
     _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
@@ -1341,9 +1353,15 @@ def test_the_joined_position_misses_its_plain_floor_which_is_R_P4_112(
         for check in outcome.checks
         if check.verdict == validation.MISSED
     }
-    assert missed.get("number 1 styles.published.plain") == "22", missed
-    # AND THE TYPE SURVIVES ON EVERY SEED even while the count does not,
-    # which is the part that must not slip while the residual waits.
+    assert "number 1 styles.published.plain" not in missed, missed
+    pointed = [
+        cell.split("/")[0]
+        for cell in twin.columns[0]
+        if cell != "" and "." in cell.split("/")[0]
+    ]
+    assert len(pointed) == 2, pointed
+    # AND THE TYPE SURVIVES ON EVERY SEED, which is the part that must
+    # not slip while R-P4-119 waits.
     for seed in SEEDS:
         each = generation.generate(loaded, seed)
         firsts = [
@@ -1354,25 +1372,96 @@ def test_the_joined_position_misses_its_plain_floor_which_is_R_P4_112(
         assert any(one != int(one) for one in numbers), (seed, firsts[:6])
 
 
-def test_the_twin_report_is_silent_about_the_joined_style_miss(
+def test_a_grain_spends_no_more_spellings_than_it_has_numbers(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A separate witness, because it is a separate failure.
+    """The SPELLING budgets take the grain's own count too (R-P4-112).
 
-    `validate` reports the position's `plain` floor missed at 22 against
-    34. The twin's OWN report, which is what a person reads beside their
-    twin without running the validator, names `n_distinct` and says
-    nothing about the form census. The reader is told the wrong one of
-    the two facts that moved.
+    `_numeric_layout` bounds how many different spellings the twin may
+    write by the distinctness counts it is handed, and a grain inside a
+    role arrives carrying the counts of the CELLS around it. A position
+    holding eleven different numbers with a budget of thirty-six
+    spellings has twenty-five spellings to spend and no numbers to
+    spend them on, so it writes one value several ways: measured on
+    this column at one seed, `1.5125`, `01.5125`, `001.5125` and
+    `0001.5125` -- four cells in the decimal form where two are
+    published, and a fraction width the census names for two cells
+    reached by none.
+
+    A position's own count of SPELLINGS is published nowhere, so the
+    budget takes its count of NUMBERS, which is a floor under it. The
+    bound below is exactly that: no more different spellings than the
+    block says there are different numbers.
     """
     _document, loaded = _joined_witness(tmp_path)
-    twin = generation.generate(loaded, 0)
-    facts = {note.fact for note in twin.deviations}
-    assert "n_distinct" in facts, facts
-    assert not [
-        note for note in twin.deviations
-        if "numeric_styles" in note.fact
-    ], facts
+    column = loaded.columns[0]
+    published = column.facts.parts[0].n_distinct_values
+    assert published == 11, published
+    # THE OUTER COUNT IS LARGER, asserted so the bound is not vacuous:
+    # if the cell count ever equalled the position's, this would hold
+    # whichever count the budget took.
+    assert column.n_distinct > published, (column.n_distinct, published)
+    for seed in SEEDS:
+        twin = generation.generate(loaded, seed)
+        spellings = {
+            cell.split("/")[0] for cell in twin.columns[0] if cell != ""
+        }
+        assert len(spellings) <= published, (
+            seed, published, sorted(spellings),
+        )
+
+
+def test_the_grain_is_laid_out_the_way_a_PLAIN_column_of_it_would_be(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The third witness, and it is the one that says the repair is done.
+
+    R-P4-112 was never "this position misses a style floor". It was
+    "this position is laid out differently from a plain column carrying
+    the same numeric facts". So the two are built and run side by side:
+    36 values whose first position is `1`-`9` twice over plus `1.5` and
+    `2.5`, once as the first position of a joined column and once as a
+    plain column of its own, and their twins must miss the SAME
+    subchecks at the SAME seeds.
+
+    This replaces `test_the_twin_report_is_silent_about_the_joined_
+    style_miss`, which asserted that the twin's report named
+    `n_distinct` and not the form census on the seed the residual was
+    recorded at. Both halves of that are gone: at that seed nothing is
+    missed at all.
+    """
+    _document, joined = _joined_witness(tmp_path)
+    plain_values = [f"{index % 9 + 1}" for index in range(34)] + [
+        "1.5", "2.5",
+    ]
+    plain_home = tmp_path / "plain-source"
+    plain_home.mkdir(parents=True, exist_ok=True)
+    _plain_document, plain = _described(plain_home, plain_values)
+    assert joined.columns[0].role == "joined_numbers"
+    assert plain.columns[0].role in ("continuous", "count")
+    compared = 0
+    for seed in SEEDS:
+        both: "list[set[str]]" = []
+        for name, loaded in (("joined", joined), ("plain", plain)):
+            twin = generation.generate(loaded, seed)
+            folder = tmp_path / f"{name}-{seed}"
+            folder.mkdir(parents=True, exist_ok=True)
+            written = fixtures.write(
+                folder, "twin.csv", rendering.twin_csv(twin)
+            )
+            outcome = validation.measure(loaded, str(written))
+            head = "number 1 " if name == "joined" else ""
+            both = both + [
+                {
+                    check.subcheck[len(head):]
+                    for check in outcome.checks
+                    if check.verdict == validation.MISSED
+                    and check.subcheck.startswith(f"{head}styles.")
+                }
+            ]
+        assert both[0] == both[1], (seed, both)
+        compared = compared + 1
+    assert compared == len(SEEDS)
 
 
 def test_where_a_double_stops_carrying_a_point_is_where_the_type_goes(

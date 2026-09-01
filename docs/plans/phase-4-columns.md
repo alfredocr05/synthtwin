@@ -4157,9 +4157,24 @@ declaration for only one of them.
   would find are wording rather than obligations. NF50's own rendering
   was checked against this measurement and is identical.
 
-- **R-P4-71 — OPEN (opened 2026-08-31, found by WIDENING a fixture
-  rather than by a review).** THE JOINED ROLE CANNOT HOLD THE
-  ALL-DIFFERENT OBLIGATION.
+- **R-P4-71 — OPEN, NARROWED 2026-09-01 by decision P4-D31** (opened
+  2026-08-31, found by WIDENING a fixture rather than by a review).
+  THE JOINED ROLE CANNOT HOLD THE ALL-DIFFERENT OBLIGATION.
+
+  **WHAT L7 MOVED, AND WHERE THE CAUSE ACTUALLY IS.** A 240-row column
+  of 240 different readings whose two positions hold 20 and 12
+  different numbers -- exactly 240 possible pairs -- held **173 to 188**
+  of them across ten seeds and now holds **195 to 234**. It is still
+  short, and the reason is no longer the pairing: the twin's own
+  positions hold **18 to 20** and **11 to 12** different numbers rather
+  than 20 and 12, so at the worst seed only 198 pairs exist to be made.
+  Two strata of one position can be given the same number by the
+  ladder, which is the VALUES stage and belongs to the plain numeric
+  roles. That is **R-P4-120**, and it is what this residual now waits
+  on rather than on R-P4-40, which is closed.
+
+  Nothing about the reporting changed: both counts are exactly
+  observable (P4-D29), so the shortfall reaches both pages.
 
   Contract 9.8 binds it on EVERY role: where a column publishes
   `n_distinct == n_present` its present values are all different, and
@@ -4595,8 +4610,254 @@ declaration for only one of them.
   the assembled document is declared the source and the build folder
   and both tools are retired with a sentence saying so.
 
-- **R-P4-112 — OPEN (opened 2026-09-01 by adversarial round P4-C1-R1,
-  item 6; PRE-EXISTING, and unchanged by the landing that found it).**
+- **R-P4-124 — OPEN (opened 2026-09-01 by landing L7's own mutation
+  run).** THREE RULES OF THE PROPOSAL STEP STAY SILENT.
+
+  Each of L7's named rules was withdrawn from the shipped generator one
+  at a time and eighteen test files collecting 386 tests were run
+  against it. **Thirteen turned the suite red; three did not**, and
+  they are all inside G6B.4a's proposal step:
+
+  * *the partner condition* — the `short` branch requires the partner
+    to gain a cell nothing holds OR give up one another row also
+    holds, and dropping the second half leaves every asserted fact
+    standing;
+  * *the OVER-the-count branch* — removing it entirely, so a walk
+    holding too many different cells proposes the rows as drawn;
+  * *the rarest-cell scan* — taking the first row in reach rather than
+    the one whose cell the fewest rows hold.
+
+  **Why they are silent is the same reason for all three**: they change
+  how WELL the walk reaches the published count of different cells, and
+  no test in that set asserts a count the three of them decide. The
+  columns where they bite are the ones this landing measured — a
+  240-row all-different column moves between 176 and 236 across the
+  reach sweep — and a suite that pinned those ranges would be pinning a
+  search's luck.
+
+  **TWO MORE WERE SILENT AND ARE NOW RED**, which is why these three
+  are recorded rather than accepted: the grain rule's SPELLING budgets
+  alone, and each shuffling position's own slice of the reserve. Both
+  got a red case in this landing —
+  `test_a_grain_spends_no_more_spellings_than_it_has_numbers` and
+  `test_two_shuffling_positions_take_different_reserve_words` — and
+  both fail on their mutant.
+
+  **AND TWO OF THE FIRST RUN'S "SILENT" RESULTS WERE THE HARNESS'S
+  FAULT, not the suite's.** The grain rule is written in two places —
+  the division and the spelling budgets — and each mutant withdrew one
+  while the other still read the grain's count, so neither withdrew the
+  rule at all. Re-run properly, the rule WHOLE is red and its division
+  alone is red. *A mutant that leaves the rule reachable by another
+  line is a mutant that measures nothing.*
+
+- **R-P4-123 — OPEN (opened 2026-09-01 by landing L7).** THE FROZEN
+  JOINED CASE PINS FEWER OF THE WALK'S RULES THAN IT DID, AND TEN OF
+  THEM NOW STAND ON THE METHOD'S WORD.
+
+  `joined_readings` is the only frozen vector for the pairing walk, and
+  its whole value is that a rule withdrawn from the ORACLE moves cells
+  the shipped generator would then fail to reproduce. **Measured by
+  withdrawing fifteen rules from a copy of the oracle, one at a time**:
+  five are caught — the walk itself (six of twelve cells move), the
+  `0.4` threshold's value (eleven), the proposal step of G6B.4a (six),
+  the distinct-cell term of the distance (two), and the grain rule,
+  which is REFUSED at the draw budget before a cell is built.
+
+  **Ten are not**, and this entry exists so that is written down rather
+  than noticed later: the anchor, each position's own start, the cursor
+  restart stepping along, accept-on-equal, that a try ceiling exists,
+  the ceiling's value, the `part_above` term, the agreement scored
+  outside its window, the agreement tie-break, and the proposal's
+  partner condition.
+
+  **WHY, measured rather than guessed.** Four of those ten WERE pinned
+  before this landing. The proposal step reaches this twelve-row
+  column's published cell count early, so the walk stops moving long
+  before its ceiling, before an equal swap can matter and before the
+  cursor wraps — and `part_above` is met at the start. The case got
+  BETTER at what it describes and worse at what it detects, which is
+  the shape a vacuity check exists to catch.
+
+  Closing it means a second joined case: more than two positions, so
+  the anchor and the per-position start bite at all, and long enough
+  that the ceiling and the cursor are reached. Both new rules of the
+  three-position walk — which are what closed R-P4-51 — have no frozen
+  case of any kind today, and that is the sharper half of this entry.
+  Until then those rules are pinned by the mutation testing of the
+  shipped generator recorded in this landing and by the measured
+  columns beside it, which is the same standing L6's G6.6 pass has.
+
+- **R-P4-119 — OPEN (opened 2026-09-01 by landing L7; PRE-EXISTING,
+  and NOT the joined role's).** A PLAIN COLUMN WITH A POOLED DECIMAL
+  PAIR WRITES A VALUE AT FOUR FRACTION FIGURES WHERE THE CENSUS NAMES
+  ONE.
+
+  Found by the measurement that CLOSES R-P4-112: a joined position and
+  a plain column carrying the same numeric facts were built side by
+  side and their twins compared subcheck for subcheck. They now agree,
+  which is what the closure needed — and part of what they agree on is
+  a set of misses.
+
+  **Measured** on 36 values, `1`-`9` twice over plus `1.5` and `2.5`,
+  at the default floor, through the real reader, producer, loader,
+  generator and validator. The block publishes `numeric_styles`
+  `{plain: 34, (withheld): 2}` and `fraction_widths {"1": 2}`. On seven
+  of a ten-seed sweep the twin writes **`1.5125`** — four figures after
+  the point where the census names one — and misses four subchecks:
+  `styles.at-least.plain`, `styles.published.plain` at 31 or 32 of 34,
+  `styles.published.decimal` at 4 or 5 of 2, and `widths.published.1`
+  at fewer than one cell of two. **The same four, on the same seeds, on
+  a plain column, on an affixed column's cores and on a joined
+  column's first position** — three grains, one defect. The equality is
+  asserted rather than eyeballed:
+  `test_the_grain_is_laid_out_the_way_a_PLAIN_column_of_it_would_be`
+  builds both columns and compares their missed style subchecks seed by
+  seed over the nineteen this file runs.
+
+  It is REPORTED and not silent: `synthtwin validate` names all four.
+  What it is not is closed, and it is not this landing's: the value
+  stage placed `1.5125` before L7 too, on the plain column, and the
+  landing only made the joined grain reach the same code.
+
+  Closing it means the width snap of A-P4-18 reaching a stratum whose
+  value the ladder interpolated between two published fractions, which
+  is the plain numeric roles' business and wants its own measurement of
+  what a snap costs the ladder.
+
+- **R-P4-120 — OPEN (opened 2026-09-01 by landing L7; PRE-EXISTING).**
+  THE VALUES STAGE DOES NOT REACH `n_distinct_values`: TWO STRATA CAN
+  BE GIVEN ONE NUMBER.
+
+  `_numeric_layout` now divides a grain into as many strata as the
+  block publishes different NUMBERS (P4-D31), and the values stage then
+  puts one number in each. It does not always put a DIFFERENT one:
+  where the ladder is flat, or crowds several values inside one unit,
+  two strata can land on the same number and the count comes out short.
+
+  **Measured** over four 200-row plain columns at ten seeds each,
+  through the real path: a tight cluster publishing 82 different
+  numbers holds **73 to 77**; whole numbers publishing 40 hold **37 to
+  40**; a wide spread publishing 196 holds **195 to 196**; seven
+  repeated values publish 7 and hold **7**. **Met exactly in 21 of 40
+  runs.** So the count is REPORT-ONLY and stays that way, and this is
+  the measurement that decides it rather than a preference.
+
+  **AND LANDING L7 MADE IT VISIBLE WHERE IT USED TO BE HIDDEN.** A
+  joined position was divided into as many strata as the whole cell had
+  different values, which on an ALL-DIFFERENT column is one stratum per
+  cell — so the position held as many different numbers as it could and
+  met its published count exactly. Measured on two such columns at ten
+  seeds: positions publishing 20 and 12 held exactly 20 and 12 before
+  and hold 18–20 and 11–12 now; positions publishing 71 and 51 held
+  exactly 71 and 51 and hold 66–70 and 47–51. The defect did not
+  arrive; the inflation that concealed it went.
+
+  **WHAT IT COSTS ELSEWHERE, which is why it is opened rather than
+  noted.** It is what R-P4-71 now waits on. A 240-row joined column of
+  240 different readings whose positions publish 20 and 12 different
+  numbers has twin positions holding **18 to 20** and **11 to 12**, so
+  at the worst seed only 198 of the 240 pairs exist to be made and the
+  pairing cannot reach the published count however good the walk is.
+
+  Closing it means the values stage refusing a number a sibling stratum
+  already holds — which the point-free walk already does for its own
+  candidates (`_held_later`) and the ordinary placement does not — and
+  measuring what that costs the ladder's own rungs.
+
+- **R-P4-121 — OPEN (opened 2026-09-01 by landing L7).** A COLUMN OF
+  THREE OR FOUR POSITIONS CANNOT REACH EVERY AGREEMENT TARGET AT ONCE.
+
+  L7 closed R-P4-51: every pair is aimed at now and every pair takes
+  G12.9's window. Aiming is not reaching. A column of three positions
+  sets three agreement targets and one of four sets six, and they pull
+  against each other inside one bounded search whose ceiling is
+  `200 * n_joined` tries.
+
+  **Measured** over a battery of twelve columns of three and four
+  positions, ten seeds each, 540 pairs in all, through the real path:
+  **188 of the 540 agreements land outside the two-hundredths window**,
+  against 387 before the landing, and the widest gap is **0.2090**
+  against 1.0545 before. Every above-count is met — 0 of 540 missed,
+  against 259 before.
+
+  **NOTHING IS SILENT.** Each of those is an APPROXIMATION outside its
+  bound, so it is a deviation in the twin's own report and a MISS in
+  the quality report, with the achieved value beside the published one
+  and G12.9 cited. That is the same verdict a two-position column's
+  miss already gets, and G12.9 has carried a measured example of one
+  since it was written.
+
+  Closing it means a search that can trade between pairs deliberately
+  rather than by hill-climbing a sum — a different objective again, and
+  it should be priced against how many real columns hold three or more
+  numbers in a cell, which nothing here has measured.
+
+- **R-P4-122 — OPEN (opened 2026-09-01 by landing L7; PRE-EXISTING).**
+  A SHUFFLED START THROWS AWAY `part_above` AND THE CEILING DOES NOT
+  ALWAYS WIN IT BACK.
+
+  `part_above` is an exact count with no window: one row out of it is
+  one cell holding a reading that cannot happen, and the walk weights
+  a row of it above the whole agreement for exactly that reason. It is
+  always reachable in principle — rank for rank meets it — but where
+  the published agreement is weak the walk STARTS from a shuffle
+  (G6B.4 step 2), which scatters the count, and the try ceiling does
+  not always climb back.
+
+  **Measured** on a 400-row blood pressure of overlapping bands
+  (systolic 95–165, diastolic 50–100, agreement 0.0955, `part_above`
+  400), forty seeds through the real path: rank for rank reaches 400 at
+  every one of them, so nothing about the draw forbids it — and the
+  twin is short at **28 of 40 seeds, by 38 rows in total**, one to
+  three rows at a time. Before landing L7 the same column was short at
+  **30 of 40 seeds by 47 rows**, so the landing improved it slightly
+  and did not cause it.
+
+  **A ten-seed sample said the opposite** — 6 seeds short before and 8
+  after — and the forty-seed measurement is what settled it. That is
+  this project's own standing lesson about small samples, paying again.
+
+  It is REPORTED on both pages: the twin's own report names
+  `part_above[0]` with `400` against `398`, and `synthtwin validate`
+  returns `together.rows one above the other, pair 1` MISSED with the
+  same two numbers.
+
+  Closing it means either a start that keeps the count while reaching a
+  weak agreement, or a repair pass that spends its last tries on the
+  count alone. Both are search design and want their own measurement.
+
+- **R-P4-112 — CLOSED 2026-09-01 by decision P4-D31, landing L7**
+  (opened the same day by adversarial round P4-C1-R1, item 6).
+  A JOINED POSITION MISSES ITS `plain` FLOOR BY TWELVE CELLS.
+
+  **HOW IT WAS CLOSED, and the criterion is the one this entry set.**
+  Each grain hands `_numeric_layout` its own `n_distinct_values` for
+  the division AND for the spelling budgets, and the pairing walk moves
+  every position but the first so the column's own count of different
+  cells moves with it. At the seed this entry pins, the first position
+  writes **2 cells carrying a point where it wrote 12 to 15**, and
+  `number 1 styles.published.plain` -- MISSED at 22 against a floor of
+  34 -- is not missed at all.
+
+  **THE PROOF IS NOT THE STYLE FLOOR, and this is the measurement that
+  says the residual is done.** What was wrong is that a position was
+  laid out DIFFERENTLY from a plain column carrying the same numeric
+  facts. So the two were built and run side by side, ten seeds each: 36
+  values whose first position is `1`-`9` twice over plus `1.5` and
+  `2.5`, once as the first position of a joined column and once as a
+  plain column of its own. **They now miss the same style subchecks at
+  the same seeds** -- three seeds clean, seven missing
+  `styles.at-least.plain`, `styles.published.plain` at 31 or 32 of 34,
+  `styles.published.decimal` and `widths.published.1`. The affixed core
+  measures the same. What is left is a PLAIN numeric column's defect,
+  opened as **R-P4-119**, and this role no longer has one of its own.
+  The three witnesses in `tests/test_p2c4f3_style_capacity.py` are
+  rewritten to assert that, not deleted.
+
+  The record of the gap is kept below.
+
+- **R-P4-112 (the record of the gap).**
   A JOINED POSITION MISSES ITS `plain` FLOOR BY TWELVE CELLS.
 
   Affixed cores and joined positions are turned into a numeric view and
@@ -4650,7 +4911,9 @@ declaration for only one of them.
   the two counts have to move together. That is landing **L7**, which
   retargets the draw for distinct counts and is the very next one; this
   entry carries every measurement so L7 starts from them rather than
-  rediscovering them.
+  rediscovering them. LANDED there, see above; every measurement in
+  this entry was reproduced and none of them was re-taken from
+  scratch.
 
   **AND THE SECOND ROUTE WAS MEASURED TOO** (adversarial round 3, item
   1). That round observed that `n_distinct` and `n_distinct_folded`
@@ -4665,7 +4928,12 @@ declaration for only one of them.
   `distinct.n_distinct` still comes out 28 of 36, and the headline test
   is still red. The spelling budget was never what carried it. What
   remains is the pairing walk, which moves only the last position
-  (R-P4-51), and that is L7's.
+  (R-P4-51), and that is L7's. **Both halves landed there on
+  2026-09-01, and the spelling-budget half turned out to carry
+  something after all** -- not the count of different cells, which this
+  measurement was about and which it does not move, but the position's
+  own style census: at a seed this measurement did not visit, a budget
+  of 36 spellings over 11 numbers wrote one value four ways.
 
   **AND THE TWIN'S OWN REPORT IS SILENT ABOUT THE STYLE MISS.** On a
   seed writing 14 pointed cells the twin's deviations name `n_distinct`
@@ -4905,10 +5173,13 @@ declaration for only one of them.
   `numeric_unrepresentable` with a dedicated fixture in its own list.
 
   **Its shape is measured, not chosen.** TWO positions, because a
-  three-position column cannot honour its (1,2) pair (R-P4-51) and
-  would build a known miss into a battery that requires none. ALL
-  DIFFERENT, because a repeating column overshoots its published count
-  badly. Bands that OVERLAP, so `part_above` is a real count of 102
+  three-position column could not honour its (1,2) pair when this was
+  written (R-P4-51, closed 2026-09-01) and would have built a known
+  miss into a battery that requires none; the choice stands on
+  R-P4-121, which is that such a column still cannot reach every
+  agreement target at once. ALL DIFFERENT, because a repeating column
+  overshot its published count badly -- also closed by the same
+  landing, and the shape stands because the goldens are built on it. Bands that OVERLAP, so `part_above` is a real count of 102
   in 120 rather than a number equal to the joined count by
   construction (review item P4-A2-R1-F5). And a COMPANION COLUMN, because the battery's quality
   axis moves only when a whole column is emptied and that edit is not
@@ -4976,7 +5247,11 @@ declaration for only one of them.
     the pairing then makes more distinct pairs than a repeating source
     had. Only an all-different column reaches it. That is the other
     side of R-P4-40, which records the undershoot of the same
-    mechanism and not the overshoot.
+    mechanism and not the overshoot. **Both closed 2026-09-01 by
+    P4-D31**: a position is laid out by its own count of different
+    numbers, and a 400-row repeating column publishing 110 different
+    readings holds exactly 110 at every one of ten seeds where it held
+    157 to 169.
 
   * **A JOINED POSITION'S REPORT-ONLY FACTS ARE STILL LISTED NOWHERE**
     (review item P4-A1-R2-F2). `_quantitative_of` deliberately returns
@@ -5606,7 +5881,9 @@ declaration for only one of them.
   match it. The code ships the numbers form because the alternative is
   a false sentence in the plainest-language part of a document; the
   text has to catch up.
-- **R-P4-20** (opened at codex round 3, 2026-08-21). A SNAP CAN LAND
+- **R-P4-20 — OPEN, NARROWED TWICE** (opened at codex round 3,
+  2026-08-21; the count published by P4-D4.9, and CONSUMED by P4-D31
+  on 2026-09-01). A SNAP CAN LAND
   ONE VALUE ON ANOTHER THE COLUMN ALREADY HOLDS, and the published
   counts of different values and different folded identities are then
   met by the leading-zero spelling family rather than by different
@@ -5619,6 +5896,15 @@ declaration for only one of them.
   the distinctness envelope and this is what that route leaves open;
   closing it means publishing a count of different values that no
   spelling can buy, which is a format decision and an owner's.
+
+  **THE COUNT EXISTS AND NOW BINDS SOMETHING.** P4-D4.9 published
+  `n_distinct_values` on every quantitative block, which answered the
+  format half; landing L7 makes it decide how many strata a grain
+  inside a role is divided into, which is the first thing it decides
+  anywhere. It is still REPORT-ONLY, and that is a measurement rather
+  than a preference: over four 200-row plain columns at ten seeds the
+  twin met the published count exactly in 21 of 40 runs. What is left
+  of this residual is that gap, which is R-P4-120.
 - **R-P4-19** (opened by amendment A-P4-14's narrowing, 2026-08-21).
   BELOW THE FLOOR, THE OLD ROUTE SURVIVES. The census is
   floor-governed PER WIDTH, not per column, and the difference is the
@@ -9156,7 +9442,240 @@ the argument R-P4-17 makes — that specifying a role independently finds
 what checking it against itself cannot — arriving from the other
 direction.
 
-## Residual R-P4-40 — a joined column's positions repeat more evenly than the real ones did
+## Decision P4-D31 — a grain inside a role is laid out by ITS OWN count of numbers, and the pairing walk moves every position (landing L7, 2026-09-01)
+
+**THE OWNER RULED IT IN AS "adds a key; retargets the draw", AND THE
+KEY WAS ALREADY THERE.** Close-plan decision 3 sized L7 that way and
+named R-P4-20 and R-P4-40 as the same fix. R-P4-40's own words are
+"publish how many DIFFERENT values each position held, beside the
+ladder it already publishes, and have the draw meet it" — and the first
+half landed on its own, after that residual was written, as decision
+**P4-D4.9**: `n_distinct_values` sits on every quantitative block,
+which is one per position of a joined column and one for the cores of
+an affixed one. So this landing adds NO key. It spends its whole budget
+on the second half, and says so rather than adding a key to match a
+sentence.
+
+**WHAT WAS WRONG.** `_numeric_layout` divides a column's numeric cells
+into strata, one stratum holding one value, by the count of different
+things the column publishes. A grain INSIDE a role — one position of a
+joined column, the cores of an affixed one — is handed to that same
+code as a column of its own, carrying the OUTER column's counts, which
+count whole CELLS. A 36-row column of `N/M` publishes 36 different
+cells while its first position holds 11 different numbers, so that
+position was divided into 36 strata where a plain column carrying the
+same numeric facts gets 11. That is residual R-P4-112.
+
+**AND IT WAS NOT A CORNER.** Measured on a 400-row blood pressure
+publishing 110 different readings, whose two positions hold 13 and 9
+different numbers: the twin's positions held **34 to 41 and 23 to 29**
+different numbers across ten seeds and the column held **157 to 169**
+different cells against a published 110. Every one of those ten runs
+missed `distinct.n_distinct` in the quality report. A person grouping
+rows by first number found three times as many groups as the real table
+had — which is R-P4-20's own sentence, at a grain nobody had looked at.
+
+**THE RULE.** For such a grain, and only for such a grain, the division
+AND the spelling budgets read `n_distinct_values` from the grain's own
+block (method G5.2, G6B.2, G6A.2). A plain numeric column is untouched:
+there the count on the block IS the column's own. The spelling budget
+moved too, and the first draft left it at the column's count: measured
+on the 36-row witness at seed 4, eleven strata against a budget of 36
+spellings wrote one value four ways — `1.5125`, `01.5125`, `001.5125`,
+`0001.5125` — for four cells in the decimal form where two are
+published. A count of numbers is a floor under a count of spellings, so
+using it under-supplies rather than over-supplies, which is the safe
+direction.
+
+**THAT ALONE MOVES THE DEFECT RATHER THAN CLOSING IT, which R-P4-112
+measured three times over and this landing did not rediscover.** With
+eleven strata the position's style floor is met and the COLUMN's count
+of different cells falls, because the pairing walk has fewer
+combinations to build it from. So the walk had to move with it, and
+the walk is what the rest of this decision is about.
+
+**THE WALK MOVES EVERY POSITION BUT THE FIRST.** It moved the LAST
+position and no other, so on a column of three or more positions every
+pair among the earlier ones was neither moved nor scored: residual
+R-P4-51, whose measured case published −1.0 for its first pair and
+whose twin held **+1.0**, the exact opposite. Position 0 is now an
+ANCHOR and every other position moves in turn, one per try, costing no
+word. Anchoring loses nothing: a pairing is only ever relative, so
+permuting every position the same way writes the same cells in a
+different order — and anchoring the FIRST rather than some other one is
+what leaves a two-position column, which is every blood pressure and
+every ratio, the same walk it was: the same position moves, under the
+same start rule, and nothing about such a column changes ON ACCOUNT OF
+THE ANCHOR. Its cells do move in this landing, and the grain rule and
+the rescored objective are why.
+
+Three consequences follow and each is written where it belongs:
+
+* **every pair is scored**, so `contract.scored_pairs` is deleted
+  rather than left returning every seat, and with it the generator's
+  "not aimed at" deviation branch and the validator's exact
+  no-citation check. A branch nothing can reach is a branch no test
+  can hold to its word;
+* **each position starts from the pair it makes with the anchor**, not
+  from a mean over the pairs the walk could reach. The mean was right
+  while one position moved; with every position moving, a mean lets a
+  fact one position owns decide another's start;
+* **each shuffling position takes its own slice of the reserve**, which
+  is exactly what G4.3 already sets `n_joined - 1` words aside per
+  position after the first for.
+
+**AND THREE THINGS ABOUT THE SEARCH ITSELF, each measured before it was
+changed.**
+
+1. *An agreement is scored by how far it lies OUTSIDE its own window.*
+   The three facts the walk balances are not held to the same standard
+   by the tool that checks them: `part_above` and the count of
+   different cells are EXACT-OBSERVABLE (P4-D29), an agreement is
+   APPROXIMATED inside G12.9's two hundredths. Scored as an exactness,
+   an agreement already four ten-thousandths from its target outbid
+   every remaining different cell on a 240-row column — each of those
+   is worth a 240th. The walk now spends on an agreement only where
+   the gap falls outside HALF the window, and keeps the raw gap as a
+   tie-break worth
+   less, over every pair at once, than one different cell. Half,
+   because the published agreement is rounded to four places and the
+   walk's own is not, so a bound met exactly is a bound a rounding can
+   cross. **The objective is NOT re-weighted**: weighting the count in
+   rows was built and measured and was worse at everything (P4-D24),
+   and that stands.
+2. *The reserve cursor restarts one word further along each time.* The
+   reserve holds `n_joined - 1` words per position after the first and
+   the ceiling is `200 * n_joined` tries, so a cursor returning to zero
+   drew the same `n_joined / 2` pairs of rows two hundred times over —
+   measured, 48,000 tries over 119 distinct draws.
+3. *A try short of the count proposes a row worth swapping* (method
+   G6B.4a). The count of different cells is scaled at one row of the
+   column, so random draws spend the ceiling on swaps that move it by
+   nothing. The scan is bounded at sixteen rows and falls back to the
+   rows as drawn, **and sixteen is a measurement**: over the four
+   columns of `tools/measurements/r_p4_40_l7_joined.py` at ten seeds
+   each, counting different cells held against published, a 36-row
+   witness goes 30–35 at a reach of 1, 32–35 at 4, 32–36 at 8 and
+   33–36 from 16 upward, and a 240-row all-different column goes
+   176–210, 195–231, 196–233, 195–234 at 16, 197–236 at 32 and 197–235
+   at 64 — flat from sixteen, at three times the running time by
+   sixty-four. The 400-row blood pressure reaches its published count
+   at every reach and separates none of them.
+
+**MEASURED THROUGH THE REAL `profile` → `generate` → `validate` PATH,
+BEFORE AND AFTER, TEN SEEDS EACH.**
+
+| column | fact | before | after |
+|---|---|---|---|
+| 400-row blood pressure, 110 different readings | different cells | 157–169 | **110 at every seed** |
+| the same | position 1's different numbers (13 published) | 34–41 | **13 at every seed** |
+| the same | position 2's different numbers (9 published) | 23–29 | **9 at every seed** |
+| the same | quality report | `distinct.n_distinct` missed 10 of 10 | **nothing missed at all** |
+| 36-row `N/M` witness, position 1 | cells carrying a point (2 published) | 12–15 | 2 at the pinned seed |
+| the same | `number 1 styles.published.plain` (floor 34) | missed at 22 | met at the pinned seed |
+| 100-row three-position column | pair (1,2), published −1.0 | **+1.0** | −0.9922, inside the window |
+| twelve-column battery of three and four positions, 540 pairs | agreements outside G12.9's window | 387 | 188 |
+| the same | above-counts missed | 259 | **0** |
+| the same, the 240 pairs between two EARLIER positions | outside the window | **240** | 106 |
+| the same | above-counts missed | 236 | **0** |
+
+**AND THE GRAIN RULE TAKES SOMETHING FROM AN ALL-DIFFERENT COLUMN,
+WHICH IS MEASURED HERE RATHER THAN LEFT FOR A REVIEWER.** The count it
+replaces — the whole cell's — happens to EQUAL the number of cells on a
+column whose cells are all different, so every position got one stratum
+per cell and held as many different numbers as it could. Three shapes,
+ten seeds each, through the real path:
+
+| column | fact | before | after |
+|---|---|---|---|
+| repeating, 110 different cells of 400 | different cells | 157–169 | **110** |
+| | position 1's numbers (13 published) | 34–41 | **13** |
+| | position 2's numbers (9 published) | 23–29 | **9** |
+| all different, 240 of 240 | different cells | 173–188 | **195–234** |
+| | position 1's numbers (20 published) | **20** | 18–20 |
+| | position 2's numbers (12 published) | **12** | 11–12 |
+| all different, 379 of 400 | different cells | 379 | 379 |
+| | position 1's numbers (71 published) | **71** | 66–70 |
+| | position 2's numbers (51 published) | **51** | 47–51 |
+
+The EXACT-OBSERVABLE fact — the count of different CELLS — is unchanged
+or better on all three. What falls is `n_distinct_values`, which is
+REPORT-ONLY, on the two all-different columns, and it falls for one
+reason: with the right number of strata the values stage puts two of
+them on one number, which is **R-P4-120**. The old count did not avoid
+that defect; it hid it by asking for more strata than the description
+says there are values. The same trade shows in the demonstration
+golden, whose joined column holds all 240 different readings before and
+after while its positions go from 120 and 100 different numbers to 101
+and 83.
+
+**SIXTEEN MUTATIONS, THIRTEEN RED, THREE SILENT.** Each is one named
+rule of this landing withdrawn from the shipped generator or validator,
+run against nine files collecting 386 tests. Red: the anchor; each
+position's own start; every pair being scored; the agreement scored
+outside its window; the agreement tie-break; the cursor restart
+stepping along; the proposal step itself; the proposal's reach bound;
+every pair taking G12.9's window in the quality report; the grain rule
+whole; the grain rule's division alone; and — after this landing built
+their red cases — the grain rule's spelling budgets alone and each
+shuffling position's own slice of the reserve. The three that stay
+silent are inside the proposal step and are opened as **R-P4-124**
+rather than left as a green run's silence.
+
+**AND THE FIRST RUN'S TWO GRAIN-RULE MUTANTS MEASURED NOTHING**, which
+is worth more than the count. The rule is written in two places, the
+division and the spelling budgets, and each mutant withdrew one while
+the other still read the grain's count — so the rule stayed in force
+and the run reported it unpinned. *A mutant that leaves its rule
+reachable by another line is not a mutant.*
+
+**AND THE WHOLE THING MEASURED THROUGH THE THREE COMMANDS THEMSELVES,
+because everything above was measured through the modules they call.**
+A 400-row repeating blood pressure written to a CSV, then
+`synthtwin profile table.csv --measurement reading`,
+`synthtwin generate table-profile.json --seed 3` and
+`synthtwin validate table-profile.json --twin table-twin.csv`, run
+against this tree and against the tree this landing branched from:
+
+| | before | after |
+|---|---|---|
+| what `validate` says | **"2 checkable obligation(s) were missed"** | **"No checkable obligation was missed"** |
+| which | `distinct.n_distinct`, `distinct.n_distinct_folded` | — |
+| exit code automation sees | **3** | **0** |
+
+**WHAT IS NOT CLOSED IS NAMED RATHER THAN ROUNDED OFF:** R-P4-119,
+R-P4-120, R-P4-121, R-P4-122, R-P4-123 and R-P4-124 below, and R-P4-71
+stays open on R-P4-120's account.
+
+**AND R-P4-20 IS NARROWED, NOT CLOSED, ON A MEASUREMENT.** What that
+residual said was missing is a published count of different NUMBERS,
+which P4-D4.9 supplies; what this landing adds is that the count is
+now CONSUMED — it decides the layout of every grain inside a role,
+where before it decided nothing anywhere. It stays REPORT-ONLY,
+because the twin does not always meet it: measured over four 200-row
+plain columns at ten seeds, `n_distinct_values` came out exactly right
+in **21 of 40 runs** and short by up to nine otherwise. That is
+R-P4-120, and making the count EXACT-OBSERVABLE is its business, not
+this decision's.
+
+## Residual R-P4-40 — CLOSED 2026-09-01 by decision P4-D31 (landing L7)
+
+Its own fix, in its own words: "publish how many DIFFERENT values each
+position held, beside the ladder it already publishes, and have the
+draw meet it." The first half landed as P4-D4.9 — `n_distinct_values`,
+one per position — and L7 does the second. Measured through the real
+path on a 400-row blood pressure publishing 110 different readings over
+positions holding 13 and 9 different numbers: the twin held **157 to
+169** different cells and positions of **34 to 41** and **23 to 29**
+across ten seeds, and now holds **110, 13 and 9 at every one of those
+seeds** with nothing missed in the quality report at all. On the wider
+column this residual was opened against — 400 rows spread over 71
+systolic and 51 diastolic values — see the entry below for what
+remains, which is R-P4-120's and not this one's.
+
+The record of the gap is kept below.
+
+## Residual R-P4-40 (the record of the gap)
 
 Opened 2026-08-26 by P4-D23. The count of different CELLS was exact
 while the pairing was free to chase it. It is no longer free: it also
@@ -9181,7 +9700,15 @@ pairing does.
 Publish how many DIFFERENT values each position held, beside the ladder
 it already publishes, and have the draw meet it. Both facts are then
 reachable together, because the real column reaches them together with
-its own values. Not closed.
+its own values. CLOSED, see above.
+
+**AND HALF OF THAT SENTENCE TURNED OUT TO BE WRONG, which is worth
+keeping.** It was a description change AND a walk change. Retargeting
+the draw alone closes the position's own counts and COSTS the column's
+count of different cells, because the pairing then has fewer
+combinations to build it from — measured three times over in R-P4-112
+and reproduced here before anything was landed. The two had to move
+together, which is why L7 was one landing rather than two.
 
 ## Residual R-P4-41 — CLOSED by decision P4-D25 (2026-08-26)
 
@@ -9540,7 +10067,34 @@ documentation however much it looks like it.
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 
-## Residual R-P4-51 — a joined column of three or more positions reproduces only the pairs its last position is in
+## Residual R-P4-51 — CLOSED 2026-09-01 by decision P4-D31 (landing L7)
+
+The walk moves every position but the first now, so every pair has a
+member it moves and every pair is scored. Measured on this residual's
+own column, and on a wider battery, through the real path:
+
+| | published | before | after |
+|---|---|---|---|
+| the 100-row column's pair (1,2) | −1.0 | **+1.0** | −0.9922 |
+| its pair (1,3) | +1.0 | −0.144 | +1.0 |
+| its pair (2,3) | −1.0 | −0.144 | −0.9922 |
+| its `part_above` misses, ten seeds | — | pair 1 missed at every seed | none |
+| battery: 240 pairs between two EARLIER positions, ten seeds | — | **240 outside G12.9's window, 236 above-counts missed** | 106 outside, **0 missed** |
+
+**WHAT IS NOT CLAIMED, and it is a different residual.** Aiming at a
+pair is not reaching it: 188 of the battery's 540 agreements still land
+outside the window, because a column of three or four positions sets
+three or six agreement targets that pull against each other inside one
+bounded search. Those are MISSES reported as misses on both pages, the
+same verdict a two-position column's miss already gets, and they are
+**R-P4-121**.
+
+`contract.scored_pairs` is deleted with this, and so are the two
+branches that existed only for a pair nothing aimed at — the
+generator's "not aimed at" deviation and the validator's exact check
+with no citation. The record of the gap is kept below.
+
+## Residual R-P4-51 (the record of the gap)
 
 Opened 2026-08-27, by the adversarial review of method section G6B, and
 confirmed by measurement. The pairing walk moves ONLY the last
@@ -9577,7 +10131,16 @@ is a different search with a different cost, and its objective would
 have to arbitrate between pairs that can pull against each other in
 ways two positions never do. That is design work, not a repair, and
 pricing it belongs with L7's joined-role work where R-P4-40, R-P4-42
-and R-P4-43 already sit.
+and R-P4-43 already sit. CLOSED there, see above.
+
+**AND THE ARBITRATION TURNED OUT NOT TO BE THE HARD PART.** The
+objective already summed several pairs on a three-position column — two
+of them, the ones the last position was in — so summing all of them is
+not new in kind, and the incremental update of a swap is the same
+formula whichever of a pair's two positions moved. What the walk needed
+beyond that was an ANCHOR, so that a position could be held still
+without losing any arrangement, and a start rule per position rather
+than one mean for all of them.
 
 **What was done now** is to stop the documents claiming otherwise.
 Method G6B step 3 states the bound, prints the measured table, and says
@@ -9679,6 +10242,8 @@ scored or moved, and its published agreement and above-count are
 missed. Two-part columns — every blood pressure, every ratio — are
 unaffected, which is why five reads did not meet it. It belongs to
 P4-D23's walk and is L7's to fix, since L7 reopens that walk anyway.
+FIXED there on 2026-09-01: the walk anchors the first position and
+moves every other, so every pair is aimed at (R-P4-51, closed).
 
 ## Residual R-P4-45 — the note grammar's class split is guarded by the seal, not by arithmetic (2026-08-26)
 

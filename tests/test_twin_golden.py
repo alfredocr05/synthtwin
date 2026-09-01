@@ -380,10 +380,14 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     # Pinned beside the bytes because "the run spends a different number
     # of words" is a different failure from "the run writes different
     # cells", and a reader is owed the difference.
-    # FIVE THOUSAND ONE HUNDRED AND THIRTY-THREE since the joined
-    # column joined: one stream feeds every column in order, so adding
-    # a column moves the count by exactly what that column draws.
-    assert built.words_drawn == 5133
+    # FOUR THOUSAND EIGHT HUNDRED AND SEVENTY-THREE since landing L7,
+    # and 5,133 before it: one stream feeds every column in order, so
+    # this count moves by exactly what a column's own plan draws.
+    # G5.2's grain rule divides each position of the joined column by
+    # that position's own count of different NUMBERS rather than by the
+    # whole cell's count of different CELLS -- 120 and 100 here against
+    # 240 -- so the two positions between them draw 260 words fewer.
+    assert built.words_drawn == 4873
     assert [column.name for column in loaded.columns] == [
         "record_code",
         "region",
@@ -551,8 +555,25 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # decision, every made-up spelling and the writer's own byte rules, all
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
+# RE-RECORDED 2026-09-01 for landing L7 (plan decision P4-D31), and the
+# difference was read column by column before anything was written.
+# GOLDEN_DESCRIPTION_SHA256 ABOVE DID NOT MOVE, so the producer is
+# untouched and what changed is what the generator makes of the same
+# bytes. THIRTEEN OF THE FOURTEEN COLUMNS ARE BYTE-IDENTICAL and the
+# fourteenth is `pressure`, the joined one -- which is also the LAST, so
+# the 260-word drop in its budget shifts no other column's share of the
+# stream. Its 240 readings are all different before and after, which is
+# the obligation contract 9.8 puts on it; what moved inside it is that
+# each position is now laid out by its own count of different numbers,
+# so the first holds 101 different numbers where it held 120 and the
+# second 83 where it held 100, against 120 and 100 published. That fall
+# is residual R-P4-120 becoming visible rather than arriving: the count
+# this rule replaces equals the number of CELLS on an all-different
+# column, so a position used to get one stratum per cell and could not
+# collide. The count of different CELLS -- the fact `synthtwin validate`
+# checks exactly -- is 240 of 240 on both sides.
 GOLDEN_TWIN_SHA256 = (
-    "549534639ff30341730d66ffce6524b9b07cd62ba36514c35da010c270af5a0b"
+    "59530dd918008ff6d986602b09ca86dedad4a20f3c273d3b95842d763cf39c5c"
 )
 
 
@@ -844,8 +865,13 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # inside that paragraph. No count, no verdict, no fact and no order
 # moved, and the description and twin digests were both untouched by
 # this edit.
+# RE-RECORDED 2026-09-01 with the twin above, and it follows from it:
+# the twin's own cells moved, so every figure this report prints about
+# the joined column moved with them. The report was read before it was
+# recorded and it says no less than it did -- the same facts, the same
+# order, with the joined column's achieved numbers restated.
 GOLDEN_REPORT_SHA256 = (
-    "d2a47e1f796ac33f025627d2e8b37ca6aa3c14890c599e6b90d81525bff2ad41"
+    "d3fbbc4b455b7f549dc0ced43fc3baeda6a75a94f16f65159fe7e79a803f97b3"
 )
 
 
@@ -1248,8 +1274,16 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # lines each, every one HELD. NOTHING was lost and no verdict moved:
 # the census carries nine obligations more than it did and not one
 # fewer, which is the thing this digest exists to make somebody check.
+# RE-RECORDED 2026-09-01 with the twin above. Two things moved and
+# both were read: the joined column's own achieved figures, which
+# follow its cells; and the census, because landing L7 gives EVERY pair
+# of positions method G12.9's window where a pair between two earlier
+# positions used to be checked exactly with no citation. This
+# demonstration has two positions and therefore one pair, so its own
+# verdicts are unchanged in kind -- no obligation left the census and
+# none was lowered.
 GOLDEN_QUALITY_SHA256 = (
-    "25451b76a4d6733226b9cfb4e9a78fed6962bc2102fe33efed742a3d0d746138"
+    "e364c84d48660106738a4cb22ae8e42134cceae80e8b0754757980bfc353da8f"
 )
 
 

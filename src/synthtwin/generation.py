@@ -4998,7 +4998,9 @@ def _reach_sizes(
 
 
 def _numeric_layout(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    grain_values: "int | None",
 ) -> "tuple[_NumericLayout, list[Deviation], int]":
     """How a column of numbers divides, and what it costs (G5.2, G4.3).
 
@@ -5008,6 +5010,17 @@ def _numeric_layout(
     positives ascending, because that is the sorted order of the
     column's own values and the ladder is a statement about sorted
     order.
+
+    `grain_values` IS HOW MANY DIFFERENT NUMBERS THIS GRAIN HOLDS, and
+    it is the third argument rather than a default because a caller
+    that forgets it gets residual R-P4-112 back (landing L7, method
+    G5.2). A plain numeric column passes `None`: there the count on the
+    block IS the column's own, and `n_distinct_folded` divides it. A
+    grain INSIDE a role -- one position of a joined column, the cores
+    of an affixed one -- passes `facts.n_distinct_values`, because the
+    counts on the block it is handed answer for the CELLS around it: a
+    36-row column of `N/M` publishes 36 different cells while its first
+    position holds 11 different numbers, and a stratum holds a value.
     """
     numbers = column.n_numeric
     counts = (
@@ -5024,21 +5037,39 @@ def _numeric_layout(
             _counts_contradict(column.name, zeros, negatives, numbers)
         )
     notes: list[Deviation] = []
-    raw_budgets = _budget_split(column.n_distinct, counts)
-    folded_budgets = _budget_split(column.n_distinct_folded, counts)
+    # THE SPELLING BUDGETS TAKE THE GRAIN'S COUNT TOO, and the first
+    # draft of landing L7 left them at the column's (residual
+    # R-P4-112). They bound how many different SPELLINGS the twin may
+    # write, and a position's own count of spellings is published
+    # nowhere -- but a count of NUMBERS is a floor under it, and
+    # handing a grain the count of the cells AROUND it is handing it a
+    # budget it has no numbers to spend. Measured on the 36-row `N/M`
+    # witness at seed 4: eleven strata against a budget of 36
+    # spellings wrote one value four ways -- `1.5125`, `01.5125`,
+    # `001.5125`, `0001.5125` -- for four cells in the decimal form
+    # where two are published, and the fraction width the census names
+    # for two cells reached none.
+    counted = column.n_distinct if grain_values is None else grain_values
+    folded = (
+        column.n_distinct_folded if grain_values is None else grain_values
+    )
+    raw_budgets = _budget_split(counted, counts)
+    folded_budgets = _budget_split(folded, counts)
     # HOW MANY STRATA IS A DIFFERENT QUESTION FROM HOW MANY SPELLINGS,
-    # AND BOTH ARE STILL READ OFF THIS ONE COUNT (round 3, item 1;
-    # residual R-P4-112). For a grain inside another role they answer
+    # AND THEY ARE ASKED SEPARATELY NOW (residual R-P4-112, closed by
+    # landing L7). For a grain inside another role they answer
     # differently -- a 36-row column of `N/M` publishes 36 different
     # CELLS while its first position holds 11 different NUMBERS, and a
-    # stratum holds a value, not a spelling. Separating them was built
-    # and MEASURED: with the spelling budgets left at 36 and only the
-    # division taking the grain's 11, the style floor holds and the
-    # count of different cells still falls to 28 of 36. So the spelling
-    # budget was never what carried it, and neither half of this may
-    # move until the pairing walk can build the column's own count from
-    # the strata it is given.
-    values = min(numbers, max(folded_budgets[0], 1))
+    # stratum holds a value, not a spelling. So the DIVISION takes the
+    # grain's own count of numbers where it has one, and the SPELLING
+    # budgets stay at the counts the block carries: a position's own
+    # count of different spellings is published nowhere, so lowering
+    # its budget would be a guess, and it was measured to carry
+    # nothing -- with the budgets left at 36 and only the division
+    # taking 11, the position's style floor is met exactly as it is
+    # with both moved.
+    divided = folded_budgets[0] if grain_values is None else grain_values
+    values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
     needed = 0
@@ -5396,6 +5427,58 @@ def _ranks_of(values: "list[float]") -> "list[float]":
     return ranks
 
 
+def _pair_seats(n_parts: int) -> "tuple[list[int], list[int]]":
+    """The two positions of every pair, in the order `part_agreements` runs.
+
+    Seat `k` of `part_agreements` and `part_above` is the pair
+    `(firsts[k], seconds[k])`, and the seats run `(0,1), (0,2), ...
+    (1,2), ...` -- the order the profiler writes them in.
+    """
+    firsts: "list[int]" = []
+    seconds: "list[int]" = []
+    for first in range(n_parts):
+        for second in range(first + 1, n_parts):
+            firsts = firsts + [first]
+            seconds = seconds + [second]
+    return firsts, seconds
+
+
+def _joined_would_write(
+    held: "list[list[str]]",
+    facts: "contract.JoinedFacts",
+    row: int,
+    place: int,
+    text: str,
+) -> str:
+    """The cell row `row` would hold if position `place` held `text`.
+
+    Built without touching `held`, because the proposal step asks this
+    question of candidate after candidate and a swap-and-undo for each
+    of them is the cost the whole carried-quantity design exists to
+    avoid.
+    """
+    written = ""
+    for step in range(facts.n_parts):
+        if step:
+            written = written + facts.separator
+        spelling = text if step == place else held[step][row]
+        written = written + _padded_to(spelling, facts.part_min_widths[step])
+    return written
+
+
+# HOW FAR THE PROPOSAL STEP LOOKS for a row worth swapping (method
+# G6B.4a). It is a fixed small number and not the whole column because
+# the scan runs inside a walk whose ceiling is already `200 * rows`, so
+# an unbounded scan makes the walk quadratic in the rows.
+#
+# SIXTEEN, AND THE CHOICE IS A MEASUREMENT recorded in the plan's
+# decision P4-D31 and in method G6B.4a: over the four columns of
+# `tools/measurements/r_p4_40_l7_joined.py` at ten seeds each the count
+# of different cells held is flat from sixteen upward, while a reach of
+# sixty-four costs three times the running time.
+_PROPOSAL_REACH = 16
+
+
 def _repaired_pairing(
     drawn: "list[list[str]]",
     facts: "contract.JoinedFacts",
@@ -5410,6 +5493,22 @@ def _repaired_pairing(
     and every published number about it -- ladder, mean, spread, styles,
     widths -- is untouched. What moves is only the pairing, which is the
     one thing `parts` does not describe.
+
+    EVERY POSITION BUT THE FIRST MOVES, AND EVERY PAIR IS SCORED
+    (residual R-P4-51, closed by landing L7). This walk moved the LAST
+    position alone, so on a column of three or more positions the pairs
+    among the earlier ones were neither moved nor scored and came out
+    at `+1` whatever was published -- measured, a column whose first two
+    positions are perfectly anti-correlated published -1.0 and its twin
+    held +1.0, the exact opposite. The first position is held still
+    because a pairing is only ever relative: permuting every position
+    the same way writes the same cells in a different order, so one
+    position may be anchored without losing a single arrangement, and
+    anchoring the FIRST is what leaves the two-position case -- every
+    blood pressure, every ratio -- the same walk it was: the same
+    position moves under the same start rule, so nothing about such a
+    column changes on account of the anchor. Its cells do move in this
+    landing, and G5.2's grain rule and the rescored distance are why.
 
     IT STARTS RANK FOR RANK, largest with largest, where the agreement
     is 1 and the earlier position is above the later one as often as it
@@ -5436,33 +5535,26 @@ def _repaired_pairing(
     total = facts.n_joined
     if total < 2 or facts.n_parts < 2:
         return drawn
-    # WHERE THE WALK STARTS IS CHOSEN BY WHAT IT IS WALKING TOWARDS.
-    # Rank for rank is where the agreement is 1; it is the right place
-    # to start for a blood pressure, whose numbers agree at 0.83, and
-    # the WORST place to start for a column whose numbers agree at zero
-    # -- measured, a pulmonary-artery column publishing -0.009 was left
-    # at 0.216, because the walk could not travel the whole way inside
-    # its try ceiling. So a low target starts from a shuffle, which is
-    # already near it, and a strongly negative one starts from rank
-    # against rank.
-    # OVER THE PAIRS THIS WALK CAN MOVE, and no others (review item
-    # P4-G3-R2-F6). The choice below decides where the LAST position
-    # starts, and the last position is the only one that moves -- so a
-    # pair between two earlier positions cannot be helped by any answer
-    # here, and letting its target into the average lets a fact nothing
-    # can reach decide the starting point for the facts that can. Three
-    # positions whose early pair wants -1 while both last-position
-    # pairs want +1 averaged to a third, took the shuffled start, and
-    # missed two targets that rank-against-rank meets outright.
-    scored_seats = contract.scored_pairs(facts.n_parts)
-    wanted_agreement = 0.0
-    counted_seats = 0
-    for seat in scored_seats:
-        if seat < len(facts.part_agreements):
-            wanted_agreement = wanted_agreement + facts.part_agreements[seat]
-            counted_seats = counted_seats + 1
-    if counted_seats:
-        wanted_agreement = wanted_agreement / float(counted_seats)
+    firsts_all, seconds_all = _pair_seats(facts.n_parts)
+    # WHERE EACH POSITION STARTS IS CHOSEN BY WHAT IT IS WALKING
+    # TOWARDS, and the pair it is chosen by is the pair it makes with
+    # the ANCHOR. Rank for rank is where the agreement is 1; it is the
+    # right place to start for a blood pressure, whose numbers agree at
+    # 0.83, and the WORST place to start for a column whose numbers
+    # agree at zero -- measured, a pulmonary-artery column publishing
+    # -0.009 was left at 0.216, because the walk could not travel the
+    # whole way inside its try ceiling. So a low target starts from a
+    # shuffle, which is already near it, and a strongly negative one
+    # starts from rank against rank.
+    #
+    # IT IS THE PAIR WITH THE ANCHOR AND NOT AN AVERAGE OVER PAIRS
+    # (review item P4-G3-R2-F6, restated for the walk that moves every
+    # position). This read the mean of every scored pair, which was the
+    # right answer while one position moved and every scored pair had
+    # that position in it. Now each position starts where its own
+    # target says, and a target another position owns cannot decide it.
+    # On two positions the two rules are the same rule: the only pair
+    # is the pair with the anchor.
     held: "list[list[str]]" = []
     for column in drawn:
         pairs: "list[tuple[float, str]]" = []
@@ -5470,14 +5562,23 @@ def _repaired_pairing(
             pairs = pairs + [(float(spelling), spelling)]
         pairs = sorted(pairs)
         held = held + [[pair[1] for pair in pairs]]
-    last = facts.n_parts - 1
-    if wanted_agreement < -0.4:
-        held[last] = [
-            held[last][total - 1 - seat] for seat in range(total)
-        ]
-    elif wanted_agreement < 0.4 and len(words) >= max(total - 1, 0):
-        order = _arrangement(words, total)
-        held[last] = [held[last][seat] for seat in order]
+    for place in range(1, facts.n_parts):
+        seat = place - 1
+        anchored = 0.0
+        if seat < len(facts.part_agreements):
+            anchored = facts.part_agreements[seat]
+        # EACH SHUFFLING POSITION TAKES ITS OWN SLICE OF THE RESERVE.
+        # The word budget of G4.3 sets aside `rows - 1` words for every
+        # position after the first for exactly this, and two positions
+        # drawing the same slice would arrange alike.
+        taken = words[(place - 1) * max(total - 1, 0):]
+        if anchored < -0.4:
+            held[place] = [
+                held[place][total - 1 - seat_at] for seat_at in range(total)
+            ]
+        elif anchored < 0.4 and len(taken) >= max(total - 1, 0):
+            order = _arrangement(taken, total)
+            held[place] = [held[place][seat_at] for seat_at in order]
     numbers: "list[list[float]]" = []
     ranks: "list[list[float]]" = []
     for place in range(facts.n_parts):
@@ -5495,27 +5596,29 @@ def _repaired_pairing(
             away = ranks[place][row] - middle
             summed = summed + away * away
         spread = spread + [summed]
-    # The pairs this walk can move are the ones the last position is in.
+    # EVERY PAIR IS SCORED, because every pair has a member this walk
+    # moves: the anchor is position 0, and a pair with two members is a
+    # pair with at least one of them numbered 1 or more.
     seats: "list[int]" = []
     firsts: "list[int]" = []
-    seat = 0
-    for first in range(facts.n_parts):
-        for second in range(first + 1, facts.n_parts):
-            if second == last:
-                seats = seats + [seat]
-                firsts = firsts + [first]
-            seat = seat + 1
+    seconds: "list[int]" = []
+    for seat in range(len(firsts_all)):
+        if seat < len(facts.part_agreements) and seat < len(facts.part_above):
+            seats = seats + [seat]
+            firsts = firsts + [firsts_all[seat]]
+            seconds = seconds + [seconds_all[seat]]
     tops: "list[float]" = []
     aboves: "list[int]" = []
     for index in range(len(seats)):
         first = firsts[index]
+        second = seconds[index]
         summed = 0.0
         counted = 0
         for row in range(total):
             summed = summed + (ranks[first][row] - middle) * (
-                ranks[last][row] - middle
+                ranks[second][row] - middle
             )
-            if numbers[first][row] > numbers[last][row]:
+            if numbers[first][row] > numbers[second][row]:
                 counted = counted + 1
         tops = tops + [summed]
         aboves = aboves + [counted]
@@ -5526,6 +5629,18 @@ def _repaired_pairing(
         cells = cells + [text]
         seen[text] = seen[text] + 1 if text in seen else 1
 
+    def _room() -> float:
+        """How far a scored agreement may sit from its target and count.
+
+        HALF the window method G12.9 publishes, and half of it for a
+        reason a measurement gave: the published agreement is rounded
+        to four places and the walk's own is not, so a bound met
+        EXACTLY is a bound a rounding can cross. At half the window a
+        pairing this walk settles for is inside the published one with
+        the same margin again to spare.
+        """
+        return parsing.RANK_AGREEMENT_WINDOW / 2.0
+
     def _away() -> float:
         """How far this pairing is from every pairing fact published.
 
@@ -5534,23 +5649,39 @@ def _repaired_pairing(
         different cells in ROWS -- one row out costing a whole unit --
         was built and was worse at everything: the agreement fell from
         0.834 to 0.559, two cells came out impossible, and the count it
-        was chasing STILL stopped short, at 317 of 324. It stops short
-        because it cannot be reached: each position's numbers are drawn
-        to the ladder the description publishes, which repeats a value
-        more evenly than the real column did, and pairs drawn from
-        values that repeat more can only be so many. Spending the
-        agreement on it buys nothing and costs the readings.
+        was chasing STILL stopped short, at 317 of 324. That count is
+        scaled against the column's rows, where it competes fairly.
 
-        So the count of different cells is scaled against the column's
-        rows, where it competes fairly and yields where it cannot win,
-        and the shortfall is REPORTED by the caller rather than paid
-        for. Residual R-P4-40 records the cause, which is upstream of
-        this walk.
+        AND AN AGREEMENT IS SCORED BY HOW FAR IT LIES OUTSIDE THE
+        WINDOW PUBLISHED FOR IT, not by how far it lies from its
+        target (landing L7). The three facts are not held to the same
+        standard by the tool that checks them, and scoring them as
+        though they were is what stopped the walk: `part_above` and the
+        count of different cells are EXACT-OBSERVABLE, checked value
+        for value by `synthtwin validate` (P4-D29), while an agreement
+        is APPROXIMATED inside G12.9's window. Scored as an exactness,
+        an agreement already four ten-thousandths from its target
+        outbid every remaining different cell on a 240-row column --
+        each of them worth a 240th -- and the twin held 185 to 231 of
+        240 published readings with a fact it was never held to
+        exactly already met a fiftieth of its window over.
+
+        SO THE RAW GAP IS KEPT AS A TIE-BREAK AND NOTHING MORE. Inside
+        the window the walk still prefers the closer agreement, because
+        near-exactness is free where nothing is bought with it -- but
+        the whole tie-break, over every pair at once, is worth less
+        than one different cell, so it can never again be spent on one.
         """
         out = abs(len(seen) - wanted) / float(total)
+        room = _room()
+        # The tie-break's own scale: a gap can be no more than 2, so
+        # this term over every pair together stays below one row of the
+        # column, which is what one different cell is worth.
+        tip = 1.0 / float(total * (len(seats) + 1) * 2) if seats else 0.0
         for index in range(len(seats)):
             place = seats[index]
             first = firsts[index]
+            second = seconds[index]
             # A ROW OF THIS ONE OUTWEIGHS THE WHOLE AGREEMENT, and it
             # should: `part_above` is an exact count that a pairing can
             # always meet, and one row out of it is one cell holding a
@@ -5558,51 +5689,159 @@ def _repaired_pairing(
             # systolic. Measured at the same weight as the others, the
             # walk sold a row of it for a thousandth of agreement and a
             # blood-pressure twin came out with one impossible cell.
-            # The count of different cells is NOT weighted this way,
-            # because that one cannot always be met (R-P4-40) and a
-            # walk that insists on it wrecks everything else.
             out = out + float(abs(aboves[index] - facts.part_above[place]))
-            divisor = (spread[first] * spread[last]) ** 0.5
+            divisor = (spread[first] * spread[second]) ** 0.5
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
-            out = out + abs(agreed - facts.part_agreements[place])
+            gap = abs(agreed - facts.part_agreements[place])
+            out = out + (gap - room if gap > room else 0.0)
+            out = out + gap * tip
         return out
+
+    def _proposed(one: int, two: int, place: int) -> "tuple[int, int]":
+        """The two rows this try really swaps, given the two it drew.
+
+        THE SCALING IN `_away` IS WHY THIS EXISTS. A row of `part_above`
+        is worth a whole unit and the count of different cells is worth
+        one row of the column -- a four-hundredth on a four-hundred-row
+        column -- so a walk drawing its two rows at random spends its
+        ceiling on swaps that move the count by nothing at all. It was
+        measured: with the draw retargeted so that the numbers to make
+        the count out of exist, a 240-row column publishing 240
+        different readings reached 158 to 184 of them across ten seeds.
+        The objective is NOT re-weighted here, because weighting the
+        count in rows was built and measured and was worse at
+        everything (see `_away`); what changes is which swaps are put
+        to it.
+
+        SHORT OF THE COUNT the walk wants a row whose cell is repeated
+        and a partner that gives it one nothing holds -- and that is
+        not enough on its own, because the partner's OWN cell changes
+        too and can go from unique to repeated, leaving the count
+        where it was. So the partner must also either gain a cell
+        nothing holds or give up one another row already holds.
+
+        OVER THE COUNT it wants the opposite, and the mirror image is
+        not "a row whose cell is unique": on a column holding six
+        different cells over a hundred rows there may be no such row at
+        all, and the scan would find nothing every time. It is the
+        RAREST cell in reach, whose last few rows are what the count
+        comes down by.
+
+        Both scans are bounded by `_PROPOSAL_REACH` and both fall back
+        to the rows as drawn, so a try always has something to put to
+        the acceptance rule.
+        """
+        if len(seen) == wanted:
+            return one, two
+        short = len(seen) < wanted
+        found = one
+        if short:
+            step = 0
+            while step < _PROPOSAL_REACH:
+                row = (one + step) % total
+                if seen[cells[row]] > 1:
+                    found = row
+                    break
+                step = step + 1
+        else:
+            fewest = 0
+            step = 0
+            while step < _PROPOSAL_REACH:
+                row = (one + step) % total
+                holding = seen[cells[row]]
+                if step == 0 or holding < fewest:
+                    fewest = holding
+                    found = row
+                step = step + 1
+        partner = two
+        step = 0
+        while step < _PROPOSAL_REACH:
+            row = (two + step) % total
+            if row != found and held[place][row] != held[place][found]:
+                made_here = _joined_would_write(
+                    held, facts, found, place, held[place][row]
+                )
+                made_there = _joined_would_write(
+                    held, facts, row, place, held[place][found]
+                )
+                if short:
+                    if made_here not in seen and (
+                        made_there not in seen or seen[cells[row]] > 1
+                    ):
+                        partner = row
+                        break
+                elif made_here in seen and (
+                    made_there in seen or made_there == made_here
+                ):
+                    partner = row
+                    break
+            step = step + 1
+        return found, partner
 
     away = _away()
     tries = 0
     at = 0
+    restarts = 0
     ceiling = 200 * total
+    movers = facts.n_parts - 1
     while away > 0.0005 and tries < ceiling and len(words) >= 2:
+        # WHICH POSITION THIS TRY MOVES, taken in turn and costing no
+        # word. Drawing it would consume the reserve at a different
+        # rate and rewrite every two-position column's cells for a
+        # choice that has only one answer there.
+        place = 1 + tries % movers
         tries = tries + 1
         if at + 1 >= len(words):
-            at = 0
+            # THE CURSOR RESTARTS ONE WORD FURTHER ALONG THAN LAST
+            # TIME, and until landing L7 it restarted at zero. The
+            # reserve holds `rows - 1` words for each position after
+            # the first and the ceiling is `200 * rows` tries, so a
+            # cursor returning to zero drew the same `rows / 2` pairs
+            # of rows two hundred times over: measured on a 240-row
+            # column publishing 240 different readings, the walk spent
+            # 48,000 tries on 119 distinct draws and stopped between
+            # 193 and 235 of them. Stepping the restart along walks
+            # the reserve against itself instead, which costs no word
+            # and no draw.
+            restarts = restarts + 1
+            at = restarts % max(len(words) - 1, 1)
         one = _bounded(words[at], total)
         two = _bounded(words[at + 1], total)
         at = at + 2
-        if one == two or held[last][one] == held[last][two]:
+        one, two = _proposed(one, two, place)
+        if one == two or held[place][one] == held[place][two]:
             continue
         kept_tops = [value for value in tops]
         kept_aboves = [value for value in aboves]
+        moved: "list[int]" = []
         for index in range(len(seats)):
+            if firsts[index] != place and seconds[index] != place:
+                continue
+            moved = moved + [index]
+        for index in moved:
             first = firsts[index]
+            second = seconds[index]
+            other = first if second == place else second
             tops[index] = tops[index] + (
-                ranks[first][one] - ranks[first][two]
-            ) * (ranks[last][two] - ranks[last][one])
+                ranks[other][one] - ranks[other][two]
+            ) * (ranks[place][two] - ranks[place][one])
             for row in (one, two):
-                if numbers[first][row] > numbers[last][row]:
+                if numbers[first][row] > numbers[second][row]:
                     aboves[index] = aboves[index] - 1
-        held[last][one], held[last][two] = held[last][two], held[last][one]
-        numbers[last][one], numbers[last][two] = (
-            numbers[last][two],
-            numbers[last][one],
+        held[place][one], held[place][two] = held[place][two], held[place][one]
+        numbers[place][one], numbers[place][two] = (
+            numbers[place][two],
+            numbers[place][one],
         )
-        ranks[last][one], ranks[last][two] = (
-            ranks[last][two],
-            ranks[last][one],
+        ranks[place][one], ranks[place][two] = (
+            ranks[place][two],
+            ranks[place][one],
         )
-        for index in range(len(seats)):
+        for index in moved:
             first = firsts[index]
+            second = seconds[index]
             for row in (one, two):
-                if numbers[first][row] > numbers[last][row]:
+                if numbers[first][row] > numbers[second][row]:
                     aboves[index] = aboves[index] + 1
         made_one = _joined_written(held, facts, one)
         made_two = _joined_written(held, facts, two)
@@ -5633,14 +5872,14 @@ def _repaired_pairing(
                 del seen[made]
         for back in (cells[one], cells[two]):
             seen[back] = seen[back] + 1 if back in seen else 1
-        held[last][one], held[last][two] = held[last][two], held[last][one]
-        numbers[last][one], numbers[last][two] = (
-            numbers[last][two],
-            numbers[last][one],
+        held[place][one], held[place][two] = held[place][two], held[place][one]
+        numbers[place][one], numbers[place][two] = (
+            numbers[place][two],
+            numbers[place][one],
         )
-        ranks[last][one], ranks[last][two] = (
-            ranks[last][two],
-            ranks[last][one],
+        ranks[place][one], ranks[place][two] = (
+            ranks[place][two],
+            ranks[place][one],
         )
         tops = kept_tops
         aboves = kept_aboves
@@ -5701,7 +5940,7 @@ def _joined_content(
     for place in range(facts.n_parts):
         view = _part_view(column, place)
         layout, layout_notes, part_content = _numeric_layout(
-            view, facts.parts[place]
+            view, facts.parts[place], facts.parts[place].n_distinct_values
         )
         part_words: "list[int]" = []
         step = 0
@@ -14972,7 +15211,9 @@ def _plan_column(
         # of what each position will draw.
         for place in range(facts.n_parts):
             _each, each_notes, each_content = _numeric_layout(
-                _part_view(column, place), facts.parts[place]
+                _part_view(column, place),
+                facts.parts[place],
+                facts.parts[place].n_distinct_values,
             )
             notes = notes + each_notes
             content = content + each_content
@@ -14983,9 +15224,11 @@ def _plan_column(
     elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
         core = _core_view(column)
-        layout, notes, content = _numeric_layout(core, facts.numbers)
+        layout, notes, content = _numeric_layout(
+            core, facts.numbers, facts.numbers.n_distinct_values
+        )
     elif isinstance(facts, contract.NumericFacts):
-        layout, notes, content = _numeric_layout(column, facts)
+        layout, notes, content = _numeric_layout(column, facts, None)
     elif isinstance(facts, contract.ClockFacts):
         _clock_room(column, facts)
         # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
@@ -17426,7 +17669,9 @@ def _joined_approximations(
     found: "list[Approximation]" = []
     for place in range(facts.n_parts):
         view = _part_view(column, place)
-        layout, _notes, _content = _numeric_layout(view, facts.parts[place])
+        layout, _notes, _content = _numeric_layout(
+            view, facts.parts[place], facts.parts[place].n_distinct_values
+        )
         part_plan = dataclasses.replace(plan, column=view, layout=layout)
         mine = _joined_position_numbers(written, facts, place)
         named = _position_words(place)
@@ -17450,25 +17695,27 @@ def _agreement_approximations(
 ) -> "list[Approximation]":
     """How strongly two positions moved together, measured (G12.9).
 
-    WHICH PAIRS THE WINDOW REACHES, and it is not all of them (review
-    item P4-G3-R1-F3). The pairing walk of G6B.4 moves the LAST
-    position and no other, so a pair is aimed at only where the last
-    position is one of its two. Those pairs are APPROXIMATED and owe
-    the method's two hundredths either side.
+    EVERY PAIR IS APPROXIMATED, AND THE WINDOW REACHES ALL OF THEM
+    (residual R-P4-51, closed by landing L7). The pairing walk of
+    G6B.4 moved the LAST position and no other, so a pair between two
+    EARLIER positions was neither moved nor scored -- it could come out
+    at `+1` against a published `-1`, fifty times the window, which is
+    not an approximation of anything, and the twin's report named such
+    a pair as a plain deviation instead. The walk now moves every
+    position but the first, so every pair has a member it moves and
+    every pair is aimed at: measured over 540 pairs of a twelve-column
+    battery of three- and four-position columns at ten seeds, 240 of
+    them between two earlier positions, every one of those 240 came out
+    further from its published value than the window before and 106 of
+    them do now, while their above-counts went from 236 missed of 240
+    to none.
 
-    A pair between two EARLIER positions is neither moved nor scored.
-    G12.9 says so in as many words and says such a pair "is not an
-    approximation of anything": it can come out at `+1` against a
-    published `-1`, which is fifty times the window. Dressing it as an
-    approximated fact would print the method's range beside it and tell
-    a reader the twin was held to a bound the method expressly denies
-    applying. So where such a pair misses, it is a DEVIATION -- a
-    published fact the twin did not meet, named with no window claimed
-    for it -- and that is residual R-P4-51 in the report rather than in
-    a document the reader may never open.
+    So the branch that named such a pair as a deviation with no window
+    is gone rather than left standing, because a branch nothing can
+    reach is a branch no test can hold to its word.
 
-    `part_above` beside them carries no window either, and is not
-    measured here at all: a row of it is a reading that cannot happen.
+    `part_above` carries no window at all and is not measured here: a
+    row of it is a reading that cannot happen.
     """
     found: "list[Approximation]" = []
     columns: "list[list[float]]" = []
@@ -17479,7 +17726,6 @@ def _agreement_approximations(
             if value is not None:
                 numbers = numbers + [value]
         columns = columns + [numbers]
-    scored = contract.scored_pairs(facts.n_parts)
     seat = 0
     for first in range(facts.n_parts):
         for second in range(first + 1, facts.n_parts):
@@ -17498,32 +17744,30 @@ def _agreement_approximations(
             moving = f"how strongly {_position_words(first)} and " + (
                 f"{_position_words(second)} rise and fall together"
             )
-            if seat in scored:
-                # INCLUSIVE, AND SUBTRACTION ROUNDS (review item
-                # P4-G6-R7-F1). Method G12.9 holds an unscored pair to
-                # `<= 0.02`, and `published - 0.02` in binary64 can
-                # land a hair ABOVE the value exactly 0.02 below it --
-                # on a published 0.2487 the difference comes out
-                # 0.22870000000000001, so a file agreeing at exactly
-                # 0.2287 was reported MISSED against a rule that
-                # admits it. Both ends step one place outward, which
-                # admits exactly what the rule admits and nothing
-                # else.
-                lowest = _lowered(published - _AGREEMENT_REACH)
-                highest = _raised(published + _AGREEMENT_REACH)
-                found = found + [
-                    Approximation(
-                        column=column.name,
-                        fact=f"part_agreements[{seat}]",
-                        published=_figure(published),
-                        achieved=_figure(achieved),
-                        lowest=_bound_figure(lowest),
-                        highest=_bound_figure(highest),
-                        inside=_inside(achieved, lowest, highest),
-                        note=moving,
-                        covers_published=True,
-                    )
-                ]
+            # INCLUSIVE, AND SUBTRACTION ROUNDS (review item
+            # P4-G6-R7-F1). Method G12.9 holds a pair to `<= 0.02`,
+            # and `published - 0.02` in binary64 can land a hair ABOVE
+            # the value exactly 0.02 below it -- on a published 0.2487
+            # the difference comes out 0.22870000000000001, so a file
+            # agreeing at exactly 0.2287 was reported MISSED against a
+            # rule that admits it. Both ends step one place outward,
+            # which admits exactly what the rule admits and nothing
+            # else.
+            lowest = _lowered(published - _AGREEMENT_REACH)
+            highest = _raised(published + _AGREEMENT_REACH)
+            found = found + [
+                Approximation(
+                    column=column.name,
+                    fact=f"part_agreements[{seat}]",
+                    published=_figure(published),
+                    achieved=_figure(achieved),
+                    lowest=_bound_figure(lowest),
+                    highest=_bound_figure(highest),
+                    inside=_inside(achieved, lowest, highest),
+                    note=moving,
+                    covers_published=True,
+                )
+            ]
             seat = seat + 1
     return found
 
@@ -17531,25 +17775,22 @@ def _agreement_approximations(
 def _agreement_notes(
     column: contract.ColumnBlock, written: "list[str]"
 ) -> "list[Deviation]":
-    """A pair of positions the pairing walk never aimed at, where it
-    came out somewhere other than the description says (R-P4-51).
+    """A published `part_above` the pairing did not reach (R-P4-51).
 
-    WHY THIS IS NOT AN APPROXIMATION, which is where it was filed
-    first (review item P4-G3-R1-F3). The walk of G6B.4 moves the LAST
-    position of a cell and no other, so a pair is aimed at only where
-    the last position is one of its two. G12.9 states this and states
-    what follows from it: a pair between two earlier positions "is not
-    an approximation of anything" and can come out at `+1` against a
-    published `-1`, fifty times the window. Filing it as approximated
-    prints the method's range beside it, which tells a reader the twin
-    was held to a bound the method expressly denies applying to it --
-    the report would be citing a promise to excuse the one case the
-    promise excludes.
+    ONE FACT IS LEFT HERE AND IT IS THE COUNT OF ROWS. `part_above` is
+    an exact count with no window at all -- a row out of it is one cell
+    holding a reading that cannot happen -- so where the pairing missed
+    it, the twin's own report says so, for every pair.
 
-    So it is what it is: a published fact the twin did not meet, named
-    with no window claimed for it. A pair that happens to land on its
-    published value met it and needs no line, the same as every other
-    exact fact of the report.
+    THE AGREEMENTS LEFT THIS FUNCTION IN LANDING L7. While the walk of
+    G6B.4 moved the LAST position and no other, a pair between two
+    earlier positions was aimed at by nothing, could come out at `+1`
+    against a published `-1`, and was named here as a plain deviation
+    rather than dressed as an approximation inside a window the method
+    denied applying to it (review item P4-G3-R1-F3). The walk now moves
+    every position but the first, so every pair is aimed at and every
+    pair is APPROXIMATED against G12.9 by `_agreement_approximations`.
+    The branch is gone rather than left unreachable.
     """
     facts = column.facts
     if not isinstance(facts, contract.JoinedFacts):
@@ -17562,18 +17803,15 @@ def _agreement_notes(
             if value is not None:
                 numbers = numbers + [value]
         columns = columns + [numbers]
-    scored = contract.scored_pairs(facts.n_parts)
     found: "list[Deviation]" = []
-    # `part_above` FIRST, and for EVERY pair, because it is exact on
-    # the pairs the walk moves and merely unaimed-at on the rest --
-    # either way a miss is a fact the twin does not carry and the
-    # reader has to be told (review item P4-G3-R2-F3). This report
-    # named it on NO pair at all: measured over twelve random
-    # three-position columns, twelve of twelve missed the count
-    # between their two earlier positions and the twin's own report
-    # was silent on all twelve, while `synthtwin validate` on the same
-    # twin reported it every time. The two pages of one run must not
-    # disagree about whether something happened.
+    # `part_above` FOR EVERY PAIR, because a miss of it is a fact the
+    # twin does not carry and the reader has to be told (review item
+    # P4-G3-R2-F3). This report named it on NO pair at all: measured
+    # over twelve random three-position columns, twelve of twelve
+    # missed the count between their two earlier positions and the
+    # twin's own report was silent on all twelve, while `synthtwin
+    # validate` on the same twin reported it every time. The two pages
+    # of one run must not disagree about whether something happened.
     seat = 0
     for first in range(facts.n_parts):
         for second in range(first + 1, facts.n_parts):
@@ -17585,16 +17823,6 @@ def _agreement_notes(
                     held = held + 1
             published_above = facts.part_above[seat]
             if held != published_above:
-                aimed = (
-                    ""
-                    if seat in scored
-                    else (
-                        " This tool builds the pairing by moving the "
-                        "last position of a cell, so a pair between two "
-                        "earlier positions is not aimed at and this "
-                        "count is whatever the arrangement left."
-                    )
-                )
                 found = found + [
                     Deviation(
                         column=column.name,
@@ -17603,44 +17831,10 @@ def _agreement_notes(
                         achieved=f"{held}",
                         note=(
                             f"how many rows hold {_position_words(first)} "
-                            f"above {_position_words(second)}.{aimed} "
+                            f"above {_position_words(second)}. "
                             "Code you write against this twin must not "
                             "rely on how often one of these two is the "
                             "larger"
-                        ),
-                    )
-                ]
-            seat = seat + 1
-    seat = 0
-    for first in range(facts.n_parts):
-        for second in range(first + 1, facts.n_parts):
-            if seat >= len(facts.part_agreements):
-                break
-            if seat in scored:
-                seat = seat + 1
-                continue
-            published = facts.part_agreements[seat]
-            achieved = round(
-                _rank_agreement(columns[first], columns[second]),
-                parsing.RANK_AGREEMENT_PLACES,
-            )
-            if achieved != published:
-                found = found + [
-                    Deviation(
-                        column=column.name,
-                        fact=f"part_agreements[{seat}]",
-                        published=_figure(published),
-                        achieved=_figure(achieved),
-                        note=(
-                            f"how strongly {_position_words(first)} and "
-                            f"{_position_words(second)} rise and fall "
-                            "together. This tool builds the pairing by "
-                            "moving the last position of a cell, so a "
-                            "pair between two earlier positions is not "
-                            "aimed at and no closeness is promised for "
-                            "it. Code you write against this twin must "
-                            "not rely on these two rising and falling "
-                            "together as they do in your table"
                         ),
                     )
                 ]

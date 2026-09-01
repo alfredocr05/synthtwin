@@ -28,8 +28,9 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,256 collected / 52 skipped |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them |
+| suite | 4,259 collected / 52 skipped |
+| suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none |
 
 ## What is being built right now
 
@@ -38,6 +39,162 @@ without the same help.
 consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
+
+* **THE JOINED LANDING (L7) HAS LANDED: a grain inside a role is laid
+  out by ITS OWN count of numbers, and the pairing walk moves every
+  position.** The owner's close-plan decision 3. It closes **R-P4-40**,
+  **R-P4-51** and **R-P4-112** together, narrows **R-P4-20** and
+  **R-P4-71**, and opens six.
+
+  **THE KEY THE CLOSE PLAN PRICED WAS ALREADY THERE, and saying so is
+  the first thing this entry owes.** L7 was sized "adds a key;
+  retargets the draw". The key R-P4-40 asks for — how many DIFFERENT
+  values each position held — landed on its own as decision P4-D4.9,
+  after that residual was written: `n_distinct_values` sits on every
+  quantitative block, which is one per joined position and one for an
+  affixed column's cores. **This landing adds no key.** It spends
+  everything on the draw and the walk. What `n_distinct_values` did
+  NOT do until now is bind anything: it was published, listed as
+  not-checkable, and read by nothing.
+
+  **WHAT WAS WRONG.** `_numeric_layout` divides a column's cells into
+  strata, one stratum holding one value, by the count of different
+  things the column publishes — and a grain inside a role arrives
+  carrying the OUTER column's counts, which count whole CELLS. A 36-row
+  column of `N/M` holds 36 different pairs while its first position
+  holds 11 different numbers, so that position was divided into 36
+  strata where a plain column with the same numeric facts gets 11.
+
+  **MEASURED before and after, through the real reader, producer,
+  loader, generator and validator, ten seeds each:**
+
+  - **R-P4-40, a 400-row blood pressure** publishing 110 different
+    readings over positions holding 13 and 9 different numbers: the
+    twin held **157–169** different cells and positions of **34–41**
+    and **23–29**, missing `distinct.n_distinct` at 10 seeds of 10 →
+    **110, 13 and 9 at every seed, and nothing missed at all**. CLOSED.
+  - **R-P4-112, the 36-row `N/M` witness**: 12–15 cells carrying a
+    point where 2 are published, `number 1 styles.published.plain`
+    MISSED at 22 against a floor of 34 → **2 at the pinned seed and
+    not missed**. CLOSED — but the proof is the SIDE-BY-SIDE, not the
+    floor: the same numeric facts as a PLAIN column miss the same
+    style subchecks at the same seeds now, so the grain behaves as a
+    plain column does and what is left is a plain column's defect
+    (R-P4-119).
+  - **R-P4-51, the 100-row three-position column**: pair (1,2)
+    published −1.0, twin **+1.0**, the exact opposite → **−0.9922,
+    inside G12.9's window**, with all three pairs and all three
+    above-counts met at every seed. CLOSED.
+  - **A battery of twelve three- and four-position columns, 540
+    pairs**: agreements outside the window **387 → 188**, above-counts
+    missed **259 → 0**; and of the 240 pairs between two EARLIER
+    positions, outside the window **240 → 106** and above-counts
+    missed **236 → 0**.
+
+  **AND THROUGH THE THREE COMMANDS THEMSELVES, not only the modules
+  they call.** The same 400-row repeating blood pressure written to a
+  CSV, profiled with `--measurement`, generated at seed 3 and
+  validated, against this tree and against the tree it branched from:
+  `synthtwin validate` said **"2 checkable obligation(s) were missed"**
+  — `distinct.n_distinct` and `distinct.n_distinct_folded` — with exit
+  code **3**, and now says **"No checkable obligation was missed"**
+  with exit code **0**.
+
+  **AND THE GRAIN RULE TAKES SOMETHING BACK ON AN ALL-DIFFERENT
+  COLUMN, measured rather than left for a reviewer.** The count it
+  replaces equals the number of CELLS where every cell differs, so each
+  position used to get one stratum per cell and met its own published
+  count exactly. Positions publishing 20 and 12 different numbers held
+  exactly that and now hold 18–20 and 11–12; positions publishing 71
+  and 51 held exactly that and now hold 66–70 and 47–51. The
+  EXACT-OBSERVABLE fact — the count of different CELLS — is unchanged
+  or better on every shape measured, and what falls is REPORT-ONLY and
+  falls for one reason: with the right number of strata the values
+  stage puts two of them on one number (**R-P4-120**). The old count
+  did not avoid that defect, it concealed it by asking for more strata
+  than the description says there are values.
+
+  **THE WALK NOW ANCHORS THE FIRST POSITION AND MOVES EVERY OTHER.**
+  Anchoring costs nothing — a pairing is only ever relative, so
+  permuting every position alike writes the same cells in a different
+  order — and anchoring the FIRST leaves a two-position column, which
+  is every blood pressure and every ratio, the same walk it was: the
+  same position moves under the same start rule, and nothing about such
+  a column changes on account of the anchor. Its cells do move here,
+  and the grain rule and the rescored objective are why. Three
+  things went with it: `contract.scored_pairs` is DELETED, because
+  every pair is scored now, and so are the two branches that existed
+  only for a pair nothing aimed at; each position starts from the pair
+  it makes with the anchor rather than from a mean; and each shuffling
+  position takes its own slice of the reserve, which G4.3 already sets
+  aside.
+
+  **AND THE OBJECTIVE WAS RESCORED, WITHOUT BEING RE-WEIGHTED.** An
+  agreement is APPROXIMATED inside G12.9's window while `part_above`
+  and the count of different cells are EXACT-OBSERVABLE. Scored as an
+  exactness, an agreement already four ten-thousandths from its target
+  outbid every remaining different cell on a 240-row column — each of
+  those worth a 240th. It is now scored by how far it lies outside HALF
+  that window, with the raw gap kept as a tie-break worth less, over
+  every pair at once, than one different cell. Weighting the cell count
+  in ROWS is still refused: that was built and measured and was worse
+  at everything (P4-D24).
+
+  **TWO SEARCH FAULTS FOUND BY MEASURING RATHER THAN BY READING.** The
+  reserve cursor restarted at word zero, so a 48,000-try ceiling drew
+  **119 distinct pairs of rows** two hundred times over; it steps along
+  now. And a try short of the count proposes a row worth swapping
+  (G6B.4a) rather than two at random, bounded at sixteen rows.
+
+  **SIXTEEN MUTATIONS, THIRTEEN RED, THREE SILENT.** Each is one named
+  rule withdrawn from the shipped generator or validator, run against
+  nine files collecting 386 tests. Two that came back silent got a red
+  case in this landing rather than an entry — the grain rule's spelling
+  budgets alone, and each shuffling position's own slice of the reserve
+  — and both now fail on their mutant. The three that stay silent are
+  inside the proposal step, where what they change is how WELL the walk
+  reaches a count no test pins, and they are **R-P4-124**.
+
+  **AND THE FIRST RUN'S TWO GRAIN-RULE MUTANTS MEASURED NOTHING.** The
+  rule is written in two places — the division and the spelling budgets
+  — and each mutant withdrew one while the other still read the grain's
+  count, so the rule stayed in force and the run reported this
+  landing's own centre unpinned. Re-run properly it is red, and so is
+  its division alone. *A mutant that leaves its rule reachable by
+  another line is not a mutant.*
+
+  **SIX RESIDUALS OPENED, and only two of them are this role's:**
+  **R-P4-119** (a PLAIN column publishing a pooled decimal pair writes
+  a value at four fraction figures where the census names one — the
+  same four subchecks miss on a plain column, an affixed column's
+  cores and a joined position, which is how R-P4-112 was proved
+  closed), **R-P4-120** (the values stage does not reach
+  `n_distinct_values`: two strata can be given one number, and a plain
+  column met the count exactly in 21 of 40 runs), **R-P4-121** (a
+  three- or four-position column cannot reach every agreement target
+  at once — 188 of 540 pairs still outside the window), **R-P4-122**
+  (a shuffled start throws away `part_above` and the ceiling does not
+  always win it back — short at 28 of 40 seeds on a 400-row blood
+  pressure, against 30 of 40 before, where a TEN-seed sample said the
+  opposite and the forty-seed one settled it) and **R-P4-123** (the
+  frozen joined case now pins five of fifteen withdrawn rules where it
+  pinned six, and ten of the walk's rules stand on the method's word
+  plus mutation testing — the three-position walk has no frozen case
+  at all) and **R-P4-124** (three rules of the proposal step stay
+  silent under mutation). R-P4-71 stays open on R-P4-120's account rather than on
+  R-P4-40's, and **R-P4-20 is narrowed**: its count is published and,
+  for the first time, CONSUMED — it decides every nested grain's
+  layout — while staying REPORT-ONLY on R-P4-120's measurement.
+
+  **NO FROZEN VECTOR EXERCISES THE THREE-POSITION WALK, and that is
+  stated rather than implied.** `joined_readings` was re-recorded and
+  its twelve cells all moved, which is what the grain rule and the
+  walk together do to it; the shipped generator reproduces the
+  oracle's new cells exactly, so the specification, the independent
+  implementation and this package still agree. `affixed_brackets` did
+  NOT move: its cores' count of different numbers equals the column's,
+  so the core-view half of the grain rule is inert on the only frozen
+  case that could exercise it.
 
 * **THE WIDTH LANDING (L6) HAS LANDED: a plain number now carries a
   width, and the VALUE STAGE reads it.** The owner's close-plan
@@ -237,9 +394,11 @@ are still ahead. The gap list itself is at the foot of this page.
   admission and routing rather than a generator branch of the role's
   own is now stated in G14.3 at that width.
 
-* **A JOINED COLUMN OF THREE OR MORE POSITIONS REPRODUCES ONLY THE
-  PAIRS ITS LAST POSITION IS IN (residual R-P4-51, opened
-  2026-08-27).** The pairing walk moves only the last position and
+* **A JOINED COLUMN OF THREE OR MORE POSITIONS REPRODUCED ONLY THE
+  PAIRS ITS LAST POSITION WAS IN (residual R-P4-51, opened 2026-08-27,
+  CLOSED 2026-09-01 by landing L7 — the entry at the head of this page
+  carries the after-numbers).** The pairing walk moved only the last
+  position and
   scores only the pairs whose later member is that position. At two
   positions there is exactly one pair and it is that one, so nothing
   showed. At three, the pairs among the earlier positions are neither
@@ -267,7 +426,11 @@ are still ahead. The gap list itself is at the foot of this page.
   It is a residual and not a defect: moving more than one position is a
   different search whose objective would have to arbitrate between
   pairs that pull against each other, which is design work priced with
-  L7's joined-role items.
+  L7's joined-role items. **CLOSED there on 2026-09-01** — and the
+  arbitration was not the hard part: the objective already summed two
+  pairs on a three-position column, and the incremental update of a
+  swap is one formula whichever of a pair's positions moved. What it
+  needed was an ANCHOR and a start rule per position.
 
 * **A last-resort straggler could be spelled the way a hole is
   spelled.** Where every candidate wears the affix pair, the affixed
@@ -784,10 +947,15 @@ were not in the residual when it was opened.
 
 **THE DISPOSITION WAS DECIDED TWICE, AND THE SECOND TIME WAS RIGHT.**
 It was made REPORT-ONLY on two measurements: every joined column whose
-cells REPEAT overshoots its published count (80 published, 210 held),
-and even an all-different column reaches it at one seed and misses by
+cells REPEAT overshot its published count (80 published, 210 held),
+and even an all-different column reached it at one seed and missed by
 one at another -- so an exact obligation looked like one met or missed
-BY THE SEED. And the twin's own report already prints "the description
+BY THE SEED. (The overshoot is CLOSED by landing L7 of 2026-09-01:
+each position is laid out by its own count of different numbers now,
+and a 400-row repeating column publishing 110 different readings holds
+exactly 110 at every one of ten seeds where it held 157 to 169. The
+disposition stands as EXACT-OBSERVABLE for the reason the next
+paragraph gives, which was never about the generator.) And the twin's own report already prints "the description
 says 120 / the twin holds 119", so nothing seemed hidden.
 
 **Adversarial round P4-A2-R1 refuted both halves and built the
@@ -804,8 +972,8 @@ that fact had, and the generation report cannot stand in, because it
 passes no verdict at all and the charter says so.
 
 **The seed-dependence is a fact about the GENERATOR, not about
-observability** -- that is R-P4-40, and it is not a reason to stop
-checking files. The lesson is sharper than the fix: **"the twin cannot
+observability** -- that was R-P4-40, closed 2026-09-01, and it was
+never a reason to stop checking files. The lesson is sharper than the fix: **"the twin cannot
 always meet it" and "no file can be held to it" are different claims,
 and I ran the first into the second.**
 
@@ -815,8 +983,9 @@ fourteenth column of `every_role_table`: all forty-nine call sites
 would have to pass one and any that missed it would give the column
 another role in silence. The entry table already answers this for
 `numeric_unrepresentable` with a dedicated fixture. Its shape is
-measured -- two positions (three cannot honour their (1,2) pair,
-R-P4-51), all different, non-overlapping bands, and a companion column
+measured -- two positions (three could not honour their (1,2) pair
+when this was written, R-P4-51, closed 2026-09-01), all different,
+non-overlapping bands, and a companion column
 without which `axes.quality_state` would be a site no edit could turn
 red.
 
@@ -1818,7 +1987,7 @@ reviewer's ruling of 2026-08-26.
 | **R-P4-42 — CLOSED 2026-08-27** | the window was cited as `docs/plans/phase-4-columns.md P4-D25` while every other envelope of the method cites a section of it, so an implementer working from the specification could not find it and a reader could not find the rule a verdict rests on. It is now **G12.9** of the generation method — the two-sided 0.02 window, why it is a window and not an exactness, and what it does NOT excuse — and the report cites that | closed |
 | **R-P4-43 — CLOSED 2026-08-27** | it checked a position's endpoints, average and whole-number test and not its styles or either width census. Each position now carries the style identity read over its own numbers, named per position. The residual's own example had gone stale — `200` rewritten as `200.0` is already caught — so the red case is half a position zero-padded, which moves the census and leaves the widths held | closed |
 | **R-P4-44 — CLOSED 2026-08-27** | the report now names every approximated fact of every position — nine rungs and four moments each — and the rank agreement beside them, against G12.9's window. All four faults that withdrew the first attempt are answered by name: no per-position count the profile publishes for no position (distinctness is suppressed for a position and a test pins that), every record names its position in the identifier AND in the sentence, a cell counts for a position only where it splits into exactly the published pieces AND every piece reads as a number (the hyphen-separator trap, with its own red case), and `part_agreements` is measured. Twenty-seven records where the role named none | closed |
-| **R-P4-51 — OPEN, and now VISIBLE** | a THREE-part column cannot honour its (1,2) pair — the pairing walk moves only the last position. Two-part columns are unaffected, which is why five reads did not meet it. It is not closed, but it no longer hides: G12.9 states that its window does not reach such a pair, and the twin's report names an unscored pair that missed as a DEVIATION with no closeness claimed for it, instead of dressing it as an approximation inside a window the method denies applying | L7 |
+| **R-P4-51 — CLOSED 2026-09-01** | a THREE-part column could not honour its (1,2) pair — the pairing walk moved only the last position. Two-part columns were unaffected, which is why five reads did not meet it. Landing L7 anchors the first position and moves every other, so every pair is aimed at and every pair takes G12.9's window: the residual's own column published −1.0 and held **+1.0**, and holds −0.9922 now, with every above-count met. What is left is that aiming is not reaching — 188 of a 540-pair battery still land outside the window — and that is R-P4-121 | closed |
 
 **THE REVIEW OF THE LANDING THAT CLOSED THREE OF THESE RETURNED A
 REJECT (round P4-G3-R1, 2026-08-27), and every finding it made was
@@ -1879,7 +2048,8 @@ in the repairs themselves:
 place".** Where an architectural boundary separates the two readers --
 the validator may not import the generator -- the shared thing has to
 move to a module BELOW both: `parsing.RANK_AGREEMENT_WINDOW`,
-`contract.scored_pairs`, `contract.a_decimal_comma_reaches`. It feels
+`contract.a_decimal_comma_reaches`, and — until landing L7 deleted it
+along with the distinction it drew — `contract.scored_pairs`. It feels
 like putting a generation concern in the wrong file. Do it anyway.
 
 **And a test shape worth reusing:** generate, validate, then assert the
@@ -1906,7 +2076,10 @@ moment holds while the early pair is turned inside out. Under the
 excusing rule that file passed every verdict-bearing obligation. It is
 withdrawn: both are exact checks again, a three-position twin MISSES
 them, and that is residual R-P4-51 appearing in the report, which is
-where an open residual belongs.
+where an open residual belongs. (Landing L7 closed that residual and
+both checks with it: every pair is aimed at now, so every pair takes
+G12.9's window and there is no exact-with-no-citation check left to
+excuse.)
 
 **Round 3 also found that the swap had moved the defect onto the
 HOLES.** A column whose missing spelling is `.` had its twenty absent
@@ -1922,7 +2095,10 @@ carrying every role; the walk's starting rule is pinned by REPLACING
 `contract.scored_pairs` and watching the twin's cells move (on a forged
 description, because sixty ordinary three-position columns were
 measured and none put the two averaging rules on opposite sides of the
-threshold); and the citation census is now derived by PARSING the
+threshold) — that one was rewritten again at landing L7, which deleted
+the function and with it the monkeypatch, and now asserts the twin's
+early pair lands inside its window on the same forged description; and
+the citation census is now derived by PARSING the
 module with `ast` rather than by the same regex that reads the
 citations. All three mutations the reviewer named now turn them red.
 
@@ -2521,6 +2697,22 @@ one.** What finally held was refusing to parse: a cell that must equal
 a fixed string, a state that must be asserted rather than inferred, a
 region pinned by digest.
 
+**AND A HARNESS THAT EDITS SOURCE MAKES EVERY MEASUREMENT TAKEN
+BESIDE IT WORTHLESS (L7, 2026-09-01).** While the L7 mutation harness
+was running -- it writes one withdrawn rule into `generation.py`, runs
+a subset, and restores -- I edited that same file's comments and took
+two measurements against it: a sweep of the proposal step's reach, and
+an end-to-end run of all three commands. Both ran against whatever
+mutant happened to be live, and the comment edit was then overwritten
+when the harness restored ITS snapshot. Nothing was lost that could not
+be redone, and both measurements were taken again on the restored tree
+before anything was written down.
+
+The rule is narrower than "do not edit during a run": *a harness that
+edits source owns the tree until it exits.* Do not read that tree, do
+not write to it, and do not trust a number taken from it -- including
+a number taken by a command that only reads.
+
 **AND THE SUITE-SIZE GUARD CAUGHT ME DELETING A TEST.** Repairing
 round 3's residual check, I cut a region of a test file by index
 arithmetic -- find the start, find a marker, jump past it, cut to the
@@ -2645,6 +2837,10 @@ list in on 2026-08-26:
 2. **All 100 percentiles.**
 3. **Kurtosis**, which pairs with skew.
 4. **The count of different numbers** (already planned, R-P4-20).
+   **PUBLISHED 2026-08-27 (plan P4-D4.9) and CONSUMED 2026-09-01
+   (P4-D31, landing L7): it decides how many strata every grain inside
+   a role is divided into. REPORT-ONLY, on the measurement in
+   R-P4-120 — a plain column met it exactly in 21 of 40 runs.**
 5. **The mode**, for columns where one value dominates. **PUBLISHED
    2026-08-27 (plan P4-D4.11), REPORT-ONLY until the generator carves
    its stratum.**

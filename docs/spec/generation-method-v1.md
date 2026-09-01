@@ -361,17 +361,18 @@ This is an exception to the one-column-wide bound stated elsewhere in
 this repository, and it is a narrow one: the structure lives INSIDE a
 cell, between the positions of one column, and says nothing about any
 other column. `part_agreements` is APPROXIMATED against the fixed window
-of G12.9 on the pairs the walk SCORES. On the pairs it does not score,
-NO WINDOW IS PROMISED -- which is not the same as no obligation, and
-this passage said "held to nothing at all" until 2026-08-28, which
-reads as both (review item P4-G3-R6-F7). The published value is still
-a fact the twin either carries or does not: an unscored pair can come
-out at `+1` against a published `-1`, and that is a plain MISS, named
-as such by both reports, with no range printed beside it and G12.9
-cited for nothing. Measured on a 400-row two-position
-column published at 0.9613, the twin reached 0.8994 while `part_above`
-came out exact. BOTH reports name these facts and measure them
-(R-P4-42 and R-P4-44, closed 2026-08-27). The count of
+of G12.9 on EVERY pair. Until landing L7 the walk moved the last
+position alone and a pair between two earlier positions was scored by
+nothing: no window was promised for it, which is not the same as no
+obligation, and it could come out at `+1` against a published `-1` --
+a plain MISS named as such by both reports (residual R-P4-51, review
+item P4-G3-R6-F7). The walk now moves every position but the first, so
+every pair is aimed at and every pair takes the window; a pair that
+lands outside it is still a MISS, named by both reports with the
+achieved value beside the published one. Measured on a 400-row
+two-position column published at 0.9613, the twin reached 0.8994 while
+`part_above` came out exact. BOTH reports name these facts and measure
+them (R-P4-42 and R-P4-44, closed 2026-08-27). The count of
 different CELLS is a separate fact a pairing of these numbers may be
 unable to meet, and the twin's report DOES say so (residual R-P4-40).
 
@@ -488,6 +489,35 @@ M = min(K, F_num)          the number of different VALUES
 `M` is the largest value count the distinctness facts allow, and largest
 is deliberate: every value the ladder is allowed to distinguish is a
 value the twin keeps.
+
+**A GRAIN INSIDE A ROLE TAKES ITS OWN COUNT, AND THIS SECTION SAID
+NOTHING ABOUT IT UNTIL LANDING L7** (residual R-P4-112). One position
+of a joined column (G6B.2) and the cores of an affixed one (G6A.2) are
+handed to G5 and G6 as columns in their own right, and the universal
+counts they arrive with answer for the CELLS AROUND them. A 36-row
+column of `N/M` publishes 36 different cells while its first position
+holds 11 different numbers, so that position was divided into 36
+strata where a plain column carrying the same numeric facts gets 11 —
+and a stratum holds a VALUE, not a cell. So for such a grain, and only
+for such a grain,
+
+```
+F_num = n_distinct_values of the grain's own quantitative block
+```
+
+for the division here AND for the spelling budgets of G6.5. The block
+publishes that count for every numeric grain (contract 6.7), it is the
+count of different NUMBERS rather than of spellings, and a count of
+numbers is a floor under a count of spellings — so using it as the
+spelling budget under-supplies rather than over-supplies, which is the
+safe direction. Measured on the witness above: with the budget left at
+the column's 36 the twin wrote one value four ways — `1.5125`,
+`01.5125`, `001.5125`, `0001.5125` — for four cells in the decimal
+form where two are published.
+
+A plain numeric column is unaffected: there the count on the block IS
+the column's own, and `n_distinct_folded` divides it exactly as it
+always has.
 
 The strata are laid out in one fixed order — **negatives ascending, then
 the zero stratum, then positives ascending** — because that is the
@@ -2229,9 +2259,12 @@ is zero, which is why that defect survived a whole phase.
 
 Each position is built by G5 and G6 unchanged, over a view of the
 column carrying that position's block and `n_joined` as its present
-count. Its word budget is G5.3's, and G4.3 states the whole: the sum
-over positions, plus a RESERVE of `max(n_joined - 1, 0)` for every
-position after the first, drawn after all the positional words.
+count. **G5.2's grain rule applies**: the strata and the spelling
+budgets take that position's own `n_distinct_values` and not the
+column's counts, which are counts of whole CELLS. Its word budget is
+G5.3's, and G4.3 states the whole: the sum over positions, plus a
+RESERVE of `max(n_joined - 1, 0)` for every position after the first,
+drawn after all the positional words.
 
 A finished cell is then
 
@@ -2268,81 +2301,95 @@ Write `T` for `n_joined` and `last` for `n_parts - 1`.
 spelling)` ascending, value being the spelling read as a number. This
 is the rank-for-rank start: largest with largest.
 
-**2. Choose the start.** Let `A` be the mean of the SCORED entries of
-`part_agreements` -- the seats whose pair contains the last position,
-as step 3 defines them -- and compute it EXACTLY THIS WAY: start at
-binary64 `0.0`, add each scored published agreement in the order the
-key lists them, then divide once by how many were added (`A` is `0.0`
-when there are none).
+**2. Choose each position's start.** Position `0` is the ANCHOR and is
+never moved, here or below. A pairing is only ever relative — permuting
+every position the same way writes the same cells in a different order
+— so one position may be held still without losing a single
+arrangement, and holding the FIRST one still is what leaves a
+two-position column the same walk it was: the same position moves under
+the same start rule, so nothing about such a column changes on account
+of the anchor.
 
-**SCORED AND NOT ALL, and this clause said "all" until 2026-08-27.**
-This step chooses where the LAST position starts, and step 3 moves the
-last position and nothing else -- so a pair between two earlier
-positions cannot be brought closer to its target by any answer here,
-and letting its published value into the mean lets a fact the walk
-cannot reach decide the start for the facts it can. Three positions
-publishing `-0.68, 0.4, 0.4` average `0.04` over every entry and take
-the permutation branch, and average `0.4` over the two scored entries
-and are left rank for rank, which already meets both scored targets.
-For a two-position column the two rules are the same rule, because its
-only pair is scored.
+For each position `p` from `1` to `n_parts - 1`, let `A` be the
+published `part_agreements` entry of the pair `(0, p)` — seat `p - 1`,
+since the seats run `(0,1), (0,2), … (1,2), …` — or `0.0` where the key
+is shorter than that. Then
 
-The
-mathematical mean is not enough to reproduce bytes, because the
-thresholds below are compared against this value: three positions
-publishing `-0.4, -0.4, -0.4` give a mathematical mean of exactly
-`-0.4`, which takes the permutation branch, while the sequential sum
-gives `-0.4000000000000001`, which takes the reversal — and the two
-write different cells. Then
-
-- `A < -0.4`: the LAST position is reversed, seat `i` taking seat
+- `A < -0.4`: position `p` is reversed, seat `i` taking seat
   `T - 1 - i`;
-- `-0.4 <= A < 0.4` and at least `max(T - 1, 0)` reserve words exist:
-  the last position is permuted by `permutation(T)` of G3.4c, drawn
-  from the reserve;
+- `-0.4 <= A < 0.4` and at least `max(T - 1, 0)` words remain in the
+  reserve from `(p - 1) * max(T - 1, 0)` onward: position `p` is
+  permuted by `permutation(T)` of G3.4c, drawn from the reserve
+  STARTING AT THAT OFFSET — each shuffling position takes its own
+  slice, which is exactly what G4.3 sets `T - 1` words aside per
+  position after the first for;
 - otherwise: it is left rank for rank.
 
 A low target starts from a shuffle because it is already near it, and a
 strongly negative one from rank against rank, because the walk cannot
 travel the whole way inside its try ceiling.
 
-**3. Only the last position moves** for the rest of the walk, and the
-pairs the walk scores are exactly those whose later member is `last`.
+**IT IS THE PAIR WITH THE ANCHOR AND NOT A MEAN, AND IT WAS A MEAN
+UNTIL LANDING L7.** While step 3 moved the last position and nothing
+else, one choice served every pair the walk could reach, and the mean
+of the scored entries was that choice — computed as a binary64 running
+sum in published order and divided once, because a mathematical mean of
+`-0.4, -0.4, -0.4` is exactly `-0.4` and takes the permutation branch
+while the sequential sum gives `-0.4000000000000001` and takes the
+reversal, and the two write different cells. Now every position moves
+and every position has a target of its own, so a mean would let a fact
+one position owns decide another position's start. Three positions
+publishing `-0.68, 0.4, 0.4` average `0.04` over every entry and
+`0.4` over the two the old walk scored; the rule here reads `-0.68`
+for position two and reverses it, and `0.4` for position three and
+leaves it rank for rank. For a two-position column all three rules are
+the same rule, because its only pair is the pair with the anchor.
 
-**THIS IS A REAL BOUND ON WHAT THE ROLE REPRODUCES, and it is not
-visible at two positions.** With `n_parts` of 2 there is one pair and
-it is that pair, so everything below is targeted. With THREE OR MORE,
-every pair among the earlier positions is neither moved nor scored:
-those positions are left in the ascending order step 1 sorted them
-into, so their agreement comes out at `+1` whatever the description
-published, and no term of the distance ever notices.
+**3. Every position but the anchor moves,** taken in turn — try number
+`t`, counting from zero, moves position `1 + (t mod (n_parts - 1))` —
+and **every pair is scored**, because a pair has two different
+positions and at most one of them can be the anchor. Choosing the
+position by turn costs no reserve word; drawing it would consume the
+reserve at a different rate and rewrite every two-position column's
+cells for a choice that has only one answer there.
+
+**THIS WAS A REAL BOUND ON WHAT THE ROLE REPRODUCED, AND IT IS THE
+RESIDUAL LANDING L7 CLOSED.** The walk moved the LAST position alone
+and scored only the pairs whose later member was that position. With
+`n_parts` of 2 there is one pair and it is that pair, so nothing
+showed. With THREE OR MORE, every pair among the earlier positions was
+neither moved nor scored: those positions kept the ascending order
+step 1 sorted them into, so their agreement came out at `+1` whatever
+the description published, and no term of the distance ever noticed.
 
 Measured on a 100-row three-position column built from 25 copies each
 of `1/4/10`, `2/3/20`, `3/2/30` and `4/1/40` — whose first two
 positions are perfectly anti-correlated, published `-1.0`:
 
-| pair | published | twin |
+| pair | published | before | now |
+|---|---|---|---|
+| (1,2) | −1.0 | **+1.0** | −0.9922 |
+| (1,3) | +1.0 | −0.144 | +1.0 |
+| (2,3) | −1.0 | −0.144 | −0.9922 |
+
+and over a wider battery — twelve columns of three and four positions,
+ten seeds, 540 pairs of which 240 are between two EARLIER positions:
+
+| | before | now |
 |---|---|---|
-| (1,2) | −1.0 | **+1.0** |
-| (1,3) | +1.0 | −0.144 |
-| (2,3) | −1.0 | −0.144 |
+| agreements outside G12.9's window | 387 of 540 | 188 of 540 |
+| above-counts missed | 259 of 540 | **0 of 540** |
+| early pairs outside the window | **240 of 240** | 106 of 240 |
+| early pairs' above-counts missed | 236 of 240 | **0 of 240** |
+| widest agreement gap | 1.0545 | 0.2090 |
 
-The twin's own report names them (R-P4-44, closed 2026-08-27) -- the
-two the walk scores as approximations against G12.9's window, and the
-unscored pair as a deviation with no closeness claimed for it, which is
-what G12.9's last paragraph obliges. **`synthtwin validate`** agrees: the same twin checked against its own description returns
-`part_agreements[0]`, `[1]` and `[2]` all MISSED, together with
-`part_above[0]`. So the shortfall reaches a person through BOTH pages
-— and it is a shortfall, not a rounding. The clause that stood here
-until 2026-08-28 said it reached them "through the quality report
-rather than through the twin's report", which contradicted the
-paragraph above it and had been false since R-P4-44 closed (review item
-P4-G3-R6-F7). This is residual R-P4-51.
-
-Nothing in this section may therefore be read as saying the walk
-reproduces every published pairing fact. What it targets is the pairs
-involving the last position; what it reaches on those is bounded by
-`0.0005` or by the try ceiling, whichever stops it first.
+**What is still bounded, stated rather than implied.** Aiming at a pair
+is not reaching it: 188 of those 540 agreements still land outside
+G12.9's window, because a column of three or four positions sets three
+or six agreement targets that pull against each other inside one
+bounded search. Those are MISSES and are reported as misses on both
+pages, exactly as a two-position column's miss is. What is gone is the
+class of pair that no term of the distance looked at.
 
 **4. The distance.** Ranks here are ZERO-BASED — the smallest value of
 a position takes rank `0` and the largest `T - 1`, with tied values
@@ -2363,29 +2410,52 @@ measuring it was how the false claim got in. Either convention is
 conforming provided its middle matches it. Then:
 
 ```
+room = 0.02 / 2                               half of G12.9's window
+tip  = 1 / (T * (pairs + 1) * 2)              0 when there are no pairs
+gap[pair] = |agreement[pair] − part_agreements[pair]|
+
 away =  |distinct_cells − wanted| / T
       + Σ_pairs |above[pair] − part_above[pair]|
-      + Σ_pairs |agreement[pair] − part_agreements[pair]|
+      + Σ_pairs (gap[pair] − room  if gap[pair] > room  else 0)
+      + Σ_pairs gap[pair] * tip
 ```
 
-where `agreement[pair] = (Σ_rows (rank[first][r] − m)(rank[last][r] − m))
-/ sqrt(spread[first] * spread[last])`, taken as 0 when the divisor is 0.
+where `agreement[pair] = (Σ_rows (rank[a][r] − m)(rank[b][r] − m))
+/ sqrt(spread[a] * spread[b])` over the pair's two positions `a` and
+`b`, taken as 0 when the divisor is 0.
 
-**The three terms are scaled differently on purpose, and each scale is
-a measurement.** `part_above` is an exact count a pairing can always
-meet FOR A SCORED PAIR — an unscored pair is not reached at all, per
-step 3 — and one row out of it is one cell holding a reading that
-cannot happen — at equal weight the walk sold a row of it for a thousandth of
-agreement and produced an impossible cell, so it carries FULL WEIGHT
-PER ROW. The count of different cells is divided by `T`, because that
-one cannot always be met: each position's numbers are drawn to the
-published ladder, which repeats a value more evenly than the real
-column did, and pairs drawn from values that repeat more can only be so
-many. Weighting it per row instead was built and was worse at
-everything — the agreement fell from 0.834 to 0.559, two impossible
-cells appeared, and the count it was chasing still stopped at 317 of
-324. So it competes fairly, yields where it cannot win, and the
-shortfall is REPORTED (G11, instance 4; residual R-P4-40).
+**The terms are scaled differently on purpose, and each scale is a
+measurement.** `part_above` is an exact count a pairing can always meet
+and one row out of it is one cell holding a reading that cannot happen
+— at equal weight the walk sold a row of it for a thousandth of
+agreement and produced an impossible cell — so it carries FULL WEIGHT
+PER ROW. The count of different cells is divided by `T`: weighting it
+per row instead was built and was worse at everything — the agreement
+fell from 0.834 to 0.559, two impossible cells appeared, and the count
+it was chasing still stopped at 317 of 324 — so it competes fairly and
+yields where it cannot win, and any shortfall is REPORTED (G11,
+instance 4).
+
+**AN AGREEMENT IS SCORED BY HOW FAR IT LIES OUTSIDE ITS OWN WINDOW,
+AND IT WAS SCORED AS AN EXACTNESS UNTIL LANDING L7.** The three facts
+are not held to the same standard by the tool that checks them:
+`part_above` and the count of different cells are EXACT-OBSERVABLE,
+checked value for value by `synthtwin validate`, while an agreement is
+APPROXIMATED inside G12.9's window. Scored as an exactness, an
+agreement already four ten-thousandths from its target outbid every
+remaining different cell on a 240-row column — each of those is worth a
+240th — and the twin held 185 to 231 of 240 published readings while
+overpaying a fact it is never held to exactly. `room` is HALF the
+published window, because the published agreement is rounded to four
+places and the walk's own is not, so a bound met exactly is a bound a
+rounding can cross.
+
+**The raw gap is kept as a TIE-BREAK and nothing more.** Inside the
+window the walk still prefers the closer agreement, because
+near-exactness is free where nothing is bought with it. A gap can be no
+more than 2, so the whole tie-break over every pair at once is less
+than `1 / T` — one different cell — and can never again be spent on
+one.
 
 **`wanted` is not the column's `n_distinct`.** Cells that did not split
 are replaced after the walk by stand-ins that are all ONE spelling,
@@ -2399,17 +2469,31 @@ published, 119 achieved" while the recount in the same report said 120.
 **5. The walk.** While `away > 0.0005`, fewer than `200 * T` tries have
 been made, and at least two reserve words exist:
 
+- let `p` be the position this try moves, `1 + (t mod (n_parts - 1))`
+  for try number `t` counting from zero, per step 3;
 - take the next two reserve words, **counting from reserve word ZERO
-  even when the permutation of step 2 already consumed some** — the
+  even when the permutations of step 2 already consumed some** — the
   walk does not continue after them, it starts again at the beginning
-  of the reserve and reads the same words a second time — and
-  restarting at word zero again whenever fewer than two remain;
+  of the reserve and reads the same words a second time. **Each restart
+  begins one word further along than the last**: the `r`-th restart
+  begins at reserve word `r mod max(len(reserve) - 1, 1)`, so a second
+  pass over the reserve does not draw the pairs the first one drew;
 - `i = bounded(w1, T)`, `j = bounded(w2, T)` by G3.4b;
-- if `i == j`, or the last position holds the same spelling at both,
-  the try is spent and nothing moves;
-- otherwise swap the last position's seats `i` and `j`, recompute
-  `away`, and **accept when the new distance is less than OR EQUAL to
-  the old**; otherwise restore every carried quantity exactly.
+- **the proposal step (G6B.4a) may move `i` and `j` to two other rows**
+  when the count of different cells is not yet the published one;
+- if `i == j`, or position `p` holds the same spelling at both, the try
+  is spent and nothing moves;
+- otherwise swap position `p`'s seats `i` and `j`, recompute `away`,
+  and **accept when the new distance is less than OR EQUAL to the
+  old**; otherwise restore every carried quantity exactly.
+
+**THE RESTART STEPS ALONG, AND IT RETURNED TO ZERO UNTIL LANDING L7.**
+The reserve holds `T - 1` words for each position after the first and
+the ceiling is `200 * T` tries, so a cursor returning to zero drew the
+same `T / 2` pairs of rows two hundred times over: measured on a
+240-row column publishing 240 different readings, the walk spent 48,000
+tries on 119 distinct draws. Stepping the restart walks the reserve
+against itself and costs no word and no draw.
 
 **An equal swap is taken, and that is not a detail.** Three facts are
 being met at once and they pull against each other: a swap that breaks
@@ -2424,6 +2508,52 @@ consume none of its words — it can begin already inside 0.0005 of every
 target and stop — but the words are drawn from the stream regardless,
 because that is what fixes the budget and therefore where the next
 column starts.
+
+#### G6B.4a Which two rows a try really swaps
+
+`away` scales a row of `part_above` at a whole unit and one different
+cell at `1 / T`, so a walk drawing its two rows at random spends its
+ceiling on swaps that move the count of different cells by nothing at
+all. **The objective is not re-weighted for this** — weighting that
+count per row was built and measured and was worse at everything, per
+step 4 — what changes is which swaps are put to it.
+
+Write `seen` for how many rows hold each cell, `d = distinct_cells −
+wanted`, and `R = 16` for how far either scan looks. Both scans run
+forward cyclically from the drawn row and both fall back to the row as
+drawn, so a try always has something to propose.
+
+- `d == 0`: the two rows as drawn.
+- `d < 0`, the walk short of the count:
+  - `i` becomes the first row within `R` steps whose cell more than one
+    row holds;
+  - `j` becomes the first row within `R` steps, other than `i` and
+    holding a different spelling at `p`, for which the swap would give
+    row `i` a cell no row holds AND would either give row `j` a cell no
+    row holds or take from row `j` a cell another row also holds. The
+    second half is not optional: the partner's own cell changes too and
+    can go from unique to repeated, leaving the count where it was.
+- `d > 0`, the walk over the count:
+  - `i` becomes the row within `R` steps whose cell the FEWEST rows
+    hold, the earliest where several tie. The mirror image of the rule
+    above — "a row whose cell is unique" — finds nothing on a column
+    holding six different cells over a hundred rows, and it is the
+    rarest cell whose last few rows the count comes down by;
+  - `j` becomes the first row within `R` steps, on the same terms, for
+    which the swap would give row `i` a cell some row already holds AND
+    would give row `j` one some row already holds or the same cell as
+    row `i`.
+
+`R` is a fixed small number and not the whole column because the scan
+runs inside a walk whose ceiling is already `200 * T`, so an unbounded
+scan makes the walk quadratic in the rows. **Sixteen is a
+measurement**: over four columns at ten seeds each, counting different
+cells held against published, a 36-row witness goes 30–35 at `R = 1`,
+32–35 at 4, 32–36 at 8 and 33–36 from 16 upward, and a 240-row
+all-different column goes 176–210, 195–231, 196–233, 195–234 at 16,
+197–236 at 32 and 197–235 at 64 — flat from sixteen, at three times the
+running time by sixty-four. A 400-row blood pressure reaches its
+published count at every value of `R` and separates none of them.
 
 ### G6B.5 The cells that did not split
 
@@ -4808,7 +4938,7 @@ How each role meets it:
 | `identifier`, `free_text`, `numeric_unrepresentable` | the raw spelling | G9.2: one enumeration element per group |
 | `time_of_day` | the raw spelling | G7A.4 with `P` ranks, plus the step-and-clamp repair, which is EXACT on every description a profiler wrote |
 | `affixed_number` | the raw spelling | G6.5 read over the CORES; the affix pair is fixed text and separates nothing |
-| `joined_numbers` | the raw spelling of the WHOLE cell | the pairing of G4.3: each position's numbers are placed by rule and the reserve is spent making the pairs different. This is the fourth instance below |
+| `joined_numbers` | the raw spelling of the WHOLE cell | the pairing of G4.3 over positions laid out by G5.2's grain rule: each position's numbers are placed by rule and the reserve is spent making the pairs different. This is the fourth instance below |
 
 **The four known instances where it cannot hold**, each of which is
 tested:
@@ -4843,12 +4973,35 @@ tested:
    real column that the bound may sit below. The pairing is not left to
    chance: it is walked toward the published `part_agreements`,
    `part_above` and cell count together (G4.3), which closes most of
-   the gap and not all of it, and those three targets can pull against
+   the gap and not all of it, and those targets can pull against
    each other. Measured on six 400-row
    two-position columns whose cells were all different: the twin held
    375 to 385 of 378 to 388, short by three or four every time, and
    every one of the six reported the shortfall as a deviation of
    `n_distinct` and `n_distinct_folded`.
+
+   **WHERE THE BOUND CAME FROM WAS PART OF THE DEFECT UNTIL LANDING
+   L7, and the bound is real but was far tighter than it had to be.**
+   Each position was laid out in as many strata as the whole CELL had
+   different values (G5.2), so a position held far MORE different
+   numbers than the real one did and the pairs it could make were the
+   wrong pairs — a 400-row blood pressure publishing 110 different
+   readings, whose positions hold 13 and 9 different numbers, came out
+   with its positions holding 34 to 41 and 23 to 29 and the column
+   holding 157 to 169 different cells. G5.2's grain rule and the walk
+   of G6B.4 close that one: measured at ten seeds, the same column now
+   holds exactly 13 and 9 different numbers and exactly 110 different
+   cells at every seed, and `synthtwin validate` misses nothing.
+
+   **What remains is bounded by the DRAW and not by the pairing, and it
+   is measured.** A 240-row column of 240 different readings whose
+   positions hold 20 and 12 different numbers — exactly 240 possible
+   pairs — reached 173 to 188 before and 195 to 234 now, and the reason
+   it is not 240 is that the twin's own positions hold 18 to 20 and 11
+   to 12 different numbers rather than 20 and 12: two strata of one
+   position can be given the same number by the ladder, which is
+   residual R-P4-120 and is the plain numeric roles' business rather
+   than this one's.
 
    **The report vehicle is a DEVIATION and not an approximation**, and
    the difference is not a nicety. This role builds no `Approximation`
@@ -5521,10 +5674,10 @@ close a twin has to come, and a reader of a quality report could not
 find the rule the verdict rests on. That is residual R-P4-42, and this
 closes it.
 
-**The window.** For each SCORED pair -- and "scored" is defined at the
-end of this section, where it also says what the window does not
-reach -- the twin's own rank agreement must lie within **0.02** of the
-published value, two-sided:
+**The window.** For EVERY pair of positions -- and until landing L7
+this section reached only the pairs the walk moved, which is the last
+paragraph's own subject -- the twin's own rank agreement must lie
+within **0.02** of the published value, two-sided:
 
 ```
 |agreement(twin) - part_agreements[pair]|  <=  0.02
@@ -5552,21 +5705,33 @@ walk of G6B.4 weights one row of it above the whole agreement, so a
 twin either holds it or has missed it.
 
 **Why a window and not an exactness.** The pairing is chosen by a
-bounded search (G6B.4), and three published facts pull against each
-other inside it: the agreement, the above-count, and how many different
-whole CELLS the pairing makes. The search stops at `0.0005` of its own
-combined distance or at its try ceiling of `200 * n_joined`, whichever
-comes first, and on a column whose three targets conflict it stops at
-the ceiling with the agreement short. Measured on a 400-row two-position
-column published at 0.9613, the twin reached 0.8994.
+bounded search (G6B.4), and published facts pull against each other
+inside it: every pair's agreement, every pair's above-count, and how
+many different whole CELLS the pairing makes. The search stops at
+`0.0005` of its own combined distance or at its try ceiling of
+`200 * n_joined`, whichever comes first, and on a column whose targets
+conflict it stops at the ceiling with an agreement short. Measured on a
+400-row two-position column published at 0.9613, the twin reached
+0.8994.
 
-**What the window does NOT excuse.** It is a bound on a SCORED pair.
-Where a column has three or more positions the walk moves only its last
-one, so a pair between two earlier positions is neither moved nor
-scored and can come out at `+1` against a published `-1` — far outside
-this window, and not an approximation of anything. That is residual
-R-P4-51, it is named in G6B.4 step 3, and this envelope must never be
-read as covering it.
+**What the window does NOT promise, and this paragraph replaces the one
+that stood here.** Until landing L7 the walk moved only the last
+position, so a pair between two EARLIER positions of a three-or-more
+position cell was neither moved nor scored, could come out at `+1`
+against a published `-1`, and was not an approximation of anything —
+this envelope expressly did not reach it (residual R-P4-51). The walk
+now moves every position but the first, so every pair is aimed at and
+every pair takes this window.
+
+Aiming at a pair is not reaching it. A column of three or four
+positions sets three or six agreement targets that pull against each
+other inside one bounded search: measured over 540 pairs of a
+twelve-column battery at ten seeds, **188 landed outside this window**,
+against 387 before. Those are MISSES, reported as misses on both pages
+with the achieved value beside the published one — the same verdict a
+two-position column's miss gets, which the second paragraph above
+already measured at 0.06 outside. What is gone is the class of pair no
+term of the distance ever looked at.
 
 ### G12.10 The envelope on a clock column's interior rungs
 
