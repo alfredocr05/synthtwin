@@ -677,11 +677,35 @@ def _with_styles(
     walking the candidates it means to walk -- a candidate refused at
     the door settles nothing, which is the assertion this feeds, but it
     would prove it for the wrong reason.
+
+    AND SO DOES THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, for the same
+    reason read through P9c (contract 7.10): it counts every cell
+    written in a form that carries no point, so a candidate claiming a
+    smaller pool is a candidate that can account for fewer of them, and
+    one whose census outruns its own pool is refused at the door. This
+    column's point-free cells are three and every one of them is
+    pooled, so what the candidate may carry is the smaller of three and
+    its own pool.
     """
     document = json.loads(written)
     document["columns"][0]["numeric_styles"] = styles
     named = styles[parsing.STYLE_DECIMAL] if parsing.STYLE_DECIMAL in styles else 0
     document["columns"][0]["fraction_widths"] = {"1": named} if named else {}
+    point_free = 0
+    for style in (parsing.STYLE_PLAIN, parsing.STYLE_LEADING_PLUS,
+                  parsing.STYLE_LEADING_ZERO):
+        if style in styles:
+            point_free = point_free + styles[style]
+    pooled = styles[taxonomy.SUPPRESSED_LABEL] if (
+        taxonomy.SUPPRESSED_LABEL in styles
+    ) else 0
+    withheld = min(3, pooled)
+    census: "dict[str, int]" = {}
+    if point_free:
+        census["1"] = point_free
+    if withheld:
+        census[taxonomy.SUPPRESSED_LABEL] = withheld
+    document["columns"][0]["field_widths"] = census
     target = fixtures.write_profile(folder, f"{stem}.json", document)
     return contract.load_profile(str(target))
 

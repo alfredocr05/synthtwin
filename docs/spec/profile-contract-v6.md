@@ -6429,11 +6429,15 @@ or statistic is ever at stake there. An UNPADDED cell has no such
 freedom — it is exactly as wide as its value — so a width this census
 names is a constraint on MAGNITUDE, and the only stage that can meet it
 is the one that chooses the values. `docs/spec/generation-method-v1.md`
-G6.6 states how, and states its bound: a value moves no further than
-the stretch of the published ladder its own stratum covers (plan
-amendment A-P4-18), so a width no stratum's stretch can reach is
-reported rather than bought with a value the rung windows would then
-miss.
+G6.6 states how, and states its bound: a stratum may take any whole
+number its own share and G5.4's integer rule could together have
+reached — every one within HALF A UNIT of its share, which is the half
+unit that rule already spends and G12.2 already widens the rung window
+by. A width no stratum can reach that way is reported rather than
+bought with a value the rung windows would then miss, and no stratum's
+value is ever moved further than amendment A-P4-18 permits, whose bound
+is on the REACH of a move and not on which of two roundings a stratum
+settles on.
 
 **Disposition: REPORT-ONLY, and this is the one of the three width
 censuses that is not exact.** The other two are facts about SPELLING: a
