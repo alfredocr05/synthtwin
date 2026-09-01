@@ -1,5 +1,5 @@
 {
-  "case_set": "The eight cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, and residual R-P4-17 for the last of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, and the month, which is the second resolution naming a SPAN rather than an instant. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
+  "case_set": "The 12 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, and the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -4526,6 +4526,81 @@
         "7977734629748327352",
         "2774262970987807365",
         "3332551472928899385"
+      ]
+    },
+    "unrepresentable_exponent": {
+      "cells": [
+        "-1e400",
+        "1e400",
+        "02e400",
+        "02e400",
+        "-2e400",
+        "1e400"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "max_length": 6,
+        "min_length": 5,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 4,
+        "n_distinct_by_occurrences": {
+          "1": 2,
+          "2": 2
+        },
+        "n_distinct_folded": 4,
+        "n_fraction": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 2,
+        "n_not_numeric": 0,
+        "n_numeric": 0,
+        "n_out_of_range": 6,
+        "n_positive": 4,
+        "n_present": 6,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_sign_unknown": 0,
+        "n_whole": 6,
+        "n_whole_unknown": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "unrepresentable",
+        "remarks": [],
+        "role": "numeric_unrepresentable",
+        "sentinel_verdicts": [],
+        "statistical_type": "numeric",
+        "structural_role": "data"
+      },
+      "content": [
+        "-1e400",
+        "-2e400",
+        "1e400",
+        "1e400",
+        "02e400",
+        "02e400"
+      ],
+      "csv_bytes": "-1e400\n1e400\n02e400\n02e400\n-2e400\n1e400\n",
+      "float64": [],
+      "why": "G10.5 revision 5's EXPONENT SPELLING FAMILY, on the narrowest column that can reach it. Six cells over four groups, every one of them a whole number too large for binary64 to hold, published at five and six characters wide -- widths no digit string can be written at, because a whole numeral needs 310 figures to be certain of leaving the format's range. The exponent family says the same magnitude in five characters, so both published ends are carried: the first group whose shape and sign can be written at the floor takes it and the rest take the ceiling. It also pins the walk's bookkeeping, which revision 5 had to state before this case could be frozen: each shape-and-sign pair walks each family from that family's own start, so the positive and the negative groups both begin at that shape's first spelling. No frozen case carried a positive and a negative group of one shape before this one, which is why two implementations could count differently and agree on every committed byte.",
+      "word_budget": {
+        "content": 0,
+        "placement": 5
+      },
+      "words": [
+        "11673391271091347200",
+        "5495330693160871804",
+        "15204918087645570054",
+        "10712428183187122067",
+        "10949282274109216441"
       ]
     },
     "unrepresentable_joint": {

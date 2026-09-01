@@ -3488,6 +3488,41 @@ UNDERFLOW_PLACES = 327
 # without sharing a magic number, and the only one that does not write
 # some bodies wider than the description asks.
 
+# THE EXPONENT SPELLING FAMILY AND ITS OWN TWO FLOORS -- method section
+# G10.5 revision 5, closing residuals R-P4-48 and R-P4-68. The two
+# floors above are the DIGIT-STRING family's, and until revision 5 that
+# was the only family either out-of-range shape had, so a column of
+# `1e400` -- five characters -- could only be written three hundred and
+# ten characters wide.  A mantissa, the letter `e` and a signed exponent
+# says the same magnitude in five characters (`1e400`) or six
+# (`1e-400`), because an exponent certain to leave binary64's range
+# needs three figures and the too-small one needs its sign as well.
+# Both are counts of the ROOM after the value's own sign, exactly as
+# the two floors above are, and the floor that binds a shape is the
+# NARROWER of its families' floors.
+EXPONENT_LARGE_ROOM = 5
+EXPONENT_SMALL_ROOM = 6
+
+# THE EXPONENT IS A THREE-FIGURE FIELD AND IT MOVES.  The walk spends
+# the MANTISSA first at one exponent and then steps the exponent
+# OUTWARD from 400 -- up to 999, then down from 399 -- so the family's
+# capacity is the SHAPE's own rather than one exponent's: at five
+# characters a fixed exponent supplies nine spellings and a real column
+# holds thousands, and the generator that fixed it refused to build a
+# sixteen-value column a profiler had just described.  Where the walk
+# stops is not a number written here: it is where the reading of this
+# file stops answering "out of range" for the shape being written.
+EXPONENT_HOME = 400
+EXPONENT_CEILING = 999
+EXPONENT_FLOOR = 100
+
+# The two families, in the order a shape is asked for them: the digit
+# string first wherever it can write at the asked width, then the
+# exponent.  Asking in that order is what keeps every column revision 4
+# wrote byte-identical.
+SPELLING_PLAIN = "plain"
+SPELLING_EXPONENT = "exponent"
+
 # The six shapes a wide cell may take and what each one answers for --
 # method section G10.5 step 1's own table. The sign column names the
 # answers the shape can give, which is the permission the packing
@@ -3520,12 +3555,120 @@ def _shape_floor(shape):
     notation, ordinary text and the two in-range shapes say nothing
     about magnitude, so nothing about their width decides what they
     are.
+
+    THE FLOOR IS THE NARROWER OF THE SHAPE'S TWO FAMILIES (revision 5).
+    It read 310 and 327 here while the digit string was the only
+    spelling either out-of-range shape had; the exponent family says
+    the same magnitudes in five and six characters, so those are the
+    floors, and a column publishing widths of five and six carries both
+    its ends instead of neither.
     """
     if shape == "too_large":
-        return OVERFLOW_FIGURES
+        return EXPONENT_LARGE_ROOM
     if shape == "too_small":
-        return UNDERFLOW_PLACES
+        return EXPONENT_SMALL_ROOM
     return 1
+
+
+def _spelling_families(shape, asked, sign=None):
+    """The spelling families one shape may use at one asked width -- G10.5.
+
+    Method section G10.5 revision 5.  The digit-string family is asked
+    first wherever it can write at all, which is at or above its OWN
+    magnitude floor -- 310 characters of room for a value too large to
+    hold, 327 for one too small.  The exponent family follows from five
+    and six.  The four shapes carrying no magnitude have one family and
+    no floor.
+    """
+    room = _unrepresentable_width(shape, asked, sign)
+    if sign == SIGN_NEGATIVE:
+        room = room - 1
+    if shape == "too_large":
+        families = []
+        if room >= OVERFLOW_FIGURES:
+            families.append(SPELLING_PLAIN)
+        if room >= EXPONENT_LARGE_ROOM:
+            families.append(SPELLING_EXPONENT)
+        return families
+    if shape == "too_small":
+        families = []
+        if room >= UNDERFLOW_PLACES:
+            families.append(SPELLING_PLAIN)
+        if room >= EXPONENT_SMALL_ROOM:
+            families.append(SPELLING_EXPONENT)
+        return families
+    return [SPELLING_PLAIN]
+
+
+def _exponent_power(step):
+    """The ``step``-th exponent of the walk, counting outward from 400.
+
+    Up to 999, then down from 399, so the family's first spelling is
+    `1e400` and the field stays three figures wide the whole way.  None
+    says the walk would leave that field, which is a change of width
+    rather than another spelling of the same one.  Where it stops in
+    practice is earlier and is asked of the reading rather than written
+    here, which is why no 309 and no 325 appears in this function.
+    """
+    up = EXPONENT_CEILING - EXPONENT_HOME
+    if step <= up:
+        return EXPONENT_HOME + step
+    power = EXPONENT_CEILING - step
+    if power < EXPONENT_FLOOR:
+        return None
+    return power
+
+
+def _exponent_spelling(shape, lead, room, order):
+    """The ``order``-th exponent spelling of one out-of-range shape -- G10.5.
+
+    ONE CONSTRUCTION FOR BOTH SHAPES (revision 5): the value's sign, a
+    mantissa of decimal figures, the letter `e`, and a three-figure
+    exponent carrying a minus for the too-small shape.  The mantissa
+    fills whatever the exponent field leaves of the asked width, and
+    what separates one spelling from the next is the mantissa read as a
+    NUMBER -- 1, 2, 3 and so on -- written at the right of that room
+    behind a run of leading zeros.  That is step 4's own rule, which
+    keeps the width fixed while the value moves.
+
+    THE MANTISSA IS SPENT BEFORE THE EXPONENT MOVES, and both move, so
+    the family's capacity is the shape's own count of spellings at that
+    width.  None where the room holds no mantissa at all, or where the
+    walk has left the three-figure exponent field.
+    """
+    tail = 5
+    power_sign = "-"
+    if shape == "too_large":
+        tail = 4
+        power_sign = ""
+    places = room - tail
+    if places < 1:
+        return None
+    span = 10 ** places - 1
+    power = _exponent_power(order // span)
+    if power is None:
+        return None
+    body = str(order % span + 1)
+    return (
+        lead + "0" * (places - len(body)) + body + "e" + power_sign + str(power)
+    )
+
+
+def _reads_back_as(shape, candidate):
+    """Whether the parser reads one spelling back as its shape -- G10.5.
+
+    THE QUESTION ITSELF, ASKED OF EACH CANDIDATE (revision 5), which is
+    the same pair of questions step 6's recount asks of the finished
+    cell: what the notation classifies as, and whether the value is
+    whole.  A spelling this refuses is one the recount would file under
+    another class.
+    """
+    answers = notation_reading(candidate)
+    if NOTATION_OUT_OF_RANGE not in answers:
+        return False
+    if shape == "too_large":
+        return WHOLE_YES in answers
+    return WHOLE_NO in answers
 
 
 def _unrepresentable_width(shape, asked, sign=None):
@@ -3604,7 +3747,7 @@ SHAPE_NARROWEST = {
 }
 
 
-def _unrepresentable_spelling(shape, sign, order, asked):
+def _unrepresentable_spelling(shape, sign, order, asked, family=SPELLING_PLAIN):
     """The ``order``-th spelling of one shape -- method section G10.5 step 4.
 
     In-range cells come from the leading-zero family padded to the
@@ -3618,10 +3761,19 @@ def _unrepresentable_spelling(shape, sign, order, asked):
 
     THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL.  The minus sign,
     the leading ``0.`` and the trailing figure are all spent inside it.
+
+    ``family`` names which of the two spelling families of revision 5
+    writes the cell.  None says that family cannot supply this order at
+    this width, which is when the caller asks the next one.
     """
     lead = "-" if sign == SIGN_NEGATIVE else ""
     width = _unrepresentable_width(shape, asked, sign)
     room = width - len(lead)
+    if family == SPELLING_EXPONENT:
+        candidate = _exponent_spelling(shape, lead, room, order)
+        if candidate is None or not _reads_back_as(shape, candidate):
+            return None
+        return candidate
     if shape == "contradictory":
         return f"(-{order + 1})"
     if shape == "whole_in_range":
@@ -3660,6 +3812,14 @@ def _unrepresentable_spelling(shape, sign, order, asked):
         while float(candidate) != 0.0:
             zeros = zeros + 1
             candidate = lead + "0." + "0" * zeros + figures
+        # AND WHERE THE GROWN RUN NO LONGER FITS, THIS FAMILY SAYS NO
+        # (revision 5, residual R-P4-48).  It used to write the wider
+        # cell and let the recount name the width miss, which held a
+        # published count by breaking a published width; the exponent
+        # family writes that group at the asked width instead.  At 327
+        # characters this family runs out at twenty-four spellings.
+        if len(candidate) - len(lead) > room:
+            return None
         return candidate
     raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
 
@@ -3789,10 +3949,28 @@ def _unrepresentable_content(column):
         if shape == "ordinary_text":
             spelling = text_stand_ins(used, 1)[0]
         else:
-            spelling = _unrepresentable_spelling(
-                shape, sign, spent.get(shape, 0), asked[index]
-            )
-            spent[shape] = spent.get(shape, 0) + 1
+            # EACH SHAPE-AND-SIGN PAIR WALKS EACH FAMILY FROM THAT
+            # FAMILY'S OWN START (G10.5 step 4, stated in revision 5).
+            # The counter was per SHAPE here and per shape-and-sign in
+            # the shipped generator, which agreed on every case frozen
+            # so far because no case carried a positive and a negative
+            # group of one shape -- and would have disagreed on the
+            # first one that did.  The method now says which, and this
+            # is that rule.
+            spelling = None
+            for family in _spelling_families(shape, asked[index], sign):
+                key = (shape, sign, family)
+                spelling = _unrepresentable_spelling(
+                    shape, sign, spent.get(key, 0), asked[index], family
+                )
+                spent[key] = spent.get(key, 0) + 1
+                if spelling is not None:
+                    break
+            if spelling is None:
+                raise AssertionError(
+                    f"no spelling family of {shape!r} can supply another "
+                    f"distinct value at a width of {asked[index]}"
+                )
         used.append(spelling)
         content.extend([spelling] * size)
     _unrepresentable_recount(column, content)
@@ -5853,6 +6031,47 @@ def _unrepresentable_joint():
     }
 
 
+def _unrepresentable_exponent():
+    column = _universal(
+        "column_1", "numeric_unrepresentable", "numeric", "data",
+        "unrepresentable",
+        n_present=6, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=0, n_not_numeric=0, n_out_of_range=6, n_contradictory=0,
+        n_whole=6, n_fraction=0, n_whole_unknown=0,
+        n_positive=4, n_negative=2, n_sign_unknown=0,
+        n_distinct_by_occurrences={"1": 2, "2": 2},
+        # THE TWO WIDTHS A REAL COLUMN OF `1e400` PUBLISHES. Five
+        # characters for a positive cell and six for a negative one,
+        # which is the pair residual R-P4-68 was opened on: the
+        # description was right and the twin was written three hundred
+        # and ten characters wide, because the only spelling either
+        # out-of-range shape had was a digit string.
+        min_length=5,
+        max_length=6,
+    )
+    return {
+        "why": "G10.5 revision 5's EXPONENT SPELLING FAMILY, on the narrowest "
+        "column that can reach it. Six cells over four groups, every one of "
+        "them a whole number too large for binary64 to hold, published at "
+        "five and six characters wide -- widths no digit string can be "
+        "written at, because a whole numeral needs 310 figures to be certain "
+        "of leaving the format's range. The exponent family says the same "
+        "magnitude in five characters, so both published ends are carried: "
+        "the first group whose shape and sign can be written at the floor "
+        "takes it and the rest take the ceiling. It also pins the walk's "
+        "bookkeeping, which revision 5 had to state before this case could "
+        "be frozen: each shape-and-sign pair walks each family from that "
+        "family's own start, so the positive and the negative groups both "
+        "begin at that shape's first spelling. No frozen case carried a "
+        "positive and a negative group of one shape before this one, which "
+        "is why two implementations could count differently and agree on "
+        "every committed byte.",
+        "column": column,
+        "rows": 6,
+        "identifier_declared": False,
+    }
+
+
 def _free_text_joint():
     length, length_claims = {}, {}
     for name, text in (("mean", "1.75"), ("p50", "2")):
@@ -6236,6 +6455,7 @@ BRANCH_CASE_BUILDERS = {
     "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
     "unrepresentable_joint": _unrepresentable_joint,
+    "unrepresentable_exponent": _unrepresentable_exponent,
     "long_tail_levels": _long_tail_levels,
     "clock_ladder": _clock_ladder,
     "affixed_brackets": _affixed_brackets,
@@ -6251,31 +6471,50 @@ CASE_BUILDERS = {**NAMED_CASE_BUILDERS, **BRANCH_CASE_BUILDERS}
 
 # What each file says about itself, so that neither can be read as the
 # whole of the oracle and neither hides the other.
-CASE_SET_ACCOUNTS = {
-    NAMED_PART: "The nine cases method section G14.3 names, committed as "
-    "tests/reference/generation-reference-vectors.json. The seven cases that "
-    "reach the branches these nine leave unexercised (review items P2-C3-F3 "
-    "and P2-C4-C3, owner decision 11, and the month resolution of plan "
-    "P4-D4.3) are the same oracle's second file, "
-    "tests/reference/generation-branch-vectors.json: one transform, one proof "
-    "layer, two files, because a committed fixture must stay under the "
-    "provenance manifest's byte cap and these nine already spend most of it.",
-    BRANCH_PART: "The eight cases method section G14.3 adds for the "
-    "branches its first nine leave unexercised (review items P2-C3-F3 and "
-    "P2-C4-C3, owner decision 11, plan P4-D4.3, and residual R-P4-17 for "
-    "the last of them): "
-    "the joint class-and-sign packing of an unrepresentable column, the joint "
-    "class-and-alphabet packing of free text, a fold collision no case change "
-    "can build, the literal decimal, leading-zero and leading-plus style "
-    "placements, the published end whose seconds field is 60, which the "
-    "ordinal space cannot hold and the endpoint-fields route writes exactly, "
-    "the pooled remainder written by its own value beside a whole number "
-    "wider than the fixed-point window, and the month, which is the second "
-    "resolution naming a SPAN rather than an instant. "
+# EACH ACCOUNT COUNTS ITS OWN CASE SET RATHER THAN SAYING A NUMBER.
+# Both said one -- "nine" and "seven", then "eight" -- and both had gone
+# stale by four cases and then by five, because a case can be added
+# without a hand-written sentence beside it moving.  A count restated
+# beside the thing it counts will drift; a count taken FROM the thing it
+# counts cannot.  The written half of each account says what the set is
+# FOR, which is the half no walk can work out.
+_NAMED_ACCOUNT = (
+    "cases method section G14.3 names, committed as "
+    "tests/reference/generation-reference-vectors.json. The cases that "
+    "reach the branches these leave unexercised (review items P2-C3-F3 "
+    "and P2-C4-C3, owner decision 11, the month resolution of plan "
+    "P4-D4.3, residual R-P4-17's four Phase 4 roles, and G10.5 revision "
+    "5's second spelling family) are the same oracle's second file, "
+    "tests/reference/generation-branch-vectors.json: one transform, one "
+    "proof layer, two files, because a committed fixture must stay under "
+    "the provenance manifest's byte cap and these already spend most of "
+    "it."
+)
+_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds for the branches its first nine "
+    "leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner "
+    "decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 "
+    "and R-P4-68 for the newest of them): "
+    "the joint class-and-sign packing of an unrepresentable column, the "
+    "joint class-and-alphabet packing of free text, a fold collision no "
+    "case change can build, the literal decimal, leading-zero and "
+    "leading-plus style placements, the published end whose seconds "
+    "field is 60, which the ordinal space cannot hold and the "
+    "endpoint-fields route writes exactly, the pooled remainder written "
+    "by its own value beside a whole number wider than the fixed-point "
+    "window, the month, which is the second resolution naming a SPAN "
+    "rather than an instant, the four roles Phase 4 added, and the "
+    "EXPONENT spelling family of an unrepresentable column, on widths no "
+    "digit string can be written at. "
     "They are computed by the same oracle and the same proof "
-    "layer as tests/reference/generation-reference-vectors.json, and live in "
-    "their own file only because a committed fixture must stay under the "
-    "provenance manifest's byte cap.",
+    "layer as tests/reference/generation-reference-vectors.json, and live "
+    "in their own file only because a committed fixture must stay under "
+    "the provenance manifest's byte cap."
+)
+
+CASE_SET_ACCOUNTS = {
+    NAMED_PART: f"The {len(NAMED_CASE_BUILDERS)} {_NAMED_ACCOUNT}",
+    BRANCH_PART: f"The {len(BRANCH_CASE_BUILDERS)} {_BRANCH_ACCOUNT}",
 }
 
 # The chain of interior values a case publishes lives under the key the
@@ -6480,6 +6719,10 @@ GIVEN_WORDS = {
     "unrepresentable_joint": (
         2834551707271871843, 3123094663624302558, 9333394219979397357,
         12140150428679393766, 14159367994340888644,
+    ),
+    "unrepresentable_exponent": (
+        11673391271091347200, 5495330693160871804, 15204918087645570054,
+        10712428183187122067, 10949282274109216441,
     ),
     "month_span": (
         3179660957074219929, 16176357821278490312, 17656820539994292342,

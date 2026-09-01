@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,216 collected / 51 skipped |
+| suite | 4,225 collected / 51 skipped |
 | lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
@@ -755,12 +755,14 @@ reproduce.
 * **AND IT FOUND TWO PRE-EXISTING DEFECTS THE MOMENT IT WAS ASKED.**
   Both are recorded rather than fixed here, because they belong to
   other roles' landings, and both are carried by NAME in the guard so
-  they cannot be forgotten. **R-P4-68:** a column of `1e400` — five
-  characters — publishes `min_length` 5 and gets a twin of
+  they cannot be forgotten. **R-P4-68 (SINCE CLOSED — see the entry
+  below):** a column of `1e400` — five
+  characters — publishes `min_length` 5 and got a twin of
   310-character numerals. That is residual R-P2-1's own symptom, which
   "gap 3" reported closed on 93 randomly built columns; **all 93 were
   long digit strings**, and a compact exponent spelling is a shape that
-  trial could not build. **R-P4-69:** a `continuous` column's twin
+  trial could not build. **R-P4-69 — still open:** a `continuous`
+  column's twin
   holds whole numbers, so it re-describes as `count` with
   `integer_valued` true — a twin that reads back as a different ROLE.
 **R-P4-53 IS CLOSED (2026-08-31, landing A3). A CORRECT FILE WAS TOLD
@@ -1294,6 +1296,172 @@ repaired behaviour keeping every measured number. The fifth -- every
 form-bearing spelling of a level wears its label's form -- stands
 unchanged, because it was a property and not a defect, and it is what
 the closure rests on.
+
+**R-P4-68 AND R-P4-48 ARE BOTH CLOSED (2026-08-31). THE WIDE-NUMBER
+ROLE CAN WRITE EXPONENT NOTATION.**
+
+A column of `1e400`, `-1e400`, `2e400` — numbers too large for a double
+to hold, written compactly. The description was RIGHT: role
+`numeric_unrepresentable`, `min_length` 5, `max_length` 6. **The twin
+wrote cells 310 and 311 characters long**, and the quality report named
+both misses honestly, because the twin could not write the value at the
+published width at all.
+
+**THE CAUSE WAS ONE MISSING SPELLING FAMILY.** The wide-value writer
+built DIGIT STRINGS and nothing else, and 1e400 cannot be spelled in
+five characters as a digit string. Method **G10.5 revision 5** gives
+the walk exponent notation as a second family — a mantissa, the letter
+`e`, and a three-figure exponent, with the mantissa right-aligned
+behind leading zeros so the width stays put while the value moves. That
+is a new family for three things at once, which is what R-P4-48 said it
+would have to be: the FLOORS (five characters and six, where the digit
+string needs 310 and 327, and the floor that binds a shape is the
+narrower of its families'), the CAPACITY rule (a shape's capacity is
+the SUM over its families), and the RECOUNT — which needed no clause at
+all, because it asks the shipped parser and the parser answers of
+`1e400` exactly what it answers of a 310-figure numeral.
+
+**MEASURED BEFORE AND AFTER, on NAMED COLUMN SHAPES, end to end through
+the real producer, generator and validator.**
+
+* R-P4-68's own column, 120 cells of `Ne400` and `-Ne400`: published 5
+  and 6, **twin 310 and 311 with two width subchecks MISSED — and now
+  twin 5 and 6 with NOTHING missed at all**, all twelve distinct values
+  and every published count still held.
+* R-P4-48's own column, thirty distinct too-small fractions all 327
+  characters wide: **twin 327 and 328 with `counts.max_length` MISSED
+  327 against 328 — and now every cell 327 wide, all thirty values
+  held, nothing missed.** The digit-string family supplies **24**
+  spellings at that room and that entry said nine; the 25th needs one
+  zero more than the width allows, and the exponent family writes every
+  order after it.
+* The 271-fraction column a reviewer built for the last landing on this
+  surface goes from widths 327, 328 and **329 with a `max_length`
+  deviation** to 327 and 328 with **no deviation at all**, 48 of its
+  cells written by the new family.
+* And a column that FOLDS now carries the fold at the published width:
+  `1e400` beside `1E400` publishes `n_distinct` 4 against
+  `n_distinct_folded` 2, and the twin holds both spellings at five
+  characters with nothing missed. A 310-figure numeral holds no letter,
+  so the case-flip half of G9.3's partner family used to be empty here.
+
+**AND THE FIRST BUILD OF THE FAMILY INTRODUCED A REGRESSION, WHICH A
+MEASUREMENT CAUGHT AND WHICH IS THE MOST USEFUL THING ON THIS PAGE.**
+It fixed the exponent at 400, so the family had NINE spellings at five
+characters — and a real column has thousands there, `1e309` through
+`9e999`. A 160-row column of sixteen distinct five-character values
+then made `synthtwin generate` **REFUSE**, with G9.4's domain-too-small
+message, on a description the profiler had just written from a real
+table. The same column before the family existed generated fine, three
+hundred characters wide, with both widths reported missed. **A repair
+that met the width had turned a reported miss into a stopped command.**
+The exponent moves now — mantissa first, then the exponent outward from
+400, up to 999 and down from 399 — so the capacity at a width is the
+SHAPE's own: 6,219 five-character spellings for the too-large shape
+where a fixed exponent gave nine. That column generates, holds all
+sixteen values at five characters, and misses nothing. *A repair can
+move a hazard, and a capacity rule is where this one moved to.*
+
+**AND WHERE THE WALK STOPS IS ASKED OF THE PARSER, NOT WRITTEN DOWN.**
+Measured, and the two shapes stop DIFFERENTLY: the too-large shape
+stops on an exponent boundary at `1e308` (capacity 6,219 at five
+characters), the too-small shape two spellings INTO an exponent at
+`3e-324`, because `1e-324` and `2e-324` fall under the smallest
+subnormal and `3e-324` rounds up onto it (capacity 6,077 at six). A
+rule that stopped at the boundary would throw two spellings away; a
+rule that assumed one would write a value the format holds into a
+column described as holding none.
+
+**WHAT THE MEASUREMENTS COVER, said because this residual exists on
+account of a trial that did not say it.** Five named column shapes end
+to end — the compact one, R-P4-48's fractions, the reviewer's 271, a
+folding one, and the sixteen-value one; the TOO-SMALL shape's two
+spelling walks compared order by order against the independent oracle
+at four widths and both signs, with the comparison asserting it REACHED
+the hand-over rather than hoping it did; each family's edge walked to
+its last spelling and checked that nothing before it is a value the
+format holds; and a frozen reference vector. **No randomised trial was
+run and none is claimed** — "gap 3" closed this surface on 93 randomly
+built columns, all 93 of them long digit strings, and the compact
+spelling is a shape that trial could not build. **What is not covered:**
+the TOO-LARGE shape's two walks are not compared against the oracle
+order by order — that comparison was written for the too-small shape —
+so only the frozen case binds the other side.
+
+**THE TWENTY-FIRST FROZEN VECTOR EXISTS: `unrepresentable_exponent`.**
+`unrepresentable_joint` already reaches this role and could not reach
+this family — every cell it freezes is a 400-character digit string or
+the fixed contradictory construction, so the whole family could have
+been withdrawn with both committed files byte-identical. The new case
+is six cells published at five and six characters, written in the
+oracle from the method text; its mutant puts the too-large floor back
+to 310 and the recount then reads `min_length` as 310 against a
+published 5. **Not one existing cell moved**, compared case by case
+rather than by digest: the named vector file is byte-identical, and the
+branch file gained the case and changed one other thing, which is its
+own self-account counting its case set instead of saying a number.
+
+**AND WRITING IT FOUND A SPECIFICATION GAP NO CASE COULD HAVE SHOWN.**
+The method had never said whether the spelling walk counts per SHAPE or
+per shape and SIGN. The shipped generator counted per shape and sign,
+the oracle per shape, and they agreed on every committed byte because
+no frozen case had ever carried a positive and a negative group of one
+shape. G10.5 step 4 states the rule now, and the new case is the first
+that can tell the two apart.
+
+**THE WITNESS TEST IS REWRITTEN, NOT DELETED.**
+`test_the_compact_exponent_column_is_still_broken` pinned published 5/6
+against achieved 310/311 and required R-P4-68 to be OPEN. It is
+`test_the_compact_exponent_column_holds_both_published_widths` now,
+asserting the whole outcome rather than the two width names — a repair
+that met the widths by breaking a count would otherwise pass — and
+asserting the residual is CLOSED. Deleting it would have retired the
+only end-to-end reach this column shape has.
+
+**NINE MUTATIONS RUN, NINE RED, AND ONE OF THEM WAS SILENT FIRST.**
+Each floor put back to its digit-string value, the family withdrawn,
+the digit family's new width refusal removed, the per-sign walk state
+collapsed, the family order reversed, the exponent fixed at 400 again,
+and the oracle's own counter collapsed each turn a NAMED test red.
+**The ninth turned NOTHING red at first**: withdrawing the rule that
+asks the parser whether a candidate still reads as its own shape. It
+was measured rather than assumed — with the exponent fixed at 400 that
+rule could not fire at any width a description carries, so it was a
+boundary of the construction and not a branch a table takes. It was
+kept and pinned by a test at that level. **The same fact turned out to
+have a second face**: a family that can never be asked to stop is a
+family with one exponent's worth of spellings, and that is the
+capacity gap the refusal above came from. With the exponent moving,
+the rule is what ends the walk, and the test pins both edges.
+
+**AND THE MUTATION HARNESS ITSELF WAS MEASURING NOTHING FOR ONE RUN.**
+Restoring a mutated file left the `.pyc` from the MUTATED source in
+place, and Python went on running the mutant: measured, `_wide_families`
+still returned the mutated order after the restore. This tree is in a
+cloud-synced folder with coarse mtimes, so the copy, the edit and the
+compile all landed inside one second and the cache compared equal.
+Every mutation above was re-run with the caches cleared on both sides
+and with the unmutated run asserted green first. *A harness can print a
+clean result while running nothing, and the check is to make it fail on
+purpose.*
+
+**TWO PLACES SAID SOMETHING FALSE ONCE THE REPAIR LANDED, and both are
+corrected rather than left to drift.** The reviewer-column test's
+docstring said the published `max_length` could not be held here, and
+its assertion was `if longest != max_length: assert the deviation is
+named` — a fair shape while the width could not be met, and a check
+that cannot fail the moment it could. It asserts both widths
+unconditionally now. And the two reference files' self-accounts said
+"nine" and "seven" cases where they held nine and twelve; both COUNT
+their own case sets now, so that pair cannot drift again.
+
+**WHAT IS FOUND AND NOT FIXED: R-P4-100 — OPEN.** This role publishes
+no fact about how its numbers are SPELLED, so two 400-character columns
+— one written as digit strings, one as `0…0Ne400` — describe
+identically and both get a digit-string twin; and a column of `1E400`
+gets a lower-case twin where it does not fold. Nothing is misstated and
+every published fact is met; what is missing is a published fact, and
+publishing one is a disclosure question before it is a landing.
 
 ## What the owner has decided, and must not be re-asked
 

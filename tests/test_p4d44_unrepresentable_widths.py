@@ -53,7 +53,7 @@ import math
 import pathlib
 
 import fixtures
-from synthtwin import contract, generation, profile, reading, taxonomy
+from synthtwin import contract, generation, parsing, profile, reading, taxonomy
 
 
 def _round_trip(
@@ -146,10 +146,17 @@ def test_the_reviewers_column_holds_its_published_class_counts(
     run. Without the floor this twin holds 48 representable cells
     against a published zero.
 
-    The published `max_length` is NOT held here and that is correct
-    rather than a second defect: holding it would mean writing a value
-    this format can hold. The twin comes out one character wider and
-    the report names it, which is the trade this whole file is about.
+    **THE PUBLISHED `max_length` IS HELD NOW, and this docstring said
+    the opposite until method G10.5 revision 5** (residuals R-P4-48 and
+    R-P4-68). It said the trade this whole file is about had to be
+    made here -- that holding the width would mean writing a value this
+    format can hold, so the twin came out one character wider and the
+    report named it. That was true of a walk with ONE spelling family.
+    Measured before and after on this column: twin widths 327, 328 and
+    329 with a `max_length` deviation, against 327 and 328 with no
+    deviation at all, 48 of its cells written by the exponent family.
+    The trade is real and it is now made only where neither family can
+    write the asked width.
     """
     values: list[str] = []
     for figure in range(1, 25):
@@ -165,10 +172,19 @@ def test_the_reviewers_column_holds_its_published_class_counts(
     assert again["n_out_of_range"] == source["n_out_of_range"]
     assert again["n_numeric"] == 0
     assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
-    # And the width it could not hold is NAMED rather than faked.
-    longest = max(len(cell) for cell in cells)
-    if longest != source["max_length"]:
-        assert "max_length" in {note.fact for note in notes}
+    # AND BOTH PUBLISHED WIDTHS ARE HELD, unconditionally. This read
+    # `if longest != max_length: assert the deviation is named`, which
+    # was a fair shape while the width could not be met and became a
+    # check that cannot fail the moment it could: the branch stopped
+    # being taken and the test went on passing.
+    assert sorted({len(cell) for cell in cells}) == [
+        source["min_length"], source["max_length"]
+    ]
+    assert [note.fact for note in notes] == []
+    # 48 of them come from the second spelling family, which is what
+    # made the difference: the digit string cannot say these values at
+    # this width without a zero more than the width allows.
+    assert len([cell for cell in cells if "e" in cell]) == 48
 
 
 def test_a_column_of_many_fractions_keeps_its_kind(
@@ -465,6 +481,32 @@ def _oracle():
     return module
 
 
+def _oracle_walk(oracle, shape: str, sign, width: int, wanted: int) -> "list":
+    """The oracle's own family walk for one shape and sign, ``wanted`` deep.
+
+    Method G10.5 step 4 as revision 5 states it: each shape-and-sign
+    pair walks each family from that family's own start, and a group the
+    first family refuses is written by the next. This mirrors the loop
+    inside the oracle's `_unrepresentable_content` rather than
+    re-deciding anything, so what is compared below is the oracle's rule
+    and not this file's reading of it.
+    """
+    spent: "dict[tuple, int]" = {}
+    walked: "list" = []
+    for _step in range(wanted):
+        spelling = None
+        for family in oracle._spelling_families(shape, width, sign):
+            key = (shape, sign, family)
+            spelling = oracle._unrepresentable_spelling(
+                shape, sign, spent.get(key, 0), width, family
+            )
+            spent[key] = spent.get(key, 0) + 1
+            if spelling is not None:
+                break
+        walked = walked + [spelling]
+    return walked
+
+
 def test_the_oracle_agrees_past_the_ninth_fraction(tmp_path: pathlib.Path) -> None:
     """THE TWO IMPLEMENTATIONS AGREE WHERE THEY USED TO PART (P4-G3-R7-F3).
 
@@ -476,15 +518,26 @@ def test_the_oracle_agrees_past_the_ninth_fraction(tmp_path: pathlib.Path) -> No
     the oracle refused is a disagreement the frozen vectors could never
     show, because no frozen case asks for ten.
 
-    Compared here directly instead: forty orders at four widths and
-    both signs.
+    **AND IT NOW REACHES THE SECOND SPELLING FAMILY** (method G10.5
+    revision 5, residual R-P4-48). At 327 characters the digit-string
+    family runs out at twenty-four spellings -- the twenty-fifth needs
+    one zero more than the width allows -- and the exponent family
+    writes every order after that. Forty orders at each width therefore
+    crosses the hand-over on two of the four, which is what makes this
+    comparison bind on the new family rather than only on the old one.
+
+    Compared here directly: forty orders at four widths and both signs,
+    each side walked by its own rule.
     """
     oracle = _oracle()
     mismatched: "list[tuple]" = []
+    crossed: "list[tuple]" = []
     for width in (327, 328, 330, 400):
         for negative in (False, True):
             states: "dict[str, list[int]]" = {}
             used: "dict[str, int]" = {}
+            sign = oracle.SIGN_NEGATIVE if negative else oracle.SIGN_POSITIVE
+            theirs = _oracle_walk(oracle, "too_small", sign, width, 40)
             for order in range(40):
                 mine = generation._wide_number(
                     2,
@@ -494,17 +547,149 @@ def test_the_oracle_agrees_past_the_ninth_fraction(tmp_path: pathlib.Path) -> No
                     (),
                     generation._wide_width(2, width, negative),
                 )
-                sign = (
-                    oracle.SIGN_NEGATIVE if negative else oracle.SIGN_POSITIVE
-                )
-                theirs = oracle._unrepresentable_spelling(
-                    "too_small", sign, order, width
-                )
-                if mine != theirs:
+                if mine != theirs[order]:
                     mismatched = mismatched + [
-                        (width, negative, order, len(mine), len(theirs))
+                        (width, negative, order, mine, theirs[order])
                     ]
+                elif mine is not None and "e" in mine:
+                    crossed = crossed + [(width, negative, order)]
     assert mismatched == [], (
         "the two implementations do not write the same too-small "
         f"spelling: {mismatched[:4]}"
     )
+    # AND THE COMPARISON REACHED THE NEW FAMILY, asserted rather than
+    # hoped for: a walk that never crossed the hand-over would compare
+    # forty digit strings and say nothing at all about revision 5.
+    # The three that cross are the three whose ROOM is 327: both signs
+    # at a width of 327 -- a negative cell there is widened to 328 by
+    # its own sign, since the floors are counts of the room after it --
+    # and the negative at 328. At 330 and 400 the digit-string family
+    # has room for a wider figure body and forty orders do not exhaust
+    # it, so those walks compare the old family only.
+    reached = sorted({(width, negative) for width, negative, _order in crossed})
+    assert reached == [(327, False), (327, True), (328, True)], reached
+
+
+# THE MEASURED CAPACITY OF THE EXPONENT FAMILY AT ITS NARROWEST WIDTH,
+# found by walking it and asking the shipped parser rather than by
+# arithmetic written here a second time. The walk steps its exponent
+# outward from 400 -- up to 999, then down from 399 -- and stops at the
+# first spelling the parser no longer reads as the shape.
+#
+# The two shapes stop DIFFERENTLY and the difference is worth having in
+# front of a reader. The too-large shape stops on an exponent boundary:
+# every mantissa at an exponent of 309 or more overflows, and `1e308`
+# is the first that does not, so it stops after 691 whole exponents of
+# nine mantissas each. The too-small shape stops PARTWAY THROUGH an
+# exponent: `1e-324` and `2e-324` are below the smallest subnormal and
+# `3e-324` rounds up onto it, so the walk stops two spellings into its
+# 677th exponent. A rule that stopped at the exponent boundary would
+# have thrown two spellings away and a rule that assumed a boundary
+# would have written a holdable value.
+_LARGE_NARROW_CAPACITY = 6219
+_SMALL_NARROW_CAPACITY = 6077
+_SMALLEST_HOLDABLE_MANTISSA = int(
+    "24703282292062327208828439643411068618"
+    "252990130716238221279284125033775363511"
+)
+
+
+def test_the_exponent_family_asks_the_parser_and_that_is_what_ends_it() -> None:
+    """G10.5 revision 5's question, shown to DECIDE the family's reach.
+
+    The family writes a spelling only where the shipped parser reads it
+    back as out of range AND settles it as the shape's own whole-number
+    status, and that question is what ends the walk -- which is why no
+    309 and no 325 is written into the construction. Both edges are
+    asserted here, at the level the rule lives, with the capacity each
+    one leaves.
+
+    THE CAPACITY IS THE POINT AND NOT A CURIOSITY. The first build of
+    this family fixed the exponent at 400, which left nine spellings at
+    five characters where the shape itself has thousands, and a real
+    sixteen-value column was then REFUSED by the generator. The test
+    below this one is that column.
+    """
+    # THE TOO-LARGE SHAPE, stopping on an exponent boundary.
+    room = generation._EXPONENT_LARGE_ROOM
+    last = generation._wide_exponent_number(1, "", room, _LARGE_NARROW_CAPACITY - 1)
+    assert last == "9e309"
+    assert generation._wide_reads_back(1, last)
+    over = generation._wide_exponent_number(1, "", room, _LARGE_NARROW_CAPACITY)
+    assert over == "1e308"
+    assert not generation._wide_reads_back(1, over)
+    assert parsing.classify_number(over) == parsing.NUMBER
+    # THE TOO-SMALL SHAPE, stopping two spellings into an exponent.
+    room = generation._EXPONENT_SMALL_ROOM
+    last = generation._wide_exponent_number(2, "", room, _SMALL_NARROW_CAPACITY - 1)
+    assert last == "2e-324"
+    assert generation._wide_reads_back(2, last)
+    over = generation._wide_exponent_number(2, "", room, _SMALL_NARROW_CAPACITY)
+    assert over == "3e-324"
+    assert not generation._wide_reads_back(2, over)
+    assert parsing.classify_number(over) == parsing.NUMBER
+    # AND THE WALK STOPS THERE rather than writing a holdable value
+    # into a column described as holding none.
+    for kind, room, capacity in (
+        (1, generation._EXPONENT_LARGE_ROOM, _LARGE_NARROW_CAPACITY),
+        (2, generation._EXPONENT_SMALL_ROOM, _SMALL_NARROW_CAPACITY),
+    ):
+        states: "dict[str, list[int]]" = {f"exponent/{kind}/": [capacity]}
+        assert generation._wide_family_number(
+            generation._WIDE_EXPONENT, kind, "", room, states, {}, (),
+        ) is None
+    # AND THE WHOLE WALK UP TO THAT POINT WRITES NOTHING HOLDABLE,
+    # which is the claim the two numbers above are only the edge of.
+    for kind, room, capacity in (
+        (1, generation._EXPONENT_LARGE_ROOM, _LARGE_NARROW_CAPACITY),
+        (2, generation._EXPONENT_SMALL_ROOM, _SMALL_NARROW_CAPACITY),
+    ):
+        holdable = []
+        for index in range(capacity):
+            spelling = generation._wide_exponent_number(kind, "", room, index)
+            if parsing.classify_number(spelling) != parsing.NUMBER_OUT_OF_RANGE:
+                holdable = holdable + [spelling]
+        assert holdable == [], (kind, holdable[:3])
+    # THE MANTISSA'S OWN EDGE, measured and much further out: it needs a
+    # room of 82 characters, so no width a description carries reaches
+    # it and the exponent's edge is the one that binds.
+    edge = _SMALLEST_HOLDABLE_MANTISSA
+    assert len(str(edge)) == 77
+    assert parsing.number_out_of_range(f"{edge - 1}e-400")
+    assert not parsing.number_out_of_range(f"{edge}e-400")
+
+
+def test_a_real_column_of_many_narrow_wide_values_still_generates(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE REGRESSION THE FIRST BUILD OF THIS FAMILY INTRODUCED.
+
+    Sixteen distinct five-character values a real table holds -- `1e400`
+    through `4e403`. Before the exponent family existed this column
+    generated at three hundred and ten characters and missed both
+    published widths. With the family's exponent FIXED at 400 it had
+    nine spellings to offer sixteen groups, and `synthtwin generate`
+    stopped with the domain-too-small refusal of G9.4: a shipped
+    command refusing a description the profiler had just written from a
+    real table, which is worse than the width miss the family was
+    added to close. *A repair can move a hazard.*
+
+    The exponent moves now, so the family's capacity at a width is the
+    SHAPE's own. This asserts the whole outcome: every distinct value
+    held, both widths held, nothing missed.
+    """
+    values: "list[str]" = []
+    for tail in range(4):
+        for body in range(1, 5):
+            values = values + [f"{body}e40{tail}"] * 10
+    assert len({value for value in values}) == 16
+    assert {len(value) for value in values} == {5}
+    source, cells, again, notes = _round_trip(tmp_path, "narrow-many", values)
+    assert source["role"] == taxonomy.ROLE_UNREPRESENTABLE
+    assert source["n_distinct"] == 16
+    assert (source["min_length"], source["max_length"]) == (5, 5)
+    assert sorted({len(cell) for cell in cells}) == [5]
+    assert len(set(cells)) == 16
+    assert _holdable(cells) == []
+    assert [note.fact for note in notes] == []
+    assert again["role"] == taxonomy.ROLE_UNREPRESENTABLE
