@@ -325,8 +325,9 @@ APPROXIMATED = {
         # section (plan P4-D5).
         "long_tail_labels": LABEL_SECTION,
         # The joined role's own table, whose one approximated fact is
-        # the rank agreement between a scored pair (contract 9.4a,
-        # plan P4-D25). Each position's own ladder and its moments are
+        # the rank agreement of a pair of positions -- every pair since
+        # landing L7 (contract 9.4a, plan P4-D25). Each position's own
+        # ladder and its moments are
         # approximated too, but under the NUMERIC group's dispositions
         # read per position, which is where they are checked.
         "joined_numbers": "9.4a The joined role: `joined_numbers`",
