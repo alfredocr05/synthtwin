@@ -7190,6 +7190,23 @@ def _fraction_inside(
         above = above / 2.0
         below = below / 2.0
         step = step + 1
+    # AND IT WALKS IN FROM THE ENDS, BECAUSE THE MIDDLE IS THE WORST
+    # PLACE TO LOOK ON A WIDE SHARE (round 5, item 1). Values with
+    # anything after the point exist only at SMALL magnitudes -- the gap
+    # between one double and the next reaches a whole unit at two to the
+    # fifty-second -- so a share running from three thousand six hundred
+    # million million to twice that holds them in its LOWER part and
+    # nowhere near its midpoint. Probing the middle answered None on
+    # exactly such a share while `4000000000000000.5` sat inside it,
+    # unused, and the twin then named a type it could have kept. The
+    # walk halves in from `low` and from `high` as well, so the small
+    # end of a wide share is reached.
+    reach = high - low
+    step = 0
+    while step < 60:
+        reach = reach / 2.0
+        tries = tries + [low + reach, high - reach]
+        step = step + 1
     for order in range(len(tries)):
         pick = tries[order]
         if not (pick > low and pick < high) or pick in taken:
