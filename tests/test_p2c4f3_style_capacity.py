@@ -162,14 +162,22 @@ SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def _described(
-    folder: pathlib.Path, values: "list[str]"
+    folder: pathlib.Path,
+    values: "list[str]",
+    measured: "list[str] | None" = None,
 ) -> "tuple[dict, contract.Profile]":
-    """Write a one-column table, describe it, load the description."""
+    """Write a one-column table, describe it, load the description.
+
+    `measured` is the `--measurement` declaration, which the joined role
+    REQUIRES: an undeclared `120/80` column is not that role, by design
+    (plan P4-D23), and a fixture that forgets it gets an `identifier`
+    and a test that checks nothing.
+    """
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, SETTINGS, [])
+    document = profile.build_document(table, SETTINGS, [], None, measured)
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
@@ -877,7 +885,27 @@ def test_the_held_back_value_never_crosses_zero() -> None:
     whole_in_reach = generation._fraction_inside(
         (1.0, 3.0), {}, generation._BAND_POSITIVE
     )
-    assert whole_in_reach == 1.5, whole_in_reach
+    assert whole_in_reach == 2.5, whole_in_reach
+
+    # AND A SHARE WHOSE WIDTH IS A POWER OF TWO IS NOT A DEAD END
+    # (round 1, item 3). Eight halvings of `(1, 257)` are `129, 65, 33,
+    # 17, 9, 5, 3, 2` -- every one of them whole -- and this helper used
+    # to answer None and let the stratum be passed over in silence,
+    # although `1.5` was there to be had. The middle plus at most half a
+    # unit cannot be whole when the middle is, which is what makes the
+    # search complete at any width.
+    wide = generation._fraction_inside(
+        (1.0, 257.0), {}, generation._BAND_POSITIVE
+    )
+    assert wide is not None and 1.0 < wide < 257.0, wide
+    assert wide != int(wide), wide
+    # A SHARE THAT STRADDLES ZERO STILL YIELDS ITS OWN SIDE OF IT,
+    # rather than nothing: cutting the share back to the band is what
+    # makes the sign bound a narrowing and not a refusal.
+    straddling = generation._fraction_inside(
+        (-1.0, 3.0), {}, generation._BAND_NEGATIVE
+    )
+    assert straddling is not None and -1.0 < straddling < 0.0, straddling
 
 
 def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
@@ -949,6 +977,59 @@ def test_the_hold_back_takes_the_narrowest_strata(
     assert moved, held
     for place in moved:
         assert layout.sizes[place] == narrowest, (place, layout.sizes)
+
+
+def test_the_type_is_owed_a_cell_no_stratum_fits_exactly(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The hold-back may overshoot for the TYPE, and only for the type.
+
+    A stratum wider than the count still wanted is passed over rather
+    than overshot, because a cell written with a point the description
+    did not pool is a `plain` floor missed. That rule is about a COUNT.
+    The column's TYPE is not a count: a twin publishing
+    `integer_valued: false` whose every value is whole re-describes as
+    `count`, and everything downstream then reads a different kind of
+    column. So where no stratum fits, the narrowest one takes the value
+    anyway.
+
+    NO COLUMN IN THIS FILE REACHES THAT BRANCH, which is exactly why it
+    is asserted here: the census duty or the drawn values give these
+    fixtures a cell carrying a point before the question arises, and
+    mutating the branch away left the whole suite green (round 1, items
+    1 and 5). A layout whose every stratum is wider than the one cell
+    owed is what reaches it.
+    """
+    column, facts = _pooled_column(tmp_path)
+    built, _notes, _content = generation._numeric_layout(column, facts)
+    rungs = generation._merged_rungs(facts)
+    # Every stratum at least two cells wide, so the exact-fit rule above
+    # passes over all of them while one cell is still owed.
+    sizes = (4, 4, 4, 4, 4, 4, 4, 4, 4)
+    assert sum(sizes) == column.n_numeric
+    starts: list[int] = []
+    running = 0
+    for size in sizes:
+        starts = starts + [running]
+        running = running + size
+    layout = dataclasses.replace(
+        built,
+        sizes=sizes,
+        starts=tuple(starts),
+        bands=tuple([generation._BAND_POSITIVE] * len(sizes)),
+    )
+    whole = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    held = generation._pool_enough(
+        column, facts, layout, rungs, list(whole)
+    )
+    assert any(value != int(value) for value in held), held
+    # AND IT TAKES ONE CELL, NOT A STRATUM MORE THAN IT HAS TO: the
+    # overshoot is the price of the type and is not a licence to spend
+    # the `plain` floor twice over.
+    moved = [
+        place for place in range(len(whole)) if held[place] != whole[place]
+    ]
+    assert len(moved) == 1, (moved, held)
 
 
 def test_a_stratum_never_hands_its_number_to_a_wider_one(
@@ -1054,6 +1135,89 @@ def _point_free_cells(
         if generation._carries_plainly(values[place], False):
             covered = covered + layout.sizes[place]
     return covered
+
+
+# -- 6. the two roles that carry a numeric grain inside them -----------
+#
+# AFFIXED CORES AND JOINED POSITIONS TAKE THIS SAME PATH. Both are
+# turned into a numeric view and handed to `_numeric_content`, so every
+# rule above governs them at a grain no column-shaped test reaches: the
+# OUTER role can read back perfectly while the nested `integer_valued`
+# has moved and the nested `plain` floor is missed (round 1, item 6).
+
+
+def _nested_numbers(column: contract.ColumnBlock) -> "list[object]":
+    """Every numeric grain inside one column, whatever its role."""
+    facts = column.facts
+    inner = getattr(facts, "numbers", None)
+    if inner is not None:
+        return [inner]
+    parts = getattr(facts, "parts", None)
+    if parts is not None:
+        return list(parts)
+    return [facts]
+
+
+def test_a_nested_numeric_grain_keeps_the_type_it_publishes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`integer_valued: false` inside a role is still a fact about a type.
+
+    An affixed core and a joined position each publish their own
+    `integer_valued`, and a consumer routes on it exactly as it routes
+    on a plain numeric column's. The outer role surviving proves nothing
+    about them: a `$1.50` column whose core came back whole in every
+    cell is an affixed column of counts wearing a currency mark.
+
+    Both fixtures publish a pooled pair of fractions in the grain --
+    `plain: 34` with a pool of 2 -- which is the shape residual R-P4-69
+    was recorded on.
+    """
+    affixed = [f"${index % 9 + 1}" for index in range(34)] + ["$1.5", "$2.5"]
+    joined = [
+        f"{index % 9 + 1}/{index % 7 + 1}" for index in range(34)
+    ] + ["1.5/2", "2.5/3"]
+    for name, values, measured in (
+        ("affixed", affixed, None),
+        ("joined", joined, ["amount"]),
+    ):
+        document, loaded = _described(tmp_path, values, measured)
+        column = loaded.columns[0]
+        grains = _nested_numbers(column)
+        # THE FIXTURE REACHES THE GRAIN AT ALL, asserted before anything
+        # is asserted about it: a role that came back `identifier` for
+        # want of a declaration would make every check below vacuous.
+        assert column.role in ("affixed_number", "joined_numbers"), (
+            name, column.role
+        )
+        published = [
+            grain for grain in grains if grain.integer_valued is False
+        ]
+        assert published, (name, [g.integer_valued for g in grains])
+        for seed in SEEDS:
+            twin = generation.generate(loaded, seed)
+            written = [cell for cell in twin.columns[0] if cell != ""]
+            held = [
+                parsing.parse_number(piece)
+                for cell in written
+                for piece in _pieces(cell)
+            ]
+            numbers = [one for one in held if one is not None]
+            assert numbers, (name, seed)
+            assert any(one != int(one) for one in numbers), (
+                name, seed, sorted(set(written))[:6],
+            )
+
+
+def _pieces(cell: str) -> "list[str]":
+    """The parts of one cell that might each read as a number."""
+    stripped = ""
+    for letter in cell:
+        if letter in "0123456789.-+eE":
+            stripped = stripped + letter
+        else:
+            stripped = stripped + " "
+    return [piece for piece in stripped.split(" ") if piece != ""]
 
 
 def test_no_two_strata_are_given_the_same_whole_number() -> None:

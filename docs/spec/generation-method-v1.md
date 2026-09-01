@@ -1378,6 +1378,43 @@ value's own canonical text (contract 3.2.1) where it has none. The
 report names how many cells the remainder covered and how many of them
 had no point-free spelling.
 
+**AND CELLS ARE HELD BACK FROM THE POINT-FREE WALK SO THAT BOTH THE
+COLUMN'S TYPE AND ITS `plain` FLOOR SURVIVE** (residual R-P4-69). Two
+duties, and they are not the same one:
+
+- **the type.** A column publishing `integer_valued: false` whose twin
+  holds a whole number in every cell re-describes as `count`, and every
+  downstream reading of it is then a reading of a different kind of
+  column. ONE cell is owed a value with a point in it whatever the style
+  census says. The pooled count is only one road to losing it: a
+  description with no pool at all may name a `decimal` quota whose cells
+  the twin then writes `1.0`, whole-valued in every cell with the form
+  map still met exactly.
+- **the `plain` floor.** Where `plain` is a NAMED count, every cell that
+  can be written point-free is written `plain` by the rule above, so the
+  cells carrying a point number exactly the pool: `r(plain) = p(plain) +
+  R - D`, where `R` is the pooled count and `D` the cells carrying a
+  point. G13's recount asks that `r(plain)` lie between `p(plain)` and
+  `p(plain) + R`, so `D` must not exceed `R`. Where `plain` is NOT a
+  named count the arithmetic is a different one — a pooled cell may
+  perfectly well be point-free, as `060` and `11` are in a column whose
+  only named style is `leading_plus` — and only the type is owed.
+
+The cells are held back on the NARROWEST strata the ladder has, after
+the step that pulls two strata apart, and a stratum wider than the count
+still wanted is passed over rather than overshot: a cell written with a
+point that the description did not pool is a `plain` floor missed just
+as surely as one written without. The one exception is the type, which
+is not a count and is not traded for an exact fit: where no stratum
+fits, the narrowest there is takes the value anyway. The value it takes
+is chosen by the rule of G6.4's exchange above, so it stays inside its
+own share and on its own side of zero.
+
+**A SHORTFALL IS G13's TO NAME.** Where the walk cannot bring the cells
+carrying a point down to the pool — the search is cheapest at each step,
+which is not cheapest over the column — the recount names `plain` short
+of its floor, and no separate note is written beside it.
+
 **This amends the rule that wrote every pooled cell plainly** (Phase 3
 plan P3-D8.1, 2026-08-12, closing the registry's open P2-C5-F3). A
 published `min` or `max` carrying a decimal point has no point-free
@@ -1569,6 +1606,71 @@ it was owed — every whole number of its own share, and every one within
 the half unit that no later stratum's share holds, is still open to it
 — and it leaves the later stratum the only number it has.
 
+**REVISION 3: A NUMBER ANOTHER STRATUM HOLDS IS ASKED FOR RATHER THAN
+PASSED OVER** (residual R-P4-69). Only so many whole numbers lie between
+a column's published ends, so where the ladder asks for more strata than
+there are whole numbers to give them, some stratum keeps a value with a
+point in it whatever the walk does. WHICH stratum is a choice, and the
+rules above left it to arrival order: a 36-cell column holding 34 whole
+numbers and two halves, publishing `plain: 34` and a pool of 2, gave its
+two single-cell strata `2` and `8` before the four-cell strata either
+side of them could, so the twin wrote 28 point-free cells against a
+published floor of 34 — or, where the walk was given every cell, 36 of
+them, losing both halves so completely that the twin re-described as a
+column of COUNTS.
+
+Where a stratum can take no whole number under the three rules above,
+the walk asks each stratum that is HOLDING one, in ascending order:
+
+- a number two strata are both holding is never asked for, because
+  moving one of them frees nothing;
+- the holder is asked to find a whole number of ITS OWN, under exactly
+  the three rules and the share rule above, with the number being asked
+  for still counted as held. That question is the same one, so it
+  repeats, and a stratum already visited on the chain is not revisited;
+- a holder that can find none gives the number up only if it covers
+  FEWER cells than the stratum asking, and takes in exchange a value
+  with a point in it drawn from its OWN share, by the rule below;
+- of every answer the holders give, the walk takes the one leaving the
+  fewest CELLS carrying a point, ties going to the lower stratum. This
+  is not decoration: taking the first workable answer ended a chain at a
+  three-cell stratum where a single-cell one stood two steps further
+  along, on 85 seeds in 200 of the column above.
+
+A stratum that has given a number up is not asked again in this
+column's walk, so a later stratum cannot undo the exchange. The walk
+over the strata REPEATS until a pass moves nothing, because giving one
+stratum a whole number frees the one it was holding, and the number of
+passes is bounded by the strata.
+
+**THE CHAIN IS BOUNDED IN DEPTH AND IN WORK.** A conforming
+implementation must cap both: the chain's length, because a column may
+be allotted more strata than an implementation can nest that question
+for, and the strata examined across one search, because asking every
+holder for its cheapest answer explores every simple chain and that
+count is not linear in the strata. A search that reaches either cap
+gives back the best answer it has found, which is a stratum keeping a
+value with a point in it — a cost G13's recount names — and never a
+different answer. The caps are an implementation's own, and two
+implementations that both reach them may differ; a description whose
+walk reaches them is one whose twin the report already says is
+approximate.
+
+**THE VALUE A STRATUM TAKES IN EXCHANGE** is chosen from its own share
+of the ladder, so the stratum stays where the ladder put it, and is
+never a value another stratum holds. The share is first cut back to the
+stratum's own side of zero — the rung above a column's last negative
+value is a positive number, so the share of the stratum just under zero
+STRADDLES zero, and a column of four `-4.5` cells whose negative stratum
+was handed `2.097` came out holding one negative cell against a
+published four. The middle of the cut share is taken where it has no
+point-free spelling; where the middle IS whole, the value is the middle
+plus a step of at most half a unit, which cannot be whole, halved again
+only to step around a value another stratum holds. **Halving alone is
+not enough**: eight halvings of a share `(1, 257)` are `129, 65, 33, 17,
+9, 5, 3, 2`, every one of them whole, and an implementation that gave up
+there passed the stratum over in silence though `1.5` was available.
+
 **A quota that cannot be placed is a MISS, and naming it is not a
 licence to leave it unplaced.** Where a quota's own cells exist, an
 implementation that fails to put them there is defective, not
@@ -1578,7 +1680,16 @@ does, and the anonymous pool gives way before a named count does.
 **The remainder leaves no shape a producer writes** (Phase 3 plan
 P3-D8.1): what a producer could once cost THROUGH THE POOL is placed
 exactly now, because a remainder names no form and is spelled by its own
-cells' values. **One producer-reachable shape survives, and it is not
+cells' values. **That sentence was too strong, and residual R-P4-69 is
+the producer-written shape it missed**: a 36-cell column of 34 whole
+numbers and two halves publishes `plain: 34` with a pool of 2, and the
+pool is exactly the two halves. Its twin lost them — every cell whole,
+the column re-describing as `count` — because the point-free walk was
+asked for the plain count AND the pool, a pooled cell being written
+plainly wherever it can be. The hold-back above is what places it, and
+what remains is bounded rather than absent: measured on that column over
+200 seeds, 182 write the published count exactly and 18 run over it and
+are named by the recount (residual R-P4-111). **One producer-reachable shape survives, and it is not
 the pool's** (review item P3-C2-F1): a column whose values are whole but
 lie outside the fixed-point window of G6.2 is published `plain` by a
 source that wrote it in figures, while the twin writes it with a

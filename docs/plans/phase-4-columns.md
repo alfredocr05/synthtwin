@@ -4252,6 +4252,53 @@ declaration for only one of them.
   contract is asserted directly instead, in
   `test_a_stratum_never_hands_its_number_to_a_wider_one`.
 
+  **ADVERSARIAL ROUND 1 REJECTED IT, AND SIX OF ITS EIGHT ITEMS ARE
+  REPAIRED HERE.** Two were reproduced before they were believed and
+  two were not:
+
+  * **The search for a held-back value was incomplete** (item 3,
+    reproduced). Eight halvings of a share whose width is a power of two
+    land on eight WHOLE numbers — `(1, 257)` gives `129, 65, 33, 17, 9,
+    5, 3, 2` — so the helper answered nothing though `1.5` was there,
+    and the stratum was passed over in silence. The middle is tried
+    first now, and where the middle is whole the answer is the middle
+    plus at most half a unit, which cannot be whole. A share that
+    STRADDLES zero is cut back to the stratum's own side of it rather
+    than refused, so it yields a value instead of none.
+  * **The type is owed a cell whatever the census says** (items 1 and
+    5). The pooled count is only ONE road to a twin of whole numbers: a
+    description with no pool at all may name a `decimal` quota the twin
+    then writes `1.0`, whole-valued in every cell with the form map met
+    exactly. NOT REPRODUCED — 30 seeds of that shape held their role —
+    so this is a control for a gap, not a repair of a defect, and it is
+    recorded as such.
+  * **The chain is bounded in depth and in work** (item 4). `seen`
+    makes it finite, which is not the same as safe: a column with more
+    strata than an implementation can nest calls for would end in a
+    crash, and asking every holder for its cheapest answer explores
+    every simple chain. Both are capped and a capped search gives back
+    the best answer it has.
+  * **The wording about the count of different values was wrong** (item
+    2). Replacing a whole number ANOTHER stratum also holds adds a
+    value rather than exchanging one; the count rises by one. It breaks
+    no published obligation — `n_distinct_values` is REPORT-ONLY — but
+    a rule claiming to spend nothing should be right about what it
+    spends.
+  * **The 200-seed check parsed nothing** (item 7). It counted literal
+    dots, and `1.0` carries a dot while holding a whole number, so a
+    twin whose every value was whole would have passed. It parses the
+    cells now, asserts the ROLE on every seed rather than only on the
+    one that runs the validator, and names the `plain` obligation
+    rather than accepting any deviation. The threshold is stated as a
+    tripwire at a round number, not as a derived bound.
+  * **The normative method was not amended** (item 8, BLOCKING). G6.4
+    now carries the chain, its cost rule, its caps, the exchange value,
+    the hold-back's two duties and the correction below.
+
+  Item 6 — the two roles that carry a numeric grain inside them — is
+  measured and split: the grain-level control is added here, and what
+  it found is **R-P4-112**, opened below.
+
   The witness that asserted the defect is rewritten to assert the
   repair rather than deleted, as
   `test_the_pooled_fraction_column_holds_its_role_and_its_census` in
@@ -4279,11 +4326,38 @@ declaration for only one of them.
   those runs, and
   `test_the_pooled_fraction_column_holds_its_role_and_its_census`
   requires a run that goes over to have said so — and it is bounded
-  below by the same test at 180 seeds in 200. What closes it is a search that is cheapest OVER THE COLUMN
+  below by the same test at a tripwire of 150 seeds in 200, a round
+  number well under the measured 182 rather than one fitted to it. What closes it is a search that is cheapest OVER THE COLUMN
   rather than at each step; the strata are few enough that an exact one
   is affordable. It was opened rather than fixed because the landing it
   belongs to had already closed the defect it was found under, and the
   ordering question is its own piece of work.
+
+- **R-P4-112 — OPEN (opened 2026-09-01 by adversarial round P4-C1-R1,
+  item 6; PRE-EXISTING, and unchanged by the landing that found it).**
+  A JOINED POSITION MISSES ITS `plain` FLOOR BY TWELVE CELLS.
+
+  Affixed cores and joined positions are turned into a numeric view and
+  handed to the same content walk a plain numeric column takes, so every
+  rule of G6.4 governs them at a grain no column-shaped test reached.
+  Measured on a 36-row joined column, `N/M` with two fractional first
+  positions, declared with `--measurement`: position 1 publishes
+  `integer_valued: false` and `plain: 34` with a pool of 2, and its twin
+  writes **12 to 15 cells carrying a point** across seeds — `number 1
+  styles.published.plain` MISSED at **22 against a floor of 34**.
+
+  It is REPORTED, not silent: the validator names that subcheck, and
+  `distinct.n_distinct` beside it. And it is NOT this landing's — the
+  same column measures identically with the hold-back withdrawn, so the
+  walk was already under-reaching on this path before R-P4-69 was
+  touched. The affixed core measured clean on the same shape.
+
+  What closes it is finding why the point-free walk under-reaches on the
+  joined path where it does not on a plain column — the pairing step
+  runs after the values are chosen, which is the first place to look.
+  `test_a_nested_numeric_grain_keeps_the_type_it_publishes` holds the
+  grain's TYPE on both roles meanwhile, so the worse failure cannot
+  arrive unnoticed while the count is out.
 
 - **R-P4-63 (opened 2026-08-31 by adversarial round P4-A1-R1, item 4;
   PRE-EXISTING).** TWO CURRENT-BEHAVIOUR GUARDS STILL READ VERSION 4,
