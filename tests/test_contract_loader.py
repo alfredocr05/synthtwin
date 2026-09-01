@@ -759,6 +759,18 @@ def battery() -> list[Mutation]:
             "W7", "a published label nobody wrote",
             edit_level("region", 0, variants={}, variants_withheld={}),
         ),
+        Mutation(
+            # W8, on the clause this fixture can break: `west` is
+            # letters alone, and a form carries two of the three kinds,
+            # so the label has no written form and no spelling of it can
+            # wear one (7.4.8, plan amendment A-P4-47). The other two
+            # clauses -- the named spellings' own floor and the ceiling
+            # the held-back rows set -- are pinned in
+            # `tests/test_p4r34_form_census_per_level.py`, where the
+            # column carrying a form-bearing label lives.
+            "W8", "rows written in a form their label does not have",
+            edit_level("region", 0, shape_form_cells=1),
+        ),
         # -- the datetime column --------------------------------------
         Mutation(
             "D1", "dates published in a form the reading does not give",

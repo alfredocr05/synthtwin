@@ -803,6 +803,12 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "levels", _EACH): _OBJECT,
     ("columns", _EACH, "levels", _EACH, "label"): _SPELLING,
     ("columns", _EACH, "levels", _EACH, "count"): _FLOOR_COUNT,
+    # HOW MANY OF THE LEVEL'S CELLS WORE THE LABEL'S OWN WRITTEN FORM
+    # (plan amendment A-P4-47). A plain `_COUNT` and not `_HELD_BACK`:
+    # it is a count of the cells of a PUBLISHED level, so it is written
+    # at every floor, and at a floor of one it is simply the level's
+    # form-bearing cells with nothing held back anywhere.
+    ("columns", _EACH, "levels", _EACH, "shape_form_cells"): _COUNT,
     ("columns", _EACH, "levels", _EACH, "variants"): _OBJECT,
     ("columns", _EACH, "levels", _EACH, "variants", _KEY_OF): _SPELLING,
     ("columns", _EACH, "levels", _EACH, "variants", _ANY_KEY): _FLOOR_COUNT,

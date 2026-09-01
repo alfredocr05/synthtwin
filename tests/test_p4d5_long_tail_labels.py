@@ -238,12 +238,14 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
             "count": 10,
             "variants": {"aaa": 10},
             "variants_withheld": {},
+            "shape_form_cells": 0,
         },
         {
             "label": "bbb",
             "count": 10,
             "variants": {"bbb": 10},
             "variants_withheld": {},
+            "shape_form_cells": 0,
         },
     ]
     block["suppressed_levels"] = 220

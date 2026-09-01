@@ -9491,6 +9491,7 @@ def _label_checks(
             _level_count(name, level, entry, measured, floor),
             _variant_map(name, level, entry, measured, "variants"),
             _variant_map(name, level, entry, measured, "variants_withheld"),
+            _level_form_cells(name, level, entry, measured, floor),
         ]
     checks = checks + [_level_set(name, published_keys, measured)]
     for field, published in (
@@ -9647,6 +9648,47 @@ def _level_count(
         fact,
         subcheck,
         _shown_count(level.count),
+        None if found is None else _shown_count(found),
+    )
+
+
+def _level_form_cells(
+    name: str,
+    level: contract.LevelEntry,
+    entry: "dict[str, object] | None",
+    measured: "dict[str, dict[str, object]] | None",
+    floor: int,
+) -> Check:
+    """How many rows wrote one label in that label's own shape.
+
+    EXACT-OBSERVABLE, AND BOTH SIDES PRINT. The number is a count of
+    cells and no spelling of the file reaches it, exactly as
+    `levels.<label>.count` beside it is -- so this prints the
+    published number and the achieved one rather than a bare verdict.
+    The FORM it counts is the shape of the description's own published
+    label, which the reader already holds, so naming the number names
+    no key and no value (plan amendment A-P4-47).
+
+    A LEVEL THE FILE DOES NOT CARRY MISSES THIS, it does not withhold
+    it, on the same reasoning `_variant_map` sets out: the file holds
+    fewer rows of that label than the floor and possibly none, so it
+    cannot be holding this many of them in any shape.
+    """
+    fact = "label.shape_form_cells"
+    subcheck = f"levels.{level.label}.shape_form_cells"
+    published = _shown_count(level.shape_form_cells)
+    if measured is None:
+        return Check(name, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
+    if entry is None:
+        return Check(
+            name, fact, subcheck, MISSED, published, _below_the_floor(floor)
+        )
+    found = _count_at(entry, "shape_form_cells")
+    return _exact(
+        name,
+        fact,
+        subcheck,
+        published,
         None if found is None else _shown_count(found),
     )
 

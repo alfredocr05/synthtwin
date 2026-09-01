@@ -2246,36 +2246,38 @@ def partner_family(parent, longest):
         total += 1
 
 
-def invented_variants(parent, used, wanted):
-    """The invented variant spellings of method section G8.2.
+def invented_variant(parent, used, target):
+    """One invented variant spelling -- method sections G8.2 and G8.2a.
 
     Case flips first, in binary-counter order, skipping any candidate
     equal to a spelling already used in this column; then trailing
     spaces, one more each time, which the fold trims away and the reader
     preserves, and whose supply has no end.  A parent with no letters
     exhausts the case flips immediately and goes straight to the spaces.
+
+    ``target`` is the written form the spelling must wear, "" for none
+    (G8.2a): a candidate wearing another form is stepped past, exactly
+    as one already used is.  Where the case flips run out with a form
+    still wanted, the trailing space is written and the level falls
+    short of its published ``shape_form_cells``, which the twin's own
+    report names.
     """
-    produced = []
     seen = set(used)
     counter = 1
-    while len(produced) < wanted:
+    while True:
         candidate = case_flip(parent, counter)
         if candidate is None:
             break
         counter += 1
-        if candidate in seen:
+        if candidate in seen or written_form(candidate) != target:
             continue
-        produced.append(candidate)
-        seen.add(candidate)
+        return candidate
     spaces = 1
-    while len(produced) < wanted:
+    while True:
         candidate = parent + " " * spaces
         spaces += 1
-        if candidate in seen:
-            continue
-        produced.append(candidate)
-        seen.add(candidate)
-    return produced
+        if candidate not in seen:
+            return candidate
 
 
 SHAPE_FORM_LIMIT = 24
@@ -2539,26 +2541,107 @@ def place(content, missing, rows, words):
 # ------------------------------------------------------- the four builders
 
 
-def spare_label_rows(level):
-    """How many rows the level's own spelling may cover -- G8.1 step 2.
+# How much arithmetic G8.1a's step 4 will do before step 3's own
+# partial answer stands.  The method states the bound as a product of
+# the debt and the number of different group sizes.
+FORM_DEBT_NODES = 250000
+
+
+def form_keeping_groups(level):
+    """Which held-back groups keep the label's form -- method G8.1a.
+
+    Step 1 adds up the published spellings that already have a form,
+    step 2 takes the debt from ``shape_form_cells``, step 3 walks the
+    sizes largest first taking as many of each as fit, and step 4
+    settles a remainder by reaching every total up to the debt.  The
+    answer maps a ``variants_withheld`` key to how many of its groups
+    keep the form.
+    """
+    covered = 0
+    for spelling in sorted(level["variants"]):
+        if written_form(spelling):
+            covered += level["variants"][spelling]
+    debt = level["shape_form_cells"] - covered
+    keeping = {}
+    if debt <= 0:
+        return keeping
+    withheld = level["variants_withheld"]
+    largest_first = sorted(withheld, key=int, reverse=True)
+    owed = debt
+    for key in largest_first:
+        take = min(withheld[key], owed // int(key))
+        if take:
+            keeping[key] = take
+            owed -= take * int(key)
+    if owed == 0:
+        return keeping
+    exact = debt_reached(withheld, largest_first, debt)
+    return keeping if exact is None else exact
+
+
+def debt_reached(withheld, largest_first, debt):
+    """A sub-multiset of the held-back sizes summing to ``debt`` -- G8.1a.
+
+    Step 4.  ``reached[total]`` records the first size that closes that
+    total, the sizes offered largest first, and ``spent`` keeps one
+    chain from using a size more often than the entry holds groups of
+    it.  None says the debt is out of reach, or that the walk would
+    cost more than ``FORM_DEBT_NODES`` steps.
+    """
+    if not largest_first or len(largest_first) * (debt + 1) > FORM_DEBT_NODES:
+        return None
+    reached = [0] * (debt + 1)
+    reached[0] = -1
+    for key in largest_first:
+        size = int(key)
+        spent = [0] * (debt + 1)
+        for total in range(size, debt + 1):
+            if reached[total] or not reached[total - size]:
+                continue
+            if spent[total - size] >= withheld[key]:
+                continue
+            reached[total] = size
+            spent[total] = spent[total - size] + 1
+    if not reached[debt]:
+        return None
+    keeping = {}
+    total = debt
+    while total > 0:
+        size = reached[total]
+        for candidate in largest_first:
+            if int(candidate) == size:
+                keeping[candidate] = keeping.get(candidate, 0) + 1
+                break
+        total -= size
+    return keeping
+
+
+def spare_label_group(level, keeping):
+    """Which held-back group takes the label's own spelling -- G8.1 step 2.
 
     The label's own spelling is one more spelling that folds onto the
     label, and the only further one that KEEPS ITS WRITTEN FORM: a case
     flip may already be published and a trailing space changes the
     form.  It is available only where the published and held-back
     spellings already cover the level's count, since otherwise step 3
-    writes the label itself and that spelling is spoken for.  It is
-    offered to the key naming the LARGEST row count, which is where it
-    covers the most cells.  0 says it is not available.
+    writes the label itself and that spelling is spoken for.  It goes
+    to the LARGEST group whose target form it wears -- the largest
+    form-keeping group where the label has a form, and the largest
+    group of all where it has none.  "" says it is not spent.
     """
     covered = sum(level["variants"].values())
-    largest = 0
     for key in level["variants_withheld"]:
         covered += int(key) * level["variants_withheld"][key]
-        largest = max(largest, int(key))
     if covered < level["count"]:
-        return 0
-    return largest
+        return ""
+    formless = not written_form(level["label"])
+    best = ""
+    for key in level["variants_withheld"]:
+        if not formless and not keeping.get(key):
+            continue
+        if not best or int(key) > int(best):
+            best = key
+    return best
 
 
 def _label_content(column):
@@ -2575,20 +2658,23 @@ def _label_content(column):
             content.extend([level["label"]] * level["count"])
             used.append(level["label"])
             continue
-        spare = spare_label_rows(level)
+        keeping = form_keeping_groups(level)
+        spare = spare_label_group(level, keeping)
         if level["label"] in used:
-            spare = 0
-        invented = invented_variants(
-            level["label"], used, wanted - (1 if spare else 0)
-        )
-        supply = iter(invented)
+            spare = ""
+        own = written_form(level["label"])
+        left = dict(keeping)
         for key in sorted(withheld, key=int):
             for _ in range(withheld[key]):
-                if spare and int(key) == spare:
+                target = ""
+                if left.get(key):
+                    target = own
+                    left[key] -= 1
+                if spare and key == spare:
                     spelling = level["label"]
-                    spare = 0
+                    spare = ""
                 else:
-                    spelling = next(supply)
+                    spelling = invented_variant(level["label"], used, target)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
     for spelling, size in invented_levels(
@@ -5425,17 +5511,35 @@ def _label_variants():
         n_present=48, n_missing=2, n_distinct=13, n_distinct_folded=5,
         n_numeric=0, n_not_numeric=48, n_out_of_range=0, n_contradictory=0,
         levels=[
+            # `shape_form_cells` is how many of the level's rows wrote
+            # the label in the LABEL'S OWN written form (contract
+            # 7.4.8).  `north` and `south` are letters alone, and a form
+            # carries two of the three kinds, so neither label has a
+            # form and no spelling of either can wear one: both carry
+            # nought, and W8 requires it.
             {
                 "label": "north", "count": 13,
                 "variants": {"North": 11}, "variants_withheld": {"1": 2},
+                "shape_form_cells": 0,
             },
             {
                 "label": "south", "count": 13,
                 "variants": {}, "variants_withheld": {"1": 3, "5": 2},
+                "shape_form_cells": 0,
             },
+            # `7-11` wears `%-%%`, so one of its three held-back groups
+            # of four rows CAN have been written in the label's own
+            # shape -- and exactly one, because a label with no letters
+            # has no case flip, so the only form-bearing spelling of it
+            # is the label's own.  Four is therefore the largest number
+            # a source of this shape could have written, and this case
+            # takes it: it is what puts G8.1a's debt walk and G8.1's
+            # spare-spelling offer on a label whose case-flip supply is
+            # empty.
             {
                 "label": "7-11", "count": 12,
                 "variants": {}, "variants_withheld": {"4": 3},
+                "shape_form_cells": 4,
             },
         ],
         suppressed_levels=2, suppressed_rows=10,
@@ -5515,9 +5619,17 @@ def _long_tail_levels():
         n_present=40, n_missing=0, n_distinct=21, n_distinct_folded=21,
         n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
         levels=[
+            # `note alpha` holds a SPACE, so it has no written form at
+            # all (C6-31a) and neither has any spelling of it: the level
+            # carries nought, and W8 requires it.  The column's own
+            # census beside it is a different fact and is not this
+            # number's total -- residual R-P4-80's three reasons, of
+            # which the first applies here: the twenty suppressed
+            # levels' cells belong to no published level.
             {
                 "label": "note alpha", "count": 11,
                 "variants": {"Note Alpha": 11}, "variants_withheld": {},
+                "shape_form_cells": 0,
             },
         ],
         suppressed_levels=20, suppressed_rows=29,
@@ -6481,6 +6593,11 @@ INTEGER_COLUMN_KEYS = frozenset({
     # certified it. `part_agreements` is a binary64 and is proved as
     # one.
     "n_parts", "n_joined",
+    # How many rows of ONE published level wrote it in that level's own
+    # written form (contract 7.4.8, plan amendment A-P4-47). It stands
+    # inside a level entry beside `count`, which is named above for the
+    # same reason.
+    "shape_form_cells",
 })
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",

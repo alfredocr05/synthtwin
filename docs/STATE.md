@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,205 collected / 51 skipped || lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
+| suite | 4,216 collected / 51 skipped || lint | **9 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-08-31 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`) and 7 in `tools/measurements/`. It said 10 until the dead recount named below went with the joined role's landing and this line did not move with it. Re-measured again on the advisory-remark landing: still 9, none of them in the one file of `src/` that landing touches |
 
 ## What is being built right now
 
@@ -1119,9 +1119,111 @@ CORRECTED TWO OF THIS LANDING'S OWN DECISIONS.**
 **NINE SURFACES, against a residual that named three.** Each was found
 only after the one before it closed, and three of the nine were found
 by this landing's own reviews rather than by the residual.
-**R-P4-34 IS MEASURED AND NOT CLOSED (2026-08-31), AND THE MEASUREMENT
-SAYS THE RESIDUAL UNDERSTATED ITSELF AND THE CONTRACT SAID SOMETHING
-FALSE.** The landing set out to publish `shape_forms` PER LEVEL. What
+**R-P4-34 AND R-P4-80 ARE BOTH CLOSED (2026-08-31). THE PER-LEVEL
+FORM CENSUS IS BUILT.** The owner ruled it in that morning
+(amendment A-P4-47), overriding the recommendation the measuring
+landing made; the measurement that landing produced is below and is
+what the repair is held to.
+
+Every published level of every label role now carries
+`shape_form_cells`: how many of its rows wrote the label in that
+label's own written form. **It is ONE NUMBER and not a census**, and
+that is a property rather than a simplification -- a form-bearing
+spelling holds no space, so trimming changes nothing, and folding an
+ASCII letter leaves an ASCII letter in place, so every form-bearing
+spelling of a level wears exactly `shape_form(label)`.
+
+**THE REPRODUCTION PAIR IS THE MEASURE OF THE REPAIR.** The two
+209-row columns still publish identical `label`, `count`, `variants`
+and `variants_withheld`; they now publish **25 and 23** under the new
+key; their twins are DIFFERENT cell for cell; and `synthtwin validate`
+says `HELD 206 -> 206` on one and `HELD 204 -> 204` on the other where
+it used to call one of them a miss whatever rule was used. The witness
+file is rewritten to the repaired behaviour and keeps every measured
+number: four of its five tests asserted a wrong verdict and are gone,
+and the fifth -- the property the closure rests on -- stands
+unchanged.
+
+**THERE IS NO SUM INVARIANT, and R-P4-80 closes BY DECISION rather
+than by measurement.** The per-level numbers are facts of their own
+beside the column census, for the three reasons that entry states --
+suppressed levels' cells belong to no published level, the floor
+applies to a smaller population, and the `form_room` refusal is
+column-wide. What binds instead is **W8**, two bounds that are facts of
+the ENTRY alone: at least the rows its own named form-bearing
+spellings cover, at most those plus every row the floor held back, and
+nought where the label has no form. The alternative that entry named --
+an inequality admitting every arrangement -- is not much of an
+invariant, and rewriting a frozen vector to make a false rule true is
+the wrong trade. The contract says so where a reader would otherwise
+look for a sum (7.4.8), and so does the twin's report note.
+
+**THE GENERATION RULE IS G8.1a AND G8.2a.** The published spellings
+cover what they cover; the rest is the level's form DEBT, and the walk
+picks the sub-multiset of held-back group sizes adding up to it,
+largest groups first, with a bounded reachability walk for the
+remainder the plain one does not reach (a debt of 6 against groups of
+4, 3 and 3 is the smallest case). Each group is then asked for a
+spelling wearing the form it was allotted -- a case flip keeps the
+label's form, a trailing space has none, so one rule settles both
+halves of the supply. **The closure is EXACT on a producer-written
+description**, because the debt is a sum of those very sizes there by
+construction.
+
+**AND THE HONEST LIMIT IS NAMED RATHER THAN HIDDEN.** A label of one
+letter has one case flip, so a HAND-WRITTEN description can ask more
+groups to keep the form than the supply can spell. W8 cannot see it --
+the count is inside its two bounds -- so the twin covers what it can
+and `_level_form_notes` names the rest in the file written beside the
+twin. Measured: 28 asked, 23 held.
+
+**WHAT MOVED, counted before it was re-recorded.** The two frozen
+reference vectors gained the key and **not one cell moved** --
+`label_variants` and `long_tail_levels` are byte-identical, four added
+lines across both files and nothing removed. `north` and `south` carry
+0 because letters alone are one kind; `7-11` carries 4, one of its
+three held-back groups, which is the most a source of that shape could
+have written since a label with no letters has no case flip. The three
+demonstration goldens moved and the **TWIN's own bytes did not**: the
+description gains nine lines and loses none, and the quality report
+gains thirty and loses three, the three being 479 obligations restated
+as 488 and 402 HELD as 411. Nothing lost, no verdict moved, no new
+miss.
+
+**AND THE FROZEN NARROW BASELINE WAS STRENGTHENED RATHER THAN
+RE-RECORDED.** `test_widening_the_demonstration_lost_no_obligation`
+held 407 checks by digest. Re-recording it against 416 would have
+retired the only thing it buys. It now asserts BOTH: the whole run at
+416, and -- with the new key's nine checks set aside -- the 2026-08-31
+digest of 407, character for character. That is the assertion
+re-recording cannot satisfy, and it is review item P4-A2-R5-F2's own
+lesson applied to the landing after it.
+
+**TWO THINGS FOUND AND NOT FIXED, both opened by name. R-P4-90:**
+SECURITY.md's disclosure record stops at version 5, so every fact
+version 6 added — the form census, both width censuses, the histogram,
+the mode pair, the finer ladder, the value count, the joined role's
+blocks, the unrepresentable widths, and now this key — is in the
+contract's section 12 and in NO entry of the document an institution
+actually reads. A documentation gap and not a leak, and a landing of
+its own. **R-P4-91:** the label's own spelling is aimed at the largest
+form-keeping group without asking whether it is AVAILABLE, so where it
+is already a published variant the offer is wasted. It costs nothing on
+a producer-written description — measured — and shows only on a
+hand-written one, where the report names both numbers.
+
+**ELEVEN MUTATIONS RUN, ELEVEN RED, NOT ONE SILENT.** The producer's
+walk (twice), each of W8's three clauses, the debt allocation, the
+reachability walk, the form target in the spelling walk, the
+spare-spelling rule, the validator's subcheck and the report's note
+each turn a NAMED test red when withdrawn.
+
+**WHAT THE MEASURING LANDING FOUND, kept because the repair is held to
+it.**
+
+**R-P4-34 WAS MEASURED AND NOT CLOSED (2026-08-31), AND THE
+MEASUREMENT SAID THE RESIDUAL UNDERSTATED ITSELF AND THE CONTRACT SAID
+SOMETHING FALSE.** The landing set out to publish `shape_forms` PER LEVEL. What
 it produced is the reproduction, two corrected passages of the
 governing contract, and a written price -- because the closure turns
 out to need an owner ruling rather than an implementer.
@@ -1183,11 +1285,14 @@ because their hand-written level entries carry no such key), two
 goldens, and three plain expectations. That is the floor of the cost
 and not the cost.
 
-The defect is a WITNESS rather than a silence:
-`tests/test_p4r34_form_census_per_level.py` pins both directions at
-their exact published and achieved counts, the indistinguishable pair,
-and the one-form-per-level property any closure rests on. Each test
-fails when the defect is repaired, which is when the witness should go.
+The defect WAS a witness rather than a silence, and the witnesses have
+done their job: each of the four that pinned a wrong verdict fails
+against the repair, which is when a witness should go, and
+`tests/test_p4r34_form_census_per_level.py` is rewritten to the
+repaired behaviour keeping every measured number. The fifth -- every
+form-bearing spelling of a level wears its label's form -- stands
+unchanged, because it was a property and not a defect, and it is what
+the closure rests on.
 
 ## What the owner has decided, and must not be re-asked
 
@@ -1228,11 +1333,12 @@ owner's time; the reasoning is in the plan at the amendment named.
 
 ## What the owner ruled on 2026-08-31, and it reverses a recommendation
 
-**THE PER-LEVEL FORM CENSUS IS RULED IN** (amendment A-P4-47). The
-landing that measured R-P4-34 stopped and asked, because a per-level
-census attaches a spelling property to an identified below-floor group
-and section 12 records the held-back facts as publishing the sizes and
-counts of UNNAMED groups. The assistant recommended NOT building it.
+**THE PER-LEVEL FORM CENSUS IS RULED IN** (amendment A-P4-47), **AND
+IT IS BUILT** — see the R-P4-34 entry above. The landing that measured
+R-P4-34 stopped and asked, because a per-level census attaches a
+spelling property to an identified below-floor group and section 12
+records the held-back facts as publishing the sizes and counts of
+UNNAMED groups. The assistant recommended NOT building it.
 
 The owner ruled the other way, and the ground is worth carrying: a
 code's SHAPE identifies nobody -- it says a rare category is present
