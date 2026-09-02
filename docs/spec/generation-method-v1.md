@@ -2158,7 +2158,32 @@ stratum whose value falls in a named bin moves, subject to:
    second half of that is not caution: two values a thousandth apart
    are two values and ONE cell, so a rule that compared only the
    numbers handed the column two identical cells and took back the
-   count of different values.
+   count of different values;
+6. holding its value ALONE. A move costs nothing only when the stratum
+   VACATES what it leaves: one value goes, one arrives, and the count
+   stands. A stratum sharing its value vacates nothing, so whatever it
+   does ADDS — a fresh value adds a number, and joining another
+   stratum's value adds a spelling, because the writing stage then has
+   two strata on one number and the leading-zero family splits them;
+7. keeping its FIGURE COUNT, where its value carries no point. A
+   point-free cell is exactly as wide as its value, so moving a
+   stratum from one figure to two takes a carrier away from the padded
+   -width census: 9 can be written `09` at a published width of two
+   and 10 cannot.
+
+**RULES 6 AND 7 EXIST BECAUSE THE SUITE FOUND THEM, and both were
+measured on the floored witness of review item P3-V7-F4** — a column
+of nine different spellings at a floor of eleven, the case where this
+fact is published and the census beside it is not. Without either rule
+the twin wrote TEN spellings against a published nine and
+`distinct.n_distinct` fell from HELD to an authorized deviation. With
+both, it writes nine and the count is met outright. `n_distinct` and
+`pad_widths` are EXACT-OBSERVABLE and this fact is REPORT-ONLY, so
+where they meet this one gives way and G6.7.8's deviation names the
+stretch instead. **Measured cost of the two rules on the corpus of
+G6.7.8: none.** The three two-cluster columns still write no cell in a
+named stretch at any of forty seeds at either floor, and the forty
+described columns still leak on the same 119 runs of 1600.
 
 **G6.7.5 Where it goes, and the bound.** To the occupied bin NEARER to
 it — measured from the value to each end of the stretch — and no

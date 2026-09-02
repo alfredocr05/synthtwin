@@ -4739,12 +4739,71 @@ declaration for only one of them.
   the fact's own terms — or the CELL ALLOTMENT reading the fact, which
   is G5.2's stage and R-P4-114's obstacle as well.
 
+- **R-P4-142 — CLOSED 2026-09-01 by landing L8, and FOUND BY THE
+  SUITE rather than by review.** THE PRODUCER AND THE LOADER
+  DISAGREED ABOUT A COLUMN OF ONE NUMBER.
+
+  A quantitative block whose values are all ONE number has two equal
+  ends, so there is no width to divide and `parsing.histogram_bin` is
+  TOTAL: it answers "the first bin" for every value. `_empty_bins`
+  therefore named the other **thirty-one** bins as empty — of a
+  division that does not exist — while the loader's own `_has_width`
+  said there was no scale at all and refused the description outright.
+  Measured: `tests/test_p4g3r1_joined_review.py` turned red on two
+  tests, both raising `ProfileError` on invariant Q20, and **every
+  joined column with a constant position became unloadable**.
+
+  Both sides ask the same question now, and Q20's complement condition
+  applies only where there IS a scale. The census beside it is
+  UNCHANGED — one bin holding every value — which is what it read
+  before this landing, so nothing here moves a fact that was already
+  published.
+
+  **IT REACHES ONLY A BLOCK INSIDE A GRAIN**, because a whole column of
+  one number is read as a `constant` LABEL and publishes no
+  quantitative block at all. The witness is
+  `test_a_column_whose_values_are_all_one_number_names_no_bin`, built
+  on the review fixture's own `1/2, 1/3, ... 1/121`.
+
+  *What it says about the landing: a fact computed by one rule and
+  checked by another is one fact written twice, and the second copy is
+  where a producer's total function meets a loader's partial one.*
+
+- **R-P4-143 — CLOSED 2026-09-01 by landing L8, and FOUND BY THE SUITE
+  as well.** THE MOVE COULD COST A COLUMN ITS EXACT SPELLING COUNT.
+
+  Two ways, both on the floored witness of review item P3-V7-F4 — a
+  column of nine different spellings at a floor of eleven, which is
+  exactly the case this landing is for, because the census is withheld
+  there and `empty_bins` is not:
+
+  * a stratum that does not hold its value ALONE vacates nothing when
+    it moves, so a fresh value adds a NUMBER and joining another
+    stratum's value adds a SPELLING (the writing stage then has two
+    strata on one number and the leading-zero family splits them);
+  * a move that changes a point-free value's FIGURE COUNT takes a
+    carrier away from the padded-width census: 9 can be written `09`
+    at a published width of two and 10 cannot.
+
+  Measured either way: the twin wrote **ten** different spellings
+  against a published nine and `distinct.n_distinct` fell from **HELD
+  to AUTHORIZED-DEVIATION**. `n_distinct` and `pad_widths` are
+  EXACT-OBSERVABLE and `empty_bins` is REPORT-ONLY, so method G6.7.4
+  now refuses both moves and the deviation names the stretch instead.
+
+  **AND THE TWO REFUSALS COST NOTHING MEASURABLE**, which is why they
+  are a repair and not a trade: re-measured at forty seeds after both,
+  the three two-cluster columns still write no cell in a named stretch
+  at either floor, the quality report on them misses exactly what it
+  missed before, and the forty-column battery still leaks on the same
+  **119 runs of 1600** with the same 121 deviations.
+
 - **R-P4-141 — OPEN (opened 2026-09-01 by landing L8's mutation
   run).** TWO OF METHOD G6.7's RULES ARE PINNED BY NOTHING.
 
-  Twelve rules were withdrawn one at a time from the shipped producer,
-  loader and generator, and 542 tests over eight files were run against
-  each. **Ten turn the suite red; two do not:**
+  Fifteen rules were withdrawn one at a time from the shipped
+  producer, loader and generator, and 614 tests over eleven files were
+  run against each. **Thirteen turn the suite red; two do not:**
 
   * *the gathering step reads the SPELLINGS* (G6.7.6). A stratum is
     put in the queue when its value OR any spelling of it falls in a
@@ -4773,6 +4832,16 @@ declaration for only one of them.
   a contract change and a decision of its own — or the same hand-built
   drive. Both are left rather than done, and neither is a defect in
   what ships: every column measured behaves as the method says.
+
+  **AND THE RUN CAUGHT ITSELF ONCE, which is recorded because a
+  harness that measures nothing reports a confident zero.** One of the
+  fifteen mutants found NO anchor — the loader's complement condition,
+  whose line had changed shape when R-P4-142's scale test was added to
+  it — and the harness printed `ANCHOR NOT FOUND` and counted it among
+  the silent rather than passing over it. Re-pointed and re-run, it is
+  RED. The audit after every run reports the files still carrying the
+  marker and the files differing from their original, and both lists
+  were empty at every run of this landing.
 
 - **R-P4-126 — OPEN (opened 2026-09-01 by the mutation run of review
   round 1's own repairs).** TWO OF THOSE REPAIRS ARE PINNED BY NOTHING.
@@ -7166,6 +7235,13 @@ the largest in the last.
 **Amendment A-P4-50 records that the ladder gives way here**, because
 the two published facts genuinely disagree and the plan must say which
 wins.
+
+**AND WHERE THIS FACT MEETS AN EXACT ONE, IT IS THIS FACT THAT GIVES
+WAY.** G6.7.4 refuses a move that would cost `n_distinct` or
+`pad_widths`: a stratum that does not hold its value alone, and a move
+that would change a point-free value's figure count. Both were found
+by the suite rather than by review, both are measured at residual
+**R-P4-143**, and neither costs anything on the corpus below.
 
 **Measured after, the same way.** Cells in a bin the source leaves
 empty: 4–6 → **0 at every one of forty seeds**, 2–3 → **0**, 3–6 →

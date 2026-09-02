@@ -39,6 +39,7 @@ real value to 1.0 -- and a test that claimed the source's own gap was
 cleared would be claiming something the published fact cannot carry.
 """
 
+import copy
 import pathlib
 import random
 
@@ -545,11 +546,19 @@ def test_the_quality_report_lists_the_fact_rather_than_checking_it(
 # each one drives the named function directly rather than hoping a
 # column can be found whose cells move when it is withdrawn.
 
-# The scale these use: ends 0 to 320, so a bin is ten wide and the
-# stretch of bins 10 to 19 runs from 100 to 200.
-_ENDS = (0.0, 320.0)
-_BARRED = {place: 1 for place in range(10, 20)}
-_RUN = (10, 19)
+# The scale these use: ends 0 to 3200, so a bin is a hundred wide and
+# the stretch of bins 15 to 19 runs from 1500 to 2000.
+#
+# THE STRETCH IS DELIBERATELY NOT ON A DECADE BOUNDARY. A move keeps
+# the value's figure count, so a stretch running from 100 to 200 would
+# let a stratum move UP into three figures and refuse every move DOWN,
+# because 99 is two figures and 110 is three. That is the rule working,
+# not a defect -- but it would make one direction of these tests pass
+# for the wrong reason. Here both neighbouring bins hold four-figure
+# values, so direction is the only thing under test.
+_ENDS = (0.0, 3200.0)
+_BARRED = {place: 1 for place in range(15, 20)}
+_RUN = (15, 19)
 _WIDTHS = (-1, 1)
 
 
@@ -563,15 +572,15 @@ def test_a_value_nearer_the_top_of_a_stretch_goes_up() -> None:
     drawn beside.
     """
     high = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 190.0, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
-    assert high is not None and high >= 200.0, high
+    assert high is not None and high >= 2000.0, high
     low = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 110.0, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1600.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
-    assert low is not None and low < 100.0, low
+    assert low is not None and low < 1500.0, low
 
 
 def test_the_move_stops_at_the_bin_next_to_the_stretch() -> None:
@@ -582,15 +591,15 @@ def test_the_move_stops_at_the_bin_next_to_the_stretch() -> None:
     and one sent down in [90, 100).
     """
     high = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 190.0, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
-    assert 200.0 <= high < 210.0, high
+    assert 2000.0 <= high < 2100.0, high
     low = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 110.0, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1600.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
-    assert 90.0 <= low < 100.0, low
+    assert 1400.0 <= low < 1500.0, low
 
 
 def test_no_two_strata_of_one_stretch_take_one_cell() -> None:
@@ -609,16 +618,16 @@ def test_no_two_strata_of_one_stretch_take_one_cell() -> None:
     # candidates all read `2.0` at one figure after the point.
     narrow = (0.0, 3.2)
     first = generation._cleared_value(
-        narrow, _BARRED, _RUN, 1.9, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        narrow, _BARRED, _RUN, 1.94, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
     spoken = {
         spelling: 1
         for spelling in generation._spellings_of(first, _WIDTHS, False)
     }
     second = generation._cleared_value(
-        narrow, _BARRED, _RUN, 1.9, generation._BAND_POSITIVE,
-        spoken, {first: 1}, False, _WIDTHS,
+        narrow, _BARRED, _RUN, 1.94, generation._BAND_POSITIVE,
+        True, spoken, {first: 1}, False, _WIDTHS,
     )
     assert second is not None and second != first
     assert not (
@@ -639,14 +648,14 @@ def test_a_moved_value_keeps_the_form_it_was_written_in() -> None:
     would take back the count those two just met.
     """
     pointed = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 190.5, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1900.5, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
     assert pointed is not None
     assert not generation._carries_plainly(pointed, False), pointed
     plain = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 190.0, generation._BAND_POSITIVE,
-        {}, {}, False, _WIDTHS,
+        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
     )
     assert plain is not None
     assert generation._carries_plainly(plain, False), plain
@@ -669,7 +678,7 @@ def test_a_moved_value_never_crosses_zero() -> None:
     barred = {place: 1 for place in range(5, 10)}
     found = generation._cleared_value(
         ends, barred, (5, 9), -5.0, generation._BAND_NEGATIVE,
-        {}, {}, False, (-1, 1),
+        True, {}, {}, False, (-1, 1),
     )
     assert found is None or found < 0.0, found
     # ...and the mirror, so the test cannot pass by the walk simply
@@ -677,7 +686,7 @@ def test_a_moved_value_never_crosses_zero() -> None:
     # and it is above zero.
     other = generation._cleared_value(
         ends, barred, (5, 9), -5.0, generation._BAND_POSITIVE,
-        {}, {}, False, (-1, 1),
+        True, {}, {}, False, (-1, 1),
     )
     assert other is not None and other > 0.0, other
 
@@ -719,14 +728,20 @@ def test_a_stratum_is_gathered_by_its_spelling_and_not_only_its_value(
     is in bin 9 as a value and reads `100.0` at one figure, which is in
     bin 10 and barred.
     """
-    assert parsing.histogram_bin(99.96, *_ENDS) == 9
-    assert generation._barred_bin(99.96, _ENDS, _BARRED, _WIDTHS, False) == 10
+    # 1499.96 is in bin 14 as a VALUE and reads `1500.0` at one figure
+    # after the point, which is in bin 15 and barred.
+    assert parsing.histogram_bin(1499.96, *_ENDS) == 14
+    assert generation._barred_bin(
+        1499.96, _ENDS, _BARRED, _WIDTHS, False
+    ) == 15
     assert not generation._reads_outside(
-        99.96, _ENDS, _BARRED, _WIDTHS, False
+        1499.96, _ENDS, _BARRED, _WIDTHS, False
     )
     # ...and a value that reads outside at every width is left alone.
-    assert generation._barred_bin(80.0, _ENDS, _BARRED, _WIDTHS, False) == -1
-    assert generation._reads_outside(80.0, _ENDS, _BARRED, _WIDTHS, False)
+    assert generation._barred_bin(
+        800.0, _ENDS, _BARRED, _WIDTHS, False
+    ) == -1
+    assert generation._reads_outside(800.0, _ENDS, _BARRED, _WIDTHS, False)
 
 
 def test_a_column_whose_values_are_all_one_number_names_no_bin(
@@ -783,3 +798,79 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     # refused the description outright.
     twin = generation.generate(loaded, 3)
     assert len([cell for cell in twin.columns[0] if cell]) == 120
+
+
+def test_the_twins_cells_are_a_function_of_the_published_fact(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE FACT IS CONSUMED, and this is what that sentence means.
+
+    `value_histogram` is REPORT-ONLY precisely BECAUSE nothing consumes
+    it: a comment in `generation.py` says so. A landing that added
+    another such key would have changed nothing about any twin. So the
+    claim owed here is not "the value stage calls a function" -- it is
+    that the twin's own CELLS move when the published fact moves, with
+    the code, the column and the seeds all held still.
+
+    One description, taken at a floor of eleven so the census beside it
+    is withheld and this fact stands alone. Generated forty times as
+    written; then the same document with `empty_bins` emptied and
+    nothing else touched, generated forty times again.
+
+    Measured: 0 cells in a named stretch at every one of forty seeds as
+    written, and 4 to 6 of 300 with the fact removed.
+    """
+    rows = _two_tight_rows()
+    lowest, highest, barred = _empty_of(rows)
+    document, _loaded = _described(tmp_path, "consumed", rows, floor=11)
+    assert document["columns"][0]["value_histogram"] == {}, (
+        "this witness needs the census withheld, so that what moves "
+        "the cells can only be the fact under test"
+    )
+
+    def counted(built: "dict", stem: str) -> "list[int]":
+        loaded = contract.load_profile(
+            str(fixtures.write_profile(tmp_path, stem, built))
+        )
+        return [
+            len(_cells_in(
+                generation.generate(loaded, seed),
+                lowest,
+                highest,
+                set(barred),
+            ))
+            for seed in SEEDS
+        ]
+
+    written = counted(document, "consumed-as-written.json")
+    blanked = copy.deepcopy(document)
+    blanked["columns"][0]["empty_bins"] = []
+    without = counted(blanked, "consumed-without.json")
+    assert written == [0] * len(SEEDS), written
+    assert min(without) >= 4 and max(without) <= 6, without
+
+
+def test_a_stratum_sharing_its_value_does_not_move() -> None:
+    """The sole-holder rule (G6.7.4, clause 6), driven directly.
+
+    Moving costs nothing only when the stratum VACATES what it leaves.
+    A stratum sharing its value vacates nothing, so a fresh value adds
+    a NUMBER and joining another stratum's value adds a SPELLING. Both
+    were measured on the floored witness of review item P3-V7-F4: the
+    twin wrote ten different spellings against a published nine and
+    `distinct.n_distinct` fell from HELD to an authorized deviation.
+
+    The same call that succeeds for a sole holder must answer None for
+    a sharing one, which is what this pins: one argument apart, so the
+    test cannot pass because the walk had nowhere to go anyway.
+    """
+    alone = generation._cleared_value(
+        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        True, {}, {}, False, _WIDTHS,
+    )
+    assert alone is not None
+    shared = generation._cleared_value(
+        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        False, {}, {}, False, _WIDTHS,
+    )
+    assert shared is None, shared
