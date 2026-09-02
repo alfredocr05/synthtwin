@@ -579,14 +579,51 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         # twenty. That census is REPORT-ONLY for exactly this reason,
         # and the twin's report NAMES it, which the line below asserts
         # rather than allowing this exclusion to hide a silence.
+        # AND THE EMPTY-BIN FACT IS A THIRD READING OF THE SAME
+        # CROWDING (plan P4-D32). This column holds eight different
+        # numbers between -59.5 and 52.75, so twenty-seven of its
+        # thirty-two bins hold nothing at all, and a stratum the ladder
+        # puts in one of them has almost nowhere to go: every value in
+        # the bin beside it is one another stratum already holds, or
+        # reads back the way another stratum's cell reads, or would
+        # cross zero. At two of the eight seeds here the move cannot be
+        # made -- and because a stratum of this column carries eleven
+        # cells, the sixteen and thirty-four CELLS that stay are the
+        # largest shortfall this fact has anywhere in the suite. That
+        # census is REPORT-ONLY for exactly this reason (residual
+        # R-P4-140) and the twin's report NAMES every one of them,
+        # which the loop below asserts rather than letting this
+        # exclusion hide a silence.
         other = [
             note
             for note in twin.deviations
             if note.fact not in (
-                "fraction_widths", "n_distinct_values", "field_widths"
+                "fraction_widths",
+                "n_distinct_values",
+                "field_widths",
+                "empty_bins",
             )
         ]
         assert other == [], seed
+        left = [
+            cell
+            for cell in twin.columns[0]
+            if cell != ""
+            and parsing.parse_number(cell) is not None
+            and parsing.histogram_bin(
+                parsing.parse_number(cell),
+                column["percentiles"]["min"],
+                column["percentiles"]["max"],
+            ) in set(column["empty_bins"])
+        ]
+        named = [
+            note for note in twin.deviations if note.fact == "empty_bins"
+        ]
+        assert bool(left) == bool(named), (
+            f"seed {seed}: {len(left)} cell(s) stand in a stretch the "
+            f"description says is empty and the report raised "
+            f"{len(named)} deviation(s) about it"
+        )
         assert [
             note for note in twin.deviations if note.fact == "field_widths"
         ], seed

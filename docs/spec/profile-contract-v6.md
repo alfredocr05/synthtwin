@@ -4618,10 +4618,10 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `parts` | | | | | | | | | | | | | | ● |
 | `separator` | | | | | | | | | | | | | | ● |
 
-**Seventy-one rows, one hundred and forty-four marked cells**, distributed
+**Seventy-two rows, one hundred and forty-seven marked cells**, distributed
 `empty` 0, `numeric_unrepresentable` 9, `constant` 5, `binary` 5,
 `categorical` 6, `long_tail_labels` 5, `datetime` 13, `time_of_day`
-5, `count` 17, `continuous` 17, `affixed_number` 24, `identifier` 6,
+5, `count` 18, `continuous` 18, `affixed_number` 25, `identifier` 6,
 `free_text` 6. The counts are stated so that a reader can check a
 column of the matrix against the role's own section without counting
 twice.
@@ -6581,6 +6581,16 @@ cannot be made, the twin's own report NAMES the stretch and the value,
 and `synthtwin validate` LISTS the fact with a sentence saying the
 twin keeps out of the stretches without being held to them. Upgrading
 the class is residual **R-P4-140**.
+
+**AND WHERE IT MEETS AN EXACT FACT IT GIVES WAY, which is what
+REPORT-ONLY means and is stated here rather than left to the method.**
+`docs/spec/generation-method-v1.md` G6.7.4 refuses a move that would
+cost `n_distinct` or `pad_widths` — a stratum that does not hold its
+value alone, and a move that would change a point-free value's figure
+count — because those two are EXACT-OBSERVABLE and this one is not.
+Both refusals were found by the suite rather than by review, on the
+floored witness of P3-V7-F4, and neither costs anything measurable on
+the corpus 7.11 was decided against.
 
 **Q20 DOES NOT REACH THE PRODUCER**, and that is stated rather than
 left to be found: it bounds the list against other published facts,

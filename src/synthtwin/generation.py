@@ -8935,6 +8935,7 @@ def _cleared_value(
     run: "tuple[int, int]",
     value: float,
     band: str,
+    sole: bool,
     spoken: "dict[str, int]",
     taken: "dict[float, int]",
     whole_column: bool,
@@ -8967,13 +8968,47 @@ def _cleared_value(
     handed the column two identical cells and took back the count of
     different values that `_apart_enough` had just met.
 
-    THE WRITTEN FORM IS KEPT. A value that carries no point moves to a
-    value that carries no point, and one that carries a point moves to
-    one that carries a point. `_pool_enough` puts the pooled cells of a
-    column on the strata whose values carry a point and `_whole_enough`
-    puts the point-free count on the ones that do not; a move that
-    changed which was which would take back the count those two passes
-    just met.
+    AND A STRATUM THAT DOES NOT HOLD ITS VALUE ALONE DOES NOT MOVE.
+    `sole` is that rule and a witness in the suite is what put it here.
+    Moving costs nothing only when the stratum VACATES what it leaves:
+    then one value goes and one arrives and the count stands. A stratum
+    sharing its value vacates nothing -- the other holder keeps it --
+    so whatever it does adds. A fresh value adds a NUMBER. Joining
+    another stratum's value adds a SPELLING, because the writing stage
+    then has two strata on one number and the leading-zero family
+    splits them. Both were measured on the floored witness of review
+    item P3-V7-F4, a column of nine different spellings at a floor of
+    eleven: the twin wrote TEN either way and `distinct.n_distinct`
+    fell from HELD to an authorized deviation.
+
+    SO THE EXACT FACT WINS AND THIS ONE GIVES WAY, which is the
+    ordering this repository takes everywhere: `n_distinct` is
+    EXACT-OBSERVABLE and `empty_bins` is REPORT-ONLY, so a move that
+    would cost the first is not made and the report names the stretch
+    instead.
+
+    THE WRITTEN FORM IS KEPT, AND SO IS THE FIGURE COUNT. A value that
+    carries no point moves to a value that carries no point, and one
+    that carries a point moves to one that carries a point;
+    `_pool_enough` puts the pooled cells of a column on the strata
+    whose values carry a point and `_whole_enough` puts the point-free
+    count on the ones that do not, so a move that changed which was
+    which would take back the count those two passes just met.
+
+    THE FIGURE COUNT IS THE SECOND HALF OF THAT, and the suite is what
+    put it here. A point-free cell is exactly as wide as its value, so
+    moving a stratum from one figure to two takes a carrier away from
+    the padded-width census: a value of 9 can be written `09` at a
+    published width of two and a value of 10 cannot. Measured on the
+    floored witness of review item P3-V7-F4, that is what a single
+    move cost -- the writing stage had one fewer cell able to wear a
+    leading zero at the published width, took one from another
+    stratum, and wrote one number two ways. The twin held ten
+    different spellings against a published nine and
+    `distinct.n_distinct` fell from HELD to an authorized deviation.
+    `n_distinct` and `pad_widths` are EXACT-OBSERVABLE and this fact is
+    REPORT-ONLY, so where they meet this one gives way and the report
+    names the stretch instead.
 
     NEVER ACROSS ZERO, which is the rule every sibling pass in this
     file keeps, so the counts of negative and zero values stand.
@@ -8999,7 +9034,10 @@ def _cleared_value(
     step = width / _CLEAR_STEPS
     if not math.isfinite(step) or not step > 0.0:
         return None
+    if not sole:
+        return None
     plainly = _carries_plainly(value, whole_column)
+    figures = _figure_count(value, whole_column) if plainly else 0
     for inward in range(_CLEAR_STEPS):
         if downward:
             found = under - step * (inward + 1)
@@ -9015,9 +9053,11 @@ def _cleared_value(
             continue
         if band == _BAND_POSITIVE and not found > 0.0:
             continue
-        if found in taken:
-            continue
         if _carries_plainly(found, whole_column) != plainly:
+            continue
+        if plainly and _figure_count(found, whole_column) != figures:
+            continue
+        if found in taken:
             continue
         clear = True
         for spelling in _spellings_of(found, widths, whole_column):
@@ -9173,7 +9213,7 @@ def _clear_enough(
     taken: "dict[float, int]" = {}
     spoken: "dict[str, int]" = {}
     for value in moved:
-        taken[value] = 1
+        taken[value] = taken[value] + 1 if value in taken else 1
         for spelling in _spellings_of(value, widths, facts.integer_valued):
             spoken[spelling] = 1
     # WHICH STRATA ARE IN WHICH STRETCH, gathered before anything moves
@@ -9266,12 +9306,17 @@ def _cleared_into(
     by calling a method on a value, so that the offline audit can trace
     every call it sees to an allowlisted name.
     """
+    # WHETHER THIS STRATUM HOLDS ITS VALUE ALONE, read from the tally
+    # the caller keeps: `taken` counts holders, so one means this
+    # stratum and nobody else.
+    sole = taken[moved[place]] <= 1
     found = _cleared_value(
         ends,
         barred,
         run,
         moved[place],
         layout.bands[place],
+        sole,
         spoken,
         taken,
         facts.integer_valued,
@@ -9292,8 +9337,12 @@ def _cleared_into(
                 "hold all leave free.",
             )
         ]
+    was = moved[place]
     moved[place] = found
-    taken[found] = 1
+    taken[was] = taken[was] - 1
+    if taken[was] < 1:
+        del taken[was]
+    taken[found] = taken[found] + 1 if found in taken else 1
     for spelling in _spellings_of(found, widths, facts.integer_valued):
         spoken[spelling] = 1
     return []

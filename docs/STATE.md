@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,292 collected / 52 skipped |
-| suite, before this landing | 4,266 collected / 52 skipped, measured on the second worktree at the commit this branched from (`7266c31`). The twenty-six new tests are `tests/test_p4d32_empty_bins.py`, of which eight were written against a SILENT mutant and one against a defect the suite itself found |
+| suite | 4,294 collected / 51 skipped. The whole-suite run that settled it read `4242 passed, 51 skipped in 1103.76s` at 4,293; the twenty-eighth test of `tests/test_p4d32_empty_bins.py` was written after it, against a rule that run's mutation battery found SILENT, and its own file is green |
+| suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L8): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
 
@@ -124,20 +124,22 @@ are still ahead. The gap list itself is at the foot of this page.
   1.0, 1.8 and 0.9. The phantom middle cluster is gone; what is left is
   a slightly fatter tail on each real cluster.
 
-  **THE MUTATION RUN, AND WHAT IT SENT BACK.** Twelve rules of the
+  **THE MUTATION RUN, AND WHAT IT SENT BACK.** Fifteen rules of the
   producer, the loader and method G6.7 were withdrawn one at a time
-  from the shipped tree and 542 tests over eight files run against
+  from the shipped tree and 614 tests over eleven files run against
   each. Six turned the suite red on the first pass and **six did
   not** — the nearer-edge choice, the spelling-distinctness rule, the
   kept written form, the spelling reading of the gathering step, the
-  zero-band exclusion and the sign band. Four of the six now have a
+  zero-band exclusion and the sign band. Five of those six now have a
   test written against their own mutant, driving the named function
-  rather than hoping a column can be found whose cells move; the
-  remaining two are **R-P4-141**, and one of them is silent for a
-  reason worth more than the gap: a column holding a zero has a real
-  value in the bin zero falls in, so that bin is never named empty and
-  the zero-band rule cannot fire on any description this producer
-  writes.
+  rather than hoping a column can be found whose cells move, and so do
+  the three rules added later. **Thirteen of fifteen are red; two are
+  R-P4-141**, and one of them is silent for a reason worth more than
+  the gap: a column holding a zero has a real value in the bin zero
+  falls in, so that bin is never named empty and the zero-band rule
+  cannot fire on any description this producer writes. The audit after
+  every run reported no file carrying the mutation marker and no file
+  differing from its original.
 
   **AND THE SUITE FOUND A DEFECT OF THIS LANDING'S OWN, which is the
   entry's last thing to say.** The producer and the loader disagreed
@@ -151,7 +153,22 @@ are still ahead. The gap list itself is at the foot of this page.
   quantitative block inside a grain, because a whole column of one
   number is read as a `constant` LABEL and publishes no such block;
   `test_a_column_whose_values_are_all_one_number_names_no_bin` is the
-  witness, at the grain the suite found it at.
+  witness, at the grain the suite found it at. It is **R-P4-142**,
+  closed here.
+
+  **AND THE SUITE FOUND A SECOND ONE, which is R-P4-143.** The move
+  could cost a column its exact spelling count two ways — a stratum
+  that does not hold its value alone vacates nothing when it moves,
+  and a move that changes a point-free value's figure count takes a
+  carrier away from the padded-width census. Measured either way on
+  the floored witness of review item P3-V7-F4, the twin wrote ten
+  different spellings against a published nine and
+  `distinct.n_distinct` fell from HELD to an authorized deviation.
+  `n_distinct` and `pad_widths` are EXACT-OBSERVABLE and this fact is
+  REPORT-ONLY, so method G6.7.4 refuses both moves now. Re-measured at
+  forty seeds after both refusals, **nothing else changed**: the three
+  columns still write no cell in a named stretch at either floor and
+  the battery still leaks on the same 119 runs of 1600.
 
 * **THE JOINED LANDING (L7) HAS LANDED: a grain inside a role is laid
   out by ITS OWN count of numbers, and the pairing walk moves every
