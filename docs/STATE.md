@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,259 collected / 52 skipped |
+| suite | 4,266 collected / 52 skipped |
 | suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none |
 
@@ -66,7 +66,7 @@ are still ahead. The gap list itself is at the foot of this page.
   strata where a plain column with the same numeric facts gets 11.
 
   **MEASURED before and after, through the real reader, producer,
-  loader, generator and validator, ten seeds each:**
+  loader, generator and validator, FORTY seeds each:**
 
   - **R-P4-40, a 400-row blood pressure** publishing 110 different
     readings over positions holding 13 and 9 different numbers: the
@@ -83,8 +83,10 @@ are still ahead. The gap list itself is at the foot of this page.
     (R-P4-119).
   - **R-P4-51, the 100-row three-position column**: pair (1,2)
     published −1.0, twin **+1.0**, the exact opposite → **−0.9922,
-    inside G12.9's window**, with all three pairs and all three
-    above-counts met at every seed. CLOSED.
+    inside G12.9's window**, with every above-count met at every one of
+    forty seeds and two of its three agreements missed at ONE seed
+    each. CLOSED. (A ten-seed reading said all three were met at every
+    seed; forty does not support it -- review round 1, item 4.)
   - **A battery of twelve three- and four-position columns, 540
     pairs**: agreements outside the window **387 → 188**, above-counts
     missed **259 → 0**; and of the 240 pairs between two EARLIER
@@ -146,6 +148,37 @@ are still ahead. The gap list itself is at the foot of this page.
   now. And a try short of the count proposes a row worth swapping
   (G6B.4a) rather than two at random, bounded at sixteen rows.
 
+  **REVIEW ROUND 1 REJECTED THIS LANDING WITH FIVE ITEMS AND EVERY ONE
+  WAS REAL** (amendment A-P4-49). The two the report above had flagged
+  as unmeasured were the two most wrong. A spelling budget is not a
+  count of numbers, so the budgets went back on the block's own counts
+  and only the DIVISION takes the grain's -- on both roles, because the
+  joined sibling shows it too. The objective could trade an exactly
+  checked cell for agreement margin nobody asked for, so an agreement
+  is scored only beyond the WHOLE window less half a unit at its
+  published precision, the walk refuses a swap that takes a conforming
+  pair out of its window unless an exact fact gains, and the stopping
+  rule is the obligations by name rather than a fixed distance that a
+  column of two thousand rows makes meaningless. "Every pair is aimed
+  at" was false where positions outnumber tries, so the ceiling is at
+  least the number of movers. Every comparison is re-taken at FORTY
+  seeds. And four passages still described the withdrawn behaviour, so
+  `tests/test_p4r1_withdrawn_claims.py` refuses them by their own
+  words.
+
+  **EIGHT MUTATIONS OVER THE ROUND'S OWN REPAIRS, SIX RED, TWO
+  SILENT.** The two are opened as **R-P4-126**, and the first matters:
+  the interior tie-break's scaling is what makes the no-trade guarantee
+  exact arithmetic, and replacing it with an unscaled term breaks the
+  bound while no test notices. What is unpinned there is the guarantee
+  the round asked for, not a preference.
+
+  **TWO OF THE TEN-SEED CLAIMS DID NOT SURVIVE FORTY**, which is the
+  whole of item 4's point: the battery's above-counts read "0 of 540"
+  and are 1 of 2,160, and R-P4-51's own column read "every pair met at
+  every seed" and misses at one seed of forty on two of its three
+  pairs. Both are corrected wherever they were written.
+
   **SIXTEEN MUTATIONS, THIRTEEN RED, THREE SILENT.** Each is one named
   rule withdrawn from the shipped generator or validator, run against
   nine files collecting 386 tests. Two that came back silent got a red
@@ -170,9 +203,9 @@ are still ahead. The gap list itself is at the foot of this page.
   cores and a joined position, which is how R-P4-112 was proved
   closed), **R-P4-120** (the values stage does not reach
   `n_distinct_values`: two strata can be given one number, and a plain
-  column met the count exactly in 21 of 40 runs), **R-P4-121** (a
+  column met the count exactly in 83 of 160 runs), **R-P4-121** (a
   three- or four-position column cannot reach every agreement target
-  at once — 188 of 540 pairs still outside the window), **R-P4-122**
+  at once — 665 of 2,160 pairs still outside the window), **R-P4-122**
   (a shuffled start throws away `part_above` and the ceiling does not
   always win it back — short at 28 of 40 seeds on a 400-row blood
   pressure, against 30 of 40 before, where a TEN-seed sample said the
@@ -953,7 +986,7 @@ one at another -- so an exact obligation looked like one met or missed
 BY THE SEED. (The overshoot is CLOSED by landing L7 of 2026-09-01:
 each position is laid out by its own count of different numbers now,
 and a 400-row repeating column publishing 110 different readings holds
-exactly 110 at every one of ten seeds where it held 157 to 169. The
+exactly 110 at every one of forty seeds where it held 157 to 169. The
 disposition stands as EXACT-OBSERVABLE for the reason the next
 paragraph gives, which was never about the generator.) And the twin's own report already prints "the description
 says 120 / the twin holds 119", so nothing seemed hidden.
@@ -2840,7 +2873,7 @@ list in on 2026-08-26:
    **PUBLISHED 2026-08-27 (plan P4-D4.9) and CONSUMED 2026-09-01
    (P4-D31, landing L7): it decides how many strata every grain inside
    a role is divided into. REPORT-ONLY, on the measurement in
-   R-P4-120 — a plain column met it exactly in 21 of 40 runs.**
+   R-P4-120 — a plain column met it exactly in 83 of 160 runs.**
 5. **The mode**, for columns where one value dominates. **PUBLISHED
    2026-08-27 (plan P4-D4.11), REPORT-ONLY until the generator carves
    its stratum.**

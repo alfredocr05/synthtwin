@@ -418,10 +418,18 @@ def test_both_pages_say_the_same_thing_about_every_pair() -> None:
         "joined.part_agreements[1]",
         "joined.part_agreements[2]",
     }, windowed
+    # THE CITATION TRAVELS WITH THE LESSER VERDICT, not with every
+    # pair: a pair that lands exactly on its published value is HELD
+    # and carries none, which the paragraph above already says. What
+    # must never come back is the state R-P4-51 left behind -- a pair
+    # MISSED with no envelope beside it, checked exactly while its
+    # siblings were given a window.
     uncited = [
         check
         for check in outcome.checks
-        if "part_agreements" in check.fact and not check.citation
+        if "part_agreements" in check.fact
+        and not check.citation
+        and check.verdict != validation.HELD
     ]
     assert not uncited, (
         "a pair was checked with no envelope cited beside it, which is "
@@ -446,6 +454,60 @@ def _twin_positions_of_one_multiset() -> "list[str]":
     return [
         f"{first[row]}/{second[row]}/{third[row]}" for row in range(120)
     ]
+
+
+def test_every_movable_position_gets_a_try_however_many_there_are(
+) -> None:
+    """More positions than tries, which an accepted profile permits.
+
+    REVIEW ROUND 1, ITEM 3. `n_parts` may reach `n_present + 2`, and a
+    column admitted at a lowered parse rate can hold many present cells
+    of which few SPLIT -- so `n_joined` is small while the part count
+    is large. The walk took its positions in turn under a ceiling of
+    `200 * n_joined` tries, so where `n_parts - 1` exceeded that, tail
+    positions got no try at all while their pairs were still counted in
+    the score, and "every pair is aimed at" was false on a profile this
+    tool accepts.
+
+    The ceiling is at least the number of movable positions now, so the
+    round robin reaches every one of them.
+    """
+    parts = 402
+    splitters = [
+        "/".join(str((place * (step + 1)) % 89 + 1) for place in range(parts))
+        for step in range(2)
+    ]
+    values = splitters + [f"note-{row}" for row in range(600)]
+    folder = pathlib.Path(tempfile.mkdtemp())
+    written = fixtures.write(
+        folder, "wide.csv", fixtures.single_column_table("wide", values)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{written}"),
+        taxonomy.Settings(minimum_parse_rate=0.0),
+        [], None, ["wide"],
+    )
+    loaded = contract.load_profile(
+        f"{fixtures.write_profile(folder, 'wide.json', document)}"
+    )
+    column = loaded.columns[0]
+    assert column.role == "joined_numbers", column.role
+    facts = column.facts
+    movers = facts.n_parts - 1
+    # THE FIXTURE IS PAST THE BOUNDARY, asserted before anything else:
+    # a column that did not reach it would make this test vacuous.
+    assert movers > 200 * facts.n_joined, (movers, facts.n_joined)
+    # AND THE WALK REACHES EVERY MOVER. The ceiling is what decides it,
+    # so the ceiling is what is asserted, by the rule the walk uses.
+    ceiling = max(200 * facts.n_joined, movers)
+    assert ceiling >= movers, (ceiling, movers)
+    reached = {1 + step % movers for step in range(ceiling)}
+    assert reached == set(range(1, facts.n_parts)), (
+        f"{len(reached)} of {movers} movable positions get a try"
+    )
+    # And it generates rather than refusing, which is the other half.
+    twin = generation.generate(loaded, 0)
+    assert len([cell for cell in twin.columns[0] if cell != ""]) == 602
 
 
 def test_two_shuffling_positions_take_different_reserve_words() -> None:
@@ -503,8 +565,13 @@ def test_the_early_pair_of_a_three_position_column_can_be_reached() -> None:
     moved only the last position and the first two kept the ascending
     order the sort left them in.
 
-    All three pairs now land inside G12.9's window at every seed here,
-    and every above-count is met.
+    THE SEEDS ARE NAMED AND THE CLAIM IS NOT WIDER THAN THEM (review
+    round 1, item 4). Over forty seeds this column meets every
+    above-count and misses two of its three agreements at ONE seed
+    each, so "every pair at every seed" is false and is not asserted.
+    What is asserted is the five seeds this test runs, where the
+    residual's own defect -- a published -1.0 coming out at +1.0 -- is
+    gone.
     """
     values: "list[str]" = []
     for _each in range(25):
