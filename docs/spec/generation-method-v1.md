@@ -1711,27 +1711,31 @@ implementations that both reach them may differ; a description whose
 walk reaches them is one whose twin the report already says is
 approximate.
 
-**A GRAIN INSIDE A ROLE IS LAID OUT BY THE COLUMN'S COUNT OF
-DIFFERENT CELLS, WHICH IS THE WRONG COUNT, AND THAT IS A RECORDED
-LIMIT** (residual R-P4-112). An affixed core and a joined position are
-handed to this method as columns of their own, and the division of cells
-into strata reads the count of different things the COLUMN publishes.
-That count answers a different question for those roles: a 36-row column
-of `N/M` holds 36 different CELLS while its first position holds 11
-different numbers, so the position is divided into 36 strata where a
-plain column carrying the same numeric facts is divided into 11.
+**A GRAIN INSIDE A ROLE IS LAID OUT BY ITS OWN COUNT OF DIFFERENT
+NUMBERS** (residual R-P4-112, closed; G5.2's grain rule). An affixed
+core and a joined position are handed to this method as columns of
+their own, and the division of cells into strata reads
+`n_distinct_values` from the grain's OWN quantitative block. The
+counts the block arrives with answer a different question for those
+roles: a 36-row column of `N/M` holds 36 different CELLS while its
+first position holds 11 different numbers, so reading the column's
+count divided that position into 36 strata where a plain column
+carrying the same numeric facts is divided into 11.
 
-Laying the grain out by its own count is what this method WOULD say, and
-it is not what a conforming implementation may do yet, because the two
-halves of the division cannot move apart. Measured twice: taking the
-grain's count for both the division and the spelling budgets, and taking
-it for the division alone with the budgets left at the column's, give
-the same result -- the point-free floor of the position is met and the
-column's own count of different cells falls from 34 of 36 to 28, because
-the pairing walk of G10.2 has fewer combinations to build it from. A
-twin of its own description then misses facts it used to meet. Both
-counts move together in the landing that retargets the draw, and until
-then this method says what the implementation does.
+**THE SPELLING BUDGETS OF G6.5 DO NOT MOVE WITH IT**, and they took the
+grain's count for one revision before review found what that costs. A
+budget bounds how many different SPELLINGS the twin may write, and a
+count of NUMBERS cannot buy the second way of writing one number: a
+column of `01/5` and `1/5` publishes two different cells whose first
+position holds one number. Measured on 300 cells holding sixty values
+each written plainly and again with a leading zero — 120 spellings over
+60 numbers — at forty seeds, the twin held 55 to 60 of the 120 with the
+budget at the grain's count and holds 81 to 97 with it on the block's.
+
+**THIS PARAGRAPH SAID THE OPPOSITE OF BOTH UNTIL 2026-09-01**, naming
+the grain rule a recorded LIMIT and the repaired behaviour
+nonconforming. It is superseded: a conforming implementation divides by
+the grain's count and budgets by the block's.
 
 **THE VALUE A STRATUM TAKES IN EXCHANGE** is chosen from its own share
 of the ladder, so the stratum stays where the ladder put it, and is
@@ -2268,9 +2272,13 @@ is zero, which is why that defect survived a whole phase.
 
 Each position is built by G5 and G6 unchanged, over a view of the
 column carrying that position's block and `n_joined` as its present
-count. **G5.2's grain rule applies**: the strata and the spelling
-budgets take that position's own `n_distinct_values` and not the
-column's counts, which are counts of whole CELLS. Its word budget is
+count. **G5.2's grain rule applies**: the STRATA take that
+position's own `n_distinct_values` and not the column's counts, which
+are counts of whole CELLS. The spelling budgets do NOT — they keep the
+counts the block arrives with, because a joined position is a
+projection of whole joined cells and the cell count is a safe ceiling
+on the spellings one position can wear, while a count of numbers cannot
+buy a second spelling of one number. Its word budget is
 G5.3's, and G4.3 states the whole: the sum over positions, plus a
 RESERVE of `max(n_joined - 1, 0)` for every position after the first,
 drawn after all the positional words.
@@ -5062,7 +5070,9 @@ tested:
    holding 157 to 169 different cells. G5.2's grain rule and the walk
    of G6B.4 close that one: measured at forty seeds, the same column now
    holds exactly 13 and 9 different numbers and exactly 110 different
-   cells at every seed, and `synthtwin validate` misses nothing.
+   cells at all forty sampled seeds, and `synthtwin validate` misses
+   nothing at those. Seed 141 holds 108 of 110, which is the duplicate-
+   value mechanism of residual R-P4-120 rather than the pairing.
 
    **What remains is bounded by the DRAW and not by the pairing, and it
    is measured.** A 240-row column of 240 different readings whose

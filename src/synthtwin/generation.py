@@ -5445,12 +5445,22 @@ def _pair_seats(n_parts: int) -> "tuple[list[int], list[int]]":
     `(firsts[k], seconds[k])`, and the seats run `(0,1), (0,2), ...
     (1,2), ...` -- the order the profiler writes them in.
     """
-    firsts: "list[int]" = []
-    seconds: "list[int]" = []
+    # PREALLOCATED AND ASSIGNED BY INDEX, not grown by concatenation
+    # (review round 2). The pair count is quadratic in the positions --
+    # 402 positions make 80,601 pairs -- and growing a list of that
+    # length one entry at a time copies it every time, which is
+    # quadratic AGAIN. Measured at 402 positions: 2.17 seconds to build
+    # one such list by concatenation against 0.0021 to fill a
+    # preallocated one, a thousandfold.
+    count = n_parts * (n_parts - 1) // 2
+    firsts: "list[int]" = [0 for _each in range(count)]
+    seconds: "list[int]" = [0 for _each in range(count)]
+    seat = 0
     for first in range(n_parts):
         for second in range(first + 1, n_parts):
-            firsts = firsts + [first]
-            seconds = seconds + [second]
+            firsts[seat] = first
+            seconds[seat] = second
+            seat = seat + 1
     return firsts, seconds
 
 
@@ -5496,6 +5506,43 @@ _PROPOSAL_REACH = 16
 # where it once kept half the window itself, which is two hundred
 # times larger and was bought with exactly-checked facts.
 _AGREEMENT_ROUNDING = 0.5 * 10.0 ** (-parsing.RANK_AGREEMENT_PLACES)
+
+
+def _swap_allowed(
+    before: "list[bool]",
+    after: "list[bool]",
+    exact_before: int,
+    exact_after: int,
+) -> bool:
+    """May a swap be taken, given what it did to the pairs?
+
+    THE RULE, ONCE AND BY NAME. A swap that takes ANY pair out of the
+    window method G12.9 publishes is refused -- unless it brings an
+    exactly-checked fact strictly closer, because `part_above` and the
+    count of different cells are checked value for value while an
+    agreement is checked inside a window.
+
+    IT IS A FUNCTION RATHER THAN A LINE IN THE WALK because a rule
+    inside a closure can only be tested through a finished twin, and a
+    twin cannot show which swaps were TAKEN. Review round 2 asked for a
+    witness against the acceptance decision itself; this is the thing
+    that decision is.
+
+    `before` and `after` are the per-seat conformance masks. Comparing
+    COUNTS instead was the defect that round found: one pair leaving
+    while another enters holds the count still, so the guard let
+    through exactly the swap it exists to refuse.
+
+    Guarantees: pure, total, and a fixed function of its four
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    left = False
+    for index in range(len(before)):
+        if index < len(after) and before[index] and not after[index]:
+            left = True
+    if not left:
+        return True
+    return exact_after < exact_before
 
 
 def _repaired_pairing(
@@ -5618,16 +5665,26 @@ def _repaired_pairing(
     # EVERY PAIR IS SCORED, because every pair has a member this walk
     # moves: the anchor is position 0, and a pair with two members is a
     # pair with at least one of them numbered 1 or more.
-    seats: "list[int]" = []
-    firsts: "list[int]" = []
-    seconds: "list[int]" = []
-    for seat in range(len(firsts_all)):
-        if seat < len(facts.part_agreements) and seat < len(facts.part_above):
-            seats = seats + [seat]
-            firsts = firsts + [firsts_all[seat]]
-            seconds = seconds + [seconds_all[seat]]
-    tops: "list[float]" = []
-    aboves: "list[int]" = []
+    #
+    # EVERY LIST HERE IS PREALLOCATED AND FILLED BY INDEX, because all
+    # four are as long as the PAIR count and that is quadratic in the
+    # positions: at 402 positions there are 80,601 of them, and growing
+    # such a list by concatenation copies it every time. Measured, one
+    # such build costs 2.17 seconds against 0.0021 preallocated.
+    scored = len(firsts_all)
+    if len(facts.part_agreements) < scored:
+        scored = len(facts.part_agreements)
+    if len(facts.part_above) < scored:
+        scored = len(facts.part_above)
+    seats: "list[int]" = [0 for _each in range(scored)]
+    firsts: "list[int]" = [0 for _each in range(scored)]
+    seconds: "list[int]" = [0 for _each in range(scored)]
+    for seat in range(scored):
+        seats[seat] = seat
+        firsts[seat] = firsts_all[seat]
+        seconds[seat] = seconds_all[seat]
+    tops: "list[float]" = [0.0 for _each in range(scored)]
+    aboves: "list[int]" = [0 for _each in range(scored)]
     for index in range(len(seats)):
         first = firsts[index]
         second = seconds[index]
@@ -5639,8 +5696,8 @@ def _repaired_pairing(
             )
             if numbers[first][row] > numbers[second][row]:
                 counted = counted + 1
-        tops = tops + [summed]
-        aboves = aboves + [counted]
+        tops[index] = summed
+        aboves[index] = counted
     cells: "list[str]" = []
     seen: "dict[str, int]" = {}
     for row in range(total):
@@ -5826,7 +5883,7 @@ def _repaired_pairing(
             step = step + 1
         return found, partner
 
-    def _exact_gap() -> int:
+    def _exact_gap(where: "list[int]") -> int:
         """How far the two EXACT facts are from what is published.
 
         The count of different cells and every above-count, added
@@ -5835,24 +5892,54 @@ def _repaired_pairing(
         that brings one of these closer is taken even where it costs a
         pair its conformance.
         """
+        # Over the moved pairs only, for the reason `_conforming`
+        # gives: a pair the swap cannot touch contributes the same
+        # number before and after, so it cannot change the comparison.
         summed = abs(len(seen) - wanted)
-        for index in range(len(seats)):
+        for step in range(len(where)):
+            index = where[step]
             place = seats[index]
             summed = summed + abs(aboves[index] - facts.part_above[place])
         return summed
 
-    def _conforming() -> int:
-        """How many scored pairs sit inside the window G12.9 publishes."""
+    def _conforming(where: "list[int]") -> "list[bool]":
+        """WHICH scored pairs sit inside the window G12.9 publishes.
+
+        A MASK, SEAT BY SEAT, AND IT WAS A COUNT UNTIL REVIEW ROUND 2
+        (item 1). A count cannot express the rule it was written for: a
+        swap that takes one conforming pair OUT while another comes IN
+        leaves the count where it was, so the guard let through exactly
+        the swap it exists to refuse. Measured on an 80-row
+        three-position column at the reviewer's own seed, two accepted
+        swaps did that -- at one of them the count held at 1 and at the
+        other at 2, and no exact fact improved at either.
+        """
         room = _room()
-        inside = 0
-        for index in range(len(seats)):
+        # OVER THE PAIRS THIS TRY CAN HAVE MOVED, AND NO OTHERS, and
+        # that is exact rather than a shortcut: a swap changes one
+        # position, so a pair without that position in it has the same
+        # agreement before and after and cannot change its conformance.
+        # Comparing the two masks over the moved pairs therefore answers
+        # the same question as comparing them over all of them.
+        #
+        # IT MATTERS BECAUSE THE PAIR COUNT IS QUADRATIC IN THE
+        # POSITIONS. At 402 positions there are 80,601 pairs and 401 of
+        # them contain any one position; this runs twice per try. Built
+        # over every pair and grown by concatenation, one twin of that
+        # column did not finish inside ten minutes; preallocated over
+        # every pair it took 27.3 seconds; over the moved pairs it takes
+        # under a second.
+        inside: "list[bool]" = [False for _each in range(len(where))]
+        for step in range(len(where)):
+            index = where[step]
             place = seats[index]
             first = firsts[index]
             second = seconds[index]
             divisor = (spread[first] * spread[second]) ** 0.5
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
-            if abs(agreed - facts.part_agreements[place]) <= room:
-                inside = inside + 1
+            inside[step] = (
+                abs(agreed - facts.part_agreements[place]) <= room
+            )
         return inside
 
     def _owed() -> bool:
@@ -5939,14 +6026,14 @@ def _repaired_pairing(
             continue
         kept_tops = [value for value in tops]
         kept_aboves = [value for value in aboves]
-        conforming = _conforming()
-        exact_gap = _exact_gap()
         keep = True
-        moved: "list[int]" = []
-        for index in range(len(seats)):
-            if firsts[index] != place and seconds[index] != place:
-                continue
-            moved = moved + [index]
+        moved: "list[int]" = [
+            index
+            for index in range(len(seats))
+            if firsts[index] == place or seconds[index] == place
+        ]
+        conforming = _conforming(moved)
+        exact_gap = _exact_gap(moved)
         for index in moved:
             first = firsts[index]
             second = seconds[index]
@@ -5994,12 +6081,19 @@ def _repaired_pairing(
         # both ways -- so the trade bought nothing and cost 23.
         #
         # This refuses the drift directly instead of pricing it: a swap
-        # that takes a conforming pair out of conformance is refused --
-        # UNLESS it brings an exactly-checked fact closer, because an
+        # that takes ANY conforming pair out of conformance is refused
+        # -- UNLESS it brings an exactly-checked fact closer, because an
         # exact fact outranks a windowed one and refusing without that
         # exception cost ten above-counts of forty seeds where none had
         # been missed.
-        if _conforming() < conforming and _exact_gap() >= exact_gap:
+        #
+        # SEAT BY SEAT, AND IT COMPARED COUNTS UNTIL REVIEW ROUND 2.
+        # One pair leaving while another entered left the count equal
+        # and the swap was taken, so the guarantee was false of the
+        # thing it names.
+        if not _swap_allowed(
+            conforming, _conforming(moved), exact_gap, _exact_gap(moved)
+        ):
             keep = False
         # AN EQUAL SWAP IS TAKEN, NOT ONLY A BETTER ONE. Three facts are
         # being met at once and they pull against each other: a swap

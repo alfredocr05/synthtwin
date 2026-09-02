@@ -23,7 +23,8 @@ exists).
 
   Measured end to end through all three commands over ten seeds, that
   column now holds exactly thirteen first numbers, nine second numbers
-  and a hundred and ten different readings at every seed, and
+  and a hundred and ten different readings at all forty seeds sampled,
+  and
   `synthtwin validate` reports nothing missed at all.
 
 - **And a cell holding THREE or more numbers now reproduces how every
