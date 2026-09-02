@@ -36,6 +36,7 @@ import random
 import tempfile
 
 import fixtures
+import pytest
 from synthtwin import (
     contract,
     generation,
@@ -454,6 +455,87 @@ def _twin_positions_of_one_multiset() -> "list[str]":
     return [
         f"{first[row]}/{second[row]}/{third[row]}" for row in range(120)
     ]
+
+
+def _review_round_two_column() -> "list[str]":
+    """The 80-row three-position column review round 2 built.
+
+    A producer case, not a forged description: the profiler emits
+    `joined_numbers` with `n_distinct` 80, agreements
+    `(0.8878, 0.1008, 0.0835)` and above-counts `(33, 40, 40)`.
+    """
+    generator = random.Random(20260904)
+    values: "list[str]" = []
+    for _row in range(80):
+        first = generator.randint(10, 60)
+        second = first + generator.randint(-12, 12)
+        third = generator.randint(1, 60)
+        values = values + [f"{first}/{second}/{third}"]
+    return values
+
+
+def test_the_swap_rule_is_per_pair_and_not_a_count() -> None:
+    """The guarantee round 1 added, held PER PAIR (round 2, item 1).
+
+    Round 1 refused a swap that takes a conforming pair out of the
+    window G12.9 publishes, unless an exactly-checked fact gains by it.
+    It compared COUNTS, and a count cannot express that rule: one pair
+    leaving while another enters holds the count still, so the guard
+    let through exactly the swap it exists to refuse. Measured on the
+    producer column of `_review_round_two_column` at seed 1 before the
+    repair, TWO accepted swaps did that -- one at a count of 1 and one
+    at 2, with no exact fact improving at either.
+
+    THIS IS THE DECISION ITSELF, not a finished twin: a twin cannot say
+    which swaps were taken, so the rule is a named function and this
+    drives it. The third case is the one that separates the two rules.
+    """
+    cases = (
+        ([True, True], [True, True], 0, 0, True),
+        ([False, False], [True, True], 1, 1, True),
+        ([True, False], [False, True], 1, 1, False),
+        ([True, False], [False, True], 1, 0, True),
+        ([True, True], [True, False], 2, 2, False),
+        ([True, True], [True, False], 2, 1, True),
+    )
+    for before, after, was, now, allowed in cases:
+        assert generation._swap_allowed(before, after, was, now) is allowed, (
+            before, after, was, now, allowed
+        )
+    before, after = [True, False], [False, True]
+    assert sum(before) == sum(after)
+    assert generation._swap_allowed(before, after, 1, 1) is False
+
+
+def test_the_walk_consults_the_swap_rule(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    """The rule above is the one the walk really uses.
+
+    A truth table proves nothing about a walk that never calls it, so
+    the function is REPLACED and the twin's own cells are watched.
+    """
+    _document, loaded, _folder, _table = _described(
+        _review_round_two_column()
+    )
+    column = loaded.columns[0]
+    assert column.role == "joined_numbers", column.role
+    assert column.n_distinct == 80, column.n_distinct
+    assert column.facts.part_agreements == (0.8878, 0.1008, 0.0835), (
+        column.facts.part_agreements
+    )
+    assert column.facts.part_above == (33, 40, 40), column.facts.part_above
+
+    honest = generation.generate(loaded, 1)
+    monkeypatch.setattr(
+        generation, "_swap_allowed",
+        lambda before, after, was, now: False,
+    )
+    refused = generation.generate(loaded, 1)
+    assert honest.columns[0] != refused.columns[0], (
+        "refusing every swap left the twin's cells unchanged, so the "
+        "pairing walk is not consulting `_swap_allowed`"
+    )
 
 
 def test_every_movable_position_gets_a_try_however_many_there_are(

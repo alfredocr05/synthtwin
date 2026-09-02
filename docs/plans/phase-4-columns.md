@@ -4710,9 +4710,17 @@ declaration for only one of them.
   forty. On the affixed role the count carries an authorized-deviation
   envelope wide enough to admit it -- 3 to 240 on this column -- so the
   quality report does NOT call it a miss, and the twin's own report
-  names it at forty seeds of forty. That difference between the two
-  roles' dispositions is recorded here rather than repaired: which of
-  them is right is a disposition question and an owner's.
+  names it at forty seeds of forty.
+
+  **TWO DIFFERENT THINGS SIT HERE AND THE FIRST WRITING OF THIS ENTRY
+  RAN THEM TOGETHER** (review round 2). The DISPOSITION difference --
+  one role's count exactly observable and the other's inside an
+  authorized envelope -- is genuinely owner-controlled, because the
+  contract delegates it, and which of the two is right is not this
+  landing's to settle. The inability to SPEND the budget is not an
+  ownership question at all: it is one implementation gap common to
+  both roles, it is what this residual is, and it would be closed the
+  same way whichever disposition the owner keeps.
 
   Closing it means the leading-zero family of owner decision 8 spending
   the whole budget it is given rather than part of it, which is the
@@ -4747,9 +4755,17 @@ declaration for only one of them.
   BETTER at what it describes and worse at what it detects, which is
   the shape a vacuity check exists to catch.
 
+  **AND REVIEW ROUND 2 ADDED ONE MORE TO THE LIST.** The oracle's
+  own copy of the no-trade rule was mutated back to a COUNT of
+  conforming pairs -- the very defect that round found in the shipped
+  code -- and no frozen case noticed. It cannot: `joined_readings` has
+  TWO positions, so it has one pair, and over one pair a mask and a
+  count say the same thing. The rule the round repaired is therefore
+  pinned in the shipped generator and in nothing frozen.
+
   Closing it means a second joined case: more than two positions, so
-  the anchor and the per-position start bite at all, and long enough
-  that the ceiling and the cursor are reached. Both new rules of the
+  the anchor, the per-position start and the per-pair mask bite at all,
+  and long enough that the ceiling and the cursor are reached. Both new rules of the
   three-position walk — which are what closed R-P4-51 — have no frozen
   case of any kind today, and that is the sharper half of this entry.
   Until then those rules are pinned by the mutation testing of the
@@ -5327,7 +5343,8 @@ declaration for only one of them.
     mechanism and not the overshoot. **Both closed 2026-09-01 by
     P4-D31**: a position is laid out by its own count of different
     numbers, and a 400-row repeating column publishing 110 different
-    readings holds exactly 110 at every one of forty seeds where it held
+    readings holds exactly 110 at all forty sampled seeds (seed 141 of
+    a wider sweep holds 108 -- R-P4-120) where it held
     157 to 169.
 
   * **A JOINED POSITION'S REPORT-ONLY FACTS ARE STILL LISTED NOWHERE**
@@ -9636,6 +9653,103 @@ position and no other" and "moves only the last position" were this
 author's paraphrase and were never in the shipped file. Four
 reinstatement mutants turn it red.
 
+## Amendment A-P4-50 — what review round 2 of landing L7 sent back (2026-09-01)
+
+Three items, all real, and one of them found a guarantee that was false
+of the thing it names.
+
+**1. HIGH — THE NO-TRADE GUARD COUNTED CONFORMING PAIRS INSTEAD OF
+IDENTIFYING THEM.** Amendment A-P4-49 added a rule: a swap may not take
+a conforming pair out of G12.9's window unless an exactly-checked fact
+gains by it. It compared COUNTS, and a count cannot express that rule
+-- one pair leaving while another enters holds the count still.
+
+**VERIFIED ON THE ROUND'S OWN PRODUCER CASE BEFORE ANYTHING WAS
+REPAIRED.** 80 rows from `Random(20260904)`, `a` in 10 to 60, `b` at
+`a` plus −12 to 12, `c` in 1 to 60, written `a/b/c` and declared a
+measurement: the producer emits `joined_numbers` with `n_distinct` 80,
+agreements `(0.8878, 0.1008, 0.0835)` and above-counts `(33, 40, 40)`
+-- every figure the round gave. At seed 1 the walk accepts 45 swaps,
+and **two of them take a conforming pair out of its window while the
+count holds and no exact fact improves**: accepted swap 7 (seat 3
+leaves, count 1 to 1) and accepted swap 14 (seat 1 leaves, count 2 to
+2). The round's own numbering pointed at accepted try 23 with different
+figures, which this tree does not reproduce; the DEFECT it describes is
+exactly there, at two other accepted swaps.
+
+**REPAIRED with a per-seat mask**, and the rule now lives in a named
+function, `_swap_allowed`, rather than inside the walk -- because a
+rule inside a closure can only be tested through a finished twin, and a
+twin cannot say which swaps were TAKEN. After the repair the same
+column at the same seeds accepts no such swap: every remaining case
+that takes a pair out has an exact fact strictly improving, which is
+the stated exception.
+
+**WHAT IT COSTS, measured at forty seeds through the real path.** On
+the round's own column, agreements missed go from 2 to 4 of 120
+pair-measurements; cells and above-counts stay at 0 missed. On the
+twelve-column battery the mask is slightly BETTER: 644 of 2,160
+agreements outside the window against 665, above-counts 1 either way.
+The guarantee is now true of the thing it names, and it is not free.
+
+**AND THE MASK WAS QUADRATIC IN THE POSITIONS, WHICH IS A DEFECT OF ITS
+OWN.** The pair count is quadratic in the part count -- 402 positions
+make 80,601 pairs -- and the first mask was grown by list
+concatenation, which copies the list every time. Measured at 402
+positions: **2.17 seconds to build one such list against 0.0021
+preallocated**, a thousandfold, and the boundary column of round 1's
+item 3 did not finish a single twin inside ten minutes. Two exact
+changes fixed it: every pair-length list is preallocated and filled by
+index, and the guard is evaluated over the pairs the swap CAN have
+moved rather than all of them -- exact, because a pair without the
+moved position in it has the same agreement before and after. **One
+twin of that column: over ten minutes, then 27.3 seconds, then 16.5.**
+
+Making `_away` itself incremental would go further and is NOT done: it
+would carry a running sum where the code recomputes one, and that
+changes bytes and invites the floating-point drift R-P4-126 already
+names. A boundary column is not worth moving every frozen vector for.
+
+**2. MEDIUM — THE WITHDRAWN-CLAIMS GUARD DID NOT SCAN THE GOVERNING
+DOCUMENTS.** It walked Python under `src/synthtwin` and
+`tools/reference` only, and three passages describing the withdrawn
+behaviour survived where a second implementer would read them: the
+method saying a grain is still divided by the cell count and that the
+repaired behaviour is nonconforming, the method saying both the strata
+AND the spelling budgets take `n_distinct_values`, and this plan still
+labelling the withdrawn budget split "THE RULE" after the amendment
+that withdrew it appears earlier in the same file. All three are
+corrected or superseded in place, and the guard now walks the method
+and the plan as well, with five document phrases tied to the text that
+really shipped at `21fe8c4`, `80f0ea7` or `7266c31`. Five
+reinstatement mutants turn it red.
+
+**FIVE MUTATIONS OVER THIS ROUND'S REPAIRS, FOUR RED, ONE SILENT.**
+Red: the mask reduced to a count again -- the round's own defect, now
+caught; the exact-fact exception; the guard being consulted at all; and
+the guard's restriction to the moved pairs, which turned red for the
+WRONG reason, because `moved` also drives the incremental update of
+`tops` and `aboves`. Re-run with that separated -- the update keeping
+`moved` and the guard handed every seat -- it is **SILENT**, which is
+the answer the exactness argument predicts: a pair without the moved
+position in it has the same agreement before and after, so including it
+cannot change the comparison. The restriction is an optimisation and
+its equivalence is measured rather than asserted.
+
+The one that stays silent is the ORACLE's copy of the rule, and it is
+added to R-P4-123: the only frozen joined case has two positions, so it
+has one pair, and over one pair a mask and a count are the same thing.
+
+**3. MEDIUM — "AT EVERY SEED" WAS A UNIVERSAL RESTING ON A SAMPLE.**
+Verified: on this plan's own `pressure_rows` producer, **generation
+seed 141 holds 108 different cells against 110 and 12 first-position
+numbers against 13**, and the twin's report names `n_distinct` and
+`n_distinct_folded`. A wider sweep finds two such seeds in 0 to 200:
+141 and 170. That is R-P4-120's duplicate-value mechanism rather than
+the pairing, and it disproves the universal reading of R-P4-40's
+closure. Every occurrence now reads "all forty sampled seeds" with
+R-P4-120 cited beside it.
+
 ## Decision P4-D31 — a grain inside a role is laid out by ITS OWN count of numbers, and the pairing walk moves every position (landing L7, 2026-09-01)
 
 **THE OWNER RULED IT IN AS "adds a key; retargets the draw", AND THE
@@ -9669,17 +9783,26 @@ missed `distinct.n_distinct` in the quality report. A person grouping
 rows by first number found three times as many groups as the real table
 had — which is R-P4-20's own sentence, at a grain nobody had looked at.
 
-**THE RULE.** For such a grain, and only for such a grain, the division
-AND the spelling budgets read `n_distinct_values` from the grain's own
-block (method G5.2, G6B.2, G6A.2). A plain numeric column is untouched:
-there the count on the block IS the column's own. The spelling budget
-moved too, and the first draft left it at the column's count: measured
-on the 36-row witness at seed 4, eleven strata against a budget of 36
-spellings wrote one value four ways — `1.5125`, `01.5125`, `001.5125`,
-`0001.5125` — for four cells in the decimal form where two are
-published. A count of numbers is a floor under a count of spellings, so
-using it under-supplies rather than over-supplies, which is the safe
-direction.
+**THE RULE AS THIS DECISION FIRST WROTE IT, AND IT IS SUPERSEDED.** It
+had BOTH the strata and the spelling budgets of such a grain reading
+its own count of different numbers. **Amendment A-P4-49 withdrew the
+budget half**: a budget buys the second way of writing one
+number and a count of numbers cannot pay for it, so only the DIVISION
+reads the grain's count and the budgets keep the counts the block
+arrives with. The argument recorded here for moving the budget — that a
+count of numbers is a floor under a count of spellings, so it
+under-supplies rather than over-supplies, which is the safe direction —
+is exactly the mistake, and it is quoted here only as far as its sense:
+under-supplying a budget is not safe, it is a spelling the twin cannot
+write. What the withdrawn half really bought
+was the suppression of extra leading-zero variants at one seed of the
+36-row witness, and a PLAIN column carrying the same numeric facts
+writes those variants too, which is residual R-P4-119.
+
+**What stands** is the division: for a grain inside a role, and only
+there, the strata count reads `n_distinct_values` from the grain's own
+block (method G5.2, G6B.2, G6A.2). A plain numeric column is untouched,
+because there the count on the block IS the column's own.
 
 **THAT ALONE MOVES THE DEFECT RATHER THAN CLOSING IT, which R-P4-112
 measured three times over and this landing did not rediscover.** With
@@ -9761,10 +9884,11 @@ BEFORE AND AFTER, TEN SEEDS EACH.**
 
 | column | fact | before | after |
 |---|---|---|---|
-| 400-row blood pressure, 110 different readings | different cells | 157–169 | **110 at every seed** |
-| the same | position 1's different numbers (13 published) | 34–41 | **13 at every seed** |
-| the same | position 2's different numbers (9 published) | 23–29 | **9 at every seed** |
-| the same | quality report | `distinct.n_distinct` missed 10 of 10 | **nothing missed at all** |
+| 400-row blood pressure, 110 different readings | different cells | 157–169 | **110 at all forty sampled seeds** |
+| the same | position 1's different numbers (13 published) | 34–41 | **13 at all forty** |
+| the same | position 2's different numbers (9 published) | 23–29 | **9 at all forty** |
+| the same | quality report | `distinct.n_distinct` missed 40 of 40 | **nothing missed at those forty** |
+| the same, OUTSIDE the sample | seed 141 | — | 108 cells of 110, 12 numbers of 13 — R-P4-120 |
 | 36-row `N/M` witness, position 1 | cells carrying a point (2 published) | 12–15 | 2 at the pinned seed |
 | the same | `number 1 styles.published.plain` (floor 34) | missed at 22 | met at the pinned seed |
 | 100-row three-position column | pair (1,2), published −1.0 | **+1.0** | −0.9922, inside the window |
@@ -9871,8 +9995,15 @@ one per position — and L7 does the second. Measured through the real
 path on a 400-row blood pressure publishing 110 different readings over
 positions holding 13 and 9 different numbers: the twin held **157 to
 169** different cells and positions of **34 to 41** and **23 to 29**
-across forty seeds, and now holds **110, 13 and 9 at every one of those
-seeds** with nothing missed in the quality report at all. On the wider
+across forty seeds, and now holds **110, 13 and 9 at all forty of those
+sampled seeds** with nothing missed in the quality report at those.
+**IT IS A SAMPLE AND NOT A UNIVERSAL** (review round 2, item 3): seed
+141 holds 108 different cells against 110 and 12 first-position numbers
+against 13, and seeds 0 to 200 hold two such seeds, 141 and 170. That
+is R-P4-120's duplicate-value mechanism rather than the pairing, the
+twin's own report names it, and the closure of this residual rests on
+the pairing reaching the count the DRAW allows -- not on a promise
+about every seed. On the wider
 column this residual was opened against — 400 rows spread over 71
 systolic and 51 diastolic values — see the entry below for what
 remains, which is R-P4-120's and not this one's.
