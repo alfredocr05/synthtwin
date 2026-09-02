@@ -5037,37 +5037,38 @@ def _numeric_layout(
             _counts_contradict(column.name, zeros, negatives, numbers)
         )
     notes: list[Deviation] = []
-    # THE SPELLING BUDGETS TAKE THE GRAIN'S COUNT TOO, and the first
-    # draft of landing L7 left them at the column's (residual
-    # R-P4-112). They bound how many different SPELLINGS the twin may
-    # write, and a position's own count of spellings is published
-    # nowhere -- but a count of NUMBERS is a floor under it, and
-    # handing a grain the count of the cells AROUND it is handing it a
-    # budget it has no numbers to spend. Measured on the 36-row `N/M`
-    # witness at seed 4: eleven strata against a budget of 36
-    # spellings wrote one value four ways -- `1.5125`, `01.5125`,
-    # `001.5125`, `0001.5125` -- for four cells in the decimal form
-    # where two are published, and the fraction width the census names
-    # for two cells reached none.
-    counted = column.n_distinct if grain_values is None else grain_values
-    folded = (
-        column.n_distinct_folded if grain_values is None else grain_values
-    )
-    raw_budgets = _budget_split(counted, counts)
-    folded_budgets = _budget_split(folded, counts)
+    # THE SPELLING BUDGETS STAY ON THE BLOCK'S OWN COUNTS, AND LANDING
+    # L7 MOVED THEM TO THE GRAIN'S BEFORE REVIEW ROUND 1 SENT THEM BACK
+    # (item 1). They bound how many different SPELLINGS the twin may
+    # write, and a count of NUMBERS is not a count of spellings: a
+    # column whose every value is written two ways holds twice as many
+    # spellings as numbers, and a budget of the numbers alone cannot
+    # buy the second way.
+    #
+    # MEASURED, on 300 cells holding sixty values each written plainly
+    # and again with a leading zero -- 120 different spellings, 60
+    # different numbers -- through the real path at forty seeds. With
+    # the budget at the grain's 60 the twin held **55 to 60** of the
+    # 120 published spellings: on the JOINED role, where both counts
+    # are EXACT-OBSERVABLE (P4-D29), `distinct.n_distinct` and
+    # `distinct.n_distinct_folded` missed at forty seeds of forty, and
+    # on the AFFIXED role the twin's own report named the same
+    # shortfall. It is not one role's corner: an affixed core has no
+    # pairing stage that could recover the variants, and a joined
+    # position's variants are the CELL's spellings just as much.
+    raw_budgets = _budget_split(column.n_distinct, counts)
+    folded_budgets = _budget_split(column.n_distinct_folded, counts)
     # HOW MANY STRATA IS A DIFFERENT QUESTION FROM HOW MANY SPELLINGS,
-    # AND THEY ARE ASKED SEPARATELY NOW (residual R-P4-112, closed by
-    # landing L7). For a grain inside another role they answer
-    # differently -- a 36-row column of `N/M` publishes 36 different
-    # CELLS while its first position holds 11 different NUMBERS, and a
-    # stratum holds a value, not a spelling. So the DIVISION takes the
-    # grain's own count of numbers where it has one, and the SPELLING
-    # budgets stay at the counts the block carries: a position's own
-    # count of different spellings is published nowhere, so lowering
-    # its budget would be a guess, and it was measured to carry
-    # nothing -- with the budgets left at 36 and only the division
-    # taking 11, the position's style floor is met exactly as it is
-    # with both moved.
+    # AND ONLY THE FIRST TAKES THE GRAIN'S COUNT (residual R-P4-112,
+    # closed by landing L7; narrowed by review round 1, item 1). For a
+    # grain inside another role the two answer differently -- a 36-row
+    # column of `N/M` publishes 36 different CELLS while its first
+    # position holds 11 different NUMBERS, and a stratum holds a VALUE,
+    # not a spelling. So the DIVISION takes the grain's own count of
+    # numbers where it has one. The budgets above do NOT, and moving
+    # them was the defect review round 1 found: a spelling budget is
+    # what buys the second way of writing one number, and a count of
+    # numbers cannot pay for it.
     divided = folded_budgets[0] if grain_values is None else grain_values
     values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
@@ -5280,17 +5281,24 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     inside an affixed column are built by exactly the code that builds
     a plain numeric column, and the pair is put on afterwards.
 
-    AND THE COUNT OF DIFFERENT THINGS IS STILL THE CELL'S, WHICH IS
-    WRONG AND IS NOT REPAIRED HERE (round 2, item 4; residual
-    R-P4-112). `_numeric_layout` divides the cells by `n_distinct` and
-    `n_distinct_folded`, which on the column itself count different
-    CELLS while the cores laid out below may hold far fewer different
-    numbers. Handing the grain its own count was built and MEASURED and
-    then withdrawn: it closes the style floor and costs the column's
-    distinct-cell count, because the pairing walk then has fewer
-    combinations to build that count from. Both are published facts, so
-    the two must move together, and they do in the landing that
-    retargets the draw. R-P4-112 carries the measurement.
+    THE COUNT OF DIFFERENT VALUES IS THE CORES' OWN, AND IT WAS THE
+    CELL'S UNTIL LANDING L7 (residual R-P4-112). `_numeric_layout`
+    divides a column into strata by a count of different things, and
+    the counts on this block are counts of whole CELLS -- a cell
+    reading `$1` and a cell reading `$01` are two of them and one
+    number -- so the cores were divided into more strata than they have
+    values. The caller hands `_numeric_layout` the quantitative block's
+    own `n_distinct_values` for that division.
+
+    THE SPELLING BUDGETS ARE STILL THE CELL'S, and that is deliberate
+    (review round 1, item 1). A budget bounds how many different
+    SPELLINGS the twin may write, an affixed cell's spelling is its
+    core's spelling with fixed text around it, and a count of NUMBERS
+    cannot buy a second way of writing one number. Measured on 300
+    cells holding sixty values each written two ways: with the budget
+    at the cores' 60 the twin held 55 to 60 of the 120 published
+    spellings, and with it on the cells' 120 it holds 81 to 97. An
+    affixed core has no pairing stage that could recover them.
     """
     facts = column.facts
     if not isinstance(facts, contract.AffixedFacts):
@@ -5350,20 +5358,23 @@ def _part_view(
     number in the twin are built by exactly the code that builds a
     plain numeric column. Nothing about the arithmetic is written twice.
 
-    AND THE COUNT OF DIFFERENT THINGS IS STILL THE CELL'S, WHICH IS
-    THE ROOT OF RESIDUAL R-P4-112 AND IS NOT REPAIRED HERE (round 2,
-    item 4). A 36-row column of `N/M` holds 36 different CELLS while its
-    first position holds 11 different numbers, and `_numeric_layout`
-    divides by the column's count: the position is laid out in 36 strata
-    where a plain column carrying the same numeric facts gets 11. That
-    is why the same walk reaches its point-free count on a plain column
-    and falls short through a joined position -- and NOT the pairing
-    step, which the first diagnosis blamed.
+    THE COUNT OF DIFFERENT VALUES IS THE POSITION'S OWN, AND IT WAS
+    THE CELL'S UNTIL LANDING L7 -- which is residual R-P4-112. A 36-row
+    column of `N/M` holds 36 different CELLS while its first position
+    holds 11 different numbers, and `_numeric_layout` divided by the
+    column's count: the position was laid out in 36 strata where a
+    plain column carrying the same numeric facts gets 11. That is why
+    the same walk reached its point-free count on a plain column and
+    fell short through a joined position -- and NOT the pairing step,
+    which the first diagnosis blamed. The caller hands
+    `_numeric_layout` `facts.parts[place].n_distinct_values`.
 
-    Handing the position its own count was built and MEASURED here and
-    then withdrawn, because it moves the defect rather than closing it:
-    see R-P4-112 for both numbers. The two published counts have to move
-    together, which is the landing that retargets the draw.
+    THE SPELLING BUDGETS ARE STILL THE COLUMN'S, and that is deliberate
+    (review round 1, item 1). Moving them with the division was a
+    defect of its own: a budget buys the second way of writing one
+    number, and a count of numbers cannot pay for it. A column of
+    `01/5` and `1/5` publishes two different cells whose first position
+    holds one number, and a budget of one can write only one of them.
     """
     facts = column.facts
     if not isinstance(facts, contract.JoinedFacts):
@@ -5473,10 +5484,18 @@ def _joined_would_write(
 #
 # SIXTEEN, AND THE CHOICE IS A MEASUREMENT recorded in the plan's
 # decision P4-D31 and in method G6B.4a: over the four columns of
-# `tools/measurements/r_p4_40_l7_joined.py` at ten seeds each the count
+# `tools/measurements/r_p4_40_l7_joined.py` at forty seeds each the count
 # of different cells held is flat from sixteen upward, while a reach of
 # sixty-four costs three times the running time.
 _PROPOSAL_REACH = 16
+
+# HALF A UNIT AT THE PRECISION AN AGREEMENT IS PUBLISHED TO (review
+# round 1, item 2). `parsing.RANK_AGREEMENT_PLACES` is 4, so a
+# published agreement carries at most this much uncertainty, and this
+# is the whole of the margin the walk keeps inside G12.9's window --
+# where it once kept half the window itself, which is two hundred
+# times larger and was bought with exactly-checked facts.
+_AGREEMENT_ROUNDING = 0.5 * 10.0 ** (-parsing.RANK_AGREEMENT_PLACES)
 
 
 def _repaired_pairing(
@@ -5630,16 +5649,27 @@ def _repaired_pairing(
         seen[text] = seen[text] + 1 if text in seen else 1
 
     def _room() -> float:
-        """How far a scored agreement may sit from its target and count.
+        """How far an agreement may sit from its target and cost nothing.
 
-        HALF the window method G12.9 publishes, and half of it for a
-        reason a measurement gave: the published agreement is rounded
-        to four places and the walk's own is not, so a bound met
-        EXACTLY is a bound a rounding can cross. At half the window a
-        pairing this walk settles for is inside the published one with
-        the same margin again to spare.
+        THE WHOLE WINDOW METHOD G12.9 PUBLISHES, less half a unit at
+        the precision the agreement is published to -- and it was HALF
+        that window until review round 1 (item 2). Half was chosen for
+        a rounding that is far smaller than half a window: an agreement
+        published to four decimal places carries at most `0.00005` of
+        uncertainty, not `0.01`. Sizing the margin at the rounding
+        instead is what the round asked for and what this returns.
+
+        WHY IT MATTERS THAT THE MARGIN IS SMALL. Anything inside this
+        distance is a fact the validator already accepts, so the walk
+        owes it nothing more -- and every unit of room BELOW the
+        published window is room the walk will buy with something else.
+        At half the window a swap moving an agreement from 0.019 to
+        0.015 cut the score by 0.004, which on a 400-row column is
+        worth more than one different CELL at 0.0025: the walk spent an
+        exactly-checked fact on margin nobody asked for. It cannot now,
+        because both of those agreements score zero.
         """
-        return parsing.RANK_AGREEMENT_WINDOW / 2.0
+        return parsing.RANK_AGREEMENT_WINDOW - _AGREEMENT_ROUNDING
 
     def _away() -> float:
         """How far this pairing is from every pairing fact published.
@@ -5666,18 +5696,34 @@ def _repaired_pairing(
         240 published readings with a fact it was never held to
         exactly already met a fiftieth of its window over.
 
+        THE WINDOW IS THE WHOLE ONE, and it was half of it until review
+        round 1 found the trade that leaves (item 2): any margin the
+        walk keeps below the published window is margin it will buy
+        with an exactly-checked fact. `_room` carries that reasoning.
+
         SO THE RAW GAP IS KEPT AS A TIE-BREAK AND NOTHING MORE. Inside
         the window the walk still prefers the closer agreement, because
         near-exactness is free where nothing is bought with it -- but
         the whole tie-break, over every pair at once, is worth less
-        than one different cell, so it can never again be spent on one.
+        than one different cell, so it can never be spent on one.
         """
         out = abs(len(seen) - wanted) / float(total)
         room = _room()
-        # The tie-break's own scale: a gap can be no more than 2, so
-        # this term over every pair together stays below one row of the
-        # column, which is what one different cell is worth.
-        tip = 1.0 / float(total * (len(seats) + 1) * 2) if seats else 0.0
+        # THE TIE-BREAK IS SCALED TO THE WINDOW, NOT TO THE WHOLE RANGE
+        # an agreement can take (review round 1, item 2, second pass).
+        # Its job is to steer INSIDE the window, where the term above
+        # is flat, and a tie-break spread over the full range from -1
+        # to 1 is a hundred times too shallow to do it: measured on a
+        # forged three-position column at forty seeds, flattening the
+        # interior without rescaling took the pairs landing outside the
+        # window from 87 of 120 to 115.
+        #
+        # THE BOUND IS WHAT MAKES IT SAFE, and it is exact: each pair
+        # contributes at most `tip`, so every pair together contributes
+        # less than `pairs / (T * (pairs + 1))`, which is strictly less
+        # than the `1 / T` one different CELL is worth. So the walk can
+        # prefer a closer agreement and can never buy one with a cell.
+        tip = 1.0 / float(total * (len(seats) + 1)) if seats else 0.0
         for index in range(len(seats)):
             place = seats[index]
             first = firsts[index]
@@ -5694,7 +5740,8 @@ def _repaired_pairing(
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
             gap = abs(agreed - facts.part_agreements[place])
             out = out + (gap - room if gap > room else 0.0)
-            out = out + gap * tip
+            inside = gap if gap < room else room
+            out = out + (inside / room) * tip if room > 0.0 else out
         return out
 
     def _proposed(one: int, two: int, place: int) -> "tuple[int, int]":
@@ -5707,7 +5754,8 @@ def _repaired_pairing(
         ceiling on swaps that move the count by nothing at all. It was
         measured: with the draw retargeted so that the numbers to make
         the count out of exist, a 240-row column publishing 240
-        different readings reached 158 to 184 of them across ten seeds.
+        different readings reached 158 to 184 of them across ten
+        seeds, and 176 to 211 across forty.
         The objective is NOT re-weighted here, because weighting the
         count in rows was built and measured and was worse at
         everything (see `_away`); what changes is which swaps are put
@@ -5778,13 +5826,91 @@ def _repaired_pairing(
             step = step + 1
         return found, partner
 
+    def _exact_gap() -> int:
+        """How far the two EXACT facts are from what is published.
+
+        The count of different cells and every above-count, added
+        together in rows. It decides when the drift refusal below gives
+        way: an exactly-checked fact outranks a windowed one, so a swap
+        that brings one of these closer is taken even where it costs a
+        pair its conformance.
+        """
+        summed = abs(len(seen) - wanted)
+        for index in range(len(seats)):
+            place = seats[index]
+            summed = summed + abs(aboves[index] - facts.part_above[place])
+        return summed
+
+    def _conforming() -> int:
+        """How many scored pairs sit inside the window G12.9 publishes."""
+        room = _room()
+        inside = 0
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            if abs(agreed - facts.part_agreements[place]) <= room:
+                inside = inside + 1
+        return inside
+
+    def _owed() -> bool:
+        """Is any published pairing fact still unmet?
+
+        THE STOPPING RULE IS THE OBLIGATIONS THEMSELVES, and it was a
+        fixed distance of `0.0005` until review round 1 (item 2). A
+        distance cannot serve: one different cell is worth `1 / T`, so
+        above about two thousand rows a whole missed cell costs LESS
+        than that threshold and the walk stopped with an exactly-checked
+        fact still missed -- at four thousand rows it could stop before
+        its first try. What the walk owes is not a small number; it is
+        three named facts, so it asks after each of them by name.
+
+        `part_above` and the count of different cells are exact; an
+        agreement is owed only where it lies outside the window G12.9
+        publishes, because inside it the validator holds the twin to
+        nothing more.
+        """
+        if len(seen) != wanted:
+            return True
+        for index in range(len(seats)):
+            place = seats[index]
+            if aboves[index] != facts.part_above[place]:
+                return True
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            # AT THE PRECISION THE AGREEMENT IS PUBLISHED TO, not at
+            # the window. Stopping at the window is not a trade -- the
+            # score is what could trade a cell for margin, and it does
+            # not -- but it leaves the walk idle while it could still
+            # be improving a fact a reader reads. Measured on a
+            # correlated 300-row blood pressure, stopping at the window
+            # left the twin agreeing at 0.8174 against a published
+            # 0.8343 where continuing reaches 0.8343.
+            if abs(agreed - facts.part_agreements[place]) > (
+                _AGREEMENT_ROUNDING
+            ):
+                return True
+        return False
+
     away = _away()
     tries = 0
     at = 0
     restarts = 0
-    ceiling = 200 * total
+    # EVERY POSITION THIS WALK MOVES GETS AT LEAST ONE TRY (review
+    # round 1, item 3). `n_parts` may reach `n_present + 2`, and a
+    # column admitted at a lowered parse rate can hold few joined cells
+    # beside many positions -- so `200 * total` tries could be fewer
+    # than the positions taken in turn, and a tail position would get
+    # no try at all while its pairs were still counted in the score.
+    # Claiming every pair is aimed at is only true if every position is
+    # reached, so the ceiling is at least the number of movers.
     movers = facts.n_parts - 1
-    while away > 0.0005 and tries < ceiling and len(words) >= 2:
+    ceiling = max(200 * total, movers)
+    while _owed() and tries < ceiling and len(words) >= 2:
         # WHICH POSITION THIS TRY MOVES, taken in turn and costing no
         # word. Drawing it would consume the reserve at a different
         # rate and rewrite every two-position column's cells for a
@@ -5813,6 +5939,9 @@ def _repaired_pairing(
             continue
         kept_tops = [value for value in tops]
         kept_aboves = [value for value in aboves]
+        conforming = _conforming()
+        exact_gap = _exact_gap()
+        keep = True
         moved: "list[int]" = []
         for index in range(len(seats)):
             if firsts[index] != place and seconds[index] != place:
@@ -5852,6 +5981,26 @@ def _repaired_pairing(
         for made in (made_one, made_two):
             seen[made] = seen[made] + 1 if made in seen else 1
         now = _away()
+        # AND A SWAP NEVER TAKES A PAIR OUT OF ITS OWN WINDOW (review
+        # round 1, item 2, third pass). Scoring an agreement only
+        # BEYOND the published window is what stops the walk buying
+        # margin with an exactly-checked cell -- but it leaves the
+        # inside of that window flat, and a walk that is indifferent
+        # there lets a pair drift across the edge and out. Measured on
+        # a forged three-position column at forty seeds, 120 pair
+        # measurements: flattening the interior took the pairs landing
+        # OUTSIDE the window from 87 to 110, and the count of different
+        # cells it was meant to protect was already met at every seed
+        # both ways -- so the trade bought nothing and cost 23.
+        #
+        # This refuses the drift directly instead of pricing it: a swap
+        # that takes a conforming pair out of conformance is refused --
+        # UNLESS it brings an exactly-checked fact closer, because an
+        # exact fact outranks a windowed one and refusing without that
+        # exception cost ten above-counts of forty seeds where none had
+        # been missed.
+        if _conforming() < conforming and _exact_gap() >= exact_gap:
+            keep = False
         # AN EQUAL SWAP IS TAKEN, NOT ONLY A BETTER ONE. Three facts are
         # being met at once and they pull against each other: a swap
         # that breaks a repeated cell often costs a little agreement and
@@ -5860,7 +6009,7 @@ def _repaired_pairing(
         # different readings at 276 while the agreement was already
         # right. Equal moves let the walk cross the ridge, and the try
         # ceiling is what stops it wandering.
-        if now <= away:
+        if keep and now <= away:
             away = now
             cells[one] = made_one
             cells[two] = made_two
@@ -5907,20 +6056,22 @@ def _joined_content(
     often the earlier stands above the later. Both are facts of the
     real column and both are walked toward here.
 
-    So the limit worth stating is the narrower true one: on the pairs
-    this walk MOVES the agreement is APPROXIMATED against the window of
-    method G12.9 rather than met, and on the pairs it does not move --
-    any pair between two earlier positions of a three-or-more-position
-    cell -- NO WINDOW is promised -- which is not the
-    same as no obligation: the published value is still a fact the twin
-    either carries or does not, and a miss is named as a miss on both
-    reports with no range beside it (residual R-P4-51; review item
-    P4-G3-R7-F4). Both are
-    named on both pages: the twin's own report and the quality report
-    (R-P4-42 and R-P4-44, closed 2026-08-27). This is also the one
-    place structure between two quantities is reproduced at all, and it
-    lives inside a cell: it says nothing about any other column, so the
-    one-column-wide bound stated in the brief is unaffected.
+    So the limit worth stating is the true one: EVERY pair's agreement
+    is APPROXIMATED against the window of method G12.9 rather than met.
+    The walk moved the LAST position and no other until landing L7, so
+    a pair between two earlier positions of a three-or-more-position
+    cell was moved by nothing and no window was promised for it
+    (residual R-P4-51, closed; review item P4-G3-R7-F4). Every position
+    but the first moves now, so every pair is aimed at and every pair
+    takes the window -- and aiming is not reaching: a pair outside the
+    window is a MISS named on both pages with the achieved value beside
+    the published one, which is what R-P4-121 records.
+
+    Both are named on both pages: the twin's own report and the quality
+    report (R-P4-42 and R-P4-44, closed 2026-08-27). This is also the
+    one place structure between two quantities is reproduced at all,
+    and it lives inside a cell: it says nothing about any other column,
+    so the one-column-wide bound stated in the brief is unaffected.
     """
     column = plan.column
     facts = column.facts
@@ -17703,12 +17854,12 @@ def _agreement_approximations(
     not an approximation of anything, and the twin's report named such
     a pair as a plain deviation instead. The walk now moves every
     position but the first, so every pair has a member it moves and
-    every pair is aimed at: measured over 540 pairs of a twelve-column
-    battery of three- and four-position columns at ten seeds, 240 of
-    them between two earlier positions, every one of those 240 came out
-    further from its published value than the window before and 106 of
-    them do now, while their above-counts went from 236 missed of 240
-    to none.
+    every pair is aimed at: measured over 2,160 pairs of a
+    twelve-column battery of three- and four-position columns at forty
+    seeds, 960 of them between two earlier positions, every one of
+    those 960 came out further from its published value than the window
+    before and 407 of them do now, while their above-counts went from
+    945 missed of 960 to one.
 
     So the branch that named such a pair as a deviation with no window
     is gone rather than left standing, because a branch nothing can

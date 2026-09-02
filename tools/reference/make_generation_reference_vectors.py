@@ -385,6 +385,9 @@ EXACT = "exact"
 # from `src/`.
 RANK_AGREEMENT_WINDOW = 0.02
 PROPOSAL_REACH = 16
+# Half a unit at the precision an agreement is published to, which is
+# four decimal places (G6B.4 steps 4 and 5).
+AGREEMENT_ROUNDING = 0.00005
 
 # The key that wraps every proved number.  It is a promise about the
 # type as well as a place to hang the exact value on: what sits under it
@@ -4509,7 +4512,13 @@ def _numeric_content(column):
             "contradict, refused before any cell is generated"
         )
     folded_budget = numbers_class_budget(column, column["n_distinct_folded"])
-    values_wanted = min(numeric, folded_budget)
+    # G5.2's grain rule: a grain inside a role divides by its own count
+    # of different NUMBERS, while the spelling budgets above keep the
+    # counts the block arrived with.
+    divided = column.get("_grain_values")
+    values_wanted = min(
+        numeric, folded_budget if divided is None else divided
+    )
     # THE HUNDRED AND ONE RUNGS IN PERCENT ORDER (method G5.3 at
     # revision 2, plan P4-D4.10). The named eleven and the ninety
     # between them are one ladder, and a column of numbers interpolates
@@ -5041,8 +5050,10 @@ def joined_part_view(column, place):
     position arrives with are counts of whole CELLS -- a 36-row column
     of `N/M` publishes 36 different cells while its first position
     holds 11 different numbers -- and a stratum holds a value.  So the
-    division and the spelling budgets both read `n_distinct_values`
-    from the position's own block.
+    division reads `n_distinct_values` from the position's own block.
+    THE SPELLING BUDGETS DO NOT: a budget buys the second way of
+    writing one number, and a count of numbers cannot pay for it, so
+    they keep the counts the block arrives with.
     """
     view = dict(column)
     view.update(column["parts"][place])
@@ -5051,9 +5062,8 @@ def joined_part_view(column, place):
     view["n_not_numeric"] = 0
     view["n_out_of_range"] = 0
     view["n_contradictory"] = 0
-    view["n_distinct"] = column["parts"][place]["n_distinct_values"]
-    view["n_distinct_folded"] = view["n_distinct"]
-    if view["n_distinct"] < 1:
+    view["_grain_values"] = column["parts"][place]["n_distinct_values"]
+    if view["_grain_values"] < 1:
         raise AssertionError(
             "a position reached the numeric machinery with no count of "
             "different numbers: G5.2's grain rule would divide it into "
@@ -5227,8 +5237,8 @@ def repaired_pairing(drawn, column, wanted, words):
         text = joined_cell(held, column, row)
         cells.append(text)
         seen[text] = seen.get(text, 0) + 1
-    room = RANK_AGREEMENT_WINDOW / 2.0
-    tip = 1.0 / float(total * (len(seats) + 1) * 2) if seats else 0.0
+    room = RANK_AGREEMENT_WINDOW - AGREEMENT_ROUNDING
+    tip = 1.0 / float(total * (len(seats) + 1)) if seats else 0.0
 
     def distance():
         """STEP 4, and an agreement is scored OUTSIDE its own window.
@@ -5249,8 +5259,48 @@ def repaired_pairing(drawn, column, wanted, words):
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
             gap = abs(agreed - _field_value(agreements[place]))
             out = out + (gap - room if gap > room else 0.0)
-            out = out + gap * tip
+            inside = gap if gap < room else room
+            out = out + (inside / room) * tip
         return out
+
+    def conforming():
+        """How many pairs sit inside the window G12.9 publishes."""
+        count = 0
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            if abs(agreed - _field_value(agreements[place])) <= room:
+                count = count + 1
+        return count
+
+    def exact_gap():
+        """The two EXACT facts' distance from what is published."""
+        summed = abs(len(seen) - wanted)
+        for index in range(len(seats)):
+            place = seats[index]
+            summed = summed + abs(aboves[index] - above_targets[place])
+        return summed
+
+    def owed():
+        """Is any published pairing fact still unmet?  Step 5."""
+        if len(seen) != wanted:
+            return True
+        for index in range(len(seats)):
+            place = seats[index]
+            if aboves[index] != above_targets[place]:
+                return True
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            if abs(agreed - _field_value(agreements[place])) > (
+                AGREEMENT_ROUNDING
+            ):
+                return True
+        return False
 
     def would_write(row, place, text):
         """The cell `row` would hold if position `place` held `text`."""
@@ -5310,8 +5360,9 @@ def repaired_pairing(drawn, column, wanted, words):
     at = 0
     restarts = 0
     movers = n_parts - 1
-    ceiling = 200 * total
-    while away > 0.0005 and tries < ceiling and len(words) >= 2:
+    # Step 5: at least one try for every movable position.
+    ceiling = max(200 * total, movers)
+    while owed() and tries < ceiling and len(words) >= 2:
         place = 1 + tries % movers
         tries = tries + 1
         # STEP 5's cursor: it starts again inside the reserve, ONE WORD
@@ -5328,6 +5379,8 @@ def repaired_pairing(drawn, column, wanted, words):
             continue
         kept_tops = list(tops)
         kept_aboves = list(aboves)
+        kept_conforming = conforming()
+        kept_exact = exact_gap()
         moved = [
             index
             for index in range(len(seats))
@@ -5363,8 +5416,12 @@ def repaired_pairing(drawn, column, wanted, words):
         for made in (made_one, made_two):
             seen[made] = seen.get(made, 0) + 1
         now = distance()
+        # A swap never takes a pair out of its window unless an
+        # exactly-checked fact gains by it (step 5).
+        keep = not (conforming() < kept_conforming
+                    and exact_gap() >= kept_exact)
         # AN EQUAL SWAP IS TAKEN, not only a better one.
-        if now <= away:
+        if keep and now <= away:
             away = now
             cells[one] = made_one
             cells[two] = made_two
@@ -5402,8 +5459,11 @@ def affixed_core_view(column):
     grain rule.  The counts an affixed column publishes are counts of
     whole CELLS, and a cell wearing an affix can differ from another
     while their cores hold one number -- so the division and the
-    spelling budgets read `n_distinct_values` from the quantitative
-    block, which answers for the cores.
+    division reads `n_distinct_values` from the quantitative block,
+    which answers for the cores.  THE SPELLING BUDGETS DO NOT: an
+    affixed cell's spelling is its core's spelling with fixed text
+    around it, so the cells' count IS the cores' count, and a count of
+    numbers cannot buy a second way of writing one number.
     """
     core = dict(column)
     core["n_numeric"] = column["n_core_numeric"]
@@ -5411,9 +5471,8 @@ def affixed_core_view(column):
     core["n_out_of_range"] = column["n_core_out_of_range"]
     core["n_contradictory"] = column["n_core_contradictory"]
     core["n_present"] = column["n_affixed"]
-    core["n_distinct"] = column["n_distinct_values"]
-    core["n_distinct_folded"] = core["n_distinct"]
-    if core["n_distinct"] < 1:
+    core["_grain_values"] = column["n_distinct_values"]
+    if core["_grain_values"] < 1:
         raise AssertionError(
             "an affixed column reached the numeric machinery with no "
             "count of different numbers: G5.2's grain rule would "
@@ -6807,14 +6866,15 @@ GIVEN_WORDS = {
     # budget and its whole budget: the role consumes no content word,
     # so every cell of the twin is fixed by published counts and these
     # decide only the ORDER the rows come out in.
-    # THIRTY-TWO WORDS, and there were forty-two until landing L7.
+    # THIRTY-TWO WORDS, and there were forty-two before landing L7.
     # The budget of G4.3 is the sum over positions of what each
-    # draws, and a position draws by its own stratum count -- which
-    # G5.2's grain rule now takes from the position's own
+    # draws, and a position draws by its own STRATUM count -- which
+    # G5.2's grain rule takes from the position's own
     # `n_distinct_values`, nine and five here, where it took the
-    # whole cell's twelve.  These are the first thirty-two of the
-    # same stream: nothing was chosen, the tail was simply no
-    # longer drawn.
+    # whole cell's twelve. The SPELLING budgets moved with it for
+    # one revision and review round 1 put them back; they are not
+    # read by the draw budget at all, so this count did not move
+    # again. These are the first thirty-two of the same stream.
     "joined_readings": (
         15748752049046439706, 1052754991355682497, 4631623576966815744,
         12064659840558517754, 10657191057255707380, 10378248564851026865,
@@ -7037,8 +7097,14 @@ def word_budget(column, rows):
         negatives = column["n_negative"] - column["n_negative_unrepresentable"]
         zeros = column["n_zero"]
         positives = numeric - negatives - zeros
+        # G5.2's grain rule: a grain inside a role divides by its own
+        # count of different NUMBERS.  The SPELLING budgets are not
+        # read here at all, and they are what keeps the block's counts.
+        divided = column.get("_grain_values")
         values = min(
-            numeric, numbers_class_budget(column, column["n_distinct_folded"])
+            numeric,
+            numbers_class_budget(column, column["n_distinct_folded"])
+            if divided is None else divided,
         )
         # G5.2's carrier step moves cells between strata of one band and
         # changes neither how many strata there are nor which band each

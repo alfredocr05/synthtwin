@@ -555,8 +555,20 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # decision, every made-up spelling and the writer's own byte rules, all
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
-# RE-RECORDED 2026-09-01 for landing L7 (plan decision P4-D31), and the
-# difference was read column by column before anything was written.
+# RE-RECORDED TWICE ON 2026-09-01: once for landing L7 (plan decision
+# P4-D31) and again for that landing's first review round (amendment
+# A-P4-49). The SECOND re-recording was read column by column against
+# the first: the word count is unchanged at 4,873, THIRTEEN OF THE
+# FOURTEEN columns are byte-identical, and the fourteenth is `pressure`
+# again. Its 240 readings are all different on both sides, which is the
+# obligation contract 9.8 puts on it, and its positions hold 101 and 83
+# different numbers on both. What moved inside it is the pairing: the
+# walk no longer scores an agreement inside the window the validator
+# accepts, refuses a swap that takes a pair out of that window unless
+# an exact fact gains, and stops on the obligations by name rather than
+# on a fixed distance.
+#
+# The account of the FIRST re-recording, which still holds:
 # GOLDEN_DESCRIPTION_SHA256 ABOVE DID NOT MOVE, so the producer is
 # untouched and what changed is what the generator makes of the same
 # bytes. THIRTEEN OF THE FOURTEEN COLUMNS ARE BYTE-IDENTICAL and the
@@ -573,7 +585,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # collide. The count of different CELLS -- the fact `synthtwin validate`
 # checks exactly -- is 240 of 240 on both sides.
 GOLDEN_TWIN_SHA256 = (
-    "59530dd918008ff6d986602b09ca86dedad4a20f3c273d3b95842d763cf39c5c"
+    "808eeca54b6e30e23e5e381b6b8d07c6017a984d6cd1e7b442f0b0c23b490d03"
 )
 
 
@@ -871,7 +883,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # recorded and it says no less than it did -- the same facts, the same
 # order, with the joined column's achieved numbers restated.
 GOLDEN_REPORT_SHA256 = (
-    "d3fbbc4b455b7f549dc0ced43fc3baeda6a75a94f16f65159fe7e79a803f97b3"
+    "f6dbf754fe9615c92450a363f207109f62bee5fc4925d2dc8566a4d8c026905f"
 )
 
 
@@ -1283,7 +1295,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # verdicts are unchanged in kind -- no obligation left the census and
 # none was lowered.
 GOLDEN_QUALITY_SHA256 = (
-    "e364c84d48660106738a4cb22ae8e42134cceae80e8b0754757980bfc353da8f"
+    "cfd3c3f9d4a134d91e375645f00b7391acc9579a8b6f4a1742100c95cffd3a98"
 )
 
 

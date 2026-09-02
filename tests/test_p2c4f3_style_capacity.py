@@ -1372,43 +1372,58 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
         assert any(one != int(one) for one in numbers), (seed, firsts[:6])
 
 
-def test_a_grain_spends_no_more_spellings_than_it_has_numbers(
+def test_a_grain_can_still_write_every_spelling_its_cells_wear(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The SPELLING budgets take the grain's own count too (R-P4-112).
+    """The SPELLING budgets are the block's, not the grain's (item 1).
 
-    `_numeric_layout` bounds how many different spellings the twin may
-    write by the distinctness counts it is handed, and a grain inside a
-    role arrives carrying the counts of the CELLS around it. A position
-    holding eleven different numbers with a budget of thirty-six
-    spellings has twenty-five spellings to spend and no numbers to
-    spend them on, so it writes one value several ways: measured on
-    this column at one seed, `1.5125`, `01.5125`, `001.5125` and
-    `0001.5125` -- four cells in the decimal form where two are
-    published, and a fraction width the census names for two cells
-    reached by none.
+    THIS FILE ASSERTED THE OPPOSITE UNTIL REVIEW ROUND 1, and the
+    assertion is inverted here rather than deleted. Landing L7 gave a
+    grain inside a role its own count of different NUMBERS for the
+    strata AND for the spelling budgets. The strata half is right -- a
+    stratum holds a value. The budget half is not: a budget is what
+    buys the SECOND way of writing one number, and a count of numbers
+    cannot pay for it.
 
-    A position's own count of SPELLINGS is published nowhere, so the
-    budget takes its count of NUMBERS, which is a floor under it. The
-    bound below is exactly that: no more different spellings than the
-    block says there are different numbers.
+    MEASURED on 300 cells holding sixty values, each written plainly
+    and again with a leading zero -- 120 different spellings over 60
+    different numbers -- at forty seeds through the real path. With the
+    budget at the grain's 60 the twin held **55 to 60** of the 120
+    published spellings; with it back on the block's 120 it holds **81
+    to 97**. On the JOINED role, where both counts are
+    EXACT-OBSERVABLE, `distinct.n_distinct` missed at forty seeds of
+    forty either way, and the shortfall is smaller now. The remainder
+    is residual R-P4-125.
+
+    The bound asserted is the one that fails on the withdrawn rule: a
+    grain whose cells wear more spellings than the grain has numbers
+    must write more spellings than it has numbers.
     """
-    _document, loaded = _joined_witness(tmp_path)
+    values: "list[str]" = []
+    for number in range(1, 61):
+        values = values + [f"{number}/5"] * 3 + [f"0{number}/5"] * 2
+    _document, loaded = _described(tmp_path, values, ["amount"])
     column = loaded.columns[0]
+    assert column.role == "joined_numbers", column.role
     published = column.facts.parts[0].n_distinct_values
-    assert published == 11, published
-    # THE OUTER COUNT IS LARGER, asserted so the bound is not vacuous:
-    # if the cell count ever equalled the position's, this would hold
-    # whichever count the budget took.
-    assert column.n_distinct > published, (column.n_distinct, published)
+    assert published == 60, published
+    # THE CELLS WEAR MORE SPELLINGS THAN THE GRAIN HAS NUMBERS, which
+    # is what makes the bound below non-vacuous.
+    assert column.n_distinct == 120, column.n_distinct
+    reached = 0
     for seed in SEEDS:
         twin = generation.generate(loaded, seed)
         spellings = {
             cell.split("/")[0] for cell in twin.columns[0] if cell != ""
         }
-        assert len(spellings) <= published, (
-            seed, published, sorted(spellings),
-        )
+        if len(spellings) > published:
+            reached = reached + 1
+    assert reached == len(SEEDS), (
+        f"the first position wrote no more than its {published} "
+        f"different NUMBERS at {len(SEEDS) - reached} of "
+        f"{len(SEEDS)} seeds, so it cannot reach the "
+        f"{column.n_distinct} different spellings its cells wear"
+    )
 
 
 def test_the_grain_is_laid_out_the_way_a_PLAIN_column_of_it_would_be(
