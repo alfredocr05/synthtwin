@@ -505,15 +505,24 @@ for such a grain,
 F_num = n_distinct_values of the grain's own quantitative block
 ```
 
-for the division here AND for the spelling budgets of G6.5. The block
-publishes that count for every numeric grain (contract 6.7), it is the
-count of different NUMBERS rather than of spellings, and a count of
-numbers is a floor under a count of spellings — so using it as the
-spelling budget under-supplies rather than over-supplies, which is the
-safe direction. Measured on the witness above: with the budget left at
-the column's 36 the twin wrote one value four ways — `1.5125`,
-`01.5125`, `001.5125`, `0001.5125` — for four cells in the decimal
-form where two are published.
+**for the division here AND FOR NOTHING ELSE.** The spelling budgets of
+G6.5 keep the counts the block arrives with, which are the counts of
+whole CELLS.
+
+**AND THIS SENTENCE SAID THE OPPOSITE FOR ONE REVISION.** A count of
+NUMBERS is not a count of spellings, and a spelling budget is precisely
+what buys the SECOND way of writing one number: an affixed cell's
+spelling is its core's spelling with fixed text around it, so the
+cells' count IS the cores' count, and a joined position's variants are
+the cell's spellings just as much. Measured on 300 cells holding sixty
+values, each written plainly and again with a leading zero — 120
+different spellings over 60 different numbers — at forty seeds through
+the real path: with the budget at the grain's 60 the twin held 55 to 60
+of the 120 published spellings, and with it on the cells' 120 it holds
+81 to 97. On the joined role, where both counts are exactly observable,
+the shortfall is a reported MISS at forty seeds of forty either way.
+An affixed core has no pairing stage that could recover the variants at
+all.
 
 A plain numeric column is unaffected: there the count on the block IS
 the column's own, and `n_distinct_folded` divides it exactly as it
@@ -2373,15 +2382,16 @@ positions are perfectly anti-correlated, published `-1.0`:
 | (2,3) | −1.0 | −0.144 | −0.9922 |
 
 and over a wider battery — twelve columns of three and four positions,
-ten seeds, 540 pairs of which 240 are between two EARLIER positions:
+FORTY seeds, 2,160 pairs of which 960 are between two EARLIER
+positions:
 
 | | before | now |
 |---|---|---|
-| agreements outside G12.9's window | 387 of 540 | 188 of 540 |
-| above-counts missed | 259 of 540 | **0 of 540** |
-| early pairs outside the window | **240 of 240** | 106 of 240 |
-| early pairs' above-counts missed | 236 of 240 | **0 of 240** |
-| widest agreement gap | 1.0545 | 0.2090 |
+| agreements outside G12.9's window | 1,560 of 2,160 | 665 of 2,160 |
+| above-counts missed | 1,038 of 2,160 | **1 of 2,160** |
+| early pairs outside the window | **960 of 960** | 407 of 960 |
+| early pairs' above-counts missed | 945 of 960 | 1 of 960 |
+| widest agreement gap | 1.0546 | 0.2433 |
 
 **What is still bounded, stated rather than implied.** Aiming at a pair
 is not reaching it: 188 of those 540 agreements still land outside
@@ -2410,14 +2420,16 @@ measuring it was how the false claim got in. Either convention is
 conforming provided its middle matches it. Then:
 
 ```
-room = 0.02 / 2                               half of G12.9's window
-tip  = 1 / (T * (pairs + 1) * 2)              0 when there are no pairs
+room = 0.02 − 0.00005            G12.9's window, less half a unit at
+                                 the precision an agreement is
+                                 published to (4 decimal places)
+tip  = 1 / (T * (pairs + 1))     0 when there are no pairs
 gap[pair] = |agreement[pair] − part_agreements[pair]|
 
 away =  |distinct_cells − wanted| / T
       + Σ_pairs |above[pair] − part_above[pair]|
       + Σ_pairs (gap[pair] − room  if gap[pair] > room  else 0)
-      + Σ_pairs gap[pair] * tip
+      + Σ_pairs (min(gap[pair], room) / room) * tip
 ```
 
 where `agreement[pair] = (Σ_rows (rank[a][r] − m)(rank[b][r] − m))
@@ -2450,12 +2462,26 @@ published window, because the published agreement is rounded to four
 places and the walk's own is not, so a bound met exactly is a bound a
 rounding can cross.
 
-**The raw gap is kept as a TIE-BREAK and nothing more.** Inside the
-window the walk still prefers the closer agreement, because
-near-exactness is free where nothing is bought with it. A gap can be no
-more than 2, so the whole tie-break over every pair at once is less
-than `1 / T` — one different cell — and can never again be spent on
-one.
+**`room` IS THE WHOLE WINDOW, AND IT WAS HALF OF IT FOR ONE
+REVISION.** Half was chosen for a rounding, and the rounding is far
+smaller than half a window: an agreement published to four decimal
+places carries at most `0.00005` of uncertainty, not `0.01`. Any margin
+the walk keeps BELOW the published window is margin it will buy with an
+exactly-checked fact — a swap moving a gap from 0.019 to 0.015 cut the
+half-window term by 0.004, where one different cell on a 400-row column
+is worth 0.0025, and both of those agreements are already inside the
+range the validator accepts.
+
+**The raw gap is kept as a TIE-BREAK and nothing more, SCALED TO THE
+WINDOW.** Inside the window the walk still prefers the closer
+agreement, because near-exactness is free where nothing is bought with
+it. Each pair contributes at most `tip`, so every pair together
+contributes less than `pairs / (T * (pairs + 1))`, which is strictly
+less than the `1 / T` one different cell is worth: the preference can
+never be spent on a cell. It is scaled to `room` rather than to the
+whole range an agreement can take, because a tie-break spread from −1
+to 1 is a hundred times too shallow to steer inside a window two
+hundredths wide.
 
 **`wanted` is not the column's `n_distinct`.** Cells that did not split
 are replaced after the walk by stand-ins that are all ONE spelling,
@@ -2466,8 +2492,36 @@ does. Comparing the walk's result against the whole column's figure
 instead made a 120-cell column holding 120 different cells report "120
 published, 119 achieved" while the recount in the same report said 120.
 
-**5. The walk.** While `away > 0.0005`, fewer than `200 * T` tries have
-been made, and at least two reserve words exist:
+**5. The walk.** While anything is still OWED, fewer than
+`max(200 * T, n_parts − 1)` tries have been made, and at least two
+reserve words exist:
+
+Something is owed when the count of different cells is not the wanted
+one, or any `above[pair]` is not its published value, or any pair's
+`gap` exceeds `0.00005` — half a unit at the precision the agreement is
+published to.
+
+**THE STOPPING RULE IS THE OBLIGATIONS THEMSELVES, and it was a fixed
+distance of `0.0005` for one revision.** A distance cannot serve: one
+different cell is worth `1 / T`, so above about two thousand rows a
+whole missed cell costs less than that threshold and the walk stops
+with an exactly-checked fact still missed — at four thousand rows it
+can stop before its first try. And the agreement half of the test is
+the PUBLISHED PRECISION rather than the window, because stopping at the
+window leaves the walk idle while it could still be improving a fact a
+reader reads: measured on a correlated 300-row blood pressure, stopping
+at the window left the twin agreeing at 0.8174 against a published
+0.8343, where continuing reaches 0.8343. Continuing is not a trade —
+what could trade a cell for margin is the SCORE, and it cannot.
+
+**THE CEILING IS AT LEAST THE NUMBER OF MOVABLE POSITIONS.** `n_parts`
+may reach `n_present + 2`, so a column admitted at a lowered parse rate
+can hold many present cells of which few SPLIT — and `200 * T` tries
+could then be fewer than the positions taken in turn, leaving a tail
+position no try at all while its pairs are still counted in the score.
+Measured: 602 present cells of which two split into 402 positions gives
+401 movers against 400 tries. "Every pair is aimed at" is only true if
+every position is reached.
 
 - let `p` be the position this try moves, `1 + (t mod (n_parts - 1))`
   for try number `t` counting from zero, per step 3;
@@ -2484,8 +2538,23 @@ been made, and at least two reserve words exist:
 - if `i == j`, or position `p` holds the same spelling at both, the try
   is spent and nothing moves;
 - otherwise swap position `p`'s seats `i` and `j`, recompute `away`,
-  and **accept when the new distance is less than OR EQUAL to the
-  old**; otherwise restore every carried quantity exactly.
+  and **accept when the new distance is less than OR EQUAL to the old
+  AND the swap does not take a pair out of its window** — unless it
+  brings an exactly-checked fact closer, which outranks a windowed one.
+  Otherwise restore every carried quantity exactly.
+
+**WHY THE WINDOW IS GUARDED SEPARATELY FROM THE SCORE.** Scoring an
+agreement only beyond the window is what stops the walk buying margin
+with an exactly-checked cell, but it leaves the inside of that window
+flat, and a walk indifferent there lets a pair drift across the edge
+and out. Measured on a forged three-position column at forty seeds, 120
+pair measurements: flattening the interior took the pairs landing
+OUTSIDE the window from 87 to 110, while the count of different cells
+it was meant to protect was already met at every seed both ways — so
+the trade bought nothing and cost 23. Refusing the drift directly
+brings it to 73, better than either. The exception for an exact fact is
+not optional: without it the same column lost ten above-counts of forty
+where none had been missed.
 
 **THE RESTART STEPS ALONG, AND IT RETURNED TO ZERO UNTIL LANDING L7.**
 The reserve holds `T - 1` words for each position after the first and
@@ -2547,13 +2616,15 @@ drawn, so a try always has something to propose.
 `R` is a fixed small number and not the whole column because the scan
 runs inside a walk whose ceiling is already `200 * T`, so an unbounded
 scan makes the walk quadratic in the rows. **Sixteen is a
-measurement**: over four columns at ten seeds each, counting different
+measurement**: over four columns at forty seeds each, counting different
 cells held against published, a 36-row witness goes 30–35 at `R = 1`,
 32–35 at 4, 32–36 at 8 and 33–36 from 16 upward, and a 240-row
-all-different column goes 176–210, 195–231, 196–233, 195–234 at 16,
-197–236 at 32 and 197–235 at 64 — flat from sixteen, at three times the
-running time by sixty-four. A 400-row blood pressure reaches its
-published count at every value of `R` and separates none of them.
+all-different column goes 176–211, 192–231, 196–236 and 197–236 from
+16 upward — flat from sixteen, at more than twice the running time by
+sixty-four. A 400-row blood pressure reaches its published count at
+every value of `R` and separates none of them. (Forty seeds; a
+ten-seed reading of the same sweep put the witness at 33–36 from
+sixteen, which forty does not support.)
 
 ### G6B.5 The cells that did not split
 
@@ -4989,7 +5060,7 @@ tested:
    readings, whose positions hold 13 and 9 different numbers, came out
    with its positions holding 34 to 41 and 23 to 29 and the column
    holding 157 to 169 different cells. G5.2's grain rule and the walk
-   of G6B.4 close that one: measured at ten seeds, the same column now
+   of G6B.4 close that one: measured at forty seeds, the same column now
    holds exactly 13 and 9 different numbers and exactly 110 different
    cells at every seed, and `synthtwin validate` misses nothing.
 
@@ -5725,9 +5796,9 @@ every pair takes this window.
 
 Aiming at a pair is not reaching it. A column of three or four
 positions sets three or six agreement targets that pull against each
-other inside one bounded search: measured over 540 pairs of a
-twelve-column battery at ten seeds, **188 landed outside this window**,
-against 387 before. Those are MISSES, reported as misses on both pages
+other inside one bounded search: measured over 2,160 pairs of a
+twelve-column battery at forty seeds, **665 landed outside this
+window**, against 1,560 before. Those are MISSES, reported as misses on both pages
 with the achieved value beside the published one — the same verdict a
 two-position column's miss gets, which the second paragraph above
 already measured at 0.06 outside. What is gone is the class of pair no

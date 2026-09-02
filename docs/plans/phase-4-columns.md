@@ -4164,10 +4164,15 @@ declaration for only one of them.
   **WHAT L7 MOVED, AND WHERE THE CAUSE ACTUALLY IS.** A 240-row column
   of 240 different readings whose two positions hold 20 and 12
   different numbers -- exactly 240 possible pairs -- held **173 to 188**
-  of them across ten seeds and now holds **195 to 234**. It is still
+  of them across forty seeds and now holds **197 to 236**. It is still
   short, and the reason is no longer the pairing: the twin's own
   positions hold **18 to 20** and **11 to 12** different numbers rather
   than 20 and 12, so at the worst seed only 198 pairs exist to be made.
+  **Those are SAMPLES over forty seeds and not bounds** (review round 1,
+  item 4): `_stratum_values` interpolates and rounds each stratum
+  independently, and only the fixed-fraction-width path has a
+  uniqueness repair, so nothing here says how far apart two strata can
+  land on a column nobody has run.
   Two strata of one position can be given the same number by the
   ladder, which is the VALUES stage and belongs to the plain numeric
   roles. That is **R-P4-120**, and it is what this residual now waits
@@ -4651,6 +4656,69 @@ declaration for only one of them.
   alone is red. *A mutant that leaves the rule reachable by another
   line is a mutant that measures nothing.*
 
+- **R-P4-126 — OPEN (opened 2026-09-01 by the mutation run of review
+  round 1's own repairs).** TWO OF THOSE REPAIRS ARE PINNED BY NOTHING.
+
+  Eight rules the round asked for were withdrawn one at a time from the
+  shipped generator and eight files collecting 364 tests were run
+  against each. **Six turned the suite red; two did not:**
+
+  * *the interior tie-break's scaling.* An agreement inside the window
+    contributes `min(gap, room) / room * tip`, and the scaling is what
+    keeps the guarantee exact: each pair contributes at most `tip`, so
+    every pair together contributes less than `1 / T` -- one different
+    CELL -- and the walk can never buy a cell with agreement margin.
+    Replacing it with the unscaled `gap * tip` BREAKS that bound, since
+    a gap reaches 2 and three pairs then contribute `1.5 / T`, and no
+    test noticed. **So what is unpinned is not a preference, it is the
+    arithmetic guarantee review round 1 asked for.** The scaling was
+    also measured to be nearly inert on its own -- 115 pairs outside
+    the window against 114 -- which is why the drift refusal, not the
+    scaling, is what carries the result.
+  * *the ceiling reaching every movable position.* The boundary case
+    is built and generates, and
+    `test_every_movable_position_gets_a_try_however_many_there_are`
+    asserts the rule arithmetically rather than through the generator,
+    because a column with two joined cells gives a swap almost nothing
+    to do and no twin byte separates the two ceilings.
+
+  Closing the first means a test that computes the bound from `T` and
+  the pair count and holds the objective to it -- a property test over
+  the scoring function rather than over a twin. Closing the second
+  means a joined column with enough rows to make a tail position's
+  work visible AND more positions than tries, which the loader's
+  `n_parts <= n_present + 2` makes an awkward shape to build.
+
+- **R-P4-125 — OPEN (opened 2026-09-01 by review round 1 of landing
+  L7, item 1; PRE-EXISTING).** A GRAIN CANNOT REACH EVERY SPELLING ITS
+  CELLS WEAR, EVEN WITH THE WHOLE BUDGET.
+
+  The spelling budgets are back on the block's own counts (amendment
+  A-P4-49), which is what lets a grain write one number two ways at
+  all. It still does not write ENOUGH of them. Measured on 300 cells
+  holding sixty values each written plainly and again with a leading
+  zero -- 120 different spellings, 60 different numbers -- at forty
+  seeds through the real path: the twin holds **81 to 97** of the 120,
+  against 55 to 60 both before landing L7 and as L7 was merged. With
+  two present cells wearing no pair beside them the column publishes
+  122 and the twin holds 83 to 99.
+
+  **BOTH ROLES, and the sibling was looked for rather than assumed:**
+  the joined role behaves identically cell for cell, and there
+  `n_distinct` and `n_distinct_folded` are EXACT-OBSERVABLE (P4-D29),
+  so `synthtwin validate` reports the shortfall at forty seeds of
+  forty. On the affixed role the count carries an authorized-deviation
+  envelope wide enough to admit it -- 3 to 240 on this column -- so the
+  quality report does NOT call it a miss, and the twin's own report
+  names it at forty seeds of forty. That difference between the two
+  roles' dispositions is recorded here rather than repaired: which of
+  them is right is a disposition question and an owner's.
+
+  Closing it means the leading-zero family of owner decision 8 spending
+  the whole budget it is given rather than part of it, which is the
+  plain numeric roles' machinery and wants its own measurement of what
+  the extra spellings cost the style censuses.
+
 - **R-P4-123 — OPEN (opened 2026-09-01 by landing L7).** THE FROZEN
   JOINED CASE PINS FEWER OF THE WALK'S RULES THAN IT DID, AND TEN OF
   THEM NOW STAND ON THE METHOD'S WORD.
@@ -4735,7 +4803,7 @@ declaration for only one of them.
   where the ladder is flat, or crowds several values inside one unit,
   two strata can land on the same number and the count comes out short.
 
-  **Measured** over four 200-row plain columns at ten seeds each,
+  **Measured** over four 200-row plain columns at forty seeds each,
   through the real path: a tight cluster publishing 82 different
   numbers holds **73 to 77**; whole numbers publishing 40 hold **37 to
   40**; a wide spread publishing 196 holds **195 to 196**; seven
@@ -4756,9 +4824,13 @@ declaration for only one of them.
   **WHAT IT COSTS ELSEWHERE, which is why it is opened rather than
   noted.** It is what R-P4-71 now waits on. A 240-row joined column of
   240 different readings whose positions publish 20 and 12 different
-  numbers has twin positions holding **18 to 20** and **11 to 12**, so
-  at the worst seed only 198 of the 240 pairs exist to be made and the
-  pairing cannot reach the published count however good the walk is.
+  numbers has twin positions holding **18 to 20** and **11 to 12** over
+  forty seeds, so at the worst of them only 198 of the 240 pairs exist
+  to be made and the pairing cannot reach the published count however
+  good the walk is. **Every range in this entry is a SAMPLE and not a
+  bound** (review round 1, item 4): the values stage interpolates and
+  rounds each stratum independently, so a column nobody has run may sit
+  outside them.
 
   Closing it means the values stage refusing a number a sibling stratum
   already holds — which the point-free walk already does for its own
@@ -4775,11 +4847,16 @@ declaration for only one of them.
   `200 * n_joined` tries.
 
   **Measured** over a battery of twelve columns of three and four
-  positions, ten seeds each, 540 pairs in all, through the real path:
-  **188 of the 540 agreements land outside the two-hundredths window**,
-  against 387 before the landing, and the widest gap is **0.2090**
-  against 1.0545 before. Every above-count is met — 0 of 540 missed,
-  against 259 before.
+  positions, FORTY seeds each, 2,160 pairs in all, through the real
+  path: **665 of the 2,160 agreements land outside the two-hundredths
+  window**, against 1,560 before the landing, and the widest gap is
+  **0.2433** against 1.0546 before. Above-counts go from 1,038 missed
+  to **1**.
+
+  **A TEN-SEED READING OF THIS SAID "0 of 540" AND WAS WRONG**, which
+  is why review round 1 asked for the wider scope: at forty seeds one
+  above-count of 2,160 is missed, so "every above-count is met" is a
+  sentence about a sample and not about the walk.
 
   **NOTHING IS SILENT.** Each of those is an APPROXIMATION outside its
   bound, so it is a deviation in the twin's own report and a MISS in
@@ -4843,7 +4920,7 @@ declaration for only one of them.
   **THE PROOF IS NOT THE STYLE FLOOR, and this is the measurement that
   says the residual is done.** What was wrong is that a position was
   laid out DIFFERENTLY from a plain column carrying the same numeric
-  facts. So the two were built and run side by side, ten seeds each: 36
+  facts. So the two were built and run side by side, forty seeds each: 36
   values whose first position is `1`-`9` twice over plus `1.5` and
   `2.5`, once as the first position of a joined column and once as a
   plain column of its own. **They now miss the same style subchecks at
@@ -5250,7 +5327,7 @@ declaration for only one of them.
     mechanism and not the overshoot. **Both closed 2026-09-01 by
     P4-D31**: a position is laid out by its own count of different
     numbers, and a 400-row repeating column publishing 110 different
-    readings holds exactly 110 at every one of ten seeds where it held
+    readings holds exactly 110 at every one of forty seeds where it held
     157 to 169.
 
   * **A JOINED POSITION'S REPORT-ONLY FACTS ARE STILL LISTED NOWHERE**
@@ -5902,8 +5979,8 @@ declaration for only one of them.
   format half; landing L7 makes it decide how many strata a grain
   inside a role is divided into, which is the first thing it decides
   anywhere. It is still REPORT-ONLY, and that is a measurement rather
-  than a preference: over four 200-row plain columns at ten seeds the
-  twin met the published count exactly in 21 of 40 runs. What is left
+  than a preference: over four 200-row plain columns at forty seeds the
+  twin met the published count exactly in 83 of 160 runs. What is left
   of this residual is that gap, which is R-P4-120.
 - **R-P4-19** (opened by amendment A-P4-14's narrowing, 2026-08-21).
   BELOW THE FLOOR, THE OLD ROUTE SURVIVES. The census is
@@ -9442,6 +9519,123 @@ the argument R-P4-17 makes — that specifying a role independently finds
 what checking it against itself cannot — arriving from the other
 direction.
 
+## Amendment A-P4-49 — what review round 1 of landing L7 sent back (2026-09-01)
+
+Codex round 1 REJECTED L7 with five items. Every one was real. They are
+answered here, and the two the landing's own report had already flagged
+as unmeasured are the two that were most wrong.
+
+**1. A SPELLING BUDGET IS NOT A COUNT OF NUMBERS (HIGH).** L7 gave a
+grain inside a role its own `n_distinct_values` for the strata AND for
+the raw and folded spelling budgets. The strata half is right: a
+stratum holds a VALUE. The budget half was wrong, because a budget is
+what buys the SECOND way of writing one number, and a count of numbers
+cannot pay for it. An affixed cell's spelling is its core's spelling
+with fixed text around it, so the cells' count IS the cores' count;
+a joined position's variants are the cell's spellings just as much.
+
+**IT IS NOT ONE ROLE'S CORNER, and the round said to look for the
+sibling before concluding it was.** Measured on 300 cells holding sixty
+values, each written plainly and again with a leading zero -- 120
+different spellings over 60 different numbers -- at forty seeds through
+the real path:
+
+| | before L7 | L7 as merged | repaired |
+|---|---|---|---|
+| affixed, twin's distinct cells of 120 | 55–60 | 55–60 | **81–97** |
+| joined, twin's distinct cells of 120 | 55–60 | 55–60 | **81–97** |
+| joined, `distinct.n_distinct` MISSED | 40/40 | 40/40 | 40/40 |
+
+**AND THE REGRESSION THE ROUND DESCRIBED IS NOT ONE, which is said
+here rather than quietly enjoyed.** On a column that reaches the
+affixed role at all, L7 as merged is no worse than the tree before it:
+both hold 55 to 60. The repair is better than both. The round's own
+case -- 300 cells of `$1e2`, `$1e02`, `$1e002` -- cannot be built: three
+different values over three hundred rows is a CATEGORICAL column, with
+`--measurement`, with `--code` and undeclared alike, so it never
+reaches the numeric machinery. What the round got exactly right is the
+mechanism and the direction of the fix.
+
+**With and without stragglers, forty seeds:** 300 affixed cells and no
+straggler publishes 120 different cells and the twin holds 81–97; the
+same column plus two present cells wearing no pair publishes 122 and
+the twin holds 83–99. The twin's own report names the shortfall at
+forty seeds of forty in both. The remainder is **R-P4-125**.
+
+**2. THE OBJECTIVE COULD TRADE AN EXACT CELL FOR MARGIN NOBODY ASKED
+FOR (HIGH).** L7 scored an agreement by how far it lay outside HALF
+G12.9's window, so a swap moving a gap from 0.019 to 0.015 cut the
+score by 0.004 where one different cell on a 400-row column is worth
+0.0025 -- and both of those agreements are already inside the range the
+validator accepts. The rounding rationale was oversized too: four
+published decimal places carry at most 0.00005 of uncertainty, not
+0.01.
+
+The margin is now the whole window less half a unit at the published
+precision, so the round's scenario scores zero on both sides and the
+trade is arithmetically impossible.
+
+**THAT ALONE MADE THE TWIN WORSE, and the measurement is why this
+entry has three parts rather than one.** Flattening the window's
+interior leaves the walk indifferent inside it, and a pair drifts
+across the edge and out. Measured on a forged three-position column at
+forty seeds, 120 pair measurements:
+
+| | L7 as merged | window widened only | plus the drift refusal |
+|---|---|---|---|
+| agreements MISSED | 87 | 110 | **73** |
+| above-counts MISSED | 0 | 0 | **0** |
+| distinct cells MISSED | 0 | 0 | **0** |
+
+So the walk now also REFUSES a swap that takes a conforming pair out of
+its window -- unless that swap brings an exactly-checked fact closer,
+because an exact fact outranks a windowed one and refusing without that
+exception cost ten above-counts of forty where none had been missed.
+The result is better than the merged landing on every fact at once.
+
+**AND THE STOPPING RULE IS THE OBLIGATIONS THEMSELVES.** A fixed
+distance of `0.0005` cannot serve: one different cell is worth `1 / T`,
+so above about two thousand rows a whole missed cell costs less than
+the threshold and the walk could stop with an exactly-checked fact
+still missed. It now asks after each published fact by name, and keeps
+refining an agreement to the precision it is published at rather than
+stopping at the window -- measured, stopping at the window left a
+correlated blood pressure agreeing at 0.8174 against a published
+0.8343, where continuing reaches 0.8343.
+
+**3. "EVERY PAIR IS AIMED AT" WAS FALSE ON AN ACCEPTED PROFILE
+(MEDIUM).** `n_parts` may reach `n_present + 2`, so a column admitted at
+a lowered parse rate can hold many present cells of which few SPLIT.
+The walk took positions in turn under a ceiling of `200 * n_joined`
+tries, so where `n_parts - 1` exceeded that, tail positions got no try
+while their pairs were still counted in the score. **Built and
+measured**: 602 present cells, two of which split into 402 positions,
+gives 401 movers against 400 tries. The ceiling is at least the number
+of movers now, so the round robin reaches every one of them, and
+`test_every_movable_position_gets_a_try_however_many_there_are` asserts
+the boundary is past.
+
+**4. TEN SEEDS WAS NOT A SCOPE (MEDIUM).** L7's own R-P4-122 recorded
+ten seeds giving the OPPOSITE direction to forty, and then reported
+R-P4-40's closure, the proposal reach, the multi-position battery and
+the all-different ranges at ten. Every comparison is re-taken at forty
+below, and the ranges are named as SAMPLES, because `_stratum_values`
+interpolates and rounds independently and only the fixed-fraction-width
+path has a uniqueness repair -- so nothing here is a bound.
+
+**5. FOUR PASSAGES STILL DESCRIBED THE WITHDRAWN BEHAVIOUR (LOW).**
+Both view docstrings said the grain defect was unrepaired, a comment
+said the spelling budgets take the grain's count, and `_joined_content`
+said only the pairs the last position is in are moved. All four are
+corrected, and `tests/test_p4r1_withdrawn_claims.py` now refuses them
+by their own words -- matching on collapsed whitespace so a re-wrap
+neither hides a claim nor invents one, and holding each phrase against
+the two commits this branch shipped from so a phrase nobody wrote
+cannot pad the guard. **It caught two of its own**: "moves the last
+position and no other" and "moves only the last position" were this
+author's paraphrase and were never in the shipped file. Four
+reinstatement mutants turn it red.
+
 ## Decision P4-D31 — a grain inside a role is laid out by ITS OWN count of numbers, and the pairing walk moves every position (landing L7, 2026-09-01)
 
 **THE OWNER RULED IT IN AS "adds a key; retargets the draw", AND THE
@@ -9469,7 +9663,7 @@ same numeric facts gets 11. That is residual R-P4-112.
 **AND IT WAS NOT A CORNER.** Measured on a 400-row blood pressure
 publishing 110 different readings, whose two positions hold 13 and 9
 different numbers: the twin's positions held **34 to 41 and 23 to 29**
-different numbers across ten seeds and the column held **157 to 169**
+different numbers across forty seeds and the column held **157 to 169**
 different cells against a published 110. Every one of those ten runs
 missed `distinct.n_distinct` in the quality report. A person grouping
 rows by first number found three times as many groups as the real table
@@ -9553,7 +9747,7 @@ changed.**
    column, so random draws spend the ceiling on swaps that move it by
    nothing. The scan is bounded at sixteen rows and falls back to the
    rows as drawn, **and sixteen is a measurement**: over the four
-   columns of `tools/measurements/r_p4_40_l7_joined.py` at ten seeds
+   columns of `tools/measurements/r_p4_40_l7_joined.py` at forty seeds
    each, counting different cells held against published, a 36-row
    witness goes 30–35 at a reach of 1, 32–35 at 4, 32–36 at 8 and
    33–36 from 16 upward, and a 240-row all-different column goes
@@ -9574,17 +9768,27 @@ BEFORE AND AFTER, TEN SEEDS EACH.**
 | 36-row `N/M` witness, position 1 | cells carrying a point (2 published) | 12–15 | 2 at the pinned seed |
 | the same | `number 1 styles.published.plain` (floor 34) | missed at 22 | met at the pinned seed |
 | 100-row three-position column | pair (1,2), published −1.0 | **+1.0** | −0.9922, inside the window |
-| twelve-column battery of three and four positions, 540 pairs | agreements outside G12.9's window | 387 | 188 |
-| the same | above-counts missed | 259 | **0** |
-| the same, the 240 pairs between two EARLIER positions | outside the window | **240** | 106 |
-| the same | above-counts missed | 236 | **0** |
+| twelve-column battery of three and four positions, 2,160 pairs | agreements outside G12.9's window | 1,560 | 665 |
+| the same | above-counts missed | 1,038 | **1** |
+| the same, the 960 pairs between two EARLIER positions | outside the window | **960** | 407 |
+| the same | above-counts missed | 945 | 1 |
+
+**EVERY FIGURE IN THIS TABLE IS FORTY SEEDS, and every one of them was
+ten when this decision was first written** (review round 1, item 4).
+Two of the ten-seed readings did not survive: the battery's
+above-counts read "0 of 540" and are 1 of 2,160, and R-P4-51's own
+column read "every pair met at every seed" and misses at one seed of
+forty on two of its three pairs. They are corrected wherever they were
+written, and the ranges below are named as SAMPLES rather than bounds,
+because `_stratum_values` interpolates and rounds independently and
+only the fixed-fraction-width path has a uniqueness repair.
 
 **AND THE GRAIN RULE TAKES SOMETHING FROM AN ALL-DIFFERENT COLUMN,
 WHICH IS MEASURED HERE RATHER THAN LEFT FOR A REVIEWER.** The count it
 replaces — the whole cell's — happens to EQUAL the number of cells on a
 column whose cells are all different, so every position got one stratum
 per cell and held as many different numbers as it could. Three shapes,
-ten seeds each, through the real path:
+forty seeds each, through the real path:
 
 | column | fact | before | after |
 |---|---|---|---|
@@ -9653,8 +9857,8 @@ which P4-D4.9 supplies; what this landing adds is that the count is
 now CONSUMED — it decides the layout of every grain inside a role,
 where before it decided nothing anywhere. It stays REPORT-ONLY,
 because the twin does not always meet it: measured over four 200-row
-plain columns at ten seeds, `n_distinct_values` came out exactly right
-in **21 of 40 runs** and short by up to nine otherwise. That is
+plain columns at forty seeds, `n_distinct_values` came out exactly right
+in **83 of 160 runs** and short by up to nine otherwise. That is
 R-P4-120, and making the count EXACT-OBSERVABLE is its business, not
 this decision's.
 
@@ -9667,7 +9871,7 @@ one per position — and L7 does the second. Measured through the real
 path on a 400-row blood pressure publishing 110 different readings over
 positions holding 13 and 9 different numbers: the twin held **157 to
 169** different cells and positions of **34 to 41** and **23 to 29**
-across ten seeds, and now holds **110, 13 and 9 at every one of those
+across forty seeds, and now holds **110, 13 and 9 at every one of those
 seeds** with nothing missed in the quality report at all. On the wider
 column this residual was opened against — 400 rows spread over 71
 systolic and 51 diastolic values — see the entry below for what
@@ -10078,8 +10282,9 @@ own column, and on a wider battery, through the real path:
 | the 100-row column's pair (1,2) | −1.0 | **+1.0** | −0.9922 |
 | its pair (1,3) | +1.0 | −0.144 | +1.0 |
 | its pair (2,3) | −1.0 | −0.144 | −0.9922 |
-| its `part_above` misses, ten seeds | — | pair 1 missed at every seed | none |
-| battery: 240 pairs between two EARLIER positions, ten seeds | — | **240 outside G12.9's window, 236 above-counts missed** | 106 outside, **0 missed** |
+| its `part_above` misses, forty seeds | — | pair 1 missed at every seed | none |
+| its agreements, forty seeds | — | every seed | pairs 1 and 2 missed at **one seed each** |
+| battery: 960 pairs between two EARLIER positions, forty seeds | — | **960 outside G12.9's window, 945 above-counts missed** | 407 outside, 1 missed |
 
 **WHAT IS NOT CLAIMED, and it is a different residual.** Aiming at a
 pair is not reaching it: 188 of the battery's 540 agreements still land
