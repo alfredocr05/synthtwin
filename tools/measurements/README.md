@@ -52,3 +52,14 @@ written.
 | `r_p4_55_case_pair.py` | how often the raw-against-folded ceiling cost a column its spelling count |
 | `r_p4_56_width_collision.py` | how often two strata round onto one spelling, by family |
 | `r_p4_57_deviation_drift.py` | what the exact deviation costs a column that already worked |
+| `r_p4_61_window_agreement.py` | whether the twin's report and the quality report ever disagree about a verdict |
+| `r_p4_56_grid_separation.py` | what separating two strata on the grid costs the twin |
+| `p4_g6_r5_exact_moments.py` | what the exact moments cost a column that already worked |
+| `r_p4_30_l6_widths.py` | how often a twin writes a cell at a whole-number width the source never used (landing L6) |
+| `r_p4_40_l7_joined.py` | how many different numbers a joined column's positions hold against their published counts (landing L7) |
+| `r_p4_136_l8_empty_bins.py` | how many twin cells land in a stretch the real column left empty, before and after landing L8, and the two families where the twin still cannot get out |
+
+**This table went stale before landing L8 and is repaired there**: it
+listed four of the ten scripts, so six measured claims in the phase
+plan had a driver on disk that no index reached. A row here is owed by
+every script in this directory.

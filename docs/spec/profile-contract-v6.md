@@ -161,7 +161,7 @@ rule and the refusal in the loader section.
 were added to version 6 after it was declared -- `kurtosis`,
 `n_distinct_values`, `value_histogram`, `pad_widths`,
 `forced_codes`, `forced_measurements`, `forced_decimal_commas`,
-the census of written forms, `field_widths`,
+the census of written forms, `field_widths`, `empty_bins`,
 `min_length` and `max_length` on the unrepresentable role,
 `value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
@@ -443,6 +443,17 @@ none may be inferred from another:
   is read by RANK, and a remainder does not say which bins its values
   are in. Where the object is present its counts account for every
   value the statistics used and for no more.
+- `empty_bins` writes bin numbers TOO, and writes them as NUMBERS in a
+  list rather than as keys of a mapping. The bins are the same ones,
+  measured between the same two published ends; what the list names is
+  the bins holding NONE of the column's values, ascending, each named
+  once. There is no count beside a bin here and there could not be:
+  the count is nought, and a nought standing where every other entry
+  of this format stands for a cell somebody's table holds would be a
+  reader's trap rather than a fact. **This is the one fact of a
+  numeric block the publication floor does not reach**, and 7.11 says
+  why: the floor exists to keep a group too small to name from being
+  named, and there is no group smaller than nobody.
 - a multiplicity map — `n_distinct_by_occurrences` and
   `variants_withheld` — pads its row-count keys with leading zeros to a
   uniform width, and section 5.3, which states that key form, gives
@@ -3949,8 +3960,9 @@ consumer off the role name.
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
 | `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`; published only when EVERY bin clears the floor | REPORT-ONLY |
+| `empty_bins` | array | C6-32 to C6-33 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 
-Seventeen keys. Every one is present in every block of these two roles —
+Eighteen keys. Every one is present in every block of these two roles —
 this format has no optional keys — and every key not listed here or in
 section 5.1 is FORBIDDEN on them (section 6.11).
 
@@ -4576,6 +4588,7 @@ The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | |
 | `field_widths` | | | | | | | | | ● | ● | ● | | | |
 | `value_histogram` | | | | | | | | | ● | ● | ● | | | |
+| `empty_bins` | | | | | | | | | ● | ● | ● | | | |
 | `affix_prefix` | | | | | | | | | | | ● | | | |
 | `affix_suffix` | | | | | | | | | | | ● | | | |
 | `n_affixed` | | | | | | | | | | | ● | | | |
@@ -4871,6 +4884,7 @@ block carries, the quantitative ones computed over the CORES.
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
 | `value_histogram` | object | C6-31 | the CORES falling in each bin between the core ends; published only when every bin clears the floor | REPORT-ONLY |
+| `empty_bins` | array | C6-32 to C6-33 | which of those same bins hold none of the CORES, ascending; published whatever the floor is | REPORT-ONLY |
 
 **The block is forty-six keys**: the twenty-two universal keys of
 section 5.1 and the twenty-four above — a `count` block's seventeen
@@ -6474,6 +6488,110 @@ table and cannot recompute it.
 
 ---
 
+<!-- a7g: the bins that hold nothing -->
+
+### 7.11 `empty_bins`
+
+**C6-32 (where it lives, and what it holds).** A `count`, `continuous`
+or `affixed_number` block carries `empty_bins` as a key of the BLOCK,
+a sibling of `value_histogram`, and forbidden on every other role. It
+is an ARRAY of bin numbers, ascending, each named once, naming every
+one of the `HISTOGRAM_BINS` equal bins between the block's published
+`min` and `max` that holds NONE of the values the statistics used —
+read over the CORES on `affixed_number`, exactly as `value_histogram`
+is read there. The bins are the same bins, divided by the same rule
+C6-31 fixes; nothing here introduces a second division.
+
+**THE FLOOR DOES NOT REACH IT, AND THAT IS THE WHOLE OF WHY THIS KEY
+EXISTS BESIDE `value_histogram` RATHER THAN INSIDE IT.** The
+publication floor exists to stop a group too small to name being
+named. A bin holding one value is such a group; a bin holding fewer
+than `small_cell_floor` values is such a group; a bin holding NOTHING
+is not a group at all, and there is no group smaller than nobody. The
+owner ruled on exactly that question on 2026-08-31 — asked whether a
+bin holding zero may be published while the bins holding one to
+one-below-the-floor stay hidden — and ruled that it may.
+
+**THE ALL-OR-NOTHING RULE ON THE CENSUS IS UNTOUCHED, and its
+reasoning comes through this key without a word of it being weakened.**
+C6-31 refuses a partial census because a census is read by RANK: a
+pooled remainder does not say which bins its values are in, so the
+ranks the named bins cover are unknown and a generator cannot build
+the map it needs. **This list is not read by rank.** It says where NO
+value is, which is the same sentence whatever the floor is and
+whatever the other bins hold, and a generator reads it as a set of
+stretches to keep OUT of rather than as a place to put a value. A bin
+holding one to one-below-the-floor values is named by neither key and
+stays exactly as hidden as it was.
+
+**WHAT IT SURVIVES, and it is the reason the key is worth its cost.**
+`value_histogram` is all or nothing, so at any floor above one it
+vanishes on nearly every column — and it vanishes FIRST on the columns
+whose shape matters most, because a column with two clusters and an
+empty middle has thin bins at the edges of each cluster. Measured on a
+300-row column of a hundred and fifty values around twenty and a
+hundred and fifty around eighty: at a floor of one the census names
+thirteen bins, and at a floor of two, three, five or eleven it names
+none. `empty_bins` names the same nineteen empty bins at every one of
+those floors.
+
+**C6-33 (invariants).** One binds, and its identifier is Q20. Three
+conditions, each refusing a description of a column no table holds:
+
+- **Each bin is named once and in ascending order.** Order is not
+  decoration on this key: it is the one fact of the block read as a
+  set of stretches rather than as a mapping, and a list a producer may
+  write two ways is a list two producers write two ways.
+- **Neither the first bin nor the last is ever named.** The scale runs
+  from the block's smallest value to its largest, so the smallest is
+  in the first bin and the largest in the last. A description naming
+  either is describing a column with no smallest value.
+- **Where `value_histogram` is present, the two are complements.** The
+  census is all or nothing, so where it is present it names every bin
+  that holds something; the bins holding nothing are then exactly the
+  rest, and every one of the thirty-two is named by exactly one of the
+  two. This is the guard against ONE FACT WRITTEN TWICE: a description
+  whose two shape facts disagree is refused rather than read.
+
+**AND WHERE THE BLOCK HAS NO SCALE THE LIST IS EMPTY.** A ladder whose
+ends this format cannot hold, or whose ends are finite and whose WIDTH
+is not, divides into no bins at all, and a block whose statistics used
+no value has nothing to divide. "No bin holds anything" and "there is
+nothing to divide" are different sentences, and the second is written
+as the empty list. The producer's note that breaks the silence of an
+absent `value_histogram` is unchanged and still says which of the two
+a reader is looking at.
+
+**Disposition: REPORT-ONLY, and the class was MEASURED rather than
+chosen.** The fact is CONSUMED —
+`docs/spec/generation-method-v1.md` G6.7 makes the value stage read it
+and move any stratum that landed in a named stretch — and on the
+three two-cluster columns it was built against, at forty seeds each
+and at both a floor of one and a floor of eleven, the cells landing in
+a named stretch went from 4–6, 2–3 and 3–6 of 300 to NONE at every
+seed. It is not EXACT-OBSERVABLE because the twin cannot always
+hold it: over forty described columns at forty seeds each, 119 of the
+1600 runs still wrote one cell into a named stretch. Every one of
+those is a column whose OTHER published facts leave the twin no room
+beside the stretch — a whole-number column whose bins are barely wider
+than a unit, or a stratum whose sign band ends at the edge it would
+have to cross — and holding a file to this fact would call the shipped
+generator's own twin broken on one run in fourteen. Where the move
+cannot be made, the twin's own report NAMES the stretch and the value,
+and `synthtwin validate` LISTS the fact with a sentence saying the
+twin keeps out of the stretches without being held to them. Upgrading
+the class is residual **R-P4-140**.
+
+**Q20 DOES NOT REACH THE PRODUCER**, and that is stated rather than
+left to be found: it bounds the list against other published facts,
+and nothing in it checks that a named bin IS a bin no source cell fell
+in. A loader holds no table. What holds that is producer obligation
+EB-P: `empty_bins` names exactly the bins of C6-31's division that no
+value the statistics used falls in, counted with the same bin rule the
+census is counted with and from the same values.
+
+---
+
 <!-- a7e: shape_forms -->
 
 ### 7.9 `shape_forms`
@@ -7358,6 +7476,7 @@ reproduces the recorded spellings there as on any other column.
 | `pad_widths` | EXACT-OBSERVABLE against a recount identity of the same shape as `fraction_widths`: recounted padded cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value. A named width is honoured by PADDING and never by adjusting the value — `000123` and `123` read back as the same number — so no rung, endpoint or statistic is ever spent to reach one. Where a width is named the leading-zero family is spent on it, because every further spelling of a value is one figure wider; raw `n_distinct` then falls to its own two-sided envelope under the authorization owner decision 11 already carries, "only where even those cannot supply" |
 | `fraction_widths` | EXACT-OBSERVABLE against a recount identity of the same shape: recounted cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value — exact where nothing pooled, windowed where something did. Widths are met by value adjustment inside the value-construction stage, so a pinned cell counts toward a width only when its value already fits it |
 | `field_widths` | REPORT-ONLY, and 7.10 carries the measurement the class was chosen on. Unlike `pad_widths`, a named width here is a fact about the VALUE and not only about the spelling — an unpadded cell is exactly as wide as its value — so it can be met only by the value-construction stage, and that stage places values by the ladder. `docs/spec/generation-method-v1.md` G6.6 takes the census as a constraint on the figure count of each stratum's value, within the half unit G5.4's integer rule already spends; where a width has no such value to reach it, the twin's report names the shortfall with the count it reached and `synthtwin validate` LISTS the census rather than holding the file to it |
+| `empty_bins` | REPORT-ONLY, and 7.11 carries the measurement the class was chosen on. The value stage READS it — `docs/spec/generation-method-v1.md` G6.7 moves any stratum that landed in a named stretch to the occupied bin nearer to it and no further — and on the two-cluster columns it was built against that took the cells landing in a named stretch from 4–6 of 300 to none at forty seeds of forty. It is not exact because a column whose other published facts leave no room beside a stretch cannot always be moved out of it: 119 of 1600 runs over forty described columns still wrote one such cell, and each is named in the twin's own report while `synthtwin validate` LISTS the fact rather than holding the file to it |
 | `n_rows` (echo) | LOADER-ONLY |
 
 A mutant that collapses the nine interior rungs onto the endpoints
@@ -7416,6 +7535,7 @@ now a bare delegation.
 | `integer_valued` | as on `count` and `continuous` above |
 | `numeric_styles`, `fraction_widths`, `pad_widths` | as on `count` and `continuous` above |
 | `field_widths` | as on `count` and `continuous` above |
+| `empty_bins` | as on `count` and `continuous` above |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above |
 | `n_rows` (echo) | as on `count` and `continuous` above |
 
@@ -8220,7 +8340,7 @@ this document, and the battery the plan requires turns red on it.
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
-| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census and the offset map; `resolution_mix`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
+| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs, which are exact values of real cells; moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`) and the offset map; `resolution_mix`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; `empty_bins` under NO floor at all, being the one published fact of this format that names only where nobody is (row 20); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
@@ -8514,6 +8634,41 @@ a marked row.
     ground that a fixed-width code column whose twin comes back at two
     lengths is a twin that breaks a length check, a fixed-width slice
     and a join, and that nothing published said how long a code was.
+
+20. **The bins of a numeric range that hold NO value. NEW.** Which of
+    the fixed bins between a numeric block's published `min` and `max`
+    hold none of the values the statistics used (`empty_bins`, 7.11),
+    ascending. Read over the CORES on `affixed_number` and per
+    position on `joined_numbers`.
+
+    **IT IS THE ONE ROW OF THIS SECTION THE FLOOR DOES NOT REACH, and
+    that is the whole of what a reader has to weigh here.** Every other
+    census in this document is floor-governed because a group too small
+    to name must not be named. This list names no group: it names the
+    stretches where there is NOBODY, and there is no group smaller than
+    nobody. The owner ruled on exactly that question on 2026-08-31 —
+    shown a two-cluster column whose twin put cells in the empty middle,
+    and asked whether a bin holding ZERO may be published while the bins
+    holding one to one-below-the-floor stay hidden — and ruled that it
+    may, on their standing ground that a fact naming nobody is
+    publishable.
+
+    **What it publishes, exactly.** The bins are a division of two ends
+    row 3 already publishes, so no edge here is one a reader could not
+    already compute; what is added is the sentence "no cell of the real
+    column lies between these two edges". No value, no count, no cell,
+    and nothing about any row. **What it does NOT publish** is the
+    complement: a bin holding one value and a bin holding
+    one-below-the-floor values are named by nothing, here or in row 3's
+    census, and stay exactly as hidden as they were.
+
+    **Why it is not simply read off `value_histogram`.** That census is
+    all or nothing, so at any smallest group size above one it is absent
+    — and it is absent FIRST on the columns whose shape matters most,
+    because a column with an empty middle has thin bins at the edges of
+    its clusters. Measured on a 300-row two-cluster column: thirteen
+    bins named at a floor of one, none at two, three, five or eleven,
+    and the same nineteen empty bins named at every one of them.
 
 ### 12.4 The files, and the handling rule
 
@@ -9198,6 +9353,7 @@ form to one of those four paths.
 | `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
 | `field_widths` | the pooled count of whole-written cells whose FIELD WIDTH was used by too few rows to name |
 | `value_histogram` | never written: a column that cannot publish every bin publishes no histogram at all, because a pooled remainder does not say which bins its values are in and the census is read by rank |
+| `empty_bins` | never written, and never needed: this list names only the bins holding NOBODY, and there is no group smaller than nobody for the floor to protect. It is the one row of this table whose fact is published in full at every floor |
 | `shape_forms` | the pooled count of cells whose WRITTEN FORM was worn by too few rows to name |
 
 One token, one meaning: a group too small to name, counted rather than

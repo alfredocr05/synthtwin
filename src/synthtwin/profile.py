@@ -648,6 +648,16 @@ _DIGITS = "whole-number-as-text"
 # grammar is CANONICAL -- no sign, no padding, `0` written as itself.
 _WIDTH = "fraction-width-as-figures"
 _BIN = "histogram-bin-number"
+# ...AND A BIN NUMBER THAT HOLDS NOTHING, which is a kind of its own
+# rather than `_BIN` reused (plan P4-D32). The two carry different
+# disclosure prices and the audit is where that difference has to be
+# visible: `_BIN` stands at the KEY of a census whose entries are
+# counts of real cells and is therefore governed by the floor, while
+# this one names a stretch of the scale no cell of the table is in and
+# is governed by nothing, because there is no group smaller than
+# nobody. Filing both under one word would hide the ONE fact in this
+# document the floor does not reach.
+_EMPTY_BIN = "histogram-bin-number-holding-nothing"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
@@ -919,6 +929,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "empty_bins"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -954,6 +966,12 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
+    # ...and the bins that hold nothing, which is a LIST rather than a
+    # census: there is no count beside a bin holding none, and writing
+    # one would be a nought standing where every other entry of this
+    # document stands for a cell somebody's table holds (P4-D32).
+    ("columns", _EACH, "empty_bins"): _ARRAY,
+    ("columns", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -1467,6 +1485,16 @@ def _leaf_is_published(
         if value != "0" and value[:1] == "0":
             return False
         return 0 <= int(value) < parsing.HISTOGRAM_BINS
+    if kind == _EMPTY_BIN:
+        # A BIN NUMBER, WRITTEN AS A NUMBER AND NOT AS A KEY. It stands
+        # in a list rather than at the key of a mapping, so the
+        # canonical-decimal question `_BIN` asks does not arise: there
+        # is one way to write a whole number in this format. `True` is
+        # an integer to Python and is not one here, which is the check
+        # every other whole-number rule in this file makes as well.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < parsing.HISTOGRAM_BINS
     if kind == _SHAPE_FORM:
         return _is_shape_form(value)
     if kind == _MOMENT_TEXT:

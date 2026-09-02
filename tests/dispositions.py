@@ -340,6 +340,14 @@ PLAN4_REGIONS = {
         "(settles R-P2-1)"
     ),
     "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
+    # The bins that hold NOBODY, ruled in by the owner on 2026-08-31.
+    # It is the sibling of the histogram above and NOT part of it: the
+    # census is governed by the floor and this list is not, so a
+    # region that covered both would let one class stand for two
+    # different disclosure prices.
+    "empty-bins": (
+        "### P4-D32 The empty-bin fact (owner ruling 2026-08-31)"
+    ),
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
@@ -939,6 +947,26 @@ REGISTRY += [
         plan_words="the count falling in each bin",
         plan_region="histogram",
         aliases=("value histogram", "binned counts"),
+    ),
+    # Plan P4-D32. The bins that hold NOTHING, published whatever the
+    # smallest group size is, because there is no group smaller than
+    # nobody. REPORT-ONLY, and the class was measured rather than
+    # chosen: over forty described columns at forty seeds each the
+    # runs writing a cell into a named stretch went from 1049 of 1600
+    # to 119, and each of the 119 is a column whose OTHER published
+    # facts leave the twin no room beside the stretch. The twin
+    # FOLLOWS it -- on the three two-cluster columns the fact was
+    # built against, cells in a named stretch went from 4-6, 2-3 and
+    # 3-6 of 300 to none at forty seeds of forty -- and the report
+    # names every cell that had to stay. Upgrading it is residual
+    # R-P4-140.
+    Fact(
+        "numeric",
+        "empty_bins",
+        REPORT_ONLY,
+        plan_words="the stretches that hold no value",
+        plan_region="empty-bins",
+        aliases=("empty bin", "empty-bin fact", "empty stretch"),
     ),
     Fact(
         "numeric",

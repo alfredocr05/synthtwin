@@ -895,6 +895,11 @@ def battery() -> list[Mutation]:
             edit("visits", value_histogram={"0": 3}),
         ),
         Mutation(
+            "Q20",
+            "the first bin named as holding nothing",
+            edit("visits", empty_bins=[0], value_histogram={}),
+        ),
+        Mutation(
             "Q17",
             "more different numbers than cells that read as one",
             edit("visits", n_distinct_values=900),
