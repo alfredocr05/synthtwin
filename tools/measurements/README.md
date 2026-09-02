@@ -58,6 +58,7 @@ written.
 | `r_p4_30_l6_widths.py` | how often a twin writes a cell at a whole-number width the source never used (landing L6) |
 | `r_p4_40_l7_joined.py` | how many different numbers a joined column's positions hold against their published counts (landing L7) |
 | `r_p4_136_l8_empty_bins.py` | how many twin cells land in a stretch the real column left empty, before and after landing L8, and the two families where the twin still cannot get out |
+| `a_p4_52_l7_parity.py` | how many of a position's own turns the above-count proposal aims on, and what each variant of that gate costs a twin in above-counts and agreements (amendment A-P4-52) |
 
 **This table went stale before landing L8 and is repaired there**: it
 listed four of the ten scripts, so six measured claims in the phase

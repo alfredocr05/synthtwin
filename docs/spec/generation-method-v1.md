@@ -2625,14 +2625,29 @@ half-window term by 0.004, where one different cell on a 400-row column
 is worth 0.0025, and both of those agreements are already inside the
 range the validator accepts.
 
+**`away` IS THE SCORE AND IT IS NOT THE ACCEPTANCE RULE.** The Σ over
+pairs is a sum, and a sum cannot carry identity: it cannot tell one
+above-count going from held to MISSED while another improves by one
+from nothing happening at all. Full weight per row is exactly
+what the sum already delivers, so the weights above are not what
+forbids that trade — the per-pair refusal of step 5 is, and it runs
+before this score is consulted. The scales themselves stay as they
+are: re-weighting them was built and measured and was worse at
+everything.
+
 **The raw gap is kept as a TIE-BREAK and nothing more, SCALED TO THE
 WINDOW.** Inside the window the walk still prefers the closer
 agreement, because near-exactness is free where nothing is bought with
 it. Each pair contributes at most `tip`, so every pair together
 contributes less than `pairs / (T * (pairs + 1))`, which is strictly
 less than the `1 / T` one different cell is worth: the preference can
-never be spent on a cell. It is scaled to `room` rather than to the
-whole range an agreement can take, because a tie-break spread from −1
+never be spent on a cell. **That guarantee had no counterpart for
+`part_above` and now has one**, but not from a weight — from step 5's
+first refusal, which forbids a held above-count being sold whatever
+the tie-break says. It had to be a rule rather than a scale, because
+the trade the tie-break bought was one above-count against ANOTHER,
+and no choice of weight tells those two apart. It is scaled to `room`
+rather than to the whole range an agreement can take, because a tie-break spread from −1
 to 1 is a hundred times too shallow to steer inside a window two
 hundredths wide.
 
@@ -2692,9 +2707,74 @@ every position is reached.
   is spent and nothing moves;
 - otherwise swap position `p`'s seats `i` and `j`, recompute `away`,
   and **accept when the new distance is less than OR EQUAL to the old
-  AND the swap does not take a pair out of its window** — unless it
-  brings an exactly-checked fact closer, which outranks a windowed one.
+  AND the swap is allowed**. A swap is allowed unless one of three
+  refusals applies, in this order, every one of them evaluated on
+  EVERY try:
+  1. it takes any pair's above-count from HELD to missed;
+  2. it takes any above-count further from its published value, while
+     the moved pairs' above-counts do not fall as a whole and no other
+     above-count reaches its published value in the same swap;
+  3. it takes any pair out of its window, while neither exact fact
+     comes closer — neither the moved above-counts as a whole nor the
+     count of different cells.
+
   Otherwise restore every carried quantity exactly.
+
+**THE ABOVE-COUNTS ARE CARRIED BY IDENTITY, ONE ENTRY PER MOVED
+PAIR**, in a fixed order, so entry `k` names the same pair on both
+sides of the swap. A SUM cannot express these refusals: an above-count
+can go from held to MISSED while another improves by one, the total
+says nothing happened, and the agreement tie-break is the only reason
+left to take the swap. Measured on a 150-row four-position column at
+one seed, four accepted swaps did exactly that — at the fifty-seventh
+the per-pair gaps went `(0, 3, 0, 0, 0, 0)` to `(0, 2, 0, 1, 0, 0)`
+while `away` fell by 2.4e-5, and no pair had left its window, so the
+refusal was never even reached — and the twin came out holding
+`(65, 120, 32, 118, 31, 0)` against a published
+`(65, 122, 32, 118, 31, 0)`. An independent transcription of this
+section reproduced the same trade on its own columns, which is why the
+refusals are numbered here rather than described.
+
+**THE COUNT OF DIFFERENT CELLS IS A SEPARATE READING AND IS NOT ADDED
+TO THEM.** It belongs to no pair, and it is the one exact fact
+deliberately licensed to yield (step 4); added into the same number, a
+gained cell could buy a lost row of `part_above` and no rule could see
+the trade. It enters refusal 3 alone, as its own term beside the rows,
+and refusal 3 asks the two facts SEPARATELY — "an exactly-checked
+fact" is singular, and netting rows against cells is the arithmetic
+these refusals exist to stop.
+
+**REFUSAL 2's ESCAPE AND REFUSAL 3's SEPARATION EACH COST ONE
+AGREEMENT AND ARE TAKEN ANYWAY, and saying so is the honest form of
+the record.** Measured over twelve columns of three and four positions
+at forty seeds, 2,160 pairs: the rules as written leave 550 agreements
+outside their window; refusal 2 without its escape leaves 549 and
+refusal 3 written as one combined total leaves 549. Neither variant
+misses an above-count either, so neither costs a fact a reader is
+told about — the difference is one pair's agreement in each case, and
+both are kept for a reason a battery cannot show. Refusing a swap that
+takes a pair ONTO its published count is refusing progress towards the
+fact refusal 1 protects, and refusal 1 is absolute: without the escape,
+a column whose remaining debt needs one seat to dip has no route to it
+at all. And netting rows against cells is the collapse this revision
+removes, so refusal 3 may not be written as the arithmetic being
+repaired.
+
+**REFUSAL 2 COSTS NOTHING WHERE THE ABOVE-COUNTS WERE NEVER AT RISK.**
+On a correlated 400-row blood pressure at six seeds the twin holds all
+324 different cells, all 400 above-rows and a worst agreement gap of
+0.009948 with these refusals and without them alike.
+
+**WHAT REFUSAL 1 GUARANTEES ACROSS A WALK**, and it is the guarantee
+G12.9's "either holds it or has missed it" rests on: the set of pairs
+holding their published `part_above` never shrinks. A pair the swap
+cannot touch keeps its count, a refused swap is put back exactly, and a
+moved pair cannot go from held to missed. Measured on the column above,
+that count fell four times over 149 accepted swaps before these
+refusals and falls at none of the 146 after them. Over the whole
+battery — twelve columns, forty seeds, 2,160 pairs — the above-counts
+missed go from one to none and the agreements outside their window
+from 643 to 550.
 
 **WHY THE WINDOW IS GUARDED SEPARATELY FROM THE SCORE.** Scoring an
 agreement only beyond the window is what stops the walk buying margin
@@ -2745,7 +2825,35 @@ wanted`, and `R = 16` for how far either scan looks. Both scans run
 forward cyclically from the drawn row and both fall back to the row as
 drawn, so a try always has something to propose.
 
-- `d == 0`: the two rows as drawn.
+- `d == 0`, the count of different cells already met — TWO sub-cases,
+  written as one bullet because an implementer reading in order must
+  not take the first and stop. Write `s` for **how many turns position
+  `p` has already had in this walk**: step 5 takes its positions in
+  turn, so a try index `t` gives `p = 1 + (t mod (P − 1))` and
+  `s = ⌊t / (P − 1)⌋`, the remainder and the quotient of one division,
+  and `s` is read BEFORE the try index is stepped:
+  - every `above[pair]` is its published value, or `s + p` is ODD: the
+    two rows as drawn;
+  - some `above[pair]` is not its published value and `s + p` is EVEN:
+    `i` becomes the first row within `R` steps that holds that
+    pair's earlier position above its later one where the count is too
+    high, or does not where it is too low; `j` becomes the first row
+    within `R` steps holding a different spelling at `p`. The
+    acceptance rule refuses to trade one above-count for another, so
+    the walk cannot reach the repair sideways and has to aim at it. On
+    ALTERNATE TURNS OF THAT POSITION because aiming on every turn
+    starves the agreement, which is the other fact still being
+    improved: measured on a 300-row blood pressure, aiming every try
+    left the twin agreeing at 0.8232 against a published 0.8343 where
+    alternating reaches it exactly.
+    **This branch is not optional beside the acceptance rule**: with
+    the refusals in place and this proposal withdrawn, the battery
+    leaves seven above-counts of 2,160 short of their published value,
+    where the walk that could still trade them sideways left one. The
+    wording here avoids one word on purpose — this bullet also carries
+    the word `earliest`, and the guard of `docs/spec` that reads for a
+    temporal end met with something else would take the pair for one of
+    those.
 - `d < 0`, the walk short of the count:
   - `i` becomes the first row within `R` steps whose cell more than one
     row holds;
@@ -2765,6 +2873,28 @@ drawn, so a try always has something to propose.
     which the swap would give row `i` a cell some row already holds AND
     would give row `j` one some row already holds or the same cell as
     row `i`.
+
+**THE TURN IS THE POSITION'S OWN AND NOT THE WALK'S, and the `d == 0`
+bullet above read "the try number" until amendment A-P4-52.** Step 5
+reaches position `p` at try indices `p − 1`, `p − 1 + (P − 1)`,
+`p − 1 + 2(P − 1)`, … which all carry ONE parity whenever `P − 1` is
+even. A gate on the try number is therefore not alternating at all on
+a column with an odd number of positions: it answers the same thing at
+every turn a given position ever gets, so half the positions aim at an
+above-count on all of their turns and the other half on none of
+theirs. Position 1 is the ONLY mover of the pair it makes with the
+anchor, so where position 1 is the starved half that pair has no route
+to its published `part_above` at all. `s + p` alternates on each
+position's own turns for every `P`, and wherever `P − 1` is odd it is
+the SAME schedule the try number gave, so a column with an even number
+of positions writes the same cells under either wording. Measured
+through the reader, producer, loader and generator over forty
+described columns of two to five positions at forty seeds each, 9,640
+pairs: the pairs whose `part_above` the twin did not reach run 120 on
+the try number, 153 on its phase flip and 44 on `s + p`, with the
+agreements outside G12.9's window 3,665, 3,668 and 3,638. On eight
+five-position columns, 3,200 pairs: 71, 96 and 12. The driver is
+`tools/measurements/a_p4_52_l7_parity.py`.
 
 `R` is a fixed small number and not the whole column because the scan
 runs inside a walk whose ceiling is already `200 * T`, so an unbounded
@@ -5929,6 +6059,14 @@ another.
 `part_above` beside it carries NO window. It is a count of rows and the
 walk of G6B.4 weights one row of it above the whole agreement, so a
 twin either holds it or has missed it.
+
+**AND THE PRECEDENCE IS HELD UP BY THE ACCEPTANCE RULE, NOT BY THE
+WEIGHT.** A weight is a term in a sum, and a sum could not tell one
+above-count being sold from another being bought at the same price —
+which is how a twin came out having traded one for another with that
+weight already at a whole unit per row. G6B.4 step 5's first
+refusal is what holds this sentence up: a pair holding its published
+count never stops holding it.
 
 **Why a window and not an exactness.** The pairing is chosen by a
 bounded search (G6B.4), and published facts pull against each other
