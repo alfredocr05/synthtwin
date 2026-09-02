@@ -4972,6 +4972,20 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # values could have, and none of these cases is about the shape.
     if "percentiles" in block and "value_histogram" not in block:
         block["value_histogram"] = {}
+    # ...and the bins that hold NOTHING (contract 7.11, plan P4-D32),
+    # on those same three roles.  It defaults to the EMPTY list, and
+    # the empty list is the honest default here for a reason the two
+    # censuses above do not share: an empty census means "held back"
+    # while an empty list here means "no stretch of this column's range
+    # is empty", and every case in this file states so few values that
+    # the ladder it publishes is the whole of what is claimed about
+    # where they lie.  A case that wanted a named stretch would have to
+    # state a shape a real column of its own values could have, and
+    # none of these cases is about the shape.  It is REPORT-ONLY and,
+    # with no stretch named, method G6.7 does nothing and no cell here
+    # depends on it.
+    if "percentiles" in block and "empty_bins" not in block:
+        block["empty_bins"] = []
     # ...and how many different NUMBERS the block holds (contract Q17,
     # plan P4-D4.9), on those same three roles.  The figure is a
     # placeholder here and is replaced by a count of the FINISHED cells
@@ -6672,6 +6686,13 @@ def _joined_readings():
             # the census names one width for all twelve.
             "field_widths": {"2": 12},
             "std_unrepresentable": False, "value_histogram": {},
+            # ...and the bins holding NOTHING (contract 7.11, plan
+            # P4-D32), read at this depth like every other fact of a
+            # block of numbers.  Empty, because this position's twelve
+            # readings are stated by hand and nothing here turns on
+            # where they are NOT; with no stretch named, method G6.7
+            # does nothing and no cell of this case depends on it.
+            "empty_bins": [],
             "n_distinct_values": 9 if place == 0 else 5,
             # Each position carries the mode pair like any block of
             # numbers (contract Q18). Both positions of this column
@@ -7184,6 +7205,11 @@ NUMERIC_PART_KEYS = frozenset({
 })
 INTEGER_COLUMN_ARRAYS = frozenset({
     "suppressed_level_counts", "part_min_widths", "part_above",
+    # The bins holding no value (contract 7.11, plan P4-D32).  Bin
+    # NUMBERS, ascending: whole numbers, never a measurement, so they
+    # are certified as whole numbers exactly as the two arrays above
+    # are.
+    "empty_bins",
 })
 # The two blocks of a free-text column whose own two ends are whole
 # numbers while the statistics beside them are proved binary64 values.

@@ -1016,8 +1016,17 @@ def _numeric_classes(
 # table, because the prose governs every row below it and four rounds
 # showed that no vocabulary check can see a lowering written in
 # ordinary words (review item P4-A1-R5-F1).
+#
+# MOVED 2026-09-01 BY LANDING L8 (plan P4-D32). What changed in the
+# region is ONE ROW added to the delegation table --
+# `| `empty_bins` | as on `count` and `continuous` above |` -- carrying
+# the delegation phrase character for character, with no second class
+# word, no conditional clause and no prose beside it. The head prose is
+# untouched. It states no less than the numeric table it delegates to,
+# because it states nothing of its own at all, which is the shape this
+# region requires of every shared key.
 AFFIXED_REGION_DIGEST = (
-    "f4f51b7938ffd751613b8dfb8081372284415826cb08fe4379eb79615fdff325"
+    "82aab1f37753ee2fdecc9711c09c21d9bca25dd7f782c3610a07d5ed92a6d6cf"
 )
 
 

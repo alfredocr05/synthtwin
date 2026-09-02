@@ -28,9 +28,10 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,266 collected / 52 skipped |
-| suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none |
+| suite | 4,291 collected / 52 skipped |
+| suite, before this landing | 4,266 collected / 52 skipped, measured on the second worktree at the commit this branched from (`7266c31`). The twenty-five new tests are `tests/test_p4d32_empty_bins.py`, of which eight were written against a SILENT mutant |
+| suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L8): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
 
 ## What is being built right now
 
@@ -39,6 +40,104 @@ without the same help.
 consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
+
+* **THE EMPTY-BIN LANDING (L8) HAS LANDED: a twin puts no value where
+  the description says there is none.** The owner's ruling of
+  2026-08-31, taken on the question of whether a bin holding ZERO may
+  be published while the bins holding one to one-below-the-floor stay
+  hidden. It closes **R-P4-136** and **R-P4-137**, and opens three.
+
+  **WHAT THE BRIEF SAID AND WHAT THE TREE SAID DIFFER ON ONE POINT,
+  and it is the first thing this entry owes.** The landing was written
+  against a measurement saying the histogram was WITHHELD on all three
+  two-cluster columns at the default floor. **It is not.** At a floor
+  of one the census IS published on all three — thirteen, nine and
+  twenty-five bins — because the all-or-nothing rule tests only the
+  bins that HOLD something, and at a floor of one every such bin
+  clears. The reasoning "32 bins must EACH clear the floor, so at
+  least 352 well-spread values are needed" is a misreading of
+  `taxonomy._value_histogram`: an empty bin has no entry in the count
+  and is never tested. What IS true, measured at floors of two, three,
+  five and eleven, is that the census vanishes on all three columns at
+  every floor above one — so the defect at the default floor was that
+  nothing CONSUMED the fact, and the owner's ruling is what carries it
+  above the default floor.
+
+  **WHAT WAS WRONG.** A column with two clusters and an empty middle
+  publishes a median BETWEEN the clusters — 49.65 for a hundred and
+  fifty values around twenty and a hundred and fifty around eighty, a
+  number no cell of that column holds — and `_stratum_values`
+  interpolates the rungs and honours it.
+
+  **MEASURED before and after through the real reader, producer,
+  loader, generator and validator, FORTY seeds each, at the default
+  floor and again at a floor of eleven:**
+
+  | column | the source's empty stretch | cells in a bin the source leaves empty, before | after |
+  |---|---|---|---|
+  | 150 around 20 + 150 around 80 | 26.6 .. 72.7 | 4–6 of 300, mean 5.47 | **0 at every seed** |
+  | 250 around 10 + 50 around 90 | 17.2 .. 85.7 | 2–3 of 300, mean 2.77 | **0 at every seed** |
+  | 150 around 40 + 150 around 60 | 47.0 .. 53.3 | 3–6 of 300, mean 4.38 | **0 at every seed** |
+
+  **AND THE TWO-CLUSTER COLUMNS STILL MEET EVERYTHING ELSE**, measured
+  the same way: the quality report on the same twins misses exactly
+  `widths.published.1` at 40 seeds of 40 on all three and `ladder.p90`
+  at 3 and at 18 seeds on two of them — every one of those figures
+  identical on the tree this branched from, so the landing takes
+  nothing back. Those pre-existing misses are opened as **R-P4-139**
+  rather than left in a passing sentence.
+
+  **THE FACT IS `empty_bins`**, an array of bin numbers on every
+  quantitative block, naming the bins that hold NOBODY. It is the one
+  fact of that block the publication floor does not reach, and the
+  owner's ruling is the whole authorisation for that: the floor exists
+  to stop a group too small to name being named, and there is no group
+  smaller than nobody. The all-or-nothing rule on `value_histogram` is
+  untouched and so is its reasoning — that census is read by RANK and
+  a pooled remainder breaks the ranks; this list is read as a set of
+  stretches to keep OUT of, and a bin holding one to
+  one-below-the-floor values is named by neither key.
+
+  **REPORT-ONLY, decided by measurement as landing L6 decided
+  `field_widths`.** Over forty described columns at forty seeds each,
+  the runs writing a cell into a named stretch went from **1049 of
+  1600 to 119**, worst run 13 cells to 10, with 121 deviations naming
+  what remains. The 119 fall in two families and each is the twin
+  having no room rather than the rule failing: whole-numbered columns
+  whose bins are barely wider than a unit, and columns spanning zero
+  where a stratum's sign band ends at the edge it would have to cross.
+  **R-P4-140** carries the upgrade.
+
+  **AND A SIBLING WAS FOUND AND FIXED (R-P4-137).** Method G6.6.7 said
+  `field_widths` was EXACT-OBSERVABLE and named a subcheck
+  `fields.published.<width>`; the plan, the contract, the registry and
+  the validator all say REPORT-ONLY and LIST it, and
+  `grep -rn "fields.published"` over `src/`, `tests/` and `docs/`
+  returns exactly that one sentence. One fact in four places, three
+  updated at L6 and the fourth left behind.
+
+  **WHAT IS NOT CLAIMED (R-P4-138).** The fact's resolution is one bin
+  — a thirty-second of the column's reach — so cells moved to the edge
+  of the nearest occupied bin are still inside the stretch the SOURCE
+  leaves empty. Their count is unchanged; their distance from the
+  nearest real value falls from 15.7–23.0, 22.8–33.9 and 2.1–3.1 to
+  1.0, 1.8 and 0.9. The phantom middle cluster is gone; what is left is
+  a slightly fatter tail on each real cluster.
+
+  **THE MUTATION RUN, AND WHAT IT SENT BACK.** Twelve rules of the
+  producer, the loader and method G6.7 were withdrawn one at a time
+  from the shipped tree and 542 tests over eight files run against
+  each. Six turned the suite red on the first pass and **six did
+  not** — the nearer-edge choice, the spelling-distinctness rule, the
+  kept written form, the spelling reading of the gathering step, the
+  zero-band exclusion and the sign band. Four of the six now have a
+  test written against their own mutant, driving the named function
+  rather than hoping a column can be found whose cells move; the
+  remaining two are **R-P4-141**, and one of them is silent for a
+  reason worth more than the gap: a column holding a zero has a real
+  value in the bin zero falls in, so that bin is never named empty and
+  the zero-band rule cannot fire on any description this producer
+  writes.
 
 * **THE JOINED LANDING (L7) HAS LANDED: a grain inside a role is laid
   out by ITS OWN count of numbers, and the pairing walk moves every

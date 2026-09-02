@@ -452,6 +452,7 @@ NUMERIC_KEYS = (
     "pad_widths",
     "field_widths",
     "value_histogram",
+    "empty_bins",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -1066,6 +1067,16 @@ INVARIANTS = {
         "by number, holds back none of them where the smallest group "
         "size is one, and holds back all of them otherwise"
     ),
+    # The bins holding nothing (plan P4-D32). Three conditions, and
+    # each one is a way a hand-written description could say something
+    # about the shape of a column that no column has.
+    "Q20": (
+        "the bins a column of numbers names as holding nothing are "
+        "named once each and in order, are never the bin its smallest "
+        "value is in nor the bin its largest is in, and where the "
+        "shape of its numbers is published name exactly the bins that "
+        "shape does not"
+    ),
     "I2": (
         "the repetition pattern accounts for every different value and "
         "every row that holds one"
@@ -1679,6 +1690,14 @@ class NumericFacts:
     # fact in this block a person plotting a distribution or fitting a
     # mixture is actually reading.
     value_histogram: "dict[str, int]"
+    # ...AND WHICH OF THOSE BINS HOLD NOTHING (plan P4-D32, the owner's
+    # ruling of 2026-08-31). The census above is all or nothing and is
+    # therefore absent from every description written above a floor of
+    # one; this list survives the floor, because a bin holding nobody
+    # is not a small group. It is the one fact of this block the
+    # smallest group size does not reach, and the value stage reads it
+    # as a set of stretches no cell may land in.
+    empty_bins: "tuple[int, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5664,6 +5683,7 @@ def _numeric_facts(
     _pool_holds_both(where, frame.floor, styles, widths, padded)
     fields = _field_widths(mapping, where, frame.floor, styles)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
+    hollow = _empty_bins(mapping, where, used, ladder, histogram)
     values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
     # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
     # Q18). The two keys stand or fall together: a value with no count
@@ -5751,6 +5771,7 @@ def _numeric_facts(
         pad_widths=padded,
         field_widths=fields,
         value_histogram=histogram,
+        empty_bins=hollow,
     )
 
 
@@ -5955,6 +5976,115 @@ def _value_histogram(
             ),
         )
     return counts
+
+
+def _empty_bins(
+    mapping: "dict[str, object]",
+    where: str,
+    used: int,
+    ladder: NumberLadder,
+    histogram: "dict[str, int]",
+) -> "tuple[int, ...]":
+    """Which bins a column says hold none of its numbers (7.11).
+
+    INVARIANT Q20, in three conditions, and each one refuses a
+    description that says something about a shape no column has.
+
+    1. THE LIST IS A LIST OF BINS, each named once and in order. Order
+       is not decoration here: this is the one fact of the block that
+       is read as a set of stretches rather than as a mapping, and a
+       list a producer may write two ways is a list two producers write
+       two ways.
+    2. THE TWO END BINS ARE NEVER AMONG THEM. The scale runs from the
+       column's smallest number to its largest, so the smallest is in
+       the first bin and the largest in the last, and a column with a
+       scale has both occupied. A description naming either is
+       describing a column with no smallest value, which is not a
+       column.
+    3. WHERE THE CENSUS IS PUBLISHED THE TWO ARE COMPLEMENTS. The
+       census is all or nothing, so where it is published at all it
+       names every bin that holds something; the bins holding nothing
+       are then exactly the rest. This is the guard against the fact
+       being written twice and one copy moving: a description whose two
+       shape facts disagree is refused rather than read.
+
+    AND WHERE THE COLUMN HAS NO SCALE THE LIST IS EMPTY. A ladder whose
+    ends this format cannot hold, or whose ends are finite and whose
+    width is not, divides into no bins at all, and "no bin holds
+    anything" is a different sentence from "there is nothing to
+    divide". The same is true of a block whose statistics used no
+    value.
+
+    Raises ProfileError for a wrong type, a bin outside the range this
+    method has, a repeat, an entry out of order, an end bin, a list on
+    a column with no scale, and for disagreement with the census.
+    """
+    given = mapping["empty_bins"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "empty_bins", where, given, "a list of bin numbers"
+        )
+    bins: list[int] = []
+    for entry in given:
+        if isinstance(entry, bool) or not isinstance(entry, int):
+            raise _wrong_type(
+                "empty_bins", where, entry, "a whole bin number"
+            )
+        if not 0 <= entry < parsing.HISTOGRAM_BINS:
+            raise _out_of_range(
+                "empty_bins",
+                where,
+                f"{entry}",
+                f"a bin number from 0 to {parsing.HISTOGRAM_BINS - 1}",
+            )
+        if bins and entry <= bins[-1]:
+            raise _broken(
+                "Q20",
+                where,
+                f"the bin {entry} is named after the bin {bins[-1]}",
+                "each bin named once, in ascending order",
+            )
+        bins = bins + [entry]
+    scaled = used > 0 and _has_width(ladder)
+    if bins and not scaled:
+        raise _broken(
+            "Q20",
+            where,
+            f"{len(bins)} bin(s) are named as holding nothing",
+            "this column's numbers divide into no bins at all",
+        )
+    if scaled:
+        for entry in bins:
+            if entry == 0 or entry == parsing.HISTOGRAM_BINS - 1:
+                raise _broken(
+                    "Q20",
+                    where,
+                    f"the bin {entry} is named as holding nothing",
+                    "the smallest value is in the first bin and the "
+                    "largest in the last, so neither is ever empty",
+                )
+    if histogram:
+        named = {key for key in histogram if key != WITHHELD}
+        for entry in bins:
+            if f"{entry}" in named:
+                raise _broken(
+                    "Q20",
+                    where,
+                    f"the bin {entry} is named as holding nothing",
+                    f"the shape of this column's numbers says it holds "
+                    f"{histogram[f'{entry}']}",
+                )
+        for place in range(parsing.HISTOGRAM_BINS):
+            if f"{place}" in named or place in bins:
+                continue
+            raise _broken(
+                "Q20",
+                where,
+                f"the bin {place} is named neither as holding nothing "
+                f"nor by the shape of this column's numbers",
+                "every bin is named by exactly one of the two",
+            )
+    return tuple(bins)
 
 
 def _has_width(ladder: NumberLadder) -> bool:

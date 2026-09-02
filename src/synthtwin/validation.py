@@ -540,6 +540,15 @@ _NOT_CHECKABLE_HISTOGRAM = (
     "ladder instead. A file whose numbers fall in different bins "
     "misses no obligation this description makes"
 )
+_NOT_CHECKABLE_EMPTY_BINS = (
+    "the description records which stretches of your column's range "
+    "held no value at all, and the twin keeps out of them without "
+    "being held to it: where the twin's own ladder, its signs and the "
+    "values its other cells hold leave no room beside a stretch, one "
+    "cell stays inside it and the report beside the twin names the "
+    "stretch and the value. A file whose values fall in different "
+    "stretches misses no obligation this description makes"
+)
 _NOT_CHECKABLE_FIELD_WIDTHS = (
     "the description records how many of the real column's cells were "
     "written as a whole number at each field width, and the twin "
@@ -11580,6 +11589,30 @@ def _numeric_listings(
     # count with an empty histogram -- on which this fact was named
     # nowhere while the report claimed the census accounts for every
     # obligation.
+    if facts.empty_bins:
+        # THE STRETCHES THAT HOLD NOTHING, LISTED and never silent
+        # (plan P4-D32). REPORT-ONLY, measured rather than assumed:
+        # over forty described columns at forty seeds each, 119 of
+        # 1600 runs still wrote one cell into a stretch the
+        # description names empty, and every one of them is a column
+        # whose OTHER published facts leave the twin no room beside
+        # the stretch -- a whole-number column whose bins are barely
+        # wider than a unit, or a stratum whose sign band ends at the
+        # edge it would have to cross. A check here would call the
+        # shipped generator's own twin broken on one run in fourteen.
+        #
+        # LISTED ONLY WHERE THE DESCRIPTION NAMES A STRETCH, like the
+        # census above it and unlike the two facts below: a column
+        # with no empty bin makes no claim here and a listing would be
+        # a line about nothing.
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.empty_bins",
+                "",
+                _NOT_CHECKABLE_EMPTY_BINS,
+            )
+        ]
     listings = listings + [
         # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never
         # silent (plan P4-D30). It is published on every column of this

@@ -129,10 +129,24 @@ LEVEL_FORM_SUBCHECK = "shape_form_cells"
 # P4-D30). `field_widths` is REPORT-ONLY, so it is listed whole on
 # every numeric-family column rather than checked width by width.
 FIELD_WIDTH_FACT = "numeric.field_widths"
+# ...and the SECOND listing to arrive after that baseline was frozen
+# (plan P4-D32). `empty_bins` is REPORT-ONLY, listed whole, and listed
+# ONLY where the description names a stretch -- so unlike the census
+# above it does not appear once per numeric column, and the four it
+# adds cannot be predicted from the column list alone. The two are
+# subtracted together and each is then named, so a listing that moved
+# for any other reason still has nowhere to hide.
+EMPTY_BIN_FACT = "numeric.empty_bins"
+LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT)
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
 )
+# Which columns of the demonstration leave a stretch of their range
+# empty, written out rather than counted (plan P4-D32). Only these
+# carry the listing; the other numeric-family columns make no claim
+# here and get no line.
+EMPTY_BIN_LISTINGS = ["visits|numeric.empty_bins|"]
 NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
     "90feb6ab2bc50119ea0f59417c383a3d4474343b4e5a559aa9dbb07b45e1d09f"
@@ -237,7 +251,11 @@ def test_widening_the_demonstration_lost_no_obligation(
     # exactly those columns. Setting them aside must reproduce the
     # frozen 126 character for character; re-recording the digest
     # against 130 would bless whatever else moved beside them.
-    kept = [entry for entry in listings if FIELD_WIDTH_FACT not in entry]
+    kept = [
+        entry
+        for entry in listings
+        if not any(fact in entry for fact in LISTINGS_ADDED_SINCE)
+    ]
     assert len(kept) == NARROW_LISTING_COUNT, len(kept)
     assert (
         hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
@@ -258,6 +276,14 @@ def test_widening_the_demonstration_lost_no_obligation(
         "reading|numeric.field_widths|",
         "visits|numeric.field_widths|",
     ]
+    # ...and the empty-bin listings are named the same way, and the
+    # list is SHORTER than the four above rather than equal to it,
+    # which is the whole of what "listed only where the description
+    # names a stretch" means. A run that listed it on every numeric
+    # column would pass a count and fail here.
+    assert sorted(
+        entry for entry in listings if EMPTY_BIN_FACT in entry
+    ) == EMPTY_BIN_LISTINGS
     for name, digest in NARROW_COLUMN_DIGESTS.items():
         cells = twin.columns[twin.names.index(name)]
         found = hashlib.sha256(
@@ -508,7 +534,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # twin holds: the demonstration's twin is byte-identical, measured
 # against the tree at the commit before this landing.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0edb2dcae996cb387d66c6d0de35d836927abdea6c7ed3c0019d5b0a905fdb88"
+    "050bc4c6f684af271f9a46a8c583c2151094311ee04e95500f9d0e05e97a1f16"
 )
 
 
@@ -1295,7 +1321,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # verdicts are unchanged in kind -- no obligation left the census and
 # none was lowered.
 GOLDEN_QUALITY_SHA256 = (
-    "cfd3c3f9d4a134d91e375645f00b7391acc9579a8b6f4a1742100c95cffd3a98"
+    "3ec1643ca66f2cc107ced501878b5473ce6c43ea79ab06becd68d52b0b39538d"
 )
 
 
