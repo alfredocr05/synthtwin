@@ -28,8 +28,9 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,294 collected / 52 skipped. The run that settled the merged tree read `4242 passed, 52 skipped in 1035.05s`. The skipped count is 51 in a worktree and 52 here: 26 of the skips are a bounded-walk family and four are Windows-only path tests, so the number moves with the machine while the COLLECTED count, which this page enforces, does not |
+| suite | 4,302 collected / 52 skipped, `4250 passed in 983.98s`, with L12 and L7's second review round both merged. The skipped count reads 51 in a worktree and 52 here: 26 of the skips are a bounded-walk family and four are Windows-only path tests, so it moves with the machine while the COLLECTED count, which this page enforces, does not |
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
+| suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L8): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
 
@@ -202,7 +203,12 @@ are still ahead. The gap list itself is at the foot of this page.
     readings over positions holding 13 and 9 different numbers: the
     twin held **157–169** different cells and positions of **34–41**
     and **23–29**, missing `distinct.n_distinct` at 10 seeds of 10 →
-    **110, 13 and 9 at every seed, and nothing missed at all**. CLOSED.
+    **110, 13 and 9 at all FORTY SAMPLED SEEDS, and nothing missed at all**. CLOSED — and the claim is the sample and not the
+    world: seed 141 holds 108 different cells against 110 and 12
+    first-position numbers against 13, and seeds 0 to 200 hold
+    two such seeds, 141 and 170. That is R-P4-120's known
+    mechanism, not a new silent defect, and the twin's own report
+    names it.
   - **R-P4-112, the 36-row `N/M` witness**: 12–15 cells carrying a
     point where 2 are published, `number 1 styles.published.plain`
     MISSED at 22 against a floor of 34 → **2 at the pinned seed and
@@ -277,6 +283,45 @@ are still ahead. The gap list itself is at the foot of this page.
   **119 distinct pairs of rows** two hundred times over; it steps along
   now. And a try short of the count proposes a row worth swapping
   (G6B.4a) rather than two at random, bounded at sixteen rows.
+
+  **REVIEW ROUND 2 REJECTED THE REPAIRS WITH THREE MORE, AND ONE FOUND
+  A GUARANTEE THAT WAS FALSE OF THE THING IT NAMES** (amendment
+  A-P4-50). Round 1's no-trade rule compared COUNTS of conforming
+  pairs, so one pair leaving its window while another entered held the
+  count still and the guard let through exactly the swap it exists to
+  refuse. Verified on the round's own producer case before repairing:
+  at seed 1 two accepted swaps did that, with no exact fact improving.
+  It is a per-seat mask now, and the rule lives in a named function
+  `_swap_allowed` rather than inside the walk, because a twin cannot
+  say which swaps were TAKEN.
+
+  **AND THE MASK WAS QUADRATIC IN THE POSITIONS.** The pair count is
+  quadratic in the part count -- 402 positions make 80,601 pairs -- and
+  a list grown by concatenation copies itself every time: 2.17 seconds
+  per build against 0.0021 preallocated, and one twin of the boundary
+  column did not finish inside ten minutes. Preallocating every
+  pair-length list and evaluating the guard only over the pairs a swap
+  CAN have moved took that twin from **over ten minutes to 27.3 seconds
+  to 16.5**. Making the distance itself incremental would go further
+  and is deliberately not done: it would carry a sum the code
+  recomputes, and that moves bytes and invites the drift R-P4-126
+  names.
+
+  **FIVE MUTATIONS, FOUR RED, ONE SILENT.** The count-based rule is
+  caught now, and so are the exception and the call site. The guard's
+  restriction to the moved pairs is measured EQUIVALENT rather than
+  assumed. The silent one is the ORACLE's copy of the rule, which no
+  frozen case can reach because the only joined case has two positions
+  and therefore one pair -- added to R-P4-123.
+
+  The other two: the withdrawn-claims guard now walks the METHOD and
+  the PLAN, where three passages still described the withdrawn
+  behaviour -- one of them still calling it "THE RULE" after the
+  amendment that withdrew it appears earlier in the same file. And "at
+  every seed" was a universal resting on a sample: **seed 141 holds 108
+  different cells against 110** on this page's own producer, two such
+  seeds exist in 0 to 200, and every occurrence now reads "all forty
+  sampled seeds" with R-P4-120 beside it.
 
   **REVIEW ROUND 1 REJECTED THIS LANDING WITH FIVE ITEMS AND EVERY ONE
   WAS REAL** (amendment A-P4-49). The two the report above had flagged
@@ -1116,7 +1161,8 @@ one at another -- so an exact obligation looked like one met or missed
 BY THE SEED. (The overshoot is CLOSED by landing L7 of 2026-09-01:
 each position is laid out by its own count of different numbers now,
 and a 400-row repeating column publishing 110 different readings holds
-exactly 110 at every one of forty seeds where it held 157 to 169. The
+exactly 110 at all forty sampled seeds where it held 157 to 169 -- and
+seed 141 of a wider sweep holds 108, which is R-P4-120. The
 disposition stands as EXACT-OBSERVABLE for the reason the next
 paragraph gives, which was never about the generator.) And the twin's own report already prints "the description
 says 120 / the twin holds 119", so nothing seemed hidden.

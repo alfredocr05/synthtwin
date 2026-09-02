@@ -5278,17 +5278,30 @@ def repaired_pairing(drawn, column, wanted, words):
         return out
 
     def conforming():
-        """How many pairs sit inside the window G12.9 publishes."""
-        count = 0
+        """WHICH pairs sit inside the window G12.9 publishes -- step 5.
+
+        A mask seat by seat.  The rule the mask serves is about a pair
+        LEAVING its window, and a count cannot say which pair is which:
+        one leaving while another enters holds the count still.
+        """
+        mask = []
         for index in range(len(seats)):
             place = seats[index]
             first = firsts[index]
             second = seconds[index]
             divisor = (spread[first] * spread[second]) ** 0.5
             agreed = tops[index] / divisor if divisor > 0.0 else 0.0
-            if abs(agreed - _field_value(agreements[place])) <= room:
-                count = count + 1
-        return count
+            mask.append(
+                abs(agreed - _field_value(agreements[place])) <= room
+            )
+        return mask
+
+    def left_its_window(before, after):
+        """Did any pair that was conforming stop conforming?"""
+        for index in range(len(before)):
+            if before[index] and not after[index]:
+                return True
+        return False
 
     def exact_gap():
         """The two EXACT facts' distance from what is published."""
@@ -5432,7 +5445,7 @@ def repaired_pairing(drawn, column, wanted, words):
         now = distance()
         # A swap never takes a pair out of its window unless an
         # exactly-checked fact gains by it (step 5).
-        keep = not (conforming() < kept_conforming
+        keep = not (left_its_window(kept_conforming, conforming())
                     and exact_gap() >= kept_exact)
         # AN EQUAL SWAP IS TAKEN, not only a better one.
         if keep and now <= away:
