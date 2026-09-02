@@ -5511,38 +5511,139 @@ _AGREEMENT_ROUNDING = 0.5 * 10.0 ** (-parsing.RANK_AGREEMENT_PLACES)
 def _swap_allowed(
     before: "list[bool]",
     after: "list[bool]",
-    exact_before: int,
-    exact_after: int,
+    above_before: "list[int]",
+    above_after: "list[int]",
+    cells_before: int,
+    cells_after: int,
 ) -> bool:
-    """May a swap be taken, given what it did to the pairs?
+    """May a swap be taken, given what it did to the published facts?
 
-    THE RULE, ONCE AND BY NAME. A swap that takes ANY pair out of the
-    window method G12.9 publishes is refused -- unless it brings an
-    exactly-checked fact strictly closer, because `part_above` and the
-    count of different cells are checked value for value while an
-    agreement is checked inside a window.
+    THE RULE, ONCE AND BY NAME, in the order the code applies it.
+
+    ONE. A swap that takes any pair's above-count from HELD to missed
+    is refused, whatever else it does. `part_above` is an exact count a
+    pairing can always meet, and one row out of it is one cell holding
+    a reading that cannot happen -- so no amount of agreement and no
+    other above-count buys it.
+
+    TWO. A swap that takes an above-count FURTHER from its published
+    value is refused, unless the moved pairs' above-counts fall as a
+    whole or unless some other above-count reaches its published value
+    in the same swap. Without that second half the rule would refuse
+    the walk its own progress: a swap taking one seat to its count
+    while another dips is movement towards the very fact rule one
+    protects, and rule one is absolute, so a column whose remaining
+    debt needs one seat to dip would have no route to it at all. THE
+    ESCAPE IS NOT THERE BECAUSE IT MEASURED BETTER -- it measured one
+    agreement WORSE over 2,160 pairs (550 outside their window against
+    549 without it, no above-count missed either way), and it is kept
+    because a rule that refuses progress towards the fact it protects
+    is the wrong rule however that one pair lands.
+
+    THREE. A swap that takes any pair OUT of the window method G12.9
+    publishes is refused, unless it brings an exactly-checked fact
+    closer: the moved above-counts as a whole, or the count of
+    different cells. The exception is A-P4-49's and it is measured --
+    refusing without it cost ten above-counts of forty seeds where none
+    had been missed. The two exact facts are asked SEPARATELY here
+    rather than added together, because "an exactly-checked fact" is
+    singular and netting a row of `part_above` against a different cell
+    is the arithmetic this rule was repaired to stop.
+
+    RULES ONE AND TWO RUN ON EVERY TRY, ahead of the window test, and
+    that is the load-bearing shape rather than a detail of order.
+    Review round 3's defect arrived on the branch where NO pair left
+    its window: the guard returned True there without reading its exact
+    arguments at all, and the decision fell to `_away`, which sums the
+    same per-pair term into a single float. Because one and two are
+    unconditional they dominate that comparison, so `_away` keeps the
+    weights its own docstring records and is not re-weighted here.
+
+    WHAT RULE ONE GUARANTEES ACROSS A WALK, and it is a statement about
+    the walk and not only about this function: the set of pairs holding
+    their published `part_above` never shrinks. A pair the swap cannot
+    touch keeps its count, a refused swap is put back exactly, and a
+    moved pair cannot go from held to missed. Measured on `battery-11`
+    of `tools/measurements/r_p4_40_l7_joined.py` at seed 27, that count
+    fell four times over the 149 accepted swaps before this repair and
+    falls at none of the 146 after it.
+
+    THE COUNT OF DIFFERENT CELLS IS IN NEITHER RULE ONE NOR RULE TWO,
+    deliberately. It cannot always be met (R-P4-40), a walk that
+    insists on it wrecks everything else, and keeping the two exact
+    facts apart is what stops either being spent on the other. It
+    enters at rule three alone, as its own term beside the rows.
 
     IT IS A FUNCTION RATHER THAN A LINE IN THE WALK because a rule
     inside a closure can only be tested through a finished twin, and a
     twin cannot show which swaps were TAKEN. Review round 2 asked for a
     witness against the acceptance decision itself; this is the thing
-    that decision is.
+    that decision is. Round 3 measured what that is worth: with the
+    retargeted proposal in place, collapsing this rule back to a summed
+    distance leaves BOTH outcome witnesses green, and only a spy on
+    these arguments tells the two apart.
 
-    `before` and `after` are the per-seat conformance masks. Comparing
-    COUNTS instead was the defect that round found: one pair leaving
-    while another enters holds the count still, so the guard let
-    through exactly the swap it exists to refuse.
+    `before` and `after` are the per-seat conformance masks;
+    `above_before` and `above_after` are the per-seat above-count gaps.
+    All four are in the order of the walk's `moved` list, so entry `k`
+    is the same pair on both sides -- nothing but that shared list
+    enforces it, so a caller must build `moved` ONCE per try and pass
+    the same one to both readings. Comparing COUNTS was the defect
+    review round 2 found on the masks and comparing SUMS was the defect
+    review round 3 found on the above-counts: either way one seat
+    leaving while another entered held the number still, and the guard
+    let through exactly the swap it exists to refuse. Measured on
+    `battery-11` at seed 27, accepted swap 57 -- the walk's try 350 --
+    took the per-pair gaps from `(0, 3, 0, 0, 0, 0)` to
+    `(0, 2, 0, 1, 0, 0)`, `part_above[3]` lost while `part_above[1]`
+    gained, the total 3 either way, and `away` fell from
+    3.256434912989342 to 3.2564112096671862. Accepted swap 59, try 377,
+    moved the miss back the same way.
 
-    Guarantees: pure, total, and a fixed function of its four
+    `cells_before` and `cells_after` are that other exact fact, how far
+    the count of different cells stands from what is published.
+
+    Guarantees: pure, total, and a fixed function of its six
     arguments. Raises nothing. No I/O of any kind.
     """
+    sold = False
+    worsened = False
+    entered = False
+    was = 0
+    now = 0
+    for index in range(len(above_before)):
+        was = was + above_before[index]
+        if index < len(above_after):
+            now = now + above_after[index]
+            if above_before[index] == 0 and above_after[index] != 0:
+                sold = True
+            if above_after[index] > above_before[index]:
+                worsened = True
+            if above_before[index] != 0 and above_after[index] == 0:
+                entered = True
+    # ONE -- A HELD ABOVE-COUNT IS NEVER SOLD, to anything at all.
+    if sold:
+        return False
+    # TWO -- A SEAT DRIFTS ONLY WHERE THE WALK GAINS BY IT: the moved
+    # pairs' above-counts fall as a whole, or another seat reaches its
+    # published count in the same swap.
+    if worsened and now >= was and not entered:
+        return False
+    # THREE -- THE DRIFT REFUSAL, seat by seat since review round 2.
     left = False
     for index in range(len(before)):
         if index < len(after) and before[index] and not after[index]:
             left = True
     if not left:
         return True
-    return exact_after < exact_before
+    # A DISJUNCTION AND NOT A RE-MIXED TOTAL. "Brings an exactly-checked
+    # fact closer" is singular in A-P4-49 and in the method; netting
+    # rows against cells is the collapse this landing removes, so it may
+    # not be written back in here. Measured cost of the separated form
+    # over the total, again against it: one agreement of 2,160 outside
+    # its window (550 against 549) and one of the 960 early pairs, with
+    # no above-count missed either way.
+    return now < was or cells_after < cells_before
 
 
 def _repaired_pairing(
@@ -5837,6 +5938,55 @@ def _repaired_pairing(
         the acceptance rule.
         """
         if len(seen) == wanted:
+            # THE COUNT IS MET AND AN ABOVE-COUNT MAY NOT BE. Where the
+            # distinct count is right, the walk's remaining exact debt
+            # is a row of `part_above`, and a row is what this proposes
+            # -- the same shape as the branch below, aimed at the other
+            # exact fact. It matters because the acceptance rule now
+            # refuses to trade one above-count for another, so the walk
+            # can no longer stumble onto the repair sideways.
+            #
+            # EVERY OTHER TRY, because an above-count is not the only
+            # thing left: aiming every try at it starves the agreement,
+            # which is the other fact the walk is still improving.
+            # Measured on a 300-row blood pressure, aiming every try
+            # left the twin agreeing at 0.8232 against a published
+            # 0.8343 where alternating reaches it exactly.
+            if tries % 2:
+                return one, two
+            for index in range(len(seats)):
+                place_seat = seats[index]
+                gap = aboves[index] - facts.part_above[place_seat]
+                if gap == 0:
+                    continue
+                if firsts[index] != place and seconds[index] != place:
+                    continue
+                # Too many rows hold the earlier above the later, so
+                # a row that does is the one to move; too few, and it
+                # is a row that does not.
+                over = gap > 0
+                found = one
+                step = 0
+                while step < _PROPOSAL_REACH:
+                    row = (one + step) % total
+                    higher = numbers[firsts[index]][row] > (
+                        numbers[seconds[index]][row]
+                    )
+                    if higher == over:
+                        found = row
+                        break
+                    step = step + 1
+                partner = two
+                step = 0
+                while step < _PROPOSAL_REACH:
+                    row = (two + step) % total
+                    if row != found and (
+                        held[place][row] != held[place][found]
+                    ):
+                        partner = row
+                        break
+                    step = step + 1
+                return found, partner
             return one, two
         short = len(seen) < wanted
         found = one
@@ -5883,24 +6033,38 @@ def _repaired_pairing(
             step = step + 1
         return found, partner
 
-    def _exact_gap(where: "list[int]") -> int:
-        """How far the two EXACT facts are from what is published.
+    def _cells_gap() -> int:
+        """How far the count of DIFFERENT CELLS is from what is published.
 
-        The count of different cells and every above-count, added
-        together in rows. It decides when the drift refusal below gives
-        way: an exactly-checked fact outranks a windowed one, so a swap
-        that brings one of these closer is taken even where it costs a
-        pair its conformance.
+        Its own reading, returned on its own, because it is a different
+        kind of obligation from an above-count: it belongs to no pair,
+        it is licensed to yield (R-P4-40), and until review round 3 it
+        was added to the above-counts in one integer -- so a gained
+        cell could buy a lost row of `part_above` and nothing at the
+        acceptance rule could see the trade.
         """
-        # Over the moved pairs only, for the reason `_conforming`
-        # gives: a pair the swap cannot touch contributes the same
-        # number before and after, so it cannot change the comparison.
-        summed = abs(len(seen) - wanted)
+        return abs(len(seen) - wanted)
+
+    def _above_marks(where: "list[int]") -> "list[int]":
+        """One above-count gap PER MOVED PAIR, in the order `where` gives.
+
+        By identity, and it was a summed distance until review round 3.
+        The order is `where`'s, which is the walk's `moved` list, so
+        entry `k` is the same pair here as in the conformance mask and
+        as in the reading taken after the swap -- a caller that rebuilt
+        `moved` between the two readings would mis-refuse silently, so
+        the walk builds it once a try.
+
+        Over the moved pairs only, for the reason `_conforming` gives:
+        a pair the swap cannot touch has the same above-count before
+        and after, so it cannot change the comparison.
+        """
+        marks: "list[int]" = [0 for _each in range(len(where))]
         for step in range(len(where)):
             index = where[step]
             place = seats[index]
-            summed = summed + abs(aboves[index] - facts.part_above[place])
-        return summed
+            marks[step] = abs(aboves[index] - facts.part_above[place])
+        return marks
 
     def _conforming(where: "list[int]") -> "list[bool]":
         """WHICH scored pairs sit inside the window G12.9 publishes.
@@ -6032,8 +6196,13 @@ def _repaired_pairing(
             for index in range(len(seats))
             if firsts[index] == place or seconds[index] == place
         ]
+        # ONE `moved` LIST, READ THREE WAYS AND TWICE OVER. The mask
+        # and the above-count marks are both aligned to it, so entry
+        # `k` names the same pair in every one of the six arguments
+        # below.
         conforming = _conforming(moved)
-        exact_gap = _exact_gap(moved)
+        above_marks = _above_marks(moved)
+        cells_gap = _cells_gap()
         for index in moved:
             first = firsts[index]
             second = seconds[index]
@@ -6091,8 +6260,19 @@ def _repaired_pairing(
         # One pair leaving while another entered left the count equal
         # and the swap was taken, so the guarantee was false of the
         # thing it names.
+        #
+        # AND THE EXACT FACTS WERE ONE SUMMED DISTANCE UNTIL ROUND 3,
+        # which is the same defect on the other vector: an above-count
+        # going from held to MISSED while another improved by one left
+        # the total standing still. Worse, on that path no pair had
+        # left its window, so the rule returned True without reading
+        # the exact arguments at all and `_away`'s own sum was the only
+        # thing left to judge the swap. The rule now reads each pair by
+        # name, and reads them on every try.
         if not _swap_allowed(
-            conforming, _conforming(moved), exact_gap, _exact_gap(moved)
+            conforming, _conforming(moved),
+            above_marks, _above_marks(moved),
+            cells_gap, _cells_gap(),
         ):
             keep = False
         # AN EQUAL SWAP IS TAKEN, NOT ONLY A BETTER ONE. Three facts are

@@ -7286,7 +7286,16 @@ def _joined_checks(
         if isinstance(found_agreement, (int, float)) and not isinstance(
             found_agreement, bool
         ):
-            measured_agreement = float(found_agreement)
+            # NEGATIVE ZERO IS ZERO, and the two paths must not
+            # disagree about that (review item P4-G3-R4-F2, and round 3
+            # of landing L7 for this path). An agreement a few
+            # ten-thousandths below zero rounds to `-0.0`, which EQUALS
+            # `0.0` as a number and differs from it as text. The exact
+            # check this pair used to take added zero for exactly this
+            # reason; when landing L7 gave every pair the WINDOW
+            # instead, the normalisation was left behind and a held
+            # pair printed `-0.0` against a published `0.0`.
+            measured_agreement = float(found_agreement) + 0.0
         fact = f"joined.part_agreements[{place}]"
         subcheck = f"together.how strongly they move, pair {place + 1}"
         checks = checks + [

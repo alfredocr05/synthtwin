@@ -490,21 +490,359 @@ def test_the_swap_rule_is_per_pair_and_not_a_count() -> None:
     which swaps were taken, so the rule is a named function and this
     drives it. The third case is the one that separates the two rules.
     """
+    # THE SIX ROWS ARE ROUND 2'S OWN, RESTATED AND NOT SWAPPED. Round
+    # 3 split the one exact distance they carried into its two kinds --
+    # a per-pair above-count vector and the seatless count of different
+    # cells -- so the distance each row moved is now the CELL count and
+    # the above-counts stand still beside it. Every row still separates
+    # the rule from a count of conforming pairs, which is what this
+    # test is for.
     cases = (
-        ([True, True], [True, True], 0, 0, True),
-        ([False, False], [True, True], 1, 1, True),
-        ([True, False], [False, True], 1, 1, False),
-        ([True, False], [False, True], 1, 0, True),
-        ([True, True], [True, False], 2, 2, False),
-        ([True, True], [True, False], 2, 1, True),
+        ([True, True], [True, True], [0, 0], [0, 0], 0, 0, True),
+        ([False, False], [True, True], [0, 0], [0, 0], 1, 1, True),
+        ([True, False], [False, True], [0, 0], [0, 0], 1, 1, False),
+        ([True, False], [False, True], [0, 0], [0, 0], 1, 0, True),
+        ([True, True], [True, False], [0, 0], [0, 0], 2, 2, False),
+        ([True, True], [True, False], [0, 0], [0, 0], 2, 1, True),
     )
-    for before, after, was, now, allowed in cases:
-        assert generation._swap_allowed(before, after, was, now) is allowed, (
-            before, after, was, now, allowed
-        )
+    for before, after, rows_was, rows_now, was, now, allowed in cases:
+        assert generation._swap_allowed(
+            before, after, rows_was, rows_now, was, now
+        ) is allowed, (before, after, was, now, allowed)
     before, after = [True, False], [False, True]
     assert sum(before) == sum(after)
-    assert generation._swap_allowed(before, after, 1, 1) is False
+    assert generation._swap_allowed(
+        before, after, [0, 0], [0, 0], 1, 1
+    ) is False
+
+
+def _battery_column(which: int) -> "list[str]":
+    """One column of the measurement file's own battery, built alike.
+
+    `tools/measurements/r_p4_40_l7_joined.py` seeds `random` once and
+    builds twelve columns in order, so a case is reproduced only by
+    building every case before it.
+    """
+    generator = random.Random(20260904)
+    built: "list[list[str]]" = []
+    for case in range(12):
+        rows: "list[str]" = []
+        parts = 3 + case % 2
+        for _row in range(150):
+            first = generator.randint(10, 60)
+            second = first + generator.randint(-8, 8)
+            third = generator.randint(1, 40)
+            fourth = 100 - first
+            held = [first, second, third, fourth][:parts]
+            rows = rows + ["/".join(str(one) for one in held)]
+        built = built + [rows]
+    return built[which]
+
+
+def test_an_exact_seat_is_not_sold_for_an_agreement_term() -> None:
+    """Review round 3's producer case, on the twin it produces.
+
+    Round 2 gave the acceptance rule per-pair AGREEMENT masks and left
+    the EXACT obligations as one summed distance. A sum cannot express
+    the rule either: an above-count can go from held to MISSED while
+    another improves by one, the total says nothing happened, and the
+    agreement tie-break is then the only reason left to take the swap.
+
+    MEASURED on this column at seed 27 before the repair: at accepted
+    swap 57, which is the walk's try 350, the per-pair gaps went
+    `(0, 3, 0, 0, 0, 0)` to `(0, 2, 0, 1, 0, 0)` -- `part_above[3]`
+    lost while `part_above[1]` gained -- with the total 3 either way
+    and `away` falling from 3.256434912989342 to 3.2564112096671862.
+    Accepted swap 59, try 377, moved it back the same way, and three
+    earlier swaps did the same. Over the whole run the count of pairs
+    holding their published above-count fell four times, ending at five
+    of six, and the twin held `(65, 120, 32, 118, 31, 0)` against a
+    published `(65, 122, 32, 118, 31, 0)`.
+
+    The above-counts are carried by IDENTITY now, and this column meets
+    every one of them.
+
+    THIS TEST DOES NOT PIN THE ACCEPTANCE RULE, and saying so is part
+    of what it is for. With G6B.4a's retargeted proposal in place, the
+    rule was collapsed back to a summed distance and this test stayed
+    GREEN: the walk reaches the same twin by another road. What pins
+    the rule is `test_the_walk_never_sells_an_above_count_it_holds`
+    below, which watches the decisions instead of the cells.
+    """
+    _document, loaded, folder, _table = _described(_battery_column(11))
+    column = loaded.columns[0]
+    facts = column.facts
+    assert column.role == "joined_numbers", column.role
+    assert facts.n_parts == 4, facts.n_parts
+    assert column.n_distinct == 149, column.n_distinct
+    assert facts.part_above == (65, 122, 32, 118, 31, 0), facts.part_above
+
+    twin = generation.generate(loaded, 27)
+    cells = [cell for cell in twin.columns[0] if cell != ""]
+    held = [
+        [float(cell.split(facts.separator)[place]) for cell in cells]
+        for place in range(facts.n_parts)
+    ]
+    above: "list[int]" = []
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            above = above + [len([
+                1 for row in range(len(cells))
+                if held[first][row] > held[second][row]
+            ])]
+    assert tuple(above) == facts.part_above, (
+        f"the twin holds {tuple(above)} against a published "
+        f"{facts.part_above}; an exact seat was sold for an agreement "
+        "term"
+    )
+    assert len(set(cells)) == column.n_distinct, len(set(cells))
+    written = fixtures.write(folder, "b11.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(loaded, f"{written}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+        and "one above the other" in check.subcheck
+    ]
+    assert not missed, missed
+
+
+def test_the_walk_never_sells_an_above_count_it_holds(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    """The DECISIONS the walk took, and not the twin it came out with.
+
+    AN OUTCOME CANNOT PIN THIS RULE, measured: with G6B.4a's
+    retargeted proposal in place, collapsing the acceptance rule back
+    to a summed distance leaves both outcome cases beside this one
+    green -- `battery-11` at seed 27 still comes out holding every
+    above-count and all 149 different cells. The walk finds the same
+    twin by another road. So this test spies on the arguments the walk
+    really hands the rule, and asserts the two things the rule
+    promises, neither of which any finished twin can show.
+
+    ONE: no swap is ever allowed that takes a pair's above-count from
+    HELD to missed. That is the guarantee the method's G12.9 sentence
+    rests on -- "a twin either holds it or has missed it" -- and it is
+    what makes the set of pairs holding their count non-shrinking
+    across a whole walk.
+
+    TWO: the rule is REACHED on the branch where nothing left its
+    window. That is where review round 3's defect lived: the guard
+    returned True there without reading its exact arguments at all.
+    Measured on this column, 9,125 swaps are refused with every mask
+    standing still and an above-count worsening; a rule that read its
+    arguments only inside the window guard refuses none of them.
+    """
+    _document, loaded, _folder, _table = _described(_battery_column(11))
+    assert loaded.columns[0].facts.part_above == (
+        65, 122, 32, 118, 31, 0
+    ), loaded.columns[0].facts.part_above
+
+    honest = generation._swap_allowed
+    seen: "list[tuple]" = []
+
+    def watched(before, after, was, now, cells_was, cells_now):
+        verdict = honest(before, after, was, now, cells_was, cells_now)
+        seen.append((list(before), list(after), list(was), list(now),
+                     verdict))
+        return verdict
+
+    monkeypatch.setattr(generation, "_swap_allowed", watched)
+    generation.generate(loaded, 27)
+
+    assert seen, "the walk never consulted the acceptance rule"
+    sold: "list[tuple]" = []
+    allowed_sales = 0
+    quiet_refusals = 0
+    # THREE: the vectors reaching the rule really are PER PAIR and
+    # aligned. This column has four positions, so every position the
+    # walk moves is in three pairs: a rule handed one summed entry
+    # cannot refuse per pair however the refusals are written, and
+    # nothing but the walk's own `moved` list keeps the two vectors
+    # naming the same pairs.
+    for before, after, was, now, _verdict in seen:
+        assert len(was) == 3, (
+            f"the walk passed {len(was)} above-count entries where the "
+            "position it moved is in 3 pairs"
+        )
+        assert len(was) == len(now) == len(before) == len(after), (
+            len(was), len(now), len(before), len(after)
+        )
+    for before, after, was, now, verdict in seen:
+        selling = any(
+            was[seat] == 0 and now[seat] != 0 for seat in range(len(was))
+        )
+        if selling:
+            sold.append((was, now))
+            if verdict:
+                allowed_sales = allowed_sales + 1
+        left = any(
+            before[seat] and not after[seat] for seat in range(len(before))
+        )
+        worse = any(
+            now[seat] > was[seat] for seat in range(len(was))
+        )
+        if not verdict and not left and worse:
+            quiet_refusals = quiet_refusals + 1
+    # VACUITY FIRST: a run that never proposed such a swap would assert
+    # nothing at all below.
+    assert sold, (
+        "no swap in the whole walk offered to sell a held above-count, "
+        "so this test pins nothing"
+    )
+    assert allowed_sales == 0, (
+        f"{allowed_sales} of {len(sold)} swaps that would take an "
+        "above-count from held to missed were ALLOWED"
+    )
+    assert quiet_refusals > 0, (
+        "no swap was refused on its above-counts while every pair stayed "
+        "inside its window, so the rule is still being consulted only "
+        "behind the window guard"
+    )
+
+
+def test_the_walk_holds_the_above_count_of_r_p4_40s_own_column() -> None:
+    """The second reproduction, on the residual's own 400-row column.
+
+    The reported case was one seed of one battery column. This one is
+    the shape R-P4-40 was opened on -- 400 readings, 379 of them
+    different -- and its `part_above` came out MISSED at four of six
+    seeds before the repair, through the real validator rather than a
+    recount. It is here so the repair is not pinned to a single seed.
+    """
+    generator = random.Random(20260905)
+    values = [
+        "%d/%d" % (generator.randint(95, 165), generator.randint(50, 100))
+        for _row in range(400)
+    ]
+    _document, loaded, folder, _table = _described(values)
+    column = loaded.columns[0]
+    assert column.role == "joined_numbers", column.role
+    missed: "list[str]" = []
+    for seed in range(6):
+        twin = generation.generate(loaded, seed)
+        written = fixtures.write(
+            folder, f"own-{seed}.csv", rendering.twin_csv(twin)
+        )
+        outcome = validation.measure(loaded, f"{written}")
+        for check in outcome.checks:
+            if check.verdict != validation.MISSED:
+                continue
+            if "one above the other" in check.subcheck:
+                missed = missed + [f"seed {seed}: {check.subcheck}"]
+    assert not missed, missed
+
+
+def test_the_swap_rule_carries_the_exact_facts_by_identity() -> None:
+    """The rule itself, on the cases a SUM cannot tell apart.
+
+    Every row here has all three pairs INSIDE their window on both
+    sides, so the window guard is not reached and the row is decided by
+    the above-count refusals alone -- which is the shape review round 3
+    reported: the walk's own reproduction never left a window.
+
+    THE SECOND ROW WAS ASSERTED THE OTHER WAY IN THE FIRST DRAFT OF
+    THIS REPAIR, and it is the whole difference between the two rules.
+    A total that STRICTLY improves was taken to license any trade under
+    it, so a pair holding its published above-count could be sold for a
+    two-row gain on a pair that stays missed either way. `synthtwin
+    validate` reads `part_above` per pair and binary: improving a pair
+    that remains missed gains a reader nothing, and the swap gives up a
+    fact the twin holds for one it does not.
+    """
+    mask = [True, True, True]
+    # One seat lost, another gained, the total standing still: refused.
+    assert generation._swap_allowed(
+        mask, mask, [0, 0, 3], [0, 1, 2], 0, 0
+    ) is False
+    # The same shape summed would be 3 against 3 -- indistinguishable.
+    assert sum([0, 0, 3]) == sum([0, 1, 2])
+    # A HELD seat sold for a strictly better total: still refused.
+    assert generation._swap_allowed(
+        mask, mask, [0, 0, 3], [0, 1, 1], 0, 0
+    ) is False
+    assert sum([0, 1, 1]) < sum([0, 0, 3])
+    # Nothing worsens: taken.
+    assert generation._swap_allowed(
+        mask, mask, [0, 2, 3], [0, 1, 3], 0, 0
+    ) is True
+    # A seat REACHES its published count while another dips: taken,
+    # because refusing it would refuse progress towards the fact the
+    # first refusal protects.
+    assert generation._swap_allowed(
+        mask, mask, [0, 1, 1], [0, 0, 2], 0, 0
+    ) is True
+
+
+def test_the_swap_rule_refuses_each_trade_the_review_named() -> None:
+    """The acceptance rule, row by row, against every rule it carries.
+
+    ONE ROW PER REFUSAL AND ONE PER ESCAPE. The first row is the walk's
+    own reproduction: at `battery-11` seed 27, try 350, the moved
+    pairs' above-count gaps went `(3, 0, 0)` to `(2, 1, 0)` with every
+    mask True on both sides. No pair left its window, so the rule
+    returned True before ever reading its exact arguments, and `away`
+    fell by 2.4e-5 on the agreement tie-break alone.
+
+    NO TWIN IS BUILT HERE, and that is the point of the rule being a
+    named function: a twin cannot say which swaps were taken.
+    """
+    yes = [True, True, True]
+    rows = (
+        # The reproduction: a held above-count sold while another gains.
+        ("try 350", yes, yes, [3, 0, 0], [2, 1, 0], 0, 0, False),
+        # A held seat sold for a two-row gain on a seat still missed.
+        ("held sold at a profit", yes, yes, [0, 3, 0], [1, 1, 0], 0, 0,
+         False),
+        # A seat drifts further out while the agreement improves: the
+        # beyond-window term of `_away` can outbid a whole row, so the
+        # rule refuses it rather than pricing it.
+        ("residual grows", yes, yes, [0, 1, 0], [0, 2, 0], 0, 0, False),
+        # Sideways among seats missed either way: nothing is gained and
+        # the tie-break is the only reason left to take it.
+        ("sideways", yes, yes, [2, 3, 0], [3, 2, 0], 0, 0, False),
+        # A seat REACHES its count while another dips: allowed.
+        ("a seat becomes held", yes, yes, [1, 1, 0], [0, 2, 0], 0, 0,
+         True),
+        # The same, with the total getting worse: still allowed, since
+        # the walk moved a pair onto its published count.
+        ("a seat becomes held, total worse", yes, yes, [1, 5, 0],
+         [0, 7, 0], 0, 0, True),
+        # Plain improvement.
+        ("plain gain", yes, yes, [0, 3, 0], [0, 2, 0], 0, 0, True),
+        # THE WINDOW GUARD, on rows where no above-count moves. A pair
+        # leaves its window and the cell count gains: allowed.
+        ("drift, cells gain", yes, [True, True, False], [2, 0, 0],
+         [2, 0, 0], 3, 2, True),
+        # The same drift where the ROWS gain instead: allowed.
+        ("drift, rows gain", yes, [True, True, False], [2, 0, 0],
+         [1, 0, 0], 3, 3, True),
+        # And where neither exact fact moves: refused.
+        ("drift, nothing gained", yes, [True, True, False], [2, 0, 0],
+         [2, 0, 0], 3, 3, False),
+        # THE LAST TWO ROWS SEPARATE THE DISJUNCTION FROM A RE-MIXED
+        # TOTAL, which is the collapse this landing removes. Here the
+        # rows come closer while a different cell is lost, and there a
+        # seat reaches its published count while a cell is gained: each
+        # brings ONE exactly-checked fact closer, which is what step 5
+        # asks, and a rule adding the two kinds together would refuse
+        # both because the combined number stands still.
+        ("drift, rows gain while a cell is lost", yes,
+         [True, True, False], [2, 0, 0], [1, 0, 0], 3, 4, True),
+        ("drift, a cell gained while a seat reaches its count", yes,
+         [True, True, False], [1, 1, 0], [0, 3, 0], 3, 2, True),
+    )
+    for name, before, after, was, now, cells_was, cells_now, allowed in rows:
+        assert generation._swap_allowed(
+            before, after, was, now, cells_was, cells_now
+        ) is allowed, name
+    # THE TWO EXACT FACTS ARE NOT ADDENDS OF ONE ANOTHER. A gained cell
+    # does not buy a lost above-row: the first refusal has already
+    # returned by the time the cell count is looked at.
+    assert generation._swap_allowed(
+        yes, yes, [0, 0, 0], [1, 0, 0], 9, 0
+    ) is False
 
 
 def test_the_walk_consults_the_swap_rule(
@@ -529,7 +867,7 @@ def test_the_walk_consults_the_swap_rule(
     honest = generation.generate(loaded, 1)
     monkeypatch.setattr(
         generation, "_swap_allowed",
-        lambda before, after, was, now: False,
+        lambda before, after, was, now, cells_was, cells_now: False,
     )
     refused = generation.generate(loaded, 1)
     assert honest.columns[0] != refused.columns[0], (

@@ -4884,6 +4884,103 @@ declaration for only one of them.
   work visible AND more positions than tries, which the loader's
   `n_parts <= n_present + 2` makes an awkward shape to build.
 
+- **R-P4-127 — OPEN (opened 2026-09-02 by review round 3's own
+  mutation run).** THE ABOVE-COUNT PROPOSAL IS PINNED BY NOTHING.
+
+  Amendment A-P4-51 aims the proposal step of G6B.4a at an outstanding
+  `part_above` on alternate tries, because the acceptance rule now
+  refuses to trade one above-count for another and the walk can no
+  longer reach the repair sideways. **Withdrawn entirely, the suite
+  stays green.** Its ALTERNATION is pinned -- aiming every try starves
+  the agreement and a test catches that -- but its existence is not.
+
+  **What it buys, measured over twelve columns of three and four
+  positions at forty seeds, WITH the acceptance rule of A-P4-51 in
+  place:** SEVEN above-counts missed of 2,160 without it — `battery-0`
+  at seeds 4 and 36, `battery-5` at seed 8, `battery-11` at seeds 4,
+  27, 33 and 35 — against NONE with it, and the widest agreement gap
+  goes from 0.2388 to 0.2671. The stakes rose when the acceptance rule
+  landed: the refusals remove the sideways route the walk used to reach
+  an outstanding above-count, and this branch is what replaces it.
+  Withdrawing it reopens the review item as a worse defect than the one
+  reported.
+
+  It is not pinned because the honest assertion is a count over a
+  battery, and a suite that pins a search's luck to a number pins the
+  wrong thing: the same objection R-P4-124 records for the three
+  proposal rules that stay silent there. Closing it means a column
+  where the outstanding above-count is reachable by exactly one swap,
+  so that the proposal either finds it or does not -- a case with no
+  slack, which is what `clock_ladder` is for the clock role.
+
+- **R-P4-128 — OPEN (opened 2026-09-02 by landing L7's round-3
+  repair, and by its own measurement).** TWO OF THE THREE REFUSALS ARE
+  WRITTEN IN THE FORM THE METHOD ARGUES FOR RATHER THAN THE FORM THAT
+  MEASURED BEST.
+
+  Amendment A-P4-51's acceptance rule refuses a swap on three counts.
+  Two of them were built in more than one form and the form that
+  landed is not the one the battery preferred:
+
+  - refusal 2 lets a swap through when another above-count REACHES its
+    published value in the same swap. Without that escape, the battery
+    leaves 549 agreements outside G12.9's window against 550 with it;
+  - refusal 3 asks the two exact facts separately. Written as one
+    combined total it leaves 549 as well, and 366 of the 960 early
+    pairs outside against 367.
+
+  **Neither variant misses an above-count** over twelve columns of
+  three and four positions at forty seeds, so the whole measured
+  difference is one pair's agreement in each case, and no fact a reader
+  is told about moves either way.
+
+  They are written as they are for reasons a battery cannot show:
+  refusing a swap that takes a pair ONTO its published count is
+  refusing progress towards the fact refusal 1 protects, and refusal 1
+  is absolute, so without the escape a column whose remaining debt
+  needs one seat to dip has no route at all; and netting rows against
+  cells is the arithmetic this landing removes, so refusal 3 may not be
+  written back as it. Closing this means a column where the difference
+  BITES rather than costing a hundredth of an agreement — one whose
+  remaining above-count debt genuinely requires a dip — which is a
+  column nobody has built.
+
+- **R-P4-129 — OPEN (opened 2026-09-02 by landing L7's round-3
+  repair).** THE FIRST REFUSAL IS ABSOLUTE AND HAS NOT MET A COLUMN
+  THAT PULLS AGAINST IT.
+
+  A held above-count is never sold, to anything. Over 480 twins of
+  three- and four-position 150-row columns the walk misses no
+  above-count and no twin falls short of its published cell count, so
+  nothing was stranded there. But those columns have slack: the walk
+  reaches every count with tries to spare. A column publishing
+  `part_above` tight against many pulling pairs — where the remaining
+  debt can only be paid by letting one seat dip and refusal 2's escape
+  does not apply, because no seat becomes held in the same swap — has
+  not been built. The symptom would be wasted tries rather than a hang,
+  because `_owed` keeps the walk running and the ceiling stops it, so
+  what it would cost is agreement rather than correctness. Closing it
+  means building that column and measuring what it costs.
+
+- **R-P4-130 — OPEN (opened 2026-09-02 by landing L7's round-3
+  repair).** THE ACCEPTANCE RULE REFUSES ABOUT NINE THOUSAND SWAPS A
+  TWIN THAT THE OLD ONE TOOK, AND ACCEPT-ON-EQUAL EXISTS TO CROSS
+  RIDGES.
+
+  Instrumented on `battery-11` at seed 27, the rule refuses 9,125 swaps
+  where no pair left its window and an above-count worsened; the rule
+  it replaces refuses none of them. Method G6B.4 step 5 takes an EQUAL
+  swap precisely so the walk can cross a ridge — measured once at a
+  column of 324 different readings that stopped at 276 without it — and
+  a refusal that fires nine thousand times a twin is a rule of the same
+  family pointing the other way. No cost appeared on any shape measured
+  here: the battery, R-P4-40's own 400-row column, a correlated 400-row
+  blood pressure and a repeating one all hold every exact fact they
+  held before, and the all-different column yields exactly the cells it
+  yielded before, seed for seed. But that is one column family, and a
+  ridge this rule cannot cross would show as a twin short of its cell
+  count rather than as an error.
+
 - **R-P4-125 — OPEN (opened 2026-09-01 by review round 1 of landing
   L7, item 1; PRE-EXISTING).** A GRAIN CANNOT REACH EVERY SPELLING ITS
   CELLS WEAR, EVEN WITH THE WHOLE BUDGET.
@@ -4950,13 +5047,20 @@ declaration for only one of them.
   BETTER at what it describes and worse at what it detects, which is
   the shape a vacuity check exists to catch.
 
-  **AND REVIEW ROUND 2 ADDED ONE MORE TO THE LIST.** The oracle's
-  own copy of the no-trade rule was mutated back to a COUNT of
-  conforming pairs -- the very defect that round found in the shipped
-  code -- and no frozen case noticed. It cannot: `joined_readings` has
-  TWO positions, so it has one pair, and over one pair a mask and a
-  count say the same thing. The rule the round repaired is therefore
-  pinned in the shipped generator and in nothing frozen.
+  **AND ROUNDS 2 AND 3 EACH ADDED MORE TO THE LIST.** The oracle's own
+  copy of the no-trade rule was mutated back to a COUNT of conforming
+  pairs -- the very defect round 2 found in the shipped code -- and no
+  frozen case noticed. Round 3 adds FOUR more of the same kind: the
+  oracle's three per-pair refusals and its own copy of the G6B.4a
+  above-count proposal. Both frozen files regenerate BYTE-IDENTICALLY
+  with those rules written in, which is the whole of the evidence. It
+  cannot be otherwise: `joined_readings` has TWO positions, so it has
+  one pair, and over one pair a mask and a count say the same thing and
+  no above-count can be traded for another at all. Its `part_above` is
+  also met from the start, so the proposal branch never fires. The
+  rules those rounds repaired are therefore pinned in the shipped
+  generator and in nothing frozen, and the producer-against-oracle
+  cross-check is SILENT on every one of them.
 
   Closing it means a second joined case: more than two positions, so
   the anchor, the per-position start and the per-pair mask bite at all,
@@ -10021,6 +10125,140 @@ position and no other" and "moves only the last position" were this
 author's paraphrase and were never in the shipped file. Four
 reinstatement mutants turn it red.
 
+## Amendment A-P4-51 — what review round 3 of landing L7 sent back (2026-09-02)
+
+ONE item, and it is round 2's defect on the other vector: the
+AGREEMENTS were carried by identity and the EXACT obligations were
+still collapsed into a scalar total before acceptance.
+
+**VERIFIED ON THE ROUND'S OWN PRODUCER CASE BEFORE ANY REPAIR.**
+`battery-11` of `tools/measurements/r_p4_40_l7_joined.py` at generation
+seed 27: the producer emits `joined_numbers` with four positions,
+`n_distinct` 149 and `part_above` `(65, 122, 32, 118, 31, 0)` -- every
+figure the round gave -- and the twin held
+`(65, 120, 32, 118, 31, 0)` with all 149 different cells. Tracing the
+149 accepted swaps, **FOUR of them take an above-count from HELD to
+missed while another improves**, the summed exact gap standing still
+each time: tries 12, 14, 142 and 350. The one the round named reads
+exactly as it said, to the digit: per-pair gaps `(0, 3, 0, 0, 0, 0)` to
+`(0, 2, 0, 1, 0, 0)`, `part_above[3]` held to MISSED, `part_above[1]`
+better by one, both conformance masks all-True, and `away` falling from
+`3.256434912989342` to `3.2564112096671862`. Try 377 moved the miss
+back the same way, `3.2523403461732467` to `3.2522275092903543`. The
+try numbers are the walk's own; the round-3 draft counted the same two
+events as accepted swaps 57 and 59, which is the same pair of swaps
+under a different convention.
+
+**THE REPAIR: THREE REFUSALS, PER PAIR, ON EVERY TRY.** `_exact_gap`
+is gone. Two readings stand where it stood — `_above_marks`, one
+above-count gap per MOVED pair in the walk's own `moved` order, and
+`_cells_gap`, the seatless count of different cells on its own — and
+`_swap_allowed` takes six arguments so the two kinds can never be
+addends of one another. It refuses, in order:
+
+1. a swap taking any pair's above-count from HELD to missed, to
+   anything at all;
+2. a swap taking an above-count further from its published value while
+   the moved pairs' above-counts do not fall as a whole and no other
+   above-count reaches its published value in the same swap;
+3. a swap taking a pair out of its window while neither exact fact
+   comes closer — the moved above-counts as a whole, OR the count of
+   different cells, asked separately.
+
+**THE FIRST TWO RUN AHEAD OF THE WINDOW TEST, and that is the
+load-bearing part rather than a detail of order.** At the reported try
+the conformance masks are all-True on both sides, so the old rule
+returned True at its first branch and never read its exact arguments;
+146 of that twin's 149 accepted swaps took that branch. Because the
+first two refusals are unconditional they dominate the `now <= away`
+comparison as well, so `_away` is NOT re-weighted and the accept test
+needs no second guard.
+
+**THE GUARANTEE THIS BUYS, and it is literally true of the code.**
+Across a walk, the set of pairs holding their published `part_above`
+never shrinks: an untouched pair cannot change, a refused swap is put
+back exactly, and refusal 1 forbids every held-to-missed among the
+moved. Instrumented on `battery-11` at seed 27, that count falls FOUR
+times over 149 accepted swaps before the repair, ending at five of six;
+after it, zero falls over 146 accepted swaps, ending at six of six.
+
+**A SECOND REPRODUCTION THE ROUND DID NOT REPORT.** On the measurement
+file's own `r_p4_40_own_column` — 400 readings, two positions, run
+through the real validator — `together.rows one above the other, pair
+1` comes out MISSED at FOUR of six seeds before this landing and at
+none after it. The reported defect was not one unlucky seed.
+
+**MEASURED, FORTY SEEDS, TWELVE COLUMNS OF THREE AND FOUR POSITIONS,
+2,160 PAIRS, one harness on one machine with the trees identical but
+for the named change:**
+
+| | round 2 (`df12e69`) | round 3, as it lands |
+|---|---|---|
+| agreements outside G12.9's window | 643 | **550** |
+| above-counts missed | 1 | **0** |
+| the 960 pairs between two EARLIER positions, outside | 407 | **367** |
+| their above-counts missed | 1 | **0** |
+| widest agreement gap | 0.2433 | **0.2388** |
+| twins short of their published cell count | 0 of 480 | **0 of 480** |
+
+and `battery-11` at seed 27 now meets every above-count with all 149
+different cells.
+
+**AND AN ABOVE-COUNT IS PROPOSED FOR, every other try.** With the
+acceptance rule refusing to trade one above-count for another, the walk
+can no longer stumble onto the repair sideways, so the proposal step of
+G6B.4a aims at an outstanding above-count in the same way it aims at
+the count of different cells. Aiming EVERY try starves the agreement —
+the 300-row blood pressure fell to 0.8232 against a published 0.8343 —
+so it fires on alternate tries.
+
+**THE TWO MAY NOT LAND SEPARATELY, and that is measured in both
+directions.** With the refusals in place and this proposal withdrawn,
+SEVEN above-counts of 2,160 come out missed where round 2 missed one —
+`battery-11` at seed 27 among them, at 121 against 122 — and the widest
+agreement gap goes to 0.2671. And the proposal alone does not answer
+the round: `r_p4_40_own_column` has ONE pair, where no sideways trade
+is possible, and it is the proposal that repairs it; `battery-11` has
+six pairs, and it is the refusals. Anyone withdrawing either half as
+scope reopens the item as a worse defect than the one reported.
+
+**WHAT THE MEASURED BATTERY DOES NOT DECIDE, said plainly.** Two of the
+three refusals are written in the form the method argues for rather
+than the form that measured best on this battery, and the record says
+so rather than rounding it off. Refusal 2 WITHOUT its escape leaves 549
+agreements outside their window against 550; refusal 3 written as one
+combined total leaves 549 as well. Neither variant misses an
+above-count, so the whole measured difference is one pair's agreement
+in each case. They are written as they are because refusing a swap that
+takes a pair ONTO its published count is refusing progress towards the
+fact refusal 1 protects — and refusal 1 is absolute, so without the
+escape a column whose remaining debt needs one seat to dip has no route
+at all — and because netting rows against cells is the arithmetic under
+repair. That is residual **R-P4-128**.
+
+**THE ORACLE HELD THE SAME SHAPE, and it was repaired from the method
+text rather than by copying.** `exact_gap()` and `left_its_window()`
+are gone; `cells_gap()`, `above_marks()` and a `swap_allowed()`
+carrying the three refusals stand in their place, and the proposal
+branch the round-3 draft left out of the oracle entirely is written in
+too — a rule the specification states and the independent reference
+does not implement is not an independent reference. THE DEFECT WAS
+REPRODUCED IN THE ORACLE FIRST: driving its own `repaired_pairing` over
+200 three-position twelve-row columns, 62 ACCEPTED swaps moved a
+`part_above` pair from held to missed; after the repair, none do. Both
+frozen files regenerate BYTE-IDENTICALLY, which is R-P4-123's point
+restated — nothing frozen exercises any of this.
+
+**AND ONE THING THE ROUND DID NOT ASK FOR WAS FOUND BESIDE IT.** The
+sign-of-zero normalisation that review item P4-G3-R4-F2 put on the
+joined agreement check was on the EXACT path, and landing L7 moved
+every pair to the WINDOWED path without carrying it across — so a held
+pair printed `-0.0` against a published `0.0`, which is the same number
+written two ways. The windowed path normalises now, and removing that
+one line turns
+`tests/test_p4g3r1_joined_review.py::test_negative_zero_is_zero_on_both_pages`
+red, so it is a companion repair an existing test already pins.
+
 ## Amendment A-P4-50 — what review round 2 of landing L7 sent back (2026-09-01)
 
 Three items, all real, and one of them found a guarantee that was false
@@ -10092,7 +10330,38 @@ and the plan as well, with five document phrases tied to the text that
 really shipped at `21fe8c4`, `80f0ea7` or `7266c31`. Five
 reinstatement mutants turn it red.
 
-**FIVE MUTATIONS OVER THIS ROUND'S REPAIRS, FOUR RED, ONE SILENT.**
+**EIGHT MUTATIONS OVER ROUND 3'S REPAIRS, EIGHT RED — AND THE FIRST
+DRAFT'S CLAIM ABOUT THEM WAS FALSE AND IS CORRECTED HERE.** That draft
+recorded "the exact facts collapsed back to a sum -- this round's own
+defect, now caught". It was not caught by what the draft named. WITH
+THE G6B.4a PROPOSAL IN PLACE, collapsing the acceptance rule back to a
+summed distance leaves BOTH outcome witnesses green: `battery-11` at
+seed 27 still comes out `(65, 122, 32, 118, 31, 0)` with 149 different
+cells, and `r_p4_40_own_column` still reports no MISSED above-count.
+The walk reaches the same twins by another road. **No outcome test can
+pin this predicate**, which is why the landing adds a spy on the
+acceptance decision itself.
+
+The eight, each applied alone to the shipped tree with the tree audited
+back to its pristine hash afterwards: the rule collapsed to a summed
+distance; refusal 1 deleted; refusal 2 deleted; refusals 1 and 2 put
+back BEHIND the window guard; the call site reading the above-counts
+once instead of before and after; refusal 3 re-mixed into one total;
+`_above_marks` collapsed to a single summed entry; and the cell count
+passed where the rows belong. All eight are red.
+
+Five of them are caught by the spy test directly — it counts 14,276
+calls on that column whose arguments offer to sell a held above-count,
+refuses every one of them, and finds 9,125 refusals where no mask left
+its window and an above-count worsened, against zero for the collapsed
+rule. Two more were red only through an unrelated test's vacuity guard
+until this landing's truth table grew the two rows that separate a
+disjunction from a re-mixed total, and the spy grew an assertion that
+the vectors reaching the rule really do carry one entry per moved pair.
+A mutant that is red only through another test's vacuity guard is a
+mutant that is not really pinned.
+
+**FIVE MUTATIONS OVER ROUND 2'S REPAIRS, FOUR RED, ONE SILENT.**
 Red: the mask reduced to a count again -- the round's own defect, now
 caught; the exact-fact exception; the guard being consulted at all; and
 the guard's restriction to the moved pairs, which turned red for the
@@ -10583,6 +10852,24 @@ not claimed -- it would split on its own signs. The suite asserts it.
    (R-P4-40), and a walk that insists on it wrecks everything else --
    built, measured, and recorded there.
 
+   **AND THE WEIGHT ALONE DID NOT MAKE THAT TRUE, which review round 3
+   of landing L7 found and amendment A-P4-51 repairs.** A weight is
+   applied to a SUM, and a sum cannot see one row of `part_above`
+   moving from held to missed while another moves the other way: the
+   total stands still, the weight has nothing to act on, and the
+   agreement tie-break is the only term left. Measured on `battery-11`
+   of `tools/measurements/r_p4_40_l7_joined.py` at seed 27, FOUR
+   accepted swaps did exactly that and the twin came out holding
+   `(65, 120, 32, 118, 31, 0)` against a published
+   `(65, 122, 32, 118, 31, 0)`. The sentence above is true of the
+   DISTANCE and was not true of the walk until the acceptance rule
+   carried each obligation by its own identity. It is true of the walk
+   now, and what makes it true is the FIRST of A-P4-51's three
+   refusals — a held above-count is never sold — rather than the
+   weight the sentence names. Instrumented over the same column, the
+   count of pairs holding their published above-count falls four times
+   before that refusal and never after it.
+
 ## Decision P4-D26 — the contract catches up with the producer, and a guard keeps it there (2026-08-26)
 
 **HOW IT WAS FOUND, and it is the uncomfortable part.** The owner asked
@@ -10842,7 +11129,18 @@ and R-P4-43 already sit. CLOSED there, see above.
 objective already summed several pairs on a three-position column — two
 of them, the ones the last position was in — so summing all of them is
 not new in kind, and the incremental update of a swap is the same
-formula whichever of a pair's two positions moved. What the walk needed
+formula whichever of a pair's two positions moved.
+
+**THAT SENTENCE IS WHAT REVIEW ROUND 3 REFUTED, and it is left standing
+with this correction beside it rather than quietly edited.** Summing
+all of them IS new in kind, in the one place it mattered: with two
+pairs in the sum, one can go from held to MISSED while the other
+improves by the same amount, and the total says nothing happened. Two
+summed pairs cannot do that to each other while the walk moves the
+position they share, and six can. The arithmetic was the same; what
+changed was that the pairs could now pull against one another inside
+it. Amendment A-P4-51 is the repair, and it is a rule at the acceptance
+site rather than a change to the objective. What the walk needed
 beyond that was an ANCHOR, so that a position could be held still
 without losing any arrangement, and a start rule per position rather
 than one mean for all of them.

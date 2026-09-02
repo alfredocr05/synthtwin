@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,302 collected / 52 skipped, `4250 passed in 983.98s`, with L12 and L7's second review round both merged. The skipped count reads 51 in a worktree and 52 here: 26 of the skips are a bounded-walk family and four are Windows-only path tests, so it moves with the machine while the COLLECTED count, which this page enforces, does not |
+| suite | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on the worktree this landed in (the run before it gave the same counts at 1048.60s, so the seconds are a wall clock and not a figure to compare against), with L12 and L7's second and THIRD review rounds all merged. Round 3 added FIVE tests, all in `tests/test_p4g3r1_joined_review.py`: the producer witness for `battery-11`, a second outcome case on R-P4-40's own 400-row column, the acceptance rule's own truth table row by row, the rule on the cases a sum cannot tell apart, and a SPY on the acceptance decision over the real walk. Three EXISTING tests were restated rather than swapped and are not among the five, and neither is the sign-of-zero repair beside them, which `test_negative_zero_is_zero_on_both_pages` (round P4-G3-R4) already pinned. The skipped count reads 51 in a worktree and 52 on the main tree: 26 of the skips are a bounded-walk family and four are Windows-only path tests, so it moves with the machine while the COLLECTED count, which this page enforces, does not |
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
 | suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
@@ -283,6 +283,66 @@ are still ahead. The gap list itself is at the foot of this page.
   **119 distinct pairs of rows** two hundred times over; it steps along
   now. And a try short of the count proposes a row worth swapping
   (G6B.4a) rather than two at random, bounded at sixteen rows.
+
+  **REVIEW ROUND 3 REJECTED WITH ONE ITEM, AND IT IS ROUND 2's DEFECT
+  ON THE OTHER VECTOR** (amendment A-P4-51). Round 2 gave the
+  acceptance rule per-pair AGREEMENT masks and left the EXACT
+  obligations as one summed distance -- so an above-count could go from
+  held to MISSED while another improved by one, the total standing
+  still, with the agreement tie-break the only reason left to take the
+  swap. Verified on the round's own producer case before repairing:
+  `battery-11` at seed 27, FOUR accepted swaps did it (the walk's tries
+  12, 14, 142 and 350, every figure of the report exact to the digit),
+  and the twin held `(65, 120, 32, 118, 31, 0)` against a published
+  `(65, 122, 32, 118, 31, 0)`. A SECOND reproduction the round did not
+  report: R-P4-40's own 400-row column missed its above-count at four
+  seeds of six through the real validator.
+
+  **THE RULE THAT LANDED IS THREE REFUSALS, PER PAIR, ON EVERY TRY**:
+  a held above-count is never sold; a seat drifts only where the moved
+  pairs' counts fall as a whole or another seat reaches its count in
+  the same swap; and a pair leaves its window only where one of the two
+  exact facts comes closer, asked separately. The first two run AHEAD
+  of the window test, which is the load-bearing part -- at the reported
+  try no pair had left its window, so the old rule returned True
+  without reading its exact arguments at all. Over the battery at forty
+  seeds, 2,160 pairs: agreements outside the window 643 to **550**,
+  above-counts missed 1 to **0**, the early pairs 407 to **367** and
+  their above-counts 1 to **0**, widest gap 0.2433 to **0.2388**, twins
+  short of their cell count 0 either way. The guarantee is stated and
+  instrumented: the set of pairs holding their published `part_above`
+  never shrinks across a walk -- four falls over 149 accepted swaps
+  before, none over 146 after.
+
+  **TWO OF THE THREE REFUSALS ARE WRITTEN IN THE FORM THE METHOD
+  ARGUES FOR AND NOT THE FORM THE BATTERY PREFERRED**, and that is
+  written down rather than rounded off: without refusal 2's escape the
+  battery leaves 549 agreements outside their window against 550, and
+  with refusal 3 as one combined total 549 again, neither missing an
+  above-count. Residual **R-P4-128**.
+
+  **EIGHT MUTATIONS, EIGHT RED -- AND THE ROUND'S FIRST DRAFT CLAIMED
+  A RED IT DID NOT HAVE.** That draft said the sum-again mutant was
+  "this round's own defect, now caught". It was not: with the G6B.4a
+  proposal in place, collapsing the rule back to a sum leaves BOTH
+  outcome witnesses green, because the walk reaches the same twins by
+  another road. No outcome test can pin this predicate, so the landing
+  adds a spy on the acceptance decision itself -- 14,276 calls on that
+  column offer to sell a held above-count and every one is refused,
+  and 9,125 swaps are refused where no mask left its window and an
+  above-count worsened, against zero for the collapsed rule.
+
+  **THE PREDICATE AND THE PROPOSAL MAY NOT LAND SEPARATELY**, measured
+  both ways: with the refusals alone, seven above-counts of 2,160 come
+  out missed against round 2's one; and the proposal alone does not
+  answer the round, because R-P4-40's own column has one pair where no
+  sideways trade is possible while `battery-11` has six. R-P4-127
+  carries the proposal's own unpinnedness with the new number.
+
+  A sign-of-zero normalisation was found beside it: the rule review item
+  P4-G3-R4-F2 put on the joined agreement's EXACT check was left behind
+  when landing L7 moved every pair to the WINDOWED one, so a held pair
+  printed `-0.0` against a published `0.0`.
 
   **REVIEW ROUND 2 REJECTED THE REPAIRS WITH THREE MORE, AND ONE FOUND
   A GUARANTEE THAT WAS FALSE OF THE THING IT NAMES** (amendment
