@@ -62,8 +62,15 @@ exists).
   Measured over a battery of twelve three- and four-number columns at
   ten seeds, 540 pairs in all: of the 240 pairs between two earlier
   numbers, every one used to land outside the range this tool promises
-  and a hundred and six do now, and the count of rows holding one above
-  the other went from 236 missed to none.
+  and ninety-one do now, and the count of rows holding one above the
+  other went from 236 missed to none.
+
+  **And measured again at forty seeds, because ten is not a scope for
+  this claim**: of 2,160 pairs, 550 land outside the promised range,
+  367 of the 960 between two earlier numbers -- and the count of rows
+  holding one above the other is met at every pair of every seed. Ten
+  seeds is not a scope for that last one in particular: it is met at
+  all ten under a build where forty finds a column that misses it.
 
   Holding the first number still loses no arrangement at all, and it
   is why a column of exactly two numbers -- every blood pressure, every
@@ -73,10 +80,54 @@ exists).
 
 - **What is still short is reported and named.** A column of three or
   four numbers sets three or six relationships that pull against each
-  other inside one bounded search, and a hundred and eighty-eight of
-  those 540 pairs still land outside the promised range -- reported as
-  misses by both the twin's own report and `synthtwin validate`, with
-  the achieved value beside the published one.
+  other inside one bounded search, and a hundred and thirty-six of
+  those 540 pairs still land outside the promised range -- 550 of 2,160
+  at forty seeds -- reported as misses by both the twin's own report
+  and `synthtwin validate`, with the achieved value beside the
+  published one.
+
+- **And the count of rows holding one number above another is no
+  longer given up to buy a relationship.** The step that chooses which
+  numbers meet in a row weighed every count it had to meet in ONE
+  total, and a total cannot tell one count being lost from another
+  being gained at the same price: a four-number column came out having
+  traded a count it held for a hundredth of a relationship it did not,
+  and `synthtwin validate` reported the count as missed. Each count is
+  weighed by its own name now, and a count the twin already holds is
+  never given up. The same step also aims at an outstanding count
+  directly, every other attempt, which is what a two-number column
+  needed: a 400-row blood pressure of 379 different readings missed its
+  count at four seeds of six and misses it at none. Measured over the
+  same battery of twelve columns at forty seeds, all 2,160 counts are
+  met where one was missed before.
+
+  **Which twins change.** A column whose every such count the walk had
+  already met writes the same cells it wrote before, to the byte -- a
+  repeating blood pressure, a correlated one and a 240-row column of
+  all-different readings are unchanged here. A column where a count was
+  still outstanding gets a different twin, and that includes columns of
+  exactly two numbers.
+
+- **And that direct attempt reaches every number of the cell, not half
+  of them.** "Every other attempt" was counted on the search's own
+  attempt number -- and the search takes the numbers of a cell in turn
+  from that same counter, so on a cell holding an ODD number of values
+  the two counters locked: half the numbers were aimed at on every turn
+  they got and half on none of theirs. The first number, the one paired
+  with the number that never moves, was among the starved half on such
+  a cell, so that pair could not reach its count at all. The attempt is
+  counted per number now. Measured over forty described columns of two
+  to five numbers at forty seeds, 9,640 pairs: 44 counts land short of
+  their published value, where counting the attempts on the search's
+  own clock leaves 120 and counting them on the opposite turns leaves
+  153. On eight five-number columns, 3,200 pairs: 12, against 71 and
+  96.
+
+  **Which twins change.** A column holding an even number of values in
+  a cell -- every blood pressure, every ratio, every four-number
+  reading -- writes exactly the cells the previous build wrote, to the
+  byte, at all forty seeds measured. A column holding three or five
+  gets a different twin, and a better one.
 
 ### Fixed: a column of very large or very small numbers keeps its width
 
