@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: your twin no longer puts values where your column had none
+
+- **A column with two clusters and a gap between them now gets a twin
+  that keeps out of the gap** (closing residual R-P4-136). If your
+  readings sit around 20 and around 80 with nothing in between, the
+  middle value of that column is about 50 -- a number none of your
+  cells holds -- and the twin honoured it, writing four to six cells of
+  three hundred into the empty middle. Anybody plotting the twin met a
+  third group of readings that is not in your table. The description
+  now records which stretches of a column's range held no value at all,
+  and the twin reads it: measured over forty seeds on three such
+  columns, cells in a stretch your column left empty went from four to
+  six, two to three, and three to six, to NONE at every seed.
+
+- **And that fact survives a raised smallest-group size.** The shape
+  record beside it is all or nothing, so it disappears entirely on
+  exactly these columns as soon as you ask for groups larger than one.
+  The new record says only where NOBODY is, so no group size hides it,
+  and it names no value, no count and no cell.
+
+- Where the twin cannot get out of a stretch -- a column of whole
+  numbers whose steps are barely wider than one, or a value whose sign
+  leaves it nowhere to go -- it stays, and the report beside the twin
+  names the stretch and the value rather than saying nothing.
+
 ### Fixed: two numbers in one cell now repeat the way your own readings did
 
 - **A column of readings like `120/80` now holds as many different

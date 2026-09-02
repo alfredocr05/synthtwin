@@ -4754,6 +4754,12 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # REPORT-ONLY (plan P4-D30): a whole-number field width is a
         # fact about MAGNITUDE, placed by the ladder, so each position
         # lists the census whole rather than owing a subcheck a width.
+        # `empty_bins` (plan P4-D32) has NO line for either position of
+        # this fixture, and the absence is the rule rather than a gap:
+        # the listing is filed ONLY where the description names a
+        # stretch, and neither position of this column leaves one. A
+        # line here would state a listing the shipped table does not
+        # file, which is exactly what the assertion below refuses.
         "joined.parts[0].field_widths",
         "joined.parts[0].n_distinct_values",
         "joined.parts[0].percentiles_between",
@@ -4857,6 +4863,12 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # wide as its value, so the census is a magnitude fact placed
         # by the ladder, and the twin follows it without being held to
         # it. Listed whole rather than checked width by width.
+        # REPORT-ONLY (plan P4-D32): the stretches this column holds
+        # no value in. The value stage READS it -- G6.7 moves a stratum
+        # that landed in one -- and the twin is not held to it, because
+        # a column whose other published facts leave no room beside a
+        # stretch cannot always be moved out of it.
+        "numeric.empty_bins",
         "numeric.field_widths",
         "numeric.n_distinct_values",
         "numeric.value_histogram",

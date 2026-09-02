@@ -667,6 +667,9 @@ _LISTING_WORDS = {
         "the shape of your numbers -- how many of them fall between "
         "each pair of edges"
     ),
+    "numeric.empty_bins": (
+        "which stretches of your column's range held no value at all"
+    ),
     "numeric.field_widths": (
         "how many figures each of your whole-numbered cells was "
         "written with"

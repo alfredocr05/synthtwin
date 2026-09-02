@@ -4656,6 +4656,201 @@ declaration for only one of them.
   alone is red. *A mutant that leaves the rule reachable by another
   line is a mutant that measures nothing.*
 
+- **R-P4-136 — CLOSED 2026-09-01 by decision P4-D32 (landing L12).**
+
+  **WHY L12 AND NOT L8.** The ratified close plan reserves L8 for the
+  compound role (R-P4-13), which is unbuilt, and this landing was not in
+  that sequence at all — it came from the owner's ruling of 2026-09-01,
+  after it. Two landings sharing one name would have left the register
+  ambiguous at the phase close and mislabelled the compound role when it
+  arrives. The number is higher than L11 because it was authorized
+  later, not because it lands later.
+  A TWIN PUT CELLS WHERE THE REAL COLUMN HAD NONE.
+
+  Measured through the real reader, producer, loader, generator and
+  validator, forty seeds each, at the default floor and again at a
+  floor of eleven:
+
+  | column | the source's empty stretch | in a bin the source leaves empty, before | after |
+  |---|---|---|---|
+  | 150 around 20 + 150 around 80 | 26.6 .. 72.7 | 4–6 of 300, mean 5.47 | **0 at every seed** |
+  | 250 around 10 + 50 around 90 | 17.2 .. 85.7 | 2–3 of 300, mean 2.77 | **0 at every seed** |
+  | 150 around 40 + 150 around 60 | 47.0 .. 53.3 | 3–6 of 300, mean 4.38 | **0 at every seed** |
+
+  The cause is the ladder: with two clusters the median falls BETWEEN
+  them, at a value the column never holds, and `_stratum_values`
+  interpolates the rungs and honours it. The repair is the published
+  fact `empty_bins` and method G6.7, which the value stage reads.
+
+- **R-P4-137 — CLOSED 2026-09-01 by landing L12, and it is a SIBLING
+  found by the search this landing's brief asked for.** THE
+  GENERATION METHOD SAID `field_widths` WAS EXACT-OBSERVABLE.
+
+  G6.6.7 read "`field_widths` is EXACT-OBSERVABLE, so a width the pass
+  cannot reach is RECOUNTED ... and named ... by `synthtwin validate`
+  as `numeric.field_widths` MISSED at the subcheck
+  `fields.published.<width>`". The plan states REPORT-ONLY at P4-D30,
+  the contract states it at 7.10 and 9.4, `tests/dispositions.py`
+  registers it, and the validator LISTS the census. **Measured:
+  `grep -rn "fields.published" src/ tests/ docs/` returns exactly one
+  line, that sentence, so the named subcheck exists nowhere in the
+  product or the suite.** One fact written in four places, three of
+  them updated at landing L6 and the fourth left behind; nothing read
+  it, so nothing turned red. Repaired in the same commit as this
+  landing.
+
+- **R-P4-138 — OPEN (opened 2026-09-01 by landing L12).** THE FACT'S
+  RESOLUTION IS ONE BIN, SO CELLS STAY INSIDE THE SOURCE'S TRUE GAP.
+
+  `empty_bins` divides a column's reach into thirty-two bins, and the
+  bins the source leaves empty are strictly inside the stretch the
+  source actually leaves empty: on the first column above, the empty
+  bins cover about 26.7 to 71.3 while the source holds nothing from
+  26.6 to 72.7. The repair moves a cell to the edge of the nearest
+  OCCUPIED bin, which is inside the source's true gap. Measured at
+  forty seeds, the count of cells in the source's own gap is unchanged
+  — 4–6, 2–3 and 3–5 of 300 before and after — but **their distance
+  from the nearest real value falls from 15.7–23.0, 22.8–33.9 and
+  2.1–3.1 to 1.0, 1.8 and 0.9**. So the phantom middle cluster is
+  gone and what is left is a slightly fatter tail on each real
+  cluster. Closing this means a finer division or a published edge,
+  which is a disclosure question of its own and a decision the owner
+  has not been asked.
+
+- **R-P4-139 — OPEN (opened 2026-09-01 by landing L12; PRE-EXISTING).**
+  A TWO-CLUSTER COLUMN MISSES `widths.published.1` AT EVERY SEED.
+
+  Measured on all three columns above, at forty seeds, on the tree
+  this landing branched from AND on this tree: `synthtwin validate`
+  reports `numeric.fraction_widths` MISSED at `widths.published.1` at
+  40 of 40 seeds, and two of the three also miss `ladder.p90` — at 3
+  and at 18 seeds. **This landing changes none of those numbers**,
+  which is how it is known to take nothing back; but the fraction-width
+  miss is a defect of its own on a shape a person will meet, and
+  nothing in this landing looked at it.
+
+- **R-P4-140 — OPEN (opened 2026-09-01 by landing L12).** `empty_bins`
+  IS REPORT-ONLY AND THE MEASUREMENT SAYS WHY.
+
+  Over forty described columns at forty seeds each — whole-number
+  two-peak columns, columns spanning zero, columns with one far
+  outlier and columns with no empty bin at all — the runs writing a
+  cell into a named stretch went from **1049 of 1600 to 119**, worst
+  run 13 cells to 10, with 121 deviations naming what remains. The
+  119 fall in exactly two families, and each is the twin having no
+  room rather than the rule failing: whole-numbered columns whose bins
+  are barely wider than a unit (five columns, ends 1..50 to 1..80, 3
+  to 38 runs each) and columns spanning zero where the stratum's sign
+  band ends at the edge it would have to cross (nine columns, 1 to 4
+  runs each, one cell each). Making the class exact means either a
+  reach past the neighbouring bin — which gives up the bound stated in
+  the fact's own terms — or the CELL ALLOTMENT reading the fact, which
+  is G5.2's stage and R-P4-114's obstacle as well.
+
+- **R-P4-142 — CLOSED 2026-09-01 by landing L12, and FOUND BY THE
+  SUITE rather than by review.** THE PRODUCER AND THE LOADER
+  DISAGREED ABOUT A COLUMN OF ONE NUMBER.
+
+  A quantitative block whose values are all ONE number has two equal
+  ends, so there is no width to divide and `parsing.histogram_bin` is
+  TOTAL: it answers "the first bin" for every value. `_empty_bins`
+  therefore named the other **thirty-one** bins as empty — of a
+  division that does not exist — while the loader's own `_has_width`
+  said there was no scale at all and refused the description outright.
+  Measured: `tests/test_p4g3r1_joined_review.py` turned red on two
+  tests, both raising `ProfileError` on invariant Q20, and **every
+  joined column with a constant position became unloadable**.
+
+  Both sides ask the same question now, and Q20's complement condition
+  applies only where there IS a scale. The census beside it is
+  UNCHANGED — one bin holding every value — which is what it read
+  before this landing, so nothing here moves a fact that was already
+  published.
+
+  **IT REACHES ONLY A BLOCK INSIDE A GRAIN**, because a whole column of
+  one number is read as a `constant` LABEL and publishes no
+  quantitative block at all. The witness is
+  `test_a_column_whose_values_are_all_one_number_names_no_bin`, built
+  on the review fixture's own `1/2, 1/3, ... 1/121`.
+
+  *What it says about the landing: a fact computed by one rule and
+  checked by another is one fact written twice, and the second copy is
+  where a producer's total function meets a loader's partial one.*
+
+- **R-P4-143 — CLOSED 2026-09-01 by landing L12, and FOUND BY THE SUITE
+  as well.** THE MOVE COULD COST A COLUMN ITS EXACT SPELLING COUNT.
+
+  Two ways, both on the floored witness of review item P3-V7-F4 — a
+  column of nine different spellings at a floor of eleven, which is
+  exactly the case this landing is for, because the census is withheld
+  there and `empty_bins` is not:
+
+  * a stratum that does not hold its value ALONE vacates nothing when
+    it moves, so a fresh value adds a NUMBER and joining another
+    stratum's value adds a SPELLING (the writing stage then has two
+    strata on one number and the leading-zero family splits them);
+  * a move that changes a point-free value's FIGURE COUNT takes a
+    carrier away from the padded-width census: 9 can be written `09`
+    at a published width of two and 10 cannot.
+
+  Measured either way: the twin wrote **ten** different spellings
+  against a published nine and `distinct.n_distinct` fell from **HELD
+  to AUTHORIZED-DEVIATION**. `n_distinct` and `pad_widths` are
+  EXACT-OBSERVABLE and `empty_bins` is REPORT-ONLY, so method G6.7.4
+  now refuses both moves and the deviation names the stretch instead.
+
+  **AND THE TWO REFUSALS COST NOTHING MEASURABLE**, which is why they
+  are a repair and not a trade: re-measured at forty seeds after both,
+  the three two-cluster columns still write no cell in a named stretch
+  at either floor, the quality report on them misses exactly what it
+  missed before, and the forty-column battery still leaks on the same
+  **119 runs of 1600** with the same 121 deviations.
+
+- **R-P4-141 — OPEN (opened 2026-09-01 by landing L12's mutation
+  run).** TWO OF METHOD G6.7's RULES ARE PINNED BY NOTHING.
+
+  Fifteen rules were withdrawn one at a time from the shipped
+  producer, loader and generator, and 614 tests over eleven files were
+  run against each. **Thirteen turn the suite red; two do not:**
+
+  * *the gathering step reads the SPELLINGS* (G6.7.6). A stratum is
+    put in the queue when its value OR any spelling of it falls in a
+    named stretch, because a value a thousandth outside a stretch is
+    written back inside it at the width the fraction census gives that
+    cell. `_barred_bin` and `_reads_outside` are each driven directly
+    by
+    `test_a_stratum_is_gathered_by_its_spelling_and_not_only_its_value`,
+    and that test does not see the mutant: the mutant leaves both
+    functions intact and stops CALLING them. What is unpinned is the
+    call, not the rule.
+  * *the zero-band exclusion* (G6.7.4, clause 2). **And the reason it
+    is silent is worth more than the gap.** A stratum in the zero band
+    exists only where `n_zero` is above nought, and a column holding a
+    zero has a real value in the bin zero falls in — so that bin is
+    never named as empty and the rule never fires on any description
+    this producer writes. It is reachable only from a HAND-MADE
+    description that names zero's own bin as empty while publishing
+    zeroes, which the loader admits at any floor above one because Q20's
+    complement condition has no census to compare against there.
+
+  Closing the first means driving `_clear_enough` over a hand-built
+  layout, which needs a `_NumericLayout` and a `NumericFacts` assembled
+  by hand rather than by the producer. Closing the second means either
+  a loader invariant tying `n_zero` to the bin zero falls in — which is
+  a contract change and a decision of its own — or the same hand-built
+  drive. Both are left rather than done, and neither is a defect in
+  what ships: every column measured behaves as the method says.
+
+  **AND THE RUN CAUGHT ITSELF ONCE, which is recorded because a
+  harness that measures nothing reports a confident zero.** One of the
+  fifteen mutants found NO anchor — the loader's complement condition,
+  whose line had changed shape when R-P4-142's scale test was added to
+  it — and the harness printed `ANCHOR NOT FOUND` and counted it among
+  the silent rather than passing over it. Re-pointed and re-run, it is
+  RED. The audit after every run reports the files still carrying the
+  marker and the files differing from their original, and both lists
+  were empty at every run of this landing.
+
 - **R-P4-126 — OPEN (opened 2026-09-01 by the mutation run of review
   round 1's own repairs).** TWO OF THOSE REPAIRS ARE PINNED BY NOTHING.
 
@@ -6969,6 +7164,128 @@ lists the census with a sentence saying the twin follows it without
 being held to it. Making it exact means the CELL ALLOTMENT reading the
 census as well as the values, which is G5.2's stage and a different
 landing: residual R-P4-114.
+
+### P4-D32 The empty-bin fact (owner ruling 2026-08-31)
+
+A numeric block gains one more shape fact beside `value_histogram`:
+the list of bins that hold NONE of the values the statistics used,
+ascending, each named once. The key is `empty_bins` and the contract
+states it at 7.11. **It is published whatever the smallest group size
+is**, which no other fact of a numeric block is.
+
+**The owner ruled it in** on 2026-08-31. They were shown the
+measurement below and asked whether a bin holding ZERO values may be
+published even though the bins holding one to one-below-the-floor stay
+hidden, and they ruled that it may. Their standing position is the
+ground of it: a fact that names nobody is publishable, a rare CATEGORY
+may be disclosed because knowing a rare value exists says nothing
+about who holds it, and an empty bin is weaker still — it says nobody
+is there.
+
+**What was wrong, measured through the real reader, producer, loader,
+generator and validator at FORTY seeds.** A column with two clusters
+and an empty middle gets a twin that puts cells in the middle. The
+ladder publishes a median BETWEEN the clusters — for a hundred and
+fifty values around twenty and a hundred and fifty around eighty it is
+49.65, a number no cell of that column holds — and the value stage
+interpolates the rungs and honours it. At the default floor:
+
+| column | the source's empty stretch | twin cells in a bin the source leaves empty |
+|---|---|---|
+| 150 around 20 + 150 around 80 | 26.6 .. 72.7 | 4 to 6 of 300, mean 5.47 |
+| 250 around 10 + 50 around 90 | 17.2 .. 85.7 | 2 to 3 of 300, mean 2.77 |
+| 150 around 40 + 150 around 60 | 47.0 .. 53.3 | 3 to 6 of 300, mean 4.38 |
+
+**WHY THE CENSUS BESIDE IT COULD NOT CARRY THE REPAIR, and this is
+the half of the case that had to be measured rather than assumed.** At
+the default floor of one the census IS published on all three of those
+columns — thirteen, nine and twenty-five bins — so at that floor the
+empty bins were already knowable by subtraction and the defect was
+purely that nothing consumed them. **At any floor above one the census
+vanishes on all three**, measured at two, three, five and eleven: the
+all-or-nothing rule of contract C6-31 needs every OCCUPIED bin to
+clear the floor, and a two-cluster column has thin bins at the edges
+of each cluster. So the census disappears first on exactly the columns
+whose shape matters most, and a repair resting on it would work only
+at the one floor where the defect is least surprising.
+
+**The all-or-nothing rule keeps its reasoning, whole.** That rule
+holds because a census with a pooled remainder cannot be read by RANK:
+the pooled values are in bins nobody named, so the ranks the named
+bins cover are unknown. `empty_bins` is not read by rank. It is read
+as a set of stretches to keep OUT of, which is the same sentence at
+every floor, and a bin holding one to one-below-the-floor values is
+named by neither key and stays exactly as hidden as it was.
+
+**How the twin meets it.** Method G6.7 makes the value stage read it:
+a stratum whose value landed in a named stretch moves to the occupied
+bin NEARER to it and no further, keeping its written form, its sign
+band and the values and texts every other stratum already holds. The
+pass runs LAST among the value passes and takes that place from G6.6,
+for a reason stated there: a width the values cannot wear is a
+shortfall the report names, while a cell in a stretch the real column
+left empty is the twin showing a cluster nobody has.
+
+**THE BOUND, WHICH IS THE PUBLISHED FACT'S OWN AND NOT A-P4-18's.**
+A-P4-18 bounds the width snap by the stretch of the ladder a stratum
+covers, and that bound cannot be used here: measured on all three
+columns above, most of the strata that land in the empty middle have a
+share lying WHOLLY inside it — four of the six on the first column,
+one of three on the second, four of six on the third — so a move
+bounded by the share can reach nothing. The bound this move takes
+instead is written in the fact's own terms: **a value moves out of the
+stretch the description says holds nothing, into the bin next to it,
+and stops there.** That is available on every column, because a
+stretch always has an occupied bin below its first and above its last
+— the smallest value of a column is in the first bin of the scale and
+the largest in the last.
+
+**Amendment A-P4-50 records that the ladder gives way here**, because
+the two published facts genuinely disagree and the plan must say which
+wins.
+
+**AND WHERE THIS FACT MEETS AN EXACT ONE, IT IS THIS FACT THAT GIVES
+WAY.** G6.7.4 refuses a move that would cost `n_distinct` or
+`pad_widths`: a stratum that does not hold its value alone, and a move
+that would change a point-free value's figure count. Both were found
+by the suite rather than by review, both are measured at residual
+**R-P4-143**, and neither costs anything on the corpus below.
+
+**Measured after, the same way.** Cells in a bin the source leaves
+empty: 4–6 → **0 at every one of forty seeds**, 2–3 → **0**, 3–6 →
+**0**, on all three columns and at a floor of one and a floor of
+eleven alike. And the quality report on the same twins misses exactly
+what it missed before and nothing more — `ladder.p90` at 3 and 18
+seeds and `widths.published.1` at 40, all three pre-existing — so the
+landing takes nothing back.
+
+**What it costs a person, priced in contract 12.3 row 20.** The bins
+are a division of two ends the ladder already publishes, so naming an
+empty one adds no edge a reader could not compute. What it adds is the
+sentence "no cell of the real column lies between these two edges": a
+statement about the absence of rows, never about a row. It names no
+value, no count and no cell.
+
+**Disposition: REPORT-ONLY, and it was MEASURED before the class was
+chosen.** The twin keeps out of the stretches that hold no value, and
+is not held to it. Over forty described columns at forty seeds each —
+whole-number two-peak columns, columns spanning zero, columns with one
+far outlier and columns with no empty bin at all — the runs writing a
+cell into a named stretch went from **1049 of 1600 to 119**, worst run
+13 cells to 10, with 121 deviations naming the ones that remain.
+Holding a file to the fact would call the shipped generator's own twin
+broken on one run in fourteen, which is this phase's standing trap.
+Every one of the 119 is a column whose OTHER published facts leave no
+room beside the stretch: a whole-number column whose bins are barely
+wider than a unit and whose neighbouring bin holds no free whole
+number, or a stratum whose sign band ends at the edge it would have to
+cross. Upgrading the class is residual **R-P4-140**.
+
+**What REPORT-ONLY does NOT mean here.** The fact is CONSUMED, which
+is the whole of this decision, and the shortfall is NAMED: the twin's
+report carries a deviation naming the stretch and the value that
+stayed in it, and `synthtwin validate` LISTS the fact with a sentence
+saying the twin keeps out of the stretches without being held to them.
 
 ### P4-D15 The date shapes a spreadsheet actually writes
 
@@ -9519,6 +9836,57 @@ the argument R-P4-17 makes — that specifying a role independently finds
 what checking it against itself cannot — arriving from the other
 direction.
 
+## Amendment A-P4-50 — where the ladder and the empty-bin fact disagree, the fact wins (2026-09-01)
+
+**THIS SETTLES A CONFLICT BETWEEN TWO PUBLISHED FACTS**, and it is
+written as an amendment because the plan must say which of them the
+twin honours rather than leaving an implementer to choose.
+
+**What the two facts say.** A column of a hundred and fifty values
+around twenty and a hundred and fifty around eighty publishes a median
+of 49.65 — a true percentile of real values, and a number no cell of
+that column holds. It also publishes, from landing L12 on, that the
+bins covering roughly 26.7 to 71.3 hold NOTHING. A value stage
+honouring the first puts cells at about 49.65; the second says no cell
+is there.
+
+**Which wins, and why.** The fact wins. Between the rungs the ladder
+says nothing, and G5.3 fills the silence by interpolating; the
+interpolation is an INFERENCE the method makes where the description
+is silent. "No cell of the real column lies between these two edges"
+is a MEASUREMENT of real cells. Where an inference meets a
+measurement, the measurement wins, which is the direction this plan
+takes everywhere a published count meets a published curve.
+
+**Why A-P4-18's bound cannot be reused here, measured rather than
+asserted.** That amendment bounds the width snap by the stretch of the
+published ladder a stratum covers. Measured on all three two-cluster
+columns of R-P4-136, most of the strata landing in the empty middle
+have a share lying WHOLLY inside it — four of six on the first, one of
+three on the second, four of six on the third — so a move bounded by
+the share reaches nothing at all and the defect stands. The bound this
+move takes instead is the published fact's own: **out of the stretch
+the description says holds nothing, into the bin next to it, and no
+further.**
+
+**What it costs, and it is measured rather than argued.** The ladder
+gives way, so the rungs near the empty middle are met less exactly
+than an interpolating twin met them. Measured at forty seeds on all
+three columns, through the real path: the quality report misses
+exactly what it missed before this landing and nothing more —
+`ladder.p90` at 3 and 18 seeds and `widths.published.1` at 40, all
+three PRE-EXISTING and all three unchanged. So on these shapes the
+cost is nil, and the reason it is nil is arithmetic rather than luck:
+the cells that move are the few between the clusters, and a percentile
+computed from a hundred and fifty values below and a hundred and fifty
+above does not move when five of them shift from the middle to the
+edges.
+
+**What it does NOT change.** A-P4-18 stands exactly as written for the
+width snap it governs. This amendment names a different move, with a
+different bound, on a fact that did not exist when A-P4-18 was
+written.
+
 ## Amendment A-P4-49 — what review round 1 of landing L7 sent back (2026-09-01)
 
 Codex round 1 REJECTED L7 with five items. Every one was real. They are
@@ -10269,6 +10637,7 @@ documentation however much it looks like it.
 | # | date | what changed | why | what it cost |
 |---|---|---|---|---|
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
+| **A-P4-50** | 2026-09-01 | Where the published ladder and the published empty-bin fact disagree about where a cell goes, the FACT wins and the ladder gives way. The move's bound is the fact's own — out of the stretch, into the bin next to it, no further — and not A-P4-18's, whose share-bounded reach was measured to reach nothing on the columns this concerns. | Between the rungs the ladder says nothing and the method interpolates, which is an inference; "no cell lies between these two edges" is a measurement of real cells. Measured on three two-cluster columns at forty seeds, a share-bounded move could not free four of six, one of three and four of six of the offending strata. | The rungs near an empty middle are met by interpolation less exactly than before. Measured at forty seeds on all three columns through the real path, the quality report misses exactly what it missed before and nothing more, so on these shapes the cost is nil. A-P4-18 is untouched for the width snap it governs. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 
 ## Residual R-P4-51 — CLOSED 2026-09-01 by decision P4-D31 (landing L7)

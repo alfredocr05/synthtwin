@@ -404,6 +404,47 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
     return said
 
 
+def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
+    """The stretches this column held nothing in, in words (P4-D32).
+
+    THE DESCRIPTION PUBLISHES A FACT NO OTHER LINE OF THIS PAGE SAYS.
+    Every other numeric line here names where the values ARE -- the
+    smallest, the middle, the largest, the average, the spread -- and
+    a column with two clusters and nothing between them looks, in all
+    of them, exactly like one smooth column. A person reading that
+    their readings run from 15 to 90 with a middle of 50 has every
+    reason to take it that some cell held about 50, and none did.
+
+    IT NAMES NO VALUE AND NO CELL. The stretch is worked out from the
+    two ends the line above already prints, and what is said about it
+    is that NOBODY is there.
+
+    The count is said rather than the edges themselves, because the
+    edges are a division of a range this page has already given and a
+    list of them would be arithmetic rather than words. A person who
+    wants the edges has the description.
+    """
+    if "empty_bins" not in column:
+        return []
+    bins = column["empty_bins"]
+    if not isinstance(bins, list) or not bins:
+        return []
+    stretches = 0
+    last = -2
+    for place in bins:
+        if not isinstance(place, int):
+            return []
+        if place != last + 1:
+            stretches = stretches + 1
+        last = place
+    return [
+        f"    held no value at all in {stretches} stretch(es) of its "
+        f"range, covering {len(bins)} of the "
+        f"{parsing.HISTOGRAM_BINS} equal steps between its smallest "
+        f"value and its largest"
+    ]
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -421,6 +462,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     lines = lines + _width_lines(column)
+    lines = lines + _empty_bin_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
         shown = [

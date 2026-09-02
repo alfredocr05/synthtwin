@@ -2090,13 +2090,158 @@ up and named rather than met with a value that is not the value it
 looks like.
 
 **G6.6.7 Where the width is given up.** `field_widths` is
-EXACT-OBSERVABLE, so a width the pass cannot reach is RECOUNTED off the
-finished cells and named — in the twin's own report as a deviation
-carrying the published count and the achieved one, and by `synthtwin
-validate` as `numeric.field_widths` MISSED at the subcheck
-`fields.published.<width>`. Both pages read the census with the
+REPORT-ONLY — plan P4-D30 and contract 7.10 and 9.4 all say so, on the
+measurement 7.10 carries — so a width the pass cannot reach is
+RECOUNTED off the finished cells and NAMED in the twin's own report as
+a deviation carrying the published count and the achieved one, while
+`synthtwin validate` LISTS `numeric.field_widths` with a sentence
+saying the twin follows the census without being held to it. **This
+paragraph said EXACT-OBSERVABLE and named a subcheck
+`fields.published.<width>` that exists nowhere in the product or the
+suite**; nothing read it, so nothing turned red, and it is repaired
+here rather than left as a fourth document saying a fifth thing (the
+sibling search of landing L12). The report reads the census with the
 producer's own reader, so a width the writer intended and a width a
 cell actually wears cannot come apart between them.
+
+### G6.7 No value stands where the description says there is none
+
+**THE FACT THIS SECTION SERVES IS `empty_bins`** (contract 7.11, plan
+P4-D32), and it is served at the value stage because it is a statement
+about VALUES and about nothing else. A cell cannot be written out of a
+stretch it stands in; only the value can be moved.
+
+**G6.7.1 What was wrong.** A column with two clusters and nothing
+between them publishes a middle rung BETWEEN the clusters — the median
+of a hundred and fifty values around twenty and a hundred and fifty
+around eighty is 49.65, a number no cell of that column holds — and
+G5.3 interpolates the rungs and honours it. Measured through the real
+reader, producer, loader, generator and validator at FORTY seeds and
+at the default floor, the twins of three such columns put 4–6, 2–3 and
+3–6 of their 300 cells in a stretch the real column left completely
+empty. Nothing crashed and nothing was named. Anybody plotting the
+twin met a third cluster that is not there.
+
+**G6.7.2 The bins, and where they come from.** The scale is the one
+G6.6's sibling census is counted on: `HISTOGRAM_BINS` equal bins
+between the block's published `min` and `max`, divided by contract
+C6-31's rule. The generator reads the two ends from the LADDER rather
+than recomputing them, which is what makes a bin number mean one thing
+in the producer, the loader and here. A block whose ends this format
+cannot hold, or whose ends are finite and whose WIDTH is not, has no
+scale, publishes an empty list, and this section does nothing.
+
+**G6.7.3 The stretches.** Consecutive named bins are taken as one
+STRETCH, and the move is out of the whole stretch rather than out of
+the bin a value happens to stand in: a value in the middle of nineteen
+empty bins has to reach the occupied bin below the first of them or
+the one above the last, and the bin it stands in says nothing about
+how far that is. Both of those bins always exist, because the smallest
+value of a block is in the first bin of the scale and the largest is
+in the last, so neither end bin is ever empty (contract Q20).
+
+**G6.7.4 Which stratum moves, and the rules it may not break.** Every
+stratum whose value falls in a named bin moves, subject to:
+
+1. not one of the two PINNED strata, which hold the published ends of
+   the ladder — and which are never in a named bin anyway, being the
+   two values the end bins are defined by;
+2. not in the ZERO band, so the count of zero values does not move;
+3. never across zero, so the sign counts do not move;
+4. keeping its WRITTEN FORM — a value that carries no point moves to a
+   value that carries no point, and one that carries a point moves to
+   one that carries a point — so the point-free count G6.4 met and the
+   held-back pool are untouched;
+5. landing on no value another stratum holds, AND on no value that
+   would be WRITTEN the way another stratum's value can be written, at
+   any width the fraction census could reach either of them at. The
+   second half of that is not caution: two values a thousandth apart
+   are two values and ONE cell, so a rule that compared only the
+   numbers handed the column two identical cells and took back the
+   count of different values;
+6. holding its value ALONE. A move costs nothing only when the stratum
+   VACATES what it leaves: one value goes, one arrives, and the count
+   stands. A stratum sharing its value vacates nothing, so whatever it
+   does ADDS — a fresh value adds a number, and joining another
+   stratum's value adds a spelling, because the writing stage then has
+   two strata on one number and the leading-zero family splits them;
+7. keeping its FIGURE COUNT, where its value carries no point. A
+   point-free cell is exactly as wide as its value, so moving a
+   stratum from one figure to two takes a carrier away from the padded
+   -width census: 9 can be written `09` at a published width of two
+   and 10 cannot.
+
+**RULES 6 AND 7 EXIST BECAUSE THE SUITE FOUND THEM, and both were
+measured on the floored witness of review item P3-V7-F4** — a column
+of nine different spellings at a floor of eleven, the case where this
+fact is published and the census beside it is not. Without either rule
+the twin wrote TEN spellings against a published nine and
+`distinct.n_distinct` fell from HELD to an authorized deviation. With
+both, it writes nine and the count is met outright. `n_distinct` and
+`pad_widths` are EXACT-OBSERVABLE and this fact is REPORT-ONLY, so
+where they meet this one gives way and G6.7.8's deviation names the
+stretch instead. **Measured cost of the two rules on the corpus of
+G6.7.8: none.** The three two-cluster columns still write no cell in a
+named stretch at any of forty seeds at either floor, and the forty
+described columns still leak on the same 119 runs of 1600.
+
+**G6.7.5 Where it goes, and the bound.** To the occupied bin NEARER to
+it — measured from the value to each end of the stretch — and no
+further. **That is this move's whole reach, and it is written in the
+published fact's own terms**: a value moves out of the stretch the
+description says holds nothing, into the bin next to it, and stops
+there.
+
+**IT IS NOT A-P4-18's BOUND, and it cannot be.** That amendment bounds
+the width snap by the stretch of the ladder a stratum covers. Measured
+on all three columns above, most of the strata that land in the empty
+middle have a share lying WHOLLY inside it — four of six on the first,
+one of three on the second, four of six on the third — so a move
+bounded by the share reaches nothing at all. Plan amendment A-P4-50
+records the choice and its ground: between the rungs the ladder says
+nothing and the method fills the silence by interpolating, which is an
+INFERENCE, while "no cell of the real column lies between these two
+edges" is a MEASUREMENT. Where the two meet, the measurement wins.
+
+**G6.7.6 The walk inside the bin.** From the edge of the stretch
+inward, in sixty-fourths of a bin, taking the first position that
+breaks none of G6.7.4's rules. The strata standing nearest the edge
+are walked FIRST, so each takes a position nearer the edge than the
+one after it and the values keep the order the ladder gave them. On a
+whole-numbered column each position is rounded to a whole number
+before it is tested, and a position that then reads back inside a
+named bin is passed over.
+
+**AND THE TEST IS APPLIED TO THE SPELLING, not to the value.** A
+column written to one figure after the point has its values rounded
+when they are written, and a value placed a thousandth of the reach
+outside a stretch comes back inside it: the value 71.625, placed in
+the first occupied bin above a stretch, was written `71.6`, which is
+in the last bin OF it — one cell of three hundred, at every seed, and
+the only sign of it was the recount. So each candidate is written at
+every width the fraction census could reach the cell at, with this
+method's own writer, and every one of those readings must fall outside
+every named bin.
+
+**G6.7.7 The pass runs LAST among the value passes**, and takes that
+place from G6.6. The reason is a difference in kind between the two
+obligations: a width the values cannot wear is a SHORTFALL the report
+names, while a cell in a stretch the real column left empty is the
+twin SHOWING A CLUSTER NOBODY HAS. What this pass can take back from
+the four before it is bounded by G6.7.4 to exactly one thing — a field
+width — and that census is REPORT-ONLY with its shortfalls named.
+
+**G6.7.8 Where the move cannot be made.** The value STAYS and a
+deviation names it, carrying the two edges of the stretch and the
+value that is still inside it. Measured over forty described columns
+at forty seeds each, the runs writing a cell into a named stretch went
+from 1049 of 1600 to 119, and every one of the 119 is a column whose
+other published facts leave no room beside the stretch: a
+whole-numbered column whose bins are barely wider than a unit and
+whose neighbouring bin holds no free whole number, or a stratum whose
+sign band ends at the edge it would have to cross. `empty_bins` is
+REPORT-ONLY on that measurement (contract 7.11), so `synthtwin
+validate` LISTS the fact rather than holding a file to it.
 
 ## G6A. Affixed-number columns (`affixed_number`)
 

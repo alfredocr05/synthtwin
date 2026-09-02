@@ -6969,6 +6969,20 @@ def _numeric_content(
     # comes through it untouched, and none of them has to be re-argued
     # against a value this pass chose.
     values = _wide_enough(column, facts, layout, rungs, values)
+    # AND NO VALUE STANDS WHERE THE DESCRIPTION SAYS THERE IS NONE
+    # (plan P4-D32, residual R-P4-136). LAST, and it takes that place
+    # from `_wide_enough` above on purpose: this is the only one of the
+    # five obligations a later mover could break OUTRIGHT rather than
+    # leave unmet. A width the values cannot wear is a shortfall the
+    # report names; a cell in a stretch the real column left empty is
+    # the twin showing a cluster nobody has. What this pass takes back
+    # from the four before it is bounded by its own rules -- it keeps
+    # each value's written form, lands on no value another stratum
+    # holds, and moves neither pinned end nor any stratum in the zero
+    # band -- so the only one of them it can cost is a field width, and
+    # that census is REPORT-ONLY with its shortfalls named.
+    values, clear_notes = _clear_enough(column, facts, layout, values)
+    notes = notes + clear_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -8787,6 +8801,551 @@ def _wide_enough(
             return moved
         moved[chosen] = picked
     return moved
+
+
+# HOW FINELY THE WALK DIVIDES THE BIN IT MOVES INTO, and why it stops
+# there. The walk starts at the edge of the empty stretch and steps
+# inward across exactly ONE bin -- the occupied bin next to the
+# stretch, and no further, which is this move's whole reach -- so
+# sixty-four steps put every landing within a sixty-fourth of a bin,
+# or a two-thousandth of the column's reach, of the edge it was sent
+# to. Sixty-four rather than a handful because several strata can land
+# in one stretch and each takes the next free slot: six did on the
+# two-peak column this rule was measured on, and a slot is spent
+# whenever a candidate is written the same way as a cell already
+# there.
+_CLEAR_STEPS = 64
+
+
+def _bin_ends(facts: contract.NumericFacts) -> "tuple[float, float] | None":
+    """The two ends the bins of a description are measured between.
+
+    THE SAME TWO THE PRODUCER USED, read from the ladder rather than
+    recomputed, which is what makes a bin number mean one thing in the
+    producer, the loader and here. The producer counts its bins between
+    the smallest and largest values the statistics used, and those two
+    are the ladder's own ends.
+
+    Returns None where there is no scale to divide: an end this format
+    cannot hold, or two finite ends whose width it cannot hold. That is
+    the same refusal the producer makes and the loader checks, written
+    once more here because this module may not import either of them.
+
+    Guarantees: accepts one numeric block's facts; returns the two ends
+    with the lower first, or None. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    if lowest is None or highest is None:
+        return None
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return None
+    reach = highest - lowest
+    if not math.isfinite(reach) or not reach > 0.0:
+        return None
+    return (lowest, highest)
+
+
+def _empty_runs(bins: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The stretches of consecutive bins a description says are empty.
+
+    A run rather than a bin at a time because the move is out of the
+    WHOLE stretch: a value in the middle of nineteen empty bins has to
+    reach the occupied bin below the first of them or the one above the
+    last, and the bin it happens to be standing in says nothing about
+    how far that is.
+
+    Guarantees: accepts the ascending bin numbers of one block; returns
+    the runs as (first, last) pairs, ascending and not touching.
+    Determinism: a function of the list. Raises nothing. No I/O.
+    """
+    runs: "list[tuple[int, int]]" = []
+    for place in bins:
+        if runs and place == runs[-1][1] + 1:
+            runs[-1] = (runs[-1][0], place)
+            continue
+        runs = runs + [(place, place)]
+    return runs
+
+
+def _census_widths(facts: contract.NumericFacts) -> "tuple[int, ...]":
+    """Every width after the point this column's cells may be written at.
+
+    The named widths of the fraction census, and -1 for "no width was
+    assigned", which is what a cell the census did not reach gets and
+    what every cell of a column publishing no census gets.
+
+    Guarantees: accepts one numeric block's facts; returns the widths
+    ascending with -1 first. Determinism: a function of the facts.
+    Raises nothing. No I/O of any kind.
+    """
+    widths = [-1]
+    for key in sorted(facts.fraction_widths):
+        if key == contract.WITHHELD:
+            continue
+        widths = widths + [int(key)]
+    return tuple(sorted(widths))
+
+
+def _reads_outside(
+    value: float,
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> bool:
+    """Whether this value stays out of the empty stretches AS WRITTEN.
+
+    THE VALUE IS NOT WHAT A READER OF THE TWIN MEETS -- the SPELLING
+    is, and the two are not the same number. A column whose cells are
+    written to one figure after the point has its values rounded to one
+    figure when they are written, and a value chosen a thousandth of
+    the reach outside an empty stretch is written back inside it. That
+    is exactly what happened on the two-peak column this rule was
+    measured on: the value 71.625 was placed in the first occupied bin
+    above the stretch and the cell came out `71.6`, which is in the
+    last bin of it. One cell of three hundred, at every seed, and the
+    only sign of it was the recount.
+    
+    So the question is asked of the SPELLINGS, at every width the
+    fraction census could write this cell at, with this module's own
+    writer rather than a rule restated here.
+
+    Guarantees: accepts a value, the two ends, the barred bins, the
+    widths and whether the column is whole; returns True only where
+    every spelling of it reads back outside every barred bin.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    for width in widths:
+        spelling = _styled_number(
+            value, "decimal", 0, whole_column, width, -1
+        )
+        read = parsing.parse_number(spelling)
+        if read is None:
+            return False
+        if parsing.histogram_bin(read, ends[0], ends[1]) in barred:
+            return False
+    return True
+
+
+def _cleared_value(
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    run: "tuple[int, int]",
+    value: float,
+    band: str,
+    sole: bool,
+    spoken: "dict[str, int]",
+    taken: "dict[float, int]",
+    whole_column: bool,
+    widths: "tuple[int, ...]",
+) -> "float | None":
+    """A value outside the empty stretch this one landed in (G6.7).
+
+    THE NEARER EDGE, AND NO FURTHER THAN THE BIN BEYOND IT. The stretch
+    has an occupied bin below its first and an occupied bin above its
+    last -- both always exist, because the smallest value of the column
+    is in the first bin of the scale and the largest is in the last, so
+    neither end bin is ever empty -- and the value goes into whichever
+    of those two it is closer to. That is the bound this move has, and
+    it is written in the published fact's own terms: a value moves out
+    of the stretch the description says holds nothing, into the bin
+    next to it, and stops there.
+
+    THE WALK RUNS FROM THE EDGE INWARD AND THE FIRST FREE SLOT WINS,
+    which is what keeps several strata in one stretch apart and in the
+    order the ladder gave them. The caller walks the strata nearest the
+    edge first, so each takes a slot nearer the edge than the one
+    after it.
+
+    A SLOT IS FREE ONLY IF NOTHING ALREADY READS THAT WAY. `taken`
+    holds the values other strata hold and `spoken` every spelling
+    those values can be written with, at every width the fraction
+    census could reach them at. Testing the value alone is not enough
+    and the difference is measurable: two values a thousandth apart are
+    two values and one cell, so a walk that checked only the numbers
+    handed the column two identical cells and took back the count of
+    different values that `_apart_enough` had just met.
+
+    AND A STRATUM THAT DOES NOT HOLD ITS VALUE ALONE DOES NOT MOVE.
+    `sole` is that rule and a witness in the suite is what put it here.
+    Moving costs nothing only when the stratum VACATES what it leaves:
+    then one value goes and one arrives and the count stands. A stratum
+    sharing its value vacates nothing -- the other holder keeps it --
+    so whatever it does adds. A fresh value adds a NUMBER. Joining
+    another stratum's value adds a SPELLING, because the writing stage
+    then has two strata on one number and the leading-zero family
+    splits them. Both were measured on the floored witness of review
+    item P3-V7-F4, a column of nine different spellings at a floor of
+    eleven: the twin wrote TEN either way and `distinct.n_distinct`
+    fell from HELD to an authorized deviation.
+
+    SO THE EXACT FACT WINS AND THIS ONE GIVES WAY, which is the
+    ordering this repository takes everywhere: `n_distinct` is
+    EXACT-OBSERVABLE and `empty_bins` is REPORT-ONLY, so a move that
+    would cost the first is not made and the report names the stretch
+    instead.
+
+    THE WRITTEN FORM IS KEPT, AND SO IS THE FIGURE COUNT. A value that
+    carries no point moves to a value that carries no point, and one
+    that carries a point moves to one that carries a point;
+    `_pool_enough` puts the pooled cells of a column on the strata
+    whose values carry a point and `_whole_enough` puts the point-free
+    count on the ones that do not, so a move that changed which was
+    which would take back the count those two passes just met.
+
+    THE FIGURE COUNT IS THE SECOND HALF OF THAT, and the suite is what
+    put it here. A point-free cell is exactly as wide as its value, so
+    moving a stratum from one figure to two takes a carrier away from
+    the padded-width census: a value of 9 can be written `09` at a
+    published width of two and a value of 10 cannot. Measured on the
+    floored witness of review item P3-V7-F4, that is what a single
+    move cost -- the writing stage had one fewer cell able to wear a
+    leading zero at the published width, took one from another
+    stratum, and wrote one number two ways. The twin held ten
+    different spellings against a published nine and
+    `distinct.n_distinct` fell from HELD to an authorized deviation.
+    `n_distinct` and `pad_widths` are EXACT-OBSERVABLE and this fact is
+    REPORT-ONLY, so where they meet this one gives way and the report
+    names the stretch instead.
+
+    NEVER ACROSS ZERO, which is the rule every sibling pass in this
+    file keeps, so the counts of negative and zero values stand.
+
+    Guarantees: accepts the two ends, the bins barred as empty, the run
+    the value is in, the value, its sign band, the spellings and values
+    already spoken for, whether the column is whole and the widths its
+    cells may be written at; returns a value inside the occupied bin
+    nearer to it, written in the same form and reading as nothing
+    already there -- or None where there is no such value.
+    Determinism: the answer depends only on those inputs. Raises
+    nothing. No I/O of any kind.
+    """
+    lowest = ends[0]
+    highest = ends[1]
+    reach = highest - lowest
+    width = reach / parsing.HISTOGRAM_BINS
+    if not math.isfinite(width) or not width > 0.0:
+        return None
+    under = lowest + width * run[0]
+    over = lowest + width * (run[1] + 1)
+    downward = value - under <= over - value
+    step = width / _CLEAR_STEPS
+    if not math.isfinite(step) or not step > 0.0:
+        return None
+    if not sole:
+        return None
+    plainly = _carries_plainly(value, whole_column)
+    figures = _figure_count(value, whole_column) if plainly else 0
+    for inward in range(_CLEAR_STEPS):
+        if downward:
+            found = under - step * (inward + 1)
+        else:
+            found = over + step * inward
+        if not math.isfinite(found):
+            continue
+        if whole_column:
+            found = _whole_valued(found)
+        if not _reads_outside(found, ends, barred, widths, whole_column):
+            continue
+        if band == _BAND_NEGATIVE and not found < 0.0:
+            continue
+        if band == _BAND_POSITIVE and not found > 0.0:
+            continue
+        if _carries_plainly(found, whole_column) != plainly:
+            continue
+        if plainly and _figure_count(found, whole_column) != figures:
+            continue
+        if found in taken:
+            continue
+        clear = True
+        for spelling in _spellings_of(found, widths, whole_column):
+            if spelling in spoken:
+                clear = False
+                break
+        if not clear:
+            continue
+        return found
+    return None
+
+
+def _spellings_of(
+    value: float, widths: "tuple[int, ...]", whole_column: bool
+) -> "list[str]":
+    """Every text one value's cell could be written with (G6.7).
+
+    The fraction census decides which width a cell is written at and
+    that decision is made after the values are drawn, so a value that
+    must read as nothing else has to read as nothing else at ALL of
+    them. The leading-zero family and the sign styles are left out on
+    purpose: they change the text a cell wears and not the number it
+    reads back as, and what this list is compared against is what a
+    cell reads back as.
+
+    Guarantees: accepts a value, the widths and whether the column is
+    whole; returns one text per width. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    return [
+        _styled_number(value, "decimal", 0, whole_column, width, -1)
+        for width in widths
+    ]
+
+
+def _barred_bin(
+    value: float,
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> int:
+    """The barred bin this value stands in, by value or by spelling.
+
+    The value's own bin where that is barred; otherwise the bin of the
+    first spelling of it that is, taking the widths in the order
+    `_census_widths` fixes so two implementations pick the same one.
+    Returns -1 where neither is barred.
+
+    Guarantees: accepts a value, the two ends, the barred bins, the
+    widths and whether the column is whole; returns a bin number or -1.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    place = parsing.histogram_bin(value, ends[0], ends[1])
+    if place in barred:
+        return place
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is None:
+            continue
+        place = parsing.histogram_bin(read, ends[0], ends[1])
+        if place in barred:
+            return place
+    return -1
+
+
+def _clear_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+) -> "tuple[list[float], list[Deviation]]":
+    """Put no value where the description says there is none (G6.7).
+
+    THE DEFECT THIS CLOSES. A column with two clusters and nothing
+    between them publishes a middle rung BETWEEN the clusters -- the
+    median of a hundred and fifty values around twenty and a hundred
+    and fifty around eighty is forty-nine and a half, a number no cell
+    of that column holds -- and `_stratum_values` interpolates the
+    rungs and honours it. Measured over forty seeds at the default
+    floor, the twin of such a column put four to six of its three
+    hundred cells in a stretch the real column left completely empty.
+    Anybody plotting the twin met a third cluster that is not there.
+
+    WHAT MAKES THE REPAIR AVAILABLE is the fact this landing publishes.
+    The census of bin counts could not carry it: that census is all or
+    nothing and vanishes at every floor above one, and on these very
+    columns -- whose empty middle is what makes them worth describing
+    -- it vanishes first. `empty_bins` says only which bins hold
+    NOBODY, so no floor reaches it, and it is read here as a set of
+    stretches to keep out of rather than as a place to put a value.
+
+    THE LADDER AND THIS FACT DISAGREE, AND THIS FACT IS THE MORE
+    SPECIFIC ONE. Between the rungs the ladder says nothing, and the
+    method fills the silence by interpolating; the interpolation is an
+    inference, while "no cell of the real column lies between these two
+    edges" is a measurement. Where the two meet, the measurement wins
+    and the inference gives way -- which is the direction this plan
+    takes everywhere a published count meets a published curve.
+
+    IT IS THE LAST PASS OVER THE VALUES, and that is a change from
+    `_wide_enough` holding the position. Last because this is the only
+    obligation among them that a later mover can BREAK OUTRIGHT rather
+    than merely leave unmet: a width the values cannot wear is a
+    shortfall the report names, while a cell in an empty stretch is the
+    twin saying a person is somewhere the real column says nobody is.
+    What it takes back from the passes before it is bounded and is
+    measured rather than argued: it keeps every value's written form,
+    so the point-free count and the pool come through untouched; it
+    lands on no value another stratum holds, so the count of different
+    numbers does not fall; and it moves neither pinned end nor any
+    stratum in the zero band, so the ladder's ends and the count of
+    zero values are exactly what they were. What it can take back is a
+    field width, and the width census is REPORT-ONLY and its shortfalls
+    are named in the twin's own report.
+
+    WHERE THE MOVE CANNOT BE MADE THE VALUE STAYS AND IS NAMED. A
+    stratum in the negative band with no room below zero, a column
+    whose bins are narrower than the whole numbers it must write, an
+    occupied bin already full of values other strata hold: the value is
+    left where the ladder put it and a deviation says so, because a
+    twin that quietly failed here would be exactly the silent
+    statistical wrongness this fact exists to end.
+
+    Guarantees: accepts one numeric block, its facts, its layout and
+    the values drawn for its strata; returns the values with every one
+    that could be moved out of an empty stretch moved to the nearer
+    occupied bin, and one deviation per value that could not be.
+    Determinism: the answer depends only on those inputs, and the
+    strata are walked in a fixed order. Raises nothing. No I/O.
+    """
+    if not facts.empty_bins:
+        return values, []
+    ends = _bin_ends(facts)
+    if ends is None:
+        return values, []
+    barred = {place: 1 for place in facts.empty_bins}
+    runs = _empty_runs(facts.empty_bins)
+    widths = _census_widths(facts)
+    total = len(values)
+    moved = [value for value in values]
+    notes: list[Deviation] = []
+    # WHAT IS ALREADY SPOKEN FOR, GATHERED ONCE. Every value the strata
+    # hold and every text those values could be written with. A value
+    # this pass hands out is added; the one it vacates is NOT taken
+    # back out, which is deliberate rather than an oversight -- the
+    # cell that stood there has gone, so nothing needs the text, and
+    # leaving it in costs one slot of the walk and buys a rule with no
+    # order in it. Rebuilding the whole set for every stratum that
+    # moves is the other way to write this, and it makes the pass cost
+    # the square of the strata on a column where nothing needs moving
+    # at all.
+    taken: "dict[float, int]" = {}
+    spoken: "dict[str, int]" = {}
+    for value in moved:
+        taken[value] = taken[value] + 1 if value in taken else 1
+        for spelling in _spellings_of(value, widths, facts.integer_valued):
+            spoken[spelling] = 1
+    # WHICH STRATA ARE IN WHICH STRETCH, gathered before anything moves
+    # so that a stratum's queue position is fixed by where the LADDER
+    # put it and not by which of its neighbours moved first.
+    #
+    # A STRATUM IS IN A STRETCH IF ANY SPELLING OF IT IS, which is the
+    # same rule `_reads_outside` applies to a candidate and is applied
+    # here for the same reason: what a reader of the twin meets is the
+    # CELL, and a value a thousandth outside a stretch is written back
+    # inside it at the width the fraction census gives that cell.
+    # Asking the question of the value alone would have left this pass
+    # blind to exactly the cells it exists to move.
+    queued: "dict[int, list[int]]" = {}
+    for place in range(total):
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if layout.bands[place] == _BAND_ZERO:
+            continue
+        if _reads_outside(
+            moved[place], ends, barred, widths, facts.integer_valued
+        ):
+            continue
+        where = _barred_bin(
+            moved[place], ends, barred, widths, facts.integer_valued
+        )
+        if where < 0:
+            continue
+        for index in range(len(runs)):
+            if runs[index][0] <= where <= runs[index][1]:
+                if index in queued:
+                    queued[index] = queued[index] + [place]
+                else:
+                    queued[index] = [place]
+                break
+    for index in sorted(queued):
+        run = runs[index]
+        under = ends[0] + (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS * run[0]
+        over = (
+            ends[0]
+            + (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS * (run[1] + 1)
+        )
+        places = queued[index]
+        # THE ONES GOING DOWN, FURTHEST FIRST. A stratum standing just
+        # inside the stretch is the one that ends up nearest the edge,
+        # so the queue for the bin below is walked from the top of the
+        # stretch downward and the queue for the bin above from the
+        # bottom upward. That is what keeps the values of the strata in
+        # the order the ladder gave them.
+        down = [
+            place
+            for place in places
+            if moved[place] - under <= over - moved[place]
+        ]
+        up = [place for place in places if place not in down]
+        for step in range(len(down)):
+            notes = notes + _cleared_into(
+                column, facts, layout, moved, ends, barred, run,
+                down[len(down) - 1 - step], widths, taken, spoken,
+            )
+        for place in up:
+            notes = notes + _cleared_into(
+                column, facts, layout, moved, ends, barred, run,
+                place, widths, taken, spoken,
+            )
+    return moved, notes
+
+
+def _cleared_into(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    moved: "list[float]",
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    run: "tuple[int, int]",
+    place: int,
+    widths: "tuple[int, ...]",
+    taken: "dict[float, int]",
+    spoken: "dict[str, int]",
+) -> "list[Deviation]":
+    """Move one stratum out of an empty stretch, or name why not (G6.7).
+
+    `taken` and `spoken` are the caller's and are ADDED TO here, so a
+    value this pass has just handed out is one the next stratum may not
+    take -- which is what keeps the count of different numbers, and the
+    count of different cells, where the passes before this one left
+    them. The deviation is RETURNED rather than appended to a list the
+    caller owns: this package builds every list by joining rather than
+    by calling a method on a value, so that the offline audit can trace
+    every call it sees to an allowlisted name.
+    """
+    # WHETHER THIS STRATUM HOLDS ITS VALUE ALONE, read from the tally
+    # the caller keeps: `taken` counts holders, so one means this
+    # stratum and nobody else.
+    sole = taken[moved[place]] <= 1
+    found = _cleared_value(
+        ends,
+        barred,
+        run,
+        moved[place],
+        layout.bands[place],
+        sole,
+        spoken,
+        taken,
+        facts.integer_valued,
+        widths,
+    )
+    if found is None:
+        width = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS
+        return [
+            _deviation(
+                column.name,
+                "empty_bins",
+                f"no value from {ends[0] + width * run[0]} to "
+                f"{ends[0] + width * (run[1] + 1)}",
+                f"one cell holds {moved[place]}",
+                "The description says the real column holds no value in "
+                "that stretch, and this twin could find no value beside "
+                "it that its own signs and the values its other cells "
+                "hold all leave free.",
+            )
+        ]
+    was = moved[place]
+    moved[place] = found
+    taken[was] = taken[was] - 1
+    if taken[was] < 1:
+        del taken[was]
+    taken[found] = taken[found] + 1 if found in taken else 1
+    for spelling in _spellings_of(found, widths, facts.integer_valued):
+        spoken[spelling] = 1
+    return []
 
 
 def _number_cells(

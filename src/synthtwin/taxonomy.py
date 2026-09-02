@@ -5272,6 +5272,109 @@ def _field_widths(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def _bin_census(numbers: "list[float]") -> "dict[int, int] | None":
+    """How many of a column's numbers fall in each of the bins.
+
+    THE ONE PLACE THE BINS ARE COUNTED, and it is one place because two
+    published facts are read off the same count: the census of how many
+    values each bin holds, and the list of bins holding NONE. Counting
+    twice is how the two would come to disagree about a column, and a
+    description whose two shape facts contradict each other is worse
+    than either of them alone.
+
+    Returns None -- not an empty count -- where the column has no scale
+    to divide at all: no numbers, an end this format cannot hold, or
+    two finite ends whose WIDTH it cannot hold. The two callers answer
+    that case in their own words, because "there is no scale" and "the
+    scale has no empty bin" are different sentences and a reader has to
+    be able to tell them apart.
+
+    Guarantees: accepts the numbers the statistics used; returns a
+    mapping from bin number to a count of one or more, holding a key
+    only for the bins that hold something, or None. Determinism: the
+    answer depends only on the values. Raises nothing. No I/O of any
+    kind.
+    """
+    if not numbers:
+        return None
+    lowest = min(numbers)
+    highest = max(numbers)
+    for value in numbers:
+        if not math.isfinite(value):
+            return None
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return None
+    if not math.isfinite(highest - lowest):
+        return None
+    counts: dict[int, int] = {}
+    for value in numbers:
+        place = parsing.histogram_bin(value, lowest, highest)
+        if place in counts:
+            counts[place] = counts[place] + 1
+        else:
+            counts[place] = 1
+    return counts
+
+
+def _empty_bins(numbers: "list[float]") -> "list[int]":
+    """Which of the bins hold NONE of this column's numbers (P4-D32).
+
+    THE FACT THAT NAMES NOBODY, and that is the whole of why it is
+    published where the census beside it is not. A bin holding one
+    value says a person is there and where they are; a bin holding
+    fewer than the smallest group size says a small group is there;
+    a bin holding NOTHING says nobody is there, and there is no
+    smaller group than nobody. The owner ruled on exactly that question
+    on 2026-08-31 and ruled that an empty bin may be published while
+    the bins holding one to one-below-the-floor stay hidden.
+
+    IT DOES NOT REOPEN THE ALL-OR-NOTHING RULE ON THE CENSUS, and the
+    reasoning that rule rests on comes through untouched. That rule
+    holds because a census with a pooled remainder cannot be read by
+    RANK: the pooled values are in bins nobody named, so the ranks the
+    named bins cover are unknown and a generator cannot build the map
+    it needs. This fact is not read by rank at all. It says where no
+    value is, which is the same sentence whatever the floor is and
+    whatever the other bins hold, and a generator reads it as a set of
+    stretches to keep out of rather than as a place to put a value.
+
+    WHAT IT COSTS A READER TO KNOW. The bins are fixed by the two ends
+    the ladder already publishes, so naming an empty one adds no edge a
+    reader could not already compute. What it adds is the sentence "no
+    cell of the real column lies between these two edges" -- a
+    statement about the absence of rows, not about any row.
+
+    THE FIRST BIN AND THE LAST ARE NEVER AMONG THEM. The scale runs
+    from the column's smallest value to its largest, so the smallest
+    lies in the first bin and the largest in the last, and a column
+    with a scale at all has both of them occupied.
+
+    Guarantees: accepts the numbers the statistics used; returns the
+    bin numbers holding none of them, ascending, and the empty list
+    where the column has no scale. Determinism: the answer depends only
+    on the values. Raises nothing. No I/O of any kind.
+    """
+    counts = _bin_census(numbers)
+    if counts is None:
+        return []
+    # AND A COLUMN WHOSE VALUES ARE ALL ONE NUMBER NAMES NOTHING. Its
+    # two ends are the same number, so there is no width to divide and
+    # `parsing.histogram_bin` puts every value in the first bin by its
+    # own total rule -- which makes the other thirty-one look empty
+    # while there is no division for them to be empty IN. Saying so
+    # would be saying something about a scale that does not exist, and
+    # the loader refuses exactly that: `_has_width` there asks the same
+    # question and this is the producer's side of it. A constant
+    # position inside a joined column is the shape that found it.
+    if max(numbers) <= min(numbers):
+        return []
+    return [
+        place
+        for place in range(parsing.HISTOGRAM_BINS)
+        if place not in counts
+    ]
+
+
 def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     """How many of this column's numbers fall in each bin.
 
@@ -5290,36 +5393,21 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     only on the values and the published ends, and the keys are built
     in ascending bin order. Raises nothing. No I/O of any kind.
     """
-    if not numbers:
-        return {}
-    lowest = min(numbers)
-    highest = max(numbers)
     # A COLUMN WHOSE ENDS THIS FORMAT CANNOT HOLD PUBLISHES NO
     # HISTOGRAM. Bins between infinite edges have no width and no
     # meaning, and every value would land in one of them, so the honest
     # answer is silence rather than a census nobody can read. The
     # loader accepts an absent histogram, and the generator falls back
-    # to the ladder exactly as it did before this fact existed.
-    for value in numbers:
-        if not math.isfinite(value):
-            return {}
-    if not math.isfinite(lowest) or not math.isfinite(highest):
-        return {}
-    # AND THE WIDTH MUST BE INSIDE THE FORMAT TOO, not only the ends. A
+    # to the ladder exactly as it did before this fact existed. The
+    # width has to be inside the format too, not only the ends: a
     # column running from about -1e308 to about 1e308 has finite ends
-    # and a width this format cannot hold, so the bin rule can place
-    # nothing and would answer "the first bin" for every value -- which
-    # is not a quiet approximation but a false census. Silence is the
-    # honest answer.
-    if not math.isfinite(highest - lowest):
+    # and a width this format cannot hold. `_bin_census` settles all
+    # three refusals in one place and answers None for them, so this
+    # rule and the empty-bin rule beside it cannot come to differ about
+    # which columns have a scale.
+    counts = _bin_census(numbers)
+    if counts is None:
         return {}
-    counts: dict[int, int] = {}
-    for value in numbers:
-        place = parsing.histogram_bin(value, lowest, highest)
-        if place in counts:
-            counts[place] = counts[place] + 1
-        else:
-            counts[place] = 1
     # THIS CENSUS IS ALL OR NOTHING, which is not how its siblings
     # behave and is the right rule for THIS fact.
     #
@@ -5457,6 +5545,15 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # interpolating them rather than from checking each.
         "percentiles_between": _finer_quantiles(numbers),
         "value_histogram": _value_histogram(cells, numbers),
+        # ...AND WHICH OF THOSE BINS HOLD NOTHING AT ALL (plan P4-D32,
+        # the owner's ruling of 2026-08-31). The census above is all or
+        # nothing and vanishes at any floor above one; this fact
+        # survives it, because a bin holding nobody is a bin no floor
+        # protects. It is what stops a twin writing cells into a
+        # stretch the real column left empty -- a two-peak column
+        # publishes a middle rung no cell of it holds, and the value
+        # stage honoured that rung until this fact told it not to.
+        "empty_bins": _empty_bins(numbers),
         # HOW MANY DIFFERENT NUMBERS, as distinct from how many
         # different SPELLINGS (plan P4-D4.9, closing residual R-P4-20).
         # `n_distinct` counts spellings and the contract defines it that
