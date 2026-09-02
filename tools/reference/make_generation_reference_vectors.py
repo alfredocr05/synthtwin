@@ -5296,20 +5296,78 @@ def repaired_pairing(drawn, column, wanted, words):
             )
         return mask
 
-    def left_its_window(before, after):
-        """Did any pair that was conforming stop conforming?"""
-        for index in range(len(before)):
-            if before[index] and not after[index]:
-                return True
-        return False
+    def cells_gap():
+        """How far the count of DIFFERENT CELLS stands -- step 5.
 
-    def exact_gap():
-        """The two EXACT facts' distance from what is published."""
-        summed = abs(len(seen) - wanted)
+        Its own reading.  Step 5 keeps the two exact facts apart: this
+        one belongs to no pair and is the one deliberately licensed to
+        yield, so adding it to the above-counts would let a gained cell
+        buy a lost row of `part_above` with nothing able to see it.
+        """
+        return abs(len(seen) - wanted)
+
+    def above_marks():
+        """One above-count gap PER PAIR, in seat order -- step 5.
+
+        By identity, because step 5's refusals are per pair.  A SUM
+        cannot serve: an above-count can go from held to missed while
+        another improves by one, and the total says nothing happened.
+
+        Every pair is read rather than only the pairs the swap moved.
+        A pair the swap cannot touch has the same gap on both sides, so
+        it changes neither a comparison between the two readings nor
+        any per-entry test between them.
+        """
+        marks = []
         for index in range(len(seats)):
             place = seats[index]
-            summed = summed + abs(aboves[index] - above_targets[place])
-        return summed
+            marks.append(abs(aboves[index] - above_targets[place]))
+        return marks
+
+    def swap_allowed(before_mask, after_mask, before_above, after_above,
+                     before_cells, after_cells):
+        """May a swap be taken, given what it did?  Step 5.
+
+        THREE refusals, in the order step 5 gives them, and the first
+        two are asked on EVERY try rather than only where a pair left
+        its window:
+
+        1. a swap taking any pair's above-count from HELD to missed;
+        2. a swap taking any above-count further from its published
+           value, while the above-counts do not fall as a whole and no
+           other above-count reaches its published value in the same
+           swap;
+        3. a swap taking any pair out of its window, while neither
+           exact fact comes closer -- neither the above-counts as a
+           whole nor the count of different cells.
+
+        The third is a DISJUNCTION and not a re-mixed total, because
+        "an exactly-checked fact" is singular: netting rows against
+        cells is the arithmetic step 5 forbids.
+        """
+        sold = False
+        worsened = False
+        entered = False
+        for index in range(len(before_above)):
+            if before_above[index] == 0 and after_above[index] != 0:
+                sold = True
+            if after_above[index] > before_above[index]:
+                worsened = True
+            if before_above[index] != 0 and after_above[index] == 0:
+                entered = True
+        was = sum(before_above)
+        now = sum(after_above)
+        if sold:
+            return False
+        if worsened and now >= was and not entered:
+            return False
+        left = any(
+            before_mask[index] and not after_mask[index]
+            for index in range(len(before_mask))
+        )
+        if not left:
+            return True
+        return now < was or after_cells < before_cells
 
     def owed():
         """Is any published pairing fact still unmet?  Step 5."""
@@ -5345,6 +5403,41 @@ def repaired_pairing(drawn, column, wanted, words):
     def proposed(one, two, place):
         """STEP 5's proposal, method section G6B.4a."""
         if len(seen) == wanted:
+            # G6B.4a's first bullet, second sub-case: the count of
+            # different cells is met and an above-count may not be.
+            # The acceptance rule refuses to trade one above-count for
+            # another, so the walk cannot reach the repair sideways and
+            # has to aim at it -- on EVEN tries only, because aiming
+            # every try starves the agreement.
+            if tries % 2:
+                return one, two
+            for index in range(len(seats)):
+                place_seat = seats[index]
+                gap = aboves[index] - above_targets[place_seat]
+                if gap == 0:
+                    continue
+                if firsts[index] != place and seconds[index] != place:
+                    continue
+                over = gap > 0
+                found = one
+                for step in range(PROPOSAL_REACH):
+                    row = (one + step) % total
+                    higher = (
+                        numbers[firsts[index]][row]
+                        > numbers[seconds[index]][row]
+                    )
+                    if higher == over:
+                        found = row
+                        break
+                partner = two
+                for step in range(PROPOSAL_REACH):
+                    row = (two + step) % total
+                    if row != found and (
+                        held[place][row] != held[place][found]
+                    ):
+                        partner = row
+                        break
+                return found, partner
             return one, two
         short = len(seen) < wanted
         found = one
@@ -5407,7 +5500,8 @@ def repaired_pairing(drawn, column, wanted, words):
         kept_tops = list(tops)
         kept_aboves = list(aboves)
         kept_conforming = conforming()
-        kept_exact = exact_gap()
+        kept_above = above_marks()
+        kept_cells = cells_gap()
         moved = [
             index
             for index in range(len(seats))
@@ -5443,10 +5537,10 @@ def repaired_pairing(drawn, column, wanted, words):
         for made in (made_one, made_two):
             seen[made] = seen.get(made, 0) + 1
         now = distance()
-        # A swap never takes a pair out of its window unless an
-        # exactly-checked fact gains by it (step 5).
-        keep = not (left_its_window(kept_conforming, conforming())
-                    and exact_gap() >= kept_exact)
+        # Step 5's three refusals, per pair and per exact fact.
+        keep = swap_allowed(kept_conforming, conforming(),
+                            kept_above, above_marks(),
+                            kept_cells, cells_gap())
         # AN EQUAL SWAP IS TAKEN, not only a better one.
         if keep and now <= away:
             away = now
