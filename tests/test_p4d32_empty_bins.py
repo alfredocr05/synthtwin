@@ -727,3 +727,59 @@ def test_a_stratum_is_gathered_by_its_spelling_and_not_only_its_value(
     # ...and a value that reads outside at every width is left alone.
     assert generation._barred_bin(80.0, _ENDS, _BARRED, _WIDTHS, False) == -1
     assert generation._reads_outside(80.0, _ENDS, _BARRED, _WIDTHS, False)
+
+
+def test_a_column_whose_values_are_all_one_number_names_no_bin(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The producer and the loader agree that there is no scale.
+
+    THE DEFECT THIS PINS WAS FOUND BY THE SUITE, and it is the shape
+    this repository calls one fact written twice. A column whose values
+    are all ONE number has two equal ends and no width to divide, and
+    `parsing.histogram_bin` is TOTAL: it answers "the first bin" for
+    every value. So the count of bins reads `{0: n}` and thirty-one
+    bins look empty -- of a division that does not exist. The producer
+    named all thirty-one; the loader's own `_has_width` said there was
+    no scale and refused the description outright, and every joined
+    column with a constant position became unloadable.
+
+    Both sides ask the same question now. The census beside it is
+    UNCHANGED -- one bin holding every value -- which is what it read
+    before this landing, so nothing here moves a fact that was already
+    published.
+    """
+    # THE WITNESS IS A POSITION INSIDE A JOINED COLUMN, which is where
+    # this case arises at all: a whole column of one number is read as
+    # a `constant` LABEL and publishes no quantitative block, so the
+    # only numeric block that can have two equal ends is one grain of
+    # one. `1/2, 1/3, ... 1/121` is the review fixture that found it.
+    rows = [f"1/{second}" for second in range(2, 122)]
+    # DECLARED as a measurement, which is how the review fixture that
+    # found this reaches the joined role: undeclared, a column of
+    # `1/2` is read as free text and publishes no numeric block at all.
+    path = fixtures.write(
+        tmp_path, "constant.csv", fixtures.single_column_table("bp", rows)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{path}"), taxonomy.Settings(), [], [], ["bp"]
+    )
+    loaded = contract.load_profile(
+        str(fixtures.write_profile(tmp_path, "constant-p.json", document))
+    )
+    block = document["columns"][0]
+    assert block["role"] == "joined_numbers", block["role"]
+    first = block["parts"][0]
+    assert first["value_histogram"] == {"0": 120}, first["value_histogram"]
+    assert first["empty_bins"] == [], first["empty_bins"]
+    assert loaded.columns[0].facts.parts[0].empty_bins == ()
+    # ...and the SECOND position, which does vary, still names its own
+    # empty bins if it has any -- so the repair is about the scale and
+    # not about the role.
+    second = block["parts"][1]
+    assert second["value_histogram"], second["value_histogram"]
+    # ...and a twin of it still comes back, which is what the joined
+    # role's own fixture found when this did not hold: the loader
+    # refused the description outright.
+    twin = generation.generate(loaded, 3)
+    assert len([cell for cell in twin.columns[0] if cell]) == 120

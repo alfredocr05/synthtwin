@@ -6001,12 +6001,23 @@ def _empty_bins(
        scale has both occupied. A description naming either is
        describing a column with no smallest value, which is not a
        column.
-    3. WHERE THE CENSUS IS PUBLISHED THE TWO ARE COMPLEMENTS. The
-       census is all or nothing, so where it is published at all it
-       names every bin that holds something; the bins holding nothing
-       are then exactly the rest. This is the guard against the fact
-       being written twice and one copy moving: a description whose two
-       shape facts disagree is refused rather than read.
+    3. WHERE THE CENSUS IS PUBLISHED AND THERE IS A SCALE, THE TWO ARE
+       COMPLEMENTS. The census is all or nothing, so where it is
+       published at all it names every bin that holds something; the
+       bins holding nothing are then exactly the rest. This is the
+       guard against the fact being written twice and one copy moving:
+       a description whose two shape facts disagree is refused rather
+       than read.
+
+       THE SCALE CONDITION IS NOT A SOFTENING, and it is where a real
+       disagreement between the producer and this rule was found. A
+       column whose values are all ONE number has two equal ends, so
+       there is no width to divide; the bin rule is TOTAL and answers
+       "the first bin" for every value, so the census reads `{"0": n}`
+       while the other thirty-one bins are empty of a division that
+       does not exist. Requiring the complement there would demand that
+       a description name thirty-one bins of a scale it does not have,
+       and the producer -- rightly -- names none.
 
     AND WHERE THE COLUMN HAS NO SCALE THE LIST IS EMPTY. A ladder whose
     ends this format cannot hold, or whose ends are finite and whose
@@ -6063,7 +6074,7 @@ def _empty_bins(
                     "the smallest value is in the first bin and the "
                     "largest in the last, so neither is ever empty",
                 )
-    if histogram:
+    if histogram and scaled:
         named = {key for key in histogram if key != WITHHELD}
         for entry in bins:
             if f"{entry}" in named:

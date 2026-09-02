@@ -28,8 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,291 collected / 52 skipped |
-| suite, before this landing | 4,266 collected / 52 skipped, measured on the second worktree at the commit this branched from (`7266c31`). The twenty-five new tests are `tests/test_p4d32_empty_bins.py`, of which eight were written against a SILENT mutant |
+| suite | 4,292 collected / 52 skipped |
+| suite, before this landing | 4,266 collected / 52 skipped, measured on the second worktree at the commit this branched from (`7266c31`). The twenty-six new tests are `tests/test_p4d32_empty_bins.py`, of which eight were written against a SILENT mutant and one against a defect the suite itself found |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L8): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
 
@@ -138,6 +138,20 @@ are still ahead. The gap list itself is at the foot of this page.
   value in the bin zero falls in, so that bin is never named empty and
   the zero-band rule cannot fire on any description this producer
   writes.
+
+  **AND THE SUITE FOUND A DEFECT OF THIS LANDING'S OWN, which is the
+  entry's last thing to say.** The producer and the loader disagreed
+  about a block of numbers with two EQUAL ends. The bin rule is total
+  and answers "the first bin" for every value there, so the producer
+  named the other thirty-one as empty while the loader's own
+  `_has_width` said there was no scale at all and refused the
+  description outright — and every joined column with a constant
+  position became unloadable. Both sides ask the same question now,
+  and the census beside it is unchanged. It reached only a
+  quantitative block inside a grain, because a whole column of one
+  number is read as a `constant` LABEL and publishes no such block;
+  `test_a_column_whose_values_are_all_one_number_names_no_bin` is the
+  witness, at the grain the suite found it at.
 
 * **THE JOINED LANDING (L7) HAS LANDED: a grain inside a role is laid
   out by ITS OWN count of numbers, and the pairing walk moves every
