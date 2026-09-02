@@ -33,7 +33,11 @@ from synthtwin import (  # noqa: E402
     validation,
 )
 
-SEEDS = (0, 1, 2, 3, 5, 7, 11, 13, 17, 19)
+# FORTY SEEDS, AND TEN UNTIL REVIEW ROUND 1 (item 4). Ten gave the
+# OPPOSITE direction to forty on residual R-P4-122 -- 6 seeds short
+# against 8, where forty says 30 against 28 -- so every comparison this
+# file makes is taken at the scope that settled that one.
+SEEDS = tuple(range(40))
 
 
 def witness_rows():
