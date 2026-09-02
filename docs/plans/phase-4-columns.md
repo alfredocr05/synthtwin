@@ -4884,15 +4884,94 @@ declaration for only one of them.
   work visible AND more positions than tries, which the loader's
   `n_parts <= n_present + 2` makes an awkward shape to build.
 
-- **R-P4-127 — OPEN (opened 2026-09-02 by review round 3's own
-  mutation run).** THE ABOVE-COUNT PROPOSAL IS PINNED BY NOTHING.
+- **R-P4-131 — OPEN (opened 2026-09-02 by amendment A-P4-52, and by
+  its own measurement).** FOUR VARIANTS OF THE PROPOSAL GATE ARE
+  PINNED ONLY BY A BYTE HASH, AND THE STAGGER IS KEPT AGAINST ONE
+  FAMILY'S PREFERENCE.
+
+  A-P4-52's gate is `(turn + place) % 2`. Four one-line variants of it
+  were run against sixteen test files, 768 tests, each applied alone
+  to the shipped tree with the tree audited back to its pristine
+  digest afterwards: the phase flip `(turn + place + 1) % 2`, the
+  stagger dropped (`turn % 2`), the turn count read AFTER the try
+  counter steps, and the gate held open so every turn aims. **All four
+  turn the suite red, and all four turn it red through exactly one
+  test**: `tests/test_twin_golden.py::test_golden_hash_of_the_
+  demonstration_twin`, which says the twin's bytes moved and nothing
+  about a published fact. No test in the tree says a fact was missed
+  under any of the four. A mutant caught only by a byte hash is caught
+  for a weaker reason than the rule it breaks.
+
+  **AND THE FORM THAT LANDED IS NOT THE FORM EVERY FAMILY PREFERRED.**
+  Over the driver's forty-column recipe at forty seeds, 9,640 pairs,
+  `(turn + place) % 2` leaves 44 above-counts short and 3,638
+  agreements outside G12.9's window against `turn % 2`'s 47 and 3,655;
+  over the eight five-position columns, 3,200 pairs, it leaves 12
+  short against 10, and 1,685 outside against 1,694. The stagger wins
+  three of those four readings and loses one, so the measurement alone
+  does not settle it. What settles it is that `(turn + place) % 2` IS
+  the round-3 schedule wherever the mover count is odd: digesting
+  every twin of both families at forty seeds, it reproduces `554da75`
+  byte-for-byte on all 16 columns with an even number of positions,
+  where `turn % 2` reproduces none of the 48. The repair then changes
+  only the columns the defect reached.
+
+  Closing this means a column where one of the four variants costs a
+  FACT rather than a hash — the same shape R-P4-128 needs, and nobody
+  has built one.
+
+- **R-P4-132 — OPEN (opened 2026-09-02 by amendment A-P4-52's own
+  measurement).** A FIVE-POSITION COLUMN STILL DOES NOT REACH EVERY
+  ABOVE-COUNT.
+
+  R-P4-121 records that a three- or four-position column cannot reach
+  every AGREEMENT target at once. This is the same shape one fact
+  along and one position wider. Measured through the real reader,
+  producer, loader and generator over forty described columns of two
+  to five positions at forty seeds — 9,640 pairs — **44 above-counts
+  land short of their published value**, and over eight five-position
+  columns at forty seeds — 3,200 pairs — **12 do**. Every one of the
+  56 is on a column of five positions, which sets ten pairs pulling
+  against each other inside one bounded search.
+
+  **It is better than either tree before it**, which is why it is a
+  residual and not a defect: the same corpora give 61 and 14 on the
+  tree before review round 3 and 120 and 71 on round 3 as it landed.
+  **NOTHING IS SILENT**: an above-count is EXACT-OBSERVABLE, so each
+  of the 56 is a deviation in the twin's own report and a MISS in the
+  quality report, with the achieved count beside the published one.
+
+  Closing it means what R-P4-121's closure means — a search that can
+  trade between pairs deliberately rather than by hill-climbing a sum.
+
+- **R-P4-127 — CLOSED 2026-09-02 by amendment A-P4-52.** THE
+  ABOVE-COUNT PROPOSAL WAS PINNED BY NOTHING, AND IS PINNED BY THREE
+  TESTS NOW.
 
   Amendment A-P4-51 aims the proposal step of G6B.4a at an outstanding
   `part_above` on alternate tries, because the acceptance rule now
   refuses to trade one above-count for another and the walk can no
-  longer reach the repair sideways. **Withdrawn entirely, the suite
-  stays green.** Its ALTERNATION is pinned -- aiming every try starves
-  the agreement and a test catches that -- but its existence is not.
+  longer reach the repair sideways. **Withdrawn entirely at
+  `554da75`, the suite stayed green.** Its ALTERNATION was pinned --
+  aiming every try starves the agreement and a test catches that --
+  but its existence was not.
+
+  **WITHDRAWING IT NOW TURNS THREE TESTS RED**, run as a mutation
+  holding the branch permanently shut with the tree audited back to
+  its pristine digest afterwards:
+  `test_an_exact_seat_is_not_sold_for_an_agreement_term`,
+  `test_the_walk_holds_the_above_count_of_r_p4_40s_own_column` and
+  `test_neither_parity_of_positions_is_starved_of_the_proposal`. Two
+  of those three existed at `554da75` and did not catch it. What
+  changed is A-P4-52: with the gate locked to `place`, half of every
+  odd-position column's positions never reached this branch at all, so
+  withdrawing it took away something the walk was already not using on
+  the columns those tests read. The record of WHAT it buys stays as
+  measured below, and the reason it could not be pinned before is
+  itself the defect A-P4-52 repairs.
+
+  The measurement that follows was taken at `554da75` and is left as
+  it was written:
 
   **What it buys, measured over twelve columns of three and four
   positions at forty seeds, WITH the acceptance rule of A-P4-51 in
@@ -4905,13 +4984,16 @@ declaration for only one of them.
   Withdrawing it reopens the review item as a worse defect than the one
   reported.
 
-  It is not pinned because the honest assertion is a count over a
-  battery, and a suite that pins a search's luck to a number pins the
-  wrong thing: the same objection R-P4-124 records for the three
-  proposal rules that stay silent there. Closing it means a column
-  where the outstanding above-count is reachable by exactly one swap,
-  so that the proposal either finds it or does not -- a case with no
-  slack, which is what `clock_ladder` is for the clock role.
+  **Why it could not be pinned at the time, and what closes it now.**
+  The objection recorded here was that the honest assertion is a count
+  over a battery, and a suite that pins a search's luck to a number
+  pins the wrong thing -- the same objection R-P4-124 records for the
+  three proposal rules that stay silent there. What the three tests
+  above assert instead is not a count over a battery: each names ONE
+  column at ONE seed whose every pair holds its published above-count,
+  so the proposal either reaches it or the test is red. That is the
+  case with no slack this asked for, and it is what `clock_ladder` is
+  for the clock role.
 
 - **R-P4-128 — OPEN (opened 2026-09-02 by landing L7's round-3
   repair, and by its own measurement).** TWO OF THE THREE REFUSALS ARE
@@ -10125,6 +10207,177 @@ position and no other" and "moves only the last position" were this
 author's paraphrase and were never in the shipped file. Four
 reinstatement mutants turn it red.
 
+## Amendment A-P4-52 — what review round 4 of landing L7 sent back (2026-09-02)
+
+TWO items. The first is a MEASURED REGRESSION that round 3 shipped:
+its two changes pull opposite ways and the one meant to make up for
+the other was locked out of half the positions of every column with an
+odd number of them. The second is the axis round 3's own mutation run
+did not try, on the reading its repair rests on.
+
+### 1 HIGH — THE PROPOSAL WAS GATED ON THE WALK'S CLOCK, WHICH IS THE POSITION'S CLOCK
+
+Round 3 landed two independent changes: the acceptance rule's per-pair
+refusals, which on their own leave MORE above-counts short (the round
+measured that itself — seven of 2,160 against one), and method
+G6B.4a's above-count proposal, which is what was to make up for them.
+**The proposal never ran on half the positions.**
+
+Step 5 takes its positions in turn — `place = 1 + tries % movers` —
+and `tries` is stepped before `_proposed` runs, so the gate
+`if tries % 2` read `turn * movers + place`. Position `p` is reached
+at try indices `p − 1`, `p − 1 + movers`, `p − 1 + 2 * movers`, … and
+where `movers` is EVEN those all carry ONE parity. So the gate was not
+alternating at all there: it answered the same thing at every turn a
+position ever got. `movers` is `n_parts − 1`, so this is every column
+with an ODD number of positions — and **position 1 is the only mover
+of the pair it makes with the anchor**, so where position 1 fell on
+the starved side that pair had no route to its published `part_above`
+at all.
+
+The arithmetic, printed by
+`tools/measurements/a_p4_52_l7_parity.py --schedule-only`: of a
+position's first forty turns, the round-3 gate opens on 0 or on all 40
+at every even mover count, and on 20 at every odd one. The shipped
+gate opens on 20 everywhere.
+
+**MEASURED, FIVE TREES IDENTICAL BUT FOR THE GATE**, each read through
+the real reader, producer, loader and generator with the module under
+measurement asserted per arm: forty described columns of two to five
+positions at forty seeds (9,640 pairs), and eight five-position
+columns at forty seeds (3,200 pairs), the second family carried
+separately because five positions is where the starved parity lives.
+
+| the gate | recipe: above-counts short | outside G12.9's window | eight columns: short | outside |
+|---|---|---|---|---|
+| the tree before round 3 (`df12e69`) | 61 | 4,004 | 14 | 1,853 |
+| **round 3 as it landed** (`tries % 2`) | **120** | 3,665 | **71** | 1,653 |
+| the phase flip (`(turn + place + 1) % 2`) | 153 | 3,668 | 96 | 1,713 |
+| alternation without the stagger (`turn % 2`) | 47 | 3,655 | 10 | 1,694 |
+| **shipped** (`(turn + place) % 2`) | **44** | **3,638** | 12 | 1,685 |
+
+**THE PHASE FLIP IS WHAT SETTLES THE CAUSE**, because it starves the
+other half instead: of the round-3 gate's 120, **84 land on pairs
+whose only movers are ODD-numbered positions**; of the flip's 153,
+**143 land on pairs whose only movers are EVEN-numbered ones**.
+Flipping which parity is starved moves the shortfall to exactly the
+other half of the pairs. Nothing about the direction of the gate is
+being repaired — the coupling to `place` is.
+
+**THE REPAIR.** The walk reads `turn = tries // movers` BEFORE it
+steps the counter and hands it to `_proposed` beside `place`. The two
+are the remainder and the quotient of one division, so together they
+say everything the counter says while either alone says less. The gate
+is `(turn + place) % 2`, which alternates on every position's OWN
+turns at every mover count.
+
+**`place` IS KEPT IN THE GATE ON PURPOSE.** It staggers neighbouring
+positions onto opposite turns, and wherever `movers` is ODD it is the
+SAME schedule round 3 already had, because `tries` there is
+`turn * movers + place` and an odd `movers` makes that `turn + place`
+to the parity. So every column with an even number of positions is
+untouched, which is measured rather than argued: digesting every twin
+of both families at all forty seeds, **16 of the 48 columns come out
+byte-for-byte as they did at `554da75`, and they are exactly the 16
+with an even number of positions** — none of the 32 with an odd number
+is unchanged, and under `turn % 2` NOTHING is unchanged, all 48
+columns writing different cells.
+
+**AIMING ON EVERY TURN IS NOT THE ANSWER**, which is why the gate is
+still a gate: G6B.4a records that aiming every try left a 300-row
+blood pressure agreeing at 0.8232 against a published 0.8343, and the
+arms above show the same trade — see R-P4-133.
+
+**THE ORACLE CARRIES THE SAME REPAIR**, written from the method text:
+`proposed()` takes the turn count and reads it in the gate. Both
+frozen files regenerate BYTE-IDENTICALLY and the provenance guard is
+green, which is R-P4-123 restated once more — nothing frozen exercises
+any of this.
+
+### 2 MEDIUM — THE ALIGNMENT THE ACCEPTANCE RULE RESTS ON WAS PINNED BY NOTHING
+
+`_above_marks(where)` is the only thing carrying pair identity into
+`_swap_allowed`, and its own docstring names the hazard: entry `k` of
+the vector must be the pair `where[k]` names, and nothing but the
+shared `moved` list says so. **Nothing tested it.** Replace the one
+line that computes a mark,
+
+    marks[step] = abs(aboves[index] - facts.part_above[place])
+
+with
+
+    marks[step] = abs(aboves[step] - facts.part_above[step])
+
+— the same length, the same shape, the gaps of the FIRST few seats
+instead of the moved position's own. Run against the WHOLE suite on
+this tree, 4,309 collected, it turns exactly one test red: the new one
+below. Every test that existed at `554da75` stays green under it,
+which is the sense in which round 3 shipped this axis unpinned.
+
+**ROUND 3's "EIGHT MUTATIONS, EIGHT RED" IS CORRECTED RATHER THAN
+LEFT STANDING.** All eight were run and all eight were red; the claim
+that is false is what they cover. One of the eight collapsed
+`_above_marks` to a single summed entry — which changes the vector's
+LENGTH, and the spy's per-pair shape assertion catches a length. None
+of the eight changed which PAIRS the entries name while keeping the
+length, and that is the axis the whole repair rests on.
+
+**AN OUTCOME TEST CANNOT DO IT, MEASURED RATHER THAN ARGUED.** Under
+the mutant `battery-11` still comes out holding every one of its 240
+pairs' above-counts at all forty seeds — the same as the shipped rule
+— because a rule handed the wrong pairs still refuses roughly the
+right proportion of swaps and the walk reaches the same twin by
+another road. The vectors themselves have to be read: under the mutant
+ALL 29,255 of them name no position's pairs, and under the shipped
+rule none does.
+
+**EIGHT MUTATIONS OVER THIS LANDING, EIGHT RED — AND FIVE OF THE
+EIGHT ARE RED ONLY THROUGH A BYTE HASH.** Each is one exact
+replacement in `src/synthtwin/generation.py`, applied alone to the
+shipped tree by a harness that restores from `atexit` and from SIGINT,
+SIGTERM and SIGHUP, with the unmutated run green first, `__pycache__`
+cleared on both sides of every run, and the file audited back to its
+pristine SHA-256 afterwards. The audit reported the tree unchanged
+after every one.
+
+THREE ARE RED ON A FACT, in `tests/test_p4g3r1_joined_review.py`:
+the mark read by step instead of by pair, which is the alignment
+above; the gate back on `tries % 2`, which is round 3's own defect;
+and the proposal branch held permanently shut, which turns THREE
+tests red and is what closes R-P4-127.
+
+FIVE ARE RED ONLY THROUGH
+`tests/test_twin_golden.py::test_golden_hash_of_the_demonstration_twin`,
+a byte hash over one twin, with no test in the tree saying a fact was
+missed under any of them: the phase flip `(turn + place + 1) % 2`; the
+stagger dropped, `turn % 2`; the turn count read AFTER the try counter
+steps; the turn count handed to `_proposed` as the try index itself;
+and the gate held permanently open, so every turn aims. Those five are
+**R-P4-131**, opened rather than counted as red and left at that.
+
+The demonstration twin's joined column has an EVEN number of
+positions, which is why `tries % 2` does not move its bytes and the
+other five do — the arithmetic the repair rests on, showing up in what
+the golden can and cannot see.
+
+**THE ALIGNMENT MUTANT WAS ALSO RUN AGAINST THE WHOLE SUITE**, since
+"silent everywhere else" is a claim about everything and not about
+sixteen files: 4,309 tests collected, and the only test it turns red
+is the new one.
+
+`test_the_above_count_marks_name_the_moved_positions_own_pairs`
+refuses every swap through a monkeypatched `_swap_allowed`, so the
+walk puts every one back and the twin comes out holding the
+arrangement the walk STARTED from — which makes each seat's starting
+gap countable from the twin's own cells inside the test, with no reach
+into the closure. On `battery-11` those gaps are
+`[14, 5, 0, 1, 4, 0]`, the three movable positions are owed
+`[14, 1, 4]`, `[5, 1, 0]` and `[0, 4, 0]`, and all 29,255 vectors the
+walk really hands the rule are one of those three. The by-step reading
+is `[14, 5, 0]`, which is no position's pairs — asserted, so a column
+whose gaps happened to coincide could not leave the test vacuous in
+silence.
+
 ## Amendment A-P4-51 — what review round 3 of landing L7 sent back (2026-09-02)
 
 ONE item, and it is round 2's defect on the other vector: the
@@ -10330,8 +10583,19 @@ and the plan as well, with five document phrases tied to the text that
 really shipped at `21fe8c4`, `80f0ea7` or `7266c31`. Five
 reinstatement mutants turn it red.
 
-**EIGHT MUTATIONS OVER ROUND 3'S REPAIRS, EIGHT RED — AND THE FIRST
-DRAFT'S CLAIM ABOUT THEM WAS FALSE AND IS CORRECTED HERE.** That draft
+**EIGHT MUTATIONS OVER ROUND 3'S REPAIRS, EIGHT RED — AND WHAT THEY
+DO NOT COVER IS RECORDED BY AMENDMENT A-P4-52 ABOVE.** All eight were
+run and all eight were red; what is false is any reading of them as
+covering the reading the repair rests on. One of the eight collapsed
+`_above_marks` to a single summed entry, which changes the vector's
+LENGTH, and a length is what the spy's per-pair shape assertion tests.
+NONE of the eight changed which PAIRS the entries name while keeping
+the length — and that mutant, `abs(aboves[step] - part_above[step])`,
+is SILENT to the whole suite as this landing shipped it. Review round
+4 found it; the test that pins it is named under A-P4-52.
+
+**AND THE FIRST DRAFT'S CLAIM ABOUT THEM WAS FALSE AND IS CORRECTED
+HERE.** That draft
 recorded "the exact facts collapsed back to a sum -- this round's own
 defect, now caught". It was not caught by what the draft named. WITH
 THE G6B.4a PROPOSAL IN PLACE, collapsing the acceptance rule back to a

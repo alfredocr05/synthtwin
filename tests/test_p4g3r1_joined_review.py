@@ -702,6 +702,210 @@ def test_the_walk_never_sells_an_above_count_it_holds(
     )
 
 
+def _tight_column(which: int) -> "list[str]":
+    """One column of `tools/measurements/a_p4_52_l7_parity.py`'s tight family.
+
+    Five positions, so FOUR movers -- an even mover count, which is
+    where a gate read off the walk's own counter starves one parity of
+    positions outright. The driver seeds once and builds eight columns
+    in order, so a case is reproduced only by building every case
+    before it.
+    """
+    generator = random.Random(20260903)
+    built: "list[list[str]]" = []
+    for _case in range(8):
+        rows: "list[str]" = []
+        for _row in range(150):
+            one = generator.randint(20, 35)
+            rows = rows + ["/".join(str(each) for each in (
+                one,
+                max(1, one + generator.randint(-2, 2)),
+                generator.randint(20, 35),
+                55 - one,
+                max(1, one + generator.randint(-4, 4)),
+            ))]
+        built = built + [rows]
+    return built[which]
+
+
+def _above_counts(
+    twin: "generation.Twin", facts: "contract.JoinedFacts"
+) -> "tuple[int, ...]":
+    """How many rows of the twin hold each pair's earlier part above."""
+    rows = [
+        [float(part) for part in cell.split(facts.separator)]
+        for cell in twin.columns[0]
+        if cell != ""
+    ]
+    firsts, seconds = generation._pair_seats(facts.n_parts)
+    return tuple(
+        sum(
+            1
+            for row in rows
+            if row[firsts[seat]] > row[seconds[seat]]
+        )
+        for seat in range(len(facts.part_above))
+    )
+
+
+def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
+    """Both halves of the alternation, each on a column that shows it.
+
+    THE WALK TAKES ITS POSITIONS IN TURN FROM THE TRY COUNTER, so a
+    proposal gated on that same counter is not alternating at all
+    wherever the mover count is even -- position `p` is reached at
+    tries `p - 1`, `p - 1 + movers`, ... which have ONE parity, so the
+    gate answers the same thing at every turn that position ever gets.
+    Review round 3 gated on `tries % 2` and every column with an odd
+    number of positions therefore aimed at an above-count from its
+    even positions on every turn and from its odd positions on none.
+    Amendment A-P4-52 reads `(turn + place) % 2` instead, where
+    `turn` counts that position's OWN turns.
+
+    TWO COLUMNS, ONE FOR EACH HALF, both five positions and 150 rows:
+
+    - `_tight_column(0)` at seed 0 goes red under `tries % 2` -- pair
+      (0, 1) comes out holding 49 rows against a published 64, and
+      position 1 is that pair's only mover;
+    - `_tight_column(5)` at seed 0 goes red under `(tries + 1) % 2`,
+      the phase flip, which starves the other half -- pair (0, 4)
+      misses, and position 4 is that pair's only mover.
+
+    Either mutant alone leaves the other column green, which is why
+    both are here: a test built on one of them would bless the gate
+    that starves the other parity. Measured over forty seeds and the
+    driver's forty-column recipe, the shipped gate leaves 44 pairs of
+    9,640 short of their above-count where `tries % 2` leaves 120 and
+    the phase flip leaves 153.
+    """
+    for which, seed in ((0, 0), (5, 0)):
+        _document, loaded, _folder, _table = _described(_tight_column(which))
+        column = loaded.columns[0]
+        facts = column.facts
+        assert isinstance(facts, contract.JoinedFacts), column.role
+        assert facts.n_parts == 5, facts.n_parts
+        assert len(facts.part_above) == 10, facts.part_above
+        held = _above_counts(generation.generate(loaded, seed), facts)
+        missed = [
+            (seat, held[seat], facts.part_above[seat])
+            for seat in range(len(held))
+            if held[seat] != facts.part_above[seat]
+        ]
+        assert not missed, (
+            f"tight column {which} at seed {seed} missed {missed} "
+            "(seat, held, published); a position that never aims at an "
+            "above-count cannot repair the pairs it is the only mover of"
+        )
+
+
+def test_the_above_count_marks_name_the_moved_positions_own_pairs(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    """The ALIGNMENT itself, which nothing else in the suite touches.
+
+    `_above_marks` is the only thing carrying pair identity into the
+    acceptance rule, and its own docstring names the hazard it cannot
+    check from inside: entry `k` of the vector must be the pair
+    `where[k]` names, and nothing but the shared `moved` list says so.
+    Review round 4 found the whole suite SILENT to getting it wrong.
+    Replace the one line that computes a mark with
+
+        marks[step] = abs(aboves[step] - facts.part_above[step])
+
+    -- the same length, the same shape, the gaps of the FIRST few
+    seats instead of the moved position's own. Run against the whole
+    suite, 4,309 collected, that mutant turns exactly this test red
+    and nothing else at all.
+
+    AND NO OUTCOME TEST CAN DO IT, which is measured rather than
+    argued: under the mutant `battery-11` still comes out holding
+    every one of its 240 pairs' above-counts at all forty seeds, the
+    same as the shipped rule, because a rule handed the wrong pairs
+    still refuses roughly the right proportion of swaps and the walk
+    finds its way by another road. The vectors themselves have to be
+    read. Under the mutant ALL 29,255 of them name no position's
+    pairs; under the shipped rule none does.
+
+    HOW THE TRUTH IS COMPUTED WITHOUT REACHING INSIDE THE CLOSURE.
+    Every swap is refused here, so the walk puts every one of them
+    back and the twin comes out holding the arrangement the walk
+    STARTED from -- which makes the starting above-count gap of every
+    seat countable from the twin's own cells, in the test. The vector
+    the rule is owed on a try that moves position `p` is then those
+    gaps at the seats whose pairs contain `p`, in seat order, and a
+    four-position column has only three such vectors. Every one of the
+    29,255 vectors the walk really hands the rule must be one of them.
+    """
+    _document, loaded, _folder, _table = _described(_battery_column(11))
+    column = loaded.columns[0]
+    facts = column.facts
+    assert facts.n_parts == 4, facts.n_parts
+    assert facts.part_above == (65, 122, 32, 118, 31, 0), facts.part_above
+
+    marks: "list[list[int]]" = []
+
+    def refusing(before, after, was, now, cells_was, cells_now) -> bool:
+        marks.append(list(was))
+        return False
+
+    monkeypatch.setattr(generation, "_swap_allowed", refusing)
+    twin = generation.generate(loaded, 27)
+
+    rows = [
+        [float(part) for part in cell.split(facts.separator)]
+        for cell in twin.columns[0]
+        if cell != ""
+    ]
+    assert len(rows) == facts.n_joined, (len(rows), facts.n_joined)
+    firsts, seconds = generation._pair_seats(facts.n_parts)
+    started = [
+        abs(
+            sum(
+                1
+                for row in rows
+                if row[firsts[seat]] > row[seconds[seat]]
+            )
+            - facts.part_above[seat]
+        )
+        for seat in range(len(firsts))
+    ]
+    # The starting arrangement is fixed by the profile and the seed, so
+    # it is stated here rather than left to be read off a failure.
+    assert started == [14, 5, 0, 1, 4, 0], started
+
+    # WHAT EACH MOVABLE POSITION IS OWED: its own pairs' gaps, in the
+    # order the walk's `moved` list builds them, which is seat order.
+    owed = {
+        place: [
+            started[seat]
+            for seat in range(len(firsts))
+            if firsts[seat] == place or seconds[seat] == place
+        ]
+        for place in range(1, facts.n_parts)
+    }
+    assert owed == {1: [14, 1, 4], 2: [5, 1, 0], 3: [0, 4, 0]}, owed
+    # AND THE FIXTURE REALLY CAN TELL THE TWO APART, asserted instead
+    # of assumed: a vector indexed by its own place in the moved list
+    # reads the first three seats, and that is no position's pairs. A
+    # column whose gaps happened to coincide would leave this test
+    # vacuous without saying so.
+    by_step = started[: facts.n_parts - 1]
+    assert by_step == [14, 5, 0], by_step
+    assert by_step not in owed.values(), (by_step, owed)
+
+    assert marks, "the walk never consulted the acceptance rule"
+    astray = [vector for vector in marks if vector not in owed.values()]
+    assert not astray, (
+        f"{len(astray)} of {len(marks)} above-count vectors name no "
+        f"position's pairs; the first is {astray[0]} where the three "
+        f"positions owe {sorted(owed.values())}"
+    )
+    # AND ALL THREE POSITIONS REALLY WERE MOVED, so no arm of the
+    # alignment is pinned by never being exercised.
+    reached = {place for place in owed if owed[place] in marks}
+    assert reached == {1, 2, 3}, reached
+
+
 def test_the_walk_holds_the_above_count_of_r_p4_40s_own_column() -> None:
     """The second reproduction, on the residual's own 400-row column.
 

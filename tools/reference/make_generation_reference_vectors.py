@@ -5400,16 +5400,21 @@ def repaired_pairing(drawn, column, wanted, words):
             written = written + spelling
         return written
 
-    def proposed(one, two, place):
+    def proposed(one, two, place, turn):
         """STEP 5's proposal, method section G6B.4a."""
         if len(seen) == wanted:
             # G6B.4a's first bullet, second sub-case: the count of
             # different cells is met and an above-count may not be.
             # The acceptance rule refuses to trade one above-count for
             # another, so the walk cannot reach the repair sideways and
-            # has to aim at it -- on EVEN tries only, because aiming
-            # every try starves the agreement.
-            if tries % 2:
+            # has to aim at it -- on every OTHER turn of this
+            # position only, because aiming on every turn starves the
+            # agreement.  The turn is the position's own: `turn` is
+            # how many turns it has already had, and gating on the
+            # walk's own counter instead starves one parity outright
+            # wherever the mover count is even (method G6B.4a,
+            # amendment A-P4-52).
+            if (turn + place) % 2:
                 return one, two
             for index in range(len(seats)):
                 place_seat = seats[index]
@@ -5484,6 +5489,7 @@ def repaired_pairing(drawn, column, wanted, words):
     ceiling = max(200 * total, movers)
     while owed() and tries < ceiling and len(words) >= 2:
         place = 1 + tries % movers
+        turn = tries // movers
         tries = tries + 1
         # STEP 5's cursor: it starts again inside the reserve, ONE WORD
         # further along than the restart before it, so a second pass
@@ -5494,7 +5500,7 @@ def repaired_pairing(drawn, column, wanted, words):
         one = bounded(words[at], total)
         two = bounded(words[at + 1], total)
         at = at + 2
-        one, two = proposed(one, two, place)
+        one, two = proposed(one, two, place, turn)
         if one == two or held[place][one] == held[place][two]:
             continue
         kept_tops = list(tops)
