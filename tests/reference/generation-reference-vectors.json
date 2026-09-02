@@ -701,6 +701,7 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
         "field_widths": {
           "(withheld)": 3
         },
@@ -2237,6 +2238,7 @@
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
         "field_widths": {
           "(withheld)": 4,
           "1": 16
