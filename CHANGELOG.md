@@ -108,6 +108,27 @@ exists).
   still outstanding gets a different twin, and that includes columns of
   exactly two numbers.
 
+- **And that direct attempt reaches every number of the cell, not half
+  of them.** "Every other attempt" was counted on the search's own
+  attempt number -- and the search takes the numbers of a cell in turn
+  from that same counter, so on a cell holding an ODD number of values
+  the two counters locked: half the numbers were aimed at on every turn
+  they got and half on none of theirs. The first number, the one paired
+  with the number that never moves, was among the starved half on such
+  a cell, so that pair could not reach its count at all. The attempt is
+  counted per number now. Measured over forty described columns of two
+  to five numbers at forty seeds, 9,640 pairs: 44 counts land short of
+  their published value, where counting the attempts on the search's
+  own clock leaves 120 and counting them on the opposite turns leaves
+  153. On eight five-number columns, 3,200 pairs: 12, against 71 and
+  96.
+
+  **Which twins change.** A column holding an even number of values in
+  a cell -- every blood pressure, every ratio, every four-number
+  reading -- writes exactly the cells the previous build wrote, to the
+  byte, at all forty seeds measured. A column holding three or five
+  gets a different twin, and a better one.
+
 ### Fixed: a column of very large or very small numbers keeps its width
 
 - **A column whose numbers are written compactly -- `1e400`, `-1e400`,

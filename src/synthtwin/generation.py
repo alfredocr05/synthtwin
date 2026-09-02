@@ -5902,7 +5902,9 @@ def _repaired_pairing(
             out = out + (inside / room) * tip if room > 0.0 else out
         return out
 
-    def _proposed(one: int, two: int, place: int) -> "tuple[int, int]":
+    def _proposed(
+        one: int, two: int, place: int, turn: int
+    ) -> "tuple[int, int]":
         """The two rows this try really swaps, given the two it drew.
 
         THE SCALING IN `_away` IS WHY THIS EXISTS. A row of `part_above`
@@ -5936,6 +5938,15 @@ def _repaired_pairing(
         Both scans are bounded by `_PROPOSAL_REACH` and both fall back
         to the rows as drawn, so a try always has something to put to
         the acceptance rule.
+
+        `place` is the position this try moves and `turn` is HOW MANY
+        TURNS THAT POSITION HAS ALREADY HAD -- the remainder and the
+        quotient of one division of the try index, which the caller
+        owes as two numbers because either alone says less than the
+        pair. Handing the try index itself as `turn` puts back the
+        defect amendment A-P4-52 repairs, and it puts it back SILENTLY:
+        the gate goes on alternating on every column with an even
+        number of positions and stops alternating entirely on the rest.
         """
         if len(seen) == wanted:
             # THE COUNT IS MET AND AN ABOVE-COUNT MAY NOT BE. Where the
@@ -5946,13 +5957,43 @@ def _repaired_pairing(
             # refuses to trade one above-count for another, so the walk
             # can no longer stumble onto the repair sideways.
             #
-            # EVERY OTHER TRY, because an above-count is not the only
-            # thing left: aiming every try at it starves the agreement,
-            # which is the other fact the walk is still improving.
-            # Measured on a 300-row blood pressure, aiming every try
-            # left the twin agreeing at 0.8232 against a published
-            # 0.8343 where alternating reaches it exactly.
-            if tries % 2:
+            # EVERY OTHER TURN OF THIS POSITION, because an
+            # above-count is not the only thing left: aiming every try
+            # at it starves the agreement, which is the other fact the
+            # walk is still improving. Measured on a 300-row blood
+            # pressure, aiming every try left the twin agreeing at
+            # 0.8232 against a published 0.8343 where alternating
+            # reaches it exactly.
+            #
+            # THE TURN IS THIS POSITION'S OWN AND NOT THE WALK'S, and
+            # that is amendment A-P4-52. This branch landed at review
+            # round 3 reading `tries`, the walk's own counter -- and
+            # the walk takes its positions in turn from that same
+            # counter, so the two were one clock. `place` is
+            # `1 + tries % movers`, `tries` is already stepped by the
+            # time this runs, and the gate was `tries % 2`. So wherever
+            # `movers` is EVEN -- which is every column with an ODD
+            # number of positions -- the parity a position is reached
+            # at never changes: position 1 of a five-position column is
+            # reached at tries 0, 4, 8, ... and was aimed at on none of
+            # them, while positions 2 and 4 were aimed at on every turn
+            # they got. Both halves of the alternation were gone rather
+            # than one, and position 1 is the ONLY mover of the pair it
+            # makes with the anchor, so that pair had no route to its
+            # published above-count at all.
+            #
+            # `turn` is how many turns this position has already had,
+            # so `turn + place` alternates on every position's own
+            # turns whatever `movers` is and no arithmetic between the
+            # two clocks can starve a parity. `place` stays in it on
+            # purpose rather than by accident: it staggers neighbouring
+            # positions onto opposite turns, and wherever `movers` is
+            # ODD it is the SAME schedule the round-3 gate had, because
+            # `tries` there is `turn * movers + place` and `movers`
+            # odd makes that `turn + place` to the parity. Every
+            # column with an even number of positions therefore comes
+            # out cell for cell as it did.
+            if (turn + place) % 2:
                 return one, two
             for index in range(len(seats)):
                 place_seat = seats[index]
@@ -6167,6 +6208,14 @@ def _repaired_pairing(
         # rate and rewrite every two-position column's cells for a
         # choice that has only one answer there.
         place = 1 + tries % movers
+        # AND HOW MANY TURNS THAT POSITION HAS ALREADY HAD, read
+        # BEFORE the counter moves and handed to `_proposed` rather
+        # than read off the counter inside it. `place` and `turn` are
+        # the remainder and the quotient of one division, so the two
+        # together say everything the counter says while either alone
+        # says less -- and reading one counter for both is the defect
+        # amendment A-P4-52 repairs.
+        turn = tries // movers
         tries = tries + 1
         if at + 1 >= len(words):
             # THE CURSOR RESTARTS ONE WORD FURTHER ALONG THAN LAST
@@ -6185,7 +6234,7 @@ def _repaired_pairing(
         one = _bounded(words[at], total)
         two = _bounded(words[at + 1], total)
         at = at + 2
-        one, two = _proposed(one, two, place)
+        one, two = _proposed(one, two, place, turn)
         if one == two or held[place][one] == held[place][two]:
             continue
         kept_tops = [value for value in tops]
