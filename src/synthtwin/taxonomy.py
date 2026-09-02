@@ -5357,6 +5357,17 @@ def _empty_bins(numbers: "list[float]") -> "list[int]":
     counts = _bin_census(numbers)
     if counts is None:
         return []
+    # AND A COLUMN WHOSE VALUES ARE ALL ONE NUMBER NAMES NOTHING. Its
+    # two ends are the same number, so there is no width to divide and
+    # `parsing.histogram_bin` puts every value in the first bin by its
+    # own total rule -- which makes the other thirty-one look empty
+    # while there is no division for them to be empty IN. Saying so
+    # would be saying something about a scale that does not exist, and
+    # the loader refuses exactly that: `_has_width` there asks the same
+    # question and this is the producer's side of it. A constant
+    # position inside a joined column is the shape that found it.
+    if max(numbers) <= min(numbers):
+        return []
     return [
         place
         for place in range(parsing.HISTOGRAM_BINS)
