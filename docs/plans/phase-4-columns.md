@@ -5116,6 +5116,40 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
+- **R-P4-147 — OPEN (opened 2026-09-03 by landing L8's own
+  measurement).** THE COMPOUND ROLE TAKES THE WHOLE POPULATION THE
+  RECOVERABLE-DISTRIBUTION ADVICE WAS WRITTEN FOR, AND UNTIL ITS
+  SUB-BLOCKS ARE BUILT THAT IS A LOSS RATHER THAN A GAIN.
+
+  Amendment A-P4-1 item 4 (residual R-P4-16) gives a declined column a
+  sentence: run again with `--missing-value` and this column's
+  distribution will be described. It is written for a column of
+  numbers beside a few repeated gap words -- `not recorded`,
+  `refused`, `pending`.
+
+  **That is exactly the shape rule 7b now claims.** Measured over six
+  shapes, from 12 numbers to 190 and from two gap-word repeats to
+  twenty: every one that used to receive the advice now takes
+  `numbers_with_labels`, and the advice is not offered on any of them.
+  The one shape that still falls to free text -- twelve numbers beside
+  six gap words -- does not trigger the advice either.
+
+  **WHY THAT IS A LOSS TODAY.** The role publishes the two counts and
+  nothing else yet; its numeric and label sub-blocks are the landing's
+  next step. So a column that could once be told "declare these words
+  and you will get your distribution" now gets no distribution AND no
+  sentence telling it how to. That is worse than before, and it is
+  worse only until the sub-blocks land -- at which point the column
+  gets its distribution without any declaration, which is what the
+  advice was for.
+
+  **WHAT THIS ENTRY OWES**, and it is not just the sub-blocks: once
+  they exist, somebody has to ask whether the advice is REACHABLE at
+  all any more, and retire it rather than leave a sentence in the code
+  that no column can be told. Three tests in
+  `tests/test_p4r24_advisory_remarks.py` hold it and are red on this
+  branch on purpose; they are the evidence, not an oversight.
+
 - **R-P4-146 — OPEN (opened 2026-09-03 by review round 3 of the
   integer-grid landing).** THE FIXED-FRACTION SNAP IS STILL HALF
   UNWRITTEN, AND UNTIL NOW THE DEBT WAS BOOKED AGAINST A CLOSED ENTRY.
