@@ -7763,10 +7763,28 @@ def _apart_inside(
     reach = 1
     while reach <= _GRID_REACH:
         for step in (-reach, reach):
-            candidate = nearest + step * unit
+            walked = nearest + step * unit
+            if not math.isfinite(walked):
+                continue
+            # THE CANDIDATE IS THE GRID POINT, NOT THE SUM THAT REACHED
+            # IT (review round 3 of the integer-grid landing). Stepping
+            # by a tenth accumulates in binary: `0.2 + 0.1` is
+            # `0.30000000000000004`, which is GREATER than a share
+            # whose inclusive upper end is `0.3` -- so a candidate
+            # whose grid text is exactly the endpoint was refused by
+            # the endpoint it sits on, and the pass left a column with
+            # two strata written as one cell. The text is what the twin
+            # will hold, so the text read back is what the bounds and
+            # the sign are asked about, and it is what the stratum
+            # takes.
+            spelt = _grid_text(walked, figures)
+            try:
+                candidate = float(spelt)
+            except ValueError:
+                continue
             if not math.isfinite(candidate):
                 continue
-            if _grid_text(candidate, figures) in written:
+            if spelt in written:
                 continue
             if band == _BAND_NEGATIVE and candidate >= 0.0:
                 continue

@@ -1090,12 +1090,23 @@ so `2.68`. Both are defensible half-to-even; only one is this method's.
 Review round 2 of the integer-grid landing found this document silent
 on it while two implementations agreed on `2.68` for no stated reason.
 
+**AND THE SIGN SURVIVES A MAGNITUDE THAT SNAPS TO NOTHING.** Where the
+figures round away entirely the sign is still written: `-0.004` at two
+figures is `-0.00`, not `0.00`. This is NOT the "never `-0`" rule of
+G6.2, which governs the canonical spelling of zero itself; here the
+value is not zero and the width is what hides it. A second implementer
+who dropped the sign would write a different cell, and the twin would
+carry a positive-looking cell where the column held a negative value.
+
 **THE REST OF THE SNAP IS NOT WRITTEN HERE YET, and that is a recorded
-debt, not an omission this sentence closes.** Residual R-P4-17 owes
-this document the width assignment, the pinned-cell order, and the
-same-class and endpoint guards; R-P4-18 owes a vector in which a value
-is actually rounded, and now owes it twice over, because no frozen case
-reaches the rule above either. Both
+debt, not an omission this sentence closes.** **R-P4-146** owes this
+document the width assignment, the pinned-cell order, and the
+same-class and endpoint guards. It is named here because review round 3
+of the integer-grid landing found this paragraph assigning that debt to
+R-P4-17, which is CLOSED — so the unwritten half of the snap had no
+live owner at all. R-P4-18 owes a vector in which a value is actually
+rounded, and now owes it twice over, because no frozen case reaches the
+operand rule above either. Both
 are named in the Phase 4 plan's register. What the paragraph above
 settles is only the contradiction: a second implementer reading this
 section used to find a global tie rule the shipped snap violates by
@@ -2045,6 +2056,17 @@ landing, which is the wrong anchor and a byte-determining one.
 **HOW FAR.** At most SIXTY-FOUR grid steps out. A share wider than that
 is not searched to its ends; the walk answers with nothing and the
 stratum stays where it is.
+
+**WHAT IS TESTED AND TAKEN IS THE GRID POINT, not the sum that reached
+it.** Stepping outward accumulates in binary: a tenth added to `0.2`
+is `0.30000000000000004`, which is greater than `0.3`. Ask the bounds
+about THAT and a candidate whose grid text is exactly the share's
+inclusive upper end is refused by the end it sits on — which is how
+this pass came to leave two strata written as one cell on a column it
+was built for. So each step is snapped to its grid text first, that
+text is what the written-text refusal reads, the number that text
+reads back as is what the share, the ends and the sign band are asked
+about, and it is what the stratum takes.
 
 **WHAT IS REFUSED.** A candidate that is not a finite number; a
 candidate whose text is already written by another stratum; a candidate
@@ -6820,7 +6842,12 @@ a published ladder repeat more evenly than real ones did, so `23` came
 out twice. G6.5a's pass had been declining every whole-number column,
 this case is one, and the twin holds twelve now. `n_distinct_values`
 stays REPORT-ONLY (residual R-P4-20), but **no committed case exercises
-a reported miss of it any more**, which is residual R-P4-145. Every other case
+a reported miss of it any more.** The reporting control itself is not
+lost — `tests/test_p2c4f3_style_capacity.py` asserts it seed by seed —
+and what R-P4-145 records is narrower and older than this case: the
+frozen harness compares cells and CSV bytes and has never read a
+deviation or a report line, so no committed case pins what a twin
+SAYS. Every other case
 carrying that key publishes the figure its OWN TWIN reaches, so none of
 them can exercise the miss: an adversarial read found that the oracle
 was overwriting the field with a count of the finished cells, which

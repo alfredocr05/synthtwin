@@ -138,6 +138,47 @@ def test_nothing_published_is_traded_for_the_separation(
     assert max(numbers) == published["percentiles"]["max"]
 
 
+def test_a_candidate_on_the_inclusive_end_of_a_share_is_taken() -> None:
+    """The share's ends are INCLUSIVE, and binary stepping said otherwise.
+
+    The walk reaches a candidate by adding a grid step to the value it
+    anchored on, and that addition accumulates in binary: a tenth added
+    to `0.2` is `0.30000000000000004`, which is GREATER than `0.3`. Ask
+    the share about that sum and a candidate whose grid text is exactly
+    the share's inclusive upper end is refused by the end it sits on,
+    and the stratum stays where it is -- which is the shape this whole
+    pass exists to prevent, two strata written as one cell.
+
+    Review round 3 of the integer-grid landing found it. The repair is
+    that each step is snapped to its grid text first, and the bounds,
+    the sign band and the written-text refusal are all asked about the
+    SNAPPED point, which is also what the stratum takes.
+
+    Goes red if the candidate is tested before it is snapped: no
+    committed golden or frozen vector sits on such an endpoint, so this
+    is the only thing in the tree that holds the rule.
+    """
+    # The arithmetic the defect turns on, asserted so the fixture
+    # cannot quietly stop being the case it was built for.
+    assert 0.2 + 0.1 > 0.3
+    assert generation._grid_text(0.2 + 0.1, 1) == "0.3"
+
+    taken = generation._apart_inside(
+        0.2,
+        1,
+        generation._BAND_POSITIVE,
+        (0.2, 0.3),
+        (0.2, 1.0),
+        {"0.2": 2, "0.4": 1, "1.0": 1},
+    )
+    assert taken == 0.3, taken
+    # AND WHAT COMES BACK IS THE GRID POINT, not the sum that reached
+    # it: the stratum keeps this number, and a later stage writing it
+    # would carry the binary tail into the cell.
+    assert generation._grid_text(taken, 1) == "0.3"
+    assert taken == float("0.3")
+
+
 def test_a_whole_number_column_is_on_a_grid_too(
     tmp_path: pathlib.Path,
 ) -> None:
