@@ -5116,6 +5116,30 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
+- **R-P4-146 — OPEN (opened 2026-09-03 by review round 3 of the
+  integer-grid landing).** THE FIXED-FRACTION SNAP IS STILL HALF
+  UNWRITTEN, AND UNTIL NOW THE DEBT WAS BOOKED AGAINST A CLOSED ENTRY.
+
+  Method G6.6's snap — the rule that writes a `decimal`-styled cell at
+  a width the column's census publishes — now states its TIE (half to
+  even, plan P4-D4.5), its OPERAND (the value's shortest round-trip
+  decimal figures and not the binary64, with `2.675` at two figures
+  worked through) and the SIGN of a magnitude that rounds away
+  (`-0.004` at two figures is `-0.00`). Those three were written
+  because the integer-grid landing's own grid text depends on them and
+  two implementations were agreeing on an unstated choice.
+
+  **What is still owed**: the width assignment — which cell is written
+  at which of a census's several widths — the pinned-cell order, and
+  the same-class and endpoint guards.
+
+  The method assigned all of that to R-P4-17, which is CLOSED: that
+  entry bought a frozen case for each of the four roles Phase 4 added
+  and says so. R-P4-18 owes a vector in which a value is actually
+  rounded, which is a different debt and does not cover the algorithm.
+  So the unwritten half had no live owner and would have closed with
+  the phase by inattention. It has one now.
+
 - **R-P4-145 — NARROWED AND RESTATED (opened 2026-09-03 by review
   round 1 of the integer-grid landing; its premise was refuted at round
   2 the same day).** THE FROZEN VECTORS PIN CELLS AND BYTES AND NOTHING

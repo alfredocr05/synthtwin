@@ -1875,10 +1875,21 @@ def apart_inside(value, figures, band, share, ends, written):
     reach = 1
     while reach <= 64:
         for step in (-reach, reach):
-            candidate = nearest + step * unit
+            walked = nearest + step * unit
+            if not math.isfinite(walked):
+                continue
+            # The candidate is the GRID POINT and not the sum that
+            # reached it: stepping by a tenth accumulates in binary and
+            # `0.2 + 0.1` is greater than `0.3`, so a candidate sitting
+            # exactly on an inclusive endpoint was refused by it.
+            spelt = grid_text(walked, figures)
+            try:
+                candidate = float(spelt)
+            except ValueError:
+                continue
             if not math.isfinite(candidate):
                 continue
-            if grid_text(candidate, figures) in written:
+            if spelt in written:
                 continue
             if band == "negative" and candidate >= 0.0:
                 continue
@@ -6890,7 +6901,10 @@ def _affixed_brackets():
         # conforming generator MISSED `n_distinct_values` and had to
         # say so. G6.5a's pass reaches the integer grid now, the twin
         # holds twelve, and NO committed case exercises that miss any
-        # more. That gap is residual R-P4-145.
+        # more. The reporting control is not lost with it -- a suite
+        # test asserts the deviation seed by seed -- and what R-P4-145
+        # records is that this harness pins cells and bytes and has
+        # never pinned what a twin says.
         n_distinct_values=12,
         integer_valued=True, n_rows=12, numeric_styles={"plain": 12},
         # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, READ OVER THE CORES

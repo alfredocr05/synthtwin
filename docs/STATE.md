@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,314 collected on the merged tree with the integer-grid landing and its first review round in it (52 skipped on another machine: that count moves, the collected count does not). FOUR new tests: three in `tests/test_p4r56_grid_separation.py` -- the integer grid, its refusal on a column that is not whole-valued, and the contrast that shows both halves of the rule are needed -- and one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
+| suite | 4,315 collected on the merged tree with the integer-grid landing and its first three review rounds in it (52 skipped on another machine: that count moves, the collected count does not). FIVE new tests: four in `tests/test_p4r56_grid_separation.py` -- the integer grid, its refusal on a column that is not whole-valued, the contrast showing both halves of the rule are needed, and the inclusive share endpoint a binary step used to refuse -- the integer grid, its refusal on a column that is not whole-valued, and the contrast that shows both halves of the rule are needed -- and one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
@@ -909,8 +909,12 @@ are still ahead. The gap list itself is at the foot of this page.
   **ITS TWIN HELD ELEVEN UNTIL THE INTEGER-GRID LANDING AND HOLDS
   TWELVE NOW**, so the miss this case existed to exercise is gone, and
   with it the only committed vector where a conforming generator
-  reports one. That is **R-P4-145**, opened by the landing that caused
-  it. Two cells moved in the branch file, not one: this case's first
+  reports one. The reporting control is NOT lost with it: a suite test
+  asserts seed by seed that a miss carries the deviation and a hit does
+  not, 7 misses and 113 hits over 120 seeds on its own column.
+  **R-P4-145** records the older, narrower gap that case never covered
+  either — the frozen harness pins cells and bytes and nothing a twin
+  says. Two cells moved in the branch file, not one: this case's first
   cell `[23]` to `[22]`, and `joined_readings`' eleventh `29/45` to
   `28/45`.
 
