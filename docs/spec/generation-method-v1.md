@@ -2487,9 +2487,15 @@ is shorter than that. Then
   position after the first for;
 - otherwise: it is left rank for rank.
 
-A low target starts from a shuffle because it is already near it, and a
-strongly negative one from rank against rank, because the walk cannot
-travel the whole way inside its try ceiling.
+A low target starts from a shuffle because it is already near it, and
+a strongly negative one from the REVERSED order — seat `i` taking seat
+`T - 1 - i`, as the first rule above says — because the walk cannot
+travel the whole way from rank against rank inside its try ceiling.
+This paragraph said "from rank against rank" until review round 8 of
+L7, which is the opposite of the rule it stands under: at `A = -0.5`
+an
+unchanged rank order starts near `+1` and the reversal starts near
+`-1`.
 
 **IT IS THE PAIR WITH THE ANCHOR AND NOT A MEAN, AND IT WAS A MEAN
 UNTIL LANDING L7.** While step 3 moved the last position and nothing
@@ -2590,8 +2596,10 @@ where `agreement[pair] = (Σ_rows (rank[a][r] − m)(rank[b][r] − m))
 `b`, taken as 0 when the divisor is 0.
 
 **The terms are scaled differently on purpose, and each scale is a
-measurement.** `part_above` is an exact count a pairing can always meet
-and one row out of it is one cell holding a reading that cannot happen
+measurement.** `part_above` is an exact count a pairing can meet
+whenever the twin's own numbers admit it — which is not always, and
+R-P4-144 measures where they do not — and one row out of it is one
+cell holding a reading that cannot happen
 — at equal weight the walk sold a row of it for a thousandth of
 agreement and produced an impossible cell — so it carries FULL WEIGHT
 PER ROW. The count of different cells is divided by `T`: weighting it
@@ -2702,7 +2710,12 @@ every position is reached.
   pass over the reserve does not draw the pairs the first one drew;
 - `i = bounded(w1, T)`, `j = bounded(w2, T)` by G3.4b;
 - **the proposal step (G6B.4a) may move `i` and `j` to two other rows**
-  when the count of different cells is not yet the published one;
+  — when the count of different cells is not yet the published one,
+  AND ALSO when it already is and an above-count is still unmet, which
+  is that section's `d == 0` bullet. This line named only the first
+  case until review round 7 of L7; an implementer who read the summary
+  and stopped would omit the second branch entirely and never repair
+  an above-count once the distinct count was right;
 - if `i == j`, or position `p` holds the same spelling at both, the try
   is spent and nothing moves;
 - otherwise swap position `p`'s seats `i` and `j`, recompute `away`,
@@ -2825,6 +2838,24 @@ wanted`, and `R = 16` for how far either scan looks. Both scans run
 forward cyclically from the drawn row and both fall back to the row as
 drawn, so a try always has something to propose.
 
+**EXACTLY WHICH ROWS EITHER SCAN VISITS, because an implementer who
+counts from one instead of zero writes a different twin.** The scan
+for `i` visits `(i + k) mod T` and the scan for `j` visits
+`(j + k) mod T`, for `k = 0, 1, …, R − 1` in that order, where `i` and
+`j` are the rows AS DRAWN. So `k = 0` is the drawn row itself: each
+scan tests its own drawn row first, and the two scans count from
+DIFFERENT origins. A scan that finds no qualifying row inside its `R`
+candidates yields its own drawn row unchanged.
+
+**And "a different spelling at `p`" is measured against the row the
+FIRST scan settled on, not against the row `j` was drawn at**: the
+partner scan takes the first candidate row that is neither the row `i`
+ended at nor holds the spelling that row holds at `p`. Comparing
+against the drawn `j` instead CAN select a different partner and so
+write a different twin — the two agree only when the settled `i` row
+and the drawn `j` hold the same spelling at `p`, which is why the rule
+has to be stated rather than left to chance.
+
 - `d == 0`, the count of different cells already met — TWO sub-cases,
   written as one bullet because an implementer reading in order must
   not take the first and stop. Write `s` for **how many turns position
@@ -2834,11 +2865,35 @@ drawn, so a try always has something to propose.
   and `s` is read BEFORE the try index is stepped:
   - every `above[pair]` is its published value, or `s + p` is ODD: the
     two rows as drawn;
-  - some `above[pair]` is not its published value and `s + p` is EVEN:
-    `i` becomes the first row within `R` steps that holds that
-    pair's earlier position above its later one where the count is too
-    high, or does not where it is too low; `j` becomes the first row
-    within `R` steps holding a different spelling at `p`. The
+  - some `above[pair]` is not its published value and `s + p` is EVEN.
+    **WHICH pair is named here, because two programs that chose
+    differently would scan different rows and write different twins.**
+    The pair is the EARLIEST, in `part_above`'s own published order,
+    among those that BOTH contain position `p` and whose count is
+    unmet. Position `p` may sit in several unmet pairs — at the
+    `battery-11` start it sits in three, short by 14, 1 and 4 — and
+    only the earliest is aimed at on this turn. If `p` sits in NO
+    unmet pair, this turn proposes the two rows as drawn, exactly as
+    the first bullet does.
+
+    **"Unmet" means the count differs from its published value, and
+    NOTHING ELSE.** In particular a program must NOT screen out a pair
+    whose published count its own drawn numbers cannot express under
+    any arrangement, even though such a pair stays unmet forever and
+    is therefore aimed at on every ABOVE-COUNT-AIMING turn — the
+    `(s + p)` EVEN ones — of every position it contains. On the odd
+    turns nothing is pair-directed at all, so it is half of those
+    positions' turns and not all of them.
+    Screening it would be defensible and would write a different twin,
+    which is why the rule is stated rather than left to judgement.
+    R-P4-144 measures how many such pairs there are and records that
+    the turns they consume, and the pairs behind them in the order
+    that consequently get none, are an unmeasured contributor to the
+    shortfall it reports. Then: `i` becomes the first row within `R`
+    steps that holds that pair's earlier position above its later one
+    where the count is too high, or does not where it is too low; `j`
+    becomes the first row within `R` steps holding a different
+    spelling at `p`. The
     acceptance rule refuses to trade one above-count for another, so
     the walk cannot reach the repair sideways and has to aim at it. On
     ALTERNATE TURNS OF THAT POSITION because aiming on every turn
@@ -2895,6 +2950,36 @@ the try number, 153 on its phase flip and 44 on `s + p`, with the
 agreements outside G12.9's window 3,665, 3,668 and 3,638. On eight
 five-position columns, 3,200 pairs: 71, 96 and 12. The driver is
 `tools/measurements/a_p4_52_l7_parity.py`.
+
+**THE `p` IN `s + p` IS NOT LOAD-BEARING, and this method implied
+otherwise until review round 4 of L7.** It staggers neighbouring
+positions onto opposite turns, which reads as a reason, and it was
+kept because dropping it moved bytes an earlier commit had set — a
+circular argument, since that commit is the one that carried the
+lockout this amendment repairs. Measured across THREE families built
+three different ways, 15,560 pairs at forty seeds, the four phases
+`s + p`, `s + p + 1`, `s` and `s + 1` miss 716, 709, 709 and 717
+above-counts. `s + p + 1` has fewer misses than `s + p` in every one
+of the three families, and `s + p` has fewer agreement excursions in
+aggregate, 5,513 against 5,527: **no phase dominates across BOTH
+reported metrics**, and the differences are not zero either — 716
+against 709 is seven above-counts one phase reaches and another does
+not.
+
+**THE PHASE IS THEREFORE FIXED HERE, and `s + p` is the one.** An
+implementation MUST gate on `(s + p) mod 2`, aiming when it is zero.
+This is a reproduction rule, not a fidelity one: two programs that
+chose different phases would both be defensible statistically and
+would still write different twins from the same profile and seed,
+which this document exists to forbid. All `p` amounts to is a stagger
+of neighbouring positions onto opposite turns, and the measurement
+says only that dropping it costs nothing consistent — not that a
+conforming program may drop it.
+
+Gating on the TRY NUMBER is refused for a second and stronger reason,
+by a published fact rather than by a byte: it starves a parity, and
+restoring it leaves seat 0 of the witness column reaching 49 against a
+published 64.
 
 `R` is a fixed small number and not the whole column because the scan
 runs inside a walk whose ceiling is already `200 * T`, so an unbounded

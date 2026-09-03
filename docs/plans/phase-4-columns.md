@@ -4884,41 +4884,78 @@ declaration for only one of them.
   work visible AND more positions than tries, which the loader's
   `n_parts <= n_present + 2` makes an awkward shape to build.
 
-- **R-P4-131 — OPEN (opened 2026-09-02 by amendment A-P4-52, and by
-  its own measurement).** FOUR VARIANTS OF THE PROPOSAL GATE ARE
-  PINNED ONLY BY A BYTE HASH, AND THE STAGGER IS KEPT AGAINST ONE
-  FAMILY'S PREFERENCE.
+- **R-P4-131 — CLOSED (opened 2026-09-02 by amendment A-P4-52 and by
+  its own measurement; closed 2026-09-02 at review round 4 of L7).**
+  FOUR VARIANTS OF THE PROPOSAL GATE WERE PINNED ONLY BY A BYTE HASH,
+  AND THE STAGGER WAS KEPT FOR A CIRCULAR REASON.
 
   A-P4-52's gate is `(turn + place) % 2`. Four one-line variants of it
-  were run against sixteen test files, 768 tests, each applied alone
-  to the shipped tree with the tree audited back to its pristine
-  digest afterwards: the phase flip `(turn + place + 1) % 2`, the
-  stagger dropped (`turn % 2`), the turn count read AFTER the try
-  counter steps, and the gate held open so every turn aims. **All four
-  turn the suite red, and all four turn it red through exactly one
-  test**: `tests/test_twin_golden.py::test_golden_hash_of_the_
-  demonstration_twin`, which says the twin's bytes moved and nothing
-  about a published fact. No test in the tree says a fact was missed
-  under any of the four. A mutant caught only by a byte hash is caught
-  for a weaker reason than the rule it breaks.
+  turned the suite red through `test_golden_hash_of_the_demonstration_
+  twin` alone — a test that says the twin's bytes moved and names no
+  published fact. The stagger was then kept because dropping it moved
+  bytes that `554da75` had set. Review round 4 refused that argument
+  and was right to: `554da75` is the commit that carried the parity
+  lockout, so preserving its bytes is preserving the defect's own
+  tree, and it is circular besides — the thing to be justified was
+  used as the justification.
 
-  **AND THE FORM THAT LANDED IS NOT THE FORM EVERY FAMILY PREFERRED.**
-  Over the driver's forty-column recipe at forty seeds, 9,640 pairs,
-  `(turn + place) % 2` leaves 44 above-counts short and 3,638
-  agreements outside G12.9's window against `turn % 2`'s 47 and 3,655;
-  over the eight five-position columns, 3,200 pairs, it leaves 12
-  short against 10, and 1,685 outside against 1,694. The stagger wins
-  three of those four readings and loses one, so the measurement alone
-  does not settle it. What settles it is that `(turn + place) % 2` IS
-  the round-3 schedule wherever the mover count is odd: digesting
-  every twin of both families at forty seeds, it reproduces `554da75`
-  byte-for-byte on all 16 columns with an even number of positions,
-  where `turn % 2` reproduces none of the 48. The repair then changes
-  only the columns the defect reached.
+  **WHAT THE MEASUREMENT SAYS, on the four phases of the rule rather
+  than on its bytes.** Three families of columns built three different
+  ways — the forty-column recipe, the eight tight five-position
+  columns, and twelve columns drawn apart at unequal centres with
+  ties set at three rates and one part reversed — at forty seeds
+  each, 15,560
+  pairs:
 
-  Closing this means a column where one of the four variants costs a
-  FACT rather than a hash — the same shape R-P4-128 needs, and nobody
-  has built one.
+  | gate | recipe | tight | drawn apart | missed | outside G12.9 |
+  |------|-------:|------:|------------:|-------:|--------------:|
+  | `(turn + place) % 2` | 44 | 12 | 660 | **716** | 5,513 |
+  | `(turn + place + 1) % 2` | 40 | 11 | 658 | **709** | 5,527 |
+  | `turn % 2` | 47 | 10 | 652 | **709** | 5,527 |
+  | `(turn + 1) % 2` | 52 | 15 | 650 | **717** | 5,557 |
+
+  Eight pairs separate the best from the worst in 15,560.
+
+  **BUT NOT SYMMETRICALLY, and this bullet said otherwise until review
+  round 5.** `(turn + place + 1) % 2` has FEWER above-count misses than
+  the shipped phase in every one of the three families -- 40 against
+  44, 11 against 12, 658 against 660 -- so on that metric it dominates
+  and the shipped phase is never the best on any family. The shipped
+  phase is ahead on the other reported metric, 5,513 agreements
+  outside G12.9's window against 5,527. **No phase dominates across
+  BOTH**, and that is the whole of what the measurement supports: the
+  choice between these two is a trade of seven above-counts against
+  fourteen agreement excursions, not a fidelity ranking. The incumbent
+  stands, and the method fixes it for reproduction rather than for
+  either number. The earlier reading was
+  taken on two families and compared THREE phases of the stagger
+  against ONE of dropping it, which is not a comparison;
+  `(turn + 1) % 2` was added to make it a square one.
+
+  **WHY A BYTE HASH IS NOW THE RIGHT GUARD, and what is guarded by a
+  rule instead.** The gate is a named rule, `_aims_at_above`, and the
+  property it exists for is pinned by
+  `test_every_position_aims_at_an_above_count_on_half_its_own_turns`:
+  each position aims on twenty of its first forty turns, alternating,
+  at every mover count from one to eight. `return turn < 20` and
+  `return True` both turn it red. The gate it replaced is caught by a
+  FACT and not by a hash — restoring `tries % 2` at the call site
+  fails `test_neither_parity_of_positions_is_starved_of_the_proposal`
+  with seat 0 reaching 49 against a published 64. What is left over is
+  the phase.
+
+  **AND A PHASE MUTANT IS NOT FACT-NEUTRAL, which this bullet said and
+  should not have.** 716 against 709 is seven above-counts one phase
+  reaches and another does not; what the measurement supports is that
+  no phase dominates across BOTH reported metrics, not that they
+  agree, and not that each wins somewhere. The
+  method now fixes `s + p` normatively — review round 5 of L7 found
+  that permitting four phases contradicts the independent-implementer
+  contract, since two conforming programs would write different twins
+  from one profile and seed. With the phase fixed by the method, a
+  phase change is a METHOD violation rather than a fidelity one, and a
+  byte digest is exactly the right guard for it: the digest is what
+  reproduction means.
 
 - **R-P4-132 — OPEN (opened 2026-09-02 by amendment A-P4-52's own
   measurement).** A FIVE-POSITION COLUMN STILL DOES NOT REACH EVERY
@@ -4930,9 +4967,30 @@ declaration for only one of them.
   producer, loader and generator over forty described columns of two
   to five positions at forty seeds — 9,640 pairs — **44 above-counts
   land short of their published value**, and over eight five-position
-  columns at forty seeds — 3,200 pairs — **12 do**. Every one of the
-  56 is on a column of five positions, which sets ten pairs pulling
-  against each other inside one bounded search.
+  columns at forty seeds — 3,200 pairs — **12 do**.
+
+  **FIFTY-FIVE of the 56 are on a column of five positions**, which
+  sets ten pairs pulling against each other inside one bounded search.
+  This bullet read "every one of the 56" until review round 4 of L7,
+  which is wrong and was wrong when written: the by-column line the
+  driver prints was read for its total and not for its names. The
+  recipe's 44 fall on eight columns — `c00p5r120` 19, `c19p5r80` 10,
+  `c30p5r120` 6, `c39p5r80` 3, `c05p5r200` 2, `c22p5r80` 2,
+  `c28p5r200` 1 — and on **`c18p4r150`, which has FOUR positions**,
+  one miss at one seed of forty. The eight tight columns' 12 are all
+  five-position.
+
+  **AND THAT FOURTH-POSITION COLUMN IS NOT A REGRESSION, measured
+  against the commit before the landing.** Review round 4 read it at
+  generation seed 13, where the shipped gate reaches 75 of a published
+  77 and the parent `df12e69` reaches 77, and concluded the landing
+  had cost a fact. Over all forty seeds it is the other way about:
+  the parent misses TWICE on this column, at seeds 20 and 25, and the
+  shipped gate misses ONCE, at seed 13. Every phase of the gate misses
+  once or twice here; which seed carries the miss moves with the
+  phase. A single seed cannot tell an arm apart from its neighbour on
+  a column this tight, and seed 13 was the seed where the parent
+  happened to be the lucky one.
 
   **It is better than either tree before it**, which is why it is a
   residual and not a defect: the same corpora give 61 and 14 on the
@@ -4942,7 +5000,13 @@ declaration for only one of them.
   quality report, with the achieved count beside the published one.
 
   Closing it means what R-P4-121's closure means — a search that can
-  trade between pairs deliberately rather than by hill-climbing a sum.
+  trade between pairs deliberately rather than by hill-climbing a sum
+  — **IF** the 56 are reachable at all, which is not measured. Review
+  round 5 of L7 noted that these two families have had neither the
+  pairwise reachability split R-P4-144 applies to the third nor any
+  test of whether a column's pair targets hold together under one
+  arrangement. A better search cannot close a target no arrangement
+  reaches, so the first work here is the split and not the search.
 
 - **R-P4-127 — CLOSED 2026-09-02 by amendment A-P4-52.** THE
   ABOVE-COUNT PROPOSAL WAS PINNED BY NOTHING, AND IS PINNED BY THREE
@@ -5043,6 +5107,129 @@ declaration for only one of them.
   because `_owed` keeps the walk running and the ceiling stops it, so
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
+
+- **R-P4-144 — OPEN (opened 2026-09-02 by review round 4 of L7, on
+  the family that round asked for).** ON ONE TWELVE-COLUMN STRESS FAMILY
+  BUILT TO COUPLE ITS PARTS, THE TWIN MISSES 22% OF ITS ABOVE-COUNTS,
+  AND TWO FIFTHS OF THOSE ARE NOT REACHABLE EVEN FOR THAT PAIR ALONE.
+
+  Review round 4 asked for the schedule to be chosen across distinct
+  source families, so a third was built: twelve columns drawn from
+  centres chosen apart, with ties set at 0%, 15% and 35% and, where
+  there are more than two positions, the last part running in reverse
+  of the first (`tools/measurements/a_p4_52_l7_parity.py`, `spread()`).
+  It answers the schedule question — see R-P4-131 — and asks a much
+  larger one.
+
+  **IT IS A COUPLED STRESS FAMILY AND NOT A SAMPLE OF ANYTHING**, which
+  decides how far its rate carries. Its parts are NOT independent: the
+  tie branch copies part 0 outright, the last part is a deterministic
+  function of part 0, the two-position column never reaches the
+  reversing branch at all, and the drawn centres are not always
+  unequal — case 11's are `[44, 58, 44]`. The 22% is THIS FAMILY'S
+  rate. It is not the rate for columns with near-end above-counts in
+  general, and nothing here measures that.
+
+  **The rate is twenty-two per cent.** Over 2,960 pairs at forty
+  seeds, 660 above-counts land short, against 44 of 9,640 on the
+  recipe and 12 of 3,200 on the tight family. The AGREEMENTS on the
+  same family are the best of the three: 190 of 2,960 outside G12.9's
+  window, against 3,638 of 9,640. This family is easy for the fact L7
+  is not about and hard for the fact it is. All four phases of the
+  proposal gate sit within ten pairs of each other here, so the
+  schedule is NOT what decides it.
+
+  **HOW MUCH OF IT COULD ANY WALK HAVE FIXED.** Take the twin's own
+  two multisets for a missed pair and compute the largest and smallest
+  count of "earlier above later" over every bijection of them. Over
+  592 pairs at eight seeds, 133 missed:
+
+  | | count | how far |
+  |---|------:|---------|
+  | not reachable even for that pair ALONE | **54** | 47 outside by ONE, 7 by two |
+  | reachable for that pair alone; joint feasibility UNMEASURED | **79** | the twin stopped 14 by one, 11 by two, a tail to 24 |
+
+  The 54 are decided before the walk runs: each position's numbers are
+  drawn from its own published description, and two multisets drawn
+  apart like that have an achievable range that does not always
+  straddle a count near an extreme. Off by ONE in 47 of 54 says the
+  boundary is tight rather than the shape being wrong.
+
+  **THE 79 ARE NOT THEREBY THE WALK'S, and this bullet claimed they
+  were until review round 5 of L7.** The bound is PAIRWISE: it says
+  each of those counts is attainable by some arrangement of that ONE
+  pair, considered alone. It says nothing about whether all of a
+  column's pair targets hold under ONE arrangement of every position,
+  and they need not. The round's own counterexample: three positions
+  each holding `[0, 1]`, every pair published at one above-row. Each
+  pair alone has achievable range `[0, 1]`, so all three are counted
+  reachable here — but a position of two values has only two
+  orientations, three positions must therefore share one between two
+  of them, and a shared orientation gives that pair ZERO. Meeting any
+  two of the three targets breaks the third. Pairwise-reachable is a
+  NECESSARY condition for the walk to be at fault, not a sufficient
+  one, so the honest reading is 54 impossible pairwise and 79 not yet
+  attributed to anything.
+
+  Sorting all 133 by where the published count sits, 113 are on pairs
+  whose count is within a fifth of an end of its range and 20 in the
+  middle.
+
+  **THE BOUND IS A DRIVER WITH A SELF-CHECK, and it needed one.**
+  `tools/measurements/r_p4_144_reach.py --self-check` enumerates every
+  permutation of small multisets and compares the greedy bounds
+  against the truth, and asks separately whether the achievable set
+  has holes — a bound only decides reachability if every count between
+  its ends is reachable too. Over 4,000 pairs of up to seven rows:
+  the bounds never once disagreed, and no achievable set had a hole
+  in it. **The first version of those two functions
+  was wrong**, and gave this bullet a 74/59 split — the opposite
+  majority — before the enumeration refused it. The driver now stops
+  rather than reporting a split its own bound cannot support.
+
+  **WHAT THIS IS AND IS NOT.** It is not the defect L7 set out to
+  repair: the parity lockout starved a position of its turns, and this
+  survives every phase of the repaired schedule equally. It is not
+  reached by choosing a different gate.
+
+  **AND THE 54 MAY BE COSTING THE 79, which nothing here measures.** A
+  pair whose count the twin's numbers cannot express stays unmet for
+  the whole walk, so method G6B.4a — which aims at the EARLIEST unmet
+  pair containing the position, and which review round 7 of L7 fixed
+  normatively so that no program may screen such a pair out — aims at
+  it on every one of that position's ABOVE-COUNT-AIMING turns — half
+  of them, the `(s + p)` even ones; the odd turns aim at nothing.
+  Every pair behind it in the published order sharing that position
+  therefore gets none of those. That
+  is the shape of the parity lockout this landing repaired, one level
+  up: not a starved position but a starved PAIR. Whether it accounts
+  for a little of the 79 or most of it is unmeasured, and measuring it
+  needs one run with those pairs' turns handed to the next eligible
+  pair instead, compared on exact counts, agreement excursions and
+  distinct cells together.
+
+  **AND THE SCREEN WOULD BE CHEAP, which is what makes the run worth
+  doing.** A position's multiset never changes during the walk — only
+  which row holds which value — so a pair's achievable range can be
+  computed ONCE, before the first try, and never again. Review round 8
+  of L7 argued from that that screening is the stronger statistical
+  design, since a directed proposal spent on a target that cannot
+  improve has no upside and costs a reachable target behind it its
+  turn. The method forbids the screen anyway, and says why: the
+  comparison above has not been run, and a method may not claim a
+  fidelity gain it has not measured. If the run shows the gain, the
+  screen is a method amendment and not a repair.
+
+  Closing the 79 means FIRST
+  measuring whether a column's pair targets are jointly satisfiable at
+  all — which no driver here does — and only then, for whatever
+  survives that, a walk able to drive a count to an extreme against
+  the bounded scan `R`, the try ceiling and the agreement it holds at
+  the same time. Closing the 54 means asking whether a
+  joined column's parts may be drawn JOINTLY rather than one at a
+  time, which is method G6B's question and the compound role's at L8,
+  and which has a disclosure side: joint drawing carries more of the
+  real table's structure than a set of per-position descriptions does.
 
 - **R-P4-130 — OPEN (opened 2026-09-02 by landing L7's round-3
   repair).** THE ACCEPTANCE RULE REFUSES ABOUT NINE THOUSAND SWAPS A

@@ -31,6 +31,7 @@ fix removed, and the removal that makes it fail is named in the test.
 """
 
 import copy
+import inspect
 import pathlib
 import random
 import tempfile
@@ -798,6 +799,53 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
         )
 
 
+def test_every_position_aims_at_an_above_count_on_half_its_own_turns(
+) -> None:
+    """The anti-lockout property itself, at every mover count.
+
+    Review round 4 of L7 found the schedule guarded by nothing but a
+    byte hash: change its phase and the only test that moves is the
+    golden twin's digest, which says the bytes moved and names no
+    fact. The phase is not what matters and R-P4-131 measures why --
+    all four phases miss within eight pairs of each other in 15,560.
+    WHAT matters is the property every phase of it has and the gate it
+    replaced did not: each position aims at an above-count on HALF of
+    its own turns, whatever the mover count.
+
+    The walk reaches position `p` at tries `p - 1`, `p - 1 + movers`,
+    ..., so a gate on the walk's own try counter reads `turn * movers
+    + place` -- one parity for every turn a given position ever gets
+    wherever `movers` is even. That is 0 turns or all 40, which is the
+    lockout, asserted here beside the rule so the defect is legible
+    rather than remembered.
+    """
+    for movers in range(1, 9):
+        for place in range(1, movers + 1):
+            aimed = [
+                turn for turn in range(40)
+                if generation._aims_at_above(turn, place)
+            ]
+            assert len(aimed) == 20, (movers, place, len(aimed))
+            # ALTERNATING, not merely half: twenty of forty is also
+            # what aiming on the first twenty turns would give.
+            assert aimed == [turn for turn in range(0, 40, 2)] or aimed == [
+                turn for turn in range(1, 40, 2)
+            ], (movers, place, aimed[:6])
+
+    # AND THE GATE IT REPLACED, on the same arithmetic: wherever the
+    # mover count is even it opens on none of a position's turns or on
+    # every one of them, which is the starving A-P4-52 names.
+    starved = set()
+    for movers in (2, 4, 6, 8):
+        for place in range(1, movers + 1):
+            by_tries = sum(
+                1 for turn in range(40)
+                if (turn * movers + place) % 2 == 0
+            )
+            starved.add(by_tries)
+    assert starved == {0, 40}, starved
+
+
 def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     monkeypatch: "pytest.MonkeyPatch",
 ) -> None:
@@ -826,7 +874,24 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     read. Under the mutant ALL 29,255 of them name no position's
     pairs; under the shipped rule none does.
 
-    HOW THE TRUTH IS COMPUTED WITHOUT REACHING INSIDE THE CLOSURE.
+    AND MEMBERSHIP ALONE IS NOT THE CHECK, which review round 4
+    found: asking only that every vector be one of the three permitted
+    vectors leaves a CYCLIC misalignment green -- position 1 reading
+    position 2's pairs, 2 reading 3's, 3 reading 1's. All three
+    vectors are still permitted, all three still appear, every length
+    is still right, and every acceptance decision is still made on the
+    wrong pair identities. So each vector is bound BY CALL to the
+    position that call was moving, below.
+
+    MEASURED, not argued. Build `moved` from `1 + place % (n_parts -
+    1)` instead of from `place`, so the walk swaps one position's
+    cells and judges another position's pairs -- the cycle above,
+    exactly. The membership check on its own stays GREEN under it.
+    The per-call binding refuses all 29,255 vectors, naming position
+    1 handed `[5, 1, 0]` where its own pairs owe `[14, 1, 4]`. The
+    seat-index mutant further down is caught by both.
+
+    HOW THE TRUTH IS COMPUTED WITHOUT READING THE CLOSURE'S OWN LIST.
     Every swap is refused here, so the walk puts every one of them
     back and the twin comes out holding the arrangement the walk
     STARTED from -- which makes the starting above-count gap of every
@@ -843,9 +908,23 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     assert facts.part_above == (65, 122, 32, 118, 31, 0), facts.part_above
 
     marks: "list[list[int]]" = []
+    named: "list[tuple[int, list[int], int]]" = []
 
     def refusing(before, after, was, now, cells_was, cells_now) -> bool:
+        # THE POSITION THE WALK IS REALLY MOVING, read from the
+        # caller's own frame and not from the vectors under test.
+        # `moved` is built FROM `place`, and all six arguments are
+        # built from `moved`, so any position derived from the
+        # arguments would agree with a misaligned walk by
+        # construction. The walk's own local is the one handle here
+        # that `_above_marks` does not feed. Renaming it fails this
+        # test loudly, which is the coupling this check is for.
+        frame = inspect.currentframe()
+        assert frame is not None and frame.f_back is not None
+        walking = frame.f_back.f_locals
+        assert "place" in walking, sorted(walking)
         marks.append(list(was))
+        named.append((walking["place"], list(was), len(now)))
         return False
 
     monkeypatch.setattr(generation, "_swap_allowed", refusing)
@@ -900,9 +979,33 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
         f"position's pairs; the first is {astray[0]} where the three "
         f"positions owe {sorted(owed.values())}"
     )
+    # EVERY VECTOR AGAINST THE POSITION THAT CALL WAS MOVING, one
+    # call at a time, which is what refuses the cyclic misalignment
+    # the docstring names.
+    crossed = [
+        (place, vector)
+        for place, vector, _length in named
+        if vector != owed[place]
+    ]
+    assert not crossed, (
+        f"{len(crossed)} of {len(named)} calls read another position's "
+        f"pairs; the first moved position {crossed[0][0]}, which was "
+        f"handed {crossed[0][1]} where its own pairs owe "
+        f"{owed[crossed[0][0]]}"
+    )
+    # The vector read AFTER the swap names the same pairs in the same
+    # order, so its LENGTH is owed too. Its values are not: the swap
+    # is what moves them, and that is the whole point of taking it.
+    mislengthed = {
+        (place, length)
+        for place, _vector, length in named
+        if length != len(owed[place])
+    }
+    assert not mislengthed, mislengthed
     # AND ALL THREE POSITIONS REALLY WERE MOVED, so no arm of the
-    # alignment is pinned by never being exercised.
-    reached = {place for place in owed if owed[place] in marks}
+    # alignment is pinned by never being exercised. Taken from the
+    # positions the walk named, not from the vectors it built.
+    reached = {place for place, _vector, _length in named}
     assert reached == {1, 2, 3}, reached
 
 
