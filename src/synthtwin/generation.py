@@ -7635,11 +7635,19 @@ def _pinned_fraction(
     covers every numeric cell, the column is written on a fixed grid --
     tenths, hundredths -- and two values a tenth apart are two different
     cells while two values a hundredth apart are one. That is the case
-    a fixed-shape code column is, and the only case this rule acts on.
+    a fixed-shape code column is. It is not the only one: the integer
+    grid below is the other.
 
     Where the census names several widths, which cell gets which is
     settled later by `_width_places`, after the styles; a value cannot
     know here what grid it will be written on, and -1 says so.
+
+    AND A WHOLE-NUMBER COLUMN IS ON THE INTEGER GRID, which is the
+    branch below and which this docstring denied -- it said the pinned
+    fractional case was "the only case this rule acts on", and that
+    stopped being true when the integer branch landed. The two cases
+    are one rule: a column every cell of which is written at one width,
+    whether that width is two figures or none.
     """
     census = facts.fraction_widths
     if len(census) != 1:

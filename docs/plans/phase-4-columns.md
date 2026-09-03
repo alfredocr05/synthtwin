@@ -5108,6 +5108,31 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
+- **R-P4-145 — OPEN (opened 2026-09-03 by review round 1 of the
+  integer-grid landing, which caused it).** NO COMMITTED VECTOR STILL
+  EXERCISES A REPORTED MISS OF `n_distinct_values`.
+
+  `affixed_brackets` was the ONE case in either frozen file where a
+  conforming generator missed a published fact and said so: its source
+  column held twelve different core numbers, it publishes twelve, and
+  the twin held eleven with `23` written twice. That is what a
+  REPORT-ONLY fact looks like when it is doing its work, and G14.3 said
+  so in as many words.
+
+  The integer-grid landing gave method G6.5a's pass the whole-number
+  columns it had been declining. That case is one of them, its twin
+  holds twelve now, and the miss is gone. **The repair is right and the
+  coverage is lost**: every remaining case publishes the figure its own
+  twin reaches, so no frozen vector shows the report naming a shortfall
+  any more, and a regression that stopped reporting one would not move
+  a committed byte.
+
+  Closing it means a frozen case built to miss — a column whose
+  published count its own drawn values cannot reach, small enough to
+  hand-check — carrying the reported shortfall as part of the case.
+  R-P4-20 and R-P4-120 both lean on that report being trustworthy, so
+  this is the vector that keeps them honest.
+
 - **R-P4-144 — OPEN (opened 2026-09-02 by review round 4 of L7, on
   the family that round asked for).** ON ONE TWELVE-COLUMN STRESS FAMILY
   BUILT TO COUPLE ITS PARTS, THE TWIN MISSES 22% OF ITS ABOVE-COUNTS,
@@ -5396,7 +5421,8 @@ declaration for only one of them.
   the measurement that decides it rather than a preference.
 
   **NARROWED 2026-09-02: THE PASS WAS SWITCHED OFF FOR EVERY
-  WHOLE-NUMBER COLUMN, which is most of a real table's numeric ones.**
+  WHOLE-NUMBER COLUMN.** How common those are in a real table is not
+  measured here and the claim is not made.
   `_apart_enough` acts only where every cell is on one grid, and it
   asked `_pinned_fraction` for that grid. A whole-number column carries
   no figure after the point, so its `fraction_widths` census is EMPTY,
@@ -5414,16 +5440,30 @@ declaration for only one of them.
   200-row column publishing 74 held **61 to 68** and now holds **69 to
   71**; a wide one publishing 194 held **193 to 194** and now holds
   **194 at every seed**; seven repeated numbers publish 7 and hold 7
-  either way. Columns already on a fixed fraction width do not move.
+  either way. A column already on a fixed fraction width is not moved
+  BY THIS CHANGE; the pass has always moved those, which is what it was
+  built for.
 
-  **WHAT IS LEFT, and why the count stays REPORT-ONLY.** A tight
+  **WHAT IS LEFT, and it is the WALK and not the facts.** A tight
   column's strata have narrow shares and a share can hold no free grid
   point at all: on the 200-row column above the walk was asked 14 times
-  and answered with a value 6 times. Reaching the count always would
-  mean moving a stratum off its share, and the share IS the published
-  ladder — the two facts are in genuine tension and the method keeps
-  the ladder. An age column publishing 70 and holding 67 is a twin a
-  `nunique()` still reads short by three.
+  and answered 6. An age column publishing 70 and holding 67 is a twin
+  a `nunique()` still reads short by three.
+
+  **THIS ENTRY CLAIMED THE COUNT AND THE LADDER WERE IN CONFLICT, and
+  review round 1 of the landing refuted it with a counterexample.** The
+  walk is greedy, ascending, single-pass, and moves only a stratum that
+  has COLLIDED. Pinned ends `0` and `5`, interior values `1`, `1`, `2`,
+  shares `[0,1]`, `[1,2]`, `[2,4]`: neither `1` can move because `2` is
+  taken, and the unique `2` is never asked because nothing collided
+  with it — yet `2` to `3` and then `1` to `2`, each inside its own
+  share, gives `0,1,2,3,5`. Distinct throughout, no share left, no sign
+  crossed, no end moved. **So "14 asked, 6 answered" measures a greedy
+  one-pass shortfall and not infeasibility.** REPORT-ONLY may still be
+  the right disposition, because genuinely unreachable profiles exist
+  — but this measurement does not establish it. Closing this properly
+  means a walk that can move an uncollided stratum to make room,
+  measured against the ladder it must not disturb.
 
   **AND LANDING L7 MADE IT VISIBLE WHERE IT USED TO BE HIDDEN.** A
   joined position was divided into as many strata as the whole cell had

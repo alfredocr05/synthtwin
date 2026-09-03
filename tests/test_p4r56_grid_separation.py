@@ -185,21 +185,56 @@ def test_a_whole_number_column_is_on_a_grid_too(
 def test_the_integer_grid_is_refused_where_the_column_is_not_whole(
     tmp_path: pathlib.Path,
 ) -> None:
-    """An empty census alone is NOT the integer grid.
+    """An empty census ALONE is not the integer grid.
 
-    `integer_valued` is what says the column is on it. A column whose
-    census is empty because its widths were all withheld under the
-    floor is not whole-valued, and answering 0 there would move a
-    decimal value onto an integer and change what the column holds.
+    `integer_valued` is the other half, and it is what stops a decimal
+    value being moved onto an integer. The census counts figures after
+    the point on `decimal`-styled cells only, so a column written in
+    EXPONENT form publishes an empty census while holding values that
+    are not whole -- which is the one shape that tells the two halves
+    of the rule apart.
+
+    THE FIRST WRITING OF THIS TEST WAS VACUOUS and review round 1 of
+    the landing caught it: its fixture was ragged decimals publishing
+    widths 1, 2 and 3, so it re-ran the several-widths refusal below
+    and would have stayed green if the rule became "every empty census
+    is grid zero".
     """
-    generator = random.Random(99)
-    rows = [f"{generator.uniform(1, 50):.{generator.choice((1, 2, 3))}f}"
-            for _each in range(200)]
-    _document, loaded = _described(tmp_path, rows, "ragged")
+    rows = [
+        f"{value}e0"
+        for value in ("1.5", "2.5", "3.5", "4.5", "6.5", "7.5",
+                      "8.5", "9.5", "1.25", "2.25", "3.25", "4.25")
+    ] * 6
+    _document, loaded = _described(tmp_path, rows, "powers")
     column = loaded.columns[0]
     facts = column.facts
+    # THE FIXTURE IS THE SHAPE THE RULE TURNS ON, asserted rather than
+    # assumed: an EMPTY census on a column that is NOT whole-valued.
+    assert facts.fraction_widths == {}, facts.fraction_widths
     assert facts.integer_valued is False, facts.integer_valued
     assert generation._pinned_fraction(column, facts) == -1
+
+
+def test_the_two_halves_of_the_integer_grid_rule_are_both_needed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same census, the other answer, so neither half is decoration.
+
+    Multiply every value of the column above by ten and each one is
+    whole. The census is empty either way -- both are written in
+    exponent form and neither carries a `decimal` cell -- so the census
+    cannot be what decides it, and `integer_valued` is.
+    """
+    rows = [
+        f"{value}e1"
+        for value in ("1.5", "2.5", "3.5", "4.5", "6.5", "7.5", "8.5", "9.5")
+    ] * 9
+    _document, loaded = _described(tmp_path, rows, "tens")
+    column = loaded.columns[0]
+    facts = column.facts
+    assert facts.fraction_widths == {}, facts.fraction_widths
+    assert facts.integer_valued is True, facts.integer_valued
+    assert generation._pinned_fraction(column, facts) == 0
 
 
 def test_a_column_of_several_widths_is_left_alone(

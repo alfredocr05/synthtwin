@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,313 collected, `4262 passed, 51 skipped` on the merged tree with the integer-grid landing in it (52 skipped on another machine: that count moves, the collected count does not). Three new tests: two in `tests/test_p4r56_grid_separation.py` for the integer grid and its refusal, one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
+| suite | 4,314 collected on the merged tree with the integer-grid landing and its first review round in it (52 skipped on another machine: that count moves, the collected count does not). Three new tests: two in `tests/test_p4r56_grid_separation.py` for the integer grid and its refusal, one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
@@ -599,8 +599,14 @@ are still ahead. The gap list itself is at the foot of this page.
   same four subchecks miss on a plain column, an affixed column's
   cores and a joined position, which is how R-P4-112 was proved
   closed), **R-P4-120** (the values stage does not reach
-  `n_distinct_values`: two strata can be given one number, and a plain
-  column met the count exactly in 83 of 160 runs), **R-P4-121** (a
+  `n_distinct_values`: two strata can be given one number. The 83-of-160
+  figure this line carried was measured BEFORE the integer-grid
+  landing, which found the pass switched off for every whole-number
+  column; 300 ages publishing 70 held 56-66 and now hold 67-70, and the
+  demonstration twin goes 162 of a published 178 to 177. What is left
+  is a greedy one-pass walk that moves only a collided stratum, NOT a
+  conflict between the count and the ladder — the entry carries the
+  counterexample), **R-P4-121** (a
   three- or four-position column cannot reach every agreement target
   at once — 665 of 2,160 pairs still outside the window), **R-P4-122**
   (a shuffled start throws away `part_above` and the ceiling does not
@@ -898,8 +904,15 @@ are still ahead. The gap list itself is at the foot of this page.
   column, and the oracle was overwriting it with a count of the twin's
   own cells — so no frozen case could exercise a miss of it, which is
   the one thing it being REPORT-ONLY is for. A case may now publish its
-  own; this one publishes twelve, its twin holds eleven, and the
-  generator reports the miss. No other case's cells moved.
+  own; this one publishes twelve.
+
+  **ITS TWIN HELD ELEVEN UNTIL THE INTEGER-GRID LANDING AND HOLDS
+  TWELVE NOW**, so the miss this case existed to exercise is gone, and
+  with it the only committed vector where a conforming generator
+  reports one. That is **R-P4-145**, opened by the landing that caused
+  it. Two cells moved in the branch file, not one: this case's first
+  cell `[23]` to `[22]`, and `joined_readings`' eleventh `29/45` to
+  `28/45`.
 
   **And the fourth, which closes the residual: `joined_numbers`.**
   `joined_readings` pins the pairing walk — the only search in the
