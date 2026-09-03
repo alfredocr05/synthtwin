@@ -888,6 +888,14 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "part_agreements", _EACH): _NUMBER,
     ("columns", _EACH, "part_above"): _ARRAY,
     ("columns", _EACH, "part_above", _EACH): _COUNT,
+    # THE COMPOUND ROLE (residual R-P4-13, landing L8). Two counts of
+    # CELLS that sum to `n_present`, so every present cell is in
+    # exactly one published population and a reader can check the
+    # arithmetic. That sum is the answer to review item P1-R6-F7,
+    # which deleted a rule describing part of a column and saying
+    # nothing about the rest.
+    ("columns", _EACH, "n_numeric_cells"): _COUNT,
+    ("columns", _EACH, "n_label_cells"): _COUNT,
     ("columns", _EACH, "parts"): _ARRAY,
     ("columns", _EACH, "parts", _EACH): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "percentiles"): _OBJECT,

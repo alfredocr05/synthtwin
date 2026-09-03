@@ -235,6 +235,10 @@ ROLE_IDENTIFIER = "identifier"
 ROLE_CLOCK = "time_of_day"
 ROLE_AFFIXED = "affixed_number"
 ROLE_LONG_TAIL = "long_tail_labels"
+# THE FIFTEENTH ROLE (residual R-P4-13, landing L8): numbers and
+# labels sharing one cell space, each half described in its own
+# terms and every present cell in exactly one of them.
+ROLE_COMPOUND = "numbers_with_labels"
 # THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
 # in one cell, joined by one repeated separator: `120/80`, `12-05-3`.
 # It is reached ONLY where the person names the column, and never from
@@ -282,6 +286,7 @@ ROLES = (
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
     ROLE_JOINED,
+    ROLE_COMPOUND,
     ROLE_TEXT,
 )
 
@@ -368,6 +373,7 @@ STATISTICAL_TYPES = (
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
     ROLE_JOINED,
+    ROLE_COMPOUND,
     TYPE_TEXT,
 )
 QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
@@ -417,6 +423,15 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     # that read this column as either would take the whole cell for a
     # value and find `120/80` is not one.
     ROLE_JOINED: (ROLE_JOINED, QUALITY_OK),
+    # AND SO DOES A COLUMN OF NUMBERS BESIDE LABELS (residual R-P4-13,
+    # landing L8). The table is a bijection, now FIFTEEN roles onto
+    # fifteen types, and this role's shape is neither `continuous` nor
+    # `long_tail_labels` though it holds a population of each: a
+    # consumer routing on the type axis must not be told this column is
+    # a quantity, because a quarter of its cells are not, nor that it
+    # is a set of labels, because most of them are numbers. It names
+    # itself for the same reason the two above do.
+    ROLE_COMPOUND: (ROLE_COMPOUND, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -647,6 +662,7 @@ EVIDENCE_COUNTS = "evidence_counts_things"
 EVIDENCE_NUMBERS = "evidence_written_as_numbers"
 EVIDENCE_CATEGORIES = "evidence_set_of_categories"
 EVIDENCE_LONG_TAIL = "evidence_long_tail_of_labels"
+EVIDENCE_COMPOUND = "evidence_numbers_with_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
@@ -791,6 +807,7 @@ NOTE_ARITY: "dict[str, int]" = {
     # The different values, the ceiling it passed, the rows, the line a
     # level had to cover, and how many levels covered it.
     EVIDENCE_LONG_TAIL: 5,
+    EVIDENCE_COMPOUND: 4,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
@@ -1257,6 +1274,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{_whole(arguments, 4)} level(s) of it are shared by at "
             f"least {_whole(arguments, 3)} rows each, so this column is "
             f"a long tail of labels rather than free text"
+        )
+    if form == EVIDENCE_COMPOUND:
+        return (
+            f"{_whole(arguments, 0)} of this column's cells are ordinary "
+            f"numbers and {_whole(arguments, 1)} are not, out of "
+            f"{_whole(arguments, 3)} rows; the numbers are too few a "
+            f"share to read the whole column as a quantity, and the "
+            f"cells that are not numbers hold at least one value shared "
+            f"by {_whole(arguments, 2)} rows or more -- so this column "
+            f"is numbers and labels sharing one cell space, and each "
+            f"half is described in its own terms"
         )
     if form == EVIDENCE_NO_READING_FITS:
         return (
@@ -4655,6 +4683,58 @@ def _levels(
     )
 
 
+class _Compound:
+    """The two populations of a `numbers_with_labels` column."""
+
+    def __init__(self, numbers, labels, folded_counts):
+        self.numbers = numbers
+        self.labels = labels
+        self.folded_counts = folded_counts
+
+
+def _compound_reading(cells: "_Cells") -> "_Compound | None":
+    """Numbers and labels in one cell space, or None -- rule 7b.
+
+    Splits the present cells into the ones that read as ordinary
+    numbers and the ones that are not numbers at all, and answers only
+    where BOTH halves earn their own publication: the numbers reach the
+    detection line, and the text holds at least one level that reaches
+    it too.
+
+    A CELL THAT IS A NUMBER THE FORMAT CANNOT HOLD IS NEITHER HALF, and
+    a column holding one is not this column. The first writing of this
+    function sorted every cell that was not an ordinary number into the
+    LABELS -- so a column of readings beside a handful of values too
+    large for binary64 read as "numbers beside labels" and took this
+    role away from `numeric_unrepresentable`, which is the role that
+    describes it properly. Measured by the suite the same hour it was
+    written, on a column named `amount` holding very small and very
+    large values together. Such a column declines here and falls to the
+    rules below exactly as it does today.
+    """
+    line = _long_tail_line(cells.settings)
+    numbers: "list[_Cell]" = []
+    labels: "list[_Cell]" = []
+    for cell in cells.classified:
+        if cell.kind == parsing.NUMBER:
+            numbers.append(cell)
+        elif cell.kind == parsing.NOT_A_NUMBER:
+            labels.append(cell)
+        else:
+            return None
+    if len(numbers) < line or not labels:
+        return None
+    folded_counts: "dict[str, int]" = {}
+    for cell in labels:
+        seen = 0
+        if cell.folded in folded_counts:
+            seen = folded_counts[cell.folded]
+        folded_counts[cell.folded] = seen + 1
+    if _levels_covering(folded_counts, cells.settings) < 1:
+        return None
+    return _Compound(numbers, labels, folded_counts)
+
+
 def _long_tail_line(settings: Settings) -> int:
     """How many rows a level must cover for the long-tail rule to fire.
 
@@ -6517,6 +6597,49 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     return None
 
 
+def _compound_verdict(
+    cells: _Cells,
+    compound: "_Compound",
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The published block of a column of numbers beside labels.
+
+    TWO POPULATIONS AND TWO COUNTS THAT SUM TO `n_present`, which is
+    the whole answer to review item P1-R6-F7. That item deleted a rule
+    which published a distribution over SOME of a column's cells and
+    dropped the rest, because outcome principle 5 forbids describing a
+    column in part and saying nothing about the remainder. This role
+    publishes every present cell in exactly one of two populations and
+    says how many are in each, so nothing is dropped and a reader can
+    check the arithmetic.
+
+    THE COUNTS ARE THE FIRST THING BUILT because they are the thing
+    that makes the rest admissible. The numeric sub-block and the
+    label sub-block are added by the landing's later steps; a block
+    holding only the split is incomplete and is marked so in the
+    register rather than shipped as finished.
+    """
+    return _Verdict(
+        role=ROLE_COMPOUND,
+        evidence=note(
+            EVIDENCE_COMPOUND,
+            (
+                len(compound.numbers),
+                len(compound.labels),
+                _long_tail_line(cells.settings),
+                cells.n_rows,
+            ),
+        ),
+        details={
+            "n_numeric_cells": len(compound.numbers),
+            "n_label_cells": len(compound.labels),
+        },
+        notes=notes,
+        remarks=remarks,
+    )
+
+
 def _clock_verdict(
     cells: _Cells,
     clock: _Clock,
@@ -7520,6 +7643,53 @@ def _decide(
                 notes=notes,
                 remarks=remarks,
             )
+
+    # RULE 7b -- numbers and labels in ONE cell space: the
+    # `numbers_with_labels` role. `7.2` beside `POSITIVE`, `0.9` beside
+    # `NOT DETECTED` -- the long-format panel export (residual
+    # R-P4-13, landing L8).
+    #
+    # WHY THE COLUMN NEEDS A ROLE OF ITS OWN, measured before it was
+    # built. Such a column declines to `long_tail_labels` today, and
+    # that decline is wrong in BOTH directions. On a 300-row column of
+    # 222 readings beside two markers: at the default floor of one
+    # every reading clears the line and is published as its own LEVEL,
+    # 177 of them, so the description carries the readings themselves;
+    # at a floor of eleven the levels fall to two and the twin holds NO
+    # numeric cell at all. The protective setting destroys the numeric
+    # population and the permissive one carries it verbatim. Neither
+    # DESCRIBES it.
+    #
+    # WHERE IT SITS, and it is the one placement that is not free.
+    # After categorical, before the clock rule -- so ABOVE the long
+    # tail and free text, and it therefore MOVES columns those two hold
+    # today. That is an exception to this phase's no-regression rule
+    # and is named as one rather than discovered: the columns it moves
+    # are exactly the ones whose numeric mass nothing describes, and
+    # the transition is exercised both ways in the battery.
+    #
+    # WHAT IT ASKS, and each half must earn its own publication:
+    #
+    #  - the numeric cells fall SHORT of the numeric line, or rule 6
+    #    took the column already and this rule never sees it;
+    #  - the numeric cells number at least the detection line, the
+    #    publication floor or eleven whichever is larger -- the same
+    #    line the long tail uses, so lowering the floor cannot widen
+    #    which columns take this role;
+    #  - and the cells that are NOT numbers hold at least one level
+    #    that clears that same line. This is the half the close plan
+    #    left open: "every other present cell folds to a label level"
+    #    is true of any column, so it cannot be what tells a lab
+    #    column from numbers beside free comments. Asking the text
+    #    half to be label-publishing IN ITS OWN RIGHT is what does,
+    #    and it is the rule the long tail already applies to a whole
+    #    column, applied here to a part of one.
+    #
+    # A column failing any of the three declines to the rules below
+    # exactly as it does today.
+    compound = None if forced_code else _compound_reading(cells)
+    if compound is not None:
+        return _compound_verdict(cells, compound, notes, remarks)
 
     # RULE 8 -- a column of clock times: the `time_of_day` role.
     # `09:30`, `14:05:00`.

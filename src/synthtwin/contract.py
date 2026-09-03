@@ -281,6 +281,10 @@ ROLE_LONG_TAIL = "long_tail_labels"
 # in one cell and joined by one repeated separator. Reached only where
 # the person named the column with `--measurement`, never from values.
 ROLE_JOINED = "joined_numbers"
+# The fifteenth role (residual R-P4-13, landing L8): numbers and
+# labels sharing one cell space, each half described in its own
+# terms, with two counts of cells that sum to `n_present`.
+ROLE_COMPOUND = "numbers_with_labels"
 ROLE_TEXT = "free_text"
 
 # The lower bound of the long-tail detection line (plan P4-D5). The
@@ -304,6 +308,7 @@ ROLES = (
     ROLE_AFFIXED,
     ROLE_LONG_TAIL,
     ROLE_JOINED,
+    ROLE_COMPOUND,
     ROLE_TEXT,
 )
 
@@ -345,6 +350,13 @@ AXIS_ROWS = (
     # read this column as either would take the whole cell for a value
     # and find that `120/80` is not one.
     (ROLE_JOINED, ROLE_JOINED, "ok"),
+    # AND THE FIFTEENTH (residual R-P4-13, landing L8). Fifteen roles
+    # onto fifteen types. Its shape is neither `continuous` nor
+    # `long_tail_labels` though it holds a population of each: a
+    # consumer told this column is a quantity would compute over cells
+    # that are not numbers, and one told it is a set of labels would
+    # miss that most of its cells are.
+    (ROLE_COMPOUND, ROLE_COMPOUND, "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -362,6 +374,7 @@ STATISTICAL_TYPES = (
     "affixed_number",
     "long_tail_labels",
     "joined_numbers",
+    "numbers_with_labels",
     "text",
 )
 
@@ -524,6 +537,21 @@ def _is_a_joined_separator(text: str) -> bool:
     if core and core[len(core) - 1] == " ":
         core = core[: len(core) - 1]
     return core in JOINED_SEPARATORS
+
+COMPOUND_KEYS = (
+    # THE FIFTEENTH ROLE, at its first step (residual R-P4-13, landing
+    # L8). Two counts of CELLS that sum to `n_present`, so every
+    # present cell is in exactly one published population -- the answer
+    # to review item P1-R6-F7, which deleted a rule that described part
+    # of a column and said nothing about the rest.
+    #
+    # THE NUMERIC AND LABEL SUB-BLOCKS ARE NOT HERE YET. The landing
+    # builds them next, and until it does this role publishes the split
+    # and nothing about either half. That is incomplete rather than
+    # finished, and the register says so.
+    "n_numeric_cells",
+    "n_label_cells",
+)
 
 JOINED_KEYS = (
     "part_above",
@@ -1747,6 +1775,27 @@ class AffixedFacts:
     n_core_out_of_range: int
     n_core_contradictory: int
     n_core_not_numeric: int
+
+
+@dataclasses.dataclass(frozen=True)
+class CompoundFacts:
+    """Numbers and labels in one cell space (residual R-P4-13, L8).
+
+    TWO COUNTS OF CELLS THAT SUM TO `n_present`, so every present cell
+    is in exactly one published population. That sum is the whole
+    answer to review item P1-R6-F7, which deleted a rule describing
+    part of a column and saying nothing about the rest: a reader can
+    check the arithmetic without trusting any prose.
+
+    THE TWO SUB-BLOCKS ARE NOT HERE YET. The landing builds the
+    numeric block over the numeric cells and the label block over the
+    rest as its next step; until then this role publishes the split
+    and nothing about either half, which is incomplete rather than
+    finished and is recorded as such in the register.
+    """
+
+    n_numeric_cells: int
+    n_label_cells: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4270,6 +4319,8 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return CLOCK_KEYS
     if role == ROLE_JOINED:
         return JOINED_KEYS
+    if role == ROLE_COMPOUND:
+        return COMPOUND_KEYS
     if role == ROLE_AFFIXED:
         return AFFIXED_KEYS
     if role == ROLE_IDENTIFIER:
@@ -4332,6 +4383,8 @@ def _facts(
         return _clock_facts(mapping, where, frame, n_present)
     if role == ROLE_JOINED:
         return _joined_facts(mapping, where, frame, n_present)
+    if role == ROLE_COMPOUND:
+        return _compound_facts(mapping, where, n_present)
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
@@ -7110,6 +7163,48 @@ def _affixed_facts(
         n_core_contradictory=core_contradictory,
         n_core_not_numeric=core_not_numeric,
     )
+
+
+def _compound_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    n_present: int,
+) -> CompoundFacts:
+    """A column of numbers beside labels (residual R-P4-13, landing L8).
+
+    THE SUM IS CHECKED HERE AND NOT ASSUMED. Two counts that did not
+    account for every present cell would be a description of part of a
+    column, which outcome principle 5 forbids and review item P1-R6-F7
+    deleted a rule for. A file whose counts do not add up is refused
+    rather than repaired, on the same terms as every other arithmetic
+    the loader holds.
+    """
+    numeric = _bounded(
+        mapping["n_numeric_cells"],
+        "n_numeric_cells",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    labels = _bounded(
+        mapping["n_label_cells"],
+        "n_label_cells",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    if numeric + labels != n_present:
+        raise _out_of_range(
+            "n_numeric_cells",
+            where,
+            f"a total of {numeric + labels} with n_label_cells",
+            f"a total of exactly the {n_present} present cell(s) this "
+            "column has, so that every one of them is in one published "
+            "population and none is in two",
+        )
+    return CompoundFacts(n_numeric_cells=numeric, n_label_cells=labels)
 
 
 def _text_facts(
