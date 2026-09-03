@@ -7643,6 +7643,25 @@ def _pinned_fraction(
     """
     census = facts.fraction_widths
     if len(census) != 1:
+        # A WHOLE-NUMBER COLUMN IS ON A GRID TOO, and it is the
+        # integers. Its census is EMPTY -- no cell carries a figure
+        # after the point, so there is no width to count -- which read
+        # as "no grid" and turned the separation below off for every
+        # such column. That is most of the numeric columns a real table
+        # holds -- the whole-valued ones a real table is mostly made
+        # of.
+        #
+        # MEASURED through the real reader, producer, loader and
+        # generator, twelve seeds each, published against held:
+        # 300 ages between 18 and 89 publishing 70 different numbers
+        # held 56 to 66 with the separation off and 67 to 70 with it
+        # on; a tight 200-row column publishing 74 held 61 to 68
+        # against 69 to 71; a wide one publishing 194 held 193 to 194
+        # against 194 at every seed. A column whose values repeat --
+        # seven numbers over 200 rows -- is exact either way, so the
+        # rule costs nothing where there was nothing to win.
+        if facts.integer_valued and not census:
+            return 0
         return -1
     for figures in census:
         # THE POOLED KEY IS NOT A WIDTH (review item P4-R56-R1-F2). A
@@ -7801,7 +7820,10 @@ def _apart_enough(
     behaviour above and R-P4-56 stays open for them.
     """
     figures = _pinned_fraction(column, facts)
-    if figures < 1:
+    # ZERO IS A WIDTH, NOT AN ABSENCE. This read `< 1` and so declined
+    # the integer grid along with the unknown one; `-1` is the only
+    # answer that means "no grid this stage can act on".
+    if figures < 0:
         return values
     total = len(values)
     if total < 2:

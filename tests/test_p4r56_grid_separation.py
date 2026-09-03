@@ -138,6 +138,70 @@ def test_nothing_published_is_traded_for_the_separation(
     assert max(numbers) == published["percentiles"]["max"]
 
 
+def test_a_whole_number_column_is_on_a_grid_too(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE INTEGERS ARE A GRID, and this pass declined them until now.
+
+    A whole-number column carries no figure after the point, so its
+    `fraction_widths` census is EMPTY -- there is no width to count.
+    `_pinned_fraction` read that as "no grid" and answered -1, and the
+    pass returned before doing anything. Most of a real table's numeric
+    columns hold nothing but whole values -- an age, a count, a dose.
+
+    Measured over twelve seeds, published against held: 300 ages
+    between 18 and 89 publishing 70 different numbers held 56 to 66
+    with the pass off and 67 to 70 with it on. This test asserts the
+    gate itself and one seed's outcome, because the range is a
+    measurement and the gate is the rule.
+    """
+    generator = random.Random(31337)
+    rows = [str(generator.randint(18, 89)) for _each in range(300)]
+    _document, loaded = _described(tmp_path, rows, "ages")
+    column = loaded.columns[0]
+    facts = column.facts
+    # THE FIXTURE IS THE SHAPE THE RULE IS ABOUT, asserted rather than
+    # assumed: an empty census on an integer-valued column.
+    assert facts.fraction_widths == {}, facts.fraction_widths
+    assert facts.integer_valued is True
+    assert generation._pinned_fraction(column, facts) == 0
+
+    published = facts.n_distinct_values
+    assert published is not None and published > 60, published
+    twin = generation.generate(loaded, SEED)
+    cells = [cell for cell in twin.columns[0] if cell != ""]
+    held = len({float(cell) for cell in cells})
+    # The pass cannot always reach the count -- a tight column's shares
+    # hold no free point -- so what is pinned is that it gets CLOSE,
+    # where before it lost up to a fifth of the count.
+    assert held >= published - 3, (held, published)
+    # AND EVERY CELL IS STILL WHOLE, which is the fact the grid is
+    # there to keep: a repair that wrote `41.5` would meet the count
+    # and change the column's type.
+    assert all(float(cell) == int(float(cell)) for cell in cells)
+    assert all("." not in cell for cell in cells)
+
+
+def test_the_integer_grid_is_refused_where_the_column_is_not_whole(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An empty census alone is NOT the integer grid.
+
+    `integer_valued` is what says the column is on it. A column whose
+    census is empty because its widths were all withheld under the
+    floor is not whole-valued, and answering 0 there would move a
+    decimal value onto an integer and change what the column holds.
+    """
+    generator = random.Random(99)
+    rows = [f"{generator.uniform(1, 50):.{generator.choice((1, 2, 3))}f}"
+            for _each in range(200)]
+    _document, loaded = _described(tmp_path, rows, "ragged")
+    column = loaded.columns[0]
+    facts = column.facts
+    assert facts.integer_valued is False, facts.integer_valued
+    assert generation._pinned_fraction(column, facts) == -1
+
+
 def test_a_column_of_several_widths_is_left_alone(
     tmp_path: pathlib.Path,
 ) -> None:

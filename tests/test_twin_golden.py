@@ -155,7 +155,13 @@ NARROW_COLUMN_DIGESTS = {
     "record_code": "f6d74ac3a099e5713338c9baff476924",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
-    "reading": "037fc52e83598de4e97f0346e624ea06",
+    # RE-RECORDED at the integer-grid landing, and the ONLY one of the
+    # thirteen that moved. `reading` is whole-valued, so G6.5a's pass
+    # declined it until that landing and two of its strata could be
+    # written as one cell. Every other column here is byte-identical,
+    # which is what says the cells moved for the rule and not for a
+    # reason nobody looked at.
+    "reading": "cf1905a29ccf396522f03c9a7af4e80f",
     "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
     "recorded_on": "275356366d05346ada86307a49d4467c",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
@@ -292,7 +298,10 @@ def test_widening_the_demonstration_lost_no_obligation(
         assert found == digest, (
             f"the twin's {name!r} column changed against the frozen "
             "baseline, so the demonstration's cells moved for a reason "
-            "that has nothing to do with the column added beside them"
+            "that has nothing to do with the column added beside them. "
+            "Satisfy yourself the new cells are the ones the method "
+            "requires before re-recording, exactly as the twin digest "
+            f"below asks. New digest: {found}"
         )
 
 
@@ -610,8 +619,23 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # column, so a position used to get one stratum per cell and could not
 # collide. The count of different CELLS -- the fact `synthtwin validate`
 # checks exactly -- is 240 of 240 on both sides.
+# RE-RECORDED at the integer-grid landing (method G6.5a). The pass that
+# keeps two strata from being written as one cell asked the
+# fraction-width census for the column's grid, and a whole-number
+# column's census is EMPTY -- so the pass declined every such column.
+# WHAT THE REPORT SAYS ABOUT THE MOVE, read before re-recording: the
+# twin now holds 177 different values of a published 178 where it held
+# 162, and the approximation envelope closes from `162 to 178` to
+# `177 to 178`. Three of the four moments named beside it move CLOSER
+# to their published value and the fourth by a ten-thousandth. No
+# sentence, obligation or verdict leaves the report, and the check
+# census is unchanged at 416 wide and 407 narrow -- so the report says
+# more than it did, which is the direction the assertion below asks
+# about. The independent oracle carries G6.5a too and its frozen
+# vectors agree, which is what makes these bytes the METHOD's answer
+# rather than the implementation's.
 GOLDEN_TWIN_SHA256 = (
-    "808eeca54b6e30e23e5e381b6b8d07c6017a984d6cd1e7b442f0b0c23b490d03"
+    "4164b03606d7b256777b6c5f1d093d2ec04247e2e8dd288edd9efb083c7e1ddb"
 )
 
 
@@ -908,8 +932,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # the joined column moved with them. The report was read before it was
 # recorded and it says no less than it did -- the same facts, the same
 # order, with the joined column's achieved numbers restated.
+# RE-RECORDED at the integer-grid landing, and the page moved only
+# where the twin did. Diffed line by line against the run before it:
+# three lines carrying "the twin holds" go 162 to 177 against a
+# published 178, two envelope lines close from "162 to 178" to
+# "177 to 178", and four moment lines move by less than a twentieth.
+# Nothing else differs -- no sentence added, none removed, no verdict
+# changed -- so the page says the same things about a better twin.
 GOLDEN_REPORT_SHA256 = (
-    "f6dbf754fe9615c92450a363f207109f62bee5fc4925d2dc8566a4d8c026905f"
+    "2c639ea0f0637d492f943d84ef6bb70204f042f92fa0786d0074f47de47f3f3f"
 )
 
 
@@ -1320,8 +1351,14 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # demonstration has two positions and therefore one pair, so its own
 # verdicts are unchanged in kind -- no obligation left the census and
 # none was lowered.
+# RE-RECORDED at the integer-grid landing. The census carries the SAME
+# obligations -- 416 checks wide and 407 narrow, both asserted whole
+# and by digest above and neither moved -- so what changed here is
+# what the checks SAY about a twin whose distinct count rose, and not
+# which checks were taken. A census carrying fewer obligations would
+# have turned those two counts red first.
 GOLDEN_QUALITY_SHA256 = (
-    "3ec1643ca66f2cc107ced501878b5473ce6c43ea79ab06becd68d52b0b39538d"
+    "14a15119b5d6b5a5986b6c497f5a17a95875d2a068be4e828fac144d9344b093"
 )
 
 

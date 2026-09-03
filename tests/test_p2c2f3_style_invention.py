@@ -27,6 +27,7 @@ WHAT THIS FILE HOLDS THE REPAIR TO:
 """
 
 import pathlib
+import random
 
 import fixtures
 from synthtwin import (
@@ -188,23 +189,67 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
 ) -> None:
     """Point 4's second half: the shortfall speaks.
 
-    Nought through four, every cell written plainly. The whole-number
-    rule can round two neighbouring strata onto one value and `plain`
-    has no second spelling of it, so the count of different values falls
-    short -- and the report names it, with the range of review item
-    P2-C2-F4 beside it.
+    Every cell written plainly. The whole-number rule can round two
+    neighbouring strata onto one value and `plain` has no second
+    spelling of it, so the count of different values falls short -- and
+    the report names it, with the range of review item P2-C2-F4 beside
+    it.
+
+    THE WITNESS IS 200 ROWS AND WAS FIVE UNTIL THE INTEGER-GRID
+    LANDING. Nought through four fell short because the grid pass of
+    G6.5a declined a whole-number column; it now reaches all five, and
+    the test below pins that. A shortfall still happens where the
+    strata are genuinely crowded -- 200 values between 40 and 120
+    publish 74 different numbers and the twin holds 70 -- so the
+    reporting path is pinned on a column that still cannot reach,
+    rather than on one the tool has since learnt to satisfy.
     """
-    document, loaded = _described(tmp_path, [str(n) for n in range(5)])
-    assert set(document["columns"][0]["numeric_styles"]) == {"(withheld)"}
+    generator = random.Random(31337)
+    values = [str(generator.randint(40, 120)) for _each in range(200)]
+    document, loaded = _described(tmp_path, values)
 
     twin = generation.generate(loaded, 0)
     written = _present(twin)
     assert all(parsing.numeric_style(cell) == "plain" for cell in written)
+    # THE FIXTURE REALLY DOES FALL SHORT, asserted rather than assumed:
+    # a column that reached its count would make this test vacuous.
+    published = loaded.columns[0].facts.n_distinct_values
+    held = len({float(cell) for cell in written})
+    assert held < published, (held, published)
     named = [
         note.fact for note in twin.deviations
         if note.fact in ("n_distinct", "n_distinct_folded")
     ]
     assert named == ["n_distinct", "n_distinct_folded"]
+
+
+def test_a_small_whole_number_column_now_reaches_its_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other side of the same rule, and the landing that bought it.
+
+    Nought through four is five different numbers over five cells. The
+    grid pass of G6.5a acts only where every cell is on one grid, and
+    it asked the fraction-width census for that grid -- which is EMPTY
+    on a whole-number column, so the pass declined every one of them
+    and two strata could be written as one cell. The twin held four of
+    the five and the report named the miss.
+
+    It holds all five now, and says nothing, because there is nothing
+    to say.
+    """
+    document, loaded = _described(tmp_path, [str(number) for number in range(5)])
+    assert set(document["columns"][0]["numeric_styles"]) == {"(withheld)"}
+
+    twin = generation.generate(loaded, 0)
+    written = _present(twin)
+    assert all(parsing.numeric_style(cell) == "plain" for cell in written)
+    assert len({float(cell) for cell in written}) == 5, written
+    named = [
+        note.fact for note in twin.deviations
+        if note.fact in ("n_distinct", "n_distinct_folded", "n_distinct_values")
+    ]
+    assert named == [], named
 
 
 def test_no_zero_is_spent_that_the_published_count_did_not_ask_for(

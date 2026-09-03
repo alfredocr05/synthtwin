@@ -871,7 +871,7 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     same as the shipped rule, because a rule handed the wrong pairs
     still refuses roughly the right proportion of swaps and the walk
     finds its way by another road. The vectors themselves have to be
-    read. Under the mutant ALL 29,255 of them name no position's
+    read. Under the mutant ALL 29,362 of them name no position's
     pairs; under the shipped rule none does.
 
     AND MEMBERSHIP ALONE IS NOT THE CHECK, which review round 4
@@ -887,8 +887,8 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     1)` instead of from `place`, so the walk swaps one position's
     cells and judges another position's pairs -- the cycle above,
     exactly. The membership check on its own stays GREEN under it.
-    The per-call binding refuses all 29,255 vectors, naming position
-    1 handed `[5, 1, 0]` where its own pairs owe `[14, 1, 4]`. The
+    The per-call binding refuses all 29,362 vectors, naming position
+    1 handed `[5, 1, 0]` where its own pairs owe `[18, 1, 1]`. The
     seat-index mutant further down is caught by both.
 
     HOW THE TRUTH IS COMPUTED WITHOUT READING THE CLOSURE'S OWN LIST.
@@ -899,7 +899,7 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     the rule is owed on a try that moves position `p` is then those
     gaps at the seats whose pairs contain `p`, in seat order, and a
     four-position column has only three such vectors. Every one of the
-    29,255 vectors the walk really hands the rule must be one of them.
+    29,362 vectors the walk really hands the rule must be one of them.
     """
     _document, loaded, _folder, _table = _described(_battery_column(11))
     column = loaded.columns[0]
@@ -950,7 +950,7 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     ]
     # The starting arrangement is fixed by the profile and the seed, so
     # it is stated here rather than left to be read off a failure.
-    assert started == [14, 5, 0, 1, 4, 0], started
+    assert started == [18, 5, 0, 1, 1, 0], started
 
     # WHAT EACH MOVABLE POSITION IS OWED: its own pairs' gaps, in the
     # order the walk's `moved` list builds them, which is seat order.
@@ -962,14 +962,14 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
         ]
         for place in range(1, facts.n_parts)
     }
-    assert owed == {1: [14, 1, 4], 2: [5, 1, 0], 3: [0, 4, 0]}, owed
+    assert owed == {1: [18, 1, 1], 2: [5, 1, 0], 3: [0, 1, 0]}, owed
     # AND THE FIXTURE REALLY CAN TELL THE TWO APART, asserted instead
     # of assumed: a vector indexed by its own place in the moved list
     # reads the first three seats, and that is no position's pairs. A
     # column whose gaps happened to coincide would leave this test
     # vacuous without saying so.
     by_step = started[: facts.n_parts - 1]
-    assert by_step == [14, 5, 0], by_step
+    assert by_step == [18, 5, 0], by_step
     assert by_step not in owed.values(), (by_step, owed)
 
     assert marks, "the walk never consulted the acceptance rule"

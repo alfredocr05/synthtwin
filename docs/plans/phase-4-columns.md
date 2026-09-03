@@ -5395,6 +5395,36 @@ declaration for only one of them.
   runs.** So the count is REPORT-ONLY and stays that way, and this is
   the measurement that decides it rather than a preference.
 
+  **NARROWED 2026-09-02: THE PASS WAS SWITCHED OFF FOR EVERY
+  WHOLE-NUMBER COLUMN, which is most of a real table's numeric ones.**
+  `_apart_enough` acts only where every cell is on one grid, and it
+  asked `_pinned_fraction` for that grid. A whole-number column carries
+  no figure after the point, so its `fraction_widths` census is EMPTY,
+  so the census did not name exactly one width, so the answer was -1 —
+  "no grid" — and the pass returned before doing anything. The gate
+  then read `figures < 1`, which declined a grid of zero as well. Both
+  are corrected: an empty census on an `integer_valued` column IS the
+  integer grid, and only -1 means no grid. Method G6.5a is new and
+  states the whole pass, which the method had referenced twice and
+  never written down.
+
+  **What it bought, twelve seeds through the real path, published
+  against held, before and after:** 300 ages between 18 and 89
+  publishing 70 held **56 to 66** and now hold **67 to 70**; a tight
+  200-row column publishing 74 held **61 to 68** and now holds **69 to
+  71**; a wide one publishing 194 held **193 to 194** and now holds
+  **194 at every seed**; seven repeated numbers publish 7 and hold 7
+  either way. Columns already on a fixed fraction width do not move.
+
+  **WHAT IS LEFT, and why the count stays REPORT-ONLY.** A tight
+  column's strata have narrow shares and a share can hold no free grid
+  point at all: on the 200-row column above the walk was asked 14 times
+  and answered with a value 6 times. Reaching the count always would
+  mean moving a stratum off its share, and the share IS the published
+  ladder — the two facts are in genuine tension and the method keeps
+  the ladder. An age column publishing 70 and holding 67 is a twin a
+  `nunique()` still reads short by three.
+
   **AND LANDING L7 MADE IT VISIBLE WHERE IT USED TO BE HIDDEN.** A
   joined position was divided into as many strata as the whole cell had
   different values, which on an ALL-DIFFERENT column is one stratum per

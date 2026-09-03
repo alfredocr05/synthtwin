@@ -1965,6 +1965,81 @@ decision 7 permits, falling back to the two-sided envelope only where
 even those cannot supply the count" — and it is stated here so two
 implementations cannot resolve the conflict in opposite directions.
 
+### G6.5a Reaching `n_distinct_values`, the count of different NUMBERS
+
+G6.5 above reaches the two counts of different SPELLINGS. This section
+reaches the count of different numbers, which is a separate published
+fact and is not met by spelling one number two ways. **The method
+referenced this pass twice — G6.4's held-back pool and G6.6.5 both
+order themselves against "the step that pulls two strata apart" — and
+never stated it. Written here at review of the distinct-count landing.**
+
+**Why a pass is needed at all.** G5.2 divides a grain into as many
+strata as the block publishes different numbers and G5.3 gives each
+stratum a value from its own share of the ladder. Two of those values
+can be written as one cell: on a fixed-shape code column of 240 cells
+at `NNN.N`, the ladder hands back `252.96704532913995` and
+`253.02741326459255`, six hundredths apart, and at the published one
+figure both are `253.0`. The carrier walk of G6.4 can cause it too, by
+moving a stratum onto a whole number another stratum already holds.
+
+**WHEN IT RUNS.** After G6.4's point-free carrier walk — which can
+itself land two strata on one text — and before the held-back pool.
+
+**WHICH GRID, and this is the clause the landing corrected.** The pass
+acts only where every numeric cell of the column is written on ONE
+grid, because only then does a value know what text it will wear:
+
+- where `fraction_widths` names exactly one width and that width covers
+  every numeric cell, the grid is that width — tenths, hundredths;
+- where `fraction_widths` is EMPTY and the column is `integer_valued`,
+  the grid is the INTEGERS. A whole-number column carries no figure
+  after the point, so it has no width to count and its census is empty
+  — which an implementation may read as "no grid" and skip the pass
+  entirely. It is a grid, and it is the one most of a real table's
+  numeric columns are on -- the whole-valued ones a real table is
+  mostly made of;
+- otherwise the pass does not run. Where the census names several
+  widths, which cell gets which is settled after the styles by G6.6,
+  and a value cannot know here what it will be written at.
+
+**WHICH STRATA MAY MOVE.** Only a stratum whose text is held by more
+than one stratum — moving a stratum that collides with nothing frees
+nothing. Never the first or last stratum, whose values are the
+published `min` and `max`. Never the zero stratum, whose value is a
+published count's whole reason for being there.
+
+**THE MOVE.** The nearest free point of the grid inside the stratum's
+own share of the ladder, walked outward from the stratum's value one
+grid step at a time, the LOWER of two equally distant candidates
+taken first so that two implementations reading this text choose the
+same point. A candidate is refused where its text is already written,
+where it leaves the stratum's share, where it leaves the published
+`min` and `max`, or where it would cross into another sign band — the
+counts of negative, zero and positive cells are published facts and no
+repair may move one. A stratum for which every candidate is refused
+stays where it is, and the pass moves on. The pass stops as soon as the
+count of different texts reaches the published `n_distinct_values`.
+
+**MEASURED, through the real reader, producer, loader and generator at
+twelve seeds, published against held, before this clause and after.**
+300 ages between 18 and 89 publishing 70 different numbers: **56 to 66
+before, 67 to 70 after**. A tight 200-row column publishing 74: **61 to
+68 before, 69 to 71 after**. A wide one publishing 194: **193 to 194
+before, 194 at every seed after**. A column of seven repeated numbers
+over 200 rows publishes 7 and holds 7 either way, so the clause costs
+nothing where there was nothing to win. Columns at one fixed fraction
+width were already on a grid and do not move.
+
+**WHAT IT STILL CANNOT DO.** A tight column's strata have narrow
+shares, and a share can hold no free point of the grid at all — on the
+200-row column above the walk was asked 14 times and answered with a
+value 6 times. The count is therefore REPORT-ONLY and stays so: the
+twin's own report names the shortfall. Reaching it always would mean
+moving a stratum off its share, and the share is the published ladder,
+so the two facts are in genuine tension and the ladder is the one
+this method keeps.
+
 ### G6.6 The published field widths reach the VALUES
 
 **THE CENSUS THIS SECTION SERVES IS `field_widths`** (contract 7.10,

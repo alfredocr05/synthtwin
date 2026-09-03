@@ -28,7 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim on the merged tree with review round 4's landing in it (52 skipped on another machine: that count moves, the collected count does not). The one new test is round 4's `test_every_position_aims_at_an_above_count_on_half_its_own_turns`; round 5 changed documents only |
+| suite | 4,313 collected, `4262 passed, 51 skipped` on the merged tree with the integer-grid landing in it (52 skipped on another machine: that count moves, the collected count does not). Three new tests: two in `tests/test_p4r56_grid_separation.py` for the integer grid and its refusal, one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
+| suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
