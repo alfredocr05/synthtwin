@@ -45,6 +45,33 @@ consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
 
+* **THE INTEGER-GRID LANDING IS RATIFIED, at review round 7 of
+  2026-09-03, and L8 is safe to build on it.** It closes the half of
+  L7's scope that L7 did not: the pass that stops two strata being
+  written as one cell was switched OFF for every whole-number column,
+  because such a column carries no figure after the point, so its
+  `fraction_widths` census is empty, so no width was named. 300 ages
+  publishing 70 different numbers held 56-66 and now hold 67-70; the
+  demonstration twin goes from 162 of a published 178 to 177.
+
+  **Seven rounds, and the product change was settled at the first.**
+  Everything after it made the machinery honest enough to reuse:
+  method **G6.5a** written (the pass was referenced twice and never
+  stated), the snap's OPERAND and the sign of a magnitude that rounds
+  away stated, the oracle made a real second opinion twice over (it
+  had been a transcription, then it dropped a refusal exact arithmetic
+  cannot notice), an inclusive endpoint that a binary step refused,
+  a reach that counted additions where the method counts GRID steps,
+  and a count that could rise without a value appearing. Nine tests
+  hold what none of it had.
+
+  **Still open and named**: R-P4-20 and R-P4-120 (the count is
+  REPORT-ONLY, and the shortfall left is a GREEDY ONE-PASS walk and
+  not a conflict with the ladder -- the counterexample is in the
+  register), R-P4-145 (no frozen case pins what a twin SAYS),
+  R-P4-146 (the fixed-fraction snap is half unwritten and has no
+  method section of its own).
+
 * **LANDING L7 IS RATIFIED, at review round 8 of 2026-09-02.** Its
   scoped defects are both repaired, measured and pinned: the parity
   lockout that starved half the positions of every odd-position column,
