@@ -3,7 +3,7 @@
   "cases": {
     "affixed_brackets": {
       "cells": [
-        "[23]",
+        "[22]",
         "[42]",
         "[34]",
         "[33]",
@@ -721,7 +721,7 @@
         "[12]",
         "[17]",
         "[20]",
-        "[23]",
+        "[22]",
         "[23]",
         "[28]",
         "[29]",
@@ -731,7 +731,7 @@
         "[42]",
         "[45]"
       ],
-      "csv_bytes": "[23]\n[42]\n[34]\n[33]\n[28]\n[12]\n[20]\n[23]\n[29]\n[45]\n[38]\n[17]\n",
+      "csv_bytes": "[22]\n[42]\n[34]\n[33]\n[28]\n[12]\n[20]\n[23]\n[29]\n[45]\n[38]\n[17]\n",
       "float64": [],
       "why": "the first frozen case for the affixed role, and the one that pins the rule the role exists for: A COLUMN OF THIS ROLE PUBLISHES TWO SETS OF CLASS COUNTS AND THEY ARE NOT THE SAME SET. The universal counts answer for the CELLS, and a cell reading `[12]` is not a number, so this column publishes `n_numeric` of nought and twelve cells of ordinary text. The quantitative block answers for the CORES, and there `n_core_numeric` is twelve. An implementer who hands the numeric machinery the cell counts builds a column of no cells at all, which is what this case's mutant does and why it stops the oracle rather than moving its bytes. The pair is TWO-SIDED and its two characters differ, so the committed bytes pin the order of the wrap: `[` before the core and `]` after it, character for character as published, with no trimming and no normalization of either side. Every present cell wore the pair, so this case has no stragglers -- the walk of G6A.3, with its ceiling and its three refusals, is a second branch and belongs to a case of its own. The word budget is the numeric one read over the cores (G4.3): ten content words for twelve cells, which is what the shipped generator plans for this column as well. AND IT IS THE ONE CASE IN EITHER FILE WHERE A CONFORMING GENERATOR MISSES A PUBLISHED FACT AND SAYS SO. Its source column held twelve different numbers and it publishes twelve; the twin holds eleven, because values drawn to a published ladder repeat more evenly than real ones did, and `23` comes out twice. `n_distinct_values` is REPORT-ONLY for exactly this reason (residual R-P4-20), and the shipped generator reports it: twelve published, eleven achieved. Every other case carrying that key publishes the figure its own twin reaches, so none of them can exercise the miss.",
       "word_budget": {
@@ -1039,7 +1039,7 @@
         "40/25",
         "57/45",
         "32/33",
-        "29/45"
+        "28/45"
       ],
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
@@ -2422,7 +2422,7 @@
       "content": [
         "24/28",
         "24/25",
-        "29/45",
+        "28/45",
         "29/25",
         "32/33",
         "36/25",
@@ -2433,7 +2433,7 @@
         "49/45",
         "57/45"
       ],
-      "csv_bytes": "36/25\n37/28\n24/28\n24/25\n29/25\n40/45\n40/35\n49/45\n40/25\n57/45\n32/33\n29/45\n",
+      "csv_bytes": "36/25\n37/28\n24/28\n24/25\n29/25\n40/45\n40/35\n49/45\n40/25\n57/45\n32/33\n28/45\n",
       "float64": [],
       "why": "the first frozen case for the joined role, and the one that pins the PAIRING WALK of G6B.4 -- the only search in this method, and the only place where synthtwin reproduces structure between two quantities at all. Each position is built by the numeric rules over its own view, laid out by G5.2's grain rule from that position's own count of different numbers, and the walk then decides which number of one meets which of the other, holding the FIRST position still so that no position's multiset can change. IT IS NOT A COLUMN THE WALK CAN IGNORE, and it was chosen against that check rather than assumed. A first draft published an agreement of 0.9983, which a rank-for-rank start already meets, so removing the walk entirely changed no committed byte: that case pinned the sort and the start rule and nothing else. This column publishes 0.4323, holds the earlier position above the later in only seven of twelve rows, and repeats values in both positions. WHAT IT PINS, MEASURED RULE BY RULE AND RE-MEASURED AT LANDING L7. Withdrawn one at a time from this file, these move its cells: the walk itself, six; the VALUE of the 0.4 threshold, eleven, because moving it to 0.9 pulls this column into the permutation branch; the proposal step of G6B.4a, six; and the distinct-cell term of the distance, two. A fifth is REFUSED rather than moved: taking the whole cell's distinctness for a position instead of the position's own changes the draw budget, and the case is rejected before a cell is built. AND IT PINS FEWER RULES THAN IT DID, WHICH IS SAID HERE RATHER THAN LEFT TO BE NOTICED. Before L7 it also pinned the reserve cursor's restart, accept-on-equal, that a try ceiling exists, and the `part_above` term. It pins none of those now: the proposal step reaches this column's published cell count early, so the walk stops moving long before the ceiling, before an equal swap matters and before the cursor wraps -- and `part_above` is already met at the start. TEN rules of this walk therefore stand on the method's word and on the mutation testing of the shipped generator, not on this case: the anchor, each position's own start, the cursor restart stepping along, accept-on-equal, both facts about the ceiling, the `part_above` term, the agreement scored outside its window, the agreement tie-break, and the proposal's partner condition. A case that bites on those wants a longer column and more than two positions, and is owed. AND THE WALK DOES NOT CONVERGE ON THIS COLUMN, which the case freezes rather than hides. The twin meets `part_above` exactly, seven of twelve, holds all twelve readings different, and reaches a rank agreement of 0.5103 against the 0.4323 published -- outside G12.9's window, reported as a miss by both pages: it stops at its try ceiling, never on distance. It also holds EIGHT different first numbers where the block publishes nine, which is residual R-P4-120 frozen into a committed case.",
       "word_budget": {

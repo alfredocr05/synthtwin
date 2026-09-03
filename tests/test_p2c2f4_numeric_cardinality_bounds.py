@@ -76,10 +76,17 @@ def test_both_cardinalities_are_measured_and_bounded_on_the_named_column(
     """Points 1 and 2, on the genuine input the item names.
 
     Nought through four, every cell plain. The published counts are five
-    and five; the whole-number rule rounds two strata onto one value and
-    `plain` has no second spelling of it, so the twin holds four. Both
-    facts now carry the achieved value and both ends of the envelope,
-    and the achieved value sits inside them.
+    and five. Both facts carry the achieved value and both ends of the
+    envelope, and the achieved value sits inside them.
+
+    **THE TWIN HELD FOUR UNTIL THE INTEGER-GRID LANDING** -- the
+    whole-number rule rounded two strata onto one value and `plain` has
+    no second spelling of it -- so this case read `achieved 4` inside a
+    `[4, 5]` envelope. G6.5a's pass now separates the two strata on the
+    integer grid, the supply is five, and the envelope closes to
+    `[5, 5]`. The envelope is `min` and `max` of the supply against the
+    published count and is not read off the achieved value, so this is
+    the supply improving and not the bound following the outcome.
     """
     loaded = _described(tmp_path, [str(n) for n in range(5)])
     block = loaded.columns[0]
@@ -90,8 +97,8 @@ def test_both_cardinalities_are_measured_and_bounded_on_the_named_column(
     for fact in ("n_distinct", "n_distinct_folded"):
         record = _found(twin, fact)
         assert record.published == "5"
-        assert record.achieved == "4"
-        assert record.lowest == "4"
+        assert record.achieved == "5"
+        assert record.lowest == "5"
         assert record.highest == "5"
         assert record.inside is True
 
@@ -131,7 +138,7 @@ def test_both_reach_the_rendered_report(tmp_path: pathlib.Path) -> None:
     twin = generation.generate(loaded, 0)
     text = rendering.report(loaded, twin)
     assert "how many different spellings this column holds" in text
-    assert "allowed anywhere from 4 to 5" in text
+    assert "allowed anywhere from 5 to 5" in text
 
 
 # -- 4. the bound can fail --------------------------------------------

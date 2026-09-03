@@ -1759,6 +1759,138 @@ def whole_number_values(
     return values
 
 
+def grid_of(fraction_widths, integer_valued):
+    """Which grid every numeric cell of this column is written on -- G6.5a.
+
+    The count of figures after the point, or -1 where the column is not
+    on one grid and this pass may not act.  A census naming exactly one
+    width, covering every numeric cell, IS that width.  An EMPTY census
+    on a whole-valued column is the INTEGER grid: no cell carries a
+    figure after the point, so there is no width to count, and reading
+    that as "no grid" turns the pass off for most of a real table's
+    numeric columns.
+    """
+    if len(fraction_widths) != 1:
+        if integer_valued and not fraction_widths:
+            return 0
+        return -1
+    for width in fraction_widths:
+        try:
+            return int(width)
+        except (TypeError, ValueError):
+            return -1
+    return -1
+
+
+def grid_text(value, figures):
+    """The text the writer will write this value at, on the grid."""
+    if figures == 0:
+        spelling = point_free_spelling(value, True)
+        if spelling is not None:
+            return spelling
+    return "%.*f" % (figures, value)
+
+
+def apart_inside(value, figures, band, share, ends, written):
+    """The nearest free point of the grid inside this share -- G6.5a.
+
+    Outward from the value one grid step at a time, the LOWER of two
+    equally distant candidates first so that two implementations
+    reading the method choose the same point, and at most sixty-four
+    steps out.  Refused where the text is already written, where it
+    leaves the share, where it leaves the published ends, or where it
+    would cross into another sign band.
+    """
+    unit = 1.0
+    for _step in range(figures):
+        unit = unit / 10.0
+    if unit <= 0.0 or not math.isfinite(unit):
+        return None
+    anchor = grid_text(value, figures)
+    try:
+        nearest = float(anchor)
+    except ValueError:
+        return None
+    reach = 1
+    while reach <= 64:
+        for step in (-reach, reach):
+            candidate = nearest + step * unit
+            if not math.isfinite(candidate):
+                continue
+            if grid_text(candidate, figures) in written:
+                continue
+            if band == "negative" and candidate >= 0.0:
+                continue
+            if band == "positive" and candidate <= 0.0:
+                continue
+            if band == "zero":
+                return None
+            if share is not None:
+                low = min(share[0], share[1])
+                high = max(share[0], share[1])
+                if candidate < low or candidate > high:
+                    continue
+            if ends is not None and (candidate < ends[0] or candidate > ends[1]):
+                continue
+            return candidate
+        reach = reach + 1
+    return None
+
+
+def apart_values(
+    wanted, figures, values, sizes, starts, bands, ladder, numeric
+):
+    """Two strata are two cells, so they are written two ways -- G6.5a.
+
+    Runs after G6.4's point-free carrier walk, which can itself land two
+    strata on one text, and before the held-back pool.  Only a stratum
+    whose text another stratum also holds may move; never the pinned
+    ends, whose values are the published ``min`` and ``max``; never the
+    zero stratum.  It stops as soon as the count of different texts
+    reaches the published ``n_distinct_values``.
+    """
+    if figures < 0:
+        return values
+    total = len(values)
+    if total < 2:
+        return values
+    moved = list(values)
+    texts = [grid_text(value, figures) for value in moved]
+    held = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    count = len(held)
+    ends = None if ladder is None else (ladder[0], ladder[-1])
+    for place in range(total):
+        if wanted is not None and count >= wanted:
+            break
+        text = texts[place]
+        if held[text] <= 1:
+            continue
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if bands[place] == "zero":
+            continue
+        share = None
+        if ladder is not None:
+            share = (
+                ladder_at(ladder, starts[place], numeric),
+                ladder_at(ladder, starts[place] + sizes[place], numeric),
+            )
+        want = apart_inside(
+            moved[place], figures, bands[place], share, ends, held
+        )
+        if want is None:
+            continue
+        fresh = grid_text(want, figures)
+        held[text] = held[text] - 1
+        held[fresh] = held.get(fresh, 0) + 1
+        texts[place] = fresh
+        moved[place] = want
+        count = count + 1
+    return moved
+
+
 def style_allocation(published, values, integer_valued):
     """Which cell gets which style -- method section G6.4.
 
@@ -4634,6 +4766,19 @@ def _numeric_content(column):
         ladder,
         numeric,
         integer_valued,
+    )
+    # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
+    # carrier walk because that walk moves values onto whole numbers
+    # and can itself land two strata on one text.
+    values = apart_values(
+        column.get("n_distinct_values"),
+        grid_of(column.get("fraction_widths", {}), integer_valued),
+        values,
+        sizes,
+        starts,
+        bands,
+        ladder,
+        numeric,
     )
     cell_values = []
     for index, size in enumerate(sizes):

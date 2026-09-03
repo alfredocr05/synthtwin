@@ -1322,7 +1322,15 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     too: the twin holds fewer distinct values than the description
     publishes, and that one is true.
     """
-    values = [str(20 + number % 40) for number in range(240)]
+    # CROWDED ON PURPOSE, so the shortfall this test asserts is REAL.
+    # It was `20 + number % 40` -- forty values each written six times
+    # -- until G6.5a's pass reached the integer grid, after which the
+    # twin held all forty and there was no shortfall left to name. A
+    # column of 240 values drawn between 40 and 160 still cannot reach
+    # its count, because its strata are crowded and their shares hold
+    # no free grid point.
+    generator = random.Random(20260902)
+    values = [str(generator.randint(40, 160)) for _each in range(240)]
     values = values + ["-999"] * 20
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
