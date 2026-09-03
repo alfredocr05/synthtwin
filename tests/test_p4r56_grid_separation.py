@@ -138,6 +138,67 @@ def test_nothing_published_is_traded_for_the_separation(
     assert max(numbers) == published["percentiles"]["max"]
 
 
+def test_the_walk_never_answers_with_a_text_the_column_already_holds(
+) -> None:
+    """The refusal that keeps the count honest, and its own guard.
+
+    A grid point is named by its text, but the stratum carries a
+    DOUBLE, and the caller re-spells that double to book what the
+    stratum took. Where the two disagree the walk hands back a point
+    whose text the column already holds, and the count of different
+    numbers rises without a different number appearing -- which is the
+    whole defect this pass exists to repair, arriving through the
+    repair.
+
+    Review round 5 of the integer-grid landing measured it: with the
+    round-trip refusal removed, 26 of 600 moves came back spelling a
+    text already written, and every test in this file stayed green.
+    So the rule is asserted here directly, over the widths where a grid
+    is finer than the numbers standing on it.
+    """
+    generator = random.Random(4212)
+    asked = 0
+    answered = 0
+    for _case in range(700):
+        figures = generator.choice((8, 11, 13, 15, 17))
+        value = generator.choice((
+            generator.uniform(-1e7, 1e7),
+            generator.uniform(-1e12, 1e12),
+            generator.uniform(-1.0, 1.0),
+        ))
+        if value == 0.0:
+            continue
+        band = (
+            generation._BAND_POSITIVE if value > 0
+            else generation._BAND_NEGATIVE
+        )
+        spelt = generation._grid_text(value, figures)
+        units = generation._grid_units(spelt, figures)
+        if units is None:
+            continue
+        written = {spelt: 1}
+        for step in range(1, 6):
+            for side in (-step, step):
+                written[generation._grid_at(units + side, figures)] = 1
+        asked = asked + 1
+        taken = generation._apart_inside(
+            value, figures, band, None, None, written,
+        )
+        if taken is None:
+            continue
+        answered = answered + 1
+        # THE WHOLE OF THE RULE: what comes back, re-spelled the way
+        # the caller will re-spell it, is a text the column does not
+        # already hold.
+        assert generation._grid_text(taken, figures) not in written, (
+            value, figures, taken,
+        )
+    # AND THE PROBE REALLY REACHED THE HARD REGION, so a walk that
+    # refused everything could not pass by doing nothing.
+    assert asked > 400, asked
+    assert answered > 0, answered
+
+
 def test_the_walk_counts_sixty_four_GRID_steps_and_not_sixty_four_sums(
 ) -> None:
     """The reach is a count of grid units, which binary addition is not.

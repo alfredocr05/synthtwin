@@ -1897,8 +1897,18 @@ def apart_inside(value, figures, band, share, ends, written):
     # `10 ** -figures` to a double instead accumulates, and at eleven
     # figures a candidate the method bounds at sixty-four units came
     # back seventy out.
+    # THE GRID STEP MUST BE A FINITE DOUBLE GREATER THAN NOUGHT, which
+    # the method states and which exact arithmetic cannot notice on its
+    # own: at 324 figures `10 ** -figures` UNDERFLOWS to zero as a
+    # double, so a column described that finely has no grid a twin can
+    # walk. A fraction never underflows, so this file sailed past the
+    # rule and answered where the method requires nothing (review round
+    # 5 of the integer-grid landing). The rule is about the step a
+    # program can hold, so it is asked of the double.
+    step_as_double = 10.0 ** -figures if figures else 1.0
+    if step_as_double <= 0.0 or not math.isfinite(step_as_double):
+        return None
     unit = fractions.Fraction(1, 10 ** figures)
-    anchor = grid_text(value, figures)
     digits, decpt = shortest_round_trip(value)
     seated = fractions.Fraction(int(digits or "0"), 1)
     seated = seated * fractions.Fraction(10) ** (decpt - len(digits))
