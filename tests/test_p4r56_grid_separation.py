@@ -244,40 +244,47 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     published = column.facts.n_distinct_values
     assert published is not None and published > 40, published
 
-    # A WALK THAT ANSWERS WITH A TEXT THE COLUMN ALREADY HOLDS. Nothing
-    # it returns is a new value, so the count of different texts never
-    # rises and the pass must keep going until it runs out of strata it
-    # is allowed to move. A pass that stops sooner has believed a count
-    # that did not rise.
+    # TWO BROKEN WALKS THAT LEAVE THE MAP IDENTICAL, so the pass must
+    # go exactly as far under each. One REFUSES every candidate and
+    # changes nothing. The other returns the stratum's OWN value, so
+    # the caller takes the move, spells the same text, decrements that
+    # text and puts it straight back -- the map is untouched either
+    # way, and the count of different numbers rises in neither.
     #
-    # ELEVEN IS MEASURED, and it is measured because the difference is
-    # small and real: with the count kept as a tally beside the map and
-    # stepped once per accepted answer, this same fixture stops at TEN.
-    # The deceiving walk does consolidate as it goes -- moving a
-    # stratum off a doubled text leaves that text with one holder, so
-    # later strata on it stop being eligible -- which is why this is a
-    # measured number and not the count of eligible strata.
-    called: "list[int]" = []
+    # Under a count read from the map the two traces must be equal.
+    # Under a tally stepped once per accepted answer the second run is
+    # SHORTER, because every no-op move was counted as a fresh value
+    # and the pass stopped believing a count that had not risen. That
+    # is the shape review round 5 measured with the round-trip refusal
+    # removed: 26 of 600 moves came back on a text already held.
+    refused: "list[int]" = []
+    idle: "list[int]" = []
 
-    def deceiving(value, figures, band, share, ends, written):
-        called.append(1)
-        for text in sorted(written):
-            try:
-                return float(text)
-            except ValueError:
-                continue
+    def refusing(value, figures, band, share, ends, written):
+        refused.append(1)
         return None
 
+    def unmoving(value, figures, band, share, ends, written):
+        idle.append(1)
+        return value
+
     monkeypatch.setattr(  # type: ignore[attr-defined]
-        generation, "_apart_inside", deceiving
+        generation, "_apart_inside", refusing
+    )
+    generation.generate(loaded, SEED)
+
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation, "_apart_inside", unmoving
     )
     twin = generation.generate(loaded, SEED)
 
-    assert len(called) == 11, len(called)
+    # THE FIXTURE REALLY EXERCISES THE PASS, so neither arm can pass by
+    # never being asked at all.
+    assert len(refused) > 5, len(refused)
+    assert len(idle) == len(refused), (len(idle), len(refused))
 
     # AND NO VALUE WAS INVENTED, which is the other half: a walk that
-    # only ever hands back a text the column already holds cannot take
-    # it to the published count.
+    # never moves anything cannot reach the published count.
     cells = [cell for cell in twin.columns[0] if cell != ""]
     assert len({float(cell) for cell in cells}) < published
 
