@@ -2474,9 +2474,17 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   the table. It made the frozen files unable to exercise a miss of that
   fact at all, which is the one thing it being REPORT-ONLY is for
   (R-P4-20). A case may now publish its own figure; `affixed_brackets`
-  does, at twelve, its twin holds eleven because `23` comes out twice,
-  and the shipped generator reports the miss. No other case's cells
-  moved.
+  does, at twelve, and its twin HELD eleven because `23` came out
+  twice, with the shipped generator reporting the miss.
+
+  **THAT MISS IS GONE, and this paragraph read in the present tense
+  until the integer-grid landing of 2026-09-03.** The pass of method
+  G6.5a had been declining every whole-number column, this case's cores
+  are one, and its twin holds twelve now — one cell, `[23]` to `[22]`.
+  `joined_readings` moved one cell the same way. What that costs is
+  R-P4-145, and it is smaller than it first looked: the reporting
+  control lives in `tests/test_p2c4f3_style_capacity.py` and not in the
+  frozen files, which pin cells and bytes and nothing a twin says.
 
   **AND THE FOURTH, WHICH CLOSES THIS RESIDUAL: `joined_numbers`.**
   `joined_readings` pins G6B.4's pairing walk -- the only SEARCH in the
@@ -5108,30 +5116,37 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
-- **R-P4-145 — OPEN (opened 2026-09-03 by review round 1 of the
-  integer-grid landing, which caused it).** NO COMMITTED VECTOR STILL
-  EXERCISES A REPORTED MISS OF `n_distinct_values`.
+- **R-P4-145 — NARROWED AND RESTATED (opened 2026-09-03 by review
+  round 1 of the integer-grid landing; its premise was refuted at round
+  2 the same day).** THE FROZEN VECTORS PIN CELLS AND BYTES AND NOTHING
+  A TWIN *SAYS*, so no cross-implementation case covers a report.
 
-  `affixed_brackets` was the ONE case in either frozen file where a
-  conforming generator missed a published fact and said so: its source
-  column held twelve different core numbers, it publishes twelve, and
-  the twin held eleven with `23` written twice. That is what a
-  REPORT-ONLY fact looks like when it is doing its work, and G14.3 said
-  so in as many words.
+  **WHAT THIS ENTRY FIRST CLAIMED, and why it was wrong.**
+  `affixed_brackets` was the one committed case where a conforming
+  generator missed `n_distinct_values` and reported it — twelve
+  published, eleven held. The integer-grid landing reaches the twelfth,
+  and this entry concluded that the control was lost. It was not.
+  `tests/test_p2c4f3_style_capacity.py` asserts, seed by seed, that a
+  column missing the count carries an `n_distinct_values` deviation and
+  one meeting it carries none. Measured on that test's own column over
+  120 seeds: **7 misses and 113 hits**, so both arms of the assertion
+  fire and withdrawing the deviation turns it red. The reporting
+  control is alive and is not the vectors'.
 
-  The integer-grid landing gave method G6.5a's pass the whole-number
-  columns it had been declining. That case is one of them, its twin
-  holds twelve now, and the miss is gone. **The repair is right and the
-  coverage is lost**: every remaining case publishes the figure its own
-  twin reaches, so no frozen vector shows the report naming a shortfall
-  any more, and a regression that stopped reporting one would not move
-  a committed byte.
+  **WHAT IS REALLY MISSING, which the first writing walked past.** The
+  frozen-vector harness compares CELLS and CSV BYTES. It never reads
+  `twin.deviations` and never reads rendered report text, so no frozen
+  case has ever pinned what a twin SAYS — `affixed_brackets` included.
+  Adding another case built to miss would not change that: it would
+  freeze more cells. A second implementer can therefore reproduce every
+  committed byte while reporting nothing at all, and the conformance
+  claim in G14.3 does not reach the report.
 
-  Closing it means a frozen case built to miss — a column whose
-  published count its own drawn values cannot reach, small enough to
-  hand-check — carrying the reported shortfall as part of the case.
-  R-P4-20 and R-P4-120 both lean on that report being trustworthy, so
-  this is the vector that keeps them honest.
+  Closing it means the VECTOR CONTRACT growing a field for what the
+  run must say — the deviations by fact, or the report lines a case
+  requires — and the harness asserting it. That is a change to the
+  case schema and to G14.3's statement of what a case pins, which is
+  L10's work, and it is worth more than another miss-shaped column.
 
 - **R-P4-144 — OPEN (opened 2026-09-02 by review round 4 of L7, on
   the family that round asked for).** ON ONE TWELVE-COLUMN STRESS FAMILY
@@ -6635,7 +6650,9 @@ declaration for only one of them.
   inside a role is divided into, which is the first thing it decides
   anywhere. It is still REPORT-ONLY, and that is a measurement rather
   than a preference: over four 200-row plain columns at forty seeds the
-  twin met the published count exactly in 83 of 160 runs. What is left
+  twin met the published count exactly in 83 of 160 runs -- measured
+  BEFORE the integer-grid landing and superseded by R-P4-120's own
+  entry. What is left
   of this residual is that gap, which is R-P4-120.
 - **R-P4-19** (opened by amendment A-P4-14's narrowing, 2026-08-21).
   BELOW THE FLOOR, THE OLD ROUTE SURVIVES. The census is

@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,314 collected on the merged tree with the integer-grid landing and its first review round in it (52 skipped on another machine: that count moves, the collected count does not). Three new tests: two in `tests/test_p4r56_grid_separation.py` for the integer grid and its refusal, one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
+| suite | 4,314 collected on the merged tree with the integer-grid landing and its first review round in it (52 skipped on another machine: that count moves, the collected count does not). FOUR new tests: three in `tests/test_p4r56_grid_separation.py` -- the integer grid, its refusal on a column that is not whole-valued, and the contrast that shows both halves of the rule are needed -- and one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
@@ -3284,7 +3284,10 @@ list in on 2026-08-26:
    **PUBLISHED 2026-08-27 (plan P4-D4.9) and CONSUMED 2026-09-01
    (P4-D31, landing L7): it decides how many strata every grain inside
    a role is divided into. REPORT-ONLY, on the measurement in
-   R-P4-120 — a plain column met it exactly in 83 of 160 runs.**
+   R-P4-120 — the 83-of-160 figure was measured BEFORE the
+   integer-grid landing and is superseded: 300 ages publishing 70
+   held 56-66 and now hold 67-70. What is left is a greedy one-pass
+   walk, not a conflict with the ladder.**
 5. **The mode**, for columns where one value dominates. **PUBLISHED
    2026-08-27 (plan P4-D4.11), REPORT-ONLY until the generator carves
    its stratum.**

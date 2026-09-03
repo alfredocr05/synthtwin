@@ -1077,11 +1077,25 @@ and a bias toward positive infinity applied to every tie there walks
 the column's own mean up with it. That snap rounds **half to even**,
 which the plan fixes in those words. Nothing else in this method does.
 
-**THE SNAP ITSELF IS NOT WRITTEN HERE YET, and that is a recorded
+**WHAT THE SNAP ROUNDS, which half to even alone does not settle.**
+The operand is the value's SHORTEST ROUND-TRIP DECIMAL FIGURES — the
+shortest decimal string that reads back as exactly this binary64,
+which is what `repr` produces and what G6.2 already builds every
+spelling from — and NOT the binary64 itself. The two give different
+answers and a second implementer has to be told which: `2.675` is held
+as a double a shade BELOW two and sixty-seven and a half hundredths,
+so rounding the double at two figures gives `2.67`, while rounding its
+shortest figures `2675` at two gives the tie, and the tie goes to even,
+so `2.68`. Both are defensible half-to-even; only one is this method's.
+Review round 2 of the integer-grid landing found this document silent
+on it while two implementations agreed on `2.68` for no stated reason.
+
+**THE REST OF THE SNAP IS NOT WRITTEN HERE YET, and that is a recorded
 debt, not an omission this sentence closes.** Residual R-P4-17 owes
-this document the width assignment, the pinned-cell order, the
-same-class and endpoint guards, and the reference vectors that pin
-them; R-P4-18 owes a vector in which a value is actually rounded. Both
+this document the width assignment, the pinned-cell order, and the
+same-class and endpoint guards; R-P4-18 owes a vector in which a value
+is actually rounded, and now owes it twice over, because no frozen case
+reaches the rule above either. Both
 are named in the Phase 4 plan's register. What the paragraph above
 settles is only the contradiction: a second implementer reading this
 section used to find a global tie rule the shipped snap violates by
@@ -2032,19 +2046,21 @@ landing, which is the wrong anchor and a byte-determining one.
 is not searched to its ends; the walk answers with nothing and the
 stratum stays where it is.
 
-**WHAT IS REFUSED.** A candidate whose text is already written by
-another stratum; a candidate outside the stratum's share, whose two
-ends are INCLUSIVE; a candidate outside the published `min` and `max`,
-inclusive likewise; and a candidate that would cross into another sign
-band — the counts of negative, zero and positive cells are published
+**WHAT IS REFUSED.** A candidate that is not a finite number; a
+candidate whose text is already written by another stratum; a candidate
+outside the stratum's share, whose two ends are INCLUSIVE; a candidate
+outside the published `min` and `max`, inclusive likewise; and a
+candidate that would cross into another sign band — the counts of negative, zero and positive cells are published
 facts and no repair may move one. A stratum in the ZERO band answers
 with nothing at once, without walking. So does a grid whose step is not
 a finite number greater than nought, and a value whose grid text does
 not read back as a number.
 
 **WHERE THERE IS NO LADDER** — a column published without one — there
-is no share and no published ends, so those two refusals do not apply
-and only the written-text and sign refusals remain.
+is no share and no published ends, so those two refusals do not apply.
+The other three do: a candidate must still be finite, must still not
+wear a text another stratum has written, and must still stay in its
+sign band.
 
 **WHEN IT STOPS.** As soon as the count of different texts reaches the
 published `n_distinct_values`, and otherwise at the end of its single
