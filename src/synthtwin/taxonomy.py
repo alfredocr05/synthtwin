@@ -4683,13 +4683,13 @@ def _levels(
     )
 
 
+@dataclasses.dataclass(frozen=True)
 class _Compound:
     """The two populations of a `numbers_with_labels` column."""
 
-    def __init__(self, numbers, labels, folded_counts):
-        self.numbers = numbers
-        self.labels = labels
-        self.folded_counts = folded_counts
+    numbers: "list[_Cell]"
+    labels: "list[_Cell]"
+    folded_counts: "dict[str, int]"
 
 
 def _compound_reading(cells: "_Cells") -> "_Compound | None":
@@ -4717,12 +4717,42 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     labels: "list[_Cell]" = []
     for cell in cells.classified:
         if cell.kind == parsing.NUMBER:
-            numbers.append(cell)
+            numbers = numbers + [cell]
         elif cell.kind == parsing.NOT_A_NUMBER:
-            labels.append(cell)
+            labels = labels + [cell]
         else:
             return None
     if len(numbers) < line or not labels:
+        return None
+    # AND THE NUMBERS MUST LOOK LIKE A QUANTITY RATHER THAN A CODE SET,
+    # which is the question this rule forgot to ask about its own half.
+    # `1`, `2`, `3` thirty times each beside five `unknown` is a coded
+    # field: the digits are labels, and a mean of 2.0 over them is a
+    # sentence about nothing. The suite holds that column and it is
+    # right to -- the test is named "a small set of numeric codes is
+    # still a set of categories".
+    #
+    # The line is the one already used on the other half: a numeric
+    # population holding no more different values than a set of
+    # categories may is a set of categories, whatever it is spelled
+    # with. So this rule asks the text half to look like LABELS and the
+    # numeric half to look like a QUANTITY, and declines when either
+    # half is not what it needs to be.
+    # The question is asked of the numeric half ON ITS OWN, over its own
+    # cell count and not the column's rows. The ceiling is a share of
+    # however many cells are being judged, so measuring a 3,000-cell
+    # numeric half against a 6,000-row column's ceiling asks the wrong
+    # question and called 400 different readings a code set.
+    distinct_numbers: "dict[str, int]" = {}
+    for cell in numbers:
+        seen = 0
+        if cell.numeric_text in distinct_numbers:
+            seen = distinct_numbers[cell.numeric_text]
+        distinct_numbers[cell.numeric_text] = seen + 1
+    settings = cells.settings
+    share = _at_most(settings.categorical_share, len(numbers))
+    ceiling = min(settings.categorical_ceiling, share)
+    if len(distinct_numbers) <= max(ceiling, settings.categorical_floor):
         return None
     folded_counts: "dict[str, int]" = {}
     for cell in labels:
@@ -4730,7 +4760,64 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
         if cell.folded in folded_counts:
             seen = folded_counts[cell.folded]
         folded_counts[cell.folded] = seen + 1
-    if _levels_covering(folded_counts, cells.settings) < 1:
+    # THE TEXT HALF IS JUDGED BY HOW MANY DIFFERENT WORDS IT HOLDS, NOT
+    # BY HOW OFTEN THEY REPEAT, and the first writing of this rule had
+    # it the other way about. It asked the words to clear the same
+    # detection line the numbers clear -- one word shared by eleven
+    # rows -- which reads plausibly and is backwards for the column
+    # this role exists for. MEASURED on 300-row columns of readings
+    # beside one marker: five markers and nine markers both declined
+    # and their readings went on being described by nothing, while
+    # eleven markers worked. A lab column is most often nearly all
+    # numeric with a HANDFUL below the detection limit, so the rule
+    # refused exactly the commonest shape.
+    #
+    # The words do not have to be publishable for the NUMBERS to
+    # deserve describing. What matters is that the text half LOOKS LIKE
+    # A COLUMN OF LABELS rather than prose -- and this project already
+    # has two rules for that and no third is invented here. The text
+    # half is label-shaped when EITHER:
+    #
+    #  - it holds no more different words than a set of categories may
+    #    (the categorical ceiling), which is a handful of markers --
+    #    one `NOT DETECTED`, or `POSITIVE` beside `NEGATIVE`; OR
+    #  - at least one of its words is shared by enough rows to be
+    #    published (the long-tail detection line), which is what a
+    #    LARGE but repeating vocabulary looks like.
+    #
+    # THE SECOND DISJUNCT IS THE OWNER'S CORRECTION, and without it
+    # this rule refused a real shape: a microbiology column naming
+    # sixty organisms across three thousand cells has far more than the
+    # ceiling's worth of different words and is not free text by any
+    # reading -- every one of those names repeats scores of times. The
+    # first writing of this rule had only the SECOND disjunct and
+    # refused a handful of markers; the second had only the FIRST and
+    # refused a large repeating vocabulary. Each was half of it.
+    #
+    # What falls outside both is prose: sixty notes in sixty cells, no
+    # word repeated, nothing publishable. Those decline here and stay
+    # free text exactly as today.
+    #
+    # AND A WORD THAT APPEARS ONCE IS A NOTE, NOT A LABEL. This is the
+    # third correction to this rule and it came from the suite: a
+    # policy test holds 98 numbers beside TWO all-different clinical
+    # notes -- `seen clinic with nurse unchanged` -- and two is a small
+    # set by any ceiling, so the rule above claimed the column and
+    # would have published those two notes as levels. Publishing
+    # somebody's free text verbatim is the thing the label roles exist
+    # to avoid, and a note is not a marker however few there are. So
+    # the text half must REPEAT somewhere: at least one of its words
+    # covering more than one row. Five `NOT DETECTED` repeat; five
+    # different notes do not.
+    repeats = False
+    for key in sorted(folded_counts):
+        if folded_counts[key] > 1:
+            repeats = True
+    if not repeats:
+        return None
+    a_small_set = len(folded_counts) <= _categorical_ceiling(cells)
+    a_repeating_one = _levels_covering(folded_counts, cells.settings) >= 1
+    if not a_small_set and not a_repeating_one:
         return None
     return _Compound(numbers, labels, folded_counts)
 
@@ -7618,7 +7705,30 @@ def _decide(
         # numeric rule, so a column of measurements is described as
         # measurements and a small set of labels that happen to be digits is
         # described as labels.
-        if folded_distinct <= ceiling:
+        #
+        # IT STANDS ASIDE FOR A COLUMN WITH A REAL NUMERIC HALF, which is
+        # the one exception it makes and the owner's decision of
+        # 2026-09-03. A result column recorded coarsely -- readings at one
+        # decimal beside a handful of markers -- can hold few enough
+        # different values to pass the ceiling above, and this rule would
+        # then claim it and describe every reading as a LABEL. That is the
+        # defect rule 7b exists to repair, arriving one rule earlier: the
+        # numbers are published as a list of words with counts and nothing
+        # records that they are a distribution.
+        #
+        # Measured: 3,000 readings at four decimals beside 60 organism
+        # names take rule 7b, and the SAME readings at one decimal are
+        # claimed here instead -- the same column, described two ways,
+        # decided by how finely the laboratory recorded it.
+        #
+        # THE TEST IS RULE 7b'S OWN and not a second one written here, so
+        # the two rules cannot come to disagree about what a compound
+        # column is. Where it answers, this rule declines and the column
+        # falls to 7b below; a column with no numeric half, or whose text
+        # half is prose, is untouched and lands here exactly as it did.
+        if folded_distinct <= ceiling and (
+            forced_code or _compound_reading(cells) is None
+        ):
             levels = _levels(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
