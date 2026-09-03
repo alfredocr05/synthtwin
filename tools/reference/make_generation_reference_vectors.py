@@ -1793,60 +1793,49 @@ def grid_of(fraction_widths, integer_valued, numeric):
     return -1
 
 
-def _incremented(digits):
-    """One string of figures with one added to it, carrying to the left."""
-    carried = 1
-    built = ""
-    for place in range(len(digits) - 1, -1, -1):
-        step = int(digits[place]) + carried
-        carried = 1 if step > 9 else 0
-        built = "%d%s" % (step % 10, built)
-    if carried:
-        return "1" + built
-    return built
-
-
 def at_width(sign, figures, place, width):
     """The figures written with EXACTLY ``width`` of them after the point.
 
     Short of the width the value is padded, which costs nothing; past it
     the value is ROUNDED, and TIES GO TO EVEN (plan P4-D4.5), which is
-    not the tie rule the rest of this method uses.  The rounding is on
-    the DECIMAL figures -- the shortest round-trip digits -- and not on
-    the binary value: `2.675` at two figures is `2.68` here, while
-    rounding the double is `2.67`.  Review round 1 of the integer-grid
-    landing found this file taking the second answer.
+    not the tie rule the rest of this method uses.
+
+    WHAT IS ROUNDED is the value's shortest round-trip decimal figures
+    and not the binary64 itself -- the method states this where it
+    states the tie, and the two differ: `2.675` is held as a double a
+    shade below two and sixty-seven and a half hundredths, so rounding
+    the double gives `2.67` while rounding the figures `2675` gives the
+    tie, and the tie goes to even, so `2.68`.
+
+    COMPUTED AS AN EXACT RATIONAL, on purpose. The shipped generator
+    walks the digit string and carries by hand; doing the same here
+    would agree with it for the reason a transcription agrees, which is
+    no reason at all. This takes the figures as a fraction, scales by
+    ten to the width, and compares the remainder against one half in
+    exact arithmetic -- a different route to the same stated rule, which
+    is what makes agreement evidence. Review round 2 of the
+    integer-grid landing asked for exactly that.
     """
-    if place <= 0:
-        whole = "0"
-        fraction = ("0" * (-place)) + figures
-    elif place >= len(figures):
-        whole = figures + ("0" * (place - len(figures)))
-        fraction = ""
+    whole = fractions.Fraction(int(figures or "0"), 1)
+    exact = whole * fractions.Fraction(10) ** (place - len(figures))
+    scaled = exact * fractions.Fraction(10) ** width
+    below = scaled.numerator // scaled.denominator
+    rest = scaled - below
+    half = fractions.Fraction(1, 2)
+    if rest > half:
+        carried = below + 1
+    elif rest < half:
+        carried = below
+    elif below % 2 == 0:
+        carried = below
     else:
-        whole = figures[:place]
-        fraction = figures[place:]
-    if len(fraction) <= width:
-        return "%s%s.%s%s" % (
-            sign, whole, fraction, "0" * (width - len(fraction))
-        )
-    kept = fraction[:width]
-    following = fraction[width]
-    trailing = any(character != "0" for character in fraction[width + 1:])
-    if following > "5":
-        up = True
-    elif following < "5":
-        up = False
-    elif trailing:
-        up = True
-    else:
-        last = kept[len(kept) - 1:] if kept else whole[len(whole) - 1:]
-        up = last in "13579"
-    digits = whole + kept
-    if up:
-        digits = _incremented(digits)
-    cut = len(digits) - width
-    return "%s%s.%s" % (sign, digits[:cut], digits[cut:])
+        carried = below + 1
+    body = str(carried)
+    if width == 0:
+        return "%s%s." % (sign, body)
+    body = body.rjust(width + 1, "0")
+    cut = len(body) - width
+    return "%s%s.%s" % (sign, body[:cut], body[cut:])
 
 
 def grid_text(value, figures):
@@ -1864,10 +1853,12 @@ def grid_text(value, figures):
 def apart_inside(value, figures, band, share, ends, written):
     """The nearest free point of the grid inside this share -- G6.5a.
 
-    Outward from the value one grid step at a time, the LOWER of two
-    equally distant candidates first so that two implementations
-    reading the method choose the same point, and at most sixty-four
-    steps out.  Refused where the text is already written, where it
+    Outward one grid step at a time from the value's own grid TEXT read
+    back -- not from the value -- the LOWER of two equally distant
+    candidates first so that two implementations reading the method
+    choose the same point, and at most sixty-four steps out. None means
+    no candidate within those sixty-four survived the refusals, which
+    is not the same as the share holding no free point.  Refused where the text is already written, where it
     leaves the share, where it leaves the published ends, or where it
     would cross into another sign band.
     """

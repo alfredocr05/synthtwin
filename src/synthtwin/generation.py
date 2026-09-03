@@ -7655,9 +7655,7 @@ def _pinned_fraction(
         # integers. Its census is EMPTY -- no cell carries a figure
         # after the point, so there is no width to count -- which read
         # as "no grid" and turned the separation below off for every
-        # such column. That is most of the numeric columns a real table
-        # holds -- the whole-valued ones a real table is mostly made
-        # of.
+        # such column, and every whole-valued column is one.
         #
         # MEASURED through the real reader, producer, loader and
         # generator, twelve seeds each, published against held:
@@ -7724,16 +7722,24 @@ def _apart_inside(
     onto a free point of the PUBLISHED WIDTH'S OWN GRID so that two
     strata holding different numbers are not written as one cell.
 
-    Walked outward from the value a grid step at a time, the LOWER of
-    two equally distant candidates first, so two implementations reading
-    this text choose the same point. A candidate is refused where its
+    Walked outward a grid step at a time, the LOWER of two equally
+    distant candidates first, so two implementations reading this text
+    choose the same point. FROM THE VALUE'S OWN GRID TEXT READ BACK and
+    not from the value: a stratum holding `1.25` on a grid of one
+    figure is written `1.2`, so its candidates are `1.1` and `1.3`.
+    This docstring said "from the value" until review round 2 of the
+    integer-grid landing, which is the wrong anchor. A candidate is refused where its
     text is already written, where it leaves the stratum's own share of
     the ladder, where it leaves the published ends, or where it would
     cross into another sign band -- the counts of negative, zero and
     positive cells are published facts and no repair may move one.
 
-    None where the share holds no free point at all, which leaves the
-    twin exactly as it was.
+    None where no candidate inside `_GRID_REACH` steps survives the
+    refusals, which leaves the twin exactly as it was. That is NOT the
+    same as "the share holds no free point", which this docstring used
+    to say: the walk stops at sixty-four steps, so a share whose only
+    free point is the sixty-fifth answers None with a point still in
+    it.
     """
     unit = math.ldexp(1.0, 0)
     for _step in range(figures):

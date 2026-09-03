@@ -146,8 +146,9 @@ def test_a_whole_number_column_is_on_a_grid_too(
     A whole-number column carries no figure after the point, so its
     `fraction_widths` census is EMPTY -- there is no width to count.
     `_pinned_fraction` read that as "no grid" and answered -1, and the
-    pass returned before doing anything. Most of a real table's numeric
-    columns hold nothing but whole values -- an age, a count, a dose.
+    pass returned before doing anything -- for every whole-valued
+    column there is. How many of a real table's columns those are is
+    not measured here and is not claimed.
 
     Measured over twelve seeds, published against held: 300 ages
     between 18 and 89 publishing 70 different numbers held 56 to 66
