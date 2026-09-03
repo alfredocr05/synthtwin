@@ -5120,7 +5120,7 @@ declaration for only one of them.
   integer-grid landing).** THE FIXED-FRACTION SNAP IS STILL HALF
   UNWRITTEN, AND UNTIL NOW THE DEBT WAS BOOKED AGAINST A CLOSED ENTRY.
 
-  Method G6.6's snap — the rule that writes a `decimal`-styled cell at
+  The fixed-fraction snap — the rule that writes a `decimal`-styled cell at
   a width the column's census publishes — now states its TIE (half to
   even, plan P4-D4.5), its OPERAND (the value's shortest round-trip
   decimal figures and not the binary64, with `2.675` at two figures
@@ -5154,6 +5154,23 @@ declaration for only one of them.
     turn a continuous column into a count column** — which is the
     concrete reason this entry's scope is a correctness matter and not
     bookkeeping.
+
+    **WHICH group gives its width back, and the tie**: the non-whole
+    value needing the MOST fraction figures, the earliest cell winning
+    a tie, and then every `decimal` cell holding that value is
+    released together. "Gives one width back" does not decide those
+    bytes and two conforming programs could differ on them;
+  - the PIPELINE ORDER, which is correctness and not arrangement: the
+    padded-style exchange runs BEFORE fraction-width assignment.
+    Reversed, the assignment lands on cells that are no longer styled
+    `decimal` and the widths are simply lost — the code records the
+    measured case, 44 widths carried against 22.
+
+  **And this entry cited the wrong section.** It called the snap
+  "G6.6's", and G6.6 serves `field_widths`; the fixed-fraction
+  assignment lives in `_width_places` and has no section of its own,
+  which is a fair part of why so much of it went unwritten. Naming the
+  section it needs is part of the debt.
 
   The method assigned all of that to R-P4-17, which is CLOSED: that
   entry bought a frozen case for each of the four roles Phase 4 added

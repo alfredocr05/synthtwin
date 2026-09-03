@@ -7973,7 +7973,18 @@ def _apart_enough(
         held[fresh] = before + 1
         texts[place] = fresh
         moved[place] = want
-        count = count + 1
+        # THE COUNT RISES ONLY WHERE A TEXT IS GENUINELY NEW. The walk
+        # refuses a candidate whose text is already written, so `before`
+        # is nought whenever it answers -- but that made this line's
+        # correctness depend on a refusal three functions away, and
+        # review round 5 of the integer-grid landing showed the shape:
+        # with the round-trip refusal removed, 26 of 600 moves came back
+        # spelling a text the column already held and this line counted
+        # every one of them as a fresh value. A count that can rise
+        # without a value appearing is the whole defect this pass
+        # exists to repair.
+        if before == 0:
+            count = count + 1
     return moved
 
 
