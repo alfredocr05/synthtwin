@@ -7706,6 +7706,52 @@ def _grid_text(value: float, figures: int) -> str:
     return _at_width(parts[0], parts[1], parts[2], figures)
 
 
+def _grid_units(text: str, figures: int) -> "int | None":
+    """A grid text as a whole number of grid units, exactly.
+
+    The walk counts SIXTY-FOUR GRID STEPS and the method says so, so
+    the steps have to be taken on the grid. Adding `10 ** -figures` to
+    a double instead accumulates: at eleven figures the sum drifts, and
+    a candidate the method requires to be at most sixty-four units out
+    came back seventy units out and was taken (review round 4 of the
+    integer-grid landing). Counting in units cannot drift, because a
+    unit is one.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a grid text reached the unit count as something else")
+    body = text
+    sign = 1
+    if body[:1] == "-":
+        sign = -1
+        body = body[1:]
+    point = -1
+    for index in range(len(body)):
+        if body[index] == ".":
+            point = index
+            break
+    if point < 0 or len(body) - point - 1 != figures:
+        return None
+    digits = body[:point] + body[point + 1:]
+    if not digits:
+        return None
+    for character in digits:
+        if character < "0" or character > "9":
+            return None
+    return sign * int(digits)
+
+
+def _grid_at(units: int, figures: int) -> str:
+    """The grid text a whole number of grid units names."""
+    sign = "-" if units < 0 else ""
+    digits = str(abs(units))
+    if figures == 0:
+        return f"{sign}{digits}."
+    if len(digits) < figures + 1:
+        digits = ("0" * (figures + 1 - len(digits))) + digits
+    cut = len(digits) - figures
+    return f"{sign}{digits[:cut]}.{digits[cut:]}"
+
+
 def _apart_inside(
     value: float,
     figures: int,
@@ -7754,18 +7800,14 @@ def _apart_inside(
     # stepped to 1.2 and 1.4, and 1.3 -- the free point the rule asks
     # for -- was never tried. Reading the anchor back off the writer's
     # own text cannot disagree with the writer.
-    nearest = value
     anchor = _grid_text(value, figures)
-    try:
-        nearest = float(anchor)
-    except ValueError:
+    units = _grid_units(anchor, figures)
+    if units is None:
         return None
     reach = 1
     while reach <= _GRID_REACH:
         for step in (-reach, reach):
-            walked = nearest + step * unit
-            if not math.isfinite(walked):
-                continue
+            spelt = _grid_at(units + step, figures)
             # THE CANDIDATE IS THE GRID POINT, NOT THE SUM THAT REACHED
             # IT (review round 3 of the integer-grid landing). Stepping
             # by a tenth accumulates in binary: `0.2 + 0.1` is
@@ -7777,12 +7819,18 @@ def _apart_inside(
             # will hold, so the text read back is what the bounds and
             # the sign are asked about, and it is what the stratum
             # takes.
-            spelt = _grid_text(walked, figures)
             try:
                 candidate = float(spelt)
             except ValueError:
                 continue
             if not math.isfinite(candidate):
+                continue
+            # AND THE TEXT MUST SURVIVE THE ROUND TRIP. The grid point
+            # is named by its text, but the stratum carries a double,
+            # and the caller re-spells that double to book the text it
+            # took. Where the two disagree the walk would record one
+            # text and write another, so such a point is passed over.
+            if _grid_text(candidate, figures) != spelt:
                 continue
             if spelt in written:
                 continue

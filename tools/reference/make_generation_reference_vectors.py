@@ -1850,6 +1850,32 @@ def grid_text(value, figures):
     return at_width(sign, digits, decpt, figures)
 
 
+def _snapped_fraction(exact, figures):
+    """An exact decimal value snapped to the grid, ties to even."""
+    scaled = exact * fractions.Fraction(10) ** figures
+    below = scaled.numerator // scaled.denominator
+    rest = scaled - below
+    half = fractions.Fraction(1, 2)
+    if rest > half:
+        below = below + 1
+    elif rest == half and below % 2:
+        below = below + 1
+    return fractions.Fraction(below, 10 ** figures)
+
+
+def _fraction_text(point, figures):
+    """A grid point, held exactly, written at ``figures``."""
+    units = point * fractions.Fraction(10) ** figures
+    whole = units.numerator // units.denominator
+    sign = "-" if whole < 0 else ""
+    body = str(abs(whole))
+    if figures == 0:
+        return "%s%s." % (sign, body)
+    body = body.rjust(figures + 1, "0")
+    cut = len(body) - figures
+    return "%s%s.%s" % (sign, body[:cut], body[cut:])
+
+
 def apart_inside(value, figures, band, share, ends, written):
     """The nearest free point of the grid inside this share -- G6.5a.
 
@@ -1862,32 +1888,35 @@ def apart_inside(value, figures, band, share, ends, written):
     leaves the share, where it leaves the published ends, or where it
     would cross into another sign band.
     """
-    unit = 1.0
-    for _step in range(figures):
-        unit = unit / 10.0
-    if unit <= 0.0 or not math.isfinite(unit):
-        return None
+    # THE STEPS ARE COUNTED ON THE GRID, and this is computed as an
+    # exact rational rather than by walking a digit string: the anchor
+    # as a fraction, plus `step` times one unit of the last place. The
+    # shipped generator counts in whole grid units on the text; taking
+    # a different route to the same stated rule is what keeps this file
+    # a reading of the method rather than a copy of the code. Adding
+    # `10 ** -figures` to a double instead accumulates, and at eleven
+    # figures a candidate the method bounds at sixty-four units came
+    # back seventy out.
+    unit = fractions.Fraction(1, 10 ** figures)
     anchor = grid_text(value, figures)
-    try:
-        nearest = float(anchor)
-    except ValueError:
-        return None
+    digits, decpt = shortest_round_trip(value)
+    seated = fractions.Fraction(int(digits or "0"), 1)
+    seated = seated * fractions.Fraction(10) ** (decpt - len(digits))
+    if value < 0:
+        seated = -seated
+    placed = _snapped_fraction(seated, figures)
     reach = 1
     while reach <= 64:
         for step in (-reach, reach):
-            walked = nearest + step * unit
-            if not math.isfinite(walked):
-                continue
-            # The candidate is the GRID POINT and not the sum that
-            # reached it: stepping by a tenth accumulates in binary and
-            # `0.2 + 0.1` is greater than `0.3`, so a candidate sitting
-            # exactly on an inclusive endpoint was refused by it.
-            spelt = grid_text(walked, figures)
+            point = placed + step * unit
+            spelt = _fraction_text(point, figures)
             try:
                 candidate = float(spelt)
             except ValueError:
                 continue
             if not math.isfinite(candidate):
+                continue
+            if grid_text(candidate, figures) != spelt:
                 continue
             if spelt in written:
                 continue

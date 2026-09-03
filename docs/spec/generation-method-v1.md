@@ -2053,9 +2053,27 @@ candidates are `1.1` and `1.3` rather than `1.15` and `1.35`. This
 paragraph named the value until review round 1 of the integer-grid
 landing, which is the wrong anchor and a byte-determining one.
 
-**HOW FAR.** At most SIXTY-FOUR grid steps out. A share wider than that
-is not searched to its ends; the walk answers with nothing and the
+**HOW FAR, AND THE STEPS ARE COUNTED ON THE GRID.** At most SIXTY-FOUR
+grid steps out, where a step is ONE UNIT of the last place the width
+holds and the count is of units, not of additions. A share wider than
+that is not searched to its ends; the walk answers with nothing and the
 stratum stays where it is.
+
+**The distinction is not pedantry.** Adding `10 ** -figures` to a
+double sixty-four times does not move sixty-four grid units: the
+addition accumulates, and at eleven figures a candidate this rule
+bounds at sixty-four units came back SEVENTY units from its anchor and
+was taken. So the anchor is read as a whole number of grid units and
+the step is added to THAT — by whatever arithmetic an implementation
+likes, so long as sixty-four means sixty-four.
+
+**AND A GRID POINT NO DOUBLE HOLDS IS PASSED OVER.** The stratum
+carries a number, not a text, and the run re-spells that number when it
+books the text the stratum took. Where a grid point's text does not
+survive being read back and written again — which begins where the grid
+is finer than the numbers near it, at eleven figures on a value in the
+millions — the walk passes it by rather than recording one text and
+writing another.
 
 **WHAT IS TESTED AND TAKEN IS THE GRID POINT, not the sum that reached
 it.** Stepping outward accumulates in binary: a tenth added to `0.2`
