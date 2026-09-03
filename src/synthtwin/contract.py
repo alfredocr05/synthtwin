@@ -545,12 +545,14 @@ COMPOUND_KEYS = (
     # to review item P1-R6-F7, which deleted a rule that described part
     # of a column and said nothing about the rest.
     #
-    # THE NUMERIC AND LABEL SUB-BLOCKS ARE NOT HERE YET. The landing
-    # builds them next, and until it does this role publishes the split
-    # and nothing about either half. That is incomplete rather than
-    # finished, and the register says so.
     "n_numeric_cells",
     "n_label_cells",
+    # ...AND THE TWO HALVES THEMSELVES. `numbers` holds a quantitative
+    # block read over the numeric cells and `labels` a label block read
+    # over the rest, each by the reader that reads its own kind of
+    # column. The counts above are what a reader checks them against.
+    "numbers",
+    "labels",
 )
 
 JOINED_KEYS = (
@@ -1787,15 +1789,19 @@ class CompoundFacts:
     part of a column and saying nothing about the rest: a reader can
     check the arithmetic without trusting any prose.
 
-    THE TWO SUB-BLOCKS ARE NOT HERE YET. The landing builds the
-    numeric block over the numeric cells and the label block over the
-    rest as its next step; until then this role publishes the split
-    and nothing about either half, which is incomplete rather than
-    finished and is recorded as such in the register.
+    AND BOTH HALVES DESCRIBED, each by the reader that reads its own
+    kind of column: `numbers` is read by the SAME reader every
+    quantitative block is read by, over the numeric cells, and
+    `labels` by the same reader a column of labels is read by, over
+    the rest. Nothing here reads a fact a second way, so the two
+    halves cannot come to disagree with the roles they are borrowed
+    from.
     """
 
     n_numeric_cells: int
     n_label_cells: int
+    numbers: "NumericFacts"
+    labels: "LabelFacts"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4384,7 +4390,7 @@ def _facts(
     if role == ROLE_JOINED:
         return _joined_facts(mapping, where, frame, n_present)
     if role == ROLE_COMPOUND:
-        return _compound_facts(mapping, where, n_present)
+        return _compound_facts(mapping, where, frame, n_present)
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
@@ -4871,6 +4877,47 @@ def _label_facts(
             ),
         )
     return LabelFacts(
+        levels=entries,
+        suppressed_levels=suppressed,
+        suppressed_rows=rows,
+        suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
+    )
+
+
+def _compound_label_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_folded: int,
+) -> "LongTailFacts":
+    """The label half of a compound column (residual R-P4-13, L8).
+
+    THE LEVELS, THE HELD-BACK REMAINDER AND THE FORM CENSUS, read
+    exactly as a label-publishing column's are -- so B2 holds here as
+    it holds anywhere: what is published and what is held back are
+    together all the different values, ignoring case.
+
+    WHAT IS NOT ASKED OF IT IS ANOTHER ROLE'S ENTRY CONDITION, and that
+    is the whole reason this reader exists rather than one of the two
+    beside it. `_label_facts` is the CONSTANT and BINARY reader and
+    demands one value or two; the long-tail reader demands a level
+    covering the detection line and a count above the categorical
+    ceiling. This half is neither of those columns. Rule 7b decided
+    what it is -- words that repeat, in a short list or a longer one
+    that comes back -- and a loader that re-asked a different rule's
+    question would refuse descriptions the producer correctly wrote.
+
+    Measured while writing it: a lab column of 295 readings beside five
+    `NOT DETECTED` was refused by the binary rule for having one value
+    and then by the long-tail rule for having no level on eleven rows.
+    Both refusals were about roles this half does not have.
+    """
+    entries, suppressed, rows, sizes = _levels(
+        mapping, where, floor, n_present, n_folded
+    )
+    return LongTailFacts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
@@ -7168,6 +7215,7 @@ def _affixed_facts(
 def _compound_facts(
     mapping: "dict[str, object]",
     where: str,
+    frame: _Frame,
     n_present: int,
 ) -> CompoundFacts:
     """A column of numbers beside labels (residual R-P4-13, landing L8).
@@ -7204,7 +7252,48 @@ def _compound_facts(
             "column has, so that every one of them is in one published "
             "population and none is in two",
         )
-    return CompoundFacts(n_numeric_cells=numeric, n_label_cells=labels)
+    numbers = _numeric_facts(
+        _mapping(mapping["numbers"], "numbers", where),
+        f"{where} -> numbers",
+        frame,
+        numeric,
+        numeric,
+        0,
+        0,
+    )
+    label_block = _mapping(mapping["labels"], "labels", where)
+    folded = _bounded(
+        label_block["n_distinct_folded"],
+        "labels -> n_distinct_folded",
+        where,
+        0,
+        labels,
+        "the number of cells in the label half",
+    )
+    # READ BY THE LONG-TAIL READER, which is what this half IS: any
+    # number of levels, the small ones held back by the floor, and no
+    # cardinality rule of its own. `_label_facts` is the CONSTANT and
+    # BINARY reader and demanded two different values of a half that
+    # has one.
+    #
+    # THE CEILING IS NOT ASKED OF IT. A long-tail column earns its role
+    # by passing the categorical ceiling; this half does not -- it is a
+    # half, and rule 7b already decided what it is. Handing the reader
+    # a ceiling of zero says "no ceiling was the reason", which is
+    # true.
+    label_facts = _compound_label_facts(
+        label_block,
+        f"{where} -> labels",
+        frame.floor,
+        labels,
+        folded,
+    )
+    return CompoundFacts(
+        n_numeric_cells=numeric,
+        n_label_cells=labels,
+        numbers=numbers,
+        labels=label_facts,
+    )
 
 
 def _text_facts(
