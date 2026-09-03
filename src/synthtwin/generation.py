@@ -7931,10 +7931,18 @@ def _apart_enough(
         if text in held:
             seen = held[text]
         held[text] = seen + 1
-    count = len(held)
+    # HOW MANY DIFFERENT TEXTS THE COLUMN HOLDS IS `len(held)` AND NOT A
+    # TALLY BESIDE IT. A stratum only moves while its own text has two
+    # or more holders, so a key here never falls to nought and the
+    # size of the map IS the count of different numbers. Keeping a
+    # separate counter meant the stopping rule believed an addition
+    # rather than the column: with the walk's round-trip refusal
+    # removed, review round 5 measured 26 of 600 moves coming back on a
+    # text already held, each one counted as a fresh value. Deriving it
+    # cannot drift from what is there (review round 6).
     wanted = facts.n_distinct_values
     for place in range(total):
-        if wanted is not None and count >= wanted:
+        if wanted is not None and len(held) >= wanted:
             break
         text = texts[place]
         if held[text] <= 1:
@@ -7973,18 +7981,7 @@ def _apart_enough(
         held[fresh] = before + 1
         texts[place] = fresh
         moved[place] = want
-        # THE COUNT RISES ONLY WHERE A TEXT IS GENUINELY NEW. The walk
-        # refuses a candidate whose text is already written, so `before`
-        # is nought whenever it answers -- but that made this line's
-        # correctness depend on a refusal three functions away, and
-        # review round 5 of the integer-grid landing showed the shape:
-        # with the round-trip refusal removed, 26 of 600 moves came back
-        # spelling a text the column already held and this line counted
-        # every one of them as a fresh value. A count that can rise
-        # without a value appearing is the whole defect this pass
-        # exists to repair.
-        if before == 0:
-            count = count + 1
+        # Nothing is counted here: the map above IS the count.
     return moved
 
 
