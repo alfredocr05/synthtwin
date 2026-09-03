@@ -23,12 +23,35 @@ written to the nearest free point of the published width's own grid,
 inside its own share of the ladder.
 """
 
+import importlib.util
 import pathlib
 import random
 import re
 
 import fixtures
 from synthtwin import contract, generation, profile, reading, taxonomy
+
+_ORACLE = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "tools"
+    / "reference"
+    / "make_generation_reference_vectors.py"
+)
+
+
+def _oracle():
+    """The independent maker, loaded from its path (it is not a package).
+
+    Two implementations of method G6.5a exist on purpose, and a rule
+    that only one of them holds is a rule that is not being checked.
+    Loaded the way `tests/test_generation_reference.py` loads it.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "make_generation_reference_vectors", _ORACLE
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 SEED = 7
 
@@ -136,6 +159,127 @@ def test_nothing_published_is_traded_for_the_separation(
     assert sum(1 for one in numbers if one == 0) == published["n_zero"]
     assert min(numbers) == published["percentiles"]["min"]
     assert max(numbers) == published["percentiles"]["max"]
+
+
+def test_a_grid_finer_than_a_double_can_step_is_no_grid_at_all() -> None:
+    """The 323-and-324 boundary, in BOTH implementations.
+
+    A grid step is `10 ** -figures`. As a double that is positive
+    through 323 figures and UNDERFLOWS to nought at 324, and method
+    G6.5a stops the walk where the step is not a finite number greater
+    than nought -- a column described more finely than a program can
+    step has no grid to walk.
+
+    Neither implementation was tested at that boundary until review
+    round 6 of the integer-grid landing, and the two had already
+    disagreed there once: the oracle's rational arithmetic never
+    underflows, so when it was rewritten to be independent it lost the
+    refusal and answered `1e-323` where the shipped walk answers
+    nothing. So this asserts BOTH, and asserts a real move on the
+    reachable side so that neither arm is passing by refusing
+    everything.
+    """
+    oracle = _oracle()
+    reachable = 323
+    unreachable = 324
+
+    # THE STEP ITSELF, which is what the rule is about.
+    assert 10.0 ** -reachable > 0.0
+    assert 10.0 ** -unreachable == 0.0
+
+    # ON THE REACHABLE SIDE both implementations MOVE, so the refusal
+    # below is a refusal and not the shape of the whole region.
+    value = 5e-323
+    spelt = generation._grid_text(value, reachable)
+    written = {spelt: 2}
+    mine = generation._apart_inside(
+        value, reachable, generation._BAND_POSITIVE, None, None, dict(written)
+    )
+    theirs = oracle.apart_inside(
+        value, reachable, "positive", None, None, dict(written)
+    )
+    assert mine is not None, mine
+    assert theirs == mine, (mine, theirs)
+
+    # AND ON THE OTHER SIDE both refuse.
+    finer = generation._grid_text(5e-324, unreachable)
+    refused = {finer: 2}
+    assert generation._apart_inside(
+        5e-324,
+        unreachable,
+        generation._BAND_POSITIVE,
+        None,
+        None,
+        dict(refused),
+    ) is None
+    assert oracle.apart_inside(
+        5e-324, unreachable, "positive", None, None, dict(refused)
+    ) is None
+
+
+def test_a_walk_that_answers_badly_cannot_inflate_the_count(
+    tmp_path: pathlib.Path,
+    monkeypatch: "object",
+) -> None:
+    """The CALLER's guard, which the helper's own tests cannot reach.
+
+    The pass stops when the column holds as many different texts as the
+    description publishes. That count used to be a tally kept beside
+    the map and stepped once per accepted move -- so a walk that handed
+    back a text the column already held raised the count without
+    raising the number of different values, and the pass stopped early
+    believing a fact it had not met. Review round 5 measured exactly
+    that shape when the walk's round-trip refusal was removed: 26 of
+    600 moves.
+
+    The count is now `len(held)`, read from the map itself, so a bad
+    answer cannot inflate it. This test proves the CALLER holds that
+    even when the walk is broken, which is what the helper's own tests
+    cannot show.
+    """
+    generator = random.Random(31337)
+    rows = [str(generator.randint(40, 120)) for _each in range(200)]
+    _document, loaded = _described(tmp_path, rows, "crowded")
+    column = loaded.columns[0]
+    published = column.facts.n_distinct_values
+    assert published is not None and published > 40, published
+
+    # A WALK THAT ANSWERS WITH A TEXT THE COLUMN ALREADY HOLDS. Nothing
+    # it returns is a new value, so the count of different texts never
+    # rises and the pass must keep going until it runs out of strata it
+    # is allowed to move. A pass that stops sooner has believed a count
+    # that did not rise.
+    #
+    # ELEVEN IS MEASURED, and it is measured because the difference is
+    # small and real: with the count kept as a tally beside the map and
+    # stepped once per accepted answer, this same fixture stops at TEN.
+    # The deceiving walk does consolidate as it goes -- moving a
+    # stratum off a doubled text leaves that text with one holder, so
+    # later strata on it stop being eligible -- which is why this is a
+    # measured number and not the count of eligible strata.
+    called: "list[int]" = []
+
+    def deceiving(value, figures, band, share, ends, written):
+        called.append(1)
+        for text in sorted(written):
+            try:
+                return float(text)
+            except ValueError:
+                continue
+        return None
+
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation, "_apart_inside", deceiving
+    )
+    twin = generation.generate(loaded, SEED)
+
+    assert len(called) == 11, len(called)
+
+    # AND NO VALUE WAS INVENTED, which is the other half: a walk that
+    # only ever hands back a text the column already holds cannot take
+    # it to the published count.
+    cells = [cell for cell in twin.columns[0] if cell != ""]
+    assert len({float(cell) for cell in cells}) < published
 
 
 def test_the_walk_never_answers_with_a_text_the_column_already_holds(

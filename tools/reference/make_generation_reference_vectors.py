@@ -1970,10 +1970,13 @@ def apart_values(
     held = {}
     for text in texts:
         held[text] = held.get(text, 0) + 1
-    count = len(held)
+    # The size of the map IS the count of different texts: a stratum
+    # moves only while its own text has two or more holders, so no key
+    # falls to nought. A tally beside it would believe an addition
+    # rather than the column.
     ends = None if ladder is None else (ladder[0], ladder[-1])
     for place in range(total):
-        if wanted is not None and count >= wanted:
+        if wanted is not None and len(held) >= wanted:
             break
         text = texts[place]
         if held[text] <= 1:
@@ -1998,7 +2001,6 @@ def apart_values(
         held[fresh] = held.get(fresh, 0) + 1
         texts[place] = fresh
         moved[place] = want
-        count = count + 1
     return moved
 
 
