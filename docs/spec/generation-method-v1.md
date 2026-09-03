@@ -1996,9 +1996,8 @@ grid, because only then does a value know what text it will wear:
   the grid is the INTEGERS. A whole-number column carries no figure
   after the point, so it has no width to count and its census is empty
   — which an implementation may read as "no grid" and skip the pass
-  entirely. It is a grid, and it is the one most of a real table's
-  numeric columns are on -- the whole-valued ones a real table is
-  mostly made of;
+  entirely. It IS a grid: the one every whole-valued column is written
+  on;
 - otherwise the pass does not run. Where the census names several
   widths, which cell gets which is settled after the styles by G6.6,
   and a value cannot know here what it will be written at.
@@ -2009,17 +2008,48 @@ nothing. Never the first or last stratum, whose values are the
 published `min` and `max`. Never the zero stratum, whose value is a
 published count's whole reason for being there.
 
+**IN WHAT ORDER.** The strata are visited in ascending index, ONCE
+each, and a stratum the walk could not move is not returned to. Which
+stratum is repaired first decides which grid points the later ones find
+occupied, so the order is part of the answer and not an implementation
+detail.
+
 **THE MOVE.** The nearest free point of the grid inside the stratum's
-own share of the ladder, walked outward from the stratum's value one
-grid step at a time, the LOWER of two equally distant candidates
-taken first so that two implementations reading this text choose the
-same point. A candidate is refused where its text is already written,
-where it leaves the stratum's share, where it leaves the published
-`min` and `max`, or where it would cross into another sign band — the
-counts of negative, zero and positive cells are published facts and no
-repair may move one. A stratum for which every candidate is refused
-stays where it is, and the pass moves on. The pass stops as soon as the
-count of different texts reaches the published `n_distinct_values`.
+own share of the ladder, walked outward one grid step at a time — the
+step being one unit of the last place the width holds, so `1` on the
+integer grid and `0.01` at two figures — and the LOWER of two equally
+distant candidates taken first, so that two implementations reading
+this text choose the same point.
+
+**FROM WHERE, EXACTLY.** Not from the stratum's value, but from that
+value's OWN GRID TEXT read back as a number. The two differ: a stratum
+holding `1.25` on a grid of one figure is written `1.2`, and the
+candidates are `1.1` and `1.3` rather than `1.15` and `1.35`. This
+paragraph named the value until review round 1 of the integer-grid
+landing, which is the wrong anchor and a byte-determining one.
+
+**HOW FAR.** At most SIXTY-FOUR grid steps out. A share wider than that
+is not searched to its ends; the walk answers with nothing and the
+stratum stays where it is.
+
+**WHAT IS REFUSED.** A candidate whose text is already written by
+another stratum; a candidate outside the stratum's share, whose two
+ends are INCLUSIVE; a candidate outside the published `min` and `max`,
+inclusive likewise; and a candidate that would cross into another sign
+band — the counts of negative, zero and positive cells are published
+facts and no repair may move one. A stratum in the ZERO band answers
+with nothing at once, without walking. So does a grid whose step is not
+a finite number greater than nought, and a value whose grid text does
+not read back as a number.
+
+**WHERE THERE IS NO LADDER** — a column published without one — there
+is no share and no published ends, so those two refusals do not apply
+and only the written-text and sign refusals remain.
+
+**WHEN IT STOPS.** As soon as the count of different texts reaches the
+published `n_distinct_values`, and otherwise at the end of its single
+ascending pass. A stratum for which every candidate was refused keeps
+its value; the shortfall is then G13's to name.
 
 **MEASURED, through the real reader, producer, loader and generator at
 twelve seeds, published against held, before this clause and after.**
@@ -2029,16 +2059,29 @@ before, 67 to 70 after**. A tight 200-row column publishing 74: **61 to
 before, 194 at every seed after**. A column of seven repeated numbers
 over 200 rows publishes 7 and holds 7 either way, so the clause costs
 nothing where there was nothing to win. Columns at one fixed fraction
-width were already on a grid and do not move.
+width were already on a grid, so THIS CLAUSE moves none of them --
+the pass itself moves them, which is what it was built for.
 
-**WHAT IT STILL CANNOT DO.** A tight column's strata have narrow
-shares, and a share can hold no free point of the grid at all — on the
-200-row column above the walk was asked 14 times and answered with a
-value 6 times. The count is therefore REPORT-ONLY and stays so: the
-twin's own report names the shortfall. Reaching it always would mean
-moving a stratum off its share, and the share is the published ladder,
-so the two facts are in genuine tension and the ladder is the one
-this method keeps.
+**WHAT IT STILL DOES NOT DO, AND WHY THAT IS THE WALK AND NOT THE
+FACTS.** A tight column's strata have narrow shares and a share can
+hold no free grid point at all — on the 200-row column above the walk
+was asked 14 times and answered 6. The count stays REPORT-ONLY and the
+twin's own report names the shortfall.
+
+**But that is this walk falling short, not the count being
+unreachable**, and an earlier writing of this paragraph said otherwise.
+The walk is greedy, ascending and single-pass, and it moves only a
+stratum that has COLLIDED. Take pinned ends `0` and `5` with interior
+values `1`, `1`, `2` and shares `[0,1]`, `[1,2]`, `[2,4]`: neither `1`
+can move, because `2` is taken and their shares reach nothing else, and
+the unique `2` is never asked because it collided with nothing. Yet
+moving that `2` to `3`, inside its own share, and then a `1` to `2`,
+inside its own, gives `0,1,2,3,5` — every value distinct, no stratum
+off its share, no sign changed, no end moved. A walk that could move an
+uncollided stratum to make room would reach the count here. That walk
+has not been built or measured, so what is stated is what this one
+does; the shortfall it leaves is not evidence that the ladder and the
+count are in conflict.
 
 ### G6.6 The published field widths reach the VALUES
 
@@ -6754,12 +6797,14 @@ loader refused the case until it was there, which is the argument this
 residual makes, arriving for the third time.
 
 **It is also the one case in either file where a conforming generator
-MISSES a published fact and says so.** Its source column held twelve
-different numbers and it publishes twelve; the twin holds eleven,
-because values drawn to a published ladder repeat more evenly than real
-ones did, so `23` comes out twice. `n_distinct_values` is REPORT-ONLY
-for exactly that reason (residual R-P4-20), and the shipped generator
-reports it — twelve published, eleven achieved. Every other case
+MISSED a published fact and said so — until the integer-grid landing
+took the miss away.** Its source column held twelve different numbers
+and it publishes twelve; the twin held eleven, because values drawn to
+a published ladder repeat more evenly than real ones did, so `23` came
+out twice. G6.5a's pass had been declining every whole-number column,
+this case is one, and the twin holds twelve now. `n_distinct_values`
+stays REPORT-ONLY (residual R-P4-20), but **no committed case exercises
+a reported miss of it any more**, which is residual R-P4-145. Every other case
 carrying that key publishes the figure its OWN TWIN reaches, so none of
 them can exercise the miss: an adversarial read found that the oracle
 was overwriting the field with a count of the finished cells, which

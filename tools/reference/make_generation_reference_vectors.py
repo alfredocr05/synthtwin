@@ -1759,16 +1759,24 @@ def whole_number_values(
     return values
 
 
-def grid_of(fraction_widths, integer_valued):
+def grid_of(fraction_widths, integer_valued, numeric):
     """Which grid every numeric cell of this column is written on -- G6.5a.
 
     The count of figures after the point, or -1 where the column is not
     on one grid and this pass may not act.  A census naming exactly one
-    width, covering every numeric cell, IS that width.  An EMPTY census
-    on a whole-valued column is the INTEGER grid: no cell carries a
-    figure after the point, so there is no width to count, and reading
-    that as "no grid" turns the pass off for most of a real table's
-    numeric columns.
+    width AND COVERING EVERY NUMERIC CELL is that width; a census whose
+    one width covers only some of them is not a whole-column grid, and
+    which cell gets which is settled after the styles by G6.6.  An EMPTY
+    census on a whole-valued column is the INTEGER grid: no cell carries
+    a figure after the point, so there is no width to count, and reading
+    that as "no grid" turns the pass off for every whole-valued
+    column.
+
+    ``numeric`` is the column's own count of numeric cells and is what
+    the coverage test needs.  Review round 1 of this landing found this
+    function without it, accepting any one-key census -- so a case whose
+    one width covered 11 of 33 cells would have been called a grid here
+    and refused by the implementation.
     """
     if len(fraction_widths) != 1:
         if integer_valued and not fraction_widths:
@@ -1776,19 +1784,81 @@ def grid_of(fraction_widths, integer_valued):
         return -1
     for width in fraction_widths:
         try:
-            return int(width)
+            figures = int(width)
         except (TypeError, ValueError):
             return -1
+        if fraction_widths[width] != numeric:
+            return -1
+        return figures
     return -1
 
 
+def _incremented(digits):
+    """One string of figures with one added to it, carrying to the left."""
+    carried = 1
+    built = ""
+    for place in range(len(digits) - 1, -1, -1):
+        step = int(digits[place]) + carried
+        carried = 1 if step > 9 else 0
+        built = "%d%s" % (step % 10, built)
+    if carried:
+        return "1" + built
+    return built
+
+
+def at_width(sign, figures, place, width):
+    """The figures written with EXACTLY ``width`` of them after the point.
+
+    Short of the width the value is padded, which costs nothing; past it
+    the value is ROUNDED, and TIES GO TO EVEN (plan P4-D4.5), which is
+    not the tie rule the rest of this method uses.  The rounding is on
+    the DECIMAL figures -- the shortest round-trip digits -- and not on
+    the binary value: `2.675` at two figures is `2.68` here, while
+    rounding the double is `2.67`.  Review round 1 of the integer-grid
+    landing found this file taking the second answer.
+    """
+    if place <= 0:
+        whole = "0"
+        fraction = ("0" * (-place)) + figures
+    elif place >= len(figures):
+        whole = figures + ("0" * (place - len(figures)))
+        fraction = ""
+    else:
+        whole = figures[:place]
+        fraction = figures[place:]
+    if len(fraction) <= width:
+        return "%s%s.%s%s" % (
+            sign, whole, fraction, "0" * (width - len(fraction))
+        )
+    kept = fraction[:width]
+    following = fraction[width]
+    trailing = any(character != "0" for character in fraction[width + 1:])
+    if following > "5":
+        up = True
+    elif following < "5":
+        up = False
+    elif trailing:
+        up = True
+    else:
+        last = kept[len(kept) - 1:] if kept else whole[len(whole) - 1:]
+        up = last in "13579"
+    digits = whole + kept
+    if up:
+        digits = _incremented(digits)
+    cut = len(digits) - width
+    return "%s%s.%s" % (sign, digits[:cut], digits[cut:])
+
+
 def grid_text(value, figures):
-    """The text the writer will write this value at, on the grid."""
-    if figures == 0:
-        spelling = point_free_spelling(value, True)
-        if spelling is not None:
-            return spelling
-    return "%.*f" % (figures, value)
+    """The text the writer will write this value at, on the grid -- G6.6.
+
+    THE WRITER'S OWN RULE AND NOT A SECOND ONE.  A function that
+    predicts what another will write, by writing it a second way, is the
+    shape this landing's first review round found here.
+    """
+    digits, decpt = shortest_round_trip(value)
+    sign = "-" if value < 0 or (value == 0 and math.copysign(1.0, value) < 0) else ""
+    return at_width(sign, digits, decpt, figures)
 
 
 def apart_inside(value, figures, band, share, ends, written):
@@ -4772,7 +4842,7 @@ def _numeric_content(column):
     # and can itself land two strata on one text.
     values = apart_values(
         column.get("n_distinct_values"),
-        grid_of(column.get("fraction_widths", {}), integer_valued),
+        grid_of(column.get("fraction_widths", {}), integer_valued, numeric),
         values,
         sizes,
         starts,
@@ -6822,11 +6892,14 @@ def _affixed_brackets():
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         # THE SOURCE COLUMN HELD TWELVE DIFFERENT NUMBERS, and this
-        # says so. The twin built from it holds eleven -- values drawn
-        # to a published ladder repeat more evenly than real ones did --
-        # so this case is the one place in either file where a
-        # conforming generator MISSES `n_distinct_values` and has to
-        # say so, which is what that fact being REPORT-ONLY means.
+        # says so. The twin built from it held ELEVEN until the
+        # integer-grid landing -- values drawn to a published ladder
+        # repeat more evenly than real ones did, and `23` came out
+        # twice -- which made this the one place in either file where a
+        # conforming generator MISSED `n_distinct_values` and had to
+        # say so. G6.5a's pass reaches the integer grid now, the twin
+        # holds twelve, and NO committed case exercises that miss any
+        # more. That gap is residual R-P4-145.
         n_distinct_values=12,
         integer_valued=True, n_rows=12, numeric_styles={"plain": 12},
         # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, READ OVER THE CORES
@@ -6880,16 +6953,18 @@ def _affixed_brackets():
         "the numeric one read over the cores (G4.3): ten content words "
         "for twelve cells, which is what the shipped generator plans "
         "for this column as well. "
-        "AND IT IS THE ONE CASE IN EITHER FILE WHERE A CONFORMING "
-        "GENERATOR MISSES A PUBLISHED FACT AND SAYS SO. Its source "
+        "AND IT WAS THE ONE CASE IN EITHER FILE WHERE A CONFORMING "
+        "GENERATOR MISSED A PUBLISHED FACT AND SAID SO. Its source "
         "column held twelve different numbers and it publishes twelve; "
-        "the twin holds eleven, because values drawn to a published "
-        "ladder repeat more evenly than real ones did, and `23` comes "
-        "out twice. `n_distinct_values` is REPORT-ONLY for exactly this "
-        "reason (residual R-P4-20), and the shipped generator reports "
-        "it: twelve published, eleven achieved. Every other case "
-        "carrying that key publishes the figure its own twin reaches, "
-        "so none of them can exercise the miss.",
+        "the twin held eleven, because values drawn to a published "
+        "ladder repeat more evenly than real ones did and `23` came "
+        "out twice. The integer-grid landing gave method G6.5a's pass "
+        "the whole-number columns it had been declining, this case is "
+        "one of them, and the twin holds twelve now -- so the file no "
+        "longer carries a case where that miss is exercised at all, "
+        "which is residual R-P4-145. `n_distinct_values` stays "
+        "REPORT-ONLY (residual R-P4-20): what changed is that no "
+        "committed vector still shows the report doing its work.",
         "column": column,
         "rows": 12,
         "identifier_declared": False,
