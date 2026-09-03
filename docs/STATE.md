@@ -28,7 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree (51 in a worktree: the count moves with the machine, the collected count does not) |
+| suite | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim on the merged tree with review round 4's landing in it (52 skipped on another machine: that count moves, the collected count does not). The one new test is round 4's `test_every_position_aims_at_an_above_count_on_half_its_own_turns`; round 5 changed documents only |
+| suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
 | suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
@@ -42,6 +43,26 @@ without the same help.
 consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
+
+* **LANDING L7 IS RATIFIED, at review round 8 of 2026-09-02.** Its
+  scoped defects are both repaired, measured and pinned: the parity
+  lockout that starved half the positions of every odd-position column,
+  and the acceptance rule that collapsed the exact above-counts into
+  one summed distance. Rounds 4 through 8 found nine further items,
+  ALL of them in the reasoning about measurements rather than in the
+  measurements: a regression read off one seed, a schedule comparison
+  that ran three phases of one arm against one of the other, a
+  reachability bound that was simply wrong, a pairwise bound read as a
+  joint one, and FOUR byte-determining choices the method left
+  unstated -- the proposal's phase, the pair it aims at, the scan
+  offsets and spelling comparator, and what "unmet" means. The last
+  round's inventory of every byte-determining choice in the walk
+  matches the shipped loop row for row.
+
+  **Still open and named**: R-P4-144 (a feasibility and allocation
+  problem, not this landing's), R-P4-132 (the reported remaining
+  shortfall) and R-P4-130 (an open search-risk investigation). None
+  reopens L7's scoped defect.
 
 * **REVIEW ROUND 4 OF L7 IS REPAIRED (A-P4-52): the above-count
   proposal was gated on the WALK'S clock, which is also the
@@ -87,13 +108,24 @@ are still ahead. The gap list itself is at the foot of this page.
   **THE REPAIR** reads `turn = tries // movers` before the counter
   steps and hands it to `_proposed` beside `place`; the gate is
   `(turn + place) % 2`, which alternates on each position's own turns
-  at every mover count. `place` stays in it because wherever `movers`
-  is odd it is the SAME schedule round 3 had: digesting every twin of
-  both families at forty seeds, **16 of the 48 columns are byte-for-
-  byte what `554da75` wrote, and they are exactly the 16 with an even
-  number of positions**, where `turn % 2` changes all 48. The oracle
-  carries the same repair from the method text and both frozen files
-  regenerate byte-identically.
+  at every mover count. It is a NAMED rule, `_aims_at_above`, and the
+  property it exists for is pinned by a test at every mover count from
+  one to eight rather than by a digest.
+
+  **`place` IS NOT LOAD-BEARING and the method now fixes the phase.**
+  It was kept at review round 4 because dropping it moved bytes that
+  `554da75` had set -- circular, since `554da75` is the commit that
+  carried the lockout. Measured across THREE families, 15,560 pairs,
+  the four phases `turn + place`, `turn + place + 1`, `turn` and
+  `turn + 1` miss 716, 709, 709 and 717 above-counts. `turn + place +
+  1` has fewer misses than the shipped phase in EVERY family and the
+  shipped phase has fewer agreement excursions in aggregate, so no
+  phase dominates across both metrics -- the differences are not zero,
+  and neither is a ranking. The method therefore FIXES
+  `s + p` normatively, for reproduction and not for fidelity -- two
+  programs on different phases would both be defensible and would
+  still write different twins. The oracle carries the same repair from
+  the method text and both frozen files regenerate byte-identically.
 
   **AND THE SECOND ITEM: THE ALIGNMENT THE WHOLE REPAIR RESTS ON WAS
   PINNED BY NOTHING.** `_above_marks` is the only thing carrying pair
@@ -122,14 +154,46 @@ are still ahead. The gap list itself is at the foot of this page.
   `test_golden_hash_of_the_demonstration_twin`, a byte hash, with no
   test saying a fact was missed: the phase flip, the stagger dropped,
   the turn count read late, the turn count handed as the try index,
-  and the gate held open. Those five are **R-P4-131**, opened with the
-  measurement that the stagger wins three of four readings and loses
-  one. The alignment mutant was run against the WHOLE suite as well,
-  because "silent everywhere else" is a claim about everything: 4,309
-  collected, and the only test it turns red is the new one.
+  and the gate held open. Those five were **R-P4-131**, now **CLOSED**:
+  with the method fixing the phase, a phase change is a METHOD
+  violation and a digest is what reproduction means. The alignment
+  mutant was run against the WHOLE suite as well, because "silent
+  everywhere else" is a claim about everything: 4,309 collected, and
+  the only test it turned red is the new one.
+
+  **AND THE ALIGNMENT IS NOW BOUND CALL BY CALL, not by membership.**
+  Review round 4 found that asking only whether each vector is one of
+  the permitted vectors leaves a CYCLIC misalignment green -- position
+  1 reading position 2's pairs, 2 reading 3's, 3 reading 1's. The test
+  reads the walk's own `place` at the acceptance boundary and asserts
+  `was == owed[place]` per call; under that mutant it refuses all
+  29,255 vectors.
+
   **R-P4-132** carries what is still short -- 44 above-counts of 9,640
-  pairs and 12 of 3,200, every one of them on a five-position column,
-  against 61 and 14 before round 3 and 120 and 71 at round 3.
+  pairs and 12 of 3,200, against 61 and 14 before round 3 and 120 and
+  71 at round 3. **55 of the 56 are on a five-position column**; this
+  page said all 56 until review round 4, and the odd one is
+  `c18p4r150`, of four positions, missing at one seed of forty. That
+  column is not a regression: the parent `df12e69` misses at TWO of
+  its forty seeds and the shipped gate at one.
+
+  **AND THE THIRD FAMILY ASKED A LARGER QUESTION THAN THE SCHEDULE:
+  R-P4-144, OPEN.** On a twelve-column family built to COUPLE its
+  parts, the twin misses 22% of its above-counts against about 0.5%
+  on the other two families, and the schedule does not move it -- all
+  four phases sit within ten pairs of each other there. Splitting
+  those misses by a pairwise reachability bound: 54 of 133 are not
+  reachable even for that pair alone, 47 of them outside by ONE. The
+  other 79 are reachable pairwise and are **not thereby the walk's** --
+  review round 5 gave the counterexample, three positions each holding
+  `[0, 1]` with every pair published at one above-row, where each pair
+  alone is reachable and no single arrangement meets more than two.
+  Joint feasibility is unmeasured, here and on the other two families.
+  The bound is `tools/measurements/r_p4_144_reach.py`, whose
+  `--self-check` enumerates every permutation of small multisets and
+  refuses to report a split if it ever disagrees -- the first version
+  of its two bound functions was WRONG and gave the opposite
+  majority.
 
 * **THE EMPTY-BIN LANDING (L8) HAS LANDED: a twin puts no value where
   the description says there is none.** The owner's ruling of

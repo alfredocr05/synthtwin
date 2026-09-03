@@ -5508,6 +5508,48 @@ _PROPOSAL_REACH = 16
 _AGREEMENT_ROUNDING = 0.5 * 10.0 ** (-parsing.RANK_AGREEMENT_PLACES)
 
 
+def _aims_at_above(turn: int, place: int) -> bool:
+    """WHICH OF A POSITION'S OWN TURNS AIM AT AN ABOVE-COUNT.
+
+    `turn` is how many turns position `place` has already had, NOT the
+    walk's own try counter, and amendment A-P4-52 is that distinction.
+    The walk takes its positions in turn, so try `t` belongs to
+    position `1 + t % movers` and a gate on `t` reads `turn * movers +
+    place` -- which carries ONE parity for every turn a given position
+    ever gets wherever `movers` is even. Half the positions then aimed
+    on all of their turns and half on none, and position 1 is the only
+    mover of the pair it makes with the anchor, so where position 1
+    was the starved half that pair had no route to its published
+    `part_above` at all.
+
+    Reading the position's OWN turn count alternates for every
+    position at every mover count, which is the property this rule
+    exists for and the property
+    `test_every_position_aims_at_an_above_count_on_half_its_own_turns`
+    pins.
+
+    `place` staggers neighbouring positions onto opposite turns, and
+    IT IS NOT LOAD-BEARING. Measured across three families of columns
+    built three different ways -- 15,560 pairs at forty seeds each --
+    the four phases of this rule, `turn + place`, `turn + place + 1`,
+    `turn` and `turn + 1`, miss 716, 709, 709 and 717 above-counts.
+    That is a spread of eight pairs in 15,560. `turn + place + 1` has
+    FEWER misses than this rule in every one of the three families,
+    and this rule has fewer agreement excursions in aggregate, 5,513
+    against 5,527: no phase dominates across BOTH metrics, which is
+    all the measurement supports. The two are a trade of seven
+    above-counts against fourteen agreement excursions.
+
+    So the rule is kept as it stands because CHANGING it is what the
+    measurement does not support -- not because it reproduces any
+    earlier tree's bytes. Review round 4 of L7 was right to refuse
+    that argument: the tree whose bytes were being preserved is the
+    tree that carried the defect. R-P4-131 holds the four-phase
+    numbers and R-P4-144 holds the thing that dwarfs them.
+    """
+    return (turn + place) % 2 == 0
+
+
 def _swap_allowed(
     before: "list[bool]",
     after: "list[bool]",
@@ -5522,9 +5564,12 @@ def _swap_allowed(
 
     ONE. A swap that takes any pair's above-count from HELD to missed
     is refused, whatever else it does. `part_above` is an exact count a
-    pairing can always meet, and one row out of it is one cell holding
-    a reading that cannot happen -- so no amount of agreement and no
-    other above-count buys it.
+    pairing can meet whenever the twin's own numbers admit it, and one
+    row out of it is one cell holding a reading that cannot happen --
+    so no amount of agreement and no other above-count buys it. (Not
+    always: R-P4-144 measures counts the twin's drawn numbers cannot
+    express under any arrangement. The rule is the same either way --
+    a swap that gives one up is refused.)
 
     TWO. A swap that takes an above-count FURTHER from its published
     value is refused, unless the moved pairs' above-counts fall as a
@@ -5679,7 +5724,9 @@ def _repaired_pairing(
 
     IT STARTS RANK FOR RANK, largest with largest, where the agreement
     is 1 and the earlier position is above the later one as often as it
-    can be. Both are usually ABOVE what the description publishes, and
+    can be -- EXCEPT where the published agreement is strongly negative
+    or near zero, which G6B.2 starts reversed and shuffled instead. The
+    unconditional wording here stood until review round 8 of L7. Both are usually ABOVE what the description publishes, and
     swaps bring them down to it. Starting from a shuffle was built
     first and was worse: it begins far from every target at once.
 
@@ -5887,8 +5934,10 @@ def _repaired_pairing(
             first = firsts[index]
             second = seconds[index]
             # A ROW OF THIS ONE OUTWEIGHS THE WHOLE AGREEMENT, and it
-            # should: `part_above` is an exact count that a pairing can
-            # always meet, and one row out of it is one cell holding a
+            # should: `part_above` is an exact count that a pairing
+            # can meet whenever the twin's own numbers admit it
+            # (R-P4-144 measures where they do not), and one row out of
+            # it is one cell holding a
             # reading that cannot happen -- a diastolic at or above its
             # systolic. Measured at the same weight as the others, the
             # walk sold a row of it for a thousandth of agreement and a
@@ -5965,35 +6014,9 @@ def _repaired_pairing(
             # 0.8232 against a published 0.8343 where alternating
             # reaches it exactly.
             #
-            # THE TURN IS THIS POSITION'S OWN AND NOT THE WALK'S, and
-            # that is amendment A-P4-52. This branch landed at review
-            # round 3 reading `tries`, the walk's own counter -- and
-            # the walk takes its positions in turn from that same
-            # counter, so the two were one clock. `place` is
-            # `1 + tries % movers`, `tries` is already stepped by the
-            # time this runs, and the gate was `tries % 2`. So wherever
-            # `movers` is EVEN -- which is every column with an ODD
-            # number of positions -- the parity a position is reached
-            # at never changes: position 1 of a five-position column is
-            # reached at tries 0, 4, 8, ... and was aimed at on none of
-            # them, while positions 2 and 4 were aimed at on every turn
-            # they got. Both halves of the alternation were gone rather
-            # than one, and position 1 is the ONLY mover of the pair it
-            # makes with the anchor, so that pair had no route to its
-            # published above-count at all.
-            #
-            # `turn` is how many turns this position has already had,
-            # so `turn + place` alternates on every position's own
-            # turns whatever `movers` is and no arithmetic between the
-            # two clocks can starve a parity. `place` stays in it on
-            # purpose rather than by accident: it staggers neighbouring
-            # positions onto opposite turns, and wherever `movers` is
-            # ODD it is the SAME schedule the round-3 gate had, because
-            # `tries` there is `turn * movers + place` and `movers`
-            # odd makes that `turn + place` to the parity. Every
-            # column with an even number of positions therefore comes
-            # out cell for cell as it did.
-            if (turn + place) % 2:
+            # WHICH turns those are is `_aims_at_above`, which is
+            # amendment A-P4-52 and carries its own reasons.
+            if not _aims_at_above(turn, place):
                 return one, two
             for index in range(len(seats)):
                 place_seat = seats[index]

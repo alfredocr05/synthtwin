@@ -53,8 +53,11 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 # The gate on `_proposed`'s above-count branch, arm by arm. The key is
 # the source line the shipped tree carries; the value replaces it.
-SHIPPED_GATE = "            if (turn + place) % 2:\n"
+SHIPPED_GATE = "            if not _aims_at_above(turn, place):\n"
 ARMS = {
+    # The shipped arm's replacement IS the gate line, so the
+    # arm that measures the tree as it stands really is the tree as
+    # it stands.
     "shipped": SHIPPED_GATE,
     # Review round 3 as it landed: the walk's own counter, read after
     # the walk has stepped it.
@@ -65,6 +68,12 @@ ARMS = {
     # Alternation without the stagger: every position aims on the same
     # turns of the turn rather than on opposite ones.
     "no-stagger": "            if turn % 2:\n",
+    # ITS OTHER PHASE, so the stagger is compared against BOTH phases
+    # of dropping it and not just one. Review round 4 of L7: three
+    # phases of the stagger against one of the plain turn is not a
+    # comparison, and the four arms differ by fewer pairs than the
+    # phases differ among themselves.
+    "no-stagger-flipped": "            if (turn + 1) % 2:\n",
     # The branch open on every turn, and shut on every turn.
     "always-aim": "            if False:\n",
     "never-aim": "            if True:\n",
@@ -88,6 +97,10 @@ def gate_opens(movers: int, place: int, turns: int, gate: str) -> int:
             shut = tries % 2
         elif gate == "shipped":
             shut = (turn + place) % 2
+        elif gate == "no-stagger":
+            shut = turn % 2
+        elif gate == "no-stagger-flipped":
+            shut = (turn + 1) % 2
         else:
             shut = (turn + place + 1) % 2
         if not shut:
@@ -161,6 +174,56 @@ def tight() -> "list[tuple[str, int, list[str]]]":
                 max(1, one + random.randint(-4, 4)),
             )))
         out.append((f"tight{case}", 5, made))
+    return out
+
+
+def spread() -> "list[tuple[str, int, list[str]]]":
+    """TWELVE columns built a DIFFERENT WAY from the recipe's.
+
+    The recipe draws every part from one anchor value, so its pairs
+    are correlated the same way in every one of its forty columns; a
+    schedule read off it alone is read off one construction. Review
+    round 4 of L7 asked for the choice to be made across families.
+
+    Here the centres are chosen apart, ties are set at three rates,
+    and -- on columns of more than two positions -- the last part runs
+    in REVERSE of the first, so above-counts sit near the ends of
+    their range rather than in the middle, which is where a schedule
+    that starves a position shows up soonest.
+
+    **THIS IS A COUPLED STRESS FAMILY AND NOT A SAMPLE.** Review round
+    5 of L7 corrected an earlier wording here that called the parts
+    independently drawn. They are not: the tie branch copies part 0
+    outright, the last part is a deterministic function of part 0, the
+    two-position column never reaches the reversing branch, and the
+    drawn centres are not always unequal -- case 11's are
+    [44, 58, 44], two of the three the same.
+    What this family is good for is stressing a schedule against a
+    construction unlike the recipe's. Its miss rate is ITS OWN and
+    generalises to nothing without a family built to represent
+    something.
+    """
+    random.seed(70707)
+    out = []
+    for case in range(12):
+        parts = (3, 4, 5, 4, 5, 3, 4, 5, 2, 4, 5, 3)[case]
+        rows = (90, 140, 160, 200)[case % 4]
+        centres = [random.randint(10, 90) for _each in range(parts)]
+        ties = (0.0, 0.15, 0.35)[case % 3]
+        made = []
+        for _row in range(rows):
+            held: "list[int]" = []
+            for which in range(parts):
+                if held and random.random() < ties:
+                    held.append(held[0])
+                elif which == parts - 1 and parts > 2:
+                    held.append(max(1, centres[0] + centres[which] - held[0]))
+                else:
+                    held.append(max(
+                        1, centres[which] + random.randint(-12, 12)
+                    ))
+            made.append("/".join(str(each) for each in held))
+        out.append((f"s{case:02d}p{parts}r{rows}", parts, made))
     return out
 
 
@@ -289,6 +352,7 @@ def measure(names: "list[str]", seeds: int) -> None:
             for label, shapes in (
                 ("the forty-column recipe", recipe()),
                 ("the eight five-position columns", tight()),
+                ("the twelve columns drawn apart", spread()),
             ):
                 found = walk(shapes, seeds, modules)
                 print(f"  {label}: built {found['built']}, refused "
