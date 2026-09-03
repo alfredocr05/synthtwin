@@ -138,6 +138,70 @@ def test_nothing_published_is_traded_for_the_separation(
     assert max(numbers) == published["percentiles"]["max"]
 
 
+def test_the_walk_counts_sixty_four_GRID_steps_and_not_sixty_four_sums(
+) -> None:
+    """The reach is a count of grid units, which binary addition is not.
+
+    Adding `10 ** -figures` to a double sixty-four times does not move
+    sixty-four grid units -- the addition accumulates. Measured by
+    review round 4 of the integer-grid landing: anchored at
+    `1805966.0` on a grid of eleven figures, with the texts of reaches
+    1 to 58 already written, the walk returned a point SEVENTY grid
+    units from its anchor, and method G6.5a bounds it at sixty-four.
+
+    The walk reads its anchor as a whole number of grid units and adds
+    the step to THAT, so sixty-four means sixty-four. This test asserts
+    the bound over a spread of widths and magnitudes rather than one
+    call, because the defect only shows where the grid is fine against
+    the numbers on it.
+    """
+    generator = random.Random(20260903)
+    furthest = 0
+    taken_count = 0
+    for _case in range(600):
+        figures = generator.choice((0, 1, 2, 3, 5, 8, 11))
+        value = generator.choice((
+            generator.uniform(-1000.0, 1000.0),
+            generator.uniform(-1e6, 1e6),
+        ))
+        if value == 0.0:
+            continue
+        band = (
+            generation._BAND_POSITIVE if value > 0
+            else generation._BAND_NEGATIVE
+        )
+        spelt = generation._grid_text(value, figures)
+        units = generation._grid_units(spelt, figures)
+        if units is None:
+            continue
+        written = {spelt: 1}
+        for step in range(1, generator.choice((2, 6, 21, 41))):
+            for side in (-step, step):
+                written[generation._grid_at(units + side, figures)] = 1
+        taken = generation._apart_inside(
+            value,
+            figures,
+            band,
+            (value - 50.0, value + 50.0),
+            (-1e12, 1e12),
+            written,
+        )
+        if taken is None:
+            continue
+        landed = generation._grid_units(
+            generation._grid_text(taken, figures), figures
+        )
+        assert landed is not None, (taken, figures)
+        away = abs(landed - units)
+        furthest = max(furthest, away)
+        taken_count = taken_count + 1
+        assert away <= 64, (value, figures, away)
+    # THE PROBE REALLY MOVED SOMETHING, asserted so a walk that refused
+    # everything could not pass this test by doing nothing.
+    assert taken_count > 100, taken_count
+    assert furthest > 1, furthest
+
+
 def test_a_candidate_on_the_inclusive_end_of_a_share_is_taken() -> None:
     """The share's ends are INCLUSIVE, and binary stepping said otherwise.
 
@@ -148,6 +212,13 @@ def test_a_candidate_on_the_inclusive_end_of_a_share_is_taken() -> None:
     the share's inclusive upper end is refused by the end it sits on,
     and the stratum stays where it is -- which is the shape this whole
     pass exists to prevent, two strata written as one cell.
+
+    WHAT THIS TEST SHOWS AND WHAT IT DOES NOT. It calls the helper
+    directly with a share and a written-text map, so it proves the
+    RULE. It does not build a column through the producer and the
+    loader that arrives in this state, so it is not evidence that a
+    real description reaches it -- and no golden or frozen vector
+    supplies that either, which is why the helper is pinned here.
 
     Review round 3 of the integer-grid landing found it. The repair is
     that each step is snapped to its grid text first, and the bounds,

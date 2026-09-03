@@ -5129,9 +5129,31 @@ declaration for only one of them.
   because the integer-grid landing's own grid text depends on them and
   two implementations were agreeing on an unstated choice.
 
-  **What is still owed**: the width assignment — which cell is written
-  at which of a census's several widths — the pinned-cell order, and
-  the same-class and endpoint guards.
+  **What is still owed**, widened at review round 4 because the first
+  writing of this entry named three rules and the shipped snap turns on
+  at least nine — an entry that names too little can be closed while
+  the omission stands:
+
+  - the WIDTH ASSIGNMENT: which cell is written at which of a census's
+    several widths, and the one-width-or-none allocation over a group
+    of equal values;
+  - the PINNED-CELL ORDER, and the same-class and endpoint guards;
+  - the REFUSAL where a value also has cells that are not
+    `decimal`-styled, so snapping it would split one value's spelling;
+  - the GROUP CAPACITY and the order groups are served in;
+  - amendment A-P4-18's SEGMENT-REACH guard;
+  - that the snap PRESERVES the count of different numbers it was given;
+  - and the column-level rule that GIVES ONE WIDTH BACK where snapping
+    every cell would round the last fraction away. `integer_valued` is
+    a fact about the column and the fact a consumer routes on: a
+    column publishing FALSE whose every value the snap made whole
+    re-profiles as `count` rather than `continuous`, and the twin then
+    answers a different question than the table did. `_some_fraction_
+    survives` is what prevents it and no document says so. **An
+    independent implementer applying only the rules written today would
+    turn a continuous column into a count column** — which is the
+    concrete reason this entry's scope is a correctness matter and not
+    bookkeeping.
 
   The method assigned all of that to R-P4-17, which is CLOSED: that
   entry bought a frozen case for each of the four roles Phase 4 added

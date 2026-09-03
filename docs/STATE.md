@@ -28,14 +28,14 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,315 collected on the merged tree with the integer-grid landing and its first three review rounds in it (52 skipped on another machine: that count moves, the collected count does not). FIVE new tests: four in `tests/test_p4r56_grid_separation.py` -- the integer grid, its refusal on a column that is not whole-valued, the contrast showing both halves of the rule are needed, and the inclusive share endpoint a binary step used to refuse -- the integer grid, its refusal on a column that is not whole-valued, and the contrast that shows both halves of the rule are needed -- and one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
+| suite | 4,316 collected on the merged tree with the integer-grid landing and its first three review rounds in it (52 skipped on another machine: that count moves, the collected count does not). SIX new tests, five in `tests/test_p4r56_grid_separation.py` and one in `tests/test_p2c2f3_style_invention.py` -- the integer grid, its refusal on a column that is not whole-valued, and the contrast that shows both halves of the rule are needed -- and one in `tests/test_p2c2f3_style_invention.py` pinning that a small whole-number column now reaches its count |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
 | suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L8): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
+| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L12, named L8 on this page until review round 4 of the integer-grid landing; the plan reserves L8 for the unbuilt compound role): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
 
 ## What is being built right now
 
@@ -196,7 +196,9 @@ are still ahead. The gap list itself is at the foot of this page.
   of its two bound functions was WRONG and gave the opposite
   majority.
 
-* **THE EMPTY-BIN LANDING (L8) HAS LANDED: a twin puts no value where
+* **THE EMPTY-BIN LANDING (L12 — this page called it L8 until review
+  round 4 of the integer-grid landing, and the close plan reserves L8
+  for the COMPOUND ROLE, which is unbuilt) HAS LANDED: a twin puts no value where
   the description says there is none.** The owner's ruling of
   2026-08-31, taken on the question of whether a bin holding ZERO may
   be published while the bins holding one to one-below-the-floor stay
@@ -3211,7 +3213,7 @@ is these:
 | what | size | how it reaches you |
 |---|---|---|
 | `CLAUDE.md` | 316 lines | loaded automatically in every conversation here |
-| **this page** | ~200 lines | `CLAUDE.md`'s first instruction is to read it |
+| **this page** | 3,307 lines | `CLAUDE.md`'s first instruction is to read it. **It read "~200 lines" until review round 4 of the integer-grid landing** — the figure was written when the page was that long and never re-measured, on a page whose whole claim is to be current |
 | the assistant's own memory | ~1,300 lines | loaded at session start, outside the repository |
 | **docstrings — 1,204 of them, 15,088 lines** | | read whenever the code is read, which is when it matters |
 
