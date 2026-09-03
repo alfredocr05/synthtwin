@@ -4712,17 +4712,24 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     large values together. Such a column declines here and falls to the
     rules below exactly as it does today.
     """
-    line = _long_tail_line(cells.settings)
+    # THE HALVES ARE "AN ORDINARY NUMBER" AND "EVERYTHING ELSE", and a
+    # cell the format cannot hold goes with the everything else. An
+    # earlier writing made such a cell REFUSE the whole rule, on the
+    # ground that its column belongs to `numeric_unrepresentable` --
+    # and that role is decided by an earlier rule, so by the time this
+    # one runs it has already declined. Refusing here therefore did not
+    # send the column anywhere better: 280 readings beside nineteen
+    # `POSITIVE` and ONE value too large for the format fell through to
+    # the long tail, which describes none of the 280. One stray cell
+    # undid the whole role.
     numbers: "list[_Cell]" = []
     labels: "list[_Cell]" = []
     for cell in cells.classified:
         if cell.kind == parsing.NUMBER:
             numbers = numbers + [cell]
-        elif cell.kind == parsing.NOT_A_NUMBER:
-            labels = labels + [cell]
         else:
-            return None
-    if len(numbers) < line or not labels:
+            labels = labels + [cell]
+    if not numbers or not labels:
         return None
     # AND THE NUMBERS MUST LOOK LIKE A QUANTITY RATHER THAN A CODE SET,
     # which is the question this rule forgot to ask about its own half.
@@ -4743,13 +4750,43 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # however many cells are being judged, so measuring a 3,000-cell
     # numeric half against a 6,000-row column's ceiling asks the wrong
     # question and called 400 different readings a code set.
-    distinct_numbers: "dict[str, int]" = {}
+    #
+    # BY VALUE AND NOT BY SPELLING, which this counted wrongly at first
+    # and which decides whether a coded field is read as a quantity.
+    # Every cell already carries the exact number it denotes, and the
+    # column's own distinctness is counted from those -- so a merge
+    # that wrote `1` from one system and `1.0` from another holds SIX
+    # different ECOG codes and not twelve. Counting the spellings made
+    # the formatting decide the meaning: the same six codes crossed the
+    # line into "quantity" and the twin would have published a mean of
+    # a performance status.
+    distinct_numbers: "dict[tuple[int, tuple[str, ...], int], int]" = {}
     for cell in numbers:
+        if cell.exact is None:
+            continue
         seen = 0
-        if cell.numeric_text in distinct_numbers:
-            seen = distinct_numbers[cell.numeric_text]
-        distinct_numbers[cell.numeric_text] = seen + 1
+        if cell.exact in distinct_numbers:
+            seen = distinct_numbers[cell.exact]
+        distinct_numbers[cell.exact] = seen + 1
     settings = cells.settings
+    # AND AN ABSOLUTE FLOOR BENEATH THE SHARE, because a share alone
+    # says the same six codes are a QUANTITY in a fifty-row column and
+    # a CODE SET in a hundred-row one -- the ceiling grows with the
+    # column and the meaning does not. Six values are six values.
+    #
+    # The floor is the smallest group this project will publish at all.
+    # A numeric population holding fewer different values than that is
+    # a code set however many rows wear it: `0` to `5` is a performance
+    # status, and a mean over it is a sentence about nothing. Above it,
+    # the share decides as before.
+    #
+    # WHAT THIS CANNOT DO is tell a six-point CODE from a six-point
+    # MEASUREMENT, and no count can -- the review that found this said
+    # so. Where the two are indistinguishable this rule declines and
+    # the column keeps the description it has today, which is the
+    # honest answer; `--code` is how a person says which it is.
+    if len(distinct_numbers) < settings.long_tail_minimum_level:
+        return None
     share = _at_most(settings.categorical_share, len(numbers))
     ceiling = min(settings.categorical_ceiling, share)
     if len(distinct_numbers) <= max(ceiling, settings.categorical_floor):
@@ -4809,11 +4846,24 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # the text half must REPEAT somewhere: at least one of its words
     # covering more than one row. Five `NOT DETECTED` repeat; five
     # different notes do not.
-    repeats = False
+    # AND THE WORDS THAT REPEAT MUST COVER MOST OF THE TEXT HALF, not
+    # merely exist somewhere in it. Asking only that SOME word repeat
+    # let one duplicated phrase carry arbitrary prose in with it: a
+    # thousand rows holding 980 readings, TWO copies of `unable to
+    # obtain` and eighteen different narrative results satisfied it,
+    # and nineteen text values sit under a thousand-row column's
+    # ceiling -- so the column read as compound and the label block
+    # would have published those eighteen narratives verbatim. The
+    # numeric mass was making the text half look like labels.
+    #
+    # Half is the line: a text half whose repeating words cover fewer
+    # than half its cells is prose with a duplicate in it, not a
+    # vocabulary with a stray.
+    covered = 0
     for key in sorted(folded_counts):
         if folded_counts[key] > 1:
-            repeats = True
-    if not repeats:
+            covered = covered + folded_counts[key]
+    if covered * 2 < len(labels):
         return None
     a_small_set = len(folded_counts) <= _categorical_ceiling(cells)
     a_repeating_one = _levels_covering(folded_counts, cells.settings) >= 1
