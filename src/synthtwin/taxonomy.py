@@ -6734,6 +6734,71 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     return None
 
 
+def _compound_details(
+    cells: _Cells, compound: "_Compound"
+) -> "dict[str, object]":
+    """Both halves of a compound column, each described in its own terms.
+
+    THE TWO SUB-BLOCKS, and they are the whole point of the role. The
+    counts alone would say only that the column has two populations and
+    nothing about either -- which is the omission review item P1-R6-F7
+    deleted a rule for, wearing a different hat. What answers that item
+    is describing both.
+
+    EACH HALF IS DESCRIBED BY THE MACHINERY THAT ALREADY DESCRIBES ITS
+    KIND OF COLUMN, over a view of its own cells, on the precedent the
+    affixed role set with its cores (G6A.2): the numeric half goes
+    through the same tally and the same `_numeric_details` a column of
+    numbers goes through, and the label half through the same `_levels`
+    and `_level_details` a column of labels goes through. Nothing here
+    computes a statistic of its own, so the two halves cannot come to
+    disagree with the roles they are borrowed from.
+
+    THE COUNTS STAY, and they are what a reader checks the halves
+    against: `n_numeric_cells` and `n_label_cells` sum to `n_present`,
+    so every present cell is in exactly one of the two descriptions.
+    """
+    numeric_cells = _tally(
+        _classify_all([cell.text for cell in compound.numbers]),
+        cells.n_rows,
+        cells.settings,
+    )
+    looking = _numeric_looking(numeric_cells)
+    whole_everywhere = (
+        numeric_cells.n_whole == looking and looking > 0
+    )
+    label_cells = _tally(
+        _classify_all([cell.text for cell in compound.labels]),
+        cells.n_rows,
+        cells.settings,
+    )
+    levels = _levels(
+        label_cells.folded_counts,
+        label_cells.spellings_by_folded,
+        cells.settings,
+    )
+    details: "dict[str, object]" = {
+        "n_numeric_cells": len(compound.numbers),
+        "n_label_cells": len(compound.labels),
+        "numbers": _numeric_details(numeric_cells, whole_everywhere),
+        "labels": _level_details(levels, label_cells),
+    }
+    # THE LABEL HALF'S OWN COUNT OF DIFFERENT VALUES, which invariant
+    # B2 is stated over: published levels and held-back levels together
+    # are all of them. The column's own `n_distinct_folded` counts the
+    # numbers too, so it cannot answer for this half, and a reader
+    # checking B2 against it would be checking the wrong sum.
+    labels_block = details["labels"]
+    if isinstance(labels_block, dict):
+        labels_block["n_distinct_folded"] = len(label_cells.folded_counts)
+        # AND HOW MANY CELLS THE HALF HOLDS, which the form census is
+        # stated over: a census of forms is a census of the cells that
+        # wore them, and the column's own `n_present` counts the
+        # numbers too.
+        labels_block["n_present"] = len(compound.labels)
+    return details
+
+
 def _compound_verdict(
     cells: _Cells,
     compound: "_Compound",
@@ -6768,10 +6833,7 @@ def _compound_verdict(
                 cells.n_rows,
             ),
         ),
-        details={
-            "n_numeric_cells": len(compound.numbers),
-            "n_label_cells": len(compound.labels),
-        },
+        details=_compound_details(cells, compound),
         notes=notes,
         remarks=remarks,
     )

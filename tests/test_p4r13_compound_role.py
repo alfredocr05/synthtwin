@@ -316,6 +316,78 @@ def test_a_coarse_column_is_not_swallowed_by_the_category_rule(
     assert block["role"] == taxonomy.ROLE_CATEGORICAL, block["role"]
 
 
+def test_both_halves_are_described_and_not_merely_counted(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE POINT OF THE ROLE, and the answer to review item P1-R6-F7.
+
+    Two counts that add up say only that a column has two populations.
+    They say nothing about either, which is the omission that item
+    deleted a rule for, wearing a different hat. What answers it is
+    describing BOTH: the numbers get the same quantitative block a
+    column of numbers gets, and the words get the same levels a column
+    of labels gets.
+
+    Measured against the source: the numeric half's smallest and
+    largest are the real ones, its mean sits inside them, and the
+    marker is published as a level. Before this role, the same column
+    published `levels` and nothing else -- every reading described as a
+    label at floor one, and at floor eleven no numeric cell at all.
+    """
+    generator = random.Random(5)
+    readings = [f"{generator.uniform(0.1, 40.0):.3f}" for _each in range(295)]
+    values = readings + ["NOT DETECTED"] * 5
+    generator.shuffle(values)
+    _document, block = _described(tmp_path, values, "panel")
+    assert block["role"] == taxonomy.ROLE_COMPOUND, block["role"]
+
+    # THE COUNTS STILL ACCOUNT FOR EVERY CELL, which is what the two
+    # descriptions are checked against.
+    assert block["n_numeric_cells"] + block["n_label_cells"] == block["n_present"]
+
+    # THE NUMERIC HALF IS THE READINGS AND NOTHING ELSE.
+    numbers = [float(reading) for reading in readings]
+    assert block["numbers"]["percentiles"]["min"] == min(numbers)
+    assert block["numbers"]["percentiles"]["max"] == max(numbers)
+    assert min(numbers) < block["numbers"]["mean"] < max(numbers)
+    assert block["numbers"]["n_distinct_values"] == len(set(numbers))
+
+    # AND THE LABEL HALF IS THE MARKER.
+    assert [level["label"] for level in block["labels"]["levels"]] == [
+        "not detected"
+    ]
+
+
+def test_the_described_column_survives_the_round_trip(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The loader reads both halves back, by the readers that wrote them.
+
+    A description nothing can read is not a description. Each half is
+    read by the reader for its own kind of column -- and the label half
+    needed one of its OWN, because the two beside it ask a different
+    role's entry question: the constant-and-binary reader demanded two
+    different values of a half that has one, and the long-tail reader
+    demanded a level covering eleven rows. Rule 7b decided what this
+    half is; a loader re-asking another rule's question would refuse
+    descriptions the producer correctly wrote.
+    """
+    generator = random.Random(5)
+    values = [
+        f"{generator.uniform(0.1, 40.0):.3f}" for _each in range(295)
+    ] + ["NOT DETECTED"] * 5
+    generator.shuffle(values)
+    document, block = _described(tmp_path, values, "trip")
+    written = fixtures.write_profile(tmp_path, "trip-profile.json", document)
+    loaded = contract.load_profile(f"{written}")
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.CompoundFacts)
+    assert facts.n_numeric_cells == block["n_numeric_cells"]
+    assert facts.n_label_cells == block["n_label_cells"]
+    assert facts.numbers.mean == block["numbers"]["mean"]
+    assert [level.label for level in facts.labels.levels] == ["not detected"]
+
+
 def test_the_role_is_the_fifteenth_and_names_its_own_shape() -> None:
     """The axes table is a bijection, and this role joins it as itself.
 

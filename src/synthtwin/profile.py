@@ -694,7 +694,7 @@ def _relationship_rules() -> "dict[tuple[str, ...], str]":
 # EVERY path of the finished document, with what may stand there. A
 # path missing from this table is a refusal, which is what makes adding
 # a field to the profile a decision somebody has to write down.
-PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
+_STATED_RULES: "dict[tuple[str, ...], str]" = {
     (): _OBJECT,
     ("profile_version",): _COUNT,
     ("created_with",): _VERSION,
@@ -1040,11 +1040,73 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     **_relationship_rules(),
 }
 
+
+def _compound_rules() -> "dict[tuple[str, ...], str]":
+    """The two sub-blocks of a `numbers_with_labels` column (L8).
+
+    DERIVED FROM THE BLOCKS THEY ARE, never written out a second time.
+    The numeric half of a compound column carries exactly what one
+    position of a joined column carries, and its label half exactly
+    what a label-publishing column carries, because both are built by
+    the same code over a view of their own cells. Writing the paths out
+    again would be two lists to keep in step with two others, and the
+    one that fell behind would be found by a person rather than by this
+    guard.
+
+    So they are read off the rules already stated above: everything
+    under `parts[]` becomes the same thing under `numbers`, and every
+    label key of a column becomes the same key under `labels`.
+    """
+    numeric_prefix = ("columns", _EACH, "parts", _EACH)
+    # EVERY KEY THE LABEL BUILDER EMITS, and it is a list because
+    # `_level_details` is in another module and this table is built at
+    # import. The first writing of it left out
+    # `suppressed_level_counts` and the guard caught that at once,
+    # which is the arrangement working: a key added to the builder and
+    # not to this list is refused by the publication check rather than
+    # published unaccounted for. `test_the_compound_label_block_carries
+    # _every_key_a_label_column_does` compares the two so the failure
+    # is a red test and not a run-time refusal.
+    label_keys = (
+        "levels",
+        "n_distinct_folded",
+        "n_present",
+        "suppressed_levels",
+        "suppressed_level_counts",
+        "suppressed_rows",
+        "suppressed_spellings",
+        "shape_forms",
+        "level_ceiling",
+        "n_distinct_by_occurrences",
+        "n_all_digits",
+        "n_code_alphabet",
+        "length",
+        "words",
+    )
+    built: "dict[tuple[str, ...], str]" = {
+        ("columns", _EACH, "numbers"): _OBJECT,
+        ("columns", _EACH, "labels"): _OBJECT,
+    }
+    for path in _STATED_RULES:
+        if path[: len(numeric_prefix)] == numeric_prefix:
+            built[
+                ("columns", _EACH, "numbers") + path[len(numeric_prefix):]
+            ] = _STATED_RULES[path]
+        elif len(path) > 2 and path[0] == "columns" and path[2] in label_keys:
+            built[("columns", _EACH, "labels") + path[2:]] = _STATED_RULES[path]
+    return built
+
+
+PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
+    **_STATED_RULES,
+    **_compound_rules(),
+}
+
 # For every path whose rule is `_WORD`, the WHOLE of what may stand
 # there. These are this package's own vocabularies, written out where
 # they are defined and read from there: a set gathered from the
 # document being checked would accept whatever it found.
-PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+_STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("settings", "declaration_matching"): (taxonomy.DECLARATION_MATCHING,),
     ("settings", "declaration_publication"): (DECLARATION_PUBLICATION,),
     # Every spelling this package reads as "no value", read from
@@ -1116,6 +1178,45 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "resolution"): taxonomy.RESOLUTIONS,
     ("columns", _EACH, "time_precision"): parsing.PRECISION_ORDER,
     ("columns", _EACH, "datetimes_read_at"): taxonomy.DATETIMES_READ_AT,
+}
+
+
+PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+    **_STATED_WORDS,
+    # THE SAME VOCABULARIES INSIDE A COMPOUND COLUMN'S TWO HALVES, read
+    # off the ones above for the same reason the rules are: a style map
+    # inside `numbers` may hold exactly what a style map holds anywhere
+    # else, and a second list of the same words is a second thing to
+    # keep in step.
+    **{
+        ("columns", _EACH, "numbers") + path[4:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if path[:4] == ("columns", _EACH, "parts", _EACH)
+    },
+    **{
+        ("columns", _EACH, "labels") + path[2:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if len(path) > 2
+        and path[0] == "columns"
+        and path[2] in ("levels", "shape_forms", "length", "words")
+    },
+    **{
+        ("columns", _EACH, "numbers") + path[2:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if len(path) > 2
+        and path[0] == "columns"
+        and path[2] in (
+            "numeric_styles",
+            "fraction_widths",
+            "pad_widths",
+            "field_widths",
+            "value_histogram",
+            "percentiles",
+            "percentiles_between",
+            "empty_bins",
+            "resolution_mix",
+        )
+    },
 }
 
 
