@@ -116,6 +116,41 @@ The layers:
 
 Stated here so that no reader has to discover them independently:
 
+- **THE SMALL-CELL FLOOR DEFAULTS TO ONE, and that is a decision
+  rather than an oversight** (owner ruling 2026-09-03). At a floor of
+  one every distinct value of a label-published column is published as
+  its own level, with its count. On a 300-row column of readings that
+  is 177 of them. The owner's reasoning, recorded in their words:
+  knowing that a piece of information is present is not the privacy
+  question; the privacy question is knowing that EVERYTHING is present,
+  and whose row it is.
+
+  **The structure that carries that reasoning** is worth stating,
+  because it is what makes the floor defensible and it is not a claim
+  about how much is published. A description is a set of PER-COLUMN
+  facts. It records that a column holds `20.4` and how many rows do.
+  It does not record WHICH row, and it does not record what that row
+  holds in any other column. So a description shows a reader the shape
+  of each column on its own, and no person can be assembled out of
+  them: the
+  thing that identifies is the joining of one row's values across
+  columns, and no description carries it.
+
+  **The two qualifications, so nobody has to find them.** First, the
+  joined role publishes facts about how the positions INSIDE one cell
+  move together -- `part_above` and `part_agreements` -- so within a
+  single cell the parts are related to each other. That is a joint fact
+  and it is the only one; it does not reach across columns. Second, a
+  value that is unique in the world identifies a person by itself
+  wherever a reader already knows who holds it, and the floor is what
+  a person raises when their table has such values. The owner's ruling
+  of 2026-08-31 that a rare finding must reach the twin is the other
+  half of that trade and is recorded with it.
+
+  Raising the floor is one setting, `--smallest-group`, and it changes
+  what is published rather than what the twin is for. A person whose
+  table needs it should raise it.
+
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is
   handed the profile and a seed and nothing else: it reads no source

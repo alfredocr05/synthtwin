@@ -6746,11 +6746,32 @@ declaration for only one of them.
   to refuse the reviewer's document. Both are owed before this phase
   closes, with R-P4-17 and for its reason. Priced and accepted, not
   waived.
-- **R-P4-13** (opened by amendment A-P4-1's audit). A column mixing
-  numeric results with qualitative text in ONE cell space — the
-  long-format panel export, where `7.2` sits beside `POSITIVE` in the
-  same column — still declines to a label or free-text landing, and
-  its numeric mass is not described. Serving it well needs a COMPOUND
+- **R-P4-13** (opened by amendment A-P4-1's audit; MEASURED 2026-09-03
+  at the opening of landing L8). A column mixing numeric results with
+  qualitative text in ONE cell space — the long-format panel export,
+  where `7.2` sits beside `POSITIVE` in the same column — still
+  declines to a label or free-text landing, and its numeric mass is
+  not described.
+
+  **AND THE DECLINE IS WRONG IN BOTH DIRECTIONS, which is sharper than
+  this entry said.** Measured end to end on two 300-row panel columns,
+  one holding 222 numbers beside `POSITIVE`/`NEGATIVE` and one holding
+  253 beside `<0.5`/`NOT DETECTED`. Both take `long_tail_labels`:
+
+  - **at the default floor of 1**, every distinct reading clears the
+    floor and is published as its own LEVEL — 177 and 194 of them —
+    so the twin reproduces the numeric half exactly, mean, spread and
+    all, because the description carried the real measurements
+    themselves;
+  - **at a floor of 11**, which is what an institution asks for, the
+    published levels fall to TWO and the twin holds **no numeric cell
+    at all**. All 222 readings, and all 253, are gone.
+
+  So the protective setting destroys the numeric population and the
+  permissive one carries it verbatim; neither describes it. A reader
+  developing analysis code against the floor-11 twin meets a column of
+  text where their table holds numbers in three cells of four, and
+  every numeric check they write is developed against nothing. Serving it well needs a COMPOUND
   description: the numeric subpopulation's distribution AND the
   floor-clearing text levels AND both counts, publishing every cell's
   class so nothing is dropped — a design that must answer the review
