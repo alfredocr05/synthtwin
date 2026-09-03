@@ -128,29 +128,192 @@ def test_the_role_moves_no_column_that_already_read_well(
             assert block["role"] == expected, (stem, floor, block["role"])
 
 
+def test_a_handful_of_markers_is_enough_and_that_is_the_whole_point(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The commonest lab column, which the first rule written REFUSED.
+
+    A real result column is most often nearly all numeric with a
+    HANDFUL of cells below the detection limit -- five `NOT DETECTED`
+    in three hundred rows, not forty. The first writing of this rule
+    asked the words to clear the same detection line the numbers clear,
+    one word shared by eleven rows, which reads plausibly and is
+    backwards: it refused exactly that column and went on describing
+    none of its 295 readings.
+
+    Measured then: five markers and nine markers both declined, eleven
+    worked. A cliff at eleven, on the wrong side of the shape the role
+    exists for.
+
+    The words do not have to be publishable for the NUMBERS to deserve
+    describing. What matters is that the words are a small SET rather
+    than free prose.
+    """
+    generator = random.Random(5)
+    for markers in (5, 9, 40):
+        values = [
+            f"{generator.uniform(0.1, 40.0):.1f}"
+            for _each in range(300 - markers)
+        ] + ["NOT DETECTED"] * markers
+        generator.shuffle(values)
+        _document, block = _described(tmp_path, values, f"rare{markers}")
+        assert block["role"] == taxonomy.ROLE_COMPOUND, (markers, block["role"])
+        assert block["n_label_cells"] == markers, block["n_label_cells"]
+
+
 def test_numbers_beside_free_comments_are_still_free_text(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The condition the close plan left open, and what it decides.
+    """The other side of the same line, and what draws it.
 
-    The plan asks that "every other present cell folds to a label
+    The close plan asks that "every other present cell folds to a label
     level", which is true of ANY column and so cannot tell a lab result
-    from a number beside a free comment. What tells them apart is
-    asking the text half to be label-publishing IN ITS OWN RIGHT --
-    at least one level reaching the same detection line the numbers
-    must reach. A column of readings beside comments that never repeat
-    has no such level and stays free text.
+    from a number beside a free comment. What tells them apart is how
+    many DIFFERENT words the text half holds: a small set is markers, a
+    large one is prose. The line is the ceiling a set of categories may
+    not pass -- the project's own, not one invented here.
+
+    Measured on 300-row columns, holding the numbers steady and varying
+    only the number of different words: three or fewer and the column
+    is ordinary numbers, because 297 of 300 clears the numeric line;
+    four to thirty and it is numbers with labels; thirty-one and up it
+    is free text.
     """
     generator = random.Random(77)
-    values = []
-    for _row in range(300):
-        if generator.random() < 0.2:
-            values.append(f"note {generator.randint(1, 100000)}")
-        else:
-            values.append(f"{generator.uniform(1, 50):.1f}")
-    for floor in (1, 11):
-        _document, block = _described(tmp_path, values, f"free{floor}", floor)
-        assert block["role"] == taxonomy.ROLE_TEXT, (floor, block["role"])
+    for distinct, expected in (
+        (60, taxonomy.ROLE_TEXT),
+        (100, taxonomy.ROLE_TEXT),
+    ):
+        values = [
+            f"{generator.uniform(1, 50):.1f}"
+            for _each in range(300 - distinct)
+        ] + [f"note {number}" for number in range(distinct)]
+        generator.shuffle(values)
+        for floor in (1, 11):
+            _document, block = _described(
+                tmp_path, values, f"free{distinct}x{floor}", floor
+            )
+            assert block["role"] == expected, (distinct, floor, block["role"])
+
+
+def test_a_word_that_appears_once_is_a_note_and_not_a_label(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A handful of notes is still prose, however small the handful.
+
+    The rule asks whether the text half looks like labels. "A small
+    set of different words" is one way of looking like labels -- and
+    on its own it lets a FEW clinical notes through, because two or
+    five is a small number by any ceiling. Those are not markers, and
+    publishing them means publishing somebody's free text verbatim,
+    which is the thing the label roles exist to avoid.
+
+    So the text half must REPEAT somewhere: at least one word covering
+    more than one row. Five `NOT DETECTED` repeat; five different
+    notes do not.
+
+    MEASURED on the policy fixture of P1-R6-F7, which is numbers
+    beside all-different notes: at 95 numbers and at 98 the column was
+    claimed and its notes would have been published, and it is free
+    text at every count now.
+
+    The counts here start at five because four non-numeric cells of
+    three hundred is where the numeric line falls: with fewer, the
+    column is ordinary numbers and a different rule reads it, which
+    this test is not about.
+    """
+    # FIVE AND UP, because four cells of three hundred is where the
+    # numeric line falls: fewer than that and the column is ordinary
+    # numbers, which is a different rule reading it correctly.
+    generator = random.Random(31)
+    for notes in (5, 12, 20):
+        values = [
+            f"{generator.uniform(1, 50):.3f}"
+            for _each in range(300 - notes)
+        ] + [
+            f"seen in clinic on visit {number}" for number in range(notes)
+        ]
+        generator.shuffle(values)
+        _document, block = _described(tmp_path, values, f"notes{notes}")
+        assert block["role"] == taxonomy.ROLE_TEXT, (notes, block["role"])
+
+    # ...AND THE SAME COUNT OF CELLS, all wearing ONE word, is a marker
+    # column. The difference is repetition and nothing else.
+    for markers in (5, 12, 20):
+        values = [
+            f"{generator.uniform(1, 50):.3f}"
+            for _each in range(300 - markers)
+        ] + ["NOT DETECTED"] * markers
+        generator.shuffle(values)
+        _document, block = _described(tmp_path, values, f"marks{markers}")
+        assert block["role"] == taxonomy.ROLE_COMPOUND, (markers, block["role"])
+
+
+def test_a_coded_field_is_not_a_quantity_however_it_is_spelled(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The numeric half must be a QUANTITY, not a set of codes.
+
+    `1`, `2`, `3` thirty times each beside five `unknown` is a coded
+    field. The digits are labels; a mean of 2.0 over them is a sentence
+    about nothing, and the suite has held that column as a set of
+    categories since long before this role existed.
+
+    The rule asks the text half to look like labels, and this test is
+    the other half of the same question: the NUMBERS must look like a
+    quantity. The line is the one already used on the words -- a
+    population holding no more different values than a set of
+    categories may IS a set of categories, whatever it is spelled with
+    -- and it is asked of the numeric half over its OWN size, because a
+    share of the whole column's rows asks the wrong question of a half.
+
+    Found by the suite: making the category rule stand aside for a
+    numeric half took this column with it, and the fix was to ask what
+    the numeric half is before claiming it.
+    """
+    for values, expected in (
+        (["1", "2", "3"] * 30 + ["unknown"] * 5, taxonomy.ROLE_CATEGORICAL),
+        (
+            [str(number) for number in range(1, 8)] * 20 + ["unknown"] * 10,
+            taxonomy.ROLE_CATEGORICAL,
+        ),
+    ):
+        _document, block = _described(tmp_path, values, f"codes{len(values)}")
+        assert block["role"] == expected, block["role"]
+
+
+def test_a_coarse_column_is_not_swallowed_by_the_category_rule(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The category rule stands aside for a real numeric half (owner, C).
+
+    A result column recorded coarsely can hold few enough different
+    values to pass the category ceiling, and that rule would then claim
+    it and describe every reading as a LABEL -- the same defect this
+    role exists to repair, arriving one rule earlier. Measured: the
+    SAME 3,000 readings beside the same 60 organism names take this
+    role at four decimals and were claimed by the category rule at one.
+
+    The category rule now asks THIS rule's own question rather than a
+    second one written beside it, so the two cannot come to disagree
+    about what a compound column is.
+    """
+    generator = random.Random(5)
+    organisms = [f"organism {number}" for number in range(60) for _each in range(50)]
+    for figures in (1, 4):
+        values = [
+            f"{generator.uniform(0.1, 40.0):.{figures}f}"
+            for _each in range(3000)
+        ] + list(organisms)
+        generator.shuffle(values)
+        _document, block = _described(tmp_path, values, f"coarse{figures}")
+        assert block["role"] == taxonomy.ROLE_COMPOUND, (figures, block["role"])
+
+    # AND A COLUMN WITH NO NUMERIC HALF IS UNTOUCHED, which is what
+    # keeps this an exception rather than a rewrite of the rule.
+    labels = [generator.choice(("A", "B", "C")) for _each in range(300)]
+    _document, block = _described(tmp_path, labels, "plain")
+    assert block["role"] == taxonomy.ROLE_CATEGORICAL, block["role"]
 
 
 def test_the_role_is_the_fifteenth_and_names_its_own_shape() -> None:

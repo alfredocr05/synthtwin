@@ -6753,6 +6753,33 @@ declaration for only one of them.
   declines to a label or free-text landing, and its numeric mass is
   not described.
 
+  **WHICH COLUMNS THE ROLE CLAIMS, and the close plan left the
+  deciding half of it open.** It asks that "every other present cell
+  folds to a label level" — true of ANY column, so it cannot tell a
+  lab result from a number beside a free comment. Two readings were
+  tried and the first was wrong:
+
+  - **asking the WORDS to be publishable** — one word shared by eleven
+    rows, the same detection line the numbers clear. Plausible, and
+    backwards. A real result column is most often nearly all numeric
+    with a HANDFUL below the detection limit. Measured on 300-row
+    columns of readings beside one marker: five markers and nine
+    markers both DECLINED and their 295 and 291 readings went on being
+    described by nothing; eleven worked. A cliff at eleven, on the
+    wrong side of the shape the role exists for;
+  - **asking how many DIFFERENT words the text half holds**, which is
+    the rule (owner's call, 2026-09-03). The words need not be
+    publishable for the NUMBERS to deserve describing; what matters is
+    that the words are a small SET rather than prose, and the line for
+    that already exists as the ceiling a set of categories may not
+    pass. Measured on 300 rows with the numbers held steady: three
+    different words or fewer and the column is ordinary numbers,
+    because 297 of 300 clears the numeric line; four to thirty and it
+    is this role; thirty-one and up it is free text.
+
+  The first reading was found by explaining the rule in plain words,
+  not by testing it — it had passed every test written for it.
+
   **AND THE DECLINE IS WRONG IN BOTH DIRECTIONS, which is sharper than
   this entry said.** Measured end to end on two 300-row panel columns,
   one holding 222 numbers beside `POSITIVE`/`NEGATIVE` and one holding
