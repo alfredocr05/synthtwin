@@ -5040,6 +5040,17 @@ declaration for only one of them.
   missed before, and the forty-column battery still leaks on the same
   **119 runs of 1600** with the same 121 deviations.
 
+**RE-MEASURED 2026-09-04 AFTER THE PAIR-FIRST QUEUE**, on a FRESH
+corpus of the same shape — forty described columns of three hundred
+cells at forty seeds each: two-peak columns, whole-number columns,
+columns straddling zero, columns with one far outlier. **82 of 1600
+runs** still write a cell into a named stretch, worst run TWO cells,
+and every one is named in the twin's own report. It is not the same
+forty columns as the figure beside it, so the two are stated side by
+side rather than as a before and after; what they agree on is the
+SHAPE of what is left, which residual R-P4-140 records.
+
+
 - **R-P4-141 — OPEN (opened 2026-09-01 by landing L12's mutation
   run).** TWO OF METHOD G6.7's RULES ARE PINNED BY NOTHING.
 
@@ -8516,9 +8527,20 @@ bin edge never needed because a bin always stood between it and the
 end.
 
 **Measured after, the same way**, counting cells inside the SOURCE's
-own gap rather than inside a bin: the furthest such cell falls to
-**1.3 units** from a real value, and the count of them from one per
-column per seed to **8, 4 and 27 of 12,000**.
+own gap rather than inside a bin, in three stages, each measured the same way — forty seeds on each of the
+three two-cluster witnesses, counting cells inside the SOURCE's own
+widest gap rather than inside a bin:
+
+* moved to the nearest occupied BIN: one cell per column per seed,
+  15.7 to 23.0 units from the nearest real value;
+* walking from the published EDGES, queue still gathered from the
+  bins: **8, 4 and 27** of 12,000;
+* asking the published PAIRS which stretch a stratum stands in:
+  **0, 0 and 0** of 12,000, which is where the shipped pass is.
+
+The second stage is not a state the product was shipped in; it is
+recorded because it is what says the QUEUE repair, and not only the
+published edges, is what took the count to nought.
 
 **What it costs a person, priced in contract 12.3 row 21 and computed
 rather than estimated.** Two values per stretch, each the value of a
@@ -8526,10 +8548,10 @@ real cell. A reach has thirty-two bins whose first and last always
 hold the endpoints, so a block carries at most fifteen pairs and
 THIRTY exact values, and they can all be different; on a dense column
 there is no stretch at all and so no value here, and on a sparse one
-the ceiling is reached — a 32-row column occupying bins 0, 2, 4 … 30
-and 31 with two values in each occupied bin publishes thirty distinct
-values, and with the two endpoints beside them the description names
-every value that column holds.
+the ceiling is reached — a 32-row column occupying bins 0, 2, 4 … 28
+with two values each and bins 30 and 31 with one each publishes thirty
+distinct values, and with the two endpoints beside them the
+description names every value that column holds.
 
 **AND THE COMPARISON THIS WAS FIRST PRICED BY WAS WRONG.** It read
 "two more beside the eleven a ladder already publishes". Review round

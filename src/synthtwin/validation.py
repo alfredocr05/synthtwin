@@ -12252,9 +12252,12 @@ def _numeric_listings(
             # not the other would not know which of the two the twin
             # was walking from. REPORT-ONLY for the reason the bins
             # are, and measured: over three two-cluster columns at
-            # forty seeds each, 8, 4 and 27 cells of 12,000 still sit
-            # inside a source's own gap, each within 1.3 units of a
-            # real value (residual R-P4-155).
+            # forty seeds each, NO cell of the twin sits inside a
+            # source's own gap -- 0 of 12,000 on each. What keeps this
+            # REPORT-ONLY is the shape residual R-P4-140 records: a
+            # column whose other published facts leave no free value
+            # beside a stretch cannot always be moved out of it, and
+            # where it cannot the value stays and the report says so.
             Listing(
                 column.name,
                 "numeric.empty_edges",

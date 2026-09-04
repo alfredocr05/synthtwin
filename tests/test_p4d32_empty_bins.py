@@ -30,25 +30,26 @@ and again at a floor of eleven:
 one that turns red when the pass alone is withdrawn.
 
 THE STRETCH'S REAL EDGES ARE PUBLISHED TOO (`empty_edges`, residual
-R-P4-138, closed by the owner's ruling of 2026-09-04). A bin is a
-thirty-second of the column's reach, so the empty BINS lie strictly
-inside the stretch the SOURCE leaves empty and a cell moved to a bin
-edge was still in the source's own gap. `empty_edges` names the two
-values each stretch really lies between and the value stage walks from
-those. Measured over the three witnesses here, forty seeds each: the
-furthest cell inside a source's own gap falls from 15.7-23.0 units
-from a real value to 1.3, and the count of such cells from one per
-column per seed to 8, 4 and 27 of 12,000.
+R-P4-138, closed by the owner's ruling of 2026-09-04), AND THE PASS
+ASKS THEM which stretch a stratum stands in. A bin is a thirty-second
+of the column's reach, so the empty BINS lie strictly inside the
+stretch the SOURCE leaves empty: a cell moved to a bin edge was still
+in the source's own gap, and a stratum could stand inside the gap
+while standing in a bin that held plenty, where a queue built from the
+bins never saw it.
 
-AND WHAT IS **STILL NOT** CLAIMED IS PINNED TOO, in
-`test_the_published_edges_and_what_they_leave_behind`: a stratum whose
-value collides with one already spoken for takes the next free slot
-inward, so a cell can still land inside the gap near its edge. That
-witness asserts the bound rather than the absence, because a test
-claiming the source's own gap was cleared outright would claim more
-than the published fact carries.
+THE LEDGER, on the three witnesses here, forty seeds each, counting
+cells inside the SOURCE's own widest gap rather than inside a bin:
+
+* moved to the nearest occupied BIN: one cell per column per seed,
+  15.7 to 23.0 units from the nearest real value;
+* walking from the published EDGES, queue still gathered from the
+  bins: 8, 4 and 27 of 12,000;
+* asking the published PAIRS: 0, 0 and 0, which is what
+  `test_no_cell_stands_inside_the_sources_own_gap` asserts.
 """
 
+import ast
 import copy
 import dataclasses
 import pathlib
@@ -299,6 +300,94 @@ def test_the_loader_refuses_a_bin_the_census_names(
         contract.load_profile(str(path))
 
 
+def test_every_deviation_key_is_one_the_method_authorizes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G12 calls its list COMPLETE, and it was not (round 4 item 6).
+
+    G6.7.8 authorizes a deviation for a value left inside a stretch,
+    and the generator emits `empty_bins` or `empty_edges` for it --
+    and G12's inventory, the one a reviewer is told to check a report
+    against, named neither from the landing that authorized them.
+    A report built from that list would omit them; an auditor holding
+    a report to it would refuse them.
+
+    Read off the CALLS rather than a list kept beside them, so a key
+    added to the generator and not to the method turns this red.
+    """
+    tree = ast.parse(
+        pathlib.Path(generation.__file__).read_text(encoding="utf-8")
+    )
+    named: "set[str]" = set()
+    # THE TWO GAP KEYS ARE NOT LITERALS AT THE CALL. Which of them a
+    # stuck value names is decided by the route that queued it, so the
+    # call carries a variable and a scan of the source alone would see
+    # neither. They are read from a RUN instead -- the same mixed-route
+    # shape the witness above drives -- so this guard reads what the
+    # generator really emits and not what it looks like it emits.
+    rows = (
+        ["0.0", "32.0", "9.9", "13.1"]
+        + [f"{place}.5" for place in range(1, 10)]
+        + [f"{place}.5" for place in range(13, 32)]
+    )
+    _document, loaded = _described(tmp_path, "keys", rows)
+    column = loaded.columns[0]
+    facts = dataclasses.replace(
+        column.facts,
+        empty_bins=(10, 11, 12),
+        empty_edges=((9.9, 13.1),),
+    )
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1, 1, 1),
+        starts=(0, 1, 2, 3, 4, 5),
+        bands=(
+            generation._BAND_ZERO,
+        ) + (generation._BAND_POSITIVE,) * 5,
+        raw_budgets=(),
+        folded_budgets=(),
+    )
+    _moved, notes = generation._clear_enough(
+        column, facts, layout, [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
+    )
+    for note in notes:
+        named.add(note.fact)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id != "_deviation" or len(node.args) < 2:
+            continue
+        second = node.args[1]
+        if isinstance(second, ast.Constant) and isinstance(
+            second.value, str
+        ):
+            named.add(second.value)
+    assert "empty_bins" in named and "empty_edges" in named, sorted(named)
+    said = (
+        fixtures.GOVERNING_CONTRACT.parent
+        / "generation-method-v1.md"
+    ).read_text(encoding="utf-8")
+    # EVERY key the generator names, in the method somewhere. A few
+    # are written as a path through a map -- `levels -> variants_
+    # withheld` -- so each part is asked for separately.
+    for fact in sorted(named):
+        for part in fact.split(" -> "):
+            assert part in said, (fact, part)
+    # ...AND THE TWO GAP KEYS IN THE COMPLETE LIST ITSELF, which is
+    # the sentence that was wrong: being mentioned in the document is
+    # not being on the inventory a reviewer checks a report against.
+    start = said.index("The complete list, so that a reviewer")
+    stop = said.index(
+        "**What this list does not hold, and why the absence is the "
+        "point.**",
+        start,
+    )
+    inventory = said[start:stop]
+    assert "`empty_bins`" in inventory, inventory[-600:]
+    assert "`empty_edges`" in inventory, inventory[-600:]
+
+
 def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
     """The worst case, built rather than reasoned about (round 3 item 1).
 
@@ -318,6 +407,20 @@ def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
     for place in range(2, 30, 2):
         values = values + [place + 0.1, place + 0.9]
     values = values + [30.1, highest]
+    # THE ALLOCATION THE DOCUMENTS STATE, asserted here rather than
+    # left to the totals (review round 4 item 1): bins 0 and 2 to 28
+    # hold two values each and bins 30 and 31 hold one each, which is
+    # thirty-two rows. "Two in every occupied bin" would be
+    # thirty-four, and the documents said it until this line was
+    # written.
+    assert len(values) == 32, len(values)
+    held: "dict[int, int]" = {}
+    for one in values:
+        place = parsing.histogram_bin(one, lowest, highest)
+        held[place] = held[place] + 1 if place in held else 1
+    assert sorted(held) == [0] + list(range(2, 32, 2)) + [31], sorted(held)
+    assert [held[place] for place in range(0, 30, 2)] == [2] * 15, held
+    assert held[30] == 1 and held[31] == 1, held
     bins = taxonomy._empty_bins(values)
     edges = taxonomy._empty_edges(values)
     named = [one for pair in edges for one in pair]
@@ -401,11 +504,22 @@ def test_a_stretch_reached_both_ways_names_both_facts(
     # ...and the order the two routes are met in must not decide it
     # either, which is what a note kept per STRETCH got wrong: the
     # same six values with the pair-only pair FIRST in the ladder.
-    other = [0.0, 9.95, 9.95, 11.0, 11.0, 32.0]
+    other = [0.0, 13.05, 13.05, 11.0, 11.0, 32.0]
     _again, more = generation._clear_enough(
         column, facts, layout, other
     )
-    assert len(more) == 4, more
+    assert sorted(note.fact for note in more) == [
+        "empty_bins", "empty_bins", "empty_edges", "empty_edges"
+    ], sorted(note.fact for note in more)
+    # ...and each note carries the stretch as the DESCRIPTION states
+    # it -- the published pair, not the bin boundaries -- and the value
+    # that stayed inside it.
+    for note in more:
+        assert note.published == "no value from 9.9 to 13.1", note
+    assert sorted(note.achieved for note in more) == [
+        "one cell holds 11.0", "one cell holds 11.0",
+        "one cell holds 13.05", "one cell holds 13.05",
+    ], sorted(note.achieved for note in more)
 
 
 def test_the_bin_rule_is_total_and_says_which_bin_an_edge_belongs_to(
@@ -436,6 +550,14 @@ def test_the_bin_rule_is_total_and_says_which_bin_an_edge_belongs_to(
     assert parsing.histogram_bin(-1e308, -1.0, 1.0) == 0
     assert parsing.histogram_bin(float("inf"), 0.0, 32.0) == 0
     assert parsing.histogram_bin(0.0, 5.0, 5.0) == 0
+    # ...AND THE SUBTRACTION ITSELF CAN LEAVE THE FORMAT where the
+    # reach does not (review round 4 item 5). On a scale of -1e308 to
+    # 0 a value of 1e308 made `value - lowest` an infinity, the share
+    # a NaN, and the guard for a NaN share answered bin ZERO -- for a
+    # value above the MAXIMUM. Both directions, on scales whose reach
+    # is finite and whose distance to the value is not.
+    assert parsing.histogram_bin(1e308, -1e308, 0.0) == 31
+    assert parsing.histogram_bin(-1e308, 0.0, 1e308) == 0
 
 
 def test_the_loader_refuses_an_edge_standing_in_its_own_empty_stretch(
@@ -707,36 +829,61 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
 ) -> None:
     """The report is never silent about a cell that had to stay.
 
-    A whole-numbered column whose bins are barely wider than a unit
-    leaves the neighbouring bin with no free whole number, which is one
-    of the two families residual R-P4-140 records. The obligation this
-    pins is not that the move succeeds -- it cannot always -- but that
-    a failure reaches the person reading the twin's report.
+    THE WITNESS HAD TO BE REBUILT (review round 4 item 7). It stood on
+    a whole-numbered column whose bins are barely wider than a unit,
+    and after the queue repair that column's move never fails at all:
+    driven at forty seeds it left NOTHING and named nothing, and its
+    assertion was written so that nothing-and-nothing was accepted. A
+    witness that is green when the reporting path is deleted witnesses
+    nothing.
+
+    THIS COLUMN STILL FAILS, and for the reason residual R-P4-140
+    records: it straddles zero. A stratum in the ZERO band is never
+    moved -- moving it would take a cell out of `n_zero`, which is
+    EXACT-OBSERVABLE while this fact is not -- so a stratum the ladder
+    puts in the gap and in that band stays where it is. Measured over
+    forty seeds: five of them leave one cell, and the report names it
+    on every one of those five.
     """
+    draw = random.Random(2)
     rows = (
-        [f"{1 + (index * 3) % 18}" for index in range(100)]
-        + [f"{50 + (index * 7) % 15}" for index in range(100)]
+        [f"{round(draw.gauss(-30, 3), 1)}" for _index in range(150)]
+        + [f"{round(draw.gauss(25, 2), 1)}" for _index in range(150)]
     )
     lowest, highest, barred = _empty_of(rows)
-    assert barred
-    _document, loaded = _described(tmp_path, "whole-gap", rows)
-    spoke = 0
+    assert barred, "this column is chosen for having an empty middle"
+    assert lowest < 0.0 < highest, (lowest, highest)
+    _document, loaded = _described(tmp_path, "across-zero", rows)
     stayed = 0
     for seed in range(40):
         twin = generation.generate(loaded, seed)
         left = _cells_in(twin, lowest, highest, set(barred))
         named = [
-            note for note in twin.deviations if note.fact == "empty_bins"
+            note
+            for note in twin.deviations
+            if note.fact in ("empty_bins", "empty_edges")
         ]
-        if left:
-            stayed = stayed + 1
-            assert named, (
-                f"seed {seed} left {left} in a stretch the description "
-                f"says is empty and the report said nothing"
-            )
-        if named:
-            spoke = spoke + 1
-    assert spoke or not stayed
+        if not left:
+            continue
+        stayed = stayed + 1
+        assert named, (
+            f"seed {seed} left {left} in a stretch the description "
+            f"says is empty and the report said nothing"
+        )
+        # ...and the note says WHICH stretch and WHICH value, in the
+        # description's own terms.
+        edges = loaded.columns[0].facts.empty_edges
+        published = {
+            f"no value from {pair[0]} to {pair[1]}" for pair in edges
+        }
+        for note in named:
+            assert note.published in published, (note, sorted(published))
+            assert note.achieved.startswith("one cell holds "), note
+    assert stayed > 0, (
+        "the move never failed on this column at any of forty seeds, "
+        "so this witness would stay green with the reporting path "
+        "deleted -- which is the defect it was rebuilt to end"
+    )
     assert stayed < 40, (
         "a column on which the move NEVER succeeds is not the witness "
         "this test means to be"

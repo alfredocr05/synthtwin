@@ -6706,12 +6706,16 @@ published maximum has somewhere to go.
 **THE TWO CASES WITH NO DIVISION, and they are not the same case.**
 
 - **`max` equals `min`** — every value is one number. The clamp above
-  puts all of them in bin 0, so the CENSUS is published and reads
-  `{"0": n}`; but there is no width to divide, so the other
-  thirty-one bins are not empty — they do not exist — and
-  `empty_bins` and `empty_edges` are both EMPTY. A description saying
-  thirty-one bins of a one-value column hold nothing would be
-  describing a division nothing made.
+  puts all of them in bin 0, so the census has ONE occupied bin and
+  reads `{"0": n}` under the ordinary floor rule of C6-31 — which
+  governs this census like any other, so where `n` is below the
+  smallest group size the whole census is withheld and reads `{}`,
+  exactly as it would on any column with a bin under the floor. But
+  there is no width to divide, so the other thirty-one bins are not
+  empty — they do not exist — and `empty_bins` and `empty_edges` are
+  both EMPTY at every floor. A description saying thirty-one bins of a
+  one-value column hold nothing would be describing a division nothing
+  made.
 - **An end this format cannot hold, or two finite ends whose
   DIFFERENCE it cannot hold** — there is no scale at all. The census
   is ABSENT, and `empty_bins` and `empty_edges` are both empty.
@@ -6806,7 +6810,9 @@ and at both a floor of one and a floor of eleven, the cells landing in
 a named stretch went from 4–6, 2–3 and 3–6 of 300 to NONE at every
 seed. It is not EXACT-OBSERVABLE because the twin cannot always
 hold it: over forty described columns at forty seeds each, 119 of the
-1600 runs still wrote one cell into a named stretch. Every one of
+1600 runs still wrote one cell into a named stretch, and on a fresh
+corpus of the same shape measured after the pair-first queue landed,
+82 of 1600 with a worst run of two cells. Every one of
 those is a column whose OTHER published facts leave the twin no room
 beside the stretch — a whole-number column whose bins are barely wider
 than a unit, or a stratum whose sign band ends at the edge it would
@@ -6880,10 +6886,10 @@ two endpoints, so at most fifteen of the thirty between them can be
 empty runs — runs are separated by at least one occupied bin. A block
 therefore carries **at most fifteen pairs and thirty exact values**,
 and they can all be different: a 32-row column occupying bins 0, 2,
-4 … 30 and 31 with TWO values in each occupied bin publishes fifteen
-pairs naming thirty distinct values, and with the two endpoints row 3
-publishes beside them the description names EVERY value that column
-holds. On a dense column there is usually no run at all and so no
+4 … 28 with TWO values each and bins 30 and 31 with one each publishes
+fifteen pairs naming thirty distinct values, and with the two
+endpoints row 3 publishes beside them the description names EVERY
+value that column holds. On a dense column there is usually no run at all and so no
 value here, which is the ordinary case.
 
 **AND IT IS NOT TWO MORE BESIDE ELEVEN, which is what this passage
@@ -6938,13 +6944,17 @@ read with the same bin rule and from the same values as `empty_bins`.
 
 **Disposition: REPORT-ONLY, and the class was MEASURED.** The fact is
 CONSUMED: `docs/spec/generation-method-v1.md` G6.7 walks from these
-two values rather than from the bin edges. Measured over the three
-two-cluster witnesses of `tests/test_p4d32_empty_bins.py`, forty seeds
-each, counting cells inside the SOURCE's own widest gap: the furthest
-such cell fell from **15.7–23.0 units from a real value to 1.3**, and
-the count of them from one per column per seed to **8, 4 and 27 of
-12,000**. On those three witnesses nothing at all is left inside a
-source's own gap: **0 of 12,000 at each**. It is not EXACT-OBSERVABLE
+two values rather than from the bin edges. THE LEDGER, on the three
+two-cluster witnesses of `tests/test_p4d32_empty_bins.py`, in three stages, each measured the same way — forty seeds on each of the
+three two-cluster witnesses, counting cells inside the SOURCE's own
+widest gap rather than inside a bin:
+
+* moved to the nearest occupied BIN: one cell per column per seed,
+  15.7 to 23.0 units from the nearest real value;
+* walking from the published EDGES, queue still gathered from the
+  bins: **8, 4 and 27** of 12,000;
+* asking the published PAIRS which stretch a stratum stands in:
+  **0, 0 and 0** of 12,000, which is where the shipped pass is. It is not EXACT-OBSERVABLE
 for the reason `empty_bins` is not — a block whose other published
 facts leave no free value beside a stretch cannot always be moved out
 of it, and where it cannot the value STAYS and the report names the
@@ -9105,8 +9115,8 @@ a marked row.
     exact values in one numeric block**, and they can all be
     different. On a dense column there is usually no run at all and so
     no value here; on a SPARSE column the ceiling is reached — a
-    32-row column occupying bins 0, 2, 4 … 30 and 31 with two values
-    in each occupied bin publishes fifteen pairs naming thirty
+    32-row column occupying bins 0, 2, 4 … 28 with two values each and
+    bins 30 and 31 with one each publishes fifteen pairs naming thirty
     distinct values, and with row 3's two endpoints beside them the
     description names EVERY value that column holds.
     A person describing a small, widely spread numeric column should
