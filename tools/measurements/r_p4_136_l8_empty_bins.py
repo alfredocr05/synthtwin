@@ -89,6 +89,60 @@ def empty_of(rows):
             [b for b in range(parsing.HISTOGRAM_BINS) if b not in held])
 
 
+def source_pairs(rows):
+    """The two values EVERY run of empty bins really lies between.
+
+    COMPUTED FROM THE ROWS AND FROM NO PUBLISHED KEY, which is the
+    whole point of it (review round 6 items 2 and 3): the same
+    quantity has to be countable on a tree that has no `empty_edges`
+    at all, or the before and the after are not the same measurement.
+    It is the producer's own rule, written out here in the driver.
+
+    Returns one `(below, above)` pair per run of empty bins, ascending,
+    and the empty list where the column leaves no bin empty -- so a
+    column that publishes no stretch contributes NOTHING, rather than
+    contributing its widest adjacent interval as `true_gap` did.
+    """
+    low, high, barred = empty_of(rows)
+    if not barred:
+        return []
+    ordered = sorted(float(one) for one in rows)
+    runs = []
+    for place in barred:
+        if runs and place == runs[-1][1] + 1:
+            runs[-1] = (runs[-1][0], place)
+        else:
+            runs.append((place, place))
+    pairs = []
+    for first, last in runs:
+        below = above = None
+        for value in ordered:
+            where = parsing.histogram_bin(value, low, high)
+            if where < first:
+                below = value
+            if where > last and above is None:
+                above = value
+        if below is not None and above is not None:
+            pairs.append((below, above))
+    return pairs
+
+
+def in_any_pair(twin, pairs):
+    """How many finished cells read strictly inside one of the pairs."""
+    found = 0
+    for cell in twin.columns[0]:
+        if cell == "":
+            continue
+        value = parsing.parse_number(cell)
+        if value is None:
+            continue
+        for below, above in pairs:
+            if below < value < above:
+                found = found + 1
+                break
+    return found
+
+
 def true_gap(rows):
     """The widest stretch the source holds nothing in."""
     numbers = sorted(float(one) for one in rows)
@@ -230,8 +284,6 @@ def battery():
     worst = 0
     withgap = 0
     noted = 0
-    in_pair = 0
-    worst_pair = 0
     in_gap = 0
     worst_gap = 0
     with tempfile.TemporaryDirectory() as folder:
@@ -253,46 +305,29 @@ def battery():
             mine = 0
             myworst = 0
             mynotes = 0
-            # THE SOURCE'S OWN WIDEST GAP, computed from the rows and
-            # not from any published key, so the same quantity can be
-            # counted on a tree that has no `empty_edges` at all. It is
-            # what residual R-P4-138 is about and what the bins alone
-            # cannot answer.
-            gap = true_gap(rows)
+            # EVERY STRETCH THE SOURCE REALLY LEAVES EMPTY, one pair
+            # per run of empty bins, computed from the ROWS. A column
+            # with no empty bin contributes no pair and so no count:
+            # `true_gap` gave every column its widest adjacent
+            # interval, so eleven columns of forty that publish no
+            # stretch at all were adding 440 runs about intervals no
+            # description names (review round 6 item 3).
+            pairs = source_pairs(rows)
             for seed in SEEDS:
                 twin = generation.generate(loaded, seed)
-                one, two, _three = leaks(
-                    twin, low, high, set(barred), gap
+                one, _two, _three = leaks(
+                    twin, low, high, set(barred), (0.0, 0.0)
                 )
-                if two:
+                inside = in_any_pair(twin, pairs)
+                if inside:
                     in_gap = in_gap + 1
-                    worst_gap = max(worst_gap, two)
-                # ...AND INSIDE ANY PUBLISHED PAIR, which the bins
-                # alone do not answer (residual R-P4-138, plan
-                # P4-D35). A bin is coarser than a gap, so a cell can
-                # sit inside the stretch the description names and in
-                # a bin that holds plenty; counting bins alone reports
-                # a rate for the coarser key only.
-                inside = 0
-                for cell in twin.columns[0]:
-                    if cell == "":
-                        continue
-                    value = parsing.parse_number(cell)
-                    if value is None:
-                        continue
-                    for pair in loaded.columns[0].facts.empty_edges:
-                        if pair[0] < value < pair[1]:
-                            inside = inside + 1
-                            break
+                    worst_gap = max(worst_gap, inside)
                 runs = runs + 1
                 if one:
                     leaked = leaked + 1
                     mine = mine + 1
                     worst = max(worst, one)
                     myworst = max(myworst, one)
-                if inside:
-                    in_pair = in_pair + 1
-                    worst_pair = max(worst_pair, inside)
                 for note in twin.deviations:
                     if note.fact in ("empty_bins", "empty_edges"):
                         noted = noted + 1
@@ -307,10 +342,8 @@ def battery():
     print(f"  {len(shapes)} columns, {withgap} of them with an empty bin")
     print(f"  runs: {runs}; runs leaving a cell in an empty bin: {leaked}; "
           f"worst run: {worst} cell(s)")
-    print(f"  runs leaving a cell inside a PUBLISHED PAIR: {in_pair}; "
-          f"worst run: {worst_pair} cell(s)")
-    print(f"  runs leaving a cell inside the SOURCE's own widest gap: "
-          f"{in_gap}; worst run: {worst_gap} cell(s)")
+    print(f"  runs leaving a cell inside a stretch the SOURCE really "
+          f"leaves empty: {in_gap}; worst run: {worst_gap} cell(s)")
     print(f"  deviations naming a gap key: {noted}")
 
 

@@ -6811,11 +6811,10 @@ a named stretch went from 4–6, 2–3 and 3–6 of 300 to NONE at every
 seed. It is not EXACT-OBSERVABLE because the twin cannot always
 hold it: over forty described columns at forty seeds each, 119 of the
 1600 runs still wrote one cell into a named stretch. Re-measured on
-the same committed battery after the pair-first queue landed: 240 of
-1600 in a named BIN, and 644 of 1600 inside the SOURCE's own widest
-gap against 1456 before, with the worst run of either falling from
-twelve cells to four. The rise in the coarser count is residual
-R-P4-156. Every one of
+the same committed battery after this landing: 130 of 1600 in a named
+BIN against 135 before, and 213 of 1600 inside a stretch the SOURCE
+really leaves empty against 1058, with the worst run of either falling
+from twelve cells to four. Every one of
 those is a column whose OTHER published facts leave the twin no room
 beside the stretch — a whole-number column whose bins are barely wider
 than a unit, or a stratum whose sign band ends at the edge it would

@@ -4952,25 +4952,33 @@ declaration for only one of them.
   published pair, not only inside a barred bin. Residual R-P4-155 was
   opened for the remainder and CLOSED the same day by that repair.
 
-- **R-P4-156 — OPEN (opened 2026-09-04 by landing L9).** MOVING MORE
-  STRATA MEANS MORE OF THEM CANNOT MOVE.
+- **R-P4-156 — CLOSED 2026-09-04, the day it was opened.** MOVING MORE
+  STRATA MEANT MORE OF THEM COULD NOT MOVE.
 
   On the committed battery — `tools/measurements/r_p4_136_l8_empty_bins.py`,
-  forty columns of two hundred cells at forty seeds each, run on the
-  commit before this landing and on it — runs leaving a cell in a
-  NAMED BIN went from **135 of 1600 to 240**, while runs leaving a
-  cell in the SOURCE's own widest gap went from **1456 to 644** and
-  the worst run of either fell from twelve cells to four.
+  forty columns of two hundred cells at forty seeds each, the same
+  driver run on the commit before this landing and on it — refusing
+  every candidate inside a published stretch took runs leaving a cell
+  in a NAMED BIN from **135 of 1600 to 240**, while cutting hard the
+  runs leaving a cell inside a stretch the source really leaves empty.
 
-  The rise is mechanical rather than a defect in the repair: the
-  pair-first queue moves strata a bin-only queue never touched, each
-  move takes a free slot beside an edge, and a stratum that then finds
-  nothing free stays where it was — inside a named bin, with a note
-  saying so. Every one is reported. What would close this is a second
-  pass over the strata that could not move, offered the slots the
-  successful ones did not take, or an ordering that gives the
-  bin-queued strata first refusal; both change which cell lands where
-  and neither is a change this landing measured.
+  **THE CAUSE, FOUND BY MEASUREMENT AND NOT BY READING.** Two
+  candidate closures were tried first and neither moved the figure:
+  giving the bin-queued strata first refusal within a stretch took 240
+  to 238, and reordering the queue took it to 241. What the figure
+  answered to was the REFUSAL itself: withdrawing it gave 130 runs in
+  a named bin and a far larger stretch count, which says the refusal
+  buys the stretch figure and costs the bin figure.
+
+  **CLOSED BY THE OBSERVATION THAT STAYING IS NEVER BETTER THAN
+  MOVING.** A stratum that reaches no slot outside every published
+  stretch used to stay where it was — inside its own stretch AND
+  inside the barred bin it stood in. A slot inside some stretch but
+  outside every barred bin is better on one count and no worse on the
+  other. The walk takes it where nothing cleaner is free, and both
+  figures then fall below the tree this landing branched from:
+  **130 runs in a named bin against 135, and 213 inside a stretch the
+  source really leaves empty against 1058**.
 
 - **R-P4-139 — OPEN (opened 2026-09-01 by landing L12; PRE-EXISTING).**
   A TWO-CLUSTER COLUMN MISSES `widths.published.1` AT EVERY SEED.
@@ -5061,28 +5069,35 @@ declaration for only one of them.
   missed before, and the forty-column battery still leaks on the same
   **119 runs of 1600** with the same 121 deviations.
 
-**RE-MEASURED 2026-09-04 AFTER THE PAIR-FIRST QUEUE**, on the SAME
-committed battery (`tools/measurements/r_p4_136_l8_empty_bins.py`,
-forty columns of two hundred cells at forty seeds each), run once on
-the commit before landing L9 and once after it:
+**RE-MEASURED 2026-09-04**, on the SAME committed battery
+(`tools/measurements/r_p4_136_l8_empty_bins.py`, forty columns of two
+hundred cells at forty seeds each), with the SAME driver run on the
+commit before landing L9 and on it:
 
 | the committed battery, 40 columns x 40 seeds | before L9 | after L9 |
 |---|---|---|
-| runs leaving a cell in a NAMED BIN | 135 | **240** |
-| runs leaving a cell in the SOURCE's own widest gap | 1456 | **644** |
+| runs leaving a cell in a NAMED BIN | 135 | **130** |
+| runs leaving a cell inside a stretch the source really leaves empty | 1058 | **213** |
 | worst run, cells in a named bin | 10 | **4** |
-| worst run, cells in the source's own gap | 12 | **4** |
+| worst run, cells inside such a stretch | 12 | **4** |
 
-**THE LANDING MORE THAN HALVES WHAT IT EXISTS TO FIX and raises the
-coarser count.** The gap is what a reader of the twin meets; the bins
-are a thirty-second-of-the-reach proxy for it. Runs putting a cell
-where the source really holds nothing fall from 1456 to 644, and the
-worst run from twelve cells to four. Runs putting a cell in a NAMED
-BIN rise from 135 to 240, and the reason is mechanical: the pair-first
-queue moves strata a bin-only queue never touched, those moves take
-the free slots beside an edge, and a stratum that then finds nothing
-free stays where it was. Residual **R-P4-156** carries the rise, and
-residual R-P4-140 still carries the class.
+**THE DRIVER COMPUTES THE STRETCHES FROM THE ROWS**, one pair per run
+of empty bins, by the producer's own rule written out in the driver.
+That is what makes the two arms one measurement: a tree without
+`empty_edges` can still be asked the question. It also counts only
+columns that publish a stretch — an earlier version gave every column
+its widest adjacent interval, so eleven columns of forty that name no
+stretch at all were adding 440 runs about intervals no description
+mentions.
+
+**THE LANDING IS BETTER ON BOTH MEASURES**, and it took a measurement
+to get there. Refusing every candidate inside a published stretch cut
+the stretch figure hard and RAISED the bin figure to 240, because a
+stratum that could reach no clean slot stayed where it was — inside
+its own stretch and inside the barred bin it stood in. That was opened
+as residual R-P4-156 and closed the same day: staying is never better
+than moving, so where nothing outside every stretch is free the walk
+takes a slot outside every barred BIN instead.
 
 - **R-P4-141 — OPEN (opened 2026-09-01 by landing L12's mutation
   run).** TWO OF METHOD G6.7's RULES ARE PINNED BY NOTHING.
