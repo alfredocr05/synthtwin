@@ -181,19 +181,22 @@ Stated here so that no reader has to discover them independently:
   P4-D35). For each run of bins a column leaves empty, the description
   names the largest value the column holds below the run and the
   smallest above it, and both are values of real cells. The ceiling
-  was computed rather than estimated. A reach is divided into
+  was computed and then reached on purpose. A reach is divided into
   thirty-two bins; the first and the last always hold the two
   endpoints, so at most fifteen of the thirty between them can be
-  empty runs, and two runs sharing the one value between them name it
-  once. So a numeric block carries **at most fifteen pairs, thirty
-  entries and SIXTEEN distinct values**. On a dense column there is
-  usually no run at all and so no value here. On a SPARSE column the
-  ceiling is reached, and it was reached on purpose to check it: a
-  17-row column occupying bins 0, 2, 4 … 30 and 31 publishes fifteen
-  pairs naming **sixteen of its seventeen values**. A person
-  describing a small, widely spread numeric column should read that
-  sentence before sharing the description, and `--smallest-group` does
-  not reduce it: this fact, like the empty bins it stands with, is
+  empty runs — runs are separated by at least one occupied bin. So a
+  numeric block carries **at most fifteen pairs and thirty exact
+  values**, and they can all be different: a 32-row column occupying
+  bins 0, 2, 4 … 30 and 31 with TWO values in each occupied bin
+  publishes fifteen pairs naming thirty distinct values, and with the
+  two endpoints the ladder publishes beside them **the description
+  then names every value that column holds**.
+
+  On a dense column there is usually no run at all and so no value
+  here, and that is the ordinary case. But a person describing a
+  small, widely spread numeric column should read the paragraph above
+  before sharing the description, and `--smallest-group` does not
+  reduce it: this fact, like the empty bins it stands with, is
   published at every floor.
 
 - **The record claim is a claim about provenance, and it is not a claim

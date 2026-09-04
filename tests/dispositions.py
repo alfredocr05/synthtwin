@@ -1077,7 +1077,7 @@ REGISTRY += [
     # was built against, at forty seeds each, the furthest cell inside
     # the SOURCE's own gap went from 15.7-23.0 units from a real value
     # to 1.3, and the count of such cells from one per column per seed
-    # to 8, 4 and 31 of 12,000. The twin FOLLOWS it and is not held to
+    # to 8, 4 and 27 of 12,000. The twin FOLLOWS it and is not held to
     # it, for the reason `empty_bins` is not: a block whose other
     # published facts leave no free value beside a stretch cannot
     # always be moved out of it. What remains is residual R-P4-155.

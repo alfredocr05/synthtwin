@@ -54,6 +54,49 @@ COLUMNS = (
 )
 
 
+# The abbreviations section 6.11 uses, in the matrix's own order and
+# beside the role each stands for. Read by the header guard below, so
+# a column added to the table without a name in the sentence -- or the
+# other way -- turns red.
+SHORT = (
+    "emp", "unr", "con", "bin", "cat", "ltl", "dtm", "tod", "cnt",
+    "ctn", "afx", "idn", "txt", "jnd", "nwl",
+)
+
+
+def test_the_matrix_header_is_a_table_a_reader_can_read() -> None:
+    """The HEADER and the delimiter, not only the body (round 3 item 4).
+
+    A landing that appended a column by hand left `jnd  nwl` in one
+    header cell and `:--::--:` in one delimiter cell. Every body row
+    carried its extra cell, so a guard reading only the body was
+    satisfied -- while a Markdown reader saw fourteen headings, or no
+    table at all. The header is read here, cell by cell, against the
+    same role list the body is read against.
+    """
+    text = CONTRACT.read_text(encoding="utf-8")
+    start = text.index("### 6.11 The forbidden-key matrix")
+    head = text[text.index(HEAD, start):]
+    lines = head.split("\n")
+    cells = [part.strip() for part in lines[0].split("|")[1:-1]]
+    assert cells == ["key"] + list(SHORT), cells
+    marks = [part.strip() for part in lines[1].split("|")[1:-1]]
+    assert len(marks) == len(SHORT) + 1, marks
+    for mark in marks:
+        assert set(mark) <= set("-:") and mark, mark
+    # ...and every body row has the same width, so no row can carry a
+    # cell the header has no column for.
+    for line in lines[2:]:
+        if not line.startswith("| `"):
+            break
+        assert len(line.split("|")[1:-1]) == len(SHORT) + 1, line
+    # ...and the abbreviation sentence names the same roles in the
+    # same order.
+    said = " ".join(text.split())
+    for short, role in zip(SHORT, COLUMNS):
+        assert f"`{short}` `{role}`" in said, (short, role)
+
+
 def test_the_matrix_has_a_column_for_every_role_the_loader_knows() -> None:
     """The list above is the matrix's ORDER; the loader is its CONTENT.
 
@@ -231,6 +274,18 @@ def test_the_key_counts_in_words_are_the_key_sets_the_loader_holds(
     assert (
         f"a `count` block's {_in_words(numeric)} additions" in said
     ), numeric
+    # ...AND EVERY OTHER SENTENCE THAT COUNTS THE SAME COLUMN. Two of
+    # them said twenty-four while the loader held thirty-two, and a
+    # guard reading only the phrases above did not look at either
+    # (review round 3 item 5).
+    assert (
+        f"marks exactly those {_in_words(affixed)} cells in its `afx` "
+        f"column" in said
+    ), affixed
+    assert (
+        f"this prices all {_in_words(affixed)} keys the role adds"
+        in said
+    ), affixed
 
 
 def test_the_form_census_stands_on_exactly_five_roles() -> None:

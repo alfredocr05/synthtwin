@@ -3047,6 +3047,18 @@ def histogram_bin(value: float, lowest: float, highest: float) -> int:
     share = (value - lowest) / reach
     if share - share != 0.0:
         return 0
+    # THE CLAMP COMES BEFORE THE MULTIPLICATION, and it has to. A value
+    # far outside a narrow scale gives a finite share that overflows
+    # when it is multiplied -- `histogram_bin(1e308, -1.0, 1.0)` made
+    # `share` 5e307, `share * 32` an infinity, and `int` of an infinity
+    # raises, which is a crash inside a function whose contract says it
+    # raises nothing. Clamping first answers the same bin the clamp
+    # below would have answered and reaches the multiplication only
+    # with a share this format can hold.
+    if share <= 0.0:
+        return 0
+    if share >= 1.0:
+        return HISTOGRAM_BINS - 1
     place = int(share * HISTOGRAM_BINS)
     if place < 0:
         return 0

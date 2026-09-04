@@ -8518,16 +8518,18 @@ end.
 **Measured after, the same way**, counting cells inside the SOURCE's
 own gap rather than inside a bin: the furthest such cell falls to
 **1.3 units** from a real value, and the count of them from one per
-column per seed to **8, 4 and 31 of 12,000**.
+column per seed to **8, 4 and 27 of 12,000**.
 
 **What it costs a person, priced in contract 12.3 row 21 and computed
 rather than estimated.** Two values per stretch, each the value of a
 real cell. A reach has thirty-two bins whose first and last always
-hold the endpoints, so a block carries at most fifteen pairs, thirty
-entries and SIXTEEN distinct values; on a dense column there is no
-stretch at all and so no value here, and on a sparse one the ceiling
-is reached — a 17-row column occupying bins 0, 2, 4 … 30 and 31
-publishes sixteen of its seventeen values.
+hold the endpoints, so a block carries at most fifteen pairs and
+THIRTY exact values, and they can all be different; on a dense column
+there is no stretch at all and so no value here, and on a sparse one
+the ceiling is reached — a 32-row column occupying bins 0, 2, 4 … 30
+and 31 with two values in each occupied bin publishes thirty distinct
+values, and with the two endpoints beside them the description names
+every value that column holds.
 
 **AND THE COMPARISON THIS WAS FIRST PRICED BY WAS WRONG.** It read
 "two more beside the eleven a ladder already publishes". Review round

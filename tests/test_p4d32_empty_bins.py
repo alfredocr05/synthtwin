@@ -38,7 +38,7 @@ values each stretch really lies between and the value stage walks from
 those. Measured over the three witnesses here, forty seeds each: the
 furthest cell inside a source's own gap falls from 15.7-23.0 units
 from a real value to 1.3, and the count of such cells from one per
-column per seed to 8, 4 and 31 of 12,000.
+column per seed to 8, 4 and 27 of 12,000.
 
 AND WHAT IS **STILL NOT** CLAIMED IS PINNED TOO, in
 `test_the_published_edges_and_what_they_leave_behind`: a stratum whose
@@ -50,6 +50,7 @@ than the published fact carries.
 """
 
 import copy
+import dataclasses
 import pathlib
 import random
 
@@ -296,6 +297,145 @@ def test_the_loader_refuses_a_bin_the_census_names(
     path = fixtures.write_profile(tmp_path, "clash-edited.json", document)
     with pytest.raises(errors.ProfileError):
         contract.load_profile(str(path))
+
+
+def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
+    """The worst case, built rather than reasoned about (round 3 item 1).
+
+    `SECURITY.md` and contract 12.3 row 21 state what this key can put
+    in a description, and that sentence was wrong twice before it was
+    built: first "two more beside eleven", then "sixteen distinct
+    values" from a probe that MINIMISED the values in each occupied
+    bin. The construction that maximises it puts TWO values in every
+    separating bin, so no two runs share an edge and all thirty
+    entries are different.
+
+    Driven on the producer directly, because what is under test is a
+    bound on what a description can carry rather than a twin.
+    """
+    lowest, highest = 0.0, 32.0
+    values = [lowest, 0.9]
+    for place in range(2, 30, 2):
+        values = values + [place + 0.1, place + 0.9]
+    values = values + [30.1, highest]
+    bins = taxonomy._empty_bins(values)
+    edges = taxonomy._empty_edges(values)
+    named = [one for pair in edges for one in pair]
+    assert len(bins) == 15, bins
+    assert len(edges) == 15, edges
+    assert len(named) == 30, named
+    assert len(set(named)) == 30, sorted(set(named))
+    # ...and with the two endpoints the ladder publishes beside them,
+    # the description names every value this column holds, which is
+    # the sentence the documents owe a reader.
+    assert set(named) | {lowest, highest} == set(values), sorted(
+        set(values) - (set(named) | {lowest, highest})
+    )
+    # AND FIFTEEN IS THE MOST THERE CAN BE: the first bin and the last
+    # always hold the two endpoints, and two runs are separated by an
+    # occupied bin, so thirty interior bins give fifteen runs at most.
+    assert parsing.HISTOGRAM_BINS == 32
+    assert len(edges) == (parsing.HISTOGRAM_BINS - 2) // 2
+
+
+def test_a_stretch_reached_both_ways_names_both_facts(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One stretch, two routes, two fact names (round 3 item 2).
+
+    A stretch can hold strata BOTH ways at once: some standing in a
+    bin it says holds nothing, and others standing in a bin that holds
+    plenty while their value is inside the published pair -- a gap is
+    finer than a bin, so both are possible in the same stretch. The
+    note that says which fact a stuck cell missed was kept per
+    STRETCH, so every one of them was told whichever route the first
+    arrival took.
+
+    Driven through `_clear_enough` rather than through a table,
+    because what is under test is the bookkeeping and a column that
+    produced this shape by chance would pin nothing.
+    """
+    # A REAL DESCRIPTION FIRST, so the block handed to the pass is one
+    # the loader built; only the two keys under test are replaced.
+    # Bins are one wide on a scale of 0 to 32. Bins 10 to 12 hold
+    # nothing, and the published gap runs 9.9 to 13.1, so it reaches
+    # into occupied bins 9 and 13 -- which is the shape that makes one
+    # stretch reachable both ways.
+    rows = (
+        ["0.0", "32.0", "9.9", "13.1"]
+        + [f"{place}.5" for place in range(1, 10)]
+        + [f"{place}.5" for place in range(13, 32)]
+    )
+    _document, loaded = _described(tmp_path, "bothways", rows)
+    column = loaded.columns[0]
+    facts = dataclasses.replace(
+        column.facts,
+        empty_bins=(10, 11, 12),
+        empty_edges=((9.9, 13.1),),
+    )
+    assert facts.percentiles.rungs[0] == 0.0
+    assert facts.percentiles.rungs[-1] == 32.0
+    # 11.0 stands in bin 11, which the description says holds nothing.
+    # 13.05 stands in bin 13, which holds plenty, and is inside the
+    # published pair -- and so is every spelling of it, so the bins
+    # have nothing to say about it and only the pair queues it.
+    # Each value is held TWICE, so the sole-holder rule refuses every
+    # move and each one gets a note of its own.
+    values = [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1, 1, 1),
+        starts=(0, 1, 2, 3, 4, 5),
+        bands=(
+            generation._BAND_ZERO,
+        ) + (generation._BAND_POSITIVE,) * 5,
+        raw_budgets=(),
+        folded_budgets=(),
+    )
+    _moved, notes = generation._clear_enough(
+        column, facts, layout, values
+    )
+    named = sorted(note.fact for note in notes)
+    assert named == [
+        "empty_bins", "empty_bins", "empty_edges", "empty_edges"
+    ], named
+    # ...and the order the two routes are met in must not decide it
+    # either, which is what a note kept per STRETCH got wrong: the
+    # same six values with the pair-only pair FIRST in the ladder.
+    other = [0.0, 9.95, 9.95, 11.0, 11.0, 32.0]
+    _again, more = generation._clear_enough(
+        column, facts, layout, other
+    )
+    assert len(more) == 4, more
+
+
+def test_the_bin_rule_is_total_and_says_which_bin_an_edge_belongs_to(
+) -> None:
+    """C6-31f, driven directly (review round 3 items 7 and 8).
+
+    TWO THINGS THE ONE RULE THREE MODULES SHARE HAD TO SAY. A value on
+    a shared edge belongs to the UPPER bin -- the one that starts
+    there -- which the code comment denied while the arithmetic did
+    it. And the function RAISES NOTHING, which it did not: a value far
+    outside a narrow scale gave a finite share that overflowed when it
+    was multiplied, so `histogram_bin(1e308, -1.0, 1.0)` raised
+    `OverflowError` inside a function whose contract says it raises
+    nothing.
+    """
+    # THE SHARED EDGE. On a scale of 0 to 32 a bin is one wide, so the
+    # whole numbers ARE the shared edges and each belongs to the bin
+    # that starts there.
+    for place in range(parsing.HISTOGRAM_BINS):
+        assert parsing.histogram_bin(
+            float(place), 0.0, 32.0
+        ) == place, place
+    # ...and the last bin is closed, so the published maximum has
+    # somewhere to go.
+    assert parsing.histogram_bin(32.0, 0.0, 32.0) == 31
+    # TOTALITY, at both signs and past both ends.
+    assert parsing.histogram_bin(1e308, -1.0, 1.0) == 31
+    assert parsing.histogram_bin(-1e308, -1.0, 1.0) == 0
+    assert parsing.histogram_bin(float("inf"), 0.0, 32.0) == 0
+    assert parsing.histogram_bin(0.0, 5.0, 5.0) == 0
 
 
 def test_the_loader_refuses_an_edge_standing_in_its_own_empty_stretch(
