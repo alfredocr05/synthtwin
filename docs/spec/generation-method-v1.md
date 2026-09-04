@@ -2369,6 +2369,21 @@ because a bin is coarser than a gap, and so accepted with nothing
 naming it. The pairs are OPEN intervals: an edge is a value the source
 really holds, so landing ON one is not landing in the gap.
 
+**AND WHERE NOTHING CLEAN IS FREE, A SLOT INSIDE SOME STRETCH BUT
+OUTSIDE EVERY BARRED BIN IS TAKEN RATHER THAN NONE** (residual
+R-P4-156, closed 2026-09-04). The walk is four walks in order of how
+much they ask for: the nearer edge and then the further one refusing
+every published stretch, and then the same two refusing only the
+barred bins. STAYING IS NEVER BETTER THAN MOVING — a stratum that
+stays is inside its own stretch AND inside the barred bin it stood in,
+while the looser slot is better on one count and no worse on the
+other. Measured on the committed battery, forty columns at forty
+seeds: refusing every stretch and stopping there raised the count of
+runs leaving a cell in a named bin to 240; walking the loose pass
+after it gives **130 runs in a named bin and 213 inside a stretch the
+source really leaves empty**, against 135 and 1058 on the tree before
+the stretch edges landed.
+
 **G6.7.4 Which stratum moves, and the rules it may not break.**
 
 **ELIGIBILITY, STATED EXACTLY, because the enumerated rule below used
@@ -2433,9 +2448,8 @@ where they meet this one gives way and G6.7.8's deviation names the
 stretch instead. **Measured cost of the two rules on the corpus of
 G6.7.8: none.** The three two-cluster columns still write no cell in a
 named stretch at any of forty seeds at either floor, and the forty
-described columns leak on the same 119 runs of 1600 — 240 after the
-pair-first queue, against 1456 to 644 on the gap the bins stand in
-for (residual R-P4-156).
+described columns leak on the same 119 runs of 1600 — 130 after this
+landing, against 1058 to 213 on the stretches the bins stand in for.
 
 **G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
 to it — measured from the value to each of the stretch's two edges —
@@ -2523,11 +2537,10 @@ reader the column was empty over a narrower range than the description
 says. Measured over forty described columns
 at forty seeds each, the runs writing a cell into a named stretch went
 from 1049 of 1600 to 119 — and, re-measured on the same committed
-battery after the pair-first queue landed on 2026-09-04, to 240 of
-1600 in a named BIN while runs putting a cell in the SOURCE's own
-widest gap fell from 1456 to 644 and the worst run of either from
-twelve cells to four (residual R-P4-156). Every one of them is a
-column whose
+battery after this landing on 2026-09-04, to 130 of 1600 in a named
+BIN while runs putting a cell inside a stretch the SOURCE really
+leaves empty fell from 1058 to 213 and the worst run of either from
+twelve cells to four. Every one of them is a column whose
 other published facts leave no room beside the stretch: a
 whole-numbered column whose bins are barely wider than a unit and
 whose neighbouring bin holds no free whole number, or a stratum whose
@@ -5922,6 +5935,22 @@ gap keys `empty_bins` and `empty_edges`.
 * `words`
 * `levels -> shape_form_cells`
 * `levels -> variants_withheld`
+
+**AND FIVE FAMILIES whose name carries a number, listed as their
+shape** (review round 6 item 5). A report builds these from a
+position, a seat or a rung, so the index names the SHAPE and the guard
+holds the shapes to the writing rules that build them:
+
+* `parts[<n>].<key>` — any key above, carried by one POSITION of a
+  `joined_numbers` cell, `<n>` counting from nought
+* `part_agreements[<n>]` — the agreement between two neighbouring
+  positions, `<n>` the earlier of the pair
+* `part_above[<n>]` — how often the later of two positions is above
+  the earlier, `<n>` the earlier of the pair
+* `percentiles.p<nn>` — one rung of a NUMBER ladder, `<nn>` the
+  percent written to two figures
+* `clock_percentiles.p<nn>` and `date_percentiles.p<nn>` — the same
+  for a clock ladder and a date ladder
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach

@@ -438,6 +438,89 @@ def test_every_deviation_key_is_one_the_method_authorizes(
     }
     assert named - listed == set(), sorted(named - listed)
     assert listed - named == set(), sorted(listed - named)
+    # AND THE FIVE FAMILIES WHOSE NAME CARRIES A NUMBER, which no
+    # `_deviation` call names because the report builds them from a
+    # position, a seat or a rung (review round 6 item 5). The shapes
+    # are read off the WRITING RULES -- the f-strings that assign a
+    # `fact` -- so a family added to the generator and not to the
+    # index turns this red.
+    shapes: "set[str]" = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.keyword) or node.arg != "fact":
+            continue
+        if not isinstance(node.value, ast.JoinedStr):
+            continue
+        drawn = ""
+        for piece in node.value.values:
+            if isinstance(piece, ast.Constant):
+                drawn = drawn + str(piece.value)
+            else:
+                drawn = drawn + "<n>"
+        shapes.add(drawn)
+    families = said[start:stop]
+    for shape in sorted(shapes):
+        head = shape.split("<n>")[0]
+        assert f"`{head}<" in families, (shape, head)
+
+
+def test_a_stratum_takes_a_lesser_slot_rather_than_staying() -> None:
+    """Staying is never better than moving (residual R-P4-156).
+
+    The walk refuses every candidate that reads inside a published
+    stretch, and a stratum that reaches none of them used to STAY --
+    inside its own stretch AND inside the barred bin it stood in. A
+    slot inside some stretch but outside every barred bin is better on
+    one count and no worse on the other, so it is taken where nothing
+    cleaner is free.
+
+    Driven directly, because what is under test is the ORDER of four
+    walks and a column that reached the fourth by chance would pin
+    nothing. Two stretches with one bin between them, and every clean
+    slot beside the near edge already spoken for.
+    """
+    ends = (0.0, 32.0)
+    barred = {place: 1 for place in (10, 11, 12, 14, 15, 16)}
+    first = (9.5, 13.5)
+    second = (13.5, 17.5)
+    every = (first, second)
+    widths = (-1, 1)
+    # Bin 13 is the one occupied bin between the two stretches, and it
+    # is INSIDE both pairs: every value it holds reads between 9.5 and
+    # 13.5 or between 13.5 and 17.5. So a stratum in the first stretch
+    # has nowhere clean above it, and below it the ordinary walk
+    # answers -- unless every value there is taken.
+    taken = {}
+    spoken = {}
+    step = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS / 64
+    for one in range(140):
+        value = round(9.5 - step * one, 6)
+        taken[value] = 1
+        for spelling in generation._spellings_of(value, widths, False):
+            spoken[spelling] = 1
+    # ...and the ONE value the two stretches share, which is outside
+    # both open intervals and is what the strict walk would take.
+    taken[13.5] = 1
+    for spelling in generation._spellings_of(13.5, widths, False):
+        spoken[spelling] = 1
+    found = generation._cleared_value(
+        ends, barred, (10, 12), first, every, 11.5,
+        generation._BAND_POSITIVE, True, spoken, taken, False, widths,
+    )
+    assert found is not None, (
+        "the walk stayed where it was, which leaves the cell inside "
+        "its own stretch AND inside a barred bin -- worse on one count "
+        "than the slot it refused"
+    )
+    # ...and what it took is outside every BARRED BIN, which is the
+    # count the looser walk still keeps.
+    assert generation._reads_outside(
+        found, ends, barred, widths, False
+    ), found
+    # ...and it is a value the strict walk would have refused, which is
+    # what says the fourth walk is the one that answered.
+    assert not generation._outside_every(
+        found, every, widths, False
+    ), found
 
 
 def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
@@ -569,9 +652,33 @@ def test_a_stretch_reached_both_ways_names_both_facts(
     for note in more:
         assert note.published == "no value from 9.9 to 13.1", note
     assert sorted(note.achieved for note in more) == [
-        "one cell holds 11.0", "one cell holds 11.0",
-        "one cell holds 13.05", "one cell holds 13.05",
+        "1 cell(s) hold 11.0", "1 cell(s) hold 11.0",
+        "1 cell(s) hold 13.05", "1 cell(s) hold 13.05",
     ], sorted(note.achieved for note in more)
+    # ...AND THE COUNT IS THE STRATUM'S OWN, not the word "one"
+    # (review round 6 item 4). A stratum stands for as many CELLS as
+    # the layout gives it, and the note said "one cell" whatever that
+    # number was -- so a twin with seven cells left in a stretch told
+    # its reader four, each claiming one.
+    wide = generation._NumericLayout(
+        sizes=(1, 3, 2, 1, 1, 1),
+        starts=(0, 1, 4, 6, 7, 8),
+        bands=(
+            generation._BAND_ZERO,
+        ) + (generation._BAND_POSITIVE,) * 5,
+        raw_budgets=(),
+        folded_budgets=(),
+    )
+    _third, many = generation._clear_enough(
+        column, facts, wide, [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
+    )
+    assert sorted(note.achieved for note in many) == [
+        "1 cell(s) hold 13.05", "1 cell(s) hold 13.05",
+        "2 cell(s) hold 11.0", "3 cell(s) hold 11.0",
+    ], sorted(note.achieved for note in many)
+    assert sum(
+        int(note.achieved.split(" ")[0]) for note in many
+    ) == 7, [note.achieved for note in many]
 
 
 def test_the_bin_rule_is_total_and_says_which_bin_an_edge_belongs_to(
@@ -939,7 +1046,7 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
                     holding = holding + [
                         (
                             f"no value from {pair[0]} to {pair[1]}",
-                            f"one cell holds {value}",
+                            f"1 cell(s) hold {value}",
                         )
                     ]
                     break

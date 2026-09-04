@@ -9815,11 +9815,27 @@ def _cleared_value(
         return None
     plainly = _carries_plainly(value, whole_column)
     figures = _figure_count(value, whole_column) if plainly else 0
+    # FOUR WALKS, IN ORDER OF HOW MUCH THEY ASK FOR: the nearer edge
+    # then the further one refusing every published stretch, and then
+    # the same two refusing only the BARRED BINS.
+    #
     # THE NEARER SIDE FIRST AND THE FURTHER SIDE AFTER IT. Both edges
     # of a stretch are edges of the SAME stretch, so a value that
     # reaches either one has left the stretch; the near side is walked
     # first because that is the smaller move, and the far side is
     # walked only where the near one has nothing free.
+    #
+    # AND A LOOSE WALK AFTER BOTH, because STAYING IS NEVER BETTER THAN
+    # MOVING (residual R-P4-156, closed 2026-09-04). A stratum that
+    # cannot reach a slot outside every published stretch used to stay
+    # where it was -- inside its own stretch AND inside the barred bin
+    # it stood in. A slot inside some stretch but outside every barred
+    # bin is better on one count and no worse on the other, so it is
+    # taken where nothing cleaner is free. Measured on the committed
+    # battery, forty columns at forty seeds: runs leaving a cell in a
+    # named bin 240 -> 130, and runs leaving one inside a stretch the
+    # source really leaves empty 213, against 135 and 1058 before the
+    # stretch edges landed at all.
     #
     # THIS IS WHAT THE PUBLISHED EDGES MADE NECESSARY. A bin edge has a
     # whole occupied bin behind it and a published edge may have a
@@ -9829,7 +9845,10 @@ def _cleared_value(
     # twelfth of a bin to work in and gave up. Walking the other edge
     # afterwards moved that cell and cost the near-side answers
     # nothing, because the near side is still tried first.
-    for side in (downward, not downward):
+    for strict, side in (
+        (True, downward), (True, not downward),
+        (False, downward), (False, not downward),
+    ):
         for inward in range(_CLEAR_STEPS):
             if side:
                 found = under - step * inward
@@ -9862,7 +9881,8 @@ def _cleared_value(
             # than the gap, and so accepted. The stratum is not queued
             # again and nothing names it. Each pair is an OPEN interval:
             # its two edges are values the source really holds.
-            if not _outside_every(found, every, widths, whole_column):
+            wanted = every if strict else ()
+            if not _outside_every(found, wanted, widths, whole_column):
                 continue
             if band == _BAND_NEGATIVE and not found < 0.0:
                 continue
@@ -10270,11 +10290,14 @@ def _cleared_into(
                 column.name,
                 origin,
                 f"no value from {edges[0]} to {edges[1]}",
-                f"one cell holds {moved[place]}",
+                f"{layout.sizes[place]} cell(s) hold "
+                f"{moved[place]}",
                 "The description says the real column holds no value in "
                 "that stretch, and this twin could find no value beside "
                 "it that its own signs and the values its other cells "
-                "hold all leave free.",
+                "hold all leave free. The count is the number of CELLS "
+                "left in the stretch, which is the whole of the group "
+                "this value belongs to.",
             )
         ]
     was = moved[place]
