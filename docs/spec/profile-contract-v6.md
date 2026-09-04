@@ -3972,7 +3972,7 @@ consumer off the role name.
 | `std` | number or `null` | ≥ 0 when a number | the sample standard deviation, divided by n−1 | APPROXIMATED |
 | `skew` | number or `null` | — | the moment-based skewness | APPROXIMATED |
 | `kurtosis` | number or `null` | Q16 below | the moment-based kurtosis, not the excess: a normal curve reads 3 | APPROXIMATED |
-| `n_distinct_values` | whole number | Q17 below | how many different NUMBERS the column holds, as distinct from how many different spellings | REPORT-ONLY |
+| `n_distinct_values` | whole number | Q17 below | how many different NUMBERS the column holds, as distinct from how many different spellings | EXACT-OBSERVABLE (amendment A-P4-55; REPORT-ONLY until 2026-09-04) |
 | `mode` | number or null | Q18 below | the number the column held most often, or null where the pair is withheld | REPORT-ONLY |
 | `mode_count` | whole number | Q18 below | how many cells held the commonest number, and nought exactly where `mode` is null | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the exact spread is larger than binary64 can hold | EXACT-OBSERVABLE |
@@ -4896,7 +4896,7 @@ block carries, the quantitative ones computed over the CORES.
 | `std` | number or `null` | ≥ 0 when a number | sample standard deviation of the parsed CORES, divided by n−1 | APPROXIMATED, as on `count` |
 | `skew` | number or `null` | — | moment-based skewness of the parsed CORES | APPROXIMATED, as on `count` |
 | `kurtosis` | number or `null` | Q16 | moment-based kurtosis of the parsed CORES | APPROXIMATED, as on `count` |
-| `n_distinct_values` | whole number | Q17 | how many different NUMBERS the CORES hold | REPORT-ONLY |
+| `n_distinct_values` | whole number | Q17 | how many different NUMBERS the CORES hold | EXACT-OBSERVABLE (amendment A-P4-55) |
 | `mode` | number or null | Q18 | the number the CORES held most often | REPORT-ONLY |
 | `mode_count` | whole number | Q18 | how many cores held it | REPORT-ONLY |
 | `std_unrepresentable` | boolean | — | true when the CORES' exact spread exceeds binary64 | EXACT-OBSERVABLE |

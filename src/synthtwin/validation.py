@@ -511,14 +511,14 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
 )
-_NOT_CHECKABLE_VALUE_COUNT = (
-    "the description records how many different NUMBERS the real "
-    "column holds, as distinct from how many different ways of writing "
-    "them, and it asks no file to hold that many: where a twin's own "
-    "values merge, its report names the shortfall. A file holding a "
-    "different count of numbers misses no obligation this description "
-    "makes"
-)
+# THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
+# the sentence it carried is kept here as the record of what changed:
+# "the description records how many different NUMBERS the real column
+# holds ... and it asks no file to hold that many". Amendment A-P4-55
+# makes it an obligation on the owner's ruling -- analysis code groups
+# by and counts distinct on numeric columns, so a twin holding fewer
+# different numbers than the description records is a twin that column
+# cannot be developed against. It is a CHECK now, in `_numeric_checks`.
 _NOT_CHECKABLE_FINER_LADDER = (
     "the description records the ninety percentile rungs its named "
     "ladder does not carry, as ONE fact rather than ninety: no file is "
@@ -7257,9 +7257,9 @@ def _role_checks(
     if isinstance(facts, contract.ClockFacts):
         return _clock_checks(column, facts, block)
     if isinstance(facts, contract.AffixedFacts):
-        return _affixed_checks(column, facts, block, cells, floor)
+        return _affixed_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.NumericFacts):
-        return _numeric_checks(column, facts, block, cells, floor)
+        return _numeric_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.LabelFacts):
         # THE CENSUS IS CHECKED ON ALL FOUR LABEL ROLES (P4-D18,
         # corrected). It was dispatched on `LongTailFacts` alone while
@@ -7569,6 +7569,7 @@ def _compound_checks(
         _compound_half_block(block, "numbers"),
         numeric_cells,
         floor,
+        mine,
     ):
         # AND THE THREE THE SPLIT RULE SETTLES ARE LISTED, NOT CHECKED
         # (V3.5). They are the numeric block's facts and the numeric
@@ -8035,6 +8036,7 @@ def _affixed_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    mine: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of numbers each wearing one shared piece of text.
 
@@ -8180,7 +8182,7 @@ def _affixed_checks(
     # its cores make -- so every quantitative obligation is measured by
     # the code that measures a plain numeric column.
     checks = checks + _numeric_checks(
-        column, facts.numbers, block, cores, floor
+        column, facts.numbers, block, cores, floor, mine
     )
     return checks
 
@@ -8191,10 +8193,51 @@ def _numeric_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    mine: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of counts or of continuous values."""
     name = column.name
     checks: list[Check] = []
+    # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
+    # Recounted from the re-description, like every other fact of this
+    # block, and compared EXACTLY: the owner ruled the count an
+    # obligation rather than a report line, so a twin whose values
+    # merge misses a published fact and says so on both pages instead
+    # of on one.
+    if facts.n_distinct_values is not None:
+        # UNDER THE SAME ENVELOPE AS THE COUNT OF SPELLINGS BESIDE IT,
+        # because on a column written one way they are the same
+        # shortfall measured twice: a hundred whole numbers all written
+        # plain publishes a hundred spellings and a hundred values, and
+        # a twin that reaches ninety-eight reaches ninety-eight of
+        # both. Giving one an envelope and the other the exact bar
+        # reported one shortfall as authorized and the other as a miss,
+        # on one column, in one run.
+        corner = _distinct_corner(facts, mine, _RAW_DISTINCT)
+        published = facts.n_distinct_values
+        measured = _count_at(block, "n_distinct_values")
+        if corner and not _envelope_admits_every_count(column, facts, published):
+            checks = checks + [
+                _lesser_or_held(
+                    name,
+                    "numeric.n_distinct_values",
+                    "distinct.n_distinct_values",
+                    published,
+                    measured,
+                    corner,
+                    column,
+                )
+            ]
+        elif not corner:
+            checks = checks + [
+                _exact(
+                    name,
+                    "numeric.n_distinct_values",
+                    "distinct.n_distinct_values",
+                    _shown_count(published),
+                    None if measured is None else _shown_count(measured),
+                )
+            ]
     for field, published in (
         ("n_zero", facts.n_zero),
         ("n_negative", facts.n_negative),
@@ -11919,6 +11962,30 @@ def _listings(
         numbers = _quantitative_of(facts)
         if numbers is not None:
             listings = listings + _numeric_listings(column, numbers)
+            # AND THE COUNT OF DIFFERENT NUMBERS WHERE ITS ENVELOPE
+            # LICENSES EVERY COUNT THE FILE COULD HOLD (V3.5). It is a
+            # CHECK since amendment A-P4-55, and a check that cannot
+            # fail is a listing -- but a first writing of that branch
+            # emitted NEITHER, so on a column whose supply is one
+            # spelling the fact left both pages at once.
+            published = numbers.n_distinct_values
+            corner = _distinct_corner(
+                numbers, _corner_names(corners, column.name), _RAW_DISTINCT
+            )
+            if (
+                published is not None
+                and corner
+                and _envelope_admits_every_count(column, numbers, published)
+            ):
+                listings = listings + [
+                    Listing(
+                        column.name,
+                        "numeric.n_distinct_values",
+                        "distinct.n_distinct_values",
+                        _NOT_CHECKABLE_SPELLING_ENVELOPE
+                        + CORNER_CITATIONS[corner],
+                    )
+                ]
         # AND THE JOINED ROLE, whose positions each carry a block the
         # census never reached: `_quantitative_of` returns None for it
         # on purpose, because its parts are checked one at a time, and
@@ -12184,12 +12251,6 @@ def _numeric_listings(
             "numeric.field_widths",
             "",
             _NOT_CHECKABLE_FIELD_WIDTHS,
-        ),
-        Listing(
-            column.name,
-            "numeric.n_distinct_values",
-            "",
-            _NOT_CHECKABLE_VALUE_COUNT,
         ),
         Listing(
             column.name,

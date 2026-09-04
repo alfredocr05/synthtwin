@@ -2064,6 +2064,52 @@ The standing machinery, extended — nothing bespoke:
 - The quality report's pass still means one thing — no checkable
   obligation was missed — and its scope statements do not widen here.
 
+## Amendment A-P4-57 — the three Tier 2 answers (owner ruling 2026-09-04)
+
+Three limits were put to the owner with a measurement each, on the same
+day they answered A-P4-55 and A-P4-56. Their answers, and what each
+turns into.
+
+**1. R-P4-138, the empty stretch — PUBLISH THE EDGES.** "Follow you
+recommendation." The measurement they were shown: a 300-row column
+whose real empty stretch runs 26.9 to 74.0 puts **five cells of three
+hundred** inside that stretch at every one of five seeds, each **1.0 to
+1.3 units** past the cluster edge. The thirty-two-bin division cannot
+do better, because the bins the source leaves empty are strictly inside
+the stretch it really leaves empty. Publishing the EDGE of the gap
+closes it, and the edge is a real value from a real row -- the same
+class of disclosure as a percentile rung, which the owner's ruling of
+2026-09-03 already settles.
+
+**2. R-P4-149, a number too large for the format — BUILD IT, AND CLOSE
+IT IN PHASE 4.** "I agree, but we can close in phase 4." The
+recommendation was a third population -- numbers, UNUSABLE numbers,
+words -- carried to Phase 5 because it changes a published block's
+shape. The owner keeps the design and moves the date: it lands in this
+phase. What it fixes, measured: a lab column of 280 readings, nineteen
+`POSITIVE` and one `9e999` publishes `9e999` as a WORD beside
+`positive`, and the numeric half reports **zero** cells left out of its
+statistics when the column has one. The twin's data is right; the
+description's accounting of that cell is not.
+
+**3. R-P4-151, a column on the detection line — FOLD IT INTO A-P4-55
+AND RE-MEASURE.** "Agree." The measurement: at the exact boundary, a
+twin that holds eleven different numbers re-describes as this role and
+`synthtwin validate` reports **62 facts held**; twins that hold ten or
+nine re-describe as `free_text` and the validator reports **41 of 62
+WITHHELD** -- it cannot speak to them. The data is right in every case.
+The cause is A-P4-55's own subject: the generator is not held to the
+count of different values. If that build reaches the count, this closes
+with it; if it reaches it most of the time, this shrinks, and either
+way the number comes back as a measurement rather than an argument.
+
+**THE ORDER THIS FIXES, and it is not a preference.** All three are
+product changes and L10 freezes the generator's behaviour into
+reference vectors. So A-P4-55, then these, then L10 -- building the
+vectors first would freeze behaviour that is about to move.
+
+---
+
 ## Amendment A-P4-55 — the count of different values is an OBLIGATION, not a report line (owner ruling 2026-09-04)
 
 **THE OWNER'S WORDS.** "We can group by, count distinct. Remember, the
@@ -2093,9 +2139,11 @@ it report-only for continuous measurements and to ask the owner whether
 their analyses group by, or count distinct on, numeric columns.
 
 **THE RULING.** They do, and the tool is for any health analysis, so
-the count is an obligation. `n_distinct_values` stops being
-REPORT-ONLY: the generator must reach it, and where it cannot the file
-owes the reader a named miss rather than a silence.
+the count is an obligation. **`n_distinct_values` is EXACT-OBSERVABLE
+from this amendment**, on every quantitative block that carries it: the
+generator must reach it, and where it cannot the file owes the reader a
+named miss rather than a silence. It was REPORT-ONLY until this
+ruling.
 
 **WHAT THIS COSTS AND WHERE THE TRADE IS, stated before the build so
 the next measurement is read against a prediction and not after it.**
@@ -2106,6 +2154,50 @@ the count of different values and the exactness of the ladder, and the
 build must measure both before and after on the same columns and the
 same seeds. If the ladder degrades measurably, that measurement comes
 back to the owner rather than being absorbed silently.
+
+**WHAT THE BUILD REACHED, measured on six columns at eight seeds each
+and on the every-role table at twelve:**
+
+| column | before | after |
+|---|---|---|
+| 200 rows, two fraction widths, 200 different | 185 to 195 | **197 to 200** |
+| 200 rows, three fraction widths, 200 different | 200 | 200 |
+| 300 rows of ages, 71 different | 69 to 71 | **71 at every seed** |
+| 200 rows, wide spread, 200 different | 200 | 200 |
+| 200 rows, whole numbers, 40 different | 40 | 40 |
+| 200 rows, tight cluster, 82 different | 80 to 82 | 80 to 82 |
+| the every-role table's `reading`, 178 different | 177 to 178 | 177 to 178 |
+
+**AND THE LADDER DID NOT PAY.** The trade this amendment predicted was
+measured on every one of those columns and seeds, before and after:
+the ladder's rungs landed inside their windows **72 times of 72** on
+both sides. The room the separation spends is room the ladder was not
+using.
+
+**THE LESSER OUTCOME THIS AUTHORIZES, and it is the residue rather
+than the rule.** Two shapes still fall short by one or two values:
+
+* a SATURATED grid -- 82 different values between ends that hold
+  exactly 82 grid points -- where every point must be used and the
+  placement has no freedom at all;
+* a DENSE ladder, where a stratum's own share of the grid holds no
+  free point and neither does the ground its own width either side.
+
+**THE LESSER OUTCOME IS THE ONE THE COUNT OF SPELLINGS ALREADY HAS**,
+and for the reason the two are one fact seen twice: on a column written
+one way -- a hundred whole numbers all plain -- the description
+publishes a hundred spellings and a hundred values, and a twin that
+reaches ninety-eight reaches ninety-eight of both. So
+`n_distinct_values` falls back to the two-sided envelope only where
+even the permitted spellings cannot supply the count, exactly as
+`n_distinct` does, and where the spellings CAN supply it the count is
+owed exactly.
+
+A first writing gave this fact an authorization of its own -- the
+separation's residue -- and it was wrong in a way one column showed:
+two hundred cells holding a hundred whole numbers reported the SAME
+shortfall as an authorized deviation on the spelling count and as a
+MISS on the value count, in one run, on one page.
 
 **SCOPE.** Numbers first: `n_distinct_values` on every quantitative
 block, which is the count analysis code groups by. The SPELLING counts
@@ -5225,6 +5317,93 @@ declaration for only one of them.
   because `_owed` keeps the walk running and the ceiling stops it, so
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
+
+- **R-P4-154 — OPEN (opened 2026-09-04 by the build of amendment
+  A-P4-55).** THE SHAPES THAT STILL DO NOT REACH THEIR COUNT OF
+  DIFFERENT NUMBERS, NOW THAT THE COUNT IS AN OBLIGATION.
+
+  A-P4-55 made `n_distinct_values` an obligation and the build took
+  most of the shortfall out. What is left is measured here rather than
+  left to be met, every figure through the real producer, loader and
+  generator.
+
+  | shape | published | before | after |
+  |---|---|---|---|
+  | 200 rows, two fraction widths | 200 | 185 to 195 | **187 to 197** |
+  | 300 rows of ages, whole | 71 | 69 to 71 | **71 at every seed** |
+  | 200 rows, three fraction widths | 200 | 200 | 200 |
+  | 60 rows, ten values at two figures beside fifty at one | 60 | 52 to 57 | 53 to 57 |
+  | 59 rows, decimals beside eleven `-999` | 49 | 48 to 49 | **49 at every seed** |
+  | 200 rows, 100 whole numbers on 100 grid points | 100 | 98 | 98 |
+  | 200 rows, 82 values on 82 grid points at two figures | 82 | 80 to 82 | 80 to 82 |
+
+  **THE TWO SHAPES THAT REMAIN.**
+
+  1. **A SATURATED GRID.** A column whose ends hold exactly as many
+     grid points as it has different values has no freedom at all: the
+     placement must be a perfect packing. Where the description's own
+     spellings cannot promise the count, G12.8's envelope covers it and
+     the file is not accused; the last two rows are that case.
+  2. **SEVERAL FRACTION WIDTHS IN ONE COLUMN.** The separation acts on
+     the FINEST grid the census names, because that is the grid that
+     tells two values apart -- `2.11` and `2.12` are different numbers
+     and both read as `2.1` on a coarser one. What it cannot see is a
+     pair the later width stage merges by writing one of them at a
+     coarser width. The fourth row is that case, and two tests excuse
+     exactly this subcheck with this measurement beside them.
+
+  **THE COARSEST GRID WAS BUILT FIRST AND IT IS DESTRUCTIVE**, recorded
+  so nobody builds it again: it takes the two-width column from 185-195
+  to 197-200 and breaks the fourth row outright, because it moves
+  values that were already distinct onto a grid too coarse to hold
+  them.
+
+  **WHAT WOULD CLOSE IT:** a value stage that knows which width each
+  cell will be written at, so the separation can act on the grid each
+  cell really lands on. That is a change to the ORDER of the stages
+  rather than an adjustment to this pass.
+
+  **WHAT IT COSTS TODAY:** such a twin holds one or two fewer different
+  numbers than the description records, and both the twin's own report
+  and `synthtwin validate` name the shortfall.
+
+- **R-P4-153 — OPEN (opened 2026-09-04 by the owner's ruling
+  A-P4-56).** WHAT SHAPE THE ASKING TAKES, AND WHEN IT RUNS.
+
+  Amendment A-P4-56 rules that where a judgement cannot be made from
+  the values with confidence, the tool ASKS the person rather than
+  guessing quietly. The machinery to act on the answers already ships
+  -- `--code`, `--measurement`, `--decimal-comma`, `--missing-value`,
+  `--keep-value`, `--identifier` -- so what is missing is the asking.
+
+  **THE THREE SHAPES, with what each costs.**
+
+  1. **A prompt in the terminal**, before profiling: the tool reads the
+     table, lists the columns it is unsure about, and asks. Cheapest to
+     build and the most natural at a command line. It makes the run
+     INTERACTIVE, which the offline guarantee does not forbid but which
+     every test harness here assumes away: `synthtwin profile` is a
+     function of its inputs today, and a prompt makes it a function of
+     a conversation.
+  2. **A file the tool writes for the person to complete**: a first
+     pass writes the questions it cannot settle, the person fills them
+     in, a second pass reads them. Keeps every run non-interactive and
+     reproducible, which the whole test estate depends on, and it is a
+     natural artifact for a compliant machine where the person and the
+     operator may not be the same. Two commands instead of one.
+  3. **A questionnaire up front**, before the tool sees the table: the
+     person declares what they know. Simplest to reason about and the
+     least useful, because the interesting questions are the ones the
+     VALUES raise.
+
+  **What is not in question** is that the guess must stay good:
+  A-P4-56 says asking is for what a count cannot settle, not a way to
+  move work onto the person.
+
+  **WHAT IT BLOCKS.** R-P4-150 (a code set read as a quantity) is the
+  case that raised it and stays open until this lands. Its siblings --
+  a date column no rule recognises, a measurement column that reads as
+  two numbers -- are the same shape and would be answered the same way.
 
 - **R-P4-152 — OPEN (opened 2026-09-04 by review round 8 of landing
   L8, item 1).** THE TWIN'S REPORT NAMES A FACT AS UNMET AND AS INSIDE

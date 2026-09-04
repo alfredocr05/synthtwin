@@ -7727,6 +7727,93 @@ def _pinned_fraction(
     return -1
 
 
+def _finest_fraction(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The FINEST grid any numeric cell of this column is written on.
+
+    AMENDMENT A-P4-55. `_pinned_fraction` answers -1 where the census
+    names several widths, because which cell gets which is settled
+    after the styles are and a value cannot know here what grid it will
+    land on. That turned the separation pass off for every such column,
+    and the measurement says what it cost: a 200-row column publishing
+    two hundred different numbers over two fraction widths held **185
+    to 194** of them, where single-width columns of the same shapes
+    hold 80 of 82, 40 of 40 and 200 of 200.
+
+    THE COARSEST GRID WAS TRIED FIRST AND IT IS DESTRUCTIVE. Two values
+    a coarse step apart do stay apart at any finer width, so the coarse
+    grid is safe in that direction -- but the converse is false, and
+    that is what matters: on a column of ten values at two figures
+    beside fifty at one, `2.11` and `2.12` are DIFFERENT numbers and
+    both read as `2.1` on the coarse grid. The walk saw a collision
+    that was not there and moved one of them onto a coarse point,
+    losing the very value it was protecting. Measured: the affixed
+    role's snap case came back missing its count of different values.
+
+    THE FINEST GRID IS THE ONE THAT TELLS TWO VALUES APART. Two strata
+    that read the same at the finest width ARE the same number, so
+    every collision the walk sees is a real one and every move it makes
+    is one the column needed. What this cannot see is a pair that the
+    LATER width stage merges by writing one of them at a coarser
+    width; that residue is the envelope's, and it is far smaller than
+    the damage the coarse grid did.
+
+    -1 where the census cannot be read at all: a pooled `(withheld)`
+    key names no width, and a key that is not a run of digits is not a
+    width either. Where the census leaves cells unaccounted for, those
+    cells carry NO figure after the point and the integers are coarser
+    than anything the census names, so the answer is 0.
+    """
+    census = facts.fraction_widths
+    if not census:
+        return -1
+    counted = 0
+    coarsest = -1
+    for figures in census:
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        counted = counted + census[figures]
+        width = int(figures)
+        if width > coarsest:
+            coarsest = width
+    # THE CENSUS MUST ACCOUNT FOR EVERY NUMERIC CELL, and where it does
+    # not this pass stays off. The cells it leaves out carry NO figure
+    # after the point: they are written plain, which a cell can only be
+    # if its value is whole, so moving a value off a whole number takes
+    # a plain cell away from the style census.
+    #
+    # BOTH ANSWERS WERE BUILT AND MEASURED before this one. Reading the
+    # uncovered cells as the INTEGER grid cost a 200-row column of
+    # three widths its exact count -- 200 of 200 became 199 to 200,
+    # because separating values a quarter apart onto whole numbers
+    # moves nearly every stratum. Reading them as the coarsest NAMED
+    # width was worse and in a way no count could show: the pooled
+    # fixture of the entry table, 47 numeric cells of which 12 carry a
+    # figure, came back MISSING three style obligations -- 34 plain
+    # cells published against 21 written. A green witness that misses
+    # is a battery that proves nothing, which is how it was found.
+    return coarsest
+
+
+def _some_cells_carry_no_figure(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> bool:
+    """Whether this column writes some of its cells with no point at all.
+
+    Such a cell is written PLAIN, which a cell can only be if its value
+    is whole -- so on a column like this the separation may move a
+    stratum only where the move keeps every whole value where it is.
+    """
+    counted = 0
+    for figures in facts.fraction_widths:
+        counted = counted + facts.fraction_widths[figures]
+    return counted < column.n_numeric
+
+
 def _grid_text(value: float, figures: int) -> str:
     """One value as the writer will write it at ``figures`` (R-P4-56).
 
@@ -7793,6 +7880,8 @@ def _apart_inside(
     share: "tuple[float, float] | None",
     ends: "tuple[float, float] | None",
     written: "dict[str, int]",
+    reach: int = 0,
+    whole: "bool | None" = None,
 ) -> "float | None":
     """The nearest free point of the grid inside this stratum's share.
 
@@ -7838,9 +7927,17 @@ def _apart_inside(
     units = _grid_units(anchor, figures)
     if units is None:
         return None
-    reach = 1
-    while reach <= _GRID_REACH:
-        for step in (-reach, reach):
+    # HOW FAR THE WALK MAY GO, in grid steps. The default is the
+    # method's own sixty-four; a caller that has taken the SHARE bound
+    # off passes the stratum's own share width instead, so a stratum
+    # may move by as much ground as it owns and no more (amendment
+    # A-P4-55).
+    limit = _GRID_REACH
+    if reach > 0:
+        limit = reach
+    steps = 1
+    while steps <= limit:
+        for step in (-steps, steps):
             spelt = _grid_at(units + step, figures)
             # THE CANDIDATE IS THE GRID POINT, NOT THE SUM THAT REACHED
             # IT (review round 3 of the integer-grid landing). Stepping
@@ -7868,6 +7965,20 @@ def _apart_inside(
                 continue
             if spelt in written:
                 continue
+            # THE CANDIDATE KEEPS THE STRATUM'S OWN KIND where the
+            # caller asks for it (amendment A-P4-55): on a column that
+            # writes some cells with no point, a whole stratum may move
+            # only onto another whole number and a fractional one only
+            # onto a fractional point, so the column holds as many
+            # whole values as its plain cells need. Asked HERE and not
+            # of the answer, because a caller that rejects the walk's
+            # answer ends the attempt -- the nearest free point on a
+            # tenths grid is a tenth away and never whole, so a whole
+            # stratum was handed `-999.1`, refused it, and stayed on
+            # the number another stratum already held.
+            if whole is not None:
+                if (_whole_valued(candidate) == candidate) != whole:
+                    continue
             if band == _BAND_NEGATIVE and candidate >= 0.0:
                 continue
             if band == _BAND_POSITIVE and candidate <= 0.0:
@@ -7883,7 +7994,7 @@ def _apart_inside(
                 if candidate < ends[0] or candidate > ends[1]:
                     continue
             return candidate
-        reach = reach + 1
+        steps = steps + 1
     return None
 
 
@@ -7934,6 +8045,17 @@ def _apart_enough(
     behaviour above and R-P4-56 stays open for them.
     """
     figures = _pinned_fraction(column, facts)
+    if figures < 0:
+        # AND A COLUMN OF SEVERAL WIDTHS SEPARATES ON THE COARSEST OF
+        # THEM (amendment A-P4-55). This pass used to stop here, so the
+        # count of different values was unmet on exactly the columns a
+        # real table is full of -- a mix of `10.1` and `10.05` in one
+        # column -- and the owner ruled the count an obligation rather
+        # than a report line. Two values a coarse step apart stay apart
+        # at every finer width, so the coarse grid is the one this
+        # stage can act on without knowing which width each cell will
+        # be written at.
+        figures = _finest_fraction(column, facts)
     # ZERO IS A WIDTH, NOT AN ABSENCE. This read `< 1` and so declined
     # the integer grid along with the unknown one; `-1` is the only
     # answer that means "no grid this stage can act on".
@@ -7942,6 +8064,21 @@ def _apart_enough(
     total = len(values)
     if total < 2:
         return values
+    # A COLUMN THAT WRITES SOME CELLS WITH NO POINT KEEPS ITS WHOLE
+    # VALUES WHERE THEY ARE (amendment A-P4-55). Such a cell is written
+    # PLAIN, and a cell can only be plain if its value is whole, so a
+    # stratum moved off a whole number takes a plain cell away from the
+    # style census. MEASURED, and that is how it was found: the entry
+    # table's pooled witness -- 47 numeric cells of which 12 carry a
+    # figure -- came back missing three style obligations, 34 plain
+    # cells published against 21 written.
+    #
+    # So on such a column the walk moves only strata whose value is NOT
+    # whole, and never onto a whole number. The wholes are left to the
+    # plain cells and the fractions separate among themselves, which is
+    # what lets a column of decimals beside a whole-number stand-in --
+    # a shape a real table is full of -- reach its published count.
+    keep_whole = _some_cells_carry_no_figure(column, facts)
     moved = [value for value in values]
     # EVERY TEXT THE WHOLE COLUMN WOULD WRITE, COUNTED BEFORE ANYTHING
     # MOVES (review item P4-R56-R2-F2). This counted only the texts the
@@ -7975,6 +8112,54 @@ def _apart_enough(
     # text already held, each one counted as a fresh value. Deriving it
     # cannot drift from what is there (review round 6).
     wanted = facts.n_distinct_values
+    # WALKED AGAIN UNTIL NOTHING MORE MOVES (amendment A-P4-55). One
+    # walk takes the strata in order, and a stratum it could not place
+    # may have a free point by the time a later one has moved -- the
+    # walk frees a text every time it takes a fresh one. Measured: a
+    # 300-row column publishing 178 different numbers held 177 on one
+    # seed of three with a single walk. Three walks is the bound: a
+    # walk that moves nothing ends it, and a column still moving after
+    # three is one this pass does not settle.
+    for _round in range(3):
+        before_round = len(held)
+        moved, texts, held = _apart_walk(
+            column,
+            facts,
+            layout,
+            rungs,
+            moved,
+            texts,
+            held,
+            figures,
+            wanted,
+            keep_whole,
+        )
+        if wanted is not None and len(held) >= wanted:
+            break
+        if len(held) == before_round:
+            break
+    return moved
+
+
+def _apart_walk(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    moved: "list[float]",
+    texts: "list[str]",
+    held: "dict[str, int]",
+    figures: int,
+    wanted: "int | None",
+    keep_whole: bool = False,
+) -> "tuple[list[float], list[str], dict[str, int]]":
+    """One walk of the separation (amendment A-P4-55).
+
+    Split out of `_apart_enough` so the walk can be taken more than
+    once: a stratum passed over early may have a free point once a
+    later one has moved off the text it wanted.
+    """
+    total = len(moved)
     for place in range(total):
         if wanted is not None and len(held) >= wanted:
             break
@@ -7985,6 +8170,7 @@ def _apart_enough(
             continue
         if layout.bands[place] == _BAND_ZERO:
             continue
+
         share = None
         ends = None
         if rungs is not None:
@@ -7997,6 +8183,9 @@ def _apart_enough(
                 ),
             )
             ends = (rungs[0], rungs[-1])
+        kind = None
+        if keep_whole:
+            kind = _whole_valued(moved[place]) == moved[place]
         want = _apart_inside(
             moved[place],
             figures,
@@ -8004,7 +8193,88 @@ def _apart_enough(
             share,
             ends,
             held,
+            0,
+            kind,
         )
+
+        if want is None and share is not None:
+            # AND WHERE ITS OWN SHARE HOLDS NO FREE POINT, THE STRATUM
+            # LOOKS BEYOND IT (amendment A-P4-55). The share is what
+            # keeps a moved stratum near the rung the ladder put it on,
+            # and on a crowded column it can be a stretch of the grid
+            # with no free point in it at all -- so the stratum stayed
+            # where it was, written as another stratum's cell, and the
+            # published count of different values went unmet. The owner
+            # ruled that count an obligation, so the second attempt is
+            # made: the same walk between the PUBLISHED ENDS, which
+            # still refuses a text another stratum holds and still
+            # never crosses a sign band.
+            #
+            # AND THE SECOND ATTEMPT IS BOUNDED, because the
+            # unbounded one was built first and MEASURED: allowed
+            # anywhere between the published ends, a 200-row column of
+            # two fraction widths held 198 of 200 different values and
+            # its ladder went from **72 of 72 rungs inside their
+            # windows to 32 of 72**. That is the trade the owner's
+            # amendment predicted, and half a ladder is too much to pay
+            # for two values.
+            #
+            # So the second attempt is bounded by DISTANCE and not by
+            # position: the stratum may move by as many grid steps as
+            # its own share is wide, in either direction, and no
+            # further. A share bound one width either side was built
+            # first and does not work -- a stratum in a dense part of
+            # the ladder owns a share with no free grid point in it and
+            # none in its neighbours' either, and it stayed put. The
+            # distance bound lets it walk out of a crowded
+            # neighbourhood while keeping every move proportional to
+            # the ground the stratum owns.
+            #
+            # ONE WIDTH IS THE BOUND BECAUSE IT WAS SCANNED, not
+            # because it is round: at one, two, three and five share
+            # widths on six columns at eight seeds each, every reach
+            # keeps the ladder at 72 rungs of 72 inside their windows,
+            # and ONE is the only one where a 300-row column of ages
+            # holds its published 71 different values at every seed --
+            # two and beyond hold 70 to 71. A wider reach gains nothing
+            # here and costs that, so the smallest reach that works is
+            # the one taken.
+            width = abs(share[1] - share[0])
+            # FIRST the neighbours' ground, which is where a stratum
+            # should land if it can: the move stays near the rung the
+            # ladder put it on.
+            want = _apart_inside(
+                moved[place],
+                figures,
+                layout.bands[place],
+                (share[0] - width, share[1] + width),
+                ends,
+                held,
+                0,
+                kind,
+            )
+
+        if want is None and share is not None:
+            width = abs(share[1] - share[0])
+            unit = math.ldexp(1.0, 0)
+            for _each in range(figures):
+                unit = unit / 10.0
+            steps = 1
+            if unit > 0.0:
+                steps = int(width / unit) + 1
+            if steps > _GRID_REACH:
+                steps = _GRID_REACH
+            want = _apart_inside(
+                moved[place],
+                figures,
+                layout.bands[place],
+                None,
+                ends,
+                held,
+                steps,
+                kind,
+            )
+
         if want is None:
             continue
         fresh = _grid_text(want, figures)
@@ -8016,7 +8286,7 @@ def _apart_enough(
         texts[place] = fresh
         moved[place] = want
         # Nothing is counted here: the map above IS the count.
-    return moved
+    return (moved, texts, held)
 
 
 def _fraction_inside(

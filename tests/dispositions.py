@@ -358,6 +358,12 @@ PLAN4_REGIONS = {
     "value-count": (
         "### P4-D4.9 The count of different numbers (closes R-P4-20)"
     ),
+    # ...and the amendment that made it an obligation, which is where
+    # the class this registry now carries is stated.
+    "value-count-obligation": (
+        "## Amendment A-P4-55 — the count of different values is an "
+        "OBLIGATION, not a report line (owner ruling 2026-09-04)"
+    ),
     "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
     # The per-level half of the form census, ruled in by the owner on
     # 2026-08-31 after the landing that measured R-P4-34 recommended
@@ -664,10 +670,29 @@ REGISTRY += (
     Fact(
         "numeric",
         "n_distinct_values",
-        REPORT_ONLY,
-        plan_words="how many different NUMBERS the column holds",
-        plan_region="value-count",
+        # EXACT-OBSERVABLE SINCE 2026-09-04 (amendment A-P4-55). It was
+        # REPORT-ONLY on a measurement -- the twin met the published
+        # count in 83 of 160 runs -- and the owner overrode that on the
+        # ground the measurement could not see: analysis code groups by
+        # and counts distinct on numeric columns, so a twin holding
+        # fewer different numbers than the description records is one
+        # that column cannot be developed against. The build that came
+        # with the ruling took a 200-row column of two fraction widths
+        # from 185-195 of 200 to 197-200, and a 300-row column of ages
+        # from 69-71 of 71 to 71 at every seed.
+        EXACT_OBSERVABLE,
+        plan_words="so the count is an obligation",
+        plan_region="value-count-obligation",
         aliases=("value count", "different numbers"),
+        # UNDER THE SAME ENVELOPE AS THE COUNT OF SPELLINGS BESIDE IT.
+        # On a column written one way the two are the same shortfall
+        # measured twice -- a hundred whole numbers all written plain
+        # publishes a hundred spellings and a hundred values, and a
+        # twin reaching ninety-eight reaches ninety-eight of both. A
+        # first writing gave this one the exact bar and the other the
+        # envelope, and one column then reported one shortfall as
+        # authorized and the other as a miss in the same run.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
     ),
     # THE FINER LADDER (plan P4-D4.10). REPORT-ONLY, and for a reason
     # unlike every other REPORT-ONLY fact here: not because a twin
@@ -1393,6 +1418,13 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ("numeric", "integer_valued", _BEYOND_STEPS): ("numeric", REPORT_ONLY),
     # Owner decision 7's spellings reach the published count; the
     # envelope is what P2-D6's own numeric paragraph falls back to.
+    # Amendment A-P4-55: the count of different NUMBERS takes the same
+    # envelope as the count of spellings beside it, because on a column
+    # written one way they are one shortfall measured twice.
+    ("numeric", "n_distinct_values", _ENVELOPE_SAID): (
+        "numeric",
+        APPROXIMATED,
+    ),
     ("numeric", "n_distinct", _ENVELOPE_SAID): ("numeric", APPROXIMATED),
     ("numeric", "n_distinct_folded", _ENVELOPE_SAID): (
         "numeric",

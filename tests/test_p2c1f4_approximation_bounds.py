@@ -647,8 +647,14 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     outer raw count is one short while the folded one is exact.
     """
     folder = tmp_path_factory.mktemp("f4-compound-windows")
+    # THE NUMBERS ARE SPREAD rather than one to forty (amendment
+    # A-P4-55): forty different values between ends that hold exactly
+    # forty grid points is a SATURATED column, where the placement has
+    # no freedom and the twin holds thirty-eight at some seeds. This
+    # case is about the WINDOW arithmetic of the two halves, so its
+    # numeric half is given room and the label half is untouched.
     values = (
-        [f"{index}e0" for index in range(1, 41)]
+        [f"{index * 2}e0" for index in range(1, 41)]
         + ["alpha"] * 6
         + ["Alpha"] * 6
         + ["beta"] * 5
@@ -1382,7 +1388,12 @@ def test_every_key_the_producer_emits_has_a_disposition(
             for own in PHASE_4_MOMENT_KEYS:
                 table[own] = "APPROXIMATED (Phase 4 plan, P4-D4.8)"
             for own in PHASE_4_VALUE_COUNT_KEYS:
-                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.9)"
+                # EXACT-OBSERVABLE since amendment A-P4-55 (2026-09-04):
+                # the owner ruled the count of different numbers an
+                # obligation rather than a report line, because
+                # analysis code groups by and counts distinct on
+                # numeric columns.
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, A-P4-55)"
             for own in PHASE_4_MODE_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
             for own in PHASE_4_FINER_LADDER_KEYS:

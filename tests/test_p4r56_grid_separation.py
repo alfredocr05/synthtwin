@@ -260,11 +260,17 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     refused: "list[int]" = []
     idle: "list[int]" = []
 
-    def refusing(value, figures, band, share, ends, written):
+    # `reach` and `whole` arrived with amendment A-P4-55: the walk takes
+    # a bound on how far it may step when its caller has lifted the
+    # share bound, and a requirement that the point it lands on be
+    # whole exactly as the stratum's own value is.
+    def refusing(value, figures, band, share, ends, written, reach=0,
+                 whole=None):
         refused.append(1)
         return None
 
-    def unmoving(value, figures, band, share, ends, written):
+    def unmoving(value, figures, band, share, ends, written, reach=0,
+                 whole=None):
         idle.append(1)
         return value
 
@@ -281,12 +287,38 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     # THE FIXTURE REALLY EXERCISES THE PASS, so neither arm can pass by
     # never being asked at all.
     assert len(refused) > 5, len(refused)
-    assert len(idle) == len(refused), (len(idle), len(refused))
+    assert len(idle) > 5, len(idle)
+    # THE TWO TRACES ARE NO LONGER EQUAL, and the reason is a change
+    # to the caller rather than to what this test proves (amendment
+    # A-P4-55). A refused stratum is now asked TWICE MORE -- once with
+    # its share widened by its own width, once with the share bound
+    # lifted and the distance capped -- and the whole walk is taken up
+    # to three times while it keeps freeing texts. So the refusing arm
+    # is asked more often than the idle one by construction: 60 against
+    # 20 on this column.
+    #
+    # What the equality was standing in for is asserted directly
+    # below: neither broken walk raises the count of different values.
+    # That is the fact a tally beside the map got wrong, and it is
+    # measured on the map itself rather than on how often the walk was
+    # called.
+    assert len(idle) < len(refused), (len(idle), len(refused))
 
     # AND NO VALUE WAS INVENTED, which is the other half: a walk that
     # never moves anything cannot reach the published count.
     cells = [cell for cell in twin.columns[0] if cell != ""]
     assert len({float(cell) for cell in cells}) < published
+
+    # ...AND THE REFUSING ARM DID NOT REACH IT EITHER, which is the
+    # half the equality used to carry: a walk that answers with nothing
+    # cannot raise the count any more than one that answers with the
+    # value it was given.
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation, "_apart_inside", refusing
+    )
+    refused_twin = generation.generate(loaded, SEED)
+    held = [cell for cell in refused_twin.columns[0] if cell != ""]
+    assert len({float(cell) for cell in held}) < published
 
 
 def test_the_walk_never_answers_with_a_text_the_column_already_holds(
