@@ -10111,13 +10111,19 @@ def _clear_enough(
     # Asking the question of the value alone would have left this pass
     # blind to exactly the cells it exists to move.
     queued: "dict[int, list[int]]" = {}
-    # WHICH FACT PUT A STRETCH'S STRATA IN THE QUEUE, kept so that a
-    # move that cannot be made names the fact it really missed (review
+    # WHICH FACT PUT EACH STRATUM IN THE QUEUE, kept so that a move
+    # that cannot be made names the fact it really missed (review
     # round 2 item 3). A stratum standing in a barred BIN is missing
     # `empty_bins`; one standing in a bin that holds plenty while its
     # value is inside the published PAIR is missing `empty_edges`, and
     # a report that named the bins there would send a reader to a fact
     # the twin did not break.
+    #
+    # KEYED BY THE STRATUM AND NOT BY THE STRETCH (review round 3 item
+    # 2). One stretch can be reached BOTH ways -- some of its strata
+    # standing in its barred bins and others only inside its published
+    # pair -- and a note per stretch gave every one of them whichever
+    # route the first arrival took.
     came: "dict[int, str]" = {}
     for place in range(total):
         if place == 0 or (place == total - 1 and total >= 2):
@@ -10162,12 +10168,11 @@ def _clear_enough(
                     break
         if index < 0 or index >= len(runs):
             continue
+        came[place] = by_pair
         if index in queued:
             queued[index] = queued[index] + [place]
-            came[index] = came[index] if came[index] else by_pair
         else:
             queued[index] = [place]
-            came[index] = by_pair
     for index in sorted(queued):
         run = runs[index]
         # THE REAL EDGES OF THIS STRETCH where the description
@@ -10178,13 +10183,13 @@ def _clear_enough(
         under = edges[0]
         over = edges[1]
         places = queued[index]
-        origin = came[index]
-        # THE ONES GOING DOWN, FURTHEST FIRST. A stratum standing just
-        # inside the stretch is the one that ends up nearest the edge,
-        # so the queue for the bin below is walked from the top of the
-        # stretch downward and the queue for the bin above from the
-        # bottom upward. That is what keeps the values of the strata in
-        # the order the ladder gave them.
+        # EACH GROUP IS WALKED FURTHEST FROM ITS OWN EDGE FIRST, which
+        # is what keeps the values in the order the ladder gave them.
+        # The walk hands out positions from the edge INWARD, so the
+        # first stratum walked gets the position nearest the edge: the
+        # down group is therefore walked from its LARGEST value
+        # downward and the up group from its SMALLEST value upward,
+        # and both come out in their original order.
         down = [
             place
             for place in places
@@ -10194,13 +10199,14 @@ def _clear_enough(
         for step in range(len(down)):
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
-                facts.empty_edges, origin,
+                facts.empty_edges,
+                came[down[len(down) - 1 - step]],
                 down[len(down) - 1 - step], widths, taken, spoken,
             )
         for place in up:
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
-                facts.empty_edges, origin,
+                facts.empty_edges, came[place],
                 place, widths, taken, spoken,
             )
     return moved, notes

@@ -12252,7 +12252,7 @@ def _numeric_listings(
             # not the other would not know which of the two the twin
             # was walking from. REPORT-ONLY for the reason the bins
             # are, and measured: over three two-cluster columns at
-            # forty seeds each, 8, 4 and 31 cells of 12,000 still sit
+            # forty seeds each, 8, 4 and 27 cells of 12,000 still sit
             # inside a source's own gap, each within 1.3 units of a
             # real value (residual R-P4-155).
             Listing(

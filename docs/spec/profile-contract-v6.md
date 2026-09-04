@@ -4597,8 +4597,8 @@ compound profile at all. The column is here now and
 `tests/test_p4d18_role_topology.py` reads every role the loader knows
 rather than a list of its own, so the two cannot part again.
 
-| key | emp | unr | con | bin | cat | ltl | dtm | tod | cnt | ctn | afx | idn | txt | jnd  nwl |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--::--:|
+| key | emp | unr | con | bin | cat | ltl | dtm | tod | cnt | ctn | afx | idn | txt | jnd | nwl |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | `levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_rows` | | | ● | ● | ● | ● | | | | | | | | | |
@@ -4960,7 +4960,7 @@ block carries, the quantitative ones computed over the CORES.
 **The block is fifty-four keys**: the twenty-two universal keys of
 section 5.1 and the thirty-two above — a `count` block's twenty-five
 additions plus this role's own seven. The matrix of section 6.11 marks
-exactly those twenty-four cells in its `afx` column. There is no
+exactly those thirty-two cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -6701,10 +6701,22 @@ bin of a value `v` is `floor((v - min) / (max - min) * 32)`, clamped
 into `0 .. 31`, so **every bin is half-open at the TOP and a value
 standing exactly on a shared edge belongs to the UPPER bin — the one
 that starts there** — except the last bin, which is closed so the
-published maximum has somewhere to go. A block whose `max` is not
-above its `min`, or whose ends are finite while their difference is
-not, has no scale: every value is in bin 0 and the block publishes an
-empty census, an empty `empty_bins` and an empty `empty_edges`.
+published maximum has somewhere to go.
+
+**THE TWO CASES WITH NO DIVISION, and they are not the same case.**
+
+- **`max` equals `min`** — every value is one number. The clamp above
+  puts all of them in bin 0, so the CENSUS is published and reads
+  `{"0": n}`; but there is no width to divide, so the other
+  thirty-one bins are not empty — they do not exist — and
+  `empty_bins` and `empty_edges` are both EMPTY. A description saying
+  thirty-one bins of a one-value column hold nothing would be
+  describing a division nothing made.
+- **An end this format cannot hold, or two finite ends whose
+  DIFFERENCE it cannot hold** — there is no scale at all. The census
+  is ABSENT, and `empty_bins` and `empty_edges` are both empty.
+  "There is no scale" and "the scale has no empty bin" are different
+  sentences, and the absent census is what tells them apart.
 
 **IT IS STATED BECAUSE IT WAS NOT.** 7.11 and the producer obligation
 below both said "the bins of C6-31's division", and C6-31 is the
@@ -6862,17 +6874,17 @@ how many, or what those rows hold anywhere else — which is the ground
 the owner's rulings of 2026-08-31 and 2026-09-03 stand on, and their
 ruling of 2026-09-04 ("follow you recommendation") settles this key.
 
-**THE CEILING, COMPUTED RATHER THAN ESTIMATED.** A reach is divided
-into thirty-two bins; the FIRST and the LAST always hold the two
-endpoints, so at most fifteen of the thirty between them can be empty
-runs — runs are separated by at least one occupied bin — and two runs
-sharing the one value between them name it once. A block therefore
-carries **at most fifteen pairs, thirty entries and SIXTEEN distinct
-values**. On a dense column there is usually no run at all and so no
-value here. On a SPARSE column the ceiling is reached, and it was
-reached on purpose to check it: a 17-row column occupying bins 0, 2,
-4 … 30 and 31 publishes fifteen pairs naming sixteen of its seventeen
-values.
+**THE CEILING, COMPUTED AND THEN REACHED ON PURPOSE.** A reach is
+divided into thirty-two bins; the FIRST and the LAST always hold the
+two endpoints, so at most fifteen of the thirty between them can be
+empty runs — runs are separated by at least one occupied bin. A block
+therefore carries **at most fifteen pairs and thirty exact values**,
+and they can all be different: a 32-row column occupying bins 0, 2,
+4 … 30 and 31 with TWO values in each occupied bin publishes fifteen
+pairs naming thirty distinct values, and with the two endpoints row 3
+publishes beside them the description names EVERY value that column
+holds. On a dense column there is usually no run at all and so no
+value here, which is the ordinary case.
 
 **AND IT IS NOT TWO MORE BESIDE ELEVEN, which is what this passage
 said before 2026-09-04 and was wrong about.** A ladder's two ENDPOINTS
@@ -6930,7 +6942,7 @@ two values rather than from the bin edges. Measured over the three
 two-cluster witnesses of `tests/test_p4d32_empty_bins.py`, forty seeds
 each, counting cells inside the SOURCE's own widest gap: the furthest
 such cell fell from **15.7–23.0 units from a real value to 1.3**, and
-the count of them from one per column per seed to **8, 4 and 31 of
+the count of them from one per column per seed to **8, 4 and 27 of
 12,000**. On those three witnesses nothing at all is left inside a
 source's own gap: **0 of 12,000 at each**. It is not EXACT-OBSERVABLE
 for the reason `empty_bins` is not — a block whose other published
@@ -8765,7 +8777,7 @@ a marked row.
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
    `n_core_not_numeric` — each under the treatment the same fact has on
    a plain numeric column, all of it reaching columns that were free
-   text. With row 2 this prices all twenty-four keys the role adds; rows 4 and 7 restate
+   text. With row 2 this prices all thirty-two keys the role adds; rows 4 and 7 restate
    two of them at their own floor treatment and add nothing to the set.
 4. **Core endpoints and ladder rungs of affixed columns, and clock
    endpoints and rungs of time-of-day columns. NEW.** Exact values of
@@ -9089,12 +9101,14 @@ a marked row.
     anywhere else, which is the ground the owner's rulings of
     2026-08-31 and 2026-09-03 stand on. A reach is divided into
     thirty-two bins whose first and last always hold the two
-    endpoints, so this row names **at most fifteen pairs, thirty
-    entries and sixteen distinct values in one numeric block**. On a
-    dense column there is usually no run at all and so no value here;
-    on a SPARSE column the ceiling is reached: a 17-row column
-    occupying bins 0, 2, 4 … 30 and 31 publishes fifteen pairs naming
-    sixteen of its seventeen values.
+    endpoints, so this row names **at most fifteen pairs and thirty
+    exact values in one numeric block**, and they can all be
+    different. On a dense column there is usually no run at all and so
+    no value here; on a SPARSE column the ceiling is reached — a
+    32-row column occupying bins 0, 2, 4 … 30 and 31 with two values
+    in each occupied bin publishes fifteen pairs naming thirty
+    distinct values, and with row 3's two endpoints beside them the
+    description names EVERY value that column holds.
     A person describing a small, widely spread numeric column should
     weigh this row before sharing the description, and the smallest
     group size does not reduce it.

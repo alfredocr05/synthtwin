@@ -2316,9 +2316,11 @@ seeds**.
 **G6.7.2 The bins, and where they come from.** The scale is the one
 G6.6's sibling census is counted on: `HISTOGRAM_BINS` equal bins
 between the block's published `min` and `max`, divided by contract
-C6-31's rule. The generator reads the two ends from the LADDER rather
-than recomputing them, which is what makes a bin number mean one thing
-in the producer, the loader and here. A block whose ends this format
+C6-31f's rule -- which fixes, among other things, that a value on a
+shared edge belongs to the UPPER bin, the one that starts there. The
+generator reads the two ends from the LADDER rather than recomputing
+them, which is what makes a bin number mean one thing in the producer,
+the loader and here. A block whose ends this format
 cannot hold, or whose ends are finite and whose WIDTH is not, has no
 scale, publishes an empty list, and this section does nothing.
 
@@ -2348,7 +2350,7 @@ only where the pairs say nothing.** A bin is a thirty-second of the
 block's reach and a pair is the gap itself, so a value can stand
 INSIDE the gap and still be in a bin that holds plenty. A pass that
 gathered its queue from the bins alone never saw those values: it is
-what left 8, 4 and 31 cells of 12,000 inside the source's own gap
+what left 8, 4 and 27 cells of 12,000 inside the source's own gap
 after the edges were published, and asking the pairs first took all
 three to nought. A stratum is in the FIRST pair that holds it, read by
 the value and by every spelling of it, in the width order
@@ -2374,7 +2376,7 @@ the width order G6.4's census fixes. Where no pair holds it, and only
 then, the BINS are asked: a stratum whose value or spelling falls in a
 named bin belongs to the stretch that bin is part of. A generator that
 asked the bins alone recreates the residual this pass exists to remove
-— measured, 8, 4 and 31 cells of 12,000 on the three witnesses — since
+— measured, 8, 4 and 27 cells of 12,000 on the three witnesses — since
 a gap is finer than a bin and a value can sit inside the gap while
 standing in a bin that holds plenty.
 
@@ -2464,9 +2466,23 @@ of G6.7.4's rules. The edge ITSELF is the first candidate on both
 sides, because each published edge is a value the source really holds
 and so a target in its own right; the bin edges this walk took before
 were the edges of the EMPTY bin, so the downward one had to start a
-step past it. The strata standing nearest the edge
-are walked FIRST, so each takes a position nearer the edge than the
-one after it and the values keep the order the ladder gave them. On a
+step past it.
+
+**THE ORDER THE STRATA ARE WALKED IN IS WHAT KEEPS THE LADDER'S
+ORDER**, and it is stated here in the terms the walk really uses. Each
+stretch's strata are split by which edge is nearer to them; each group
+is then walked **furthest from its own destination edge FIRST**. The
+group going DOWN is walked from its largest value downward and the
+group going UP from its smallest value upward, and since the walk
+hands out positions from the edge inward, that gives the largest of
+the down group the position nearest the lower edge and the smallest of
+the up group the position nearest the upper one. The moved values
+therefore come out in the order the ladder gave them.
+
+This section said "the strata standing nearest the edge are walked
+FIRST" until 2026-09-04, which is the opposite of both groups: a
+generator following it would reverse the moved values against the
+shipped one and write different bytes for the same description. On a
 whole-numbered column each position is rounded to a whole number
 before it is tested, and a position that then reads back inside a
 named bin is passed over.
