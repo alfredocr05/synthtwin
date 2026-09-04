@@ -6413,15 +6413,25 @@ def _empty_edges(
         over = parsing.histogram_bin(above, low, high)
         first = stretches[index][0]
         last = stretches[index][1]
-        if under >= first or over <= last:
+        # THE EDGES STAND IN THE BINS NEXT TO THE RUN, not merely
+        # somewhere before and after it (review round 7 item 4). Every
+        # bin the description does not name as empty holds something,
+        # so the LARGEST value below a run is in the bin immediately
+        # before it and the SMALLEST above it in the bin immediately
+        # after. A pair naming the two ends of the whole scale for a
+        # run of three bins met the weaker test and describes no
+        # column: the bins between its values and the run are said to
+        # hold something, and that something is nearer.
+        if under != first - 1 or over != last + 1:
             raise _broken(
                 "Q21",
                 where,
                 f"the stretch of bins {first} to {last} is named as "
                 f"lying between {below} and {above}, which stand in "
                 f"bins {under} and {over}",
-                "a stretch whose lower edge is a value in an earlier "
-                "bin and whose upper edge is a value in a later one",
+                f"a stretch whose lower edge is a value in bin "
+                f"{first - 1} and whose upper edge is a value in bin "
+                f"{last + 1}, the bins either side of it",
             )
     return tuple(edges)
 

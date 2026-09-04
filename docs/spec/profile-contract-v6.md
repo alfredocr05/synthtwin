@@ -6931,13 +6931,18 @@ conditions, each refusing a description of a column no table holds:
 - **Every edge is inside the published ends**, between `percentiles.min`
   and `percentiles.max` inclusive. An edge is a value of a real cell,
   so an edge outside the block's own reach describes no column.
-- **Each pair stands either side of its OWN run**, by C6-31f's
-  division: the lower edge falls in a bin BEFORE the run's first bin
-  and the upper edge in a bin AFTER its last. Without this a pair
-  could name two values that fall in bins the same description says
-  hold nothing — ends 0 and 32, a run of bins 10 to 12, the pair
-  `[11, 12]` — which meets every condition above, describes no column
-  any table holds, and was read by the value stage as two real cells.
+- **Each pair stands in the bins NEXT TO its own run**, by C6-31f's
+  division: the lower edge falls in the bin immediately before the
+  run's first bin and the upper edge in the bin immediately after its
+  last. Two things follow from the definition and both are refused
+  without it. A pair could name two values that fall in bins the same
+  description says hold nothing — ends 0 and 32, a run of bins 10 to
+  12, the pair `[11, 12]` — which describes no column any table holds
+  and was read by the value stage as two real cells. And a pair could
+  reach FURTHER than the run — the same ends and run with the pair
+  `[0, 32]` — although every bin the description does not name as
+  empty holds something, so the largest value below the run is in bin
+  9 and the smallest above it in bin 13.
 
 **Q21 DOES NOT REACH THE PRODUCER.** It bounds the pairs against other
 published facts and cannot check that a named edge IS the nearest real

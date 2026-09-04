@@ -392,10 +392,10 @@ def test_every_deviation_key_is_one_the_method_authorizes(
             arg = node.args[place]
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 named.add(arg.value)
-    # THE TWO GAP KEYS ARE CHOSEN INSIDE `_clear_enough` and passed on
-    # from a local, so no static walk reaches them. They are read from
-    # a RUN instead -- the same mixed-route shape the witness above
-    # drives -- so this guard reads what the generator really emits.
+    # THE TWO GAP KEYS ARE CHOSEN INSIDE `_gap_notes` and reach the
+    # report through a lookup, so no static walk sees them. They are
+    # read from a RUN instead: two cells inside one published stretch,
+    # one standing in a bin the description names and one not.
     rows = (
         ["0.0", "32.0", "9.9", "13.1"]
         + [f"{place}.5" for place in range(1, 10)]
@@ -408,19 +408,9 @@ def test_every_deviation_key_is_one_the_method_authorizes(
         empty_bins=(10, 11, 12),
         empty_edges=((9.9, 13.1),),
     )
-    layout = generation._NumericLayout(
-        sizes=(1, 1, 1, 1, 1, 1),
-        starts=(0, 1, 2, 3, 4, 5),
-        bands=(
-            generation._BAND_ZERO,
-        ) + (generation._BAND_POSITIVE,) * 5,
-        raw_budgets=(),
-        folded_budgets=(),
-    )
-    _moved, notes = generation._clear_enough(
-        column, facts, layout, [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
-    )
-    for note in notes:
+    for note in generation._gap_notes(
+        column, facts, ["11.0", "13.05", "0.0"]
+    ):
         named.add(note.fact)
     assert "empty_bins" in named and "empty_edges" in named, sorted(named)
 
@@ -457,10 +447,22 @@ def test_every_deviation_key_is_one_the_method_authorizes(
             else:
                 drawn = drawn + "<n>"
         shapes.add(drawn)
-    families = said[start:stop]
-    for shape in sorted(shapes):
-        head = shape.split("<n>")[0]
-        assert f"`{head}<" in families, (shape, head)
+    # BOTH DIRECTIONS AND WHOLE SHAPES, not a prefix (review round 7
+    # item 5). A prefix test is met by `percentiles.p<n>.rank<n>` --
+    # a shape nobody documented -- and says nothing when a documented
+    # family is removed from the generator.
+    families = {
+        line[3:-1].split("` ")[0].split("`")[0]
+        for line in said[start:stop].split("\n")
+        if line.startswith("* `") and "<" in line
+    }
+    plain = {
+        one.replace("<nn>", "<n>").replace("<key>", "<n>")
+        for one in families
+    }
+    drawn = {one.replace("<nn>", "<n>") for one in shapes}
+    assert drawn - plain == set(), sorted(drawn - plain)
+    assert plain - drawn == set(), sorted(plain - drawn)
 
 
 def test_a_stratum_takes_a_lesser_slot_rather_than_staying() -> None:
@@ -579,26 +581,22 @@ def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
 def test_a_stretch_reached_both_ways_names_both_facts(
     tmp_path: pathlib.Path,
 ) -> None:
-    """One stretch, two routes, two fact names (round 3 item 2).
+    """One stretch, two facts, and the count taken from the CELLS.
 
-    A stretch can hold strata BOTH ways at once: some standing in a
-    bin it says holds nothing, and others standing in a bin that holds
+    A stretch can hold cells BOTH ways at once: some standing in a bin
+    it says holds nothing, and others standing in a bin that holds
     plenty while their value is inside the published pair -- a gap is
-    finer than a bin, so both are possible in the same stretch. The
-    note that says which fact a stuck cell missed was kept per
-    STRETCH, so every one of them was told whichever route the first
-    arrival took.
+    finer than a bin, so both are possible in the same stretch. Two
+    things were wrong before this was recounted from the finished
+    text. The note was decided per STRATUM, so every cell of a stretch
+    was told whichever route the first arrival took; and a stratum's
+    size is not the number of cells that stand in the stretch, because
+    which width a cell is written at is chosen after the values are.
 
-    Driven through `_clear_enough` rather than through a table,
-    because what is under test is the bookkeeping and a column that
-    produced this shape by chance would pin nothing.
+    Driven on `_gap_notes` with the cells written out, because what is
+    under test is the recount and a column that produced this shape by
+    chance would pin nothing.
     """
-    # A REAL DESCRIPTION FIRST, so the block handed to the pass is one
-    # the loader built; only the two keys under test are replaced.
-    # Bins are one wide on a scale of 0 to 32. Bins 10 to 12 hold
-    # nothing, and the published gap runs 9.9 to 13.1, so it reaches
-    # into occupied bins 9 and 13 -- which is the shape that makes one
-    # stretch reachable both ways.
     rows = (
         ["0.0", "32.0", "9.9", "13.1"]
         + [f"{place}.5" for place in range(1, 10)]
@@ -606,79 +604,40 @@ def test_a_stretch_reached_both_ways_names_both_facts(
     )
     _document, loaded = _described(tmp_path, "bothways", rows)
     column = loaded.columns[0]
+    # Bins are one wide on a scale of 0 to 32. Bins 10 to 12 hold
+    # nothing, and the published gap runs 9.9 to 13.1, so it reaches
+    # into occupied bins 9 and 13.
     facts = dataclasses.replace(
         column.facts,
         empty_bins=(10, 11, 12),
         empty_edges=((9.9, 13.1),),
     )
-    assert facts.percentiles.rungs[0] == 0.0
-    assert facts.percentiles.rungs[-1] == 32.0
-    # 11.0 stands in bin 11, which the description says holds nothing.
-    # 13.05 stands in bin 13, which holds plenty, and is inside the
-    # published pair -- and so is every spelling of it, so the bins
-    # have nothing to say about it and only the pair queues it.
-    # Each value is held TWICE, so the sole-holder rule refuses every
-    # move and each one gets a note of its own.
-    values = [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
-    layout = generation._NumericLayout(
-        sizes=(1, 1, 1, 1, 1, 1),
-        starts=(0, 1, 2, 3, 4, 5),
-        bands=(
-            generation._BAND_ZERO,
-        ) + (generation._BAND_POSITIVE,) * 5,
-        raw_budgets=(),
-        folded_budgets=(),
-    )
-    _moved, notes = generation._clear_enough(
-        column, facts, layout, values
-    )
+    # 11.0 and 11.5 stand in bins the description says hold nothing.
+    # 13.05 stands in bin 13, which holds plenty, and inside the pair.
+    # 9.95 is inside the pair too, in occupied bin 9.
+    # 0.0 and 32.0 are outside the stretch and must be counted by
+    # neither note.
+    cells = ["0.0", "11.0", "11.5", "11.0", "13.05", "9.95", "32.0"]
+    notes = generation._gap_notes(column, facts, cells)
     named = sorted(note.fact for note in notes)
-    assert named == [
-        "empty_bins", "empty_bins", "empty_edges", "empty_edges"
-    ], named
-    # ...and the order the two routes are met in must not decide it
-    # either, which is what a note kept per STRETCH got wrong: the
-    # same six values with the pair-only pair FIRST in the ladder.
-    other = [0.0, 13.05, 13.05, 11.0, 11.0, 32.0]
-    _again, more = generation._clear_enough(
-        column, facts, layout, other
+    assert named == ["empty_bins", "empty_edges"], named
+    said = {note.fact: note for note in notes}
+    assert said["empty_bins"].published == "no value from 9.9 to 13.1"
+    assert said["empty_edges"].published == "no value from 9.9 to 13.1"
+    # THREE cells in a named bin -- 11.0 twice and 11.5 once -- and TWO
+    # inside the pair alone.
+    assert said["empty_bins"].achieved == "3 cell(s) hold 11.0, 11.5", (
+        said["empty_bins"].achieved
     )
-    assert sorted(note.fact for note in more) == [
-        "empty_bins", "empty_bins", "empty_edges", "empty_edges"
-    ], sorted(note.fact for note in more)
-    # ...and each note carries the stretch as the DESCRIPTION states
-    # it -- the published pair, not the bin boundaries -- and the value
-    # that stayed inside it.
-    for note in more:
-        assert note.published == "no value from 9.9 to 13.1", note
-    assert sorted(note.achieved for note in more) == [
-        "1 cell(s) hold 11.0", "1 cell(s) hold 11.0",
-        "1 cell(s) hold 13.05", "1 cell(s) hold 13.05",
-    ], sorted(note.achieved for note in more)
-    # ...AND THE COUNT IS THE STRATUM'S OWN, not the word "one"
-    # (review round 6 item 4). A stratum stands for as many CELLS as
-    # the layout gives it, and the note said "one cell" whatever that
-    # number was -- so a twin with seven cells left in a stretch told
-    # its reader four, each claiming one.
-    wide = generation._NumericLayout(
-        sizes=(1, 3, 2, 1, 1, 1),
-        starts=(0, 1, 4, 6, 7, 8),
-        bands=(
-            generation._BAND_ZERO,
-        ) + (generation._BAND_POSITIVE,) * 5,
-        raw_budgets=(),
-        folded_budgets=(),
+    assert said["empty_edges"].achieved == "2 cell(s) hold 9.95, 13.05", (
+        said["empty_edges"].achieved
     )
-    _third, many = generation._clear_enough(
-        column, facts, wide, [0.0, 11.0, 11.0, 13.05, 13.05, 32.0]
-    )
-    assert sorted(note.achieved for note in many) == [
-        "1 cell(s) hold 13.05", "1 cell(s) hold 13.05",
-        "2 cell(s) hold 11.0", "3 cell(s) hold 11.0",
-    ], sorted(note.achieved for note in many)
-    assert sum(
-        int(note.achieved.split(" ")[0]) for note in many
-    ) == 7, [note.achieved for note in many]
+    # ...and the values are in VALUE order, not the order a text sort
+    # gives them: 9.95 comes before 13.05.
+    # ...and a twin holding nothing in the stretch says nothing.
+    assert generation._gap_notes(
+        column, facts, ["0.0", "9.9", "13.1", "32.0"]
+    ) == []
 
 
 def test_the_bin_rule_is_total_and_says_which_bin_an_edge_belongs_to(
@@ -986,28 +945,23 @@ def test_no_cell_stands_inside_the_sources_own_gap(
 def test_where_the_twin_cannot_move_a_value_it_says_so(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The report is never silent about a cell that had to stay.
+    """The report is never silent about a cell left in a stretch.
 
-    THE WITNESS HAD TO BE REBUILT (review round 4 item 7). It stood on
-    a whole-numbered column whose bins are barely wider than a unit,
-    and after the queue repair that column's move never fails at all:
-    driven at forty seeds it left NOTHING and named nothing, and its
-    assertion was written so that nothing-and-nothing was accepted. A
-    witness that is green when the reporting path is deleted witnesses
-    nothing.
+    THE OBLIGATION, STATED EXACTLY (review round 7 item 1): a finished
+    cell reading inside any published stretch has a note about THAT
+    stretch, and the note's count is the number of such cells. Not
+    "some gap note exists" -- a note about a different stretch, or a
+    count taken from a stratum rather than from the cells, would meet
+    that and leave the reader wrong.
 
-    THIS COLUMN STILL FAILS, and for the reason residual R-P4-140
+    THE COLUMN STILL FAILS, and for the reason residual R-P4-140
     records: it straddles zero, and G6.7.4's SIGN BAND is what stops
-    the move. The column holds no zero at all -- `n_zero` is nought --
-    so the arm is not the zero band; it is the positive band. The
-    stratum stuck in the gap holds a POSITIVE value, its nearer edge
-    is the stretch's lower one at -23.0, and every candidate below
-    that edge is negative, which the sign band refuses because
-    `n_negative` is EXACT-OBSERVABLE while this fact is not. The
-    further edge is walked after it and has nothing free either.
-
-    Measured over forty seeds: five of them leave one cell, and the
-    report names each by its own stretch and value.
+    the move. It holds no zero at all -- `n_zero` is nought -- so the
+    arm is the POSITIVE band: the stratum stuck in the gap holds a
+    positive value, its nearer edge is the stretch's lower one, and
+    every candidate below that edge is negative, which the sign band
+    refuses because `n_negative` is EXACT-OBSERVABLE while this fact is
+    not.
     """
     draw = random.Random(2)
     rows = (
@@ -1018,54 +972,60 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     assert barred, "this column is chosen for having an empty middle"
     assert lowest < 0.0 < highest, (lowest, highest)
     _document, loaded = _described(tmp_path, "across-zero", rows)
+    facts = loaded.columns[0].facts
+    assert facts.n_zero == 0, (
+        "this column is chosen for having NO zero, so the arm cannot "
+        "be the zero band"
+    )
     stayed = 0
     for seed in range(40):
         twin = generation.generate(loaded, seed)
-        left = _cells_in(twin, lowest, highest, set(barred))
+        # EVERY FINISHED CELL, against EVERY published stretch.
+        held: "dict[int, list[float]]" = {}
+        for cell in twin.columns[0]:
+            if cell == "":
+                continue
+            value = parsing.parse_number(cell)
+            if value is None:
+                continue
+            for index in range(len(facts.empty_edges)):
+                pair = facts.empty_edges[index]
+                if pair[0] < value < pair[1]:
+                    held[index] = held.get(index, []) + [value]
+                    break
         named = [
             note
             for note in twin.deviations
             if note.fact in ("empty_bins", "empty_edges")
         ]
-        if not left:
+        if not held:
+            assert named == [], (
+                f"seed {seed}: the twin holds nothing in any stretch "
+                f"and the report names one anyway: "
+                f"{[(n.fact, n.published) for n in named]}"
+            )
             continue
         stayed = stayed + 1
-        # THE NOTES ARE MATCHED TO THE CELLS, one for one. "Some gap
-        # note exists" would be met by a note about a DIFFERENT cell
-        # while the one left behind went unreported, which is the
-        # silence this witness exists to refuse.
-        edges = loaded.columns[0].facts.empty_edges
-        holding = []
-        for cell in left:
-            value = parsing.parse_number(cell)
-            place = parsing.histogram_bin(value, lowest, highest)
-            for pair in edges:
-                below = parsing.histogram_bin(pair[0], lowest, highest)
-                above = parsing.histogram_bin(pair[1], lowest, highest)
-                if below < place < above:
-                    holding = holding + [
-                        (
-                            f"no value from {pair[0]} to {pair[1]}",
-                            f"1 cell(s) hold {value}",
-                        )
-                    ]
-                    break
-        assert len(holding) == len(left), (left, edges)
-        assert sorted(
-            (note.published, note.achieved) for note in named
-        ) == sorted(holding), (
-            f"seed {seed}: the twin left {left} in a stretch and the "
-            f"report named "
-            f"{sorted((n.published, n.achieved) for n in named)}"
-        )
+        for index in sorted(held):
+            pair = facts.empty_edges[index]
+            said = f"no value from {pair[0]} to {pair[1]}"
+            about = [note for note in named if note.published == said]
+            assert about, (
+                f"seed {seed}: {len(held[index])} cell(s) stand between "
+                f"{pair[0]} and {pair[1]} and no note names that stretch"
+            )
+            counted = sum(
+                int(note.achieved.split(" ")[0]) for note in about
+            )
+            assert counted == len(held[index]), (
+                f"seed {seed}: {len(held[index])} cell(s) stand in the "
+                f"stretch and the report counts {counted}"
+            )
         # ...and the value that stayed is POSITIVE on this column,
         # which is what says the sign band is the arm under test.
-        for cell in left:
-            assert parsing.parse_number(cell) > 0.0, cell
-    assert loaded.columns[0].facts.n_zero == 0, (
-        "this column is chosen for having NO zero, so the arm cannot "
-        "be the zero band"
-    )
+        for values in held.values():
+            for value in values:
+                assert value > 0.0, value
     assert stayed > 0, (
         "the move never failed on this column at any of forty seeds, "
         "so this witness would stay green with the reporting path "
