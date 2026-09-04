@@ -42,6 +42,22 @@ exists).
   either question keeps the role it had. No column that already read
   well moved.
 
+- **And if your table uses a comma for the decimal point, this works
+  too.** A column declared `--decimal-comma` whose cells read `1,5`
+  beside a marker used to end the run with an internal error; it is
+  described, built and checked now, its numbers written with commas
+  and its markers left exactly as they are -- a marker spelled `E11.9`
+  keeps its dot.
+
+- **What this role cannot do is written down rather than left to be
+  found.** A number too large for the format is described as a word
+  (R-P4-149); a set of a dozen numeric CODES just above the size where
+  a set of categories stops being one is read as a quantity, and
+  `--code` is how you say otherwise (R-P4-150); and a column whose
+  numbers hold exactly the smallest publishable number of different
+  values has a twin that may be described as a different kind of
+  column -- the twin still holds the numbers (R-P4-151).
+
 ### Fixed: your twin no longer puts values where your column had none
 
 - **A column with two clusters and a gap between them now gets a twin

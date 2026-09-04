@@ -5735,6 +5735,17 @@ rather than trusting the prose.
 counts include the numbers, so a reader checking the label half
 against them would be checking the wrong sum.
 
+**Invariant NL5.** Every published label of this role — a level's own
+spelling and every variant of it — is a spelling that does NOT read as
+an ordinary number under this column's own grammar, the decimal-comma
+declaration included. The rule that makes the role puts a cell in the
+label half exactly when it is not a number, so a label that IS one
+describes a cell of the other half, and a description carrying it is
+one no file can satisfy: the twin writes that spelling and
+re-describing the twin counts it into the numeric half. Measured: a
+description whose every label was `1` was accepted, and its twin held
+294 numeric-looking cells against a published 274.
+
 **Invariant NL4.** Both counts of the split are at least 1. A column
 of this role holds BOTH populations; a description with an empty half
 describes some other kind of column, and the loader refuses it rather
@@ -7751,7 +7762,7 @@ group's dispositions (plan P4-D33).
 |---|---|
 | `n_numeric_cells`, `n_label_cells` | EXACT-OBSERVABLE. The two halves of the split, pinned rather than windowed: analysis code filters on them, and they sum to `n_present` by construction, so a window on either would let a description speak about part of a column without saying what the rest is — which review item P1-R6-F7 forbids |
 | `numbers` | STRUCTURAL — the container's own key carries no VALUE obligation, exactly as `parts[]` does on `joined_numbers` and as `length` and `words` do on `free_text`. IT CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, read over the numeric half's cells: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are |
-| `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE, recounted from the written twin, using the spellings the description permits — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, which is G12.8's — the numeric group's own bar, because the half a shortfall comes from is a numeric block. The exact comparison is tried first on every file. They are stated HERE because 9.2 sets them "per role group, in 9.3 to 9.7" and a role whose own table sets neither has them filed under whatever group a validator's dispatch falls through to — the defect residual R-P4-62 found on `joined_numbers`, not repeated here |
+| `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE, recounted from the written twin, using the spellings the description permits — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count. **THE WINDOW IS THE TWO HALVES' WINDOWS ADDED**, because the column's count is the two halves' counts added (NL3) and the halves share no spelling: the numeric half's ends come from G12.8 and the label half's RAW end from G12.7, while its folded end is exact — folding is not a spelling question, so the published levels settle it. A window built by shifting the numeric half's by the label half's PUBLISHED count says the label half is always exact, which it need not be — the numeric group's own bar, because the half a shortfall comes from is a numeric block. The exact comparison is tried first on every file. They are stated HERE because 9.2 sets them "per role group, in 9.3 to 9.7" and a role whose own table sets neither has them filed under whatever group a validator's dispatch falls through to — the defect residual R-P4-62 found on `joined_numbers`, not repeated here |
 | `n_numeric_distinct`, `n_numeric_distinct_folded` | EXACT-OBSERVABLE the same way, and APPROXIMATED under the two-sided envelope only where even those cannot supply the count. The NUMERIC HALF's own counts of different written CELLS, and the twin is laid out from them: they are the budget of different SPELLINGS the half may write. The block's `n_distinct_values` cannot serve — it counts different NUMBERS, so `07` and `7` are one — and the column's own counts include the labels. Published because a twin built without them held 56 of a published 113 different cells at every seed |
 | `labels` | STRUCTURAL, on the same ground. IT CARRIES A LABEL BLOCK AND TAKES 9.5's DISPOSITIONS, read over the label half's cells: its levels, its held-back counts and its form census are disposed exactly as `categorical` and `long_tail_labels` are. The block is written by this role's own reader rather than by another role's, because neither label role's entry condition is met by a half column — but the FACTS in it are the label group's facts and are held to the label group's classes |
 

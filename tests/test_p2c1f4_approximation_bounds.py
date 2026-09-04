@@ -58,6 +58,7 @@ from synthtwin import (
     reading,
     rendering,
     taxonomy,
+    validation,
 )
 
 SPEC = pathlib.Path(__file__).resolve().parent.parent / "docs" / "spec"
@@ -588,18 +589,143 @@ def test_every_approximated_fact_of_the_compound_role_is_measured(
     numeric = list(APPROXIMATED["continuous"])
     if "skew" in numeric:
         numeric.insert(numeric.index("skew") + 1, "kurtosis")
-    owed = [
-        name
-        for name in numeric
-        if name not in ("n_distinct", "n_distinct_folded")
-    ] + list(APPROXIMATED["numbers_with_labels"])
+    # ...and the LABEL half's own count of different spellings, which
+    # is the label section's approximated fact read over that half and
+    # is named for the half it belongs to (review round 6, item 1).
+    owed = (
+        [
+            name
+            for name in numeric
+            if name not in ("n_distinct", "n_distinct_folded")
+        ]
+        + list(APPROXIMATED["numbers_with_labels"])
+        + ["labels -> n_distinct"]
+    )
     assert sorted(measured) == sorted(owed), sorted(measured)
     # ...and the four counts each carry BOTH ends of their window, which
     # is what makes the fallback checkable (review item P2-C2-F4).
+    # ...and the six carry ENDS THAT ARE THE HALVES' ENDS ADDED, which
+    # is the arithmetic round 6 found assumed away (item 1): a first
+    # writing shifted the numeric half's window by the label half's
+    # PUBLISHED count, so a label half that cannot supply its own
+    # spellings made the outer record say the twin held every value it
+    # published while the same page said otherwise.
+    windows = {
+        record.fact: record
+        for record in twin.outcomes[0].approximations
+        if "distinct" in record.fact
+    }
+    # EQUALITY on both ends (review round 7, item 5). `<=` and `>=`
+    # let a mutant widen every outer window by one in each direction,
+    # authorizing counts neither half permits.
+    assert int(windows["n_distinct"].achieved) == int(
+        windows["n_numeric_distinct"].achieved
+    ) + int(windows["labels -> n_distinct"].achieved)
+    assert int(windows["n_distinct"].lowest) == int(
+        windows["n_numeric_distinct"].lowest
+    ) + int(windows["labels -> n_distinct"].lowest)
+    assert int(windows["n_distinct"].highest) == int(
+        windows["n_numeric_distinct"].highest
+    ) + int(windows["labels -> n_distinct"].highest)
     for record in twin.outcomes[0].approximations:
         if "distinct" not in record.fact:
             continue
         assert record.lowest and record.highest, record.fact
+
+
+def test_the_compound_windows_are_measured_where_the_two_halves_differ(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """The same six records on a column whose HALVES pull apart.
+
+    REVIEW ROUND 6 OF LANDING L8, item 3. The walk above uses a column
+    whose label half holds ONE identity, so its raw and folded shifts
+    are the same number and a mutant using either for both stays
+    green. This column's label half publishes four raw spellings and
+    two folded identities, and the floor holds back the variants that
+    would supply the raw four -- so the twin writes three, and the
+    outer raw count is one short while the folded one is exact.
+    """
+    folder = tmp_path_factory.mktemp("f4-compound-windows")
+    values = (
+        [f"{index}e0" for index in range(1, 41)]
+        + ["alpha"] * 6
+        + ["Alpha"] * 6
+        + ["beta"] * 5
+        + ["Beta"] * 5
+    )
+    path = fixtures.write(
+        folder,
+        "windows.csv",
+        fixtures.rows_to_csv(["c"], [[value] for value in values]),
+    )
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=11), []
+    )
+    block = document["columns"][0]
+    assert block["role"] == "numbers_with_labels"
+    assert block["labels"]["n_distinct"] == 4
+    assert block["labels"]["n_distinct_folded"] == 2
+    written = fixtures.write_profile(folder, "windows-profile.json", document)
+    twin = generation.generate(contract.load_profile(str(written)), 7)
+    records = {
+        record.fact: record
+        for record in twin.outcomes[0].approximations
+        if "distinct" in record.fact
+    }
+    # The label half cannot supply its fourth spelling, and every
+    # record says so at the same numbers.
+    assert records["labels -> n_distinct"].achieved == "3"
+    assert records["labels -> n_distinct"].lowest == "3"
+    assert records["n_distinct"].achieved == "43"
+    assert records["n_distinct"].published == "44"
+    assert records["n_distinct"].inside
+    # ...while the FOLDED side is exact on both halves, which is what a
+    # raw-for-folded mutant would break. The label half's folded count
+    # carries no record of its own -- it is exact, and a record for it
+    # would sit in the approximated section saying otherwise (review
+    # round 7, item 2) -- so the outer folded record is where it shows.
+    assert "labels -> n_distinct_folded" not in records
+    assert records["n_distinct_folded"].achieved == "42"
+    assert records["n_distinct_folded"].lowest == "42"
+    assert records["n_distinct_folded"].highest == "42"
+    # AND THE OUTER RAW ENDS ARE THE NUMBERS THEMSELVES (round 7, item
+    # 5): the numeric half is exact at 40 and the label half runs 3 to
+    # 4, so the column owes between 43 and 44 and holds 43.
+    assert records["n_distinct"].lowest == "43"
+    assert records["n_distinct"].highest == "44"
+    # AND THE VALIDATOR SAYS THE SAME THING ABOUT THE SAME FILE (review
+    # round 7 of landing L8, item 4). This walk measured generation
+    # alone, so taking the compound branch out of `_distinctness_checks`
+    # brought back the false MISS on a conforming twin and left every
+    # assertion above green.
+    target = folder / "windows-twin.csv"
+    target.write_text(
+        rendering.twin_csv(twin), encoding="utf-8", newline="\n"
+    )
+    outcome = validation.measure(
+        contract.load_profile(str(written)), str(target)
+    )
+    outer = [
+        check
+        for check in outcome.checks
+        if check.fact == "compound.n_distinct"
+    ]
+    assert len(outer) == 1, outer
+    assert outer[0].verdict == validation.AUTHORIZED_DEVIATION, outer[0]
+    assert outer[0].achieved == "43", outer[0]
+    assert "43" in outer[0].published and "44" in outer[0].published
+    # ...and the citation names the half that widened the window, which
+    # is the LABEL half here: the numeric half is exact at forty.
+    assert outer[0].citation == validation.CORNER_CITATIONS[
+        validation.CORNER_LABEL_VARIANTS_SHORT
+    ], outer[0].citation
+    assert not [
+        check
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ], [check.fact for check in outcome.checks if check.verdict == validation.MISSED]
 
 
 def test_a_role_with_no_approximated_fact_measures_none(

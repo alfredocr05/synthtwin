@@ -6888,7 +6888,21 @@ def _read_as_described(
         if keep:
             read = read + [cell]
             continue
-        read = read + [parsing.written_with_a_decimal_comma(cell)]
+        swapped = parsing.written_with_a_decimal_comma(cell)
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED HERE EITHER,
+        # and this was the one of the three sides that still was
+        # (review round 7 of this landing, item 1). The writeback and
+        # the validator both translate a cell of this role only where
+        # the translation makes it a number; this read every cell, so a
+        # twin holding the labels `AB.1` and `AB1` was MEASURED as
+        # holding `AB1` twice -- and the report carried four deviations
+        # that were false of the file it had just written: both label
+        # counts and both outer counts, each one short.
+        if _labels_beside_numbers(column):
+            if parsing.classify_number(swapped) != parsing.NUMBER:
+                read = read + [cell]
+                continue
+        read = read + [swapped]
     return read
 
 
@@ -19026,15 +19040,16 @@ def _compound_cardinalities(
     facts: "contract.CompoundFacts",
     plan: "_ColumnPlan",
     numeric: "list[str]",
+    written: "list[str]",
 ) -> "list[Approximation]":
     """The counts of different cells this role sends to an envelope.
 
     REVIEW ROUND 5 OF LANDING L8, item 3. Contract 9.4b sends all four
-    to G12.8's two-sided envelope, and the report carried none of them:
-    a twin whose numeric half fell short was told so as an
-    unconditional deviation, with no range beside it, so a reader could
-    not see whether the shortfall was one the description's own
-    spellings made unavoidable.
+    to a two-sided envelope, and the report carried none of them: a
+    twin whose numeric half fell short was told so as an unconditional
+    deviation, with no range beside it, so a reader could not see
+    whether the shortfall was one the description's own spellings made
+    unavoidable.
 
     THE HALF'S TWO ARE RENAMED, exactly as a joined position's are.
     `_numeric_cardinalities` builds them from the view, which carries
@@ -19043,21 +19058,35 @@ def _compound_cardinalities(
     name on one page is the fault that withdrew the joined role's
     first report, and round 4 of this landing found it here.
 
-    THE OUTER TWO ARE THE HALF'S WINDOW SHIFTED BY THE LABEL HALF,
-    which is exact: the label construction writes the published
-    spellings, the two halves share none, so whatever the numeric half
-    reaches, the column reaches that many more.
+    THE LABEL HALF HAS A WINDOW OF ITS OWN, which round 6 found this
+    assuming away (item 1). A first writing built the outer window by
+    shifting the numeric half's by the label half's PUBLISHED count --
+    which says the label half is always exact. It need not be: a half
+    of `alpha`, `Alpha`, `beta` and `Beta` whose variants the floor
+    holds back supplies three spellings for a published four, and the
+    outer record then said the twin held 44 of 44 while the same page
+    said 44 against 43.
+
+    So each half is MEASURED and bounded on its own, and the outer
+    pair is the two halves added -- both ends and the achieved count.
     """
+    holes = _hole_spellings(column)
+    labels: "list[str]" = []
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            labels = labels + [cell]
     inner = _numeric_cardinalities(
         contract.compound_numbers_view(column), plan, numeric
     )
+    label_supply = _label_supply(facts.labels)
+    label_raw = len({cell: 1 for cell in labels})
+    label_folded = len(
+        {parsing.folded(parsing.trimmed(cell)): 1 for cell in labels}
+    )
     found: "list[Approximation]" = []
     for record in inner:
-        name = "n_numeric_distinct"
-        published = facts.n_numeric_distinct
-        if record.fact == "n_distinct_folded":
-            name = "n_numeric_distinct_folded"
-            published = facts.n_numeric_distinct_folded
+        folded = record.fact == "n_distinct_folded"
+        name = "n_numeric_distinct_folded" if folded else "n_numeric_distinct"
         found = found + [
             dataclasses.replace(
                 record,
@@ -19066,22 +19095,53 @@ def _compound_cardinalities(
                 "column are written",
             )
         ]
-        outer = facts.n_label_distinct
-        whole = column.n_distinct
-        if name == "n_numeric_distinct_folded":
-            outer = facts.n_label_distinct_folded
-            whole = column.n_distinct_folded
-        low = int(record.lowest) + outer
-        high = int(record.highest) + outer
-        reached = int(record.achieved) + outer
+        # The label half's own record, under the label group's bound:
+        # the spellings its published levels and variants supply
+        # against the count it publishes.
+        published_labels = (
+            facts.n_label_distinct_folded if folded else facts.n_label_distinct
+        )
+        reached_labels = label_folded if folded else label_raw
+        # FOLDING IS NOT A SPELLING QUESTION (V4.1): however few
+        # spellings the variants supply, the folded identities are
+        # settled by the published levels, so only the RAW count takes
+        # the label envelope.
+        low_labels = published_labels
+        high_labels = published_labels
+        if not folded:
+            low_labels = min(label_supply, published_labels)
+            high_labels = max(label_supply, published_labels)
+        # ONLY THE RAW COUNT IS AN APPROXIMATION (review round 7 of
+        # this landing, item 2). The label half's FOLDED count is
+        # exact by 9.4b -- folding is not a spelling question and the
+        # published levels settle it -- so a record for it sat in the
+        # approximated section at `2..2`, under a heading saying the
+        # method could not land exactly, and counted itself into the
+        # total. Its arithmetic is still used below, where the outer
+        # window needs it.
+        if not folded:
+            found = found + [
+                Approximation(
+                    column=column.name,
+                    fact="labels -> n_distinct",
+                    published=f"{published_labels}",
+                    achieved=f"{reached_labels}",
+                    lowest=f"{low_labels}",
+                    highest=f"{high_labels}",
+                    inside=low_labels <= reached_labels <= high_labels,
+                    note="how many different ways the words in this "
+                    "column are written",
+                    covers_published=True,
+                )
+            ]
+        whole = column.n_distinct_folded if folded else column.n_distinct
+        low = int(record.lowest) + low_labels
+        high = int(record.highest) + high_labels
+        reached = int(record.achieved) + reached_labels
         found = found + [
             Approximation(
                 column=column.name,
-                fact=(
-                    "n_distinct"
-                    if name == "n_numeric_distinct"
-                    else "n_distinct_folded"
-                ),
+                fact="n_distinct_folded" if folded else "n_distinct",
                 published=f"{whole}",
                 achieved=f"{reached}",
                 lowest=f"{min(low, whole)}",
@@ -19091,7 +19151,6 @@ def _compound_cardinalities(
                 covers_published=True,
             )
         ]
-        _ = published
     return found
 
 
@@ -20518,7 +20577,9 @@ def _approximations(
             # their own names, and the records with their WINDOWS are
             # built below.
             cardinalities=False,
-        ) + _compound_cardinalities(column, facts, plan, numeric)
+        ) + _compound_cardinalities(
+            column, facts, plan, numeric, written
+        )
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):

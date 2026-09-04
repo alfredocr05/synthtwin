@@ -2119,6 +2119,12 @@ class _Frame:
     # nobody had made, and a declared code column is one where they
     # have made it (plan P4-D22).
     declared_codes: "tuple[str, ...]"
+    # The columns the person named with `--decimal-comma`. Invariant
+    # NL5 is stated over this: whether a published label of a compound
+    # column is a NUMBER depends on the grammar that column is read
+    # with, and `1,5` is a number on a declared column and text on
+    # every other.
+    declared_commas: "tuple[str, ...]"
     # The share a role's detection line is drawn at, carried here
     # because one invariant is stated over it: AF3 holds an affixed
     # column's pair to the line its own detection had to clear, and a
@@ -4566,8 +4572,15 @@ def _facts(
     if role == ROLE_JOINED:
         return _joined_facts(mapping, where, frame, n_present)
     if role == ROLE_COMPOUND:
+        named = mapping["name"] if "name" in mapping else None
         return _compound_facts(
-            mapping, where, frame, n_present, n_distinct, n_folded
+            mapping,
+            where,
+            frame,
+            n_present,
+            n_distinct,
+            n_folded,
+            isinstance(named, str) and named in frame.declared_commas,
         )
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
@@ -7399,6 +7412,33 @@ def _affixed_facts(
     )
 
 
+def _a_label_and_not_a_number(
+    spelling: str, where: str, decimal_comma: bool
+) -> None:
+    """Refuse a published label of a compound column that is a number.
+
+    The split rule of section 5.2 puts a cell in the label half exactly
+    when it does not read as a plain number, so a label that IS one
+    describes a cell of the other half. A description carrying one is
+    a description no file can satisfy: its twin writes that spelling,
+    and re-describing the twin counts the cell into the numeric half.
+    """
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    if parsing.classify_number(read) != parsing.NUMBER:
+        return
+    raise _out_of_range(
+        "labels -> levels",
+        where,
+        "a published label that reads as an ordinary number",
+        "a spelling that is NOT a number, because the rule that makes "
+        "this role puts every cell reading as a number in the other "
+        "half -- a label of this column is by definition a cell that "
+        "does not",
+    )
+
+
 def _compound_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -7406,6 +7446,7 @@ def _compound_facts(
     n_present: int,
     n_distinct: int,
     n_distinct_folded: int,
+    decimal_comma: bool,
 ) -> CompoundFacts:
     """A column of numbers beside labels (residual R-P4-13, landing L8).
 
@@ -7619,6 +7660,24 @@ def _compound_facts(
         labels,
         folded,
     )
+    # AND EVERY PUBLISHED LABEL IS A CELL THE SPLIT WOULD PUT IN THE
+    # LABEL HALF (invariant NL5, review round 8 of this landing, item
+    # 2). The rule that makes this role puts a cell in the label half
+    # exactly when it does NOT read as a plain number, so a published
+    # label spelled `1` describes a cell that belongs to the other
+    # half. The loader checked the arithmetic of the split and never
+    # what the halves HOLD: a description whose every label was `1` was
+    # accepted, and its twin wrote 294 numeric-looking cells against a
+    # published 274 -- a file that cannot be re-described as the
+    # column it claims to be.
+    #
+    # Asked of the level's own spelling and of every published variant,
+    # under the column's own grammar: a declared column reads `1,5` as
+    # a number, so `1,5` is not a label of THAT column either.
+    for level in label_facts.levels:
+        _a_label_and_not_a_number(level.label, where, decimal_comma)
+        for spelling in sorted(level.variants):
+            _a_label_and_not_a_number(spelling, where, decimal_comma)
     return CompoundFacts(
         n_numeric_cells=numeric,
         n_label_cells=labels,
@@ -8146,6 +8205,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             n_columns=n_columns,
             declared=settings.forced_identifiers,
             declared_codes=settings.forced_codes,
+            declared_commas=settings.forced_decimal_commas,
             parse_rate=settings.minimum_parse_rate,
             category_share=settings.categorical_share,
             category_ceiling=settings.categorical_ceiling,

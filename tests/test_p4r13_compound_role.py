@@ -439,6 +439,20 @@ def test_a_value_written_two_ways_keeps_both_ways_in_the_twin(
     # at the count of different NUMBERS, which is what it was.
     twin = generation.generate(loaded, 7)
     held = len({row[0] for row in twin.rows})
+    # TIED TO THE REPORT'S OWN WINDOW, not to a number chosen to pass
+    # (review round 6 of this landing, item 4). A loose bound let a
+    # mutant that collapsed the count to 77 stay green while the
+    # description's own envelope says the twin owes between a hundred
+    # and a hundred and thirteen.
+    outer = [
+        record
+        for record in twin.outcomes[0].approximations
+        if record.fact == "n_distinct"
+    ]
+    assert len(outer) == 1, outer
+    assert int(outer[0].achieved) == held, (outer[0].achieved, held)
+    assert outer[0].inside, outer[0]
+    assert int(outer[0].lowest) <= held <= int(outer[0].highest)
     assert held > block["numbers"]["n_distinct_values"] + 20, held
 
 
@@ -760,6 +774,116 @@ def test_the_tie_is_admitted_only_where_its_repeating_word_is_publishable(
     )
     _document, block = _described(tmp_path, refused, "tie-under")
     assert block["role"] == "free_text", block["role"]
+
+
+def test_a_stand_in_is_never_a_number_under_either_grammar() -> None:
+    """The rule that stops a made-up label crossing the split.
+
+    REVIEW ROUND 5 OF THIS LANDING, item 1, and round 6 asked for the
+    assertion (item 5): `0E.27` is ordinary TEXT under the number
+    rules and becomes `0E27` -- a number -- under the decimal-comma
+    grammar, where a dot is a thousands mark. A stand-in spelled that
+    way sits in the label half of the twin and moves to the NUMERIC
+    half when the twin is described again, and the twin comes back as
+    another role.
+
+    Removing the second test in `_is_a_usable_stand_in` leaves every
+    other case in the suite green, which is why this one is written.
+    """
+    assert not generation._is_a_usable_stand_in("0E.27")
+    assert not generation._is_a_usable_stand_in("1.5")
+    assert not generation._is_a_usable_stand_in("1,5")
+    # ...and the spellings the walk lives on are untouched.
+    assert generation._is_a_usable_stand_in("group-1")
+    assert generation._is_a_usable_stand_in("A-00")
+    assert generation._is_a_usable_stand_in("ZZ")
+
+
+def test_a_label_that_only_a_translation_would_merge_keeps_its_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Three sides read a declared column's labels, and one still swapped.
+
+    REVIEW ROUND 7 OF THIS LANDING, item 1. The writeback and the
+    validator translate a cell of this role only where the translation
+    makes it a number; the twin's own REPORT translated every cell, so
+    a column whose labels are `AB.1` and `AB1` was measured as holding
+    `AB1` twice. The report then carried four deviations that were
+    false of the file it had just written -- both label counts and both
+    outer counts, each one short.
+    """
+    values = (
+        [f"{index},5" for index in range(1, 281)]
+        + ["AB.1"] * 11
+        + ["AB1"] * 11
+    )
+    table = reading.read_table(
+        f"{fixtures.write(tmp_path, 'merge.csv', fixtures.rows_to_csv(['c'], [[v] for v in values]))}"
+    )
+    document = profile.build_document(
+        table, taxonomy.Settings(), [], [], [], ["c"]
+    )
+    block = document["columns"][0]
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    assert [level["label"] for level in block["labels"]["levels"]] == [
+        "ab.1",
+        "ab1",
+    ]
+    written = fixtures.write_profile(tmp_path, "merge-profile.json", document)
+    twin = generation.generate(contract.load_profile(f"{written}"), 7)
+    cells = [row[0] for row in twin.rows]
+    assert cells.count("AB.1") == 11
+    assert cells.count("AB1") == 11
+    assert twin.deviations == (), [
+        (note.fact, note.published, note.achieved) for note in twin.deviations
+    ]
+
+
+def test_a_published_label_may_not_be_a_number(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Invariant NL5, and the loader checked the arithmetic and not this.
+
+    REVIEW ROUND 8 OF THIS LANDING, item 2. The split puts a cell in
+    the label half exactly when it does not read as a number, so a
+    published label spelled `1` describes a cell of the OTHER half.
+    The loader checked that the two counts add up and never what the
+    halves hold: such a description was accepted, and its twin wrote
+    294 numeric-looking cells against a published 274 -- a file that
+    cannot be re-described as the column it claims to be.
+
+    Asked under the column's OWN grammar, so `1,5` is a label on an
+    ordinary column and not on a declared one.
+    """
+    values = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    document, block = _described(tmp_path, values, "nl5")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    spoiled = copy.deepcopy(document)
+    for level in spoiled["columns"][0]["labels"]["levels"]:
+        level["label"] = "1"
+    written = fixtures.write_profile(tmp_path, "nl5-number.json", spoiled)
+    with pytest.raises(errors.ProfileError):
+        contract.load_profile(f"{written}")
+    # ...and a spelling that is a number only under a DECLARATION is
+    # refused on a declared column.
+    commas = [f"{index},5" for index in range(1, 281)] + ["NOT DETECTED"] * 20
+    table = reading.read_table(
+        f"{fixtures.write(tmp_path, 'nl5c.csv', fixtures.rows_to_csv(['c'], [[v] for v in commas]))}"
+    )
+    declared = profile.build_document(
+        table, taxonomy.Settings(), [], [], [], ["c"]
+    )
+    assert declared["columns"][0]["role"] == taxonomy.ROLE_COMPOUND
+    spoiled = copy.deepcopy(declared)
+    for level in spoiled["columns"][0]["labels"]["levels"]:
+        level["label"] = "1,5"
+        level["variants"] = {"1,5": level["count"]}
+    written = fixtures.write_profile(tmp_path, "nl5-comma.json", spoiled)
+    with pytest.raises(errors.ProfileError):
+        contract.load_profile(f"{written}")
 
 
 def test_the_role_is_the_fifteenth_and_names_its_own_shape() -> None:
