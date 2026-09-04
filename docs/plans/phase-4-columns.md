@@ -8599,7 +8599,10 @@ there is no stretch at all and so no value here, and on a sparse one
 the ceiling is reached — a 32-row column occupying bins 0, 2, 4 … 28
 with two values each and bins 30 and 31 with one each publishes thirty
 distinct values, and with the two endpoints beside them the
-description names every value that column holds.
+description names every value that column holds. **`mode` names one
+more** — the value the column holds most often is a real value too —
+so a whole numeric BLOCK may expose thirty-three distinct values, and
+that is the number a disclosure review should weigh.
 
 **AND THE COMPARISON THIS WAS FIRST PRICED BY WAS WRONG.** It read
 "two more beside the eleven a ladder already publishes". Review round

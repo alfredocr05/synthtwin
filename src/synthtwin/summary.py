@@ -531,11 +531,23 @@ def _one_blocks_empty_bin_lines(
     ]
     edges = column["empty_edges"] if "empty_edges" in column else []
     if isinstance(edges, list) and edges:
+        # HOW MANY DIFFERENT VALUES, counted and not doubled (review
+        # round 8 item 7). Two stretches with one value between them
+        # name that value twice, so twice the number of pairs is not
+        # the number of values a reader is being told about.
+        apart: "list[float]" = []
+        for entry in edges:
+            if not isinstance(entry, list):
+                continue
+            for one in entry:
+                if isinstance(one, (int, float)) and one not in apart:
+                    apart = apart + [one]
         lines = lines + [
             f"      and for each of those stretches the description "
-            f"names the two values your column really holds on either "
-            f"side of it -- {2 * len(edges)} value(s) of real cells, "
-            f"like the smallest and the largest above"
+            f"names the two values your column really holds either "
+            f"side of it -- {len(apart)} different value(s) of real "
+            f"cells, the same kind of fact as the smallest and the "
+            f"largest values of this column"
         ]
     return lines
 

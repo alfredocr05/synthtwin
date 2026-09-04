@@ -1473,8 +1473,13 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # that could not reach an edge takes the nearest free place inside the
 # stretch, which the pass no longer does. It says the cell STAYS where
 # it was and the report names it, which is what the pass does.
+# RE-RECORDED 2026-09-04 for review round 8 item 5. The census carries
+# the SAME obligations -- both check counts held by digest and both
+# listing sets are asserted by identity above -- and what moved is ONE
+# SENTENCE again: the `numeric.empty_edges` listing described a walk
+# that tries the nearer edge alone, and the walk tries four routes.
 GOLDEN_QUALITY_SHA256 = (
-    "6596af3c834e0c737140d279c743a1071fdc35802f147ed934d71f27ba868f0d"
+    "d1ab48b37a5a48bb5e836602988268a872f2f81e77c122001f72b503ac635c9d"
 )
 
 

@@ -286,6 +286,19 @@ def test_the_key_counts_in_words_are_the_key_sets_the_loader_holds(
         f"this prices all {_in_words(affixed)} keys the role adds"
         in said
     ), affixed
+    # ...AND EVERY ONE OF THOSE KEYS IS NAMED IN THE ROW THAT SAYS SO
+    # (review round 8 item 4). It claimed to price all of them and
+    # named twenty-four, so a disclosure review reading it would let
+    # an affixed profile through without weighing its mode value or
+    # seven other numeric facts.
+    start = said.index("**The affixed-core quantitative block")
+    stop = said.index("this prices all", start)
+    row = said[start:stop]
+    universal = set(contract.UNIVERSAL_COLUMN_KEYS)
+    for key in sorted(set(contract.AFFIXED_KEYS) - universal):
+        if key in ("affix_prefix", "affix_suffix"):
+            continue
+        assert f"`{key}`" in row, key
 
 
 def test_the_form_census_stands_on_exactly_five_roles() -> None:

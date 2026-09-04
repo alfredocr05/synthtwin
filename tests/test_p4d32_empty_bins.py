@@ -576,6 +576,14 @@ def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
     # occupied bin, so thirty interior bins give fifteen runs at most.
     assert parsing.HISTOGRAM_BINS == 32
     assert len(edges) == (parsing.HISTOGRAM_BINS - 2) // 2
+    # AND THE BLOCK-WIDE CEILING IS THIRTY-THREE, because `mode` names
+    # a real value too (review round 8 item 3). One value held twice
+    # gives the column a commonest number, and the description then
+    # names every value the column holds and the commonest one.
+    with_mode = values[:-1] + [31.5, 31.5, highest]
+    more = taxonomy._empty_edges(with_mode)
+    theirs = {one for pair in more for one in pair}
+    assert len(theirs | {lowest, highest, 31.5}) == 33, sorted(theirs)
 
 
 def test_a_stretch_reached_both_ways_names_both_facts(
@@ -622,8 +630,8 @@ def test_a_stretch_reached_both_ways_names_both_facts(
     named = sorted(note.fact for note in notes)
     assert named == ["empty_bins", "empty_edges"], named
     said = {note.fact: note for note in notes}
-    assert said["empty_bins"].published == "no value from 9.9 to 13.1"
-    assert said["empty_edges"].published == "no value from 9.9 to 13.1"
+    assert said["empty_bins"].published == "no value strictly between 9.9 and 13.1"
+    assert said["empty_edges"].published == "no value strictly between 9.9 and 13.1"
     # THREE cells in a named bin -- 11.0 twice and 11.5 once -- and TWO
     # inside the pair alone.
     assert said["empty_bins"].achieved == "3 cell(s) hold 11.0, 11.5", (
@@ -1008,7 +1016,7 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
         stayed = stayed + 1
         for index in sorted(held):
             pair = facts.empty_edges[index]
-            said = f"no value from {pair[0]} to {pair[1]}"
+            said = f"no value strictly between {pair[0]} and {pair[1]}"
             about = [note for note in named if note.published == said]
             assert about, (
                 f"seed {seed}: {len(held[index])} cell(s) stand between "

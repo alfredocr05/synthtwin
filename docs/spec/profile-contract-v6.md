@@ -6900,9 +6900,10 @@ are exact values of real cells; its nine interior rungs are
 interpolated between the order statistics either side, and measured on
 six columns of 17 to 250 drawn values, between three and nine of the
 nine were held by no cell. So the ladder puts TWO exact values into a
-block and this key may add THIRTY; together, a block may expose
-thirty-two, which is a number about the block and not about this
-key.
+block and this key may add THIRTY. `mode` names one more, being the
+value the column holds most often, so a whole numeric block may expose
+**thirty-three distinct values** — a number about the BLOCK and not
+about this key, and the one a disclosure review should weigh.
 
 **THE FLOOR DOES NOT REACH IT**, for the reason 7.11 gives for
 `empty_bins` and for one more: a pair names two values, not a group,
@@ -8794,10 +8795,22 @@ a marked row.
    `n_rows`, `numeric_styles` with its siblings `fraction_widths`,
    `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
-   `n_core_not_numeric` — each under the treatment the same fact has on
-   a plain numeric column, all of it reaching columns that were free
-   text. With row 2 this prices all thirty-two keys the role adds; rows 4 and 7 restate
-   two of them at their own floor treatment and add nothing to the set.
+   `n_core_not_numeric`, `kurtosis`, `percentiles_between`,
+   `n_distinct_values`, `mode` and `mode_count`, and the three shape
+   keys `value_histogram`, `empty_bins` and `empty_edges` — each under
+   the treatment the same fact has on a plain numeric column, all of
+   it reaching columns that were free text. With row 2 this prices all
+   thirty-two keys the role adds; rows 4, 7, 20 and 21 restate four of
+   them at their own floor or disclosure treatment and add nothing to
+   the set.
+
+   **EIGHT OF THOSE WERE MISSING FROM THIS ROW** until 2026-09-04 —
+   `kurtosis`, `percentiles_between`, `n_distinct_values`, `mode`,
+   `mode_count`, `value_histogram`, `empty_bins` and `empty_edges` —
+   while the sentence beside them said all thirty-two were priced.
+   `tests/test_p4d18_role_topology.py` reads this row against
+   `contract.AFFIXED_KEYS` now, so a key added to the role and not to
+   this row turns red.
 4. **Core endpoints and ladder rungs of affixed columns, and clock
    endpoints and rungs of time-of-day columns. NEW.** Exact values of
    real cells, published floor-free under the ratified ranges-class
