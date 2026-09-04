@@ -192,12 +192,23 @@ Stated here so that no reader has to discover them independently:
   the two endpoints the ladder publishes beside them **the description
   then names every value that column holds**.
 
+  **AND THE BLOCK-WIDE COUNT IS LARGER THAN EITHER OF THEM.** Three
+  keys of a numeric block name values of real cells: the ladder's two
+  ENDPOINTS, this key's thirty, and `mode` — the number the column
+  holds most often, which is a real value too. So the ceiling for one
+  numeric block is **thirty-three distinct values**, and the sparse
+  construction reaches it: add a value held twice to the 32-row column
+  above and the description names every value it holds plus the
+  commonest one.
+
   On a dense column there is usually no run at all and so no value
   here, and that is the ordinary case. But a person describing a
   small, widely spread numeric column should read the paragraph above
   before sharing the description, and `--smallest-group` does not
-  reduce it: this fact, like the empty bins it stands with, is
-  published at every floor.
+  reduce this key: like the empty bins it stands with, it is published
+  at every floor. (`mode` is floor-governed and is withheld where the
+  commonest value is held by fewer cells than the smallest group
+  size.)
 
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is

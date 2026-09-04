@@ -2453,10 +2453,24 @@ landing, against 1058 to 213 on the stretches the bins stand in for.
 
 **G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
 to it — measured from the value to each of the stretch's two edges —
-and no further past that edge than one bin. **That is this move's
-whole reach, and it is written in the published fact's own terms**: a
-value moves out of the stretch the description says holds nothing, to
-the real value the description says stands beside it, and stops there.
+and no further past that edge than one BIN'S WIDTH. **That is this
+move's whole reach, and it is written in the published fact's own
+terms**: a value moves out of the stretch the description says holds
+nothing, to the real value the description says stands beside it, and
+stops within a bin's width of it.
+
+**THE REACH IS A DISTANCE AND NOT A COUNT OF BINS**, and the two are
+not the same once the walk starts from a published EDGE. An edge is a
+VALUE standing somewhere inside its bin, so a candidate a bin's width
+below it can fall in the bin beyond the stretch's neighbour — on a
+whole-numbered column whose bin is narrower than a unit, the rounding
+puts it there. That candidate violates no published fact: it is
+outside every named bin and outside every published stretch. Reading
+the bound as "the adjacent bin" instead was measured on the committed
+battery and refuses those slots: runs leaving a cell in a named bin go
+from 130 of 1600 to 190, and runs leaving one inside a stretch the
+source really leaves empty from 213 to 285. The distance is the
+bound.
 
 **THE FURTHER EDGE IS WALKED AFTER THE NEARER ONE**, and only where
 the nearer one has nothing free. Both edges are edges of the SAME
@@ -5953,6 +5967,9 @@ holds the shapes to the writing rules that build them:
 
 * `parts[<n>].<key>` — any key above, carried by one POSITION of a
   `joined_numbers` cell, `<n>` counting from nought
+* `numbers.<key>` — any key above, carried by the NUMERIC HALF of a
+  `numbers_with_labels` cell, which is where that role publishes its
+  quantitative facts
 * `part_agreements[<n>]` — the agreement between two neighbouring
   positions, `<n>` the earlier of the pair
 * `part_above[<n>]` — how often the later of two positions is above

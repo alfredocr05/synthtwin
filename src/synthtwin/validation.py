@@ -558,13 +558,18 @@ _NOT_CHECKABLE_EMPTY_BINS = (
 )
 _NOT_CHECKABLE_EMPTY_EDGES = (
     "the description also records the two real values each of those "
-    "stretches lies between, and the twin walks out to the nearer of "
-    "them without being held to it: where nothing beside either edge "
-    "is free -- because the twin's own signs, its written forms and "
-    "the values its other cells hold have taken it -- the cell STAYS "
-    "where it was, inside the stretch, and the report beside the twin "
-    "names the stretch and the value. A file whose values fall in "
-    "different stretches misses no obligation this description makes"
+    "stretches lies between -- the column holds nothing STRICTLY "
+    "between them -- and the twin walks out to them without being "
+    "held to it: it tries the nearer edge, then the further one, and "
+    "then the same two again allowed to land in some other stretch "
+    "so long as it is out of a named bin, because a cell that moves "
+    "is never worse than one that stays. Where every one of those is "
+    "taken -- by the twin's own signs, its written forms and the "
+    "values its other cells hold -- the cell stays where it was, and "
+    "the report beside the twin names the stretch, the number of "
+    "cells in it and the values they read as. A file whose values "
+    "fall in different stretches misses no obligation this "
+    "description makes"
 )
 _NOT_CHECKABLE_FIELD_WIDTHS = (
     "the description records how many of the real column's cells were "

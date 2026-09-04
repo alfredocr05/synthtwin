@@ -9864,16 +9864,19 @@ def _cleared_value(
                 continue
             if whole_column:
                 found = _whole_valued(found)
-            # AND THE ONE-BIN REACH IS TESTED AFTER THE ROUNDING, not
-            # before it (review round 7 item 2). On a scale whose bin
-            # is narrower than a unit, rounding a candidate to a whole
-            # number carries it further than the walk was ever allowed
-            # to go: ends 0 to 20 give a bin of 0.625, so a candidate a
-            # step below the edge 6 rounds to 5 -- a full unit past the
-            # edge, two bins out, and accepted with nothing said. The
-            # bound G6.7.5 states is the edge and no further past it
-            # than one bin, so it is asked of the value that will
-            # actually be written.
+            # THE REACH IS A DISTANCE FROM THE EDGE, and it is tested
+            # after the rounding (review rounds 7 item 2 and 8 item 1).
+            # One bin's WIDTH past the published edge, which is the
+            # bound G6.7.5 states in the terms a published edge is in:
+            # the edge is a VALUE, not a bin boundary, so the reach is
+            # measured from it rather than counted in bins. Round 8
+            # asked for the ADJACENT BIN instead and it was measured:
+            # on the committed battery that reading takes runs leaving
+            # a cell in a named bin from 130 to 190 and runs leaving
+            # one inside a stretch the source really leaves empty from
+            # 213 to 285, because it refuses slots that violate no
+            # published fact at all. The distance bound is kept and
+            # G6.7.5 states it.
             if found < under - width or found > over + width:
                 continue
             # NEVER PAST A PUBLISHED END, and the suite is what put this
@@ -10405,7 +10408,14 @@ def _gap_notes(
             _deviation(
                 column.name,
                 seat[1],
-                f"no value from {facts.empty_edges[index][0]} to "
+                # STRICTLY BETWEEN, and the word is load-bearing
+                # (review round 8 item 6). Both edges are values the
+                # source really holds; only what lies between them is
+                # empty. "from 9.9 to 13.1" reads as a closed range,
+                # so an analyst filtering inclusively would count two
+                # real rows as violations.
+                f"no value strictly between "
+                f"{facts.empty_edges[index][0]} and "
                 f"{facts.empty_edges[index][1]}",
                 f"{len(found)} cell(s) hold {shown}",
                 "The description says the real column holds no value "
@@ -17340,7 +17350,23 @@ def _compound_content(
     numbers_plan = dataclasses.replace(
         plan, column=contract.compound_numbers_view(column)
     )
-    made, notes = _numeric_content(numbers_plan, words)
+    made, half_notes = _numeric_content(numbers_plan, words)
+    # THE NUMERIC HALF'S NOTES NAME THE HALF THEY ARE ABOUT (review
+    # round 8 item 2). This role publishes its quantitative facts under
+    # `numbers.<key>`, and the numeric stages are handed that half as a
+    # column of its own, so they name the bare key -- `empty_edges`,
+    # which no block of a compound description carries. It is the same
+    # repair the joined role makes for `parts[i].<key>`.
+    notes: "list[Deviation]" = []
+    for step in range(len(half_notes)):
+        note = half_notes[step]
+        notes = notes + [
+            dataclasses.replace(
+                note,
+                fact=f"numbers.{note.fact}",
+                note=f"The numbers in these cells: {note.note}",
+            )
+        ]
     labels_plan = dataclasses.replace(
         plan, column=contract.compound_labels_view(column), layout=None
     )
