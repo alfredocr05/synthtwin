@@ -199,6 +199,12 @@ def battery():
     print(f"\n===== forty columns, {len(SEEDS)} seeds each =====")
     random.seed(20260901)
     shapes = []
+    # TWO HUNDRED CELLS EACH, and the documents that quote this
+    # battery say so now. They said three hundred until 2026-09-04
+    # (review round 5 item 2); the battery is left at the size it was
+    # measured at, because the figure it is compared against -- 119 of
+    # 1600, taken before the stretch edges landed -- was taken on
+    # exactly these columns.
     for index in range(10):
         gap = 20 + index * 5
         shapes.append((f"whole two peaks {index}", [
@@ -224,6 +230,10 @@ def battery():
     worst = 0
     withgap = 0
     noted = 0
+    in_pair = 0
+    worst_pair = 0
+    in_gap = 0
+    worst_gap = 0
     with tempfile.TemporaryDirectory() as folder:
         home = pathlib.Path(folder)
         for stem, rows in shapes:
@@ -243,19 +253,48 @@ def battery():
             mine = 0
             myworst = 0
             mynotes = 0
+            # THE SOURCE'S OWN WIDEST GAP, computed from the rows and
+            # not from any published key, so the same quantity can be
+            # counted on a tree that has no `empty_edges` at all. It is
+            # what residual R-P4-138 is about and what the bins alone
+            # cannot answer.
+            gap = true_gap(rows)
             for seed in SEEDS:
                 twin = generation.generate(loaded, seed)
-                one, _two, _three = leaks(
-                    twin, low, high, set(barred), (0.0, 0.0)
+                one, two, _three = leaks(
+                    twin, low, high, set(barred), gap
                 )
+                if two:
+                    in_gap = in_gap + 1
+                    worst_gap = max(worst_gap, two)
+                # ...AND INSIDE ANY PUBLISHED PAIR, which the bins
+                # alone do not answer (residual R-P4-138, plan
+                # P4-D35). A bin is coarser than a gap, so a cell can
+                # sit inside the stretch the description names and in
+                # a bin that holds plenty; counting bins alone reports
+                # a rate for the coarser key only.
+                inside = 0
+                for cell in twin.columns[0]:
+                    if cell == "":
+                        continue
+                    value = parsing.parse_number(cell)
+                    if value is None:
+                        continue
+                    for pair in loaded.columns[0].facts.empty_edges:
+                        if pair[0] < value < pair[1]:
+                            inside = inside + 1
+                            break
                 runs = runs + 1
                 if one:
                     leaked = leaked + 1
                     mine = mine + 1
                     worst = max(worst, one)
                     myworst = max(myworst, one)
+                if inside:
+                    in_pair = in_pair + 1
+                    worst_pair = max(worst_pair, inside)
                 for note in twin.deviations:
-                    if note.fact == "empty_bins":
+                    if note.fact in ("empty_bins", "empty_edges"):
                         noted = noted + 1
                         mynotes = mynotes + 1
             if mine:
@@ -268,7 +307,11 @@ def battery():
     print(f"  {len(shapes)} columns, {withgap} of them with an empty bin")
     print(f"  runs: {runs}; runs leaving a cell in an empty bin: {leaked}; "
           f"worst run: {worst} cell(s)")
-    print(f"  deviations naming `empty_bins`: {noted}")
+    print(f"  runs leaving a cell inside a PUBLISHED PAIR: {in_pair}; "
+          f"worst run: {worst_pair} cell(s)")
+    print(f"  runs leaving a cell inside the SOURCE's own widest gap: "
+          f"{in_gap}; worst run: {worst_gap} cell(s)")
+    print(f"  deviations naming a gap key: {noted}")
 
 
 if __name__ == "__main__":

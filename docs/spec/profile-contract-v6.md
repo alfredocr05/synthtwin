@@ -6810,9 +6810,12 @@ and at both a floor of one and a floor of eleven, the cells landing in
 a named stretch went from 4–6, 2–3 and 3–6 of 300 to NONE at every
 seed. It is not EXACT-OBSERVABLE because the twin cannot always
 hold it: over forty described columns at forty seeds each, 119 of the
-1600 runs still wrote one cell into a named stretch, and on a fresh
-corpus of the same shape measured after the pair-first queue landed,
-82 of 1600 with a worst run of two cells. Every one of
+1600 runs still wrote one cell into a named stretch. Re-measured on
+the same committed battery after the pair-first queue landed: 240 of
+1600 in a named BIN, and 644 of 1600 inside the SOURCE's own widest
+gap against 1456 before, with the worst run of either falling from
+twelve cells to four. The rise in the coarser count is residual
+R-P4-156. Every one of
 those is a column whose OTHER published facts leave the twin no room
 beside the stretch — a whole-number column whose bins are barely wider
 than a unit, or a stratum whose sign band ends at the edge it would
@@ -6897,8 +6900,10 @@ said before 2026-09-04 and was wrong about.** A ladder's two ENDPOINTS
 are exact values of real cells; its nine interior rungs are
 interpolated between the order statistics either side, and measured on
 six columns of 17 to 250 drawn values, between three and nine of the
-nine were held by no cell. So the ladder puts two exact values into a
-block and this key may put thirty-two.
+nine were held by no cell. So the ladder puts TWO exact values into a
+block and this key may add THIRTY; together, a block may expose
+thirty-two, which is a number about the block and not about this
+key.
 
 **THE FLOOR DOES NOT REACH IT**, for the reason 7.11 gives for
 `empty_bins` and for one more: a pair names two values, not a group,
