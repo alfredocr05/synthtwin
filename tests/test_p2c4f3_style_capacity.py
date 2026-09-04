@@ -602,6 +602,13 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
                 "n_distinct_values",
                 "field_widths",
                 "empty_bins",
+                # ...and the stretch's other half, which arrived with
+                # `empty_edges` (plan P4-D35) and is set aside on
+                # exactly the terms `empty_bins` is: a cell inside a
+                # stretch the description says holds nothing, on a
+                # column whose other published facts leave it nowhere
+                # to go.
+                "empty_edges",
             )
         ]
         assert other == [], seed

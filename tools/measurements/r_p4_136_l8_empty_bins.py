@@ -80,10 +80,44 @@ def describe(home, stem, rows, floor=1, header="amount"):
     return document, loaded
 
 
+def source_numbers(rows):
+    """The values a description's statistics would use, from the rows.
+
+    THE PRODUCER'S OWN READING, not `float()` (review round 7 item 6).
+    A cell the tool reads as "no value" is not a number, a cell that
+    reads as no number at all is not one either, and a value this
+    format cannot hold has no place on a scale -- so a driver that
+    called `float()` on every row turned a `nan` marker into a NaN and
+    then compared it against every interval, where every comparison is
+    false and every count silently short.
+    """
+    numbers = []
+    for row in rows:
+        value = parsing.parse_number(row)
+        if value is None:
+            continue
+        if value - value != 0.0:
+            continue
+        numbers.append(value)
+    return numbers
+
+
 def empty_of(rows):
-    """The bins the SOURCE leaves empty, by the shipped bin rule."""
-    numbers = [float(one) for one in rows]
+    """The bins the SOURCE leaves empty, by the shipped bin rule.
+
+    AND A COLUMN WITH NO SCALE NAMES NOTHING, which is the producer's
+    rule at `taxonomy._empty_bins`: no numbers at all, two equal ends,
+    or a width this format cannot hold. A driver that named bins 1 to
+    31 for a column of one repeated number was measuring a division
+    nothing made.
+    """
+    numbers = source_numbers(rows)
+    if not numbers:
+        return (0.0, 0.0, [])
     low, high = min(numbers), max(numbers)
+    reach = high - low
+    if not high > low or reach - reach != 0.0:
+        return (low, high, [])
     held = {parsing.histogram_bin(one, low, high) for one in numbers}
     return (low, high,
             [b for b in range(parsing.HISTOGRAM_BINS) if b not in held])
@@ -106,7 +140,7 @@ def source_pairs(rows):
     low, high, barred = empty_of(rows)
     if not barred:
         return []
-    ordered = sorted(float(one) for one in rows)
+    ordered = sorted(source_numbers(rows))
     runs = []
     for place in barred:
         if runs and place == runs[-1][1] + 1:
@@ -145,7 +179,7 @@ def in_any_pair(twin, pairs):
 
 def true_gap(rows):
     """The widest stretch the source holds nothing in."""
-    numbers = sorted(float(one) for one in rows)
+    numbers = sorted(source_numbers(rows))
     widest = (0.0, 0.0, 0.0)
     for low, high in zip(numbers, numbers[1:]):
         if high - low > widest[0]:

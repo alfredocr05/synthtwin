@@ -7371,6 +7371,12 @@ def _numeric_content(
     # same fact said twice.
     cells, style_notes = _number_cells(column, facts, layout, values)
     notes = notes + style_notes
+    # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
+    # here because it is a fact about the finished TEXT: which width a
+    # cell is written at is decided inside `_number_cells`, and a
+    # value a thousandth outside a stretch is written back inside it
+    # at one width and not at another.
+    notes = notes + _gap_notes(column, facts, cells)
     used: dict[str, int] = {cell: 1 for cell in cells}
     if column.n_out_of_range:
         cells = cells + _class_spellings(
@@ -9858,6 +9864,18 @@ def _cleared_value(
                 continue
             if whole_column:
                 found = _whole_valued(found)
+            # AND THE ONE-BIN REACH IS TESTED AFTER THE ROUNDING, not
+            # before it (review round 7 item 2). On a scale whose bin
+            # is narrower than a unit, rounding a candidate to a whole
+            # number carries it further than the walk was ever allowed
+            # to go: ends 0 to 20 give a bin of 0.625, so a candidate a
+            # step below the edge 6 rounds to 5 -- a full unit past the
+            # edge, two bins out, and accepted with nothing said. The
+            # bound G6.7.5 states is the edge and no further past it
+            # than one bin, so it is asked of the value that will
+            # actually be written.
+            if found < under - width or found > over + width:
+                continue
             # NEVER PAST A PUBLISHED END, and the suite is what put this
             # line here. A BIN edge always had a whole occupied bin
             # between it and the end of the scale; a published edge may
@@ -10278,28 +10296,18 @@ def _cleared_into(
         widths,
     )
     if found is None:
-        # THE STRETCH AS THE DESCRIPTION PUBLISHES IT, which is the
-        # pair and not the bins (review round 1 item 5). The bins are a
-        # thirty-second of the column's reach and lie strictly inside
-        # the stretch, so a report written in them told a reader the
-        # column was empty over a NARROWER range than the description
-        # says: on a real gap of 26.6 to 72.7 the note read 26.7 to
-        # 71.3.
-        return [
-            _deviation(
-                column.name,
-                origin,
-                f"no value from {edges[0]} to {edges[1]}",
-                f"{layout.sizes[place]} cell(s) hold "
-                f"{moved[place]}",
-                "The description says the real column holds no value in "
-                "that stretch, and this twin could find no value beside "
-                "it that its own signs and the values its other cells "
-                "hold all leave free. The count is the number of CELLS "
-                "left in the stretch, which is the whole of the group "
-                "this value belongs to.",
-            )
-        ]
+        # NO NOTE IS WRITTEN HERE, and that is the repair of review
+        # round 7 items 1 and 3. This stage knows a STRATUM and not a
+        # CELL: a stratum stands for as many cells as the layout gives
+        # it, the width each cell is written at is decided later, and a
+        # value a thousandth outside a stretch is written back inside
+        # it at one width and not at another -- so a count taken here
+        # is a count of the wrong things. And a stratum that DID move,
+        # to a slot the looser walk found inside some other published
+        # stretch, left no note at all. `_gap_notes` recounts the
+        # FINISHED CELLS against the published stretches instead, which
+        # is what every other count in this report is taken from.
+        return []
     was = moved[place]
     moved[place] = found
     taken[was] = taken[was] - 1
@@ -10309,6 +10317,106 @@ def _cleared_into(
     for spelling in _spellings_of(found, widths, facts.integer_valued):
         spoken[spelling] = 1
     return []
+
+
+def _gap_notes(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Name every finished cell standing where the source holds none.
+
+    RECOUNTED FROM THE TWIN'S OWN TEXT, one note per stretch, which is
+    the treatment every other count in this report has. The value
+    stage's own attempt named a STRATUM -- a group of cells whose size
+    the layout fixes and whose widths are chosen later -- so it could
+    report two cells where one was inside and one outside, and it said
+    nothing at all about a stratum that MOVED into a stretch other
+    than its own (review round 7 items 1 and 3).
+
+    WHICH FACT A STRETCH NAMES follows from where the cell stands: a
+    cell in a bin the description says holds nothing misses
+    `empty_bins`, and one standing only inside the published pair
+    misses `empty_edges`. A stretch holding both kinds gets a note for
+    each, because they are two different facts about it.
+
+    Guarantees: accepts one numeric block, its facts and the cells
+    written for it; returns one deviation per stretch and fact that a
+    cell stands in, carrying the published pair, the count of cells and
+    the values they read as. Determinism: the answer depends only on
+    those inputs and the notes are built in stretch order. Raises
+    nothing. No I/O of any kind.
+    """
+    if not facts.empty_bins:
+        return []
+    ends = _bin_ends(facts)
+    if ends is None:
+        return []
+    barred = {place: 1 for place in facts.empty_bins}
+    runs = _empty_runs(facts.empty_bins)
+    inside: "dict[tuple[int, str], list[float]]" = {}
+    for cell in cells:
+        if cell == "":
+            continue
+        value = parsing.parse_number(cell)
+        if value is None:
+            continue
+        where = parsing.histogram_bin(value, ends[0], ends[1])
+        for index in range(len(runs)):
+            if index >= len(facts.empty_edges):
+                break
+            below = facts.empty_edges[index][0]
+            above = facts.empty_edges[index][1]
+            if not below < value < above:
+                continue
+            key = "empty_bins" if where in barred else "empty_edges"
+            seat = (index, key)
+            held = inside[seat] if seat in inside else []
+            inside[seat] = held + [value]
+            break
+    notes: "list[Deviation]" = []
+    for seat in sorted(inside):
+        index = seat[0]
+        found = inside[seat]
+        # THE VALUES IN VALUE ORDER and each named once, four of them
+        # at most, with the rest counted rather than dropped: a report
+        # line a person reads is a sentence and not a listing, and a
+        # line that trailed off without saying it had would be telling
+        # them there were four.
+        apart: "list[float]" = []
+        for one in sorted(found):
+            if one not in apart:
+                apart = apart + [one]
+        # BUILT BY JOINING RATHER THAN BY A METHOD ON A VALUE, which
+        # is this package's rule everywhere and what the offline audit
+        # holds it to: a `join` over a comprehension hands the method a
+        # value the audit cannot follow.
+        shown = ""
+        for step in range(len(apart)):
+            if step >= 4:
+                break
+            if shown:
+                shown = f"{shown}, {apart[step]}"
+            else:
+                shown = f"{apart[step]}"
+        if len(apart) > 4:
+            shown = f"{shown} and {len(apart) - 4} more"
+        notes = notes + [
+            _deviation(
+                column.name,
+                seat[1],
+                f"no value from {facts.empty_edges[index][0]} to "
+                f"{facts.empty_edges[index][1]}",
+                f"{len(found)} cell(s) hold {shown}",
+                "The description says the real column holds no value "
+                "in that stretch, and this twin could find no value "
+                "beside it that its own signs, its written forms and "
+                "the values its other cells hold all leave free. The "
+                "count and the values are recounted from the cells "
+                "this twin actually wrote.",
+            )
+        ]
+    return notes
 
 
 def _number_cells(

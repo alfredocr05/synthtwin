@@ -2527,14 +2527,24 @@ twin SHOWING A CLUSTER NOBODY HAS. What this pass can take back from
 the four before it is bounded by G6.7.4 to exactly one thing — a field
 width — and that census is REPORT-ONLY with its shortfalls named.
 
-**G6.7.8 Where the move cannot be made.** The value STAYS and a
-deviation names it, carrying the two edges of the stretch and the
-value that is still inside it. **The edges it carries are the
-PUBLISHED ones and not the bin boundaries**, which is stated here
-because the note was written in the bins until 2026-09-04: on a real
-gap of 26.6 to 72.7 it read "no value from 26.7 to 71.3", telling a
-reader the column was empty over a narrower range than the description
-says. Measured over forty described columns
+**G6.7.8 What the report says, and when.** The report names every
+FINISHED CELL that reads inside a published stretch, RECOUNTED from
+the twin's own text after the cells are written — one note per stretch
+and per fact, carrying the stretch's two PUBLISHED edges, the number
+of cells standing in it and the values they read as. A cell in a bin
+the description names as empty misses `empty_bins`; one standing only
+inside the published pair misses `empty_edges`; a stretch holding both
+kinds gets a note for each.
+
+**IT IS A RECOUNT AND NOT A PREDICTION**, and three things were wrong
+while it was written at the value stage. The edges it carried were the
+BIN boundaries, so on a real gap of 26.6 to 72.7 it read "no value
+from 26.7 to 71.3" — a narrower range than the description states. The
+count was a STRATUM's size, and a stratum stands for several cells
+whose widths are chosen later, so it could report two cells where one
+was inside the stretch and one outside. And a stratum that MOVED, to a
+slot the looser walk of G6.7.6 found inside a stretch other than its
+own, left no note at all. Measured over forty described columns
 at forty seeds each, the runs writing a cell into a named stretch went
 from 1049 of 1600 to 119 — and, re-measured on the same committed
 battery after this landing on 2026-09-04, to 130 of 1600 in a named
@@ -5949,8 +5959,8 @@ holds the shapes to the writing rules that build them:
   the earlier, `<n>` the earlier of the pair
 * `percentiles.p<nn>` — one rung of a NUMBER ladder, `<nn>` the
   percent written to two figures
-* `clock_percentiles.p<nn>` and `date_percentiles.p<nn>` — the same
-  for a clock ladder and a date ladder
+* `clock_percentiles.p<nn>` — the same for a clock ladder
+* `date_percentiles.p<nn>` — the same for a date ladder
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach
