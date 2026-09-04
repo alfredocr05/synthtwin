@@ -2304,14 +2304,19 @@ twin met a third cluster that is not there.
 
 **AND WHAT THE FIRST REPAIR LEFT.** Moving a cell to the nearest
 occupied BIN emptied the named stretches but not the source's own gap,
-because the bins lie strictly inside it: measured at forty seeds, one
-cell per column per seed still sat in the real gap, 15.7 to 23.0 units
-from the nearest real value. Publishing the real edges (`empty_edges`,
-residual R-P4-138, owner's ruling of 2026-09-04) took that to 8, 4 and
-31 cells of 12,000, and asking the published PAIRS which stretch a
-stratum stands in — rather than its bin, which is coarser than the gap
-— took it to **NONE: 0 of 12,000 on each of the three columns at forty
-seeds**.
+because the bins lie strictly inside it. Publishing the real edges
+(`empty_edges`, residual R-P4-138, owner's ruling of 2026-09-04) and
+then asking those edges which stretch a stratum stands in took it to
+nothing. **THE LEDGER, and it is the only one: ** three stages, measured the same way each time -- forty seeds on each
+of the three two-cluster witnesses, counting cells inside the SOURCE's
+own widest gap rather than inside a bin:
+
+* moved to the nearest occupied BIN: one cell per column per seed,
+  15.7 to 23.0 units from the nearest real value;
+* walking from the published EDGES, with the queue still gathered from
+  the bins: **8, 4 and 27** of 12,000;
+* asking the published PAIRS which stretch a stratum stands in:
+  **0, 0 and 0** of 12,000, which is where the shipped pass is.
 
 **G6.7.2 The bins, and where they come from.** The scale is the one
 G6.6's sibling census is counted on: `HISTOGRAM_BINS` equal bins
@@ -2428,7 +2433,8 @@ where they meet this one gives way and G6.7.8's deviation names the
 stretch instead. **Measured cost of the two rules on the corpus of
 G6.7.8: none.** The three two-cluster columns still write no cell in a
 named stretch at any of forty seeds at either floor, and the forty
-described columns still leak on the same 119 runs of 1600.
+described columns leak on the same 119 runs of 1600 — 82 on the fresh
+corpus re-measured after the pair-first queue.
 
 **G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
 to it — measured from the value to each of the stretch's two edges —
@@ -2515,7 +2521,9 @@ gap of 26.6 to 72.7 it read "no value from 26.7 to 71.3", telling a
 reader the column was empty over a narrower range than the description
 says. Measured over forty described columns
 at forty seeds each, the runs writing a cell into a named stretch went
-from 1049 of 1600 to 119, and every one of the 119 is a column whose
+from 1049 of 1600 to 119 — and on a fresh corpus of the same shape,
+measured after the pair-first queue landed on 2026-09-04, to 82 of
+1600 with a worst run of two cells. Every one of them is a column whose
 other published facts leave no room beside the stretch: a
 whole-numbered column whose bins are barely wider than a unit and
 whose neighbouring bin holds no free whole number, or a stratum whose
@@ -5827,9 +5835,20 @@ word extreme, the two carrying groups being settled by a refusal instead
 (G9.5 step 6, P2-C5-F4); a published width of an unrepresentable column
 that no shape of that column can be written at, which revision 4 names
 as a deviation rather than making a width up for (G10.5); the
-out-of-range cells all written too large (G10.3); and the
+out-of-range cells all written too large (G10.3); the
 form census of a column of dates read under the joint ISO reading,
-which the twin does not reproduce (G7.5, contract C6-25, plan P4-D4.3).
+which the twin does not reproduce (G7.5, contract C6-25, plan
+P4-D4.3); a count of the census of written forms
+(`shape_forms`, contract 7.9) a twin's finished cells did not reach,
+which the same landing's own guard found missing from this list on its
+first run; and **a value left inside a stretch the description says
+holds nothing** — named `empty_bins` where the stratum stands in a bin
+the description names, `empty_edges` where it stands only inside a
+published pair, carrying that stretch's two PUBLISHED edges and the
+value that stayed inside them (G6.7.8, plan P4-D32 and P4-D35). Those
+last two were missing from this list from the landing that authorized
+them until 2026-09-04, which is a list that calls itself complete and
+was not.
 
 **The census entry, in full, because it is the one entry on this list
 that is named on EVERY run of the column it belongs to.**

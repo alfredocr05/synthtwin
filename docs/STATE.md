@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,352 collected on this worktree with the STRETCH EDGES (landing L9, plan P4-D35) and review rounds 1 to 3 in it; `4301 passed, 51 skipped in 986.53s (0:16:26)` verbatim. **NINE new tests**: round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
+| suite | 4,353 collected on this worktree with the STRETCH EDGES (landing L9, plan P4-D35) and review rounds 1 to 4 in it; `4302 passed, 51 skipped in 1008.98s (0:16:48)` verbatim. **TEN new tests**: round 4 adds the deviation-inventory guard, which found `shape_forms` missing from the method's own complete list on its first run; round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
 | suite, before the stretch edges | 4,343 collected on the worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4292 passed, 51 skipped in 979.16s (0:16:19)` verbatim after amendment A-P4-55's build. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
 | suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
@@ -340,10 +340,15 @@ are still ahead. The gap list itself is at the foot of this page.
   the nearest occupied bin were still inside the stretch the SOURCE
   leaves empty. `empty_edges` names the two real values each stretch
   lies between, one pair per stretch, and the value stage walks from
-  those. Measured over three witnesses at forty seeds: the furthest
-  cell inside a source's own gap falls from 15.7–23.0 units from a
-  real value to 1.3, and the count of them from one per column per
-  seed to 8, 4 and 27 of 12,000. What remains is residual R-P4-155.
+  those — and the pass asks those PAIRS which stretch a stratum stands
+  in, because a bin is coarser than a gap and a stratum can sit inside
+  the gap while standing in a bin that holds plenty. Measured over
+  three witnesses at forty seeds each, counting cells inside the
+  source's own widest gap: **one per column per seed** with the bins
+  alone, **8, 4 and 27 of 12,000** with the edges published but the
+  queue still gathered from the bins, and **0, 0 and 0** as shipped.
+  Residual R-P4-155 was opened for the remainder and closed the same
+  day by the queue repair.
 
   **THE MUTATION RUN, AND WHAT IT SENT BACK.** Fifteen rules of the
   producer, the loader and method G6.7 were withdrawn one at a time

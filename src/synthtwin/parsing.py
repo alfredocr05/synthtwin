@@ -3044,6 +3044,18 @@ def histogram_bin(value: float, lowest: float, highest: float) -> int:
     reach = highest - lowest
     if reach - reach != 0.0 or not reach > 0.0:
         return 0
+    # A VALUE OUTSIDE THE SCALE IS ANSWERED BEFORE ANY SUBTRACTION.
+    # The subtraction can leave the format even where the reach does
+    # not: on a scale of -1e308 to 0, a value of 1e308 makes
+    # `value - lowest` an infinity, the share a NaN, and the guard
+    # below answered bin ZERO for a value above the MAXIMUM. Comparing
+    # against the two ends first answers those values by the same
+    # clamp the arithmetic would have reached, and reaches the
+    # subtraction only with a value the scale contains.
+    if value <= lowest:
+        return 0
+    if value >= highest:
+        return HISTOGRAM_BINS - 1
     share = (value - lowest) / reach
     if share - share != 0.0:
         return 0

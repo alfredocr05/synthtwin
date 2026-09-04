@@ -187,9 +187,9 @@ Stated here so that no reader has to discover them independently:
   empty runs — runs are separated by at least one occupied bin. So a
   numeric block carries **at most fifteen pairs and thirty exact
   values**, and they can all be different: a 32-row column occupying
-  bins 0, 2, 4 … 30 and 31 with TWO values in each occupied bin
-  publishes fifteen pairs naming thirty distinct values, and with the
-  two endpoints the ladder publishes beside them **the description
+  bins 0, 2, 4 … 28 with TWO values each and bins 30 and 31 with one
+  each publishes fifteen pairs naming thirty distinct values, and with
+  the two endpoints the ladder publishes beside them **the description
   then names every value that column holds**.
 
   On a dense column there is usually no run at all and so no value
