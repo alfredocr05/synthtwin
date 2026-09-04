@@ -4720,20 +4720,32 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
 
     Splits the present cells into the ones that read as ordinary
     numbers and the ones that are not numbers at all, and answers only
-    where BOTH halves earn their own publication: the numbers reach the
-    detection line, and the text holds at least one level that reaches
-    it too.
+    where BOTH halves are what they need to be. The numbers must clear
+    the detection line in CELLS and in different values, and hold more
+    different values than a set of categories may. The words must be a
+    VOCABULARY: more than nine tenths of the half's cells wearing a
+    spelling that repeats, most of its identities repeating, and either
+    a SMALL SET of them or one that clears the detection line -- either
+    ground, not both. This paragraph said "at least one level that
+    reaches it" until review round 8 of this landing (item 6), which
+    is one of the two grounds and not the rule: a column of 295
+    readings beside five `NOT DETECTED` is admitted by the other, and a
+    maintainer following the sentence would have taken it away.
 
-    A CELL THAT IS A NUMBER THE FORMAT CANNOT HOLD IS NEITHER HALF, and
-    a column holding one is not this column. The first writing of this
-    function sorted every cell that was not an ordinary number into the
-    LABELS -- so a column of readings beside a handful of values too
-    large for binary64 read as "numbers beside labels" and took this
-    role away from `numeric_unrepresentable`, which is the role that
-    describes it properly. Measured by the suite the same hour it was
-    written, on a column named `amount` holding very small and very
-    large values together. Such a column declines here and falls to the
-    rules below exactly as it does today.
+    A CELL THAT IS A NUMBER THE FORMAT CANNOT HOLD GOES WITH THE
+    LABELS, and this paragraph said the opposite until review round 6
+    of this landing (item 6). The first writing of the RULE refused the
+    whole column on such a cell, on the ground that
+    `numeric_unrepresentable` describes it properly -- and that role is
+    decided by an earlier rule, so by the time this one runs it has
+    already declined. Refusing here sent the column nowhere better: 280
+    readings beside nineteen `POSITIVE` and ONE value too large for the
+    format fell to the long tail, which describes none of the 280. So
+    the rule changed and this sentence did not, which is a comment
+    telling a maintainer the opposite of what the code beside it does.
+    The comment below the signature has the whole reasoning; residual
+    R-P4-149 carries the open question, which is whether such a cell
+    should be described as a NUMBER rather than as a word.
     """
     # THE HALVES ARE "AN ORDINARY NUMBER" AND "EVERYTHING ELSE", and a
     # cell the format cannot hold goes with the everything else. An
@@ -7705,6 +7717,11 @@ def _decide(
     5. dates, under one documented format, at the parse rate;
     6. numbers, at the parse rate -- `count` or `continuous`;
     7. at most the ceiling of different values -- `categorical`;
+    7b. NUMBERS BESIDE WORDS in one cell space -- `numbers_with_labels`
+       (residual R-P4-13, plan P4-D33). It was missing from this list
+       while the rule shipped, so a maintainer reading the one place
+       that states the order was told of fourteen rules where there
+       are fifteen (review round 8 of landing L8, item 6);
     8. clock times, in one of two forms, at the parse rate --
        `time_of_day`;
     9. a number wearing one shared piece of text -- `affixed_number`;

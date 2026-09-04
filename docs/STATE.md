@@ -28,7 +28,7 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,339 collected on this worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4287 passed, 51 skipped in 1024.26s (0:17:04)` verbatim at the fifth round's repairs. **TWENTY new tests**: `tests/test_p4r13_compound_role.py` holds twenty, of which thirteen were written against defects review found, and three more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
+| suite | 4,343 collected on this worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4291 passed, 51 skipped in 1025.94s (0:17:05)` verbatim at the eighth round's repairs. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
 | suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
@@ -45,6 +45,38 @@ without the same help.
 consent", review aimed at machinery only). Gaps 1, 2 and 3 have
 landed; gaps 4 to 7, the richer number family and the worked examples
 are still ahead. The gap list itself is at the foot of this page.
+
+* **LANDING L8, THE COMPOUND ROLE, IS BUILT AND HAS HAD EIGHT ROUNDS
+  OF REVIEW (2026-09-03 to 2026-09-04).** `numbers_with_labels` is the
+  fifteenth role: a column holding a quantity and a vocabulary at once
+  — a lab result beside `NOT DETECTED` — is described as both, where
+  it used to fall to free text or the long tail and lose its
+  distribution entirely. It publishes two counts of cells that sum to
+  `n_present`, each half's own counts of different written cells, and
+  the two sub-blocks the numeric and label roles already write.
+
+  **The eight rounds returned REJECT with 8, 7, 6, 6, 6, 6, 6 and 6
+  items and every one was real.** Three were CRASHES on tables a
+  person could really have: `synthtwin profile` died on a declared
+  decimal-comma column, `synthtwin validate` died on a conforming
+  twin, and a third path ended in an internal error. The rest changed
+  what the product does: the twin held 56 of a published 113 different
+  cells until the halves' spelling counts were published; a compound
+  twin's report claimed no approximated fact while its rungs are
+  approximated by construction; a description could carry a key
+  nothing reads and a label that is a number; the detection rule
+  compared against a bare eleven so raising the floor did not raise
+  the bar; and a column of 295 readings beside five markers was
+  published with a sentence saying one of its values is shared by
+  eleven rows or more, when none is.
+
+  **Still open and named**: R-P4-149 (an out-of-range numeral is
+  described as a word), R-P4-150 (a code set just above the ceiling is
+  read as a quantity — `--code` is the route), R-P4-151 (a column ON
+  the detection line has a twin that re-describes as another role;
+  the margin built for it was measured and taken out again) and
+  R-P4-152 (a report convention older than this landing: a recount
+  inside its own window is named both as unmet and as inside).
 
 * **THE INTEGER-GRID LANDING IS RATIFIED, at review round 7 of
   2026-09-03, and L8 is safe to build on it.** It closes the half of

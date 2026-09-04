@@ -5116,6 +5116,42 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
+- **R-P4-152 — OPEN (opened 2026-09-04 by review round 8 of landing
+  L8, item 1).** THE TWIN'S REPORT NAMES A FACT AS UNMET AND AS INSIDE
+  ITS RANGE, ON THE SAME PAGE — AND IT DOES THIS ON EVERY ROLE, NOT
+  ONLY THE NEW ONE.
+
+  **The measurement.** A PLAIN numeric column of a hundred values `1`
+  to `100`, one seed:
+
+  * the deviations section says `n_distinct 100 → 94`;
+  * the approximated section says `n_distinct`, published 100,
+    achieved 94, **inside its range**.
+
+  A compound column does the same, for its own counts and for the two
+  halves'. A reader is told a fact was not met and, four lines later,
+  that the measurement landed where the method said it would.
+
+  **WHY IT IS NOT THIS LANDING'S TO CHANGE.** The convention is the
+  tool's, not the role's: `_recount_notes` has raised a deviation for
+  a recount that differs from the published count since Phase 2, and
+  the approximation records were added beside it later. Landing L8
+  followed the convention for its own counts, which is what kept the
+  two roles' reports the same shape. Changing it moves the report of
+  EVERY role that recounts a count with a window -- numeric, label,
+  affixed, joined, clock, and this one.
+
+  **WHAT THE CHOICE IS.** Either a deviation is raised only where the
+  measurement is OUTSIDE the window (which is what `_bound_notes`
+  already does for approximated facts, so the two would agree), or the
+  deviation stays and says in its own words that the shortfall is
+  authorized. The first is cleaner and is a report change across six
+  roles; the second is smaller and leaves two sections saying
+  different things about one number.
+
+  **It is a REPORT question and not a data question:** no count, no
+  cell and no published fact moves either way.
+
 - **R-P4-151 — OPEN (opened 2026-09-04 by review round 3 of landing
   L8, item 4).** A COMPOUND COLUMN THAT SITS ON THE DETECTION LINE HAS
   A TWIN THAT RE-DESCRIBES AS ANOTHER ROLE.
@@ -5235,6 +5271,16 @@ declaration for only one of them.
   twin that lies: every cell is in exactly one published population
   and the two counts still sum to `n_present`. It is a classification
   the role's own rule makes and the description does not explain.
+
+  **HALF OF IT WAS DOCUMENTATION, and that half is closed** (review
+  round 6 of landing L8, item 6). `_compound_reading`'s own docstring
+  said an out-of-range numeral is in NEITHER half and makes the rule
+  decline -- which was true of the first writing and false of the
+  shipped one, where the comment three lines below says the opposite
+  and the code follows the comment. A maintainer reading the contract
+  of that function was told the wrong thing. It now says what the code
+  does. What stays open is the question itself: whether such a cell
+  should be described as a number rather than as a word.
 
   **WHAT WOULD CLOSE IT:** either a stated line in contract 9.4b
   saying that the numeric half is the cells that read as USABLE
@@ -11694,6 +11740,42 @@ decision:** the per-position distinct counts that would let the draw
 meet the cell count on a repeating column. Until that lands, a twin of
 a repeating joined column reports a miss of its own — honestly, and in
 both pages.
+
+## Amendment A-P4-54 — the compound role's OUTER counts take both envelopes, not one (landing L8, 2026-09-04)
+
+**WHAT P4-D33 SAYS AND WHY IT IS NOT ENOUGH.** That decision puts all
+four of this role's counts of different cells under G12.8, the numeric
+envelope. Three of them belong there. The fourth pair — the COLUMN's
+own `n_distinct` and `n_distinct_folded` — are the two halves' counts
+ADDED (invariant NL3), so the window they owe is the two halves'
+windows added, and the label half's window is G12.7's rather than
+G12.8's.
+
+**THE MEASUREMENT.** Forty numeric cells beside `alpha` six times,
+`Alpha` six, `beta` five and `Beta` five, at a floor of eleven. The
+label half publishes four raw spellings and two folded identities; the
+floor holds back the variants that would supply the fourth spelling, so
+the twin writes three. The numeric half is exact at forty. The column
+publishes 44 and the twin holds 43 — a shortfall the LABEL half's
+envelope authorizes and the numeric one says nothing about. Under
+P4-D33 as ratified, an independent implementation would report that
+conforming twin as a MISS.
+
+**THE AMENDMENT, in three parts.**
+
+1. The numeric half's two counts take G12.8, as P4-D33 says.
+2. The label half's RAW count takes G12.7; its FOLDED count is exact,
+   because folding is not a spelling question and the published levels
+   settle it (V4.1's own words).
+3. The column's two counts take the SUM of the two halves' windows,
+   and the report cites the half or halves that widened it — both,
+   where both did.
+
+**AND THE REPORT NAMES ONLY WHAT IS APPROXIMATE.** The label half's
+folded count carries no approximation record: it is exact, and a record
+for it sat in the approximated section at `2..2` under a heading saying
+the method could not land exactly. Its arithmetic is still used, where
+the outer window needs it.
 
 ## Decision P4-D34 — a declared decimal comma reaches the compound role's numeric half (landing L8, 2026-09-04)
 

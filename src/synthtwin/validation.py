@@ -6544,6 +6544,58 @@ def _distinctness_checks(
                 )
             ]
             continue
+        if isinstance(facts, contract.CompoundFacts):
+            # THE COLUMN'S OWN COUNT IS THE TWO HALVES' COUNTS ADDED,
+            # so the window it owes is the two halves' windows added
+            # (review round 6 of this landing, item 2). Asking
+            # `_distinct_corner` here unwraps this role to its numeric
+            # half, so a column whose LABEL half is the one that cannot
+            # supply its spellings was given the numeric half's corner
+            # -- which is none -- and the exact bar, and a conforming
+            # twin was reported MISSED.
+            low, high, said = _compound_window(column, facts, mine, field)
+            if measured is not None and low <= measured <= high:
+                if low == high:
+                    checks = checks + [
+                        _exact(
+                            name,
+                            fact,
+                            subcheck,
+                            _shown_count(published),
+                            _shown_count(measured),
+                        )
+                    ]
+                    continue
+                checks = checks + [
+                    Check(
+                        name,
+                        fact,
+                        subcheck,
+                        AUTHORIZED_DEVIATION
+                        if measured != published
+                        else HELD,
+                        f"{_shown_count(published)} "
+                        f"({_shown_window(float(low), float(high))})"
+                        if measured != published
+                        else _shown_count(published),
+                        _shown_count(measured),
+                        said if measured != published else "",
+                    )
+                ]
+                continue
+            checks = checks + [
+                _exact(
+                    name,
+                    fact,
+                    subcheck,
+                    _shown_count(published)
+                    if low == high
+                    else f"{_shown_count(published)} "
+                    f"({_shown_window(float(low), float(high))})",
+                    None if measured is None else _shown_count(measured),
+                )
+            ]
+            continue
         corner = _distinct_corner(facts, mine, field)
         if corner == CORNER_IDENTIFIER_INFEASIBLE:
             # REPORT-ONLY in this corner, so it is a listing entry and
@@ -7256,6 +7308,83 @@ _SPLIT_CONSTANT_SUBCHECKS = (
         "counts.n_negative_unrepresentable",
     ),
 )
+
+
+def _half_window(
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> "tuple[int, int]":
+    """What one HALF of a compound column may hold, both ends.
+
+    The published count itself where no corner reaches the half -- a
+    half with no corner owes its count exactly -- and the corner's own
+    two-sided window where one does. G12.8 reaches the numeric half and
+    G12.7 the label half, and the two are asked the same way.
+
+    IT EXISTS BECAUSE THE COLUMN'S OWN COUNT IS THE TWO HALVES ADDED
+    (invariant NL3), so the window the column owes is the two halves'
+    windows added -- and the first writing of this shifted the numeric
+    half's window by the label half's PUBLISHED count, which assumes
+    the label half is exact. It need not be: a label half of `alpha`,
+    `Alpha`, `beta` and `Beta` whose variants the floor holds back can
+    supply three spellings for a published four, and the twin then
+    holds one fewer different cell than the arithmetic said it must
+    (review round 6 of this landing, items 1 and 2).
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if not corner:
+        return (published, published)
+    supply = _spelling_supply(view, facts, published)
+    ceiling = _spelling_ceiling(view, facts, published)
+    if supply is None or ceiling is None:
+        return (published, published)
+    return (min(supply, published), max(ceiling, published))
+
+
+def _compound_window(
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> "tuple[int, int, str]":
+    """What the WHOLE compound column may hold, both ends, and by what.
+
+    The two halves' windows added, because the two halves share no
+    spelling and the column's count is their counts added. The third
+    value is the citation a reader is sent to: the passage of the half
+    that WIDENED the window, and both where both did.
+
+    THE CITATION IS NOT ALWAYS G12.8 (review round 7 of this landing,
+    item 3). On a column whose numeric half is exact and whose LABEL
+    half cannot supply its spellings, the authorization that covers the
+    outcome is G12.7's; naming the numeric envelope sends a reader to a
+    passage that does not cover what they are reading.
+    """
+    numeric = facts.n_numeric_distinct
+    labels = facts.n_label_distinct
+    if field == _FOLDED_DISTINCT:
+        numeric = facts.n_numeric_distinct_folded
+        labels = facts.n_label_distinct_folded
+    low_numbers, high_numbers = _half_window(
+        contract.compound_numbers_view(column), facts, numeric, mine, field
+    )
+    low_labels, high_labels = _half_window(
+        contract.compound_labels_view(column),
+        facts.labels,
+        labels,
+        mine,
+        field,
+    )
+    said = ""
+    if low_numbers != high_numbers or low_numbers != numeric:
+        said = CORNER_CITATIONS[CORNER_NUMERIC_SPELLINGS_SHORT]
+    if low_labels != high_labels or low_labels != labels:
+        label_said = CORNER_CITATIONS[CORNER_LABEL_VARIANTS_SHORT]
+        said = f"{said} and {label_said}" if said else label_said
+    return (low_numbers + low_labels, high_numbers + high_labels, said)
 
 
 def _half_distinct_is_listed(
