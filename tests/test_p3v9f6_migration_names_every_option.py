@@ -547,18 +547,45 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     #
     # That is a real narrowing of what this option buys, and P4-D5
     # prices it in the open under owner decision 1: columns that today
-    # publish no value will publish their floor-clearing spellings. The
-    # disclosure this test exists for survives it, because the LARGER
-    # half is untouched: kept, not one of the sixty readings is
-    # published, and no distribution of them exists in the document at
-    # all.
-    assert column["role"] == "long_tail_labels"
+    # publish no value will publish their floor-clearing spellings.
+    #
+    # AND LANDING L8 NARROWS IT AGAIN, further than P4-D5 did, which is
+    # recorded here rather than discovered later. The column holds
+    # sixty readings beside a word on twelve rows -- a numeric
+    # population beside a repeated label -- so rule 7b claims it and
+    # its numeric half is DESCRIBED: a mean, a spread and a ladder over
+    # the sixty. Kept, this option used to publish no distribution of
+    # them at all, and that was the larger half of the disclosure this
+    # test was written to hold.
+    #
+    # AND THE READINGS THEMSELVES NOW APPEAR, which is the part this
+    # test was written to hold and which has stopped being true. A
+    # percentile ladder is made of ORDER STATISTICS -- rungs that are
+    # values the column really holds -- so describing the numeric half
+    # puts real readings into the document. That is how every numeric
+    # column in this package has always worked; what changed is that
+    # THIS column is now described as one.
+    #
+    # So naming the word as real data used to publish not one of the
+    # sixty readings, and now publishes several of them as rungs. That
+    # is a disclosure change to a shipped option and it is R-P4-148.
+    assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
     written = json.dumps(kept)
+    # The COLUMN publishes no distribution of its own; the numeric HALF
+    # does, which is the change.
     assert "percentiles" not in column
-    assert readings[0] not in written, (
-        "the witness is wrong: the readings themselves are still "
-        "published nowhere when the word is named as real data"
+    assert "percentiles" in column["numbers"]
+    rungs = [
+        value for value in column["numbers"]["percentiles"].values()
+        if isinstance(value, (int, float))
+    ]
+    held = {float(reading) for reading in readings}
+    appearing = [rung for rung in rungs if rung in held]
+    assert appearing, (
+        "the witness is wrong: a percentile ladder is made of order "
+        "statistics, so describing this half must put real readings "
+        "into the document"
     )
     forgotten = _described(
         tmp_path,

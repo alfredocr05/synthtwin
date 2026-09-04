@@ -5116,6 +5116,182 @@ declaration for only one of them.
   what it would cost is agreement rather than correctness. Closing it
   means building that column and measuring what it costs.
 
+- **R-P4-151 — OPEN (opened 2026-09-04 by review round 3 of landing
+  L8, item 4).** A COMPOUND COLUMN THAT SITS ON THE DETECTION LINE HAS
+  A TWIN THAT RE-DESCRIBES AS ANOTHER ROLE.
+
+  **The measurement.** A numeric half holding exactly the detection
+  line's worth of different numbers, beside a handful of markers, over
+  forty seeds:
+
+  | floor | different numbers | twins that keep the role |
+  |---|---|---|
+  | 1 | 11 (the line) | 31 of 40 |
+  | 1 | 12 | 39 of 40 |
+  | 1 | 13 | 40 of 40 |
+  | 11 | 11 (the line) | 31 of 40 |
+  | 25 | 25 (the line) | 13 of 40 |
+  | 25 | 26 | 30 of 40 |
+  | 25 | 27 | 38 of 40 |
+  | 25 | 28 | 40 of 40 |
+
+  The ones that change come back `free_text` at the low floors and
+  `long_tail_labels` at twenty-five.
+
+  **WHY, and it is not this role's own defect.** The numeric machinery
+  reaches about nine tenths of a published count of different values on
+  a column whose values repeat — that is R-P4-40's shortfall, measured
+  again here — so a half holding exactly the line's worth writes fewer
+  than the line, and the rule that admitted the column does not admit
+  its twin.
+
+  **A MARGIN WAS BUILT, MEASURED AND TAKEN OUT.** Requiring a tenth of
+  headroom (`distinct * 9 >= line * 10`) asks for 13 where the line is
+  11 and 28 where it is 25 — exactly the first stable counts above. It
+  does not work, because it raises the bar the TWIN must clear too:
+  with the margin in, thirteen different numbers kept the role on 27 of
+  40 seeds instead of 40. Every margin does this. The measurement is
+  recorded here so the next person does not build it again.
+
+  **WHAT THE COST ACTUALLY IS.** The twin still holds its numbers: the
+  two counts of the split are exact and are met, the values sit inside
+  the published range, and a person analysing the twin gets the
+  distribution. What a re-description does not do is call it the same
+  kind of column — so `synthtwin validate` finds a different role and
+  reports this role's facts as WITHHELD rather than held. The report is
+  less informative; the data is not wrong.
+
+  **WHAT WOULD CLOSE IT:** a numeric construction that meets a
+  published count of different values exactly, which is R-P4-40's
+  subject and not this landing's. Failing that, a `--measurement`-style
+  declaration for this role, which would make re-description keep the
+  role the way it does for `joined_numbers`.
+
+- **R-P4-150 — OPEN (opened 2026-09-03 by review round 1 of landing
+  L8, item 6).** A CODE SET JUST ABOVE THE CEILING IS READ AS A
+  QUANTITY, AND NO COUNT CAN TELL THE TWO APART.
+
+  **The measured case.** A `month_code` column: the codes 1 to 12 on
+  nine rows each, beside twelve `unknown` cells, 120 rows in all. The
+  thirteen identities together are above the column's own categorical
+  ceiling, so rule 7 declines; rule 7b then asks whether the NUMERIC
+  half looks like a quantity, and twelve different values in a
+  hundred-and-eight-cell half is above that half's ceiling of ten. The
+  column takes the compound role and publishes a mean of 6.44 and a
+  percentile ladder over month numbers.
+
+  **Why the obvious repair is worse.** Measuring the half against the
+  COLUMN's cell count instead of its own is the version this rule had
+  before, and it was changed for a measured reason: a 3,000-cell
+  numeric half inside a 6,000-row column has a ceiling of 600 that way,
+  so four hundred different readings were called a code set. The two
+  cases pull in opposite directions and no single denominator serves
+  both, because the difference between them is not a count.
+
+  **What is true and is now written down.** Section 6.16 said a numeric
+  code set is described as a set of categories, full stop; it now says
+  the test is a count with a boundary, gives this measurement as the
+  boundary case, and names `--code` as the route. That is the honest
+  state: the rule's own comment has said since it was written that no
+  count can tell a six-point code from a six-point measurement.
+
+  **What would close it:** a test that is not a count. The candidates
+  are all declarations or heuristics about SPELLING -- whole numbers
+  with no gaps in a short run, a column NAME ending in `_code`, an
+  attached code system -- and each is a design question rather than an
+  adjustment. Until one lands, the boundary is documented and `--code`
+  is the answer.
+
+- **R-P4-149 — OPEN (opened 2026-09-03 by landing L8's own coverage
+  identity).** A NUMBER TOO LARGE FOR THE FORMAT IS DESCRIBED AS A
+  LABEL ON A COMPOUND COLUMN.
+
+  Rule 7b splits a column's present cells by one question: does this
+  cell read as a plain number? A cell spelled `9e999` does not — it
+  reads as a number OUT OF RANGE — so it joins the LABEL half, and if
+  enough such cells share a spelling the description publishes them as
+  a level, which is to say it describes a number as a word.
+
+  **HOW IT WAS FOUND, and it was not found by reading the rule.** The
+  entry table asks that every executable subcheck have a perturbation
+  that turns it red. Three of the compound role's sites had none:
+  `numeric_share`, `n_left_out_of_statistics` and
+  `n_negative_unrepresentable`, all three of them facts about cells
+  that are numbers but not usable ones. Ninety-odd perturbations of a
+  compound twin, and not one could make any of the three differ —
+  because the split rule puts every such cell in the OTHER half. The
+  three are listed rather than checked now (V3.5), which is the honest
+  treatment of a fact no file can move; what the listing does not
+  answer is whether the split rule should have put them there.
+
+  **THE COST, and it is small but real.** A twin of such a column
+  writes the out-of-range spelling back as a label, at its published
+  count, so nothing is lost or invented. What a reader loses is the
+  statement that the cell was a number at all: the numeric half's
+  `n_out_of_range` is zero on every compound column, while the same
+  column read as a plain numeric one would have counted it.
+
+  **WHAT IT IS NOT.** It is not a leak, not a wrong count, and not a
+  twin that lies: every cell is in exactly one published population
+  and the two counts still sum to `n_present`. It is a classification
+  the role's own rule makes and the description does not explain.
+
+  **WHAT WOULD CLOSE IT:** either a stated line in contract 9.4b
+  saying that the numeric half is the cells that read as USABLE
+  numbers and that every other spelling — out of range, contradictory,
+  unreadable — is described as a written spelling; or a change to the
+  split rule so the half takes every cell the number rules recognise,
+  which would then need the numeric block's own out-of-range counts to
+  mean something on this role. The first is a paragraph; the second is
+  a landing. It is deliberately NOT decided inside the landing that
+  found it.
+
+- **R-P4-148 — CLOSED 2026-09-03 by the owner, who extended the
+  small-cell-floor ruling of the same day to cover it.** THE COMPOUND ROLE PUTS REAL
+  READINGS INTO A DOCUMENT THAT USED TO CARRY NONE, AND `--keep-value`
+  IS WHERE A PERSON MEETS IT.
+
+  A column of sixty readings beside a word on twelve rows was
+  `long_tail_labels`: it published the WORD, as a label with its count,
+  and **not one of the sixty readings anywhere**. A test has held that
+  since Phase 3 as the price of naming a sentinel as real data —
+  `--keep-value` buys you the word's meaning and costs you your
+  distribution.
+
+  Rule 7b claims that column now, and its numeric half is described:
+  mean, spread, and a percentile ladder. **A ladder is made of ORDER
+  STATISTICS — rungs that are values the column really holds** — so
+  the document now carries several of the sixty readings verbatim.
+  That is how every numeric column in this package has always worked
+  and it is not new behaviour; what is new is that this column is
+  described as one.
+
+  **WHY IT IS THE OWNER'S AND NOT MINE.** It is not a defect: the whole
+  point of the role is to describe the numeric mass, and a description
+  that carried no real value would be a weaker description. It is a
+  change in what a shipped OPTION costs, on a page a person reads
+  before choosing it — and the owner's ruling of 2026-09-03 on the
+  small-cell floor turned on exactly this distinction, that publishing
+  a value is not the same as identifying a person. The same reasoning
+  covers this, but it has not been APPLIED to it, and an option's page
+  should not quietly start costing more than it says.
+
+  **THE OWNER'S RULING, given 2026-09-03 when this was put to them:
+  the floor ruling of the same day extends to this case.** Its
+  reasoning covers it exactly — knowing that a piece of information is
+  present is not the privacy question; the privacy question is knowing
+  that EVERYTHING is present, and whose row it is. A percentile ladder
+  is a set of per-column facts like any other: it records that the
+  column holds `1.7` and where in its order that value sits. It does
+  not record WHICH row holds it, and it does not record what that row
+  holds in any other column, so it assembles no person.
+
+  What remains owed is not a decision but a WRITING-DOWN: SECURITY.md's
+  version 6 entry (R-P4-90) should say that a compound column's numeric
+  half publishes a ladder, so a reader of `--keep-value`'s page is not
+  left to discover it. That is bookkeeping under R-P4-90 rather than an
+  open question here.
+
 - **R-P4-147 — OPEN (opened 2026-09-03 by landing L8's own
   measurement).** THE COMPOUND ROLE TAKES THE WHOLE POPULATION THE
   RECOVERABLE-DISTRIBUTION ADVICE WAS WRITTEN FOR, AND UNTIL ITS
@@ -5143,12 +5319,37 @@ declaration for only one of them.
   gets its distribution without any declaration, which is what the
   advice was for.
 
-  **WHAT THIS ENTRY OWES**, and it is not just the sub-blocks: once
-  they exist, somebody has to ask whether the advice is REACHABLE at
-  all any more, and retire it rather than leave a sentence in the code
-  that no column can be told. Three tests in
-  `tests/test_p4r24_advisory_remarks.py` hold it and are red on this
-  branch on purpose; they are the evidence, not an oversight.
+  **THE LOSS IS CLOSED and the advice is now UNREACHABLE, both
+  measured 2026-09-03 once the sub-blocks and the generator landed.**
+  The fixture column publishes its distribution and its twin holds 190
+  numeric cells of 200 -- what the sentence used to promise, without
+  the declaration it used to ask for.
+
+  And the sentence can no longer be said to anybody. It needs two
+  things at once, and the second now excludes the first:
+
+  - the non-numeric spellings must REPEAT, because
+    `_floor_clearing_non_numeric` names only spellings the floor would
+    let it describe. Gap words appearing once apiece are not named, the
+    reach is nought, and no advice is written -- measured;
+  - and removing those spellings must leave a column with a
+    DISTRIBUTION, which means the cells left over are numbers.
+
+  A column of numbers beside REPEATED non-numeric spellings is exactly
+  what rule 7b claims. So every column that satisfies both conditions
+  is compound before the advice is ever considered, and the advice is
+  written on the free-text path. Measured over six shapes, from twelve
+  numbers to 190 and from two repeats to twenty: the reach is 10 on the
+  shapes that repeat and 0 on the shapes that do not, and the ones with
+  reach 10 are all compound.
+
+  **WHAT THIS ENTRY NOW OWES is a decision, not a build.** The advice
+  is shipped behaviour with its own contract form, its own tests and an
+  owner's amendment behind it (A-P4-1 item 4, R-P4-16). Retiring a
+  sentence nobody can be told is right; doing it silently, inside a
+  landing about something else, is not. The three tests in
+  `tests/test_p4r24_advisory_remarks.py` now assert the supersession
+  rather than the sentence, and say what they used to hold.
 
 - **R-P4-146 — OPEN (opened 2026-09-03 by review round 3 of the
   integer-grid landing).** THE FIXED-FRACTION SNAP IS STILL HALF
@@ -10931,7 +11132,16 @@ one line turns
 `tests/test_p4g3r1_joined_review.py::test_negative_zero_is_zero_on_both_pages`
 red, so it is a companion repair an existing test already pins.
 
-## Amendment A-P4-50 — what review round 2 of landing L7 sent back (2026-09-01)
+## Amendment A-P4-53 — what review round 2 of landing L7 sent back (2026-09-01)
+
+**RENUMBERED FROM A-P4-50 on 2026-09-04**, and the reason is worth a
+line: this passage and the empty-bin amendment of the same phase both
+carried the number A-P4-50, so a citation of "A-P4-50" named two
+things — `docs/spec/generation-method-v1.md` cites one of them and
+`docs/STATE.md` the other. Nothing about either decision changed. The
+collision was found by the uniqueness check written for review round 4
+of landing L8, which was written for a DIFFERENT collision (two
+decisions numbered P4-D32) and found this one on its first run.
 
 Three items, all real, and one of them found a guarantee that was false
 of the thing it names.
@@ -11484,6 +11694,155 @@ decision:** the per-position distinct counts that would let the draw
 meet the cell count on a repeating column. Until that lands, a twin of
 a repeating joined column reports a miss of its own — honestly, and in
 both pages.
+
+## Decision P4-D34 — a declared decimal comma reaches the compound role's numeric half (landing L8, 2026-09-04)
+
+**IT CRASHED.** A column declared `--decimal-comma` holding `1,5`
+through `280,5` beside twenty `NOT DETECTED` cells took the compound
+role — the split reads the comma grammar — and then `_compound_details`
+re-read each half WITHOUT the declaration. The numeric half came back
+holding no numbers at all and the percentile walk raised `IndexError`.
+`synthtwin profile` died on a table a person could really have. Review
+round 4 of this landing found it (item 1); no test in the suite reached
+the combination.
+
+**THE DECISION, in two parts.**
+
+1. **Both halves are re-read the way the column was read**, declaration
+   included. That is the crash repair and it is not a judgement call:
+   the rule that split the cells and the readers that describe them
+   must read the same grammar.
+2. **The declaration REACHES this role**, so the twin spells its
+   numbers with a comma and the validator reads them back that way.
+   Without it a declared column profiled under the comma grammar and
+   was written back with points: sixteen checks missed on a twin that
+   was otherwise exactly right. The affixed and joined roles stay
+   outside the declaration for the reason residual R-P4-52 gives —
+   which mark inside a larger spelling is a decimal point is a question
+   the declaration does not answer — and this role is not in that
+   position: its numeric half holds plain numbers and nothing else.
+
+**AND THE LABEL HALF IS NOT TRANSLATED.** The swap runs over the
+finished column, and half of this role's cells are words the
+description publishes exactly. A marker spelled `E11.9` would leave as
+`E11,9` on the way out, and on the way back the comma grammar reads a
+dot as a thousands mark and REMOVES it, so `E11.9` would be read as
+`E119` and the published spelling would never be found. Both sides
+translate a cell of this role only where the translation makes it a
+number. Measured end to end: the declared column now writes `249,3`
+beside `NOT DETECTED`, every check holds, and a marker holding a dot
+comes back character for character.
+
+## Decision P4-D33 — the compound role's two halves are checked by the groups that already check them (landing L8, 2026-09-03)
+
+**WHAT THE ROLE PUBLISHES, and why only two of its keys are new.** A
+`numbers_with_labels` column splits its present cells in two: the ones
+that read as numbers, and the ones that do not. It publishes a count of
+each — `n_numeric_cells` and `n_label_cells` — and then two sub-blocks,
+`numbers` and `labels`, which are the numeric block and the label block
+this tree already writes, each read over its own half of the column.
+Nothing inside either sub-block is a new KIND of fact. A percentile
+inside `numbers` is the percentile the numeric group disposes; a level
+inside `labels` is the level the label group disposes.
+
+**THE DECISION: the two counts are EXACT-OBSERVABLE, and each sub-block
+is STRUCTURAL — the container carries no obligation of its own and its
+interior takes the disposition of the group whose block it is.** This
+is the joined role's own settlement (P4-D25) applied to a role whose
+container holds two DIFFERENT kinds of block rather than several of one
+kind. The precedent for a container that disposes nothing itself is
+older still: `length` and `words` on `free_text`.
+
+**Why the counts are pinned rather than windowed.** They are the whole
+statement of the split, and analysis code reads them directly: a
+researcher who filters a lab column to its numeric readings expects the
+twin to leave the same number of rows standing. They also sum to
+`n_present` by construction, so a window on either would let a twin
+publish a split that does not add up — and the sum is what review item
+P1-R6-F7 required, which is that a description never speaks about part
+of a column without saying what the rest is.
+
+**FOUR KINDS OF OBLIGATION, each checked as its kind** — the same
+sentence the joined role's decision carries, and it means the same
+thing here: the counts are pinned, the containers are structural, and
+each half's interior is held to the class its own group's region of
+this matrix already sets. A validator that finds a missed fact inside
+`numbers` reports it as the numeric fact it is, and one inside
+`labels` as the label fact it is.
+
+**THE TEXT HALF'S TWO BARS, and why a stray spelling is admitted.**
+The label half must be a VOCABULARY: more than nine tenths of its cells
+wearing a spelling that repeats, and most of its identities repeating.
+Both numbers were moved by review — the first from "more than half" to
+"more than nine tenths", the second from nothing at all — and both were
+measured at the boundary they now stand on.
+
+What is deliberately ADMITTED is a marker family with one stray in it —
+280 readings, nineteen `NOT DETECTED` and one `NOT DETECTD` — **and
+only where the repeating word itself clears the detection line.** That
+condition is review round 4's correction (item 4), and it is there
+because the trade goes both ways:
+
+* **The marker clears the line.** Refusing sends the column to
+  `long_tail_labels`, which at a floor of one publishes **282 levels**:
+  the stray AND all 280 readings, each verbatim. Admitting publishes
+  one cell of text. Admit.
+* **The marker does not clear the line** — 289 readings, TEN
+  `NOT DETECTED` and one narrative. Refusing sends the column to
+  `free_text`, which publishes no cell at all. Admitting publishes the
+  narrative for nothing. Refuse.
+
+Round 3's version admitted both and gave the first measurement as the
+reason; round 4 supplied the second shape, where the same reasoning
+points the other way. The rule now asks the question the measurement
+turns on, and it is a question this rule already asks for its other
+branch. The protection against publishing a group of one remains
+`--smallest-group`, and the owner's ruling of 2026-09-03 on the floor
+is what governs it.
+
+**THE FOUR DISTINCTNESS COUNTS ARE EXACT-OBSERVABLE — under G12.8's
+envelope, exactly as the numeric group's are — and this decision states
+them rather than leaving them to a group's dispatch.** Contract 9.2
+sets `n_distinct` and `n_distinct_folded` "per role group", and the
+joined role's own table set neither — so a blood-pressure column's
+distinctness was reported as `empty.n_distinct` on a shipped surface
+(P4-D29). That defect is not repeated on the fifteenth role.
+
+There are FOUR and not two, and the other two are this landing's own
+correction. A compound column publishes `n_numeric_distinct` and
+`n_numeric_distinct_folded`: the numeric half's own counts of different
+written CELLS. They are published because the generator spends them as
+its budget of different SPELLINGS, and the two counts it had were the
+column's — which count the markers too — and the half's count of
+different NUMBERS, which counts `07` and `7` once between them. A
+budget of numbers cannot buy a second spelling of a number.
+
+**MEASURED, and the first measurement was of one family.** The first
+version of this decision pinned the two counts after four shapes and
+four seeds each — readings that almost never repeat, a numeric half of
+forty values over two hundred and eighty cells, a coarse half of
+twenty-five, and markers differing only in case — and every published
+count was reached exactly. Every one of those shapes wrote each value
+ONE way, where a count of numbers and a count of spellings are the same
+number. Review round 1 of this landing supplied the family they could
+not: 300 cells holding sixty values each written twice, plainly and
+with a leading zero, beside twenty markers. The column publishes 113
+different cells and the twin held 56 at every seed.
+
+With the half's own spelling counts published and spent, the same
+column's twin holds 100 to 102 — and a PLAIN numeric column of the same
+cells holds 108 of 120, so what remains is the numeric machinery's own
+shortfall and not this role's. That is why the envelope belongs here:
+the plain column's shortfall falls to G12.8 and is reported as an
+authorized deviation, and this role's identical shortfall was reported
+as a MISS until the same envelope reached it.
+
+**THE BAR, in the numeric group's own words.** All four counts are
+EXACT-OBSERVABLE against the twin's own recount, with the description's
+published spellings deciding what is reachable and falling back to the
+two-sided envelope only where even those cannot supply the count. The
+exact comparison is tried FIRST on every file: a corner authorizes a
+lesser outcome and never imposes one.
 
 ## Decision P4-D24 — the two shapes the joined role could not read (2026-08-26)
 

@@ -686,6 +686,42 @@ def test_every_authorization_quotes_the_plan() -> None:
     assert seen >= 4, seen
 
 
+def test_no_two_decisions_of_the_plan_share_an_identifier() -> None:
+    """One number, one decision, in the document that governs.
+
+    REVIEW ROUND 4 OF LANDING L8, item 5. Two decisions were numbered
+    P4-D32 -- the empty-bin ruling and the compound role's disposition
+    settlement -- so a citation of "plan P4-D32" in a comment, a
+    contract row or a registry region had TWO targets, and a reader
+    following one could land on the other. The registry's own region
+    table matched on the whole heading and so stayed green.
+
+    Every decision and every amendment heading of the ratified plan is
+    read here and its identifier must occur once.
+    """
+    text = PLAN4.read_text(encoding="utf-8")
+    seen: "dict[str, list[str]]" = {}
+    for line in text.split("\n"):
+        found = re.match(
+            r"^#{2,3} (Decision|Amendment) ((?:A-)?P4-[A-Z]?\d+(?:\.\d+)?)",
+            line,
+        )
+        if found is None:
+            continue
+        name = found.group(2)
+        seen.setdefault(name, [])
+        seen[name] = seen[name] + [line[:90]]
+    twice = sorted(name for name in seen if len(seen[name]) > 1)
+    assert not twice, (
+        "these identifiers head more than one passage of the ratified "
+        "plan, so a citation of one of them names two things:\n  "
+        + "\n  ".join(
+            f"{name}: " + " | ".join(seen[name]) for name in twice
+        )
+    )
+    assert len(seen) >= 20, len(seen)
+
+
 def test_every_authorization_binds_a_fact_a_region_and_a_class() -> None:
     """The vacuity floor for the binding, and the inventory behind it.
 
@@ -1579,6 +1615,8 @@ def battery(
     joined.mkdir()
     vast = folder / "vast"
     vast.mkdir()
+    both = folder / "both"
+    both.mkdir()
     return [
         (
             "every role",
@@ -1597,6 +1635,22 @@ def battery(
             _described(
                 joined,
                 fixtures.joined_numbers_table(),
+                measured=["reading"],
+            ),
+        ),
+        (
+            # THE FIFTEENTH ROLE, brought here by landing L8 for the
+            # same reason the joined one was brought by P4-A2-R2-F1:
+            # this battery promises that every exact fact a generator
+            # misses is reviewed against the registry, and a role no
+            # description here carries is a role whose misses nothing
+            # reviews. The reach check asks for a SUBSET of
+            # `ROLE_GROUPS`, so registering the compound group alone
+            # would have left it green while unexercised.
+            "numbers beside labels",
+            _described(
+                both,
+                fixtures.numbers_with_labels_table(),
                 measured=["reading"],
             ),
         ),
@@ -2322,7 +2376,11 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
     # R-P4-62): seven of its facts are exactly observable, and until
     # that landing this file registered none of them, so the role that
     # carries a blood pressure was bound by nothing here.
-    assert len({fact.group for fact in exact}) == 12
+    # THIRTEEN since the COMPOUND role landed (residual R-P4-13): the
+    # two counts of its split are exactly observable and are its own,
+    # every other fact such a column publishes being a numeric or label
+    # fact registered under the group whose block carries it.
+    assert len({fact.group for fact in exact}) == 13
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a

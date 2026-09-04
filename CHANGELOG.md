@@ -6,6 +6,42 @@ exists).
 
 ## [Unreleased]
 
+### Added: a lab column of readings and markers is now described as both
+
+- **A column that holds numbers AND words -- `4.2`, `7.8`,
+  `NOT DETECTED` -- is no longer read as words alone** (closing
+  residual R-P4-13). Until now a lab result with even a handful of
+  `NOT DETECTED` cells fell to the free-text role or the long-tail
+  role: the readings were counted but never described, so the twin
+  carried no range, no middle, no ladder for them, and analysis code
+  written against the twin met a column of text where the real one
+  held a quantity.
+
+- **The description now states both halves and the split between
+  them.** A compound column publishes how many cells read as numbers
+  and how many do not, and then a full quantitative description of the
+  numeric half beside a full label description of the other -- the same
+  two blocks the numeric and label roles have always written, each read
+  over its own cells. The two counts add up to the number of present
+  cells, so the description never speaks about part of a column
+  without saying what the rest is.
+
+- **The twin holds both.** Measured on a three-hundred-row column of
+  295 readings and 5 markers: the twin writes 295 cells across the
+  real range and 5 marker cells, and re-describing the twin re-detects
+  the role with the same split. The count of different cells was
+  measured on four shapes and four seeds each -- readings that almost
+  never repeat, a numeric half of forty values over 280 cells, a coarse
+  half of twenty-five, and markers differing only in case -- and was
+  reached exactly every time.
+
+- **A column of free comments is still free text, and a code column is
+  still codes.** The rule asks whether the numeric half is a real
+  quantity rather than a set of codes, and whether the words repeat
+  like a vocabulary rather than reading like prose; a column that fails
+  either question keeps the role it had. No column that already read
+  well moved.
+
 ### Fixed: your twin no longer puts values where your column had none
 
 - **A column with two clusters and a gap between them now gets a twin

@@ -1262,8 +1262,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 51 forms and 86 argument positions.
-Of those, 73 are whole numbers, 4 are package words, 4 are nested
+**The census.** The table holds 53 forms and 94 argument positions.
+Of those, 81 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1330,6 +1330,29 @@ followed (review round 2 finding 15). They are one sentence again.
 > long they are, how often they repeat, and what synthtwin decided
 > about them
 
+**NF52. `evidence_numbers_with_labels`** — arity 4. Argument 1: how
+many present cells read as ordinary numbers. Argument 2: how many do
+not. Argument 3: the detection line the words are measured against,
+which is the recorded floor or eleven, whichever is larger. Argument
+4: rows. The sentence is the evidence for the `numbers_with_labels`
+role of section 6.16 **on the ground that one of its words REPEATS
+enough to be published**: the numbers are too few a share to read the
+whole column as a quantity, the cells that are not numbers hold at
+least one value shared by that many rows or more, and so each half is
+described in its own terms.
+
+**NF53. `evidence_numbers_with_a_few_labels`** — arity 4. Argument 1:
+how many present cells read as ordinary numbers. Argument 2: how many
+do not. Argument 3: how many DIFFERENT values those cells hold between
+them. Argument 4: rows. The same role on its OTHER ground: 5.2's rule
+admits a label half whose words are a SMALL SET however few rows each
+covers, and a column of 295 readings beside five `NOT DETECTED` is
+admitted by that ground and by no other. **NF52 was the only sentence
+until 2026-09-03**, so such a column was published saying that one of
+its values is shared by eleven rows or more when none is. One rule with
+two grounds needs two sentences, and each column carries the one that
+admitted it.
+
 **NF49. `histogram_publishes_no_shape`** — arity 0.
 
 > the shape of this column's numbers is not published: the values
@@ -1340,9 +1363,13 @@ followed (review round 2 finding 15). They are one sentence again.
 
 ---
 
-##### B. The detection-evidence forms (fourteen forms)
+##### B. The detection-evidence forms (fifteen forms)
 
-**Its members are NF7 through NF16, and NF45 through NF48.** The second
+**Its members are NF7 through NF16, NF45 through NF48, NF52 and
+NF53.** NF53 was defined and emitted for a landing before this
+membership statement named it, so a consumer following the closed list
+would have read a valid producer sentence as outside the family
+(review round 4 of landing L8, item 6). The second
 group arrived with the four roles Phase 4 added and is written at the
 foot of this section rather than among the first ten, because a form
 number is an IDENTIFIER and not a position: renumbering twenty-eight
@@ -2363,7 +2390,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 51 in section 4.5.1 |
+| NG14 | the form is one of the 53 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -2431,8 +2458,8 @@ guess is what fails silently.
 |---|---|---|---|---|
 | `name` | string | non-empty after trimming | the column's name | EXACT-OBSERVABLE when a header is written, else EXACT-CONTROL |
 | `position` | integer | `1 .. n_columns` | the column's one-based place in the schema | EXACT-CONTROL |
-| `role` | string | one of the fourteen role names fixed by the table in section 5.2 | the type path the taxonomy chose | EXACT-CONTROL |
-| `statistical_type` | string | one of the fourteen statistical types fixed by the table in section 5.2 | the shape of the column's values | EXACT-CONTROL |
+| `role` | string | one of the fifteen role names fixed by the table in section 5.2 | the type path the taxonomy chose | EXACT-CONTROL |
+| `statistical_type` | string | one of the fifteen statistical types fixed by the table in section 5.2 | the shape of the column's values | EXACT-CONTROL |
 | `quality_state` | string | `ok`, `empty`, `unrepresentable` | whether the column has usable values at all | EXACT-CONTROL |
 | `structural_role` | string | `data`, `identifier` | whether the column was declared to hold record numbers or codes | EXACT-CONTROL |
 | `n_present` | integer ≥ 0 | ≤ `n_rows` | how many cells hold a value | EXACT-OBSERVABLE |
@@ -2463,7 +2490,7 @@ section 5.2 binds each of them and neither can drift: invariant A4
 admits no `quality_state` but the three the table's third column
 carries, and invariant A1 with the declaration rule fixes
 `structural_role` at exactly `data` and `identifier`. Section 5.2 names
-the fourteen roles a second time, as the order its rules are tested in;
+the fifteen roles a second time, as the order its rules are tested in;
 invariant A5 requires the table to be total over the vocabulary, so a
 name in one list and not the other is a defect that invariant names.
 
@@ -2494,7 +2521,7 @@ Three axes stand beside `role` in every column block:
 `statistical_type`, `quality_state` and `structural_role`. **The
 generator dispatches on the axes, never on `role`** (plan P2-D3). The
 first two are derived by the fixed rule in the table below, which is
-total over the fourteen roles and admits no other combination. The
+total over the fifteen roles and admits no other combination. The
 third is derived by the declaration rule stated after it.
 
 | `role` | `statistical_type` | `quality_state` |
@@ -2513,10 +2540,11 @@ third is derived by the declaration rule stated after it.
 | `affixed_number` | `affixed_number` | `ok` |
 | `long_tail_labels` | `long_tail_labels` | `ok` |
 | `joined_numbers` | `joined_numbers` | `ok` |
+| `numbers_with_labels` | `numbers_with_labels` | `ok` |
 
-**Fourteen rows, fourteen statistical types, one row each.** The table
+**Fifteen rows, fifteen statistical types, one row each.** The table
 is a bijection: no two roles answer the same `statistical_type`, and
-every one of the fourteen types is reached by exactly one role. The
+every one of the fifteen types is reached by exactly one role. The
 row order above is presentational; what is normative is the set of
 rows, and invariant A4 is what a loader enforces against it.
 
@@ -2563,7 +2591,7 @@ declared one.
 `statistical_type` is `code` or `unknown`, and `role` is `identifier`
 or `empty`.
 
-**A2 and A3 stay narrow across all fourteen roles, and here is why they
+**A2 and A3 stay narrow across all fifteen roles, and here is why they
 are still total.** Both quantify over the types `code` and `unknown`
 and the roles `identifier` and `empty`, and the three roles this
 version adds widen neither set: the declaration is decided at rule 2 of
@@ -2579,7 +2607,7 @@ naming the column and the three values, because a combination outside
 the table is a document whose axes and role disagree, and the generator
 dispatches on the axes.
 
-**Invariant A5.** The table above is total over the fourteen roles:
+**Invariant A5.** The table above is total over the fifteen roles:
 every role of the vocabulary has a row, and no role has two. An axis a
 column sometimes lacks is an axis nobody can dispatch on.
 
@@ -2593,7 +2621,7 @@ comparisons.
 
 #### The rule order: which role claims a column
 
-**C6-1.** The role vocabulary has fourteen members. Which one a column
+**C6-1.** The role vocabulary has fifteen members. Which one a column
 takes is decided by testing these rules in order, first match wins:
 
 1. `empty`;
@@ -2910,15 +2938,16 @@ implementation. `date_percentiles` rungs are never null.
 
 ## 6. The roles, one section each
 
-There are **fourteen** roles. In the order section 5.2's rules test
+There are **fifteen** roles. In the order section 5.2's rules test
 them, they are `empty`, `identifier`, `numeric_unrepresentable`,
 `constant`, `binary`, `datetime`, `count`, `continuous`,
 `categorical`, `time_of_day`, `affixed_number`, `long_tail_labels`,
-`joined_numbers`, `free_text` — fourteen roles in thirteen rules,
+`joined_numbers`, `numbers_with_labels`, `free_text` — fifteen roles
+in fourteen rules,
 because `count` and `continuous` are decided by one rule that then
 chooses between the two. `joined_numbers`, like `identifier`, is
 reached only where the person declared the column and never from the
-values (section 6.15). This is the same fourteen the axis table of section 5.2 carries,
+values (section 6.15). This is the same fifteen the axis table of section 5.2 carries,
 and invariant A5 requires the two to name the same roles.
 
 **This section does not fix the ORDER the rules are tested in.** That
@@ -4423,7 +4452,7 @@ takes an argument that any value of the table could fill.
 
 **C6-50.** A role publishes through one channel, and the channel —
 not the branch that happened to build the block — decides what may
-appear in the output. Every one of the fourteen roles sits in exactly
+appear in the output. Every one of the fifteen roles sits in exactly
 one row of the table below:
 
 | class | roles | what the class means |
@@ -4434,7 +4463,7 @@ one row of the table below:
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
 The three value-publishing classes carry exactly twelve of the
-fourteen roles, each in exactly one row. Membership is a property of
+fifteen roles, each in exactly one row. Membership is a property of
 the whole block, on the same reasoning C6-49 gives: a class stated
 per field is a class the next field escapes.
 
@@ -4476,7 +4505,7 @@ and the column publishes that word with the count 11, which the twin
 then writes in all eleven rows under C6-115.
 
 **Why this is stated at length rather than assumed.** Reading the
-class table as a three-way partition of all fourteen roles puts
+class table as a three-way partition of all fifteen roles puts
 `empty` in the nothing class, and the reasoning that gets there is
 sound-sounding: a column with no values discloses none. The
 conclusion breaks a shipped fact. `ROLES_PUBLISHING_LABELS`,
@@ -4523,7 +4552,7 @@ arriving outside the override, and it costs nothing while A3 holds.
 role-specific — is FORBIDDEN on that role**, and a loader refuses an
 unknown key naming both the key and the column. "Forbidden" is the
 half of a contract a loader can only enforce if it is written down,
-so it is written down here, once, in one place, for all fourteen
+so it is written down here, once, in one place, for all fifteen
 roles.
 
 The listing for a role is the twenty-two universal keys of section
@@ -4536,7 +4565,7 @@ is FORBIDDEN in the sense section 2.1 fixes: the key is absent from
 every block of that role, and a loader refuses a document carrying
 it.
 
-The fourteen columns, abbreviated for width: `emp` `empty`, `unr`
+The fifteen columns, abbreviated for width: `emp` `empty`, `unr`
 `numeric_unrepresentable`, `con` `constant`, `bin` `binary`, `cat`
 `categorical`, `ltl` `long_tail_labels`, `dtm` `datetime`, `tod`
 `time_of_day`, `cnt` `count`, `ctn` `continuous`, `afx`
@@ -5665,6 +5694,126 @@ column's do, so fewer different pairs can be made from them. Where the
 count of different cells falls short the twin REPORTS it. Residual
 R-P4-40 records the cause and the fix, which is a description change
 and not a generation one.
+
+### 6.16 `numbers_with_labels`
+
+**What the role is.** A column whose cells hold NUMBERS and WORDS in
+one cell space: the long-format panel export, where `7.2` sits beside
+`POSITIVE`, or a result column of readings beside `NOT DETECTED`.
+Both populations are described, each in its own terms.
+
+**Why the role exists, measured.** Such a column declined to
+`long_tail_labels` before, and that decline is wrong in both
+directions. On a 300-row column of 222 readings beside two markers: at
+a floor of one every reading clears the line and is published as its
+own LEVEL — 177 of them — so the description carries the readings
+themselves; at a floor of eleven the levels fall to two and the twin
+holds NO numeric cell at all. The protective setting destroys the
+numeric population and the permissive one carries it verbatim.
+Neither DESCRIBES it.
+
+**The six keys.**
+
+| key | type | what it holds |
+|---|---|---|
+| `n_numeric_cells` | count | present cells that read as ordinary numbers |
+| `n_label_cells` | count | every other present cell |
+| `n_numeric_distinct` | count | how many DIFFERENT written cells the numeric half holds |
+| `n_numeric_distinct_folded` | count | the same over the folded identities |
+| `numbers` | object | a quantitative block over the numeric cells, carrying what one position of a `joined_numbers` column carries |
+| `labels` | object | a label block over the rest, carrying what a label-publishing column carries, plus `n_present` and `n_distinct_folded` of its own half |
+
+**Invariant NL1.** `n_numeric_cells + n_label_cells == n_present`.
+Every present cell is in exactly one of the two published populations
+and none is in two. This is the whole answer to review item P1-R6-F7,
+which deleted a rule that published a distribution over one population
+and said nothing about the other: a reader checks the arithmetic
+rather than trusting the prose.
+
+**Invariant NL2.** The `labels` block carries its OWN `n_present`,
+`n_distinct` and `n_distinct_folded`, and B2 is stated over those. The column's own
+counts include the numbers, so a reader checking the label half
+against them would be checking the wrong sum.
+
+**Invariant NL4.** Both counts of the split are at least 1. A column
+of this role holds BOTH populations; a description with an empty half
+describes some other kind of column, and the loader refuses it rather
+than reading a plain numeric description as this role.
+
+**Invariant NL3.** `n_numeric_distinct_folded <= n_numeric_distinct <=
+n_numeric_cells`, and `n_numeric_distinct <= n_distinct`. The four
+counts of different cells are ONE arithmetic and each of these holds
+as well: `numbers.n_distinct_values <= n_numeric_distinct_folded`,
+because two different numbers are never written the same way;
+`n_numeric_distinct_folded + labels.n_distinct_folded ==
+n_distinct_folded`, because the two halves hold no spelling in common —
+a cell that reads as a number is in the numeric half by the rule that
+made the column; and `n_numeric_distinct + labels.n_distinct == n_distinct`, because the
+two halves share no spelling and nothing else can add one. Four bounds
+that each held separately admitted a set of counts no file can meet: a
+half of ninety-seven different numeric cells published as one. These are the
+NUMERIC half's counts of different written cells, and they are
+published because the twin is laid out from them: they are the budget
+of different SPELLINGS the numeric half may write. The block's own
+`n_distinct_values` will not serve, because that counts different
+NUMBERS and `07` and `7` are one number written two ways; the column's
+own `n_distinct` will not serve either, because it counts the labels
+too. Measured before it was published: without them, a column of 300
+cells holding sixty values written two ways beside twenty markers
+published 113 different cells and its twin held 56 at every seed.
+
+**A DECLARED DECIMAL COMMA REACHES THIS ROLE'S NUMERIC HALF** (plan
+P4-D34). Both halves are read under the declaration the column was
+described with, the twin spells the half's numbers with a comma, and
+the validator reads them back that way. The LABEL half is never
+translated: both sides translate a cell of this role only where the
+translation makes it a number, so a marker spelled `E11.9` keeps its
+dot. Before this the profiler split the cells under the comma grammar
+and then re-read the halves without it, which left an empty numeric
+half and ended the run in an internal error.
+
+**What the two halves are read by.** The same readers that read those
+blocks anywhere else — the quantitative reader over the numeric cells,
+and a label reader over the rest. The label half is NOT read by the
+constant-and-binary reader, which demands one value or two, nor by the
+long-tail reader, which demands a level covering the detection line
+and a count above the categorical ceiling: this half is neither of
+those columns, and the rule that gave the role has already decided
+what it is.
+
+**What the role does not claim.** A column whose numbers are a CODE
+SET rather than a quantity — `1`, `2`, `3` on thirty rows each — is a
+set of categories and is described as one. A column whose words are
+PROSE rather than labels stays free text. Neither is decided by this
+document; section 5.2's rules decide, and this section describes what
+is published once they have.
+
+**AND A LONE UNREPEATED SPELLING IN THE LABEL HALF IS PUBLISHED, at a
+floor of one, exactly as it is on every label role at that floor.** The
+rule asks the label half to be a vocabulary — more than nine tenths of
+its cells wearing a spelling that repeats, and most of its identities
+repeating — so a half of prose is refused. A half of markers with ONE
+stray in it is admitted, and at a floor of one that stray is a level
+with the count 1. Refusing it instead is worse and was measured: the
+same column read without this rule is `long_tail_labels` and publishes
+**282 levels** — the stray AND all 280 readings, each verbatim. The
+protection against publishing a group of one is `--smallest-group`,
+which is what it is for.
+
+**AND THE CODE-SET TEST IS A COUNT, so it has a boundary and the
+boundary is stated rather than left to be met.** The rule asks whether
+the numeric half holds more different values than a set of categories
+may — a share of the half's own cells — and near that line a code set
+and a measurement are indistinguishable to any count. Measured: twelve
+month codes on nine rows each beside twelve `unknown` cells takes this
+role, because twelve values in a hundred and eight numeric cells is
+above a ten-value ceiling, while the same twelve values in a
+hundred-and-twenty-cell column would have been a set of categories. The
+rule cannot tell a twelve-point code from a twelve-point measurement
+and neither can any other count; `--code` is how a person says which it
+is, and residual R-P4-150 carries the boundary.
+
+---
 
 ---
 
@@ -7053,8 +7202,8 @@ and it names seven: `missing_by_class`, `utc_offsets`,
 | A1 | `structural_role == "identifier"` if and only if `name` appears in `settings.forced_identifiers` | yes |
 | A2 | `statistical_type == "code"` implies `structural_role == "identifier"`: there is no route to the `identifier` role but the declaration | yes |
 | A3 | `structural_role == "identifier"` implies `statistical_type` is `code` or `unknown`, and `role` is `identifier` or `empty` | yes |
-| A4 | the triple (`role`, `statistical_type`, `quality_state`) is exactly one row of 5.2's fourteen-row table; refused rather than repaired, naming the column and its three values | yes |
-| A5 | that table is total over the fourteen roles: every role of the vocabulary has a row, and no role has two | contract |
+| A4 | the triple (`role`, `statistical_type`, `quality_state`) is exactly one row of 5.2's fifteen-row table; refused rather than repaired, naming the column and its three values | yes |
+| A5 | that table is total over the fifteen roles: every role of the vocabulary has a row, and no role has two | contract |
 
 ### 8.6 The label roles — B, and the six that restrict them
 
@@ -7314,7 +7463,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 51 the note grammar enumerates |
+| NG14 | for every form: one of the 53 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7356,7 +7505,7 @@ Taken from plan section P2-D6. Every published fact carries exactly
 ONE of the six dispositions section 2.2 fixes, and this section says
 which, fact by fact, and what each promises about the twin. A
 completeness assertion enumerates every key the producer emits for
-every one of the fourteen roles, plus every top-level key, and FAILS
+every one of the fifteen roles, plus every top-level key, and FAILS
 when any key has no disposition here. It must pass against this matrix
 as written; it may not acquire exceptions during implementation.
 
@@ -7551,7 +7700,7 @@ now a bare delegation.
 
 ### 9.4a The joined role: `joined_numbers`
 
-**Section 9 asserted completeness over all fourteen roles and had no
+**Section 9 asserted completeness over all fifteen roles and had no
 table for this one.** The role landed with plan P4-D21 and its pairing
 facts with P4-D23; eight published facts stood with no disposition at
 all, so an institutional reader following the promised exhaustive
@@ -7587,6 +7736,50 @@ each position is drawn to its own published ladder, that draw repeats a
 value more evenly than the real column did, and fewer different pairs
 can be made from values that repeat more. Residual R-P4-40 prices it
 and names the description change that would close it.
+
+### 9.4b The compound role: `numbers_with_labels`
+
+**The fifteenth role, landed with residual R-P4-13 on 2026-09-03.** A
+column of this role holds a quantity and a vocabulary at once — a lab
+result beside `NOT DETECTED`, a dose beside `PRN` — and publishes a
+count of each half followed by two sub-blocks. Only the two counts are
+this role's own facts. Each sub-block is the block another group
+already disposes, read over its own half of the column, and takes that
+group's dispositions (plan P4-D33).
+
+| field | disposition |
+|---|---|
+| `n_numeric_cells`, `n_label_cells` | EXACT-OBSERVABLE. The two halves of the split, pinned rather than windowed: analysis code filters on them, and they sum to `n_present` by construction, so a window on either would let a description speak about part of a column without saying what the rest is — which review item P1-R6-F7 forbids |
+| `numbers` | STRUCTURAL — the container's own key carries no VALUE obligation, exactly as `parts[]` does on `joined_numbers` and as `length` and `words` do on `free_text`. IT CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, read over the numeric half's cells: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are |
+| `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE, recounted from the written twin, with the description's published spellings deciding what is reachable and falling back to the two-sided envelope of G12.8 only where even those cannot supply the count — the numeric group's own bar, because the half a shortfall comes from is a numeric block. The exact comparison is tried first on every file. They are stated HERE because 9.2 sets them "per role group, in 9.3 to 9.7" and a role whose own table sets neither has them filed under whatever group a validator's dispatch falls through to — the defect residual R-P4-62 found on `joined_numbers`, not repeated here |
+| `n_numeric_distinct`, `n_numeric_distinct_folded` | EXACT-OBSERVABLE under the same envelope. The NUMERIC HALF's own counts of different written CELLS, and the twin is laid out from them: they are the budget of different SPELLINGS the half may write. The block's `n_distinct_values` cannot serve — it counts different NUMBERS, so `07` and `7` are one — and the column's own counts include the labels. Published because a twin built without them held 56 of a published 113 different cells at every seed |
+| `labels` | STRUCTURAL, on the same ground. IT CARRIES A LABEL BLOCK AND TAKES 9.5's DISPOSITIONS, read over the label half's cells: its levels, its held-back counts and its form census are disposed exactly as `categorical` and `long_tail_labels` are. The block is written by this role's own reader rather than by another role's, because neither label role's entry condition is met by a half column — but the FACTS in it are the label group's facts and are held to the label group's classes |
+
+**NL1 and NL2 (section 6.16) are the invariants a reader may rely on**:
+the two counts sum to `n_present`, and each sub-block describes its own
+half and no other cell. A twin that moved a cell from one half to the
+other would keep every interior fact and break both.
+
+**What this role does NOT claim about its own twin.** A column whose
+numeric half holds exactly the detection line's worth of different
+numbers has a twin that may not be read as this role at all: the
+numeric construction reaches about nine tenths of a published count of
+different values, so such a half writes fewer than the line and a
+re-description returns `free_text` or `long_tail_labels`. Measured over
+forty seeds: 31 of 40 keep the role at a floor of one, 13 of 40 at a
+floor of twenty-five, and every seed keeps it two or three values above
+the line. The twin still HOLDS its numbers — both counts of the split
+are met exactly — so what is lost is the re-description and not the
+data. Residual R-P4-151 carries it, with the margin that was built for
+it and taken out again.
+
+**The distinctness counts were MEASURED before they were pinned**, on
+four shapes chosen to break them: readings that almost never repeat, a
+numeric half of forty values over two hundred and eighty cells, a
+coarse half of twenty-five, and a label half whose markers differ only
+in case so the folded count is one below the raw one. Four seeds each.
+Every published count was reached exactly. The pinning rests on that
+rather than on the reasoning above it.
 
 ### 9.5 The label roles: `constant`, `binary`, `categorical`, `long_tail_labels`
 
@@ -8329,7 +8522,7 @@ description without reading the rest of this document.
 about the table has a row in this section, and every other key of this
 format publishes no fact about the table. Completeness is asserted over
 the WHOLE document — every top-level key, every settings key, every
-column block of every one of the fourteen roles, and every sentence
+column block of every one of the fifteen roles, and every sentence
 form of section 4.5 — and not over the facts one version added. A key
 or a sentence argument added to this format that reaches no row here,
 and that is not shown to publish nothing of the table, is a defect in
@@ -8354,7 +8547,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 51 closed forms: 86 argument positions, of which 73 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 53 closed forms: 94 argument positions, of which 81 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -9064,6 +9257,7 @@ authority; the set of rows, not this order, is normative.
 | `affixed_number` | `affixed_number` | `ok` |
 | `long_tail_labels` | `long_tail_labels` | `ok` |
 | `joined_numbers` | `joined_numbers` | `ok` |
+| `numbers_with_labels` | `numbers_with_labels` | `ok` |
 
 Four roles answer something other than their own name — `empty`,
 `numeric_unrepresentable`, `identifier` and `free_text` — and the other
@@ -9267,10 +9461,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 51 forms
+### 14.8 The note grammar — 53 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 86 argument positions: 73 whole numbers, 4 package words, 4
+argument. 94 argument positions: 81 whole numbers, 4 package words, 4
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -9326,6 +9520,8 @@ nested forms, 5 bound affix strings.
 | NG49 | `histogram_publishes_no_shape` | 0 |
 | NG50 | `remark_an_address_is_not_a_quantity` | 0 |
 | NG51 | `remark_whole_numbers_could_be_times` | 7 |
+| NG52 | `evidence_numbers_with_labels` | 4 |
+| NG53 | `evidence_numbers_with_a_few_labels` | 4 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`

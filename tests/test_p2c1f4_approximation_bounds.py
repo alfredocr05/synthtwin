@@ -338,6 +338,18 @@ APPROXIMATED = {
         # Version 4 had no such table, which is why it used to be
         # written out here (residual R-P4-25).
         "time_of_day": "9.6 time_of_day",
+        # The compound role's own table. Its four counts of different
+        # cells are the only rows there that name an approximated
+        # outcome -- each is EXACT-OBSERVABLE and falls to an envelope
+        # where the published spellings cannot settle it -- and its two
+        # halves' interiors are disposed in the numeric and label
+        # sections, where they are read for those roles (contract 9.4b,
+        # plan P4-D33). It was missing while the role shipped, so the
+        # completeness walk below never reached it (review round 4 of
+        # landing L8, item 3).
+        "numbers_with_labels": (
+            "9.4b The compound role: `numbers_with_labels`"
+        ),
     }.items()
 }
 
@@ -464,6 +476,12 @@ ROLE_SECTIONS = {
     # carry a numeric block and take 9.4's dispositions read over that
     # position; the keys below are the role's own.
     "joined_numbers": "9.4a The joined role: `joined_numbers`",
+    # The compound role reads its OWN table, 9.4b. Its two sub-blocks
+    # are containers this walk does not open -- the same treatment
+    # `parts[]` gets one role above -- because the facts inside them
+    # are the numeric and label groups' facts, disposed where those
+    # groups are disposed and checked there.
+    "numbers_with_labels": "9.4b The compound role: `numbers_with_labels`",
 }
 
 
@@ -1119,6 +1137,27 @@ def joined_numbers_document(
 
 
 @pytest.fixture(scope="module")
+def numbers_with_labels_document(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "dict[str, typing.Any]":
+    """A description holding the FIFTEENTH role, for the same reason.
+
+    Residual R-P4-62 taught this walk that a map and a set of fixtures
+    can agree with each other while the contract is never consulted, so
+    a role added to `ROLE_SECTIONS` without a description that reaches
+    it closes the walk on a table it never opened. This role cannot be
+    a column of the shared table either: it needs BOTH populations in
+    one column, and every column there holds one.
+    """
+    folder = tmp_path_factory.mktemp("f4-compound")
+    path = fixtures.write(
+        folder, "compound.csv", fixtures.numbers_with_labels_table()
+    )
+    table = reading.read_table(str(path))
+    return profile.build_document(table, taxonomy.Settings(), [])
+
+
+@pytest.fixture(scope="module")
 def every_role_document(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> "dict[str, typing.Any]":
@@ -1133,6 +1172,7 @@ def test_every_key_the_producer_emits_has_a_disposition(
     every_role_document: "dict[str, typing.Any]",
     wide_numbers: "dict[str, typing.Any]",
     joined_numbers_document: "dict[str, typing.Any]",
+    numbers_with_labels_document: "dict[str, typing.Any]",
 ) -> None:
     """The completeness assertion the plan promised (P2-D12, contract 9).
 
@@ -1153,7 +1193,12 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 names = names + [f"source.{inner}"]
     assert _undisposed(names, top, {}) == []
     reached: set[str] = set()
-    for document in (every_role_document, wide_numbers, joined_numbers_document):
+    for document in (
+        every_role_document,
+        wide_numbers,
+        joined_numbers_document,
+        numbers_with_labels_document,
+    ):
         for block in document["columns"]:
             role = block["role"]
             reached.add(role)

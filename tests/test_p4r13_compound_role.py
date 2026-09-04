@@ -22,11 +22,14 @@ later steps and are NOT yet built -- the register says so, and this
 file will grow with them.
 """
 
+import copy
 import pathlib
 import random
 
+import pytest
+
 import fixtures
-from synthtwin import contract, profile, reading, taxonomy
+from synthtwin import contract, errors, generation, profile, reading, taxonomy
 
 
 def _described(
@@ -386,6 +389,358 @@ def test_the_described_column_survives_the_round_trip(
     assert facts.n_label_cells == block["n_label_cells"]
     assert facts.numbers.mean == block["numbers"]["mean"]
     assert [level.label for level in facts.labels.levels] == ["not detected"]
+
+
+def test_a_value_written_two_ways_keeps_both_ways_in_the_twin(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The half's budget is SPELLINGS, and the first version spent numbers.
+
+    REVIEW ROUND 1 OF THIS LANDING, item 1. The layout that lays out a
+    numeric column spends the column's two counts of different written
+    cells as its budget of different spellings. A compound column had
+    neither: the two it carried were the column's -- which count the
+    markers -- and the half's count of different NUMBERS, which counts
+    `07` and `7` once between them. So the half was told to make sixty
+    spellings where a hundred and twelve were published.
+
+    THE FIRST MEASUREMENT MISSED IT because every shape it used wrote
+    each value one way, and there a count of numbers and a count of
+    spellings are the same number. This column writes each value twice.
+    """
+    values = []
+    for index in range(300):
+        number = 10 + (index % 60)
+        values = values + [
+            f"0{number}" if (index // 60) % 2 else f"{number}"
+        ]
+    for index in range(0, 300, 15):
+        values[index] = "NOT DETECTED"
+    document, block = _described(tmp_path, values, "spelled")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    # The half's own two counts are published, and they are counts of
+    # CELLS: sixty values written two ways is a hundred and twenty
+    # spellings, less the ones the marker rows took away.
+    assert block["n_numeric_distinct"] > block["numbers"]["n_distinct_values"]
+    assert (
+        block["n_numeric_distinct"]
+        <= block["n_numeric_cells"]
+    )
+    assert block["n_numeric_distinct"] <= block["n_distinct"]
+    written = fixtures.write_profile(tmp_path, "spelled-profile.json", document)
+    loaded = contract.load_profile(f"{written}")
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.CompoundFacts)
+    assert facts.n_numeric_distinct == block["n_numeric_distinct"]
+    # AND THE TWIN HOLDS THEM. The number below is not the published
+    # count: a PLAIN numeric column of the same cells reaches 108 of
+    # 120, so the rest is the numeric machinery's own shortfall and not
+    # this role's. What this pins is that the twin is no longer capped
+    # at the count of different NUMBERS, which is what it was.
+    twin = generation.generate(loaded, 7)
+    held = len({row[0] for row in twin.rows})
+    assert held > block["numbers"]["n_distinct_values"] + 20, held
+
+
+def test_neither_half_may_carry_a_key_this_package_does_not_know(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A sub-block is held to its key set, like every other block.
+
+    REVIEW ROUND 1 OF THIS LANDING, item 2. Each half was read by
+    asking for the keys it needed and ignoring the rest, so a
+    description carrying `raw_note: "Jane Doe"` inside either half was
+    ACCEPTED, survived the canonical round trip, and was read by
+    nothing at all. Every position of a joined column is held to
+    `NUMERIC_KEYS`; these two were the exception.
+
+    AND THE LABEL HALF'S OWN CELL COUNT IS THE SPLIT'S (invariant NL2).
+    It was stated in the contract and enforced nowhere: a file could
+    publish twenty label cells and describe a half of nine hundred and
+    ninety-nine, and every fact of that half is stated over the count
+    it carries.
+    """
+    values = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    document, block = _described(tmp_path, values, "keys")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    for half, key, value in (
+        ("labels", "raw_note", "Jane Doe"),
+        ("numbers", "raw_note", "Jane Doe"),
+        ("labels", "n_present", 999),
+    ):
+        spoiled = copy.deepcopy(document)
+        spoiled["columns"][0][half][key] = value
+        written = fixtures.write_profile(
+            tmp_path, f"keys-{half}-{key}-{value}.json", spoiled
+        )
+        with pytest.raises(errors.ProfileError):
+            contract.load_profile(f"{written}")
+
+
+def test_the_four_counts_of_different_cells_are_one_arithmetic(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Four bounds that each hold can still be an impossible set.
+
+    REVIEW ROUND 2 OF THIS LANDING, item 2. Each of the four counts was
+    bounded on its own -- a half cannot hold more different cells than
+    it has cells, folded cannot exceed raw -- and a file publishing
+    ninety-seven different numeric cells in the half and ONE in
+    `n_numeric_distinct` cleared every one of them. The generator
+    writes ninety-seven whatever the budget says, so the description
+    was one no file could ever meet.
+
+    The three that bind them together are checked here: the folded
+    counts of the two halves ADD to the column's, the half's folded
+    count is at least its count of different NUMBERS, and the column's
+    raw count sits between what the halves force and what they allow.
+    """
+    values = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    document, block = _described(tmp_path, values, "arith")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    # The producer's own description satisfies all three.
+    assert (
+        block["n_numeric_distinct_folded"]
+        + block["labels"]["n_distinct_folded"]
+        == block["n_distinct_folded"]
+    )
+    assert (
+        block["numbers"]["n_distinct_values"]
+        <= block["n_numeric_distinct_folded"]
+    )
+    assert (
+        block["n_numeric_distinct"] + block["labels"]["n_distinct_folded"]
+        <= block["n_distinct"]
+        <= block["n_numeric_distinct"] + block["n_label_cells"]
+    )
+    # ...and each of the three refuses a file that breaks it.
+    for spoil, name in (
+        (
+            lambda column: column.update(
+                {"n_numeric_distinct": 1, "n_numeric_distinct_folded": 1}
+            ),
+            "collapsed",
+        ),
+        (
+            lambda column: column.update({"n_numeric_distinct_folded": 1}),
+            "folded-below-values",
+        ),
+        (lambda column: column.update({"n_label_cells": 0}), "no-labels"),
+    ):
+        spoiled = copy.deepcopy(document)
+        spoil(spoiled["columns"][0])
+        written = fixtures.write_profile(
+            tmp_path, f"arith-{name}.json", spoiled
+        )
+        with pytest.raises(errors.ProfileError):
+            contract.load_profile(f"{written}")
+
+
+def test_each_column_carries_the_sentence_that_admitted_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Two grounds, two sentences, and neither is said of the other.
+
+    REVIEW ROUND 2 OF THIS LANDING, item 5 of round 1. Rule 7b admits a
+    label half whose words are a SMALL SET however few rows each
+    covers, OR whose words include one the detection line clears. One
+    sentence claimed the second on every column, so a column of 295
+    readings beside five `NOT DETECTED` was published saying that one
+    of its values is shared by eleven rows or more. None is.
+    """
+    generator = random.Random(11)
+    few = [
+        f"{generator.uniform(0.1, 40.0):.3f}" for _each in range(295)
+    ] + ["NOT DETECTED"] * 5
+    generator.shuffle(few)
+    _document, block = _described(tmp_path, few, "few")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    said = block["detection_evidence"]
+    assert "1 different value(s) between them" in said, said
+    assert "shared by" not in said, said
+    many = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    _document, block = _described(tmp_path, many, "many")
+    said = block["detection_evidence"]
+    assert "shared by 11 rows or more" in said, said
+
+
+def test_the_numeric_half_echoes_its_own_row_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A block that describes a subset echoes the subset's count.
+
+    REVIEW ROUND 1 OF THIS LANDING, item 7. A joined position echoes
+    `n_joined` because that block describes only the cells that split,
+    and holding it to the TABLE's count made the tool write files it
+    then refused to read. This half is the same shape of thing and
+    echoed the table's count; section 6.16 says it carries what a
+    joined position carries, and now it does.
+    """
+    values = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    _document, block = _described(tmp_path, values, "echo")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    assert block["numbers"]["n_rows"] == block["n_numeric_cells"]
+    assert block["numbers"]["n_rows"] != block["n_present"]
+    assert block["labels"]["n_present"] == block["n_label_cells"]
+
+
+def test_the_two_bars_on_the_text_half_are_measured_at_their_boundaries(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Both bars, on the exact shapes review found on the wrong side.
+
+    ROUNDS 1, 2 AND 3 of this landing each moved one of them. The
+    boundaries are pinned here so a later edit cannot quietly move them
+    back:
+
+    * EXACTLY nine tenths of the cells repeating is prose -- 200
+      readings, ninety marker cells and ten one-off notes -- and is
+      refused; ninety-five hundredths, which is a marker family with
+      one MISSPELLED member, is admitted.
+    * A half whose identities are mostly singletons is refused however
+      many cells the big marker covers.
+    """
+    readings = [f"{index}.5" for index in range(200)]
+    markers: "list[str]" = []
+    for index in range(2):
+        markers = markers + [f"MK{index:02d}"] * 9
+    for index in range(9):
+        markers = markers + [f"MZ{index:02d}"] * 8
+    notes = [f"patient note {index}" for index in range(10)]
+    _document, block = _described(
+        tmp_path, readings + markers + notes, "ninetenths"
+    )
+    assert block["role"] != taxonomy.ROLE_COMPOUND, block["role"]
+
+    slip = (
+        [f"{(1 + (index * 37) % 4000) / 100:.2f}" for index in range(280)]
+        + ["NOT DETECTED"] * 19
+        + ["NOT DETECTD"]
+    )
+    _document, block = _described(tmp_path, slip, "slip")
+    assert block["role"] == taxonomy.ROLE_COMPOUND, block["role"]
+
+    prose = (
+        [f"{index}.5" for index in range(800)]
+        + ["NOT DETECTED"] * 100
+        + [f"note number {index} unique text" for index in range(99)]
+    )
+    _document, block = _described(tmp_path, prose, "prose")
+    assert block["role"] != taxonomy.ROLE_COMPOUND, block["role"]
+
+
+def test_a_twin_of_a_column_well_clear_of_the_line_is_the_same_role(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Generate, describe again, and get the same role back.
+
+    REVIEW ROUND 3 OF THIS LANDING, item 4. A column sitting ON the
+    detection line has a twin that often is not this role, because the
+    numeric construction reaches about nine tenths of a published count
+    of different values -- residual R-P4-151 carries the measurement
+    and the margin that was built for it and taken out again. What is
+    pinned here is the other half of that measurement: a column with
+    room above the line comes back as itself at every seed.
+    """
+    values = [
+        "NOT DETECTED" if index % 15 == 7 else f"{(index % 97) + 1}.5"
+        for index in range(300)
+    ]
+    document, block = _described(tmp_path, values, "again")
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    written = fixtures.write_profile(tmp_path, "again-profile.json", document)
+    loaded = contract.load_profile(f"{written}")
+    for seed in (0, 1, 2, 3, 7, 11, 20260904):
+        twin = generation.generate(loaded, seed)
+        cells = [row[0] for row in twin.rows]
+        again, block = _described(tmp_path, cells, f"again-{seed}")
+        assert block["role"] == taxonomy.ROLE_COMPOUND, (seed, block["role"])
+        assert block["n_numeric_cells"] == 280
+        assert block["n_label_cells"] == 20
+
+
+def test_a_declared_decimal_comma_reaches_the_numeric_half(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The whole path, on the column that used to end the run.
+
+    REVIEW ROUND 4 OF THIS LANDING, item 1. A declared column of `1,5`
+    cells beside markers took this role -- the split reads the comma
+    grammar -- and both halves were then re-read WITHOUT the
+    declaration, so the numeric half held no numbers and the percentile
+    walk raised `IndexError`. `synthtwin profile` died on a table a
+    person could really have, and no test reached the combination.
+
+    Both halves are read under the declaration now, the twin spells the
+    numbers with a comma, and the LABEL half is left exactly as
+    published -- a marker holding a dot keeps it, because the comma
+    grammar reads a dot as a thousands mark and would take it out.
+    """
+    values = [f"{index},5" for index in range(1, 281)] + ["E11.9"] * 20
+    table = reading.read_table(
+        f"{fixtures.write(tmp_path, 'comma.csv', fixtures.rows_to_csv(['c'], [[v] for v in values]))}"
+    )
+    document = profile.build_document(
+        table, taxonomy.Settings(), [], [], [], ["c"]
+    )
+    block = document["columns"][0]
+    assert block["role"] == taxonomy.ROLE_COMPOUND
+    assert block["n_numeric_cells"] == 280
+    assert [level["label"] for level in block["labels"]["levels"]] == ["e11.9"]
+    written = fixtures.write_profile(tmp_path, "comma-profile.json", document)
+    loaded = contract.load_profile(f"{written}")
+    twin = generation.generate(loaded, 7)
+    cells = [row[0] for row in twin.rows]
+    numbers = [cell for cell in cells if cell != "E11.9"]
+    assert len(numbers) == 280
+    for cell in numbers:
+        assert "," in cell and "." not in cell, cell
+    assert cells.count("E11.9") == 20
+
+
+def test_the_tie_is_admitted_only_where_its_repeating_word_is_publishable(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One rule, two shapes, and the measurement points both ways.
+
+    REVIEW ROUND 4 OF THIS LANDING, item 4. A label half of two
+    identities where one occurs once is the smallest interesting case,
+    and whether admitting it publishes MORE of a person's text than
+    refusing it depends on what the column would fall to:
+
+    * marker on nineteen rows -- refusing gives `long_tail_labels`,
+      which at a floor of one publishes 282 levels, every reading
+      included. Admit.
+    * marker on ten rows -- refusing gives `free_text`, which publishes
+      no cell at all. Refuse.
+    """
+    admitted = (
+        [f"{index}.1" for index in range(280)]
+        + ["NOT DETECTED"] * 19
+        + ["NOT DETECTD"]
+    )
+    _document, block = _described(tmp_path, admitted, "tie-over")
+    assert block["role"] == taxonomy.ROLE_COMPOUND, block["role"]
+
+    refused = (
+        [f"{index}.5" for index in range(289)]
+        + ["NOT DETECTED"] * 10
+        + ["seen clinic with nurse unchanged"]
+    )
+    _document, block = _described(tmp_path, refused, "tie-under")
+    assert block["role"] == "free_text", block["role"]
 
 
 def test_the_role_is_the_fifteenth_and_names_its_own_shape() -> None:

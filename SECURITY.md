@@ -151,6 +151,18 @@ Stated here so that no reader has to discover them independently:
   what is published rather than what the twin is for. A person whose
   table needs it should raise it.
 
+  **THE SAME RULING COVERS A PERCENTILE LADDER** (owner, 2026-09-03,
+  extending the above). A ladder is made of ORDER STATISTICS: its rungs
+  are values the column really holds. So describing a column's numbers
+  puts some of those numbers into the description verbatim, and that is
+  true of every numeric column this tool has ever described. It became
+  visible on a new one: a column of readings beside a repeated marker
+  used to be described as labels and published none of its readings,
+  and the compound role now describes its numeric half. The reasoning
+  is the reasoning above — a ladder records that the column holds
+  `1.7` and where in its order it sits, not which row holds it and not
+  what that row holds anywhere else.
+
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is
   handed the profile and a seed and nothing else: it reads no source
@@ -376,6 +388,18 @@ Stated here so that no reader has to discover them independently:
   cells stops losing its whole distribution, so the twin of it is a
   column of numbers rather than text. The route for a table where an
   artifact really is data is unchanged: `--keep-value`.
+
+  **AND `--keep-value` NOW COSTS SOMETHING IT DID NOT COST BEFORE, said
+  here rather than left to be discovered** (residual R-P4-148, closed
+  by the owner's ruling of 2026-09-03). A column of readings beside a
+  word you kept as real data used to be described as LABELS: the word
+  was published with its count and not one reading appeared anywhere.
+  The compound role describes such a column as what it is, so its
+  numeric half now carries a mean, a spread and a percentile ladder --
+  and a ladder's rungs are values the column really holds. Nothing
+  about which ROW holds a reading is published, and the ruling above
+  covers the rest; what changed is that this option's page now has a
+  distribution behind it where it used to have none.
 
   **What that gives up, at its size.** A reader of the settings block
   is told which of those twenty-three fixed words were typed, and nothing

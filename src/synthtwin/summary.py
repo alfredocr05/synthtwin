@@ -62,6 +62,15 @@ _ROLES_WITHOUT_VALUES = (
     taxonomy.ROLE_TEXT,
     taxonomy.ROLE_UNREPRESENTABLE,
 )
+# THE ONE ROLE IN TWO LISTS, and it is in both because it publishes
+# both (residual R-P4-13, landing L8). A compound column carries a
+# quantitative block over its numbers AND a label block over its
+# words, so a page that named it under one heading would tell a person
+# half of what leaves their machine. The sentences it draws are read
+# out of its two sub-blocks rather than off the column, which is why
+# it needs its own lines rather than a place in either walk above.
+_ROLES_WITH_BOTH = (taxonomy.ROLE_COMPOUND,)
+
 _ROLES_WITH_RANGES = (
     taxonomy.ROLE_COUNT,
     taxonomy.ROLE_CONTINUOUS,
@@ -1136,6 +1145,19 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             all_invented = all_invented + [name]
         if role in _ROLES_WITH_RANGES:
             with_ranges = with_ranges + [name]
+        # A COMPOUND COLUMN IS IN BOTH LISTS, because it publishes
+        # both: a range over its numbers and levels over its words
+        # (residual R-P4-13, landing L8). Its facts sit one step deeper
+        # than every other role's -- inside `numbers` and `labels` --
+        # so they are read from there, and a page that walked only the
+        # column would have said NOTHING about such a column at all.
+        # It said exactly that until this branch: "No column has labels
+        # visible in the profile", on a table holding one.
+        if role in _ROLES_WITH_BOTH:
+            with_ranges = with_ranges + [name]
+            half = _map_of(column["labels"])
+            if _list_of(half["levels"]):
+                with_labels = with_labels + [name]
         # THE ONE SPELLING A RANGES ROLE PUBLISHES. An affixed column
         # names the piece of text its cells share -- `mg`, `$`, `%` --
         # where enough rows wrote it, and that is text of the table

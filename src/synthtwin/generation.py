@@ -6953,11 +6953,31 @@ def _spelled_with_a_decimal_comma(
         if keep:
             spelled = spelled + [cell]
             continue
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED. The swap
+        # runs over the finished column, and half of this role's cells
+        # are words the description publishes exactly: a marker spelled
+        # `E11.9` would leave as `E11,9`, which is not the spelling the
+        # description carries. Only cells that ARE numbers in the form
+        # the numeric machinery just wrote them in are swapped.
+        if _labels_beside_numbers(column):
+            if parsing.classify_number(cell) != parsing.NUMBER:
+                spelled = spelled + [cell]
+                continue
         swapped = ""
         for letter in cell:
             swapped = swapped + ("," if letter == "." else letter)
         spelled = spelled + [swapped]
     return spelled
+
+
+def _labels_beside_numbers(column: "contract.ColumnBlock") -> bool:
+    """Whether this column holds words beside its numbers.
+
+    Asked where a rule written for a column of numbers meets a column
+    that is half numbers, so the rule can be applied to that half and
+    to nothing else.
+    """
+    return isinstance(column.facts, contract.CompoundFacts)
 
 
 def _absent_cells(
@@ -16387,6 +16407,19 @@ def _plan_column(
             # first, which every position after it needs.
             if place:
                 content = content + max(facts.n_joined - 1, 0)
+    elif isinstance(facts, contract.CompoundFacts):
+        # THE LAYOUT IS THE NUMERIC HALF'S, on the affixed role's
+        # precedent: the numbers are built by the code that builds a
+        # plain numeric column, over a view of their own cells. The
+        # label half consumes no words at all -- everything about it is
+        # fixed by published counts -- so the budget is the numbers'
+        # plus the placement the whole column needs.
+        numbers_view = contract.compound_numbers_view(column)
+        layout, notes, content = _numeric_layout(
+            numbers_view,
+            facts.numbers,
+            facts.numbers.n_distinct_values,
+        )
     elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
         core = _core_view(column)
@@ -16664,6 +16697,43 @@ def _padded_room(
 # -- the run (method G4) ----------------------------------------------
 
 
+def _compound_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a column of numbers beside labels (L8).
+
+    BOTH HALVES ARE BUILT BY THE CODE THAT BUILDS THEIR OWN KIND OF
+    COLUMN, over a view of their own cells: the numbers by G5 and G6
+    exactly as a plain numeric column is built, the words by G8 exactly
+    as a column of labels is. Nothing here draws a value of its own, so
+    a twin's numeric half cannot come to differ from what a numeric
+    column of the same description would hold.
+
+    THE ORDER IS THE NUMBERS AND THEN THE WORDS, fixed, so two
+    implementations build the same list. Which ROW each cell lands on
+    is the arrangement of G4.2, which shuffles the finished list -- the
+    order here is not an order in the twin.
+
+    THE WORDS COST NOTHING. A column of labels consumes no words from
+    the stream: everything about it is fixed by published counts. So
+    the whole budget is the numeric half's, which is what the plan
+    above computed.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        raise _wrong_facts(column.name)
+    numbers_plan = dataclasses.replace(
+        plan, column=contract.compound_numbers_view(column)
+    )
+    made, notes = _numeric_content(numbers_plan, words)
+    labels_plan = dataclasses.replace(
+        plan, column=contract.compound_labels_view(column), layout=None
+    )
+    said, label_notes = _label_content(labels_plan)
+    return made + said, notes + label_notes
+
+
 def _content_of(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -16695,6 +16765,8 @@ def _content_of(
         return _affixed_content(plan, words)
     if kind == "joined_numbers":
         return _joined_content(plan, words)
+    if kind == "numbers_with_labels":
+        return _compound_content(plan, words)
     if kind == "time_of_day":
         return _clock_content(plan, words)
     if kind == "datetime":
@@ -16876,6 +16948,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 _declared_a_decimal_comma(column, profile),
             )
             + _value_count_notes(column, measured)
+            + _half_distinct_notes(column, written)
             + _form_notes(column, written)
             + _level_form_notes(column, written)
             + _class_notes(column, measured)
@@ -17420,6 +17493,12 @@ def _quantitative_facts(
     facts = column.facts
     if isinstance(facts, contract.AffixedFacts):
         return facts.numbers
+    # AND A COMPOUND COLUMN, whose numeric half is a block held by its
+    # own facts in the same way. Every caller of this asks the same
+    # question -- "does this column have numbers to take a census of?"
+    # -- and the answer for this role is yes, over its numeric half.
+    if isinstance(facts, contract.CompoundFacts):
+        return facts.numbers
     if isinstance(facts, contract.NumericFacts):
         return facts
     return None
@@ -17696,6 +17775,116 @@ def _field_notes(
     return notes
 
 
+def _half_distinct_notes(
+    column: "contract.ColumnBlock", written: "list[str]"
+) -> "list[Deviation]":
+    """The numeric half's two counts of different cells, recounted.
+
+    REVIEW ROUND 2 OF LANDING L8, ITEM 6. The two counts landed as
+    published facts and as the budget the half is laid out from, and no
+    recount in this report reached them: `_recount_notes` answers for
+    the WHOLE column and `_value_count_notes` for different NUMBERS, so
+    a twin whose half fell short of its own spelling count said so
+    nowhere. The validator names the shortfall; the twin's own report
+    is where a person reads it, and it was silent.
+
+    Counted off the finished cells with the same reader the census used
+    and over the same population the split defines, so what is compared
+    is the file a person opens.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        return []
+    holes = _hole_spellings(column)
+    raw: "dict[str, int]" = {}
+    folded: "dict[str, int]" = {}
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            continue
+        raw[cell] = 1
+        folded[parsing.folded(parsing.trimmed(cell))] = 1
+    # AND THE LABEL HALF'S TWO, on the same terms. Its shortfall is a
+    # different thing from the numeric half's -- the label
+    # construction writes made-up neutral spellings where the floor
+    # held a level back, and those can collide -- and it was reported
+    # nowhere: a twin publishing three different label cells and
+    # writing two said so on the validator's page and not on its own
+    # (review round 4 of this landing, item 3).
+    label_raw: "dict[str, int]" = {}
+    label_folded: "dict[str, int]" = {}
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) == parsing.NUMBER:
+            continue
+        label_raw[cell] = 1
+        label_folded[parsing.folded(parsing.trimmed(cell))] = 1
+    notes: "list[Deviation]" = []
+    for name, published, counted in (
+        ("n_numeric_distinct", facts.n_numeric_distinct, len(raw)),
+        (
+            "n_numeric_distinct_folded",
+            facts.n_numeric_distinct_folded,
+            len(folded),
+        ),
+        (
+            "labels -> n_distinct",
+            facts.n_label_distinct,
+            len(label_raw),
+        ),
+        (
+            "labels -> n_distinct_folded",
+            facts.n_label_distinct_folded,
+            len(label_folded),
+        ),
+    ):
+        if counted == published:
+            continue
+        half = "numbers"
+        if name[:6] == "labels":
+            half = "words"
+        reason = (
+            f"The {half} in this twin are written in fewer different "
+            "ways than the description records, because the ways of "
+            "writing a value that the description allows could not "
+            "supply that many."
+        )
+        if counted > published:
+            reason = (
+                f"The {half} in this twin are written in MORE different "
+                "ways than the description records. Code that groups "
+                "rows by this column, or that removes duplicates, sees "
+                f"more groups among the {half} here than it will on "
+                "your table."
+            )
+        notes = notes + [
+            _deviation(column.name, name, f"{published}", f"{counted}", reason)
+        ]
+    return notes
+
+
+def _label_half_of(
+    column: "contract.ColumnBlock", written: "list[str]"
+) -> "tuple[contract.ColumnBlock, list[str]] | None":
+    """A compound column's LABEL half, as a column and its own cells.
+
+    None for every other role, so a caller can ask without first
+    working out which kind it holds. The cells are the written ones the
+    role's own split rule puts in that half, so a census stated over
+    the half is recounted over the half.
+
+    IT IS THE VIEW `contract` HOLDS, the one the generator built the
+    half from and the validator checks it against, so a recount cannot
+    come to disagree with the construction about what the half is.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        return None
+    mine: "list[str]" = []
+    for cell in written:
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            mine = mine + [cell]
+    return (contract.compound_labels_view(column), mine)
+
+
 def _form_notes(
     column: contract.ColumnBlock, written: "list[str]"
 ) -> "list[Deviation]":
@@ -17720,6 +17909,15 @@ def _form_notes(
     THIS IS A RECOUNT, taken off the finished text with the same reader
     the census itself used.
     """
+    # THE COMPOUND ROLE'S LABEL HALF CARRIES THIS CENSUS TOO, and this
+    # function read the OUTER facts alone -- so a compound twin whose
+    # label half could not pay a published form said nothing at all
+    # about it (review round 2 of this landing, item 5). The half is
+    # handed over as the column it is, with the cells the split puts in
+    # it, and the whole body below then runs unchanged.
+    half = _label_half_of(column, written)
+    if half is not None:
+        return _form_notes(half[0], half[1])
     facts = column.facts
     census: "dict[str, int]" = {}
     if isinstance(facts, contract.LabelFacts):
@@ -17810,6 +18008,11 @@ def _level_form_notes(
     levels the floor held back, none of which any level's own number
     can see.
     """
+    # ...AND THE SAME FOR THE PER-LEVEL HALF OF THE CENSUS, on the same
+    # terms and for the same reason.
+    half = _label_half_of(column, written)
+    if half is not None:
+        return _level_form_notes(half[0], half[1])
     facts = column.facts
     if not isinstance(facts, contract.LabelFacts):
         return []
@@ -20187,6 +20390,42 @@ def _approximations(
         # into exactly the published pieces AND every piece reads as a
         # number, and the agreement is measured against G12.9's window.
         return _joined_approximations(column, facts, plan, written)
+    if isinstance(facts, contract.CompoundFacts):
+        # THE SAME OMISSION, A THIRD TIME (review round 1 of landing
+        # L8, item 3). It was found on the affixed role, repaired,
+        # not carried across to the joined role, found again as
+        # residual R-P4-44 -- and this role landed with the same
+        # silence: a compound twin's report said it gave nothing up
+        # while its numeric half's ladder and moments are approximated
+        # by construction.
+        #
+        # Measured over the numeric cells the twin actually wrote, by
+        # the role's own split rule, and handed to the same function a
+        # plain numeric column goes through over the same view the
+        # generator built the half from. The label half publishes no
+        # approximated fact.
+        numeric: list[str] = []
+        for cell in written:
+            if parsing.classify_number(cell) == parsing.NUMBER:
+                numeric = numeric + [cell]
+        return _numeric_approximations(
+            contract.compound_numbers_view(column),
+            facts.numbers,
+            plan,
+            numeric,
+            subject="the numbers in this column",
+            # THE HALF'S DISTINCTNESS IS NOT PRINTED UNDER THE COLUMN'S
+            # NAME, which is the fault that withdrew the joined role's
+            # first report and which this repeated (review round 4 of
+            # this landing, item 3). The view carries the HALF's counts
+            # so the numeric rules have something to work with, and
+            # `_numeric_cardinalities` would print them as `n_distinct`
+            # -- the same identifier the whole column's count is
+            # reported under, on the same page, with a different
+            # number. `_half_distinct_notes` reports the half's two
+            # under their own names.
+            cardinalities=False,
+        )
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):

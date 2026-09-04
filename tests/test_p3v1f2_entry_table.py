@@ -473,6 +473,16 @@ def runs(
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
+        # THE FIFTEENTH ROLE, on the same precedent and for the same
+        # reason: a compound column needs BOTH populations in one
+        # column and every column of the shared table holds one, so no
+        # perturbation of that table could turn a compound check red.
+        (
+            "compound",
+            fixtures.numbers_with_labels_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
         (
             "pooled",
             _pooled_styles_table(),
@@ -1766,6 +1776,16 @@ CLASS_PRECISION = "precision"
 NUMERIC_ROLES = ("count", "continuous", "affixed_number")
 LABEL_ROLES = ("categorical", "binary", "constant")
 
+# The roles whose columns carry a POPULATION OF NUMBERS, which is what
+# the numeric families of perturbation below are edits of. It is wider
+# than `NUMERIC_ROLES` by the compound role: half of such a column is a
+# quantity, described by the numeric block and checked by the numeric
+# checks, so the edits that make a mean or a ladder or a style census
+# miss are exactly the edits that make them miss here. Without this the
+# fifteenth role reached the battery with twenty-three of its sites
+# covered by no red case at all -- every fact of its numeric half.
+ROLES_WITH_NUMBERS = NUMERIC_ROLES + ("numbers_with_labels",)
+
 # What one written cell can be made into, and the name each edit goes
 # under. Every one of them is applied to a cell that HAS a value and to
 # a cell that has none, on every column of every fixture, because which
@@ -1980,6 +2000,59 @@ def _pair_perturbations(
     return built
 
 
+def _numeric_half(
+    described: contract.Profile, text: str, index: int, how: str
+) -> str:
+    """One compound column's NUMBERS rewritten, its labels left alone.
+
+    THE EDIT THE GENERIC FAMILIES CANNOT MAKE. Every numeric
+    perturbation above rewrites a column's cells whole -- and on a
+    column of numbers beside labels that takes the labels away, so the
+    file stops being compound, the gate closes and every site of the
+    numeric half reports WITHHELD instead of MISSED. Measured: eight
+    edits, six withheld and none red, and four sites of the half had no
+    red case at all.
+
+    So the edit is made where the half is: a cell that reads as a
+    number is rewritten, a cell that does not is left exactly as it
+    was, and the column keeps its role while its numbers change.
+
+    * `whole` rounds each number to a whole one, which is the only edit
+      that moves `integer_valued` on this role.
+    * `vast` spreads them across a band no double can hold the spread
+      OF, which is what `std_unrepresentable` answers for.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    step = 0
+    for row in range(first, len(rows)):
+        cell = rows[row][index]
+        number = parsing.classify_number(cell) == parsing.NUMBER
+        if not number:
+            continue
+        if how == "whole":
+            rows[row][index] = f"{int(float(cell))}"
+        elif how == "vast":
+            # THE SAME EDIT `_huge_spread` MAKES, made on the half:
+            # every number is one the format carries and their SPREAD
+            # is not, which is the one thing `std_unrepresentable`
+            # states. Written here rather than reused because the
+            # generic one rewrites the markers too, and a column with
+            # no marker left is not this role.
+            #
+            # MANY DIFFERENT values and not two: the role asks for at
+            # least the detection line's worth of different numbers, so
+            # a half of two alternating values stops being this role
+            # and the gate closes over every site instead of one going
+            # red. Measured: the two-value version turned the column
+            # categorical and withheld all three sites it was for.
+            biggest = 1.7976931348623157e308
+            sign = 1.0 if step % 2 else -1.0
+            rows[row][index] = repr(sign * biggest * (1 - step * 1e-15))
+        step = step + 1
+    return _rebuilt(rows)
+
+
 def _column_perturbations(
     described: contract.Profile,
     twin: str,
@@ -2069,7 +2142,7 @@ def _column_perturbations(
     shaped: list[tuple[str, str, "str | bytes"]] = []
     if pair is not None:
         built = built + _pair_perturbations(described, twin, index, name, pair)
-    if column.role in NUMERIC_ROLES:
+    if column.role in ROLES_WITH_NUMBERS:
         for tag, value in FLOOR_STYLE_VALUES:
             shaped = shaped + [
                 (
@@ -2078,7 +2151,7 @@ def _column_perturbations(
                     _floor_cells(described, source, index, value),
                 )
             ]
-    if column.role in NUMERIC_ROLES:
+    if column.role in ROLES_WITH_NUMBERS:
         shaped = shaped + [
             (f"spread-{name}", CLASS_SHAPE, _numbered(described, source, index)),
             (
@@ -2152,7 +2225,24 @@ def _column_perturbations(
                     _restyled(described, source, index, style),
                 )
             ]
-    if column.role in NUMERIC_ROLES or column.role == "numeric_unrepresentable":
+    if column.role == "numbers_with_labels":
+        # TWO EDITS AND NOT FOUR. A padded spelling and a marker
+        # rewritten as a number were built here too while the
+        # canonical-style ceiling was a check; it is a listing now
+        # (the half's own size IS the ceiling), and neither edit was
+        # the only cover for any remaining site, so neither is built.
+        for tag in ("whole", "vast"):
+            shaped = shaped + [
+                (
+                    f"half-{tag}-{name}",
+                    CLASS_SHAPE,
+                    _numeric_half(described, source, index, tag),
+                )
+            ]
+    if (
+        column.role in ROLES_WITH_NUMBERS
+        or column.role == "numeric_unrepresentable"
+    ):
         shaped = shaped + [
             (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
         ]
@@ -3126,6 +3216,110 @@ NAMED_RED_CASES = (
 # `test_a_registered_case_is_aimed_at_the_site_it_covers` holds every
 # row to it with the two exceptions named there.
 COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
+    # THE FIFTEENTH ROLE (residual R-P4-13, landing L8). Every site of
+    # a compound column, and each named against an edit of its OWN
+    # column. Two of them are edits this file did not have: the generic
+    # numeric families rewrite a column's cells WHOLE, which takes the
+    # markers away and makes the file something other than this role --
+    # so the gate closes and every site of the numeric half reports
+    # WITHHELD instead of one reporting MISSED. `half-whole` and
+    # `half-vast` rewrite the numbers and leave the markers where they
+    # are.
+    "compound": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("not-utf8", "columns.order"),
+            ("not-utf8", "header.names"),
+            ("not-utf8", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "clinic": (
+            ("emptied-clinic", "axes.quality_state"),
+            ("emptied-clinic", "axes.role"),
+            ("emptied-clinic", "axes.statistical_type"),
+            ("one-contradicted-clinic", "counts.n_contradictory"),
+            ("blanked-clinic", "counts.n_not_numeric"),
+            ("one-zeroed-clinic", "counts.n_numeric"),
+            ("one-tiny-clinic", "counts.n_out_of_range"),
+            ("marked-clinic", "distinct.n_distinct"),
+            ("marked-clinic", "distinct.n_distinct_folded"),
+            ("marked-clinic", "levels.one.count"),
+            ("reshaped-clinic", "levels.one.label"),
+            ("reshaped-clinic", "levels.one.shape_form_cells"),
+            ("marked-clinic", "levels.one.variants"),
+            ("spaced-clinic", "levels.one.variants_withheld"),
+            ("marked-clinic", "levels.set"),
+            ("renamed-clinic", "position.at"),
+            ("blanked-clinic", "presence.n_missing"),
+            ("blanked-clinic", "presence.n_present"),
+            ("one-tiny-clinic", "suppressed.counts"),
+            ("one-tiny-clinic", "suppressed.suppressed_levels"),
+            ("one-tiny-clinic", "suppressed.suppressed_rows"),
+        ),
+        "reading": (
+            ("emptied-reading", "axes.quality_state"),
+            ("vast-reading", "axes.role"),
+            ("vast-reading", "axes.statistical_type"),
+            ("contradicted-reading", "counts.n_contradictory"),
+            ("marked-reading", "counts.n_label_cells"),
+            ("negated-reading", "counts.n_negative"),
+            ("vast-reading", "counts.n_not_numeric"),
+            ("vast-reading", "counts.n_numeric"),
+            ("filled-reading", "counts.n_numeric_cells"),
+            ("one-tiny-reading", "counts.n_out_of_range"),
+            ("filled-reading", "counts.n_used_in_statistics"),
+            ("zeroed-reading", "counts.n_zero"),
+            ("vast-reading", "distinct.n_distinct"),
+            ("vast-reading", "distinct.n_distinct_folded"),
+            ("one-worded-reading", "distinct.labels.n_distinct"),
+            ("one-worded-reading", "distinct.labels.n_distinct_folded"),
+            ("half-whole-reading", "distinct.n_numeric_distinct"),
+            ("half-whole-reading", "distinct.n_numeric_distinct_folded"),
+            ("raised-reading", "ladder.max"),
+            ("zeroed-reading", "ladder.min"),
+            ("zeroed-reading", "ladder.p01"),
+            ("zeroed-reading", "ladder.p05"),
+            ("zeroed-reading", "ladder.p10"),
+            ("zeroed-reading", "ladder.p25"),
+            ("zeroed-reading", "ladder.p50"),
+            ("zeroed-reading", "ladder.p75"),
+            ("enormous-reading", "ladder.p90"),
+            ("enormous-reading", "ladder.p95"),
+            ("enormous-reading", "ladder.p99"),
+            ("marked-reading", "levels.not detected.count"),
+            ("reshaped-reading", "levels.not detected.label"),
+            ("reshaped-reading", "levels.not detected.shape_form_cells"),
+            ("marked-reading", "levels.not detected.variants"),
+            ("reshaped-reading", "levels.not detected.variants_withheld"),
+            ("worded-reading", "levels.set"),
+            ("raised-reading", "moments.kurtosis"),
+            ("raised-reading", "moments.mean"),
+            ("raised-reading", "moments.skew"),
+            ("raised-reading", "moments.std"),
+            ("renamed-reading", "position.at"),
+            ("filled-reading", "presence.n_missing"),
+            ("filled-reading", "presence.n_present"),
+            ("marked-reading", "styles.at-least.decimal"),
+            ("enormous-reading", "styles.canonical.exponent_lower"),
+            ("floor-upper-reading", "styles.exact.exponent_upper"),
+            ("floor-plussed-reading", "styles.exact.leading_plus"),
+            ("floor-zero-led-reading", "styles.exact.leading_zero"),
+            ("marked-reading", "styles.published.decimal"),
+            ("zeroed-reading", "styles.remainder"),
+            ("padded-reading", "styles.spelled"),
+            ("marked-reading", "styles.spill"),
+            ("one-tiny-reading", "suppressed.counts"),
+            ("one-tiny-reading", "suppressed.suppressed_levels"),
+            ("one-tiny-reading", "suppressed.suppressed_rows"),
+            ("half-whole-reading", "type.integer_valued"),
+            ("half-vast-reading", "type.std_unrepresentable"),
+            ("marked-reading", "widths.published.2"),
+        ),
+    },
     "every-role": {
         "": (
             ("added-column", "header.presence"),
@@ -4171,6 +4365,12 @@ ROLE_FAMILIES = {
     # nothing, and its distinctness was reported under the EMPTY
     # role's identity because the validator's dispatch fell through.
     "joined_numbers": "joined",
+    # The compound role files its two counts and its two distinctness
+    # counts under a group of its own; the facts of its two HALVES stay
+    # in the groups that dispose them, which is why this family's
+    # subcheck table is derived from the numeric and label ones rather
+    # than transcribed beside them (contract 9.4b, plan P4-D33).
+    "numbers_with_labels": "compound",
     "categorical": "label",
     "constant": "label",
     # It publishes the five shared label keys and no key of its own,
@@ -4219,6 +4419,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     },
     # The role the battery could not reach until residual R-P4-62.
     "joined": {"reading": "joined_numbers", "clinic": "constant"},
+    "compound": {"reading": "numbers_with_labels", "clinic": "constant"},
     "padded-codes": {"code": "count"},
     "shaped-text": {
         "lab_code": "free_text",
@@ -4262,6 +4463,97 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- compound: the FIFTEENTH role, whose sites are three groups at
+    # once and are stated here by the rule that makes them so (contract
+    # 9.4b, plan P4-D33). The column's universal counts are the
+    # universal group's; the two counts of the split and the two
+    # distinctness counts are this role's own; every site of the
+    # numeric HALF binds a numeric fact and every site of the label
+    # half a label one, because a half IS a column of that kind read
+    # over its own cells. A reader can check each line below against
+    # that one rule without opening the validator.
+    ("compound", "axes.quality_state"): "universal.quality_state",
+    ("compound", "axes.role"): "universal.role",
+    ("compound", "axes.statistical_type"): "universal.statistical_type",
+    ("compound", "axes.structural_role"): "universal.structural_role",
+    ("compound", "counts.n_contradictory"): "universal.n_contradictory",
+    ("compound", "counts.n_label_cells"): "compound.n_label_cells",
+    ("compound", "counts.n_left_out_of_statistics"): (
+        "numeric.n_left_out_of_statistics"
+    ),
+    ("compound", "counts.n_negative"): "numeric.n_negative",
+    ("compound", "counts.n_negative_unrepresentable"): (
+        "numeric.n_negative_unrepresentable"
+    ),
+    ("compound", "counts.n_not_numeric"): "universal.n_not_numeric",
+    ("compound", "counts.n_numeric"): "universal.n_numeric",
+    ("compound", "counts.n_numeric_cells"): "compound.n_numeric_cells",
+    ("compound", "counts.n_out_of_range"): "universal.n_out_of_range",
+    ("compound", "counts.n_used_in_statistics"): (
+        "numeric.n_used_in_statistics"
+    ),
+    ("compound", "counts.n_zero"): "numeric.n_zero",
+    ("compound", "counts.numeric_share"): "numeric.numeric_share",
+    ("compound", "distinct.n_distinct"): "compound.n_distinct",
+    # The numeric half's own two counts of different written cells,
+    # which the twin's layout spends as its budget of SPELLINGS. They
+    # are the role's own facts, like the two above, and take the same
+    # envelope where the published spellings cannot settle them.
+    # The LABEL half's own two, which are the label group's facts read
+    # over that half -- so they bind where a label column's do.
+    ("compound", "distinct.labels.n_distinct"): "label.n_distinct",
+    ("compound", "distinct.labels.n_distinct_folded"): (
+        "label.n_distinct_folded"
+    ),
+    ("compound", "distinct.n_numeric_distinct"): "compound.n_numeric_distinct",
+    ("compound", "distinct.n_numeric_distinct_folded"): (
+        "compound.n_numeric_distinct_folded"
+    ),
+    ("compound", "distinct.n_distinct_folded"): "compound.n_distinct_folded",
+    ("compound", "ladder.max"): "numeric.percentiles.max",
+    ("compound", "ladder.min"): "numeric.percentiles.min",
+    ("compound", "ladder.p01"): "numeric.percentiles",
+    ("compound", "ladder.p05"): "numeric.percentiles",
+    ("compound", "ladder.p10"): "numeric.percentiles",
+    ("compound", "ladder.p25"): "numeric.percentiles",
+    ("compound", "ladder.p50"): "numeric.percentiles",
+    ("compound", "ladder.p75"): "numeric.percentiles",
+    ("compound", "ladder.p90"): "numeric.percentiles",
+    ("compound", "ladder.p95"): "numeric.percentiles",
+    ("compound", "ladder.p99"): "numeric.percentiles",
+    ("compound", "levels.not detected.count"): "label.count",
+    ("compound", "levels.not detected.label"): "label.label",
+    ("compound", "levels.not detected.shape_form_cells"): (
+        "label.shape_form_cells"
+    ),
+    ("compound", "levels.not detected.variants"): "label.variants",
+    ("compound", "levels.not detected.variants_withheld"): (
+        "label.variants_withheld"
+    ),
+    ("compound", "levels.set"): "label.levels",
+    ("compound", "moments.kurtosis"): "numeric.kurtosis",
+    ("compound", "moments.mean"): "numeric.mean",
+    ("compound", "moments.skew"): "numeric.skew",
+    ("compound", "moments.std"): "numeric.std",
+    ("compound", "position.at"): "universal.position",
+    ("compound", "presence.n_missing"): "universal.n_missing",
+    ("compound", "presence.n_present"): "universal.n_present",
+    ("compound", "styles.at-least.decimal"): "numeric.numeric_styles",
+    ("compound", "styles.canonical.decimal"): "numeric.numeric_styles",
+    ("compound", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    ("compound", "styles.exact.exponent_upper"): "numeric.numeric_styles",
+    ("compound", "styles.exact.leading_plus"): "numeric.numeric_styles",
+    ("compound", "styles.exact.leading_zero"): "numeric.numeric_styles",
+    ("compound", "styles.published.decimal"): "numeric.numeric_styles",
+    ("compound", "styles.remainder"): "numeric.numeric_styles",
+    ("compound", "styles.spelled"): "numeric.numeric_styles",
+    ("compound", "styles.spill"): "numeric.numeric_styles",
+    ("compound", "suppressed.counts"): "label.suppressed_level_counts",
+    ("compound", "suppressed.suppressed_levels"): "label.suppressed_levels",
+    ("compound", "suppressed.suppressed_rows"): "label.suppressed_rows",
+    ("compound", "type.integer_valued"): "numeric.integer_valued",
+    ("compound", "type.std_unrepresentable"): "numeric.std_unrepresentable",
+    ("compound", "widths.published.2"): "numeric.fraction_widths",
     # -- joined: the role no fixture reached until residual
     # R-P4-62. Its positions each file under their own number, so
     # two positions cannot hide behind one identity, and its
@@ -4766,6 +5058,33 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "joined.parts[1].field_widths",
         "joined.parts[1].n_distinct_values",
         "joined.parts[1].percentiles_between",
+        "universal.detection_evidence",
+        "universal.missing_by_class",
+        "universal.n_missing_blank",
+        "universal.n_missing_withheld",
+        "universal.n_sentinel_candidates_unpublished",
+        "universal.remarks",
+        "universal.sentinel_verdicts",
+    ),
+    # The compound role's two counts and its two distinctness counts
+    # are CHECKED. What it LISTS is the universal seven and the three
+    # facts of its numeric half that no file can evidence -- the same
+    # three a plain numeric column lists, because the half IS a column
+    # of that kind read over its own cells. They reached this list the
+    # way the joined role's did: `_quantitative_of` returns no block
+    # for either role, so until the census was given a branch of its
+    # own the three were published, checked by nothing and named
+    # nowhere (review item P4-A1-R2-F2, met a second time).
+    #
+    # The three facts the SPLIT RULE settles -- `numeric_share` and the
+    # two counts of cells left out of the statistics -- are not here:
+    # they carry a subcheck of their own and are held to
+    # `SUBCHECK_FACTS` beside the checks, which is what tells a reader
+    # they are the same obligations under another answer.
+    "compound": (
+        "numeric.field_widths",
+        "numeric.n_distinct_values",
+        "numeric.percentiles_between",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",

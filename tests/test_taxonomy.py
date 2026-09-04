@@ -226,13 +226,50 @@ def test_a_column_that_is_only_mostly_numbers_publishes_nothing() -> None:
     """
     values = [str(index) for index in range(90)] + ["word"] * 10
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    # SUPERSEDED BY LANDING L8, and this is the supersession the close
+    # plan asked for rather than a test edited to suit new code. The
+    # objection review item P1-R6-F7 recorded was not "never publish
+    # below the line": it was that the old rule published a
+    # distribution over ONE population and said nothing about the
+    # other. Ninety numbers beside a word on ten rows is a compound
+    # column -- both halves described, both counts published, every
+    # cell in exactly one of them -- so the objection does not reach
+    # it. A column of numbers beside ALL-DIFFERENT prose still
+    # publishes nothing, which `tests/test_p1r6f7_one_policy.py` holds
+    # unchanged.
+    assert described.role == taxonomy.ROLE_COMPOUND
     assert described.n_not_numeric == 10
     assert described.n_numeric == 90
+    # AND WHAT MAKES IT A SUPERSESSION RATHER THAN A RELABELLING: both
+    # populations are really described, and together they are the
+    # whole column.
+    assert described.details["n_numeric_cells"] == 90
+    assert described.details["n_label_cells"] == 10
+    assert "percentiles" in described.details["numbers"]
+    # THE LABEL HALF IS DESCRIBED, WHICH IS NOT THE SAME AS NAMED. Its
+    # one word covers fewer rows than the publication floor asks, so
+    # the floor holds the word back and the half publishes a COUNT of
+    # what it holds back instead -- which still accounts for every one
+    # of its cells, and is the floor doing its work rather than the
+    # description falling short.
+    half = described.details["labels"]
+    shown = sum(level["count"] for level in half["levels"])
+    assert shown + half["suppressed_rows"] == half["n_present"]
+    assert half["n_present"] == described.details["n_label_cells"]
+    # THE COLUMN'S OWN BLOCK CARRIES NO DISTRIBUTION, and that is still
+    # true: the numbers are described inside their own half, where a
+    # consumer is told they answer for 90 cells and not for 100. A
+    # reader routing on the column's type is not handed a mean.
     assert "percentiles" not in described.details
+
+    # AND THE DECLINE SENTENCE IS GONE, because there is no decline.
+    # It read "90 of the 100 values are written as numbers ... only
+    # when at least 99 of them read that way", which is what a column
+    # was told when the line refused it and nothing was published. The
+    # line has not moved -- this column is still not read as NUMBERS --
+    # but it is no longer refused, so there is nothing to explain.
     said = " ".join(described.remarks)
-    assert "90 of the 100 values are written as numbers" in said
-    assert "only when at least 99 of them read that way" in said
+    assert "written as numbers" not in said, said
 
 
 def test_a_small_set_of_labels_is_categorical() -> None:
