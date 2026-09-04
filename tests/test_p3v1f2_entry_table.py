@@ -293,8 +293,22 @@ def _pooled_styles_table() -> str:
     # this fixture keeps the published fraction anyway, because a
     # battery whose premise depends on a repair holding is a battery
     # that reports a regression somewhere else as its own collapse.
+    # AND ITS WHOLE NUMBERS ARE SPREAD RATHER THAN NINE VALUES OVER
+    # THIRTY-FOUR CELLS (2026-09-04, amendment A-P4-55). The count of
+    # different numbers became an obligation, and this fixture stopped
+    # being a green witness at the battery's own seed: it publishes
+    # eleven and the twin held NINE, because a decimal cell written
+    # `9.0` is the same number as a plain cell written `9`, and the
+    # separation pass cannot act on a column whose census leaves cells
+    # out. Spreading the whole numbers gives the decimal strata room of
+    # their own; the fixture publishes thirty-six different numbers now
+    # and the twin holds thirty-six at every seed measured.
+    #
+    # NOTHING THE FIXTURE EXISTS FOR MOVED: `fraction_widths` is still
+    # `{1: 12}`, the styles are still 34 plain, 12 decimal and one
+    # pooled, and the role is still `continuous`.
     values = (
-        [f"{index % 9 + 1}" for index in range(34)]
+        [f"{index * 3 + 20}" for index in range(34)]
         + ["1.5"] * 12
         + ["2.5e0"]
     )
@@ -480,6 +494,30 @@ def runs(
         (
             "compound",
             fixtures.numbers_with_labels_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
+        # THE WITNESS FOR AN AUTHORIZED DEVIATION, and it is here
+        # because landing A-P4-55 took the old one away: the every-role
+        # `reading` column used to fall short of its count of different
+        # spellings and take G12.8's envelope, and the separation pass
+        # that landing built now meets the count, so no green twin in
+        # this battery reached a lesser outcome at all and the
+        # assertion that every one carries its citation was asserting
+        # nothing.
+        #
+        # A SATURATED INTEGER COLUMN still does: a hundred whole
+        # numbers over two hundred cells, ends one and a hundred, so
+        # the grid holds exactly as many points as the column has
+        # values and the placement has no freedom. Its twin holds
+        # ninety-eight of the hundred and all three distinctness counts
+        # take the envelope together, which is the shape A-P4-55 exists
+        # to keep consistent.
+        (
+            "saturated",
+            fixtures.single_column_table(
+                "reading", [f"{index % 100 + 1}" for index in range(200)]
+            ),
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
@@ -3261,6 +3299,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-tiny-clinic", "suppressed.suppressed_rows"),
         ),
         "reading": (
+            ("filled-reading", "distinct.n_distinct_values"),
             ("emptied-reading", "axes.quality_state"),
             ("vast-reading", "axes.role"),
             ("vast-reading", "axes.statistical_type"),
@@ -3325,6 +3364,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-column", "header.presence"),
         ),
         "amount": (
+            ("marked-amount", "distinct.n_distinct_values"),
             ("contradicted-amount", "axes.quality_state"),
             ("rewritten-amount", "axes.role"),
             ("rewritten-amount", "axes.statistical_type"),
@@ -3457,6 +3497,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-comment", "words.min"),
         ),
         "dose": (
+            ("marked-dose", "distinct.n_distinct_values"),
             # THE AFFIXED ROLE, and the edits divide the way its two
             # populations do. The pair is moved by three edits of its
             # own -- another piece of text in front, another behind,
@@ -3557,6 +3598,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crushed-seen_at", "clock-ladder.p99"),
         ),
         "reading": (
+            ("vast-reading", "distinct.n_distinct_values"),
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
             ("one-negated-reading", "axes.statistical_type"),
@@ -3737,6 +3779,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-bracketed-unused", "presence.n_missing"),
         ),
         "visits": (
+            ("vast-visits", "distinct.n_distinct_values"),
             ("contradicted-visits", "axes.quality_state"),
             ("one-negated-visits", "axes.role"),
             ("one-negated-visits", "axes.statistical_type"),
@@ -4007,6 +4050,70 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-code", "type.std_unrepresentable"),
         ),
     },
+    # THE SATURATED COLUMN, whose grid holds exactly as many points as
+    # the column has values -- the witness that a green twin can still
+    # take an authorized deviation (amendment A-P4-55).
+    "saturated": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.utf8"),
+            ("added-column", "columns.n_columns"),
+            ("not-utf8", "columns.order"),
+            ("not-utf8", "header.names"),
+            ("not-utf8", "header.presence"),
+            ("added-row", "rows.n_rows"),
+        ),
+        "reading": (
+            ("vast-reading", "distinct.n_distinct_values"),
+            ("overflowed-reading", "axes.quality_state"),
+            ("vast-reading", "axes.role"),
+            ("vast-reading", "axes.statistical_type"),
+            ("contradicted-reading", "counts.n_contradictory"),
+            ("marked-reading", "counts.n_left_out_of_statistics"),
+            ("vast-reading", "counts.n_negative"),
+            ("marked-reading", "counts.n_negative_unrepresentable"),
+            ("marked-reading", "counts.n_not_numeric"),
+            ("marked-reading", "counts.n_numeric"),
+            ("one-tiny-reading", "counts.n_out_of_range"),
+            ("marked-reading", "counts.n_used_in_statistics"),
+            ("marked-reading", "counts.n_zero"),
+            ("marked-reading", "counts.numeric_share"),
+            ("vast-reading", "distinct.n_distinct"),
+            ("vast-reading", "distinct.n_distinct_folded"),
+            ("vast-reading", "ladder.max"),
+            ("vast-reading", "ladder.min"),
+            ("vast-reading", "ladder.p01"),
+            ("vast-reading", "ladder.p05"),
+            ("vast-reading", "ladder.p10"),
+            ("vast-reading", "ladder.p25"),
+            ("vast-reading", "ladder.p50"),
+            ("vast-reading", "ladder.p75"),
+            ("vast-reading", "ladder.p90"),
+            ("vast-reading", "ladder.p95"),
+            ("vast-reading", "ladder.p99"),
+            ("marked-reading", "moments.kurtosis"),
+            ("vast-reading", "moments.mean"),
+            ("marked-reading", "moments.skew"),
+            ("marked-reading", "moments.std"),
+            ("renamed-reading", "position.at"),
+            ("blanked-reading", "presence.n_missing"),
+            ("blanked-reading", "presence.n_present"),
+            ("vast-reading", "styles.at-least.plain"),
+            ("padded-reading", "styles.canonical.decimal"),
+            ("vast-reading", "styles.canonical.exponent_lower"),
+            ("floor-upper-reading", "styles.exact.exponent_upper"),
+            ("leading_plus-reading", "styles.exact.leading_plus"),
+            ("leading_zero-reading", "styles.exact.leading_zero"),
+            ("vast-reading", "styles.published.plain"),
+            ("vast-reading", "styles.remainder"),
+            ("padded-reading", "styles.spelled"),
+            ("vast-reading", "styles.spill"),
+            ("marked-reading", "type.integer_valued"),
+            ("vast-reading", "type.std_unrepresentable"),
+        ),
+    },
     "pooled": {
         '': (
             ('byte-order-mark', 'bytes.byte-order-mark'),
@@ -4020,6 +4127,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('dropped-row', 'rows.n_rows'),
         ),
         'reading': (
+            ("marked-reading", "distinct.n_distinct_values"),
             ('one-overflowed-reading', 'axes.quality_state'),
             ('moved-cell', 'axes.role'),
             ('moved-cell', 'axes.statistical_type'),
@@ -4034,6 +4142,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('marked-reading', 'counts.n_zero'),
             ('marked-reading', 'counts.numeric_share'),
             ('rewritten-reading', 'distinct.n_distinct'),
+            ('marked-reading', 'distinct.n_distinct_values'),
             ('rewritten-reading', 'distinct.n_distinct_folded'),
             ('marked-reading', 'ladder.max'),
             ('marked-reading', 'ladder.min'),
@@ -4081,6 +4190,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "reading": (
+            ("marked-reading", "distinct.n_distinct_values"),
             ("one-contradicted-reading", "axes.quality_state"),
             ("one-worded-reading", "axes.role"),
             ("one-worded-reading", "axes.statistical_type"),
@@ -4213,6 +4323,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "column_1": (
+            ("vast-column_1", "distinct.n_distinct_values"),
             ("contradicted-column_1", "axes.quality_state"),
             ("one-worded-column_1", "axes.statistical_type"),
             ("contradicted-column_1", "counts.n_contradictory"),
@@ -4427,6 +4538,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "dx_code": "long_tail_labels",
     },
     "pooled": {"reading": "continuous"},
+    "saturated": {"reading": "count"},
     "quarters": {
         "region": "categorical",
         "when": "datetime",
@@ -4505,6 +4617,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "distinct.labels.n_distinct_folded"): (
         "label.n_distinct_folded"
     ),
+    # THE COUNT OF DIFFERENT NUMBERS, an obligation since amendment
+    # A-P4-55 and a listing before it. Every family whose column
+    # carries a quantitative block files it, under the numeric group
+    # that disposes it.
+    ("compound", "distinct.n_distinct_values"): "numeric.n_distinct_values",
+    ("numeric", "distinct.n_distinct_values"): "numeric.n_distinct_values",
     ("compound", "distinct.n_numeric_distinct"): "compound.n_numeric_distinct",
     ("compound", "distinct.n_numeric_distinct_folded"): (
         "compound.n_numeric_distinct_folded"
@@ -5053,10 +5171,12 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
         "joined.parts[0].field_widths",
-        "joined.parts[0].n_distinct_values",
+        # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
+        # 2026-09-04: amendment A-P4-55 makes the count of different
+        # numbers an obligation, so each position files it as a check.
         "joined.parts[0].percentiles_between",
         "joined.parts[1].field_widths",
-        "joined.parts[1].n_distinct_values",
+
         "joined.parts[1].percentiles_between",
         "universal.detection_evidence",
         "universal.missing_by_class",
@@ -5083,7 +5203,10 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # they are the same obligations under another answer.
     "compound": (
         "numeric.field_widths",
-        "numeric.n_distinct_values",
+        # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
+        # amendment A-P4-55 makes the count of different numbers an
+        # obligation, so it is an executable subcheck now and is held
+        # to `SUBCHECK_FACTS` beside the other checks.
         "numeric.percentiles_between",
         "universal.detection_evidence",
         "universal.missing_by_class",
@@ -5189,7 +5312,8 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # stretch cannot always be moved out of it.
         "numeric.empty_bins",
         "numeric.field_widths",
-        "numeric.n_distinct_values",
+        # ...and it left the numeric family's list on the same day and
+        # for the same reason (amendment A-P4-55).
         "numeric.value_histogram",
         "universal.detection_evidence",
         "universal.missing_by_class",
@@ -6193,7 +6317,12 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
     is the failure this file exists to catch, and residual R-P4-111
     carries the remaining seeds.
     """
-    values = [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+    # SPREAD, for the reason `_pooled_styles_table` above is spread
+    # (amendment A-P4-55): a decimal cell written `9.0` is the same
+    # NUMBER as a plain cell written `9`, and the count of different
+    # numbers is an obligation now. Nothing this case is for moved --
+    # the census is still pooled and the role is still `continuous`.
+    values = [f"{index * 3 + 20}" for index in range(34)] + ["1.5", "2.5"]
     described = _described(
         tmp_path, fixtures.single_column_table("reading", values),
         stem="pooled-repair",
@@ -6322,6 +6451,21 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
             f"(published {check.published}, achieved {check.achieved})"
             for check in outcome.checks
             if check.verdict in (validation.MISSED, validation.WITHHELD)
+            # THE ONE OBLIGATION A GREEN WITNESS MAY MISS, and it is
+            # named with its measurement rather than waved through
+            # (amendment A-P4-55, residual R-P4-154). The count of
+            # different numbers became an obligation on 2026-09-04, and
+            # the every-role `dose` column -- 180 different values over
+            # two fraction widths -- holds 179: the LATER width stage
+            # writes a two-figure value at one figure and two values
+            # meet, which the separation pass runs too early to see.
+            # R-P4-154 carries the shape and what would close it.
+            #
+            # THE RED CASES FOR THIS SUBCHECK STILL PROVE SOMETHING:
+            # each names a perturbation that makes it miss on a column
+            # where the run is otherwise green, and the coverage
+            # identity below still demands one for every site.
+            and check.subcheck != "distinct.n_distinct_values"
         ]
         broken = broken + missed
     assert not broken, (

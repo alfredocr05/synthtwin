@@ -6859,8 +6859,11 @@ and it publishes twelve; the twin held eleven, because values drawn to
 a published ladder repeat more evenly than real ones did, so `23` came
 out twice. G6.5a's pass had been declining every whole-number column,
 this case is one, and the twin holds twelve now. `n_distinct_values`
-stays REPORT-ONLY (residual R-P4-20), but **no committed case exercises
-a reported miss of it any more.** The reporting control itself is not
+is EXACT-OBSERVABLE since amendment A-P4-55 of 2026-09-04 -- it was
+REPORT-ONLY when this paragraph was written, and the owner ruled it an
+obligation because analysis code groups by and counts distinct on
+numeric columns -- and **no committed case exercises a reported miss of
+it any more.** The reporting control itself is not
 lost — `tests/test_p2c4f3_style_capacity.py` asserts it seed by seed —
 and what R-P4-145 records is narrower and older than this case: the
 frozen harness compares cells and CSV bytes and has never read a

@@ -236,7 +236,10 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     # more since `missing_by_source` became an obligation at contract
     # version 6 and the validator started checking each named hole
     # spelling at its published count (residual R-P4-60).
-    assert len(outcome.checks) == 56
+    # ...and one more since the count of different NUMBERS became an
+    # obligation on 2026-09-04 (amendment A-P4-55): it was listed whole
+    # and is a subcheck now.
+    assert len(outcome.checks) == 57
 
 
 def test_the_witness_really_is_reconstructible(
@@ -295,7 +298,9 @@ def test_the_other_over_fire_stays_and_is_a_different_shape(
     # (plan P4-D4.5), one more for the kurtosis (P4-D4.8), and one more
     # for the hole spelling this column names, which became a checked
     # obligation with R-P4-60.
-    assert len(_unsupported(outcome)) == 46
+    # ...and one more since amendment A-P4-55 made the count of
+    # different numbers an obligation rather than a report line.
+    assert len(_unsupported(outcome)) == 47
 
 
 def test_two_words_of_your_own_spelled_two_ways_each_still_come_back(

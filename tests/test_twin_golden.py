@@ -138,6 +138,19 @@ FIELD_WIDTH_FACT = "numeric.field_widths"
 # for any other reason still has nowhere to hide.
 EMPTY_BIN_FACT = "numeric.empty_bins"
 LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT)
+# ...and the CHECK that arrived after the 416 baseline was frozen
+# (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
+# REPORT-ONLY and listed whole; the owner ruled it an obligation
+# because analysis code groups by and counts distinct on numeric
+# columns, so it is a subcheck now on every column carrying a
+# quantitative block -- four of them here.
+#
+# SUBTRACTED RATHER THAN FOLDED IN, on the doctrine two keys above
+# already follow: re-recording 416 as 420 would retire the only thing
+# this baseline buys. With the new subcheck set aside the frozen 416
+# must come back character for character, which is what says nothing
+# ELSE moved in the landing that added it.
+VALUE_COUNT_SUBCHECK = "distinct.n_distinct_values"
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -147,21 +160,30 @@ WIDE_CHECK_DIGEST = (
 # carry the listing; the other numeric-family columns make no claim
 # here and get no line.
 EMPTY_BIN_LISTINGS = ["visits|numeric.empty_bins|"]
+# A HUNDRED AND TWENTY-SIX UNTIL 2026-09-04, and the four that left are
+# named where the assertion is made: `numeric.n_distinct_values` was
+# listed whole on every column carrying a quantitative block, and
+# amendment A-P4-55 made the count of different numbers an obligation,
+# so those four are subchecks now. This is the one baseline in this
+# file that a landing may lower, and only this way: an obligation that
+# MOVED to the checks, with the check baseline showing it arrive.
 NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
-    "90feb6ab2bc50119ea0f59417c383a3d4474343b4e5a559aa9dbb07b45e1d09f"
+    "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
 )
 NARROW_COLUMN_DIGESTS = {
     "record_code": "f6d74ac3a099e5713338c9baff476924",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
-    # RE-RECORDED at the integer-grid landing, and the ONLY one of the
-    # thirteen that moved. `reading` is whole-valued, so G6.5a's pass
-    # declined it until that landing and two of its strata could be
-    # written as one cell. Every other column here is byte-identical,
-    # which is what says the cells moved for the rule and not for a
-    # reason nobody looked at.
-    "reading": "cf1905a29ccf396522f03c9a7af4e80f",
+    # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
+    # (amendment A-P4-55). `reading` is whole-valued, so G6.5a's pass
+    # declined it until the first of those and two of its strata could
+    # be written as one cell; the second widened the pass again and the
+    # column now holds ALL 178 of its published different numbers,
+    # where it held 177 at some seeds before. MEASURED before
+    # re-recording, which is what the sentence beside the twin digest
+    # asks for.
+    "reading": "01d11476294ade427eb6806b3155e7b6",
     "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
     "recorded_on": "275356366d05346ada86307a49d4467c",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
@@ -208,9 +230,24 @@ def test_widening_the_demonstration_lost_no_obligation(
     )
     # THE WHOLE RUN, frozen as it stands, so an obligation cannot be
     # added or dropped without this moving.
-    assert len(checks) == WIDE_CHECK_COUNT, len(checks)
+    # The new subcheck's own lines set aside, so the frozen baseline
+    # below is the run it was frozen against (amendment A-P4-55).
+    counted = [
+        entry for entry in checks if VALUE_COUNT_SUBCHECK not in entry
+    ]
+    added = [entry for entry in checks if VALUE_COUNT_SUBCHECK in entry]
+    assert len(counted) == WIDE_CHECK_COUNT, len(counted)
+    # ...and the four the new obligation adds are the four it should,
+    # named rather than counted: every column of this table that
+    # carries a quantitative block and no other.
+    assert sorted(entry.split("|")[0] for entry in added) == [
+        "amount",
+        "dose",
+        "reading",
+        "visits",
+    ], added
     assert (
-        hashlib.sha256("\n".join(checks).encode("utf-8")).hexdigest()
+        hashlib.sha256("\n".join(counted).encode("utf-8")).hexdigest()
         == WIDE_CHECK_DIGEST
     ), (
         "the demonstration's own obligations changed. That is not a "
@@ -222,7 +259,14 @@ def test_widening_the_demonstration_lost_no_obligation(
     # re-recording: set the new key's checks aside and the older digest
     # must come back character for character.
     before = [
-        entry for entry in checks if LEVEL_FORM_SUBCHECK not in entry
+        entry
+        for entry in checks
+        if LEVEL_FORM_SUBCHECK not in entry
+        # ...and the count of different numbers, which arrived after
+        # this baseline too (amendment A-P4-55). Two keys set aside,
+        # each named, and the 2026-08-31 digest still has to come back
+        # character for character.
+        and VALUE_COUNT_SUBCHECK not in entry
     ]
     assert len(before) == NARROW_CHECK_COUNT, len(before)
     assert (
@@ -262,7 +306,15 @@ def test_widening_the_demonstration_lost_no_obligation(
         for entry in listings
         if not any(fact in entry for fact in LISTINGS_ADDED_SINCE)
     ]
-    assert len(kept) == NARROW_LISTING_COUNT, len(kept)
+    # FOUR LEFT THIS CENSUS ON 2026-09-04 and they are named rather
+    # than absorbed: `numeric.n_distinct_values` was listed whole on
+    # every column carrying a quantitative block, and amendment
+    # A-P4-55 made the count of different numbers an OBLIGATION, so
+    # those four are subchecks now. A census that carries fewer
+    # obligations than it did is a defect -- unless the obligations
+    # MOVED to the checks, which is what happened and which the check
+    # baseline above shows arriving there.
+    assert len(kept) == NARROW_LISTING_COUNT - 4, len(kept)
     assert (
         hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
         == NARROW_LISTING_DIGEST
@@ -457,6 +509,22 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # reading as one fact (plan amendment A-P3-28): the description gained
 # `profile_version: 5`, two counts on every column block and two
 # vocabulary lists in each declaration record, and no generation rule
+# THE THREE DIGESTS MOVED ON 2026-09-04 (amendment A-P4-55), and what
+# moved is recorded here rather than left to the diff. The count of
+# different NUMBERS became an obligation and the separation pass was
+# widened to meet it, so the generator places this description's values
+# differently. MEASURED on the new run before re-recording, which is
+# what the sentences below ask for:
+#
+#   * the twin: 240 rows, 492 checks, **417 held and 75 inside their
+#     bounds, nothing missed**;
+#   * every numeric column now meets its published count of different
+#     numbers exactly -- `visits` 10 of 10, `reading` 178 of 178,
+#     `amount` 238 of 238;
+#   * the report and the quality report say MORE than they did, not
+#     less: four obligations moved from the census to the checks and
+#     none was dropped, which the two baselines above assert by
+#     identity.
 # reads any of them, so `GOLDEN_TWIN_SHA256` below is untouched. The
 # report and the quality report moved with the description, because
 # both are about what the description says.
@@ -635,7 +703,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # vectors agree, which is what makes these bytes the METHOD's answer
 # rather than the implementation's.
 GOLDEN_TWIN_SHA256 = (
-    "4164b03606d7b256777b6c5f1d093d2ec04247e2e8dd288edd9efb083c7e1ddb"
+    "a3b4d9bcbabcabd7d8f489f42c25669a55dd11d6aff846500117fd5fef1c4843"
 )
 
 
@@ -940,7 +1008,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # Nothing else differs -- no sentence added, none removed, no verdict
 # changed -- so the page says the same things about a better twin.
 GOLDEN_REPORT_SHA256 = (
-    "2c639ea0f0637d492f943d84ef6bb70204f042f92fa0786d0074f47de47f3f3f"
+    "c4775bfd224c88beaf59c455743f1714bd41723c993c1ad462a6cced4b1b1c15"
 )
 
 
@@ -1358,7 +1426,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # which checks were taken. A census carrying fewer obligations would
 # have turned those two counts red first.
 GOLDEN_QUALITY_SHA256 = (
-    "14a15119b5d6b5a5986b6c497f5a17a95875d2a068be4e828fac144d9344b093"
+    "5190c7152ba68f270a3ca45086a9cb1f319a8b12234ba16c18329d0571f50cae"
 )
 
 
