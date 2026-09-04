@@ -561,15 +561,48 @@ def test_the_unrepresentable_role_is_one_the_declaration_reaches() -> None:
 # -- adversarial review round P4-G3-R4 --------------------------------
 
 
+def _colliding_rows() -> "list[str]":
+    """The column both witnesses below stand on.
+
+    A HUNDRED AND EIGHTY READINGS BETWEEN 7.0 AND 7.9, twenty of them
+    written `7.5`, and A TAIL OF TWENTY REACHING 11.8. The readings and
+    the hole spelling are what the collision is made of; the tail is
+    what keeps it reachable, and it was added on 2026-09-04 when
+    residual R-P4-138 landed.
+
+    WHY THE TAIL IS THERE, measured. Declaring `7.5` a hole takes every
+    cell reading 7.5 out of the statistics, so the values they leave
+    behind have a real gap at 7.5 -- and since R-P4-138 the description
+    publishes the two values that gap lies between. On the narrow
+    column the gap covered whole BINS, `empty_bins` named them, and
+    method G6.7 moved every stratum out: the twin came back holding
+    exactly the published forty-two and there was no collision left to
+    report. That is the value stage working, and it is measured in
+    `tests/test_p4d32_empty_bins.py`; what it took away was the
+    WITNESS. The tail widens the column's reach so that one bin is
+    wider than the gap, 7.5 falls in a bin that holds plenty, no
+    stretch is named around it, and the collision these two tests exist
+    for happens again: the twin holds fifty-eight against a published
+    forty-two.
+    """
+    generator = random.Random(5)
+    values = [f"7.{generator.randint(0, 9)}" for _each in range(180)]
+    values = values + ["7.5"] * 20
+    values = values + [f"{8 + one * 0.2:.1f}" for one in range(20)]
+    generator.shuffle(values)
+    return values
+
+
 def test_the_swap_cannot_quietly_turn_a_value_into_a_hole() -> None:
     """A NUMERIC HOLE SPELLING AND A GENERATED VALUE CAN COLLIDE (F1).
 
     A column whose published "no value" word is `7,5` and whose values
     run from 7.0 to 7.9 generates present cells spelled `7.5`. Without
     the declaration those are two different spellings and nothing
-    collides; the swap makes them one. Measured, the twin held SIXTY
-    cells spelled `7,5` against a published forty-two -- eighteen
-    values became holes -- and the twin's own report, recounting the
+    collides; the swap makes them one. Measured, the twin held
+    FIFTY-EIGHT cells spelled `7.5` against a published forty-two --
+    sixteen values became holes -- and the twin's own report,
+    recounting the
     cells from BEFORE the swap, called it all correct while `synthtwin
     validate` reported eight missed obligations.
 
@@ -585,10 +618,7 @@ def test_the_swap_cannot_quietly_turn_a_value_into_a_hole() -> None:
     # R-P4-54 refuses a declared value whose number depends on the
     # grammar, and `7,5` is one. `7.5` beside ordinary decimals is the
     # same defect in a shape the tool still accepts.
-    generator = random.Random(5)
-    values = [f"7.{generator.randint(0, 9)}" for _each in range(180)]
-    values = values + ["7.5"] * 20
-    generator.shuffle(values)
+    values = _colliding_rows()
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table("weight", values)
@@ -626,10 +656,7 @@ def test_the_twin_report_and_the_quality_report_agree_on_presence() -> None:
     `synthtwin validate` reported this from the start; the twin's own
     report did not. Both must now.
     """
-    generator = random.Random(5)
-    values = [f"7.{generator.randint(0, 9)}" for _each in range(180)]
-    values = values + ["7.5"] * 20
-    generator.shuffle(values)
+    values = _colliding_rows()
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
         folder, "t.csv", fixtures.single_column_table("weight", values)

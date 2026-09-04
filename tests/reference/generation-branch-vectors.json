@@ -21,6 +21,7 @@
         "affix_suffix": "]",
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
+        "empty_edges": [],
         "field_widths": {
           "2": 12
         },
@@ -1085,6 +1086,7 @@
         "parts": [
           {
             "empty_bins": [],
+            "empty_edges": [],
             "field_widths": {
               "2": 12
             },
@@ -1748,6 +1750,7 @@
           },
           {
             "empty_bins": [],
+            "empty_edges": [],
             "field_widths": {
               "2": 12
             },
@@ -2957,6 +2960,7 @@
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
+        "empty_edges": [],
         "field_widths": {
           "1": 11,
           "2": 11
@@ -3775,6 +3779,7 @@
       "column": {
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
+        "empty_edges": [],
         "field_widths": {
           "(withheld)": 11
         },

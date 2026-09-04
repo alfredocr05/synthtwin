@@ -348,6 +348,15 @@ PLAN4_REGIONS = {
     "empty-bins": (
         "### P4-D32 The empty-bin fact (owner ruling 2026-08-31)"
     ),
+    # The two values each of those stretches really lies between, ruled
+    # in by the owner on 2026-09-04. It is the sibling of the bins
+    # above and NOT part of them, for the same reason the bins are not
+    # part of the census: the bins name no value and these pairs name
+    # two, so a region covering both would let one class stand for two
+    # different disclosure prices.
+    "empty-edges": (
+        "### P4-D35 The stretch edges (owner ruling 2026-09-04)"
+    ),
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
@@ -1061,6 +1070,24 @@ REGISTRY += [
         plan_words="the stretches that hold no value",
         plan_region="empty-bins",
         aliases=("empty bin", "empty-bin fact", "empty stretch"),
+    ),
+    # Plan P4-D35. The two values each run of empty bins really lies
+    # between. REPORT-ONLY beside the bins it stands with, and the
+    # class was measured: over the three two-cluster columns the fact
+    # was built against, at forty seeds each, the furthest cell inside
+    # the SOURCE's own gap went from 15.7-23.0 units from a real value
+    # to 1.3, and the count of such cells from one per column per seed
+    # to 8, 4 and 31 of 12,000. The twin FOLLOWS it and is not held to
+    # it, for the reason `empty_bins` is not: a block whose other
+    # published facts leave no free value beside a stretch cannot
+    # always be moved out of it. What remains is residual R-P4-155.
+    Fact(
+        "numeric",
+        "empty_edges",
+        REPORT_ONLY,
+        plan_words="the two values the run really lies between",
+        plan_region="empty-edges",
+        aliases=("stretch edge", "gap edge", "empty-stretch edge"),
     ),
     Fact(
         "numeric",

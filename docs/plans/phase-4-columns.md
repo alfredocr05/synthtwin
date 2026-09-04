@@ -4909,23 +4909,47 @@ declaration for only one of them.
   it, so nothing turned red. Repaired in the same commit as this
   landing.
 
-- **R-P4-138 — OPEN (opened 2026-09-01 by landing L12).** THE FACT'S
-  RESOLUTION IS ONE BIN, SO CELLS STAY INSIDE THE SOURCE'S TRUE GAP.
+- **R-P4-138 — CLOSED 2026-09-04 by landing L9 (amendment A-P4-57,
+  answer 1).** THE FACT'S RESOLUTION WAS ONE BIN, SO CELLS STAYED
+  INSIDE THE SOURCE'S TRUE GAP.
 
   `empty_bins` divides a column's reach into thirty-two bins, and the
   bins the source leaves empty are strictly inside the stretch the
   source actually leaves empty: on the first column above, the empty
   bins cover about 26.7 to 71.3 while the source holds nothing from
-  26.6 to 72.7. The repair moves a cell to the edge of the nearest
-  OCCUPIED bin, which is inside the source's true gap. Measured at
-  forty seeds, the count of cells in the source's own gap is unchanged
-  — 4–6, 2–3 and 3–5 of 300 before and after — but **their distance
-  from the nearest real value falls from 15.7–23.0, 22.8–33.9 and
-  2.1–3.1 to 1.0, 1.8 and 0.9**. So the phantom middle cluster is
-  gone and what is left is a slightly fatter tail on each real
-  cluster. Closing this means a finer division or a published edge,
-  which is a disclosure question of its own and a decision the owner
-  has not been asked.
+  26.6 to 72.7. The repair moved a cell to the edge of the nearest
+  OCCUPIED bin, which is inside the source's true gap.
+
+  **THE REPAIR: `empty_edges`, one `[below, above]` pair for each run
+  of empty bins, each pair two values of real cells.** The owner ruled
+  "follow you recommendation" on 2026-09-04; the edge of a gap is a
+  value from a real row, the same class of disclosure as a percentile
+  rung, which their ruling of 2026-09-03 already settles. Producer,
+  publication rules at both the column and the `parts[]` level, loader
+  key, invariant Q21 and the value stage's walk all take it.
+
+  **MEASURED, three witnesses, forty seeds each**, counting cells
+  inside the SOURCE's own widest gap rather than inside a bin: the
+  furthest such cell falls from **15.7–23.0 units from a real value to
+  1.3**, and the count of them from one per column per seed to **8, 4
+  and 31 of 12,000**. The demonstration table's `amount` column, whose
+  real gap runs 26.6 to 72.7, went from five cells of three hundred
+  inside it at every seed to none at three seeds and one at two.
+
+  **AND THE REMAINDER WENT TOO, in the same landing, after review
+  round 1 named its real cause (item 2).** Publishing the edges was
+  only half of it. The pass decided WHICH stretch a stratum was in by
+  its BIN, and a bin is coarser than a gap — so a stratum could stand
+  inside the gap and still be in a bin holding plenty, and the queue
+  never saw it. Asking the published PAIRS first, and the bins only
+  where the pairs say nothing, took the last of them:
+  `test_no_cell_stands_inside_the_sources_own_gap` asserts **0, 0 and
+  0 of 12,000** at forty seeds on the three witnesses. Round 1 also
+  found that the further-edge walk could step out of one gap and into
+  a NEIGHBOURING one — outside every barred bin and inside the other
+  pair — so a candidate is now refused if it reads inside any
+  published pair, not only inside a barred bin. Residual R-P4-155 was
+  opened for the remainder and CLOSED the same day by that repair.
 
 - **R-P4-139 — OPEN (opened 2026-09-01 by landing L12; PRE-EXISTING).**
   A TWO-CLUSTER COLUMN MISSES `widths.published.1` AT EVERY SEED.
@@ -8449,6 +8473,89 @@ is the whole of this decision, and the shortfall is NAMED: the twin's
 report carries a deviation naming the stretch and the value that
 stayed in it, and `synthtwin validate` LISTS the fact with a sentence
 saying the twin keeps out of the stretches without being held to them.
+
+### P4-D35 The stretch edges (owner ruling 2026-09-04)
+
+A numeric block gains one more shape fact beside `empty_bins`: for
+each RUN of consecutive empty bins, the two values the run really lies
+between — the largest value the statistics used below it and the
+smallest above it. The key is `empty_edges` and the contract states it
+at 7.11a. **It is published whatever the smallest group size is**, for
+the reason `empty_bins` is and for one more: a pair names two VALUES
+and not a group.
+
+**The owner ruled it in** on 2026-09-04, answering "follow you
+recommendation" to the first of the three Tier 2 limits put to them
+(amendment A-P4-57). Their ruling of 2026-09-03 on the ladder is the
+ground: an edge IS the value of a real cell, the same class of fact a
+percentile rung is, and a block publishes eleven rungs already. It
+says that some row holds 26.6 and some row holds 72.7, and nothing
+about which rows, how many, or what those rows hold anywhere else.
+
+**What was wrong, and it is a limit of P4-D32 rather than a defect in
+it.** A bin is a thirty-second of a block's reach, so the bins a
+column leaves empty lie strictly INSIDE the stretch it really leaves
+empty: the first column of P4-D32's table holds nothing between 26.6
+and 72.7 while its empty bins cover about 26.7 to 71.3. G6.7 moved a
+cell to the edge of the nearest occupied BIN, which is inside the
+source's own gap. Measured at forty seeds on the same three columns:
+
+| column | the source's own gap | furthest cell inside it, from a real value |
+|---|---|---|
+| 150 around 20 + 150 around 80 | 26.6 .. 72.7 | 15.7 to 23.0 |
+| 250 around 10 + 50 around 90 | 17.2 .. 85.7 | 22.8 to 33.9 |
+| 150 around 40 + 150 around 60 | 47.0 .. 53.3 | 2.1 to 3.1 |
+
+**How the twin meets it.** Method G6.7 walks from these two values
+instead of from the bin edges. Two things about the walk changed with
+them, both found by the suite: the FURTHER edge is walked after the
+nearer one where the nearer has nothing free — a bin edge always had a
+whole occupied bin behind it and a published edge may be a single
+value — and a candidate past either published END is refused, which a
+bin edge never needed because a bin always stood between it and the
+end.
+
+**Measured after, the same way**, counting cells inside the SOURCE's
+own gap rather than inside a bin: the furthest such cell falls to
+**1.3 units** from a real value, and the count of them from one per
+column per seed to **8, 4 and 31 of 12,000**.
+
+**What it costs a person, priced in contract 12.3 row 21 and computed
+rather than estimated.** Two values per stretch, each the value of a
+real cell. A reach has thirty-two bins whose first and last always
+hold the endpoints, so a block carries at most fifteen pairs, thirty
+entries and SIXTEEN distinct values; on a dense column there is no
+stretch at all and so no value here, and on a sparse one the ceiling
+is reached — a 17-row column occupying bins 0, 2, 4 … 30 and 31
+publishes sixteen of its seventeen values.
+
+**AND THE COMPARISON THIS WAS FIRST PRICED BY WAS WRONG.** It read
+"two more beside the eleven a ladder already publishes". Review round
+1 found that a NUMERIC ladder's nine interior rungs are interpolated
+between the order statistics either side and are usually held by no
+cell — measured on six columns of 17 to 250 drawn values, three to
+nine of the nine — so a numeric ladder puts TWO exact values in a
+block, not eleven. A date ladder and a clock ladder do place every
+rung on a real value, measured the same way. `SECURITY.md` and
+contract 12.3 rows 3 and 21 carry the correction.
+
+**Disposition: REPORT-ONLY**, the same as the fact it stands beside
+and for the same measured reason: a block whose other published facts
+leave no free value beside a stretch cannot always be moved out of it,
+and where it cannot the value STAYS and the report names it. On the
+three witnesses nothing stays — **0 of 12,000 at forty seeds each** —
+and over the wider corpus the shortfall is the one `empty_bins`
+already carries at residual R-P4-140.
+
+**TWO RULES OF THE WALK CAME FROM REVIEW ROUND 1** and are stated here
+rather than left in the code. A candidate is refused if it reads
+inside ANY published pair, not only inside a barred bin — a bin is
+coarser than a gap, so the further-edge walk could step out of one
+stretch and into a neighbouring one unseen. And the pass asks the
+published PAIRS which stretch a stratum is in, and the bins only where
+the pairs say nothing — a stratum can stand inside a gap and still be
+in a bin that holds plenty, and a queue built from the bins alone
+never saw it. The second is what took the count to nought.
 
 ### P4-D15 The date shapes a spreadsheet actually writes
 

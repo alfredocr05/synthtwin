@@ -477,6 +477,9 @@ NUMERIC_KEYS = (
     "field_widths",
     "value_histogram",
     "empty_bins",
+    # ...and the REAL edges of each stretch of empty bins (residual
+    # R-P4-138). Two values a run, and they are values of real cells.
+    "empty_edges",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -1128,6 +1131,18 @@ INVARIANTS = {
         "shape of its numbers is published name exactly the bins that "
         "shape does not"
     ),
+    # The edges of those stretches (residual R-P4-138), which are what
+    # a twin keeps out of: the bins are strictly inside the stretch the
+    # source really leaves empty, and these two values are the stretch.
+    "Q21": (
+        "a column of numbers names one pair of edges for each stretch "
+        "of bins it says holds nothing: the value just below the "
+        "stretch and the value just above it, each pair ascending, "
+        "the pairs themselves ascending and never crossing (two "
+        "stretches may share the one value that stands between them), "
+        "and every "
+        "one of them inside the two ends the column publishes"
+    ),
     "I2": (
         "the repetition pattern accounts for every different value and "
         "every row that holds one"
@@ -1767,6 +1782,10 @@ class NumericFacts:
     # smallest group size does not reach, and the value stage reads it
     # as a set of stretches no cell may land in.
     empty_bins: "tuple[int, ...]"
+    # One `(below, above)` pair per run of empty bins: the largest
+    # value under the stretch and the smallest over it, both real
+    # (residual R-P4-138).
+    empty_edges: "tuple[tuple[float, float], ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5984,6 +6003,7 @@ def _numeric_facts(
     fields = _field_widths(mapping, where, frame.floor, styles)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     hollow = _empty_bins(mapping, where, used, ladder, histogram)
+    edges = _empty_edges(mapping, where, hollow, ladder)
     values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
     # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
     # Q18). The two keys stand or fall together: a value with no count
@@ -6072,6 +6092,7 @@ def _numeric_facts(
         field_widths=fields,
         value_histogram=histogram,
         empty_bins=hollow,
+        empty_edges=edges,
     )
 
 
@@ -6276,6 +6297,133 @@ def _value_histogram(
             ),
         )
     return counts
+
+
+def _empty_edges(
+    mapping: "dict[str, object]",
+    where: str,
+    bins: "tuple[int, ...]",
+    ladder: "NumberLadder",
+) -> "tuple[tuple[float, float], ...]":
+    """The real boundaries of each stretch this column leaves empty.
+
+    RESIDUAL R-P4-138, closed by the owner's ruling of 2026-09-04. One
+    `[below, above]` pair per RUN of empty bins: the largest value
+    under the stretch and the smallest over it. The twin keeps out of
+    the open interval between them, which the bins alone cannot ask
+    for -- the bins a column leaves empty sit strictly INSIDE the
+    stretch it really leaves empty, so a cell repaired to a bin edge
+    still lands in the source's own gap. Measured on a 300-row column
+    whose real gap runs 26.9 to 74.0: five cells of three hundred sat
+    in it at every seed, about a unit past the cluster edge.
+
+    Q21: as many pairs as the bins have runs, each pair ascending, each
+    inside the published ends, and the pairs themselves ascending and
+    not overlapping. A description that cannot be read as a set of
+    stretches is refused rather than repaired.
+    """
+    given = mapping["empty_edges"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "empty_edges", where, given, "a list of edge pairs"
+        )
+    # THE RUNS THEMSELVES and not just how many, because each pair has
+    # to be bound to the stretch it belongs to (review round 1 item 4).
+    stretches: "list[tuple[int, int]]" = []
+    for place in bins:
+        if stretches and place == stretches[-1][1] + 1:
+            stretches[-1] = (stretches[-1][0], place)
+        else:
+            stretches = stretches + [(place, place)]
+    if len(given) != len(stretches):
+        raise _broken(
+            "Q21",
+            where,
+            f"{len(given)} pair(s) of edges are named",
+            f"one pair for each of the {len(stretches)} stretch(es) of "
+            "empty bins this column names",
+        )
+    edges: "list[tuple[float, float]]" = []
+    for entry in given:
+        if not isinstance(entry, list) or len(entry) != 2:
+            raise _wrong_type(
+                "empty_edges", where, entry, "a pair of two numbers"
+            )
+        below = _figure(entry[0], "empty_edges", where)
+        above = _figure(entry[1], "empty_edges", where)
+        if not below < above:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch runs from {below} to {above}",
+                "a stretch whose lower edge is below its upper one",
+            )
+        # TWO STRETCHES MAY SHARE AN EDGE, and refusing that was wrong:
+        # a single value standing between two gaps is the upper edge of
+        # one and the lower edge of the next, and it is one real cell.
+        # A 240-row column with a value at 47.0 between two stretches
+        # was refused by its own producer's description.
+        if edges and below < edges[-1][1]:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch starting at {below} overlaps the one "
+                f"ending at {edges[-1][1]}",
+                "stretches that ascend and do not overlap",
+            )
+        edges = edges + [(below, above)]
+    # THE TWO ENDS, READ ONCE AND GUARDED. A rung may be null, meaning
+    # the exact value is not one this format can hold, and a block
+    # whose ends are not both finite has no scale to divide -- so it
+    # publishes no empty bin, and a pair naming values it lies between
+    # would be naming a stretch of nothing.
+    low = ladder.rungs[0]
+    high = ladder.rungs[-1]
+    if low is None or high is None:
+        if edges:
+            raise _broken(
+                "Q21",
+                where,
+                f"{len(edges)} pair(s) of edges are named",
+                "no pair at all, on a column one of whose two ends is "
+                "not a value this format can hold",
+            )
+        return tuple(edges)
+    for below, above in edges:
+        if below < low or above > high:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch runs from {below} to {above}",
+                "a stretch inside the two ends this column publishes",
+            )
+    # AND EACH PAIR STANDS EITHER SIDE OF ITS OWN RUN OF BINS (review
+    # round 1 item 4). Without this a description could name a pair
+    # BOTH of whose values fall in bins it also says hold nothing --
+    # ends 0 and 32, a run of bins 10 to 12, the pair [11, 12] -- which
+    # met every condition above and describes no column any table
+    # holds, while the value stage read the two numbers as real cells.
+    # The edge below a run is a value in an EARLIER bin and the edge
+    # above it a value in a LATER one, which is what "the largest value
+    # under the stretch and the smallest over it" means.
+    for index in range(len(edges)):
+        below = edges[index][0]
+        above = edges[index][1]
+        under = parsing.histogram_bin(below, low, high)
+        over = parsing.histogram_bin(above, low, high)
+        first = stretches[index][0]
+        last = stretches[index][1]
+        if under >= first or over <= last:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch of bins {first} to {last} is named as "
+                f"lying between {below} and {above}, which stand in "
+                f"bins {under} and {over}",
+                "a stretch whose lower edge is a value in an earlier "
+                "bin and whose upper edge is a value in a later one",
+            )
+    return tuple(edges)
 
 
 def _empty_bins(

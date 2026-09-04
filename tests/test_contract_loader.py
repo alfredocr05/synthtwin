@@ -900,6 +900,11 @@ def battery() -> list[Mutation]:
             edit("visits", empty_bins=[0], value_histogram={}),
         ),
         Mutation(
+            "Q21",
+            "one pair of stretch edges more than there are stretches",
+            edit("visits", empty_edges=[[0.0, 1.0]]),
+        ),
+        Mutation(
             "Q17",
             "more different numbers than cells that read as one",
             edit("visits", n_distinct_values=900),

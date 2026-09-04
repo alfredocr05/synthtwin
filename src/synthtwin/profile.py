@@ -946,6 +946,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "empty_bins"): _ARRAY,
     ("columns", _EACH, "parts", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
+    # ...and each position's own stretch edges (residual R-P4-138).
+    ("columns", _EACH, "parts", _EACH, "empty_edges"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -987,6 +991,14 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # document stands for a cell somebody's table holds (P4-D32).
     ("columns", _EACH, "empty_bins"): _ARRAY,
     ("columns", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
+    # ...and the REAL edges of each of those stretches (residual
+    # R-P4-138). One `[below, above]` pair per run of empty bins, each
+    # a value of a real cell -- the same kind of fact a ladder rung is,
+    # which is what the owner's ruling of 2026-09-03 on the small-cell
+    # floor already covers.
+    ("columns", _EACH, "empty_edges"): _ARRAY,
+    ("columns", _EACH, "empty_edges", _EACH): _ARRAY,
+    ("columns", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,

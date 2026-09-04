@@ -2997,10 +2997,17 @@ def histogram_bin(value: float, lowest: float, highest: float) -> int:
     """Which of the `HISTOGRAM_BINS` bins one value falls in.
 
     The bins are equal in width and half-open at the top -- a value on
-    a shared edge belongs to the LOWER bin -- except the last, which is
-    closed so the published maximum has somewhere to go. A column whose
-    values are all one number has no width to divide and everything
-    falls in the first bin.
+    a shared edge belongs to the UPPER bin, the one that STARTS there
+    -- except the last, which is closed so the published maximum has
+    somewhere to go. A column whose values are all one number has no
+    width to divide and everything falls in the first bin.
+
+    THIS SENTENCE SAID "LOWER" UNTIL 2026-09-04 and the arithmetic
+    below never did: `int(share * HISTOGRAM_BINS)` puts a value whose
+    share is exactly `k / 32` in bin `k`, which is the bin that starts
+    at that edge. Contract C6-31f now states the rule normatively, in
+    the arithmetic's own terms, so a producer written to the document
+    and this module place a boundary value in the same bin.
 
     THE RULE LIVES HERE because three modules must agree on it: the
     producer that counts the bins, the loader that checks the count,

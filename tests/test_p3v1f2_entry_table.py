@@ -5311,6 +5311,11 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # a column whose other published facts leave no room beside a
         # stretch cannot always be moved out of it.
         "numeric.empty_bins",
+        # ...and the two real values each of those stretches lies
+        # between (plan P4-D35, residual R-P4-138). One fact in two
+        # keys, listed together: the bins say WHICH stretches there
+        # are and the edges say where each really begins and ends.
+        "numeric.empty_edges",
         "numeric.field_widths",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).

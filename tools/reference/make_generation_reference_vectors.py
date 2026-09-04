@@ -5244,6 +5244,13 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # depends on it.
     if "percentiles" in block and "empty_bins" not in block:
         block["empty_bins"] = []
+    # ...and the two values each of those stretches lies between
+    # (contract 7.11a, residual R-P4-138).  One pair per run of empty
+    # bins, so with no stretch named this is empty too, and contract
+    # Q21 -- as many pairs as there are runs -- is met by nought and
+    # nought.
+    if "percentiles" in block and "empty_edges" not in block:
+        block["empty_edges"] = []
     # ...and how many different NUMBERS the block holds (contract Q17,
     # plan P4-D4.9), on those same three roles.  The figure is a
     # placeholder here and is replaced by a count of the FINISHED cells
@@ -7072,6 +7079,10 @@ def _joined_readings():
             # where they are NOT; with no stretch named, method G6.7
             # does nothing and no cell of this case depends on it.
             "empty_bins": [],
+            # ...and the edges of those stretches (contract 7.11a),
+            # empty for the same reason: no stretch is named, so there
+            # is no run for a pair to belong to.
+            "empty_edges": [],
             "n_distinct_values": 9 if place == 0 else 5,
             # Each position carries the mode pair like any block of
             # numbers (contract Q18). Both positions of this column
