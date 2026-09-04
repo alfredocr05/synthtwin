@@ -4929,10 +4929,11 @@ declaration for only one of them.
   key, invariant Q21 and the value stage's walk all take it.
 
   **MEASURED, three witnesses, forty seeds each**, counting cells
-  inside the SOURCE's own widest gap rather than inside a bin: the
-  furthest such cell falls from **15.7–23.0 units from a real value to
-  1.3**, and the count of them from one per column per seed to **8, 4
-  and 31 of 12,000**. The demonstration table's `amount` column, whose
+  inside the SOURCE's own widest gap rather than inside a bin, in the
+  three stages P4-D35 sets out: **one cell per column per seed** with
+  the bins alone, **8, 4 and 27 of 12,000** with the edges published
+  and the queue still gathered from the bins, and **0, 0 and 0** as
+  shipped. The demonstration table's `amount` column, whose
   real gap runs 26.6 to 72.7, went from five cells of three hundred
   inside it at every seed to none at three seeds and one at two.
 
@@ -4950,6 +4951,26 @@ declaration for only one of them.
   pair — so a candidate is now refused if it reads inside any
   published pair, not only inside a barred bin. Residual R-P4-155 was
   opened for the remainder and CLOSED the same day by that repair.
+
+- **R-P4-156 — OPEN (opened 2026-09-04 by landing L9).** MOVING MORE
+  STRATA MEANS MORE OF THEM CANNOT MOVE.
+
+  On the committed battery — `tools/measurements/r_p4_136_l8_empty_bins.py`,
+  forty columns of two hundred cells at forty seeds each, run on the
+  commit before this landing and on it — runs leaving a cell in a
+  NAMED BIN went from **135 of 1600 to 240**, while runs leaving a
+  cell in the SOURCE's own widest gap went from **1456 to 644** and
+  the worst run of either fell from twelve cells to four.
+
+  The rise is mechanical rather than a defect in the repair: the
+  pair-first queue moves strata a bin-only queue never touched, each
+  move takes a free slot beside an edge, and a stratum that then finds
+  nothing free stays where it was — inside a named bin, with a note
+  saying so. Every one is reported. What would close this is a second
+  pass over the strata that could not move, offered the slots the
+  successful ones did not take, or an ordering that gives the
+  bin-queued strata first refusal; both change which cell lands where
+  and neither is a change this landing measured.
 
 - **R-P4-139 — OPEN (opened 2026-09-01 by landing L12; PRE-EXISTING).**
   A TWO-CLUSTER COLUMN MISSES `widths.published.1` AT EVERY SEED.
@@ -5040,16 +5061,28 @@ declaration for only one of them.
   missed before, and the forty-column battery still leaks on the same
   **119 runs of 1600** with the same 121 deviations.
 
-**RE-MEASURED 2026-09-04 AFTER THE PAIR-FIRST QUEUE**, on a FRESH
-corpus of the same shape — forty described columns of three hundred
-cells at forty seeds each: two-peak columns, whole-number columns,
-columns straddling zero, columns with one far outlier. **82 of 1600
-runs** still write a cell into a named stretch, worst run TWO cells,
-and every one is named in the twin's own report. It is not the same
-forty columns as the figure beside it, so the two are stated side by
-side rather than as a before and after; what they agree on is the
-SHAPE of what is left, which residual R-P4-140 records.
+**RE-MEASURED 2026-09-04 AFTER THE PAIR-FIRST QUEUE**, on the SAME
+committed battery (`tools/measurements/r_p4_136_l8_empty_bins.py`,
+forty columns of two hundred cells at forty seeds each), run once on
+the commit before landing L9 and once after it:
 
+| the committed battery, 40 columns x 40 seeds | before L9 | after L9 |
+|---|---|---|
+| runs leaving a cell in a NAMED BIN | 135 | **240** |
+| runs leaving a cell in the SOURCE's own widest gap | 1456 | **644** |
+| worst run, cells in a named bin | 10 | **4** |
+| worst run, cells in the source's own gap | 12 | **4** |
+
+**THE LANDING MORE THAN HALVES WHAT IT EXISTS TO FIX and raises the
+coarser count.** The gap is what a reader of the twin meets; the bins
+are a thirty-second-of-the-reach proxy for it. Runs putting a cell
+where the source really holds nothing fall from 1456 to 644, and the
+worst run from twelve cells to four. Runs putting a cell in a NAMED
+BIN rise from 135 to 240, and the reason is mechanical: the pair-first
+queue moves strata a bin-only queue never touched, those moves take
+the free slots beside an edge, and a stratum that then finds nothing
+free stays where it was. Residual **R-P4-156** carries the rise, and
+residual R-P4-140 still carries the class.
 
 - **R-P4-141 — OPEN (opened 2026-09-01 by landing L12's mutation
   run).** TWO OF METHOD G6.7's RULES ARE PINNED BY NOTHING.

@@ -2433,8 +2433,9 @@ where they meet this one gives way and G6.7.8's deviation names the
 stretch instead. **Measured cost of the two rules on the corpus of
 G6.7.8: none.** The three two-cluster columns still write no cell in a
 named stretch at any of forty seeds at either floor, and the forty
-described columns leak on the same 119 runs of 1600 — 82 on the fresh
-corpus re-measured after the pair-first queue.
+described columns leak on the same 119 runs of 1600 — 240 after the
+pair-first queue, against 1456 to 644 on the gap the bins stand in
+for (residual R-P4-156).
 
 **G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
 to it — measured from the value to each of the stretch's two edges —
@@ -2521,9 +2522,12 @@ gap of 26.6 to 72.7 it read "no value from 26.7 to 71.3", telling a
 reader the column was empty over a narrower range than the description
 says. Measured over forty described columns
 at forty seeds each, the runs writing a cell into a named stretch went
-from 1049 of 1600 to 119 — and on a fresh corpus of the same shape,
-measured after the pair-first queue landed on 2026-09-04, to 82 of
-1600 with a worst run of two cells. Every one of them is a column whose
+from 1049 of 1600 to 119 — and, re-measured on the same committed
+battery after the pair-first queue landed on 2026-09-04, to 240 of
+1600 in a named BIN while runs putting a cell in the SOURCE's own
+widest gap fell from 1456 to 644 and the worst run of either from
+twelve cells to four (residual R-P4-156). Every one of them is a
+column whose
 other published facts leave no room beside the stretch: a
 whole-numbered column whose bins are barely wider than a unit and
 whose neighbouring bin holds no free whole number, or a stratum whose
@@ -5867,6 +5871,61 @@ line — its census restates that format's own name beside the parsed
 total, and `format` is already disclosed as recorded-not-reproduced, so
 a second line would tell a reader there were two losses where there is
 one.
+
+**THE KEY INDEX, so that "complete" is a claim a machine can check.**
+The prose above names each deviation by the SHAPE of what happened,
+which is what a reader needs and what a checker cannot read. Every
+`fact` name a report may carry is therefore listed here as well, and
+`tests/test_p4d32_empty_bins.py` resolves the names the generator can
+pass -- through the helpers that forward one -- and holds this index
+to them in BOTH directions. Three keys were missing from the prose
+list when that guard was first written: `shape_forms`, and the two
+gap keys `empty_bins` and `empty_edges`.
+
+* `all_whole_numbers`
+* `datetimes_read_at`
+* `earliest`
+* `empty_bins`
+* `empty_edges`
+* `field_widths`
+* `fraction_widths`
+* `integer_valued`
+* `latest`
+* `max_length`
+* `min_length`
+* `n_all_digits`
+* `n_code_alphabet`
+* `n_contradictory`
+* `n_distinct`
+* `n_distinct_by_occurrences`
+* `n_distinct_folded`
+* `n_distinct_values`
+* `n_fraction`
+* `n_missing`
+* `n_negative`
+* `n_not_numeric`
+* `n_numeric`
+* `n_out_of_range`
+* `n_positive`
+* `n_present`
+* `n_sign_unknown`
+* `n_unparsed`
+* `n_whole`
+* `n_whole_unknown`
+* `numeric_styles`
+* `pad_widths`
+* `percentiles`
+* `resolution_mix`
+* `shape_forms`
+* `suppressed_levels`
+* `utc_offsets`
+* `words`
+* `levels -> shape_form_cells`
+* `levels -> variants_withheld`
+
+A name here is a key a report MAY carry, never one it must: every
+entry above is a deviation raised only where the twin did not reach
+the published fact.
 
 **What this list does not hold, and why the absence is the point.** No
 end of a column of dates appears in it. The contract's D10 and D11

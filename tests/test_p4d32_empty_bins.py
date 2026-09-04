@@ -300,31 +300,102 @@ def test_the_loader_refuses_a_bin_the_census_names(
         contract.load_profile(str(path))
 
 
+def _forwarded_fact_places(
+    tree: "ast.Module",
+) -> "dict[str, set[int]]":
+    """Which helpers pass a caller's argument on as a deviation's fact.
+
+    `_deviation` is called with a LITERAL key in most places and with a
+    variable in five, and those five take it from a caller -- through
+    `_named_miss`, `_endpoint_notes` and `_cleared_into`. A scan that
+    read only the literals at `_deviation` saw twenty-seven of the
+    forty keys a report can carry, and the method's own inventory was
+    missing three of them with nothing to notice (review rounds 4 and
+    5).
+
+    Guarantees: accepts the parsed module; returns each forwarding
+    helper's name against the argument positions it forwards.
+    Determinism: a function of the source. Raises nothing. No I/O.
+    """
+    functions: "dict[str, ast.FunctionDef]" = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef,)):
+            functions[node.name] = node
+    places: "dict[str, set[int]]" = {}
+
+    def look(holder: str, body: "ast.FunctionDef", called: str) -> None:
+        for inner in ast.walk(body):
+            if not isinstance(inner, ast.Call):
+                continue
+            if not isinstance(inner.func, ast.Name):
+                continue
+            if inner.func.id != called or len(inner.args) < 2:
+                continue
+            second = inner.args[1]
+            if not isinstance(second, ast.Name):
+                continue
+            named = [one.arg for one in body.args.args]
+            if second.id in named:
+                found = places[holder] if holder in places else set()
+                places[holder] = found | {named.index(second.id)}
+
+    for name in functions:
+        look(name, functions[name], "_deviation")
+    # ...and one more hop, twice, for a helper that forwards to a
+    # helper. Three passes is more than the file has ever needed and
+    # is bounded, which a walk over a call graph has to be.
+    for _round in range(3):
+        for name in functions:
+            for holder in list(places):
+                look(name, functions[name], holder)
+    return places
+
+
 def test_every_deviation_key_is_one_the_method_authorizes(
     tmp_path: pathlib.Path,
 ) -> None:
-    """G12 calls its list COMPLETE, and it was not (round 4 item 6).
+    """G12 calls its list COMPLETE, and this is what makes that checkable.
 
-    G6.7.8 authorizes a deviation for a value left inside a stretch,
-    and the generator emits `empty_bins` or `empty_edges` for it --
-    and G12's inventory, the one a reviewer is told to check a report
-    against, named neither from the landing that authorized them.
-    A report built from that list would omit them; an auditor holding
-    a report to it would refuse them.
+    THE PROSE LIST NAMES SHAPES AND NOT KEYS, which is what a reader
+    needs and what nothing could check: "a raised distinct count
+    (G5.2)" is the entry, and `n_distinct` is the key the report
+    carries. G12 carries a KEY INDEX beside the prose for that reason,
+    and this holds the two together in BOTH directions -- a key the
+    generator can pass and the index does not name, and a name in the
+    index no call can produce.
 
-    Read off the CALLS rather than a list kept beside them, so a key
-    added to the generator and not to the method turns this red.
+    THREE KEYS WERE MISSING when this was first written: `shape_forms`,
+    `empty_bins` and `empty_edges`, the last two authorized by G6.7.8
+    from the landing that added them. A report built from that list
+    would have omitted them; an auditor holding a report to it would
+    have refused them.
     """
     tree = ast.parse(
         pathlib.Path(generation.__file__).read_text(encoding="utf-8")
     )
+    places = _forwarded_fact_places(tree)
     named: "set[str]" = set()
-    # THE TWO GAP KEYS ARE NOT LITERALS AT THE CALL. Which of them a
-    # stuck value names is decided by the route that queued it, so the
-    # call carries a variable and a scan of the source alone would see
-    # neither. They are read from a RUN instead -- the same mixed-route
-    # shape the witness above drives -- so this guard reads what the
-    # generator really emits and not what it looks like it emits.
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id == "_deviation":
+            wanted = {1}
+        elif node.func.id in places:
+            wanted = places[node.func.id]
+        else:
+            continue
+        for place in wanted:
+            if place >= len(node.args):
+                continue
+            arg = node.args[place]
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                named.add(arg.value)
+    # THE TWO GAP KEYS ARE CHOSEN INSIDE `_clear_enough` and passed on
+    # from a local, so no static walk reaches them. They are read from
+    # a RUN instead -- the same mixed-route shape the witness above
+    # drives -- so this guard reads what the generator really emits.
     rows = (
         ["0.0", "32.0", "9.9", "13.1"]
         + [f"{place}.5" for place in range(1, 10)]
@@ -351,41 +422,22 @@ def test_every_deviation_key_is_one_the_method_authorizes(
     )
     for note in notes:
         named.add(note.fact)
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        if not isinstance(node.func, ast.Name):
-            continue
-        if node.func.id != "_deviation" or len(node.args) < 2:
-            continue
-        second = node.args[1]
-        if isinstance(second, ast.Constant) and isinstance(
-            second.value, str
-        ):
-            named.add(second.value)
     assert "empty_bins" in named and "empty_edges" in named, sorted(named)
+
     said = (
-        fixtures.GOVERNING_CONTRACT.parent
-        / "generation-method-v1.md"
+        fixtures.GOVERNING_CONTRACT.parent / "generation-method-v1.md"
     ).read_text(encoding="utf-8")
-    # EVERY key the generator names, in the method somewhere. A few
-    # are written as a path through a map -- `levels -> variants_
-    # withheld` -- so each part is asked for separately.
-    for fact in sorted(named):
-        for part in fact.split(" -> "):
-            assert part in said, (fact, part)
-    # ...AND THE TWO GAP KEYS IN THE COMPLETE LIST ITSELF, which is
-    # the sentence that was wrong: being mentioned in the document is
-    # not being on the inventory a reviewer checks a report against.
-    start = said.index("The complete list, so that a reviewer")
+    start = said.index("**THE KEY INDEX, so that")
     stop = said.index(
-        "**What this list does not hold, and why the absence is the "
-        "point.**",
-        start,
+        "A name here is a key a report MAY carry", start
     )
-    inventory = said[start:stop]
-    assert "`empty_bins`" in inventory, inventory[-600:]
-    assert "`empty_edges`" in inventory, inventory[-600:]
+    listed = {
+        line[3:-1]
+        for line in said[start:stop].split("\n")
+        if line.startswith("* `") and line.endswith("`")
+    }
+    assert named - listed == set(), sorted(named - listed)
+    assert listed - named == set(), sorted(listed - named)
 
 
 def test_the_disclosure_ceiling_is_the_one_the_documents_state() -> None:
@@ -838,12 +890,17 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     nothing.
 
     THIS COLUMN STILL FAILS, and for the reason residual R-P4-140
-    records: it straddles zero. A stratum in the ZERO band is never
-    moved -- moving it would take a cell out of `n_zero`, which is
-    EXACT-OBSERVABLE while this fact is not -- so a stratum the ladder
-    puts in the gap and in that band stays where it is. Measured over
-    forty seeds: five of them leave one cell, and the report names it
-    on every one of those five.
+    records: it straddles zero, and G6.7.4's SIGN BAND is what stops
+    the move. The column holds no zero at all -- `n_zero` is nought --
+    so the arm is not the zero band; it is the positive band. The
+    stratum stuck in the gap holds a POSITIVE value, its nearer edge
+    is the stretch's lower one at -23.0, and every candidate below
+    that edge is negative, which the sign band refuses because
+    `n_negative` is EXACT-OBSERVABLE while this fact is not. The
+    further edge is walked after it and has nothing free either.
+
+    Measured over forty seeds: five of them leave one cell, and the
+    report names each by its own stretch and value.
     """
     draw = random.Random(2)
     rows = (
@@ -866,19 +923,42 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
         if not left:
             continue
         stayed = stayed + 1
-        assert named, (
-            f"seed {seed} left {left} in a stretch the description "
-            f"says is empty and the report said nothing"
-        )
-        # ...and the note says WHICH stretch and WHICH value, in the
-        # description's own terms.
+        # THE NOTES ARE MATCHED TO THE CELLS, one for one. "Some gap
+        # note exists" would be met by a note about a DIFFERENT cell
+        # while the one left behind went unreported, which is the
+        # silence this witness exists to refuse.
         edges = loaded.columns[0].facts.empty_edges
-        published = {
-            f"no value from {pair[0]} to {pair[1]}" for pair in edges
-        }
-        for note in named:
-            assert note.published in published, (note, sorted(published))
-            assert note.achieved.startswith("one cell holds "), note
+        holding = []
+        for cell in left:
+            value = parsing.parse_number(cell)
+            place = parsing.histogram_bin(value, lowest, highest)
+            for pair in edges:
+                below = parsing.histogram_bin(pair[0], lowest, highest)
+                above = parsing.histogram_bin(pair[1], lowest, highest)
+                if below < place < above:
+                    holding = holding + [
+                        (
+                            f"no value from {pair[0]} to {pair[1]}",
+                            f"one cell holds {value}",
+                        )
+                    ]
+                    break
+        assert len(holding) == len(left), (left, edges)
+        assert sorted(
+            (note.published, note.achieved) for note in named
+        ) == sorted(holding), (
+            f"seed {seed}: the twin left {left} in a stretch and the "
+            f"report named "
+            f"{sorted((n.published, n.achieved) for n in named)}"
+        )
+        # ...and the value that stayed is POSITIVE on this column,
+        # which is what says the sign band is the arm under test.
+        for cell in left:
+            assert parsing.parse_number(cell) > 0.0, cell
+    assert loaded.columns[0].facts.n_zero == 0, (
+        "this column is chosen for having NO zero, so the arm cannot "
+        "be the zero band"
+    )
     assert stayed > 0, (
         "the move never failed on this column at any of forty seeds, "
         "so this witness would stay green with the reporting path "
@@ -1207,6 +1287,32 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     # refused the description outright.
     twin = generation.generate(loaded, 3)
     assert len([cell for cell in twin.columns[0] if cell]) == 120
+    # AND THE FLOOR AT ITS BOUNDARY, both sides (review round 5 item
+    # 6). C6-31f states that a one-value block's census is governed by
+    # the floor like any other -- published while its one bin clears
+    # it, withheld whole below it -- while BOTH gap keys stay empty at
+    # every floor. A `count < floor` written as `count <= floor` would
+    # hide the census at 120 and no witness would see it.
+    for floor, census in ((1, {"0": 120}), (120, {"0": 120}), (121, {})):
+        built = profile.build_document(
+            reading.read_table(f"{path}"),
+            taxonomy.Settings(small_cell_floor=floor),
+            [],
+            [],
+            ["bp"],
+        )
+        one = built["columns"][0]["parts"][0]
+        assert one["value_histogram"] == census, (floor, one)
+        assert one["empty_bins"] == [], (floor, one)
+        assert one["empty_edges"] == [], (floor, one)
+        # ...and the loader takes every one of them.
+        contract.load_profile(
+            str(
+                fixtures.write_profile(
+                    tmp_path, f"constant-{floor}.json", built
+                )
+            )
+        )
 
 
 def test_the_twins_cells_are_a_function_of_the_published_fact(

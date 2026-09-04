@@ -350,6 +350,16 @@ are still ahead. The gap list itself is at the foot of this page.
   Residual R-P4-155 was opened for the remainder and closed the same
   day by the queue repair.
 
+  **AND THE WIDER CORPUS, like for like.** The committed battery —
+  forty columns of two hundred cells at forty seeds each, run on the
+  commit before this landing and on it — puts a cell in the SOURCE's
+  own widest gap on **1456 of 1600 runs before and 644 after**, worst
+  run twelve cells to four; and in a NAMED BIN on **135 before and 240
+  after**, because the pair-first queue moves strata a bin-only queue
+  never touched and each move takes a free slot beside an edge. Every
+  cell that stays is named in the twin's report. The rise is residual
+  **R-P4-156**.
+
   **THE MUTATION RUN, AND WHAT IT SENT BACK.** Fifteen rules of the
   producer, the loader and method G6.7 were withdrawn one at a time
   from the shipped tree and 614 tests over eleven files run against
