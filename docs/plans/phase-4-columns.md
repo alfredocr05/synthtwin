@@ -2064,6 +2064,116 @@ The standing machinery, extended — nothing bespoke:
 - The quality report's pass still means one thing — no checkable
   obligation was missed — and its scope statements do not widen here.
 
+## Amendment A-P4-55 — the count of different values is an OBLIGATION, not a report line (owner ruling 2026-09-04)
+
+**THE OWNER'S WORDS.** "We can group by, count distinct. Remember, the
+goal of the twin generator is to be able to reproduce a synthetic data
+of any type of health data to code development and statistical
+reliability! The analysis of such a big field can comprehend any type
+of thing, including the mentioned ones. So, yes, we need to address
+this limitation and not just report."
+
+**THE QUESTION THEY WERE ASKED.** Residuals R-P4-20, R-P4-120 and
+R-P4-125 all end at one place: the twin is told how many DIFFERENT
+values a column holds and is not held to it. The counts are published
+and REPORT-ONLY, and the measurements are these, through the real path
+at forty seeds:
+
+| the column publishes | the twin holds | met exactly |
+|---|---|---|
+| 82 different numbers, tight cluster | 73 to 77 | no |
+| 40 different whole numbers | 37 to 40 | some seeds |
+| 196 different numbers, wide spread | 195 to 196 | some seeds |
+| 7 repeated values | 7 | every seed |
+| 120 different SPELLINGS (`07` beside `7`) | 81 to 97 | no |
+
+Across four plain columns at forty seeds each: **21 of 40 runs met the
+published count exactly.** The assistant's recommendation was to leave
+it report-only for continuous measurements and to ask the owner whether
+their analyses group by, or count distinct on, numeric columns.
+
+**THE RULING.** They do, and the tool is for any health analysis, so
+the count is an obligation. `n_distinct_values` stops being
+REPORT-ONLY: the generator must reach it, and where it cannot the file
+owes the reader a named miss rather than a silence.
+
+**WHAT THIS COSTS AND WHERE THE TRADE IS, stated before the build so
+the next measurement is read against a prediction and not after it.**
+The values stage places one number per stratum; making every stratum
+land on a DIFFERENT number takes room that is currently spent landing
+each stratum on its published percentile rung. So the trade is between
+the count of different values and the exactness of the ladder, and the
+build must measure both before and after on the same columns and the
+same seeds. If the ladder degrades measurably, that measurement comes
+back to the owner rather than being absorbed silently.
+
+**SCOPE.** Numbers first: `n_distinct_values` on every quantitative
+block, which is the count analysis code groups by. The SPELLING counts
+(R-P4-125's 120-against-81-to-97) are the same shape of gap in the
+spelling budget and are part of the same build. The disposition
+question R-P4-125 also carries -- one role's count exactly observable
+and the sibling's inside an envelope -- is settled by this ruling in
+the same direction: both are obligations.
+
+---
+
+## Amendment A-P4-56 — ASKING THE PERSON IS PART OF THE PRODUCT (owner ruling 2026-09-04)
+
+**THE OWNER'S WORDS.** "Can we ask the user when is a date? Remember,
+we want a really user friendly no code need application for the user,
+but he can inform us about what is some rows of the table. We should
+try to guess the vast majority, but we can have a set of question
+before the production of the twin to the user: so, for example, we can
+enforce the user to provide all date columns, all code columns and
+whatever ... Having imputs from the user is not bad, it's honesty. We
+do our best to build a tool that make a guess, but if the cost is so
+high to make the guess, maybe it worth a question to the user!"
+
+**WHAT THIS SETTLES, and it is bigger than the residual that raised
+it.** R-P4-150 is the case that put the question: a dozen numeric CODES
+just above the size where a set of categories stops being one are read
+as a quantity, and the description then publishes a mean of month
+numbers. No count can tell a twelve-point code from a twelve-point
+measurement -- the rule's own comment has said so since it was written
+-- and the assistant's recommendation was to leave the rule and add a
+remark.
+
+**THE RULING GOES FURTHER: a question to the person is a first-class
+answer, not a failure of the guess.** Where a judgement cannot be made
+from the values with confidence, the tool ASKS rather than guessing
+quietly and living with the consequence.
+
+**THE STANDING POSITION THIS SETS.**
+
+1. **The tool still guesses, and the guess must be good.** Asking is
+   for the cases a count genuinely cannot settle, not a way to push
+   work onto the person.
+2. **Where the guess is not confident, the person is asked before the
+   twin is built** -- not after, and not through a flag they have to
+   know exists.
+3. **The declarations already shipped are the answers to those
+   questions**: `--code`, `--measurement`, `--decimal-comma`,
+   `--missing-value`, `--keep-value`, `--identifier`. What is missing
+   is the ASKING, not the machinery.
+4. **The honesty argument is the owner's own and is recorded as the
+   ground**: a tool that asks is more honest than one that guesses
+   silently, and the person holding the table knows what their columns
+   are.
+
+**WHAT IT DOES NOT SETTLE, and is put back to the owner at the close.**
+Whether the asking is a prompt in the terminal, a written questionnaire
+the person fills in and hands back, or a file the tool writes for them
+to complete. That is a shape question with a cost, and the residual
+that carries it is R-P4-153.
+
+**SEQUENCING.** This is a new surface -- a stage that runs BEFORE
+profiling and changes what the profiler is told. It is not in the
+eleven landings of the close plan, so it does not silently join Phase
+4: it is priced and placed by the owner, and until it is, R-P4-150 and
+every sibling stay open and named.
+
+---
+
 ## Amendment A-P4-47 — the per-level form census is RULED IN (owner ruling 2026-08-31)
 
 **THE OWNER'S WORDS.** "We need to reproduce this kind of categories!
@@ -6987,6 +7097,11 @@ declaration for only one of them.
   the distinctness envelope and this is what that route leaves open;
   closing it means publishing a count of different values that no
   spelling can buy, which is a format decision and an owner's.
+  **THEY MADE IT ON 2026-09-04 (amendment A-P4-55): the count is an
+  OBLIGATION and not a report line**, because analysis code groups by
+  and counts distinct on numeric columns. What is left of this
+  residual, and of R-P4-120 and R-P4-125 with it, is a BUILD rather
+  than a documented limit.
 
   **THE COUNT EXISTS AND NOW BINDS SOMETHING.** P4-D4.9 published
   `n_distinct_values` on every quantitative block, which answered the
