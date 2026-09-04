@@ -439,11 +439,18 @@ def test_a_file_the_declaration_rejects_is_reported_on_again(
     column = truth["columns"][1]
     # NOT free text since plan P4-D5: the spelling this declaration
     # does NOT name is worn by enough cells to clear the publication
-    # floor, so the column that declaration describes is a long tail of
-    # labels. What this test is about is untouched -- the file the
+    # floor, so the column that declaration describes publishes labels.
+    #
+    # AND IT IS THE COMPOUND ROLE SINCE LANDING L8, because the cells
+    # that are not that spelling are NUMBERS and there are enough of
+    # them: the column holds a numeric population beside a repeated
+    # word, which is what rule 7b claims. It read `long_tail_labels`
+    # before, which described the word and nothing about the numbers.
+    #
+    # What this test is about is untouched either way -- the file the
     # declaration rejects is described with no holes at all, and the
     # seven obligations below are still missed.
-    assert column["role"] == "long_tail_labels"
+    assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
     assert column["n_missing"] == 0
     assert raw.described.columns[1].role == "continuous"

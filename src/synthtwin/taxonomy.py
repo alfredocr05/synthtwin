@@ -663,6 +663,16 @@ EVIDENCE_NUMBERS = "evidence_written_as_numbers"
 EVIDENCE_CATEGORIES = "evidence_set_of_categories"
 EVIDENCE_LONG_TAIL = "evidence_long_tail_of_labels"
 EVIDENCE_COMPOUND = "evidence_numbers_with_labels"
+# THE OTHER BRANCH OF THE SAME RULE, and it needs its own sentence
+# because the one above states a fact that is not true of it (review
+# round 1 of landing L8, item 5). Rule 7b admits a label half two ways:
+# a value shared by the detection line's rows or more, OR a SMALL SET
+# of different values however few rows each covers. A column of 295
+# readings beside five `NOT DETECTED` is admitted by the second, and
+# the first sentence told its reader that some value is shared by
+# eleven rows or more. No value is. One rule, two grounds, two
+# sentences.
+EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
@@ -808,6 +818,7 @@ NOTE_ARITY: "dict[str, int]" = {
     # level had to cover, and how many levels covered it.
     EVIDENCE_LONG_TAIL: 5,
     EVIDENCE_COMPOUND: 4,
+    EVIDENCE_COMPOUND_SMALL_SET: 4,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
@@ -1285,6 +1296,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"by {_whole(arguments, 2)} rows or more -- so this column "
             f"is numbers and labels sharing one cell space, and each "
             f"half is described in its own terms"
+        )
+    if form == EVIDENCE_COMPOUND_SMALL_SET:
+        return (
+            f"{_whole(arguments, 0)} of this column's cells are ordinary "
+            f"numbers and {_whole(arguments, 1)} are not, out of "
+            f"{_whole(arguments, 3)} rows; the numbers are too few a "
+            f"share to read the whole column as a quantity, and the "
+            f"cells that are not numbers hold {_whole(arguments, 2)} "
+            f"different value(s) between them, which is a set of "
+            f"markers rather than free writing -- so this column is "
+            f"numbers and labels sharing one cell space, and each half "
+            f"is described in its own terms"
         )
     if form == EVIDENCE_NO_READING_FITS:
         return (
@@ -4785,7 +4808,47 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # so. Where the two are indistinguishable this rule declines and
     # the column keeps the description it has today, which is the
     # honest answer; `--code` is how a person says which it is.
-    if len(distinct_numbers) < settings.long_tail_minimum_level:
+    # THE DETECTION LINE, AND IT IS THE FLOOR'S LINE AND NOT THE BARE
+    # ELEVEN (review round 2 of this landing, item 1). This read
+    # `settings.long_tail_minimum_level` -- the constant eleven -- so
+    # raising the floor did not raise this bar, and the guarantee every
+    # other rule of this taxonomy carries is that membership at ANY
+    # floor is a subset of membership at eleven. Measured: at a floor
+    # of twenty-five, eleven readings beside forty `POSITIVE` cells
+    # took the role and published a mean, a spread and a percentile
+    # rung over eleven cells -- to a person who had asked that nothing
+    # about a group smaller than twenty-five be published.
+    line = _long_tail_line(settings)
+    # THE TWIN OF A COLUMN THAT SITS ON THIS LINE MAY NOT BE ONE, and
+    # a margin is NOT the answer (review round 3 of this landing, item
+    # 4, measured twice). The numeric machinery reaches about nine
+    # tenths of a published count of different values on a hard column,
+    # so a half holding exactly the line's worth writes fewer, and
+    # re-describing the twin gives another role: over forty seeds, a
+    # half on the line kept the role on 31 of 40 seeds at floors 1 and
+    # 11 and on 13 of 40 at floor 25.
+    #
+    # A margin of a tenth was built and MEASURED and taken out again,
+    # because it raises the bar the TWIN must clear as well: with it,
+    # thirteen different numbers -- the first count that had been
+    # stable at floor 1 -- kept the role on 27 of 40 seeds instead of
+    # 40. Every margin does this, and each one costs real columns the
+    # description they exist to get.
+    #
+    # So the line stands where the plan puts it and the limit is
+    # NAMED instead: residual R-P4-151. The twin of such a column still
+    # HOLDS its numbers -- what a re-description does not do is call it
+    # the same kind of column, so `synthtwin validate` reports the
+    # role's facts as withheld rather than held.
+    if len(distinct_numbers) < line:
+        return None
+    # AND THE HALF ITSELF MUST CLEAR THE LINE, not only its count of
+    # different values. The two are the same number on a column whose
+    # readings never repeat and far apart on one whose readings do, and
+    # the plan states this rule over the CELLS: a numeric half smaller
+    # than the smallest publishable group is a group this description
+    # may not describe.
+    if len(numbers) < line:
         return None
     share = _at_most(settings.categorical_share, len(numbers))
     ceiling = min(settings.categorical_ceiling, share)
@@ -4856,14 +4919,80 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # would have published those eighteen narratives verbatim. The
     # numeric mass was making the text half look like labels.
     #
-    # Half is the line: a text half whose repeating words cover fewer
-    # than half its cells is prose with a duplicate in it, not a
-    # vocabulary with a stray.
+    # MORE than half is the line, and the word above is "most":
+    # `covered * 2 < len(labels)` refused fewer than half and admitted
+    # EXACTLY half, which review round 1 of this landing showed is a
+    # column of prose (item 4). Fifty numbers, `unable to obtain`
+    # twice, and two different narratives -- the repeating identity
+    # covers two of four text cells, the rule admitted it, and at a
+    # floor of one both narratives would have been published verbatim
+    # as levels.
     covered = 0
+    singletons = 0
     for key in sorted(folded_counts):
         if folded_counts[key] > 1:
             covered = covered + folded_counts[key]
-    if covered * 2 < len(labels):
+        else:
+            singletons = singletons + 1
+    # NINE TENTHS OF THE HALF'S CELLS, and "more than half" was not
+    # enough (review round 2, item 4). Two hundred and ninety-six
+    # readings, three `NOT DETECTED` and ONE narrative gives a half
+    # whose repeating cells are three of four -- a clear majority --
+    # and at a floor of one that narrative is published verbatim as a
+    # level. Nine tenths refuses it and still admits the shape this
+    # bar exists to protect: nineteen markers beside one MISSPELLED
+    # marker is ninety-five hundredths, and a lab column is not to be
+    # thrown to another role over one typing slip.
+    # STRICTLY MORE than nine tenths, because the boundary itself
+    # carries prose: two hundred readings beside ninety marker cells
+    # and TEN different one-off notes is exactly nine tenths, and the
+    # ten notes would each be published verbatim at a floor of one
+    # (review round 3 of this landing, item 3). The typing-slip column
+    # this bar protects is at ninety-five hundredths and is unaffected.
+    if covered * 10 <= len(labels) * 9:
+        return None
+    # AND MOST OF THE HALF'S IDENTITIES MUST REPEAT, not merely most of
+    # its cells. The cell test alone is carried by one big marker: a
+    # thousand-row column holding a hundred `NOT DETECTED` and
+    # ninety-nine different narratives has the marker covering more
+    # than half the cells, one identity clearing the detection line,
+    # and ninety-nine narratives that would each be published verbatim
+    # at a floor of one. A vocabulary is a set of words that recur; a
+    # set where most of the WORDS occur once is prose with a marker
+    # mixed into it, and it stays free text.
+    # AND MOST OF THE HALF'S IDENTITIES MUST REPEAT, which the cell
+    # test above does not settle on a LARGE half: a thousand markers
+    # beside ninety-nine different narratives is ninety-one hundredths
+    # of the cells and still ninety-nine narratives. A MAJORITY of
+    # singletons refuses; a tie does not, because the smallest half
+    # with a stray -- one marker and one typo -- is a tie and is the
+    # case the paragraph above admits on purpose.
+    if singletons * 2 > len(folded_counts):
+        return None
+    # AND A TIE IS ADMITTED ONLY WHERE ITS REPEATING WORD IS ITSELF
+    # PUBLISHABLE (review round 4 of this landing, item 4). The tie is
+    # the smallest interesting half: one word that repeats and one that
+    # occurs once. Whether admitting it publishes MORE of a person's
+    # text than refusing it depends on what the column falls to, and
+    # that turns on exactly this question:
+    #
+    # * 280 readings, nineteen `NOT DETECTED` and one stray -- the
+    #   marker covers nineteen rows, clears the detection line, and
+    #   REFUSING sends the column to `long_tail_labels`, which at a
+    #   floor of one publishes 282 levels: the stray and all 280
+    #   readings, each verbatim. Admitting publishes one.
+    # * 289 readings, ten `NOT DETECTED` and one stray -- the marker
+    #   covers ten rows, clears nothing, and refusing sends the column
+    #   to `free_text`, which publishes no cell at all. Admitting
+    #   publishes the stray for nothing.
+    #
+    # So the tie is admitted where a repeating word reaches the line
+    # and refused where none does, which is the same question the rule
+    # below asks for its OTHER branch and needs no new number.
+    if (
+        singletons * 2 == len(folded_counts)
+        and _levels_covering(folded_counts, cells.settings) < 1
+    ):
         return None
     a_small_set = len(folded_counts) <= _categorical_ceiling(cells)
     a_repeating_one = _levels_covering(folded_counts, cells.settings) >= 1
@@ -6758,19 +6887,42 @@ def _compound_details(
     against: `n_numeric_cells` and `n_label_cells` sum to `n_present`,
     so every present cell is in exactly one of the two descriptions.
     """
+    # THE HALF'S OWN CELL COUNT IS THE ROW COUNT ITS BLOCK ECHOES, not
+    # the table's. A joined position settled this first: that block
+    # describes only the cells that split, so it echoes `n_joined`, and
+    # comparing it against the table's count made the tool write files
+    # it then refused to read. A compound half is the same shape of
+    # thing -- it describes the numeric cells and no others -- and it
+    # echoed the table's count until review round 1 of this landing
+    # named the difference (item 7). Section 6.16 says this block
+    # carries what a joined position carries; now it does.
+    # READ THE WAY THE COLUMN WAS READ, declaration included. Both
+    # halves are re-classified here, and the first writing dropped the
+    # decimal-comma flag on the way -- so a DECLARED column of `1,5`
+    # cells was split into a numeric half by the rule that reads the
+    # comma and then re-read WITHOUT it, leaving a numeric half of no
+    # numbers at all and an IndexError out of the percentile walk
+    # (review round 4 of this landing, item 1). The tool crashed on a
+    # real table, which is the worst outcome any of these rounds found.
     numeric_cells = _tally(
-        _classify_all([cell.text for cell in compound.numbers]),
-        cells.n_rows,
+        _classify_all(
+            [cell.text for cell in compound.numbers], cells.decimal_comma
+        ),
+        len(compound.numbers),
         cells.settings,
+        cells.decimal_comma,
     )
     looking = _numeric_looking(numeric_cells)
     whole_everywhere = (
         numeric_cells.n_whole == looking and looking > 0
     )
     label_cells = _tally(
-        _classify_all([cell.text for cell in compound.labels]),
-        cells.n_rows,
+        _classify_all(
+            [cell.text for cell in compound.labels], cells.decimal_comma
+        ),
+        len(compound.labels),
         cells.settings,
+        cells.decimal_comma,
     )
     levels = _levels(
         label_cells.folded_counts,
@@ -6780,6 +6932,24 @@ def _compound_details(
     details: "dict[str, object]" = {
         "n_numeric_cells": len(compound.numbers),
         "n_label_cells": len(compound.labels),
+        # THE NUMERIC HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and
+        # they are here because a SPELLING is not a VALUE (review round
+        # 1 of this landing, item 1). The generator's layout spends
+        # these two as its budget of different spellings, and the only
+        # counts the block carried were the column's -- which count the
+        # markers too -- and the half's count of different NUMBERS,
+        # which counts `07` and `7` once between them.
+        #
+        # MEASURED on 300 cells holding sixty values each written twice,
+        # plainly and with a leading zero, beside twenty markers: the
+        # column publishes 113 different cells and the twin held 56 or
+        # 57 at every one of five seeds, so `compound.n_distinct` --
+        # which this landing registered EXACT-OBSERVABLE -- missed on
+        # every file. The first measurement of this fact used a column
+        # whose values were each written one way, where a count of
+        # numbers and a count of spellings are the same number.
+        "n_numeric_distinct": numeric_cells.raw_distinct,
+        "n_numeric_distinct_folded": len(numeric_cells.folded_counts),
         "numbers": _numeric_details(numeric_cells, whole_everywhere),
         "labels": _level_details(levels, label_cells),
     }
@@ -6791,6 +6961,14 @@ def _compound_details(
     labels_block = details["labels"]
     if isinstance(labels_block, dict):
         labels_block["n_distinct_folded"] = len(label_cells.folded_counts)
+        # AND ITS RAW COUNT BESIDE THE FOLDED ONE (review round 3 of
+        # this landing, item 5). The half's view carried the COLUMN's
+        # count of different cells -- two hundred and ninety-six on a
+        # half of five -- because the half published none, and a view
+        # that carries a number from another population is a number
+        # waiting to be read. With this the column's own count is the
+        # two halves' counts added, rather than a range between them.
+        labels_block["n_distinct"] = label_cells.raw_distinct
         # AND HOW MANY CELLS THE HALF HOLDS, which the form census is
         # stated over: a census of forms is a census of the cells that
         # wore them, and the column's own `n_present` counts the
@@ -6822,9 +7000,16 @@ def _compound_verdict(
     holding only the split is incomplete and is marked so in the
     register rather than shipped as finished.
     """
-    return _Verdict(
-        role=ROLE_COMPOUND,
-        evidence=note(
+    # WHICH GROUND ADMITTED THE LABEL HALF, and the sentence says the
+    # one that did. Rule 7b takes a half whose words are a small set OR
+    # whose words include one the detection line clears; the first
+    # writing of this had one sentence claiming the second ground on
+    # every column, so a column of five markers was published with a
+    # false statement about its own detection (review round 1, item 5).
+    # The repeating ground is the stronger evidence and is stated where
+    # it holds.
+    if _levels_covering(compound.folded_counts, cells.settings) >= 1:
+        evidence = note(
             EVIDENCE_COMPOUND,
             (
                 len(compound.numbers),
@@ -6832,7 +7017,20 @@ def _compound_verdict(
                 _long_tail_line(cells.settings),
                 cells.n_rows,
             ),
-        ),
+        )
+    else:
+        evidence = note(
+            EVIDENCE_COMPOUND_SMALL_SET,
+            (
+                len(compound.numbers),
+                len(compound.labels),
+                len(compound.folded_counts),
+                cells.n_rows,
+            ),
+        )
+    return _Verdict(
+        role=ROLE_COMPOUND,
+        evidence=evidence,
         details=_compound_details(cells, compound),
         notes=notes,
         remarks=remarks,
@@ -8277,7 +8475,18 @@ def _competing_readings(
 # `constant` and `binary` publish labels and counts, and residual
 # R-P4-16 was opened because the plan's arithmetic promised a
 # distribution on exactly those three.
-_ROLES_WITH_A_DISTRIBUTION = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_AFFIXED)
+# THE ROLES THAT PUBLISH A DISTRIBUTION, which is what the
+# recoverable-distribution advice promises a re-run would produce. The
+# compound role belongs here (residual R-P4-13, landing L8): its
+# numeric half carries the same quantitative block a column of numbers
+# does, so a declaration that turns a column into one HAS given its
+# reader the distribution the sentence offered.
+_ROLES_WITH_A_DISTRIBUTION = (
+    ROLE_COUNT,
+    ROLE_CONTINUOUS,
+    ROLE_AFFIXED,
+    ROLE_COMPOUND,
+)
 
 
 def _recoverable_reach(

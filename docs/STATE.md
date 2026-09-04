@@ -28,7 +28,8 @@ without the same help.
 | branch | `phase-4-allotment` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
+| suite | 4,338 collected on this worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4286 passed, 51 skipped in 1024.90s (0:17:04)` verbatim at the fourth round's repairs. **NINETEEN new tests**: `tests/test_p4r13_compound_role.py` holds twenty, of which thirteen were written against defects review found -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
+| suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
 | suite, before the integer-grid landing | 4,310 collected, `4259 passed, 51 skipped in 954.21s (0:15:54)` verbatim, L7 ratified |
 | suite, before review round 4 | 4,309 collected / 52 skipped, `4257 passed in 968.16s` on the merged tree at `1632bb2` |
 | suite, before this landing | 4,307 collected / 51 skipped, `4256 passed, 51 skipped in 1046.26s (0:17:26)` verbatim, measured on this worktree at the commit review round 4 branched from (`554da75`). The two new tests are round 4's |
@@ -537,7 +538,7 @@ are still ahead. The gap list itself is at the foot of this page.
 
   **REVIEW ROUND 2 REJECTED THE REPAIRS WITH THREE MORE, AND ONE FOUND
   A GUARANTEE THAT WAS FALSE OF THE THING IT NAMES** (amendment
-  A-P4-50). Round 1's no-trade rule compared COUNTS of conforming
+  A-P4-53, renumbered from A-P4-50). Round 1's no-trade rule compared COUNTS of conforming
   pairs, so one pair leaving its window while another entered held the
   count still and the guard let through exactly the swap it exists to
   refuse. Verified on the round's own producer case before repairing:

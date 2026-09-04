@@ -353,6 +353,10 @@ def test_every_role_is_classified_by_the_disclosure_page() -> None:
         set(summary._ROLES_WITH_LABELS)
         | set(summary._ROLES_WITHOUT_VALUES)
         | set(summary._ROLES_WITH_RANGES)
+        # AND THE ONE ROLE THAT PUBLISHES BOTH, which is in a list of
+        # its own because a page naming it under either heading alone
+        # would tell a person half of what leaves their machine.
+        | set(summary._ROLES_WITH_BOTH)
     )
     missing = sorted(set(taxonomy.ROLES) - classified - {taxonomy.ROLE_EMPTY})
     assert missing == [], (

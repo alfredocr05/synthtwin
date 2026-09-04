@@ -490,6 +490,13 @@ INPUT_SIDE_ENTRIES = (
     # position inside it takes 9.4's dispositions, which are checked
     # per position under their own numeric names.
     ("joined", "parts"),
+    # The compound role's two sub-blocks, on the same terms. Neither
+    # key carries a VALUE obligation of its own: `numbers` holds the
+    # quantitative block and `labels` the label block, and every fact
+    # inside either is checked below under the name of the group whose
+    # block it is (contract 9.4b, plan P4-D33).
+    ("compound", "numbers"),
+    ("compound", "labels"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -621,6 +628,21 @@ _NOT_CHECKABLE_STYLE_CEILING = (
     "the description names this form for as many cells as the file has "
     "rows, so every cell the file can carry in it is already accounted "
     "for and there is no unnamed cell left for this ceiling to govern"
+)
+# THE THREE FACTS THE SPLIT RULE ITSELF SETTLES (landing L8). A cell
+# joins a compound column's numeric half only if it reads as a plain
+# number, so that half holds no cell that is out of range, none that
+# contradicts itself and none that fails to read at all -- on every
+# file there is. Its share of numbers is one, and its two counts of
+# cells left out of the statistics are zero, whatever the file does.
+# A check on any of the three could report HELD or be WITHHELD and
+# could never report MISSED, which is a green light that means nothing
+# (V3.5). Measured before it was written: ninety-odd perturbations of a
+# compound twin, none of them able to make one of the three differ.
+_NOT_CHECKABLE_SPLIT_CONSTANT = (
+    "a cell joins this column's numeric half only if it reads as a "
+    "plain number, so this fact has the same value on every file that "
+    "carries the role at all and no CSV can evidence otherwise"
 )
 _NOT_CHECKABLE_OFFSETS_WITHHELD = (
     "the description withholds this column's offsets, so it publishes "
@@ -2276,6 +2298,15 @@ def corners_of(
             quantitative, contract.NumericFacts
         ) and _numeric_spellings_are_short(column, quantitative):
             corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
+        # AND A COMPOUND COLUMN'S LABEL HALF, which this asked of an
+        # OUTER `LabelFacts` alone -- so the half's own G12.7 corner was
+        # never found, and the check that needed it was handed an empty
+        # corner name (review round 4 of this landing, item 2).
+        if isinstance(facts, contract.CompoundFacts):
+            if _label_variants_are_short(
+                contract.compound_labels_view(column), facts.labels
+            ):
+                corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
         if corners:
             found[column.name] = tuple(corners)
     return found
@@ -5931,14 +5962,24 @@ def _cells_read_as_declared(
         kept_spellings(description),
         declared_spellings(description),
     )
+    compound = isinstance(column.facts, contract.CompoundFacts)
     swapped: "list[str]" = []
     for place in range(len(cells)):
         if holes[place]:
             swapped = swapped + [cells[place]]
             continue
-        swapped = swapped + [
-            parsing.written_with_a_decimal_comma(cells[place])
-        ]
+        read = parsing.written_with_a_decimal_comma(cells[place])
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
+        # the rule the writeback follows (review round 4 of landing L8,
+        # item 1). This translation reads the comma grammar, where a
+        # dot is a thousands mark and is REMOVED -- so a marker spelled
+        # `E11.9` would be read as `E119` and the half's published
+        # spelling would never be found. A cell of this role is
+        # translated only where the translation makes it a number.
+        if compound and parsing.classify_number(read) != parsing.NUMBER:
+            swapped = swapped + [cells[place]]
+            continue
+        swapped = swapped + [read]
     return swapped
 
 
@@ -7053,6 +7094,17 @@ def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
     have to ask which kind they hold.
     """
     facts = column.facts
+    # AND A COMPOUND COLUMN SEEN AS ITS NUMERIC HALF, for the same
+    # reason word for word: this column's universal counts answer for
+    # its CELLS, and a cell reading `NOT DETECTED` is not a number, so
+    # G12.8's supply rules read off the cells would put every marker in
+    # the "not a number" class and hand the bracket an identity for
+    # each. The half's own view is the one those rules mean. It is the
+    # SHARED view in `contract` -- the generator builds its half from
+    # the same function -- because a validator and a producer that each
+    # decide what a half is would be one fact written twice.
+    if isinstance(facts, contract.CompoundFacts):
+        return contract.compound_numbers_view(column)
     if not isinstance(facts, contract.AffixedFacts):
         return column
     return dataclasses.replace(
@@ -7082,6 +7134,18 @@ def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
     """
     if isinstance(facts, contract.AffixedFacts):
         return facts.numbers
+    # AND THE COMPOUND ROLE'S numeric half, which is a `NumericFacts`
+    # held by its own facts exactly as an affixed column's is. Without
+    # this line every rule written as "if this is a numeric column"
+    # walked past it, and walking past an ENVELOPE is not neutral: the
+    # count of different cells was compared exactly, so a compound twin
+    # that fell as far short as a plain numeric twin does was reported
+    # MISSED where the plain one is reported an authorized deviation.
+    # Measured, on 300 cells holding sixty values written two ways
+    # each: the plain column 108 of 120 and authorized, the compound
+    # column 100 of 113 and missed.
+    if isinstance(facts, contract.CompoundFacts):
+        return facts.numbers
     return facts
 
 
@@ -7095,6 +7159,15 @@ def _group_of(facts: contract.ColumnFacts) -> str:
         # measuring a blood-pressure column rather than by any guard,
         # which is residual R-P4-62's own point.
         return "joined"
+    if isinstance(facts, contract.CompoundFacts):
+        # AND THIS ONE WAS WRITTEN WITH THE ROLE, not after it. The
+        # branch above records what happens when a role reaches this
+        # dispatch with no answer of its own: the fall-through at the
+        # end returns `empty`, whose registry says both counts are 0
+        # and exactly observable, so a real column's distinctness was
+        # reported under another role's identity. The fifteenth role
+        # publishes both counts over BOTH halves and has its own group.
+        return "compound"
     if isinstance(facts, contract.ClockFacts):
         return "clock"
     if isinstance(facts, contract.AffixedFacts):
@@ -7125,6 +7198,8 @@ def _role_checks(
 ) -> "list[Check]":
     """Everything the column's own role adds."""
     facts = column.facts
+    if isinstance(facts, contract.CompoundFacts):
+        return _compound_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.JoinedFacts):
         return _joined_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.ClockFacts):
@@ -7165,6 +7240,228 @@ def _at_place(
         return None
     found: object = held[place]
     return found
+
+
+# The three subchecks of the numeric half that the split rule settles,
+# named once and read by both the check side and the census side, so
+# neither can come to hold a fact the other lists.
+_SPLIT_CONSTANT_SUBCHECKS = (
+    ("numeric.numeric_share", "counts.numeric_share"),
+    (
+        "numeric.n_left_out_of_statistics",
+        "counts.n_left_out_of_statistics",
+    ),
+    (
+        "numeric.n_negative_unrepresentable",
+        "counts.n_negative_unrepresentable",
+    ),
+)
+
+
+def _half_distinct_check(
+    column: contract.ColumnBlock,
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    fact: str,
+    subcheck: str,
+    published: int,
+    measured: "int | None",
+    mine: "tuple[str, ...]",
+    field: str,
+) -> Check:
+    """One count of different cells in one HALF, at its own bar.
+
+    THE SAME THREE-WAY `_distinctness_checks` MAKES, and writing it out
+    here rather than calling that one is deliberate: that function
+    answers for the COLUMN's two counts and reads them off the block,
+    while these are the halves' and are read off the typed facts.
+
+    THE EXACT BAR WHERE THERE IS NO CORNER. A first writing handed
+    every one of these to `_lesser_or_held`, which is written for a
+    column that HAS a corner: with none it reached
+    `CORNER_CITATIONS[""]` and raised, so `synthtwin validate` crashed
+    on a real twin of a real column -- 278 readings, twenty markers and
+    two spellings of `Trace` (review round 4 of this landing, item 2).
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if corner and _envelope_admits_every_count(view, facts, published):
+        # The envelope licenses every count a file of this length can
+        # hold, so nothing a CSV carries settles it (V3.5). The census
+        # names it instead.
+        return _exact(
+            column.name,
+            fact,
+            subcheck,
+            _shown_count(published),
+            None if measured is None else _shown_count(measured),
+        )
+    if corner:
+        return _lesser_or_held(
+            column.name, fact, subcheck, published, measured, corner, view
+        )
+    return _exact(
+        column.name,
+        fact,
+        subcheck,
+        _shown_count(published),
+        None if measured is None else _shown_count(measured),
+    )
+
+
+def _compound_half_block(
+    block: "dict[str, object]", key: str
+) -> "dict[str, object]":
+    """One sub-block of a re-described compound column, or an empty one.
+
+    An empty mapping is not a shortcut: it is what every check below
+    reads when the twin was re-described as some OTHER role, and each
+    of them answers a missing key by reporting no measured value rather
+    than by holding. So a twin whose column stopped being compound at
+    all misses the facts of both halves, which is the truthful outcome.
+    """
+    if key not in block:
+        return {}
+    held = block[key]
+    if not isinstance(held, dict):
+        return {}
+    inner: "dict[str, object]" = {}
+    for name in held:
+        if isinstance(name, str):
+            inner[name] = held[name]
+    return inner
+
+
+def _compound_checks(
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+    mine: "tuple[str, ...]",
+) -> "list[Check]":
+    """A column holding a quantity and a vocabulary at once.
+
+    THE TWO COUNTS ARE THIS ROLE'S OWN, and everything else here is
+    another group's obligation read over one half of the column
+    (contract 9.4b, plan P4-D33). So the halves are handed to the same
+    two functions a whole column of each kind is handed to, and their
+    checks keep the names of the groups that dispose them: a reader who
+    is told `numeric.mean` was missed on a compound column looks the
+    fact up where the numeric role's facts are disposed, because that
+    is what it is.
+
+    THE HALVES ARE THE ONES THE GENERATOR BUILT, from the same two view
+    builders in `contract`. Splitting the cells here by a rule of this
+    file's own would let the checked population drift from the written
+    one, which is the shape of defect this repository keeps finding:
+    one fact written twice.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    for field, published in (
+        ("n_numeric_cells", facts.n_numeric_cells),
+        ("n_label_cells", facts.n_label_cells),
+    ):
+        measured = _count_at(block, field)
+        checks = checks + [
+            _exact(
+                name,
+                f"compound.{field}",
+                f"counts.{field}",
+                _shown_count(published),
+                None if measured is None else _shown_count(measured),
+            )
+        ]
+    numbers = contract.compound_numbers_view(column)
+    labels = contract.compound_labels_view(column)
+    # THE HALF'S OWN TWO COUNTS OF DIFFERENT WRITTEN CELLS, under the
+    # SAME machinery the column's own two go through -- G12.8's
+    # envelope where the published spellings cannot settle the count,
+    # and the exact bar first, always. They are the budget the twin's
+    # numeric half was laid out from, so a file that misses them
+    # misses for exactly the reason the column's own counts miss, and
+    # holding one to a window while the other is pinned would report
+    # one shortfall twice under two different bars.
+    for field, published in (
+        ("n_numeric_distinct", facts.n_numeric_distinct),
+        ("n_numeric_distinct_folded", facts.n_numeric_distinct_folded),
+    ):
+        under = _RAW_DISTINCT
+        if field == "n_numeric_distinct_folded":
+            under = _FOLDED_DISTINCT
+        checks = checks + [
+            _half_distinct_check(
+                column,
+                numbers,
+                facts,
+                f"compound.{field}",
+                f"distinct.{field}",
+                published,
+                _count_at(block, field),
+                mine,
+                under,
+            )
+        ]
+    # NAMED FOR WHAT IT HOLDS, and it was `mine` -- the name of this
+    # function's own corner parameter (review round 3 of this landing,
+    # item 1). The order of the lines kept it correct: the corner was
+    # read above, before this rebound the name to a list of cells. A
+    # correctness that rests on the order of two statements is one an
+    # edit removes without a word, and a strict type run named it.
+    numeric_cells: "list[str]" = []
+    for cell in cells:
+        if parsing.classify_number(cell) == parsing.NUMBER:
+            numeric_cells = numeric_cells + [cell]
+    settled = {subcheck for _fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS}
+    for check in _numeric_checks(
+        numbers,
+        facts.numbers,
+        _compound_half_block(block, "numbers"),
+        numeric_cells,
+        floor,
+    ):
+        # AND THE THREE THE SPLIT RULE SETTLES ARE LISTED, NOT CHECKED
+        # (V3.5). They are the numeric block's facts and the numeric
+        # checks build them, so they are taken out here rather than by
+        # a branch inside machinery every other role shares.
+        if check.subcheck not in settled:
+            checks = checks + [check]
+    # THE LABEL HALF'S OWN TWO COUNTS OF DIFFERENT CELLS. They are
+    # published facts of the label group read over this half, and no
+    # check reached them: the loader read the folded one for invariant
+    # B2 and discarded it, so a file could publish any pair (review
+    # round 3 of this landing, item 5). Held to the label group's own
+    # envelope, which is raw distinctness only -- folding is not a
+    # spelling question and the published levels settle it exactly.
+    label_block = _compound_half_block(block, "labels")
+    for field, published in (
+        (_RAW_DISTINCT, facts.n_label_distinct),
+        (_FOLDED_DISTINCT, facts.n_label_distinct_folded),
+    ):
+        checks = checks + [
+            _half_distinct_check(
+                column,
+                labels,
+                facts.labels,
+                f"label.{field}",
+                f"distinct.labels.{field}",
+                published,
+                _count_at(label_block, field),
+                mine,
+                field,
+            )
+        ]
+    checks = checks + _label_checks(
+        labels, facts.labels, label_block, floor
+    )
+    checks = checks + _form_checks(
+        name,
+        "label.shape_forms",
+        facts.labels.shape_forms,
+        label_block,
+        floor,
+    )
+    return checks
 
 
 def _joined_checks(
@@ -11479,6 +11776,15 @@ def _listings(
         # them (plan P4-D29).
         if isinstance(facts, contract.JoinedFacts):
             listings = listings + _joined_listings(column, facts)
+        # AND THE COMPOUND ROLE, whose numeric half is a block of the
+        # same kind: `_quantitative_of` returns None for it too, so
+        # without this line a compound column's histogram, its field
+        # widths and its count of different values were published,
+        # checked by nothing and named on no census -- the defect
+        # review item P4-A1-R2-F2 opened one role earlier, which is
+        # why the line is written with the role rather than after it.
+        if isinstance(facts, contract.CompoundFacts):
+            listings = listings + _compound_listings(column, facts)
 
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
@@ -11521,6 +11827,36 @@ def _endpoint_listings(
                 f"datetime.{field}",
                 subcheck,
                 _NOT_CHECKABLE_ENDPOINT_WITHHELD,
+            )
+        ]
+    return listings
+
+
+def _compound_listings(
+    column: contract.ColumnBlock, facts: contract.CompoundFacts
+) -> "list[Listing]":
+    """What a compound column publishes and no check can measure.
+
+    TWO KINDS. Its numeric half carries a whole quantitative block, so
+    that block's not-checkable census is taken over the half exactly as
+    it is over a plain numeric column -- through the same view builder
+    the checks and the generator use, so a fact cannot be listed
+    against one population and checked against another.
+
+    And THREE facts of that half are settled by the split rule itself:
+    a cell joins the half only by reading as a plain number, so the
+    half's share of numbers is one and its two counts of cells left out
+    of the statistics are zero on every file that carries the role.
+    They were CHECKS for the length of one landing, and the coverage
+    identity is what found them: ninety-odd perturbations of a compound
+    twin, and not one of the three could be made to report MISSED.
+    """
+    numbers = contract.compound_numbers_view(column)
+    listings = _numeric_listings(numbers, facts.numbers)
+    for fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS:
+        listings = listings + [
+            Listing(
+                column.name, fact, subcheck, _NOT_CHECKABLE_SPLIT_CONSTANT
             )
         ]
     return listings

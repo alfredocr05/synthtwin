@@ -432,41 +432,40 @@ def _spread_numbers(count: int = 190, seed: int = 9) -> "list[str]":
     return found[:count]
 
 
-def test_the_declined_column_is_told_one_declaration_would_recover_it() -> None:
-    """A-P4-1 item 4, built. The count is the rows those words cover."""
-    block = _described(_recoverable(_spread_numbers()), name="dose")["columns"][0]
-    assert block["role"] == taxonomy.ROLE_TEXT
-    said = _said(block, ADVICE_CLAUSE)
-    assert said is not None, block["remarks"]
-    assert "10 more are written one of a few ways" in said
-    assert "If those 10 mean 'no value'" in said
+def test_the_column_this_advice_was_written_for_now_needs_no_advice(
+) -> None:
+    """A-P4-1 item 4, SUPERSEDED by landing L8 (residual R-P4-147).
 
+    This test held the advice itself: a declined column of numbers
+    beside a few repeated gap words was told that running again with
+    `--missing-value` would get its distribution described. What it
+    holds now is that the column no longer needs telling, because it
+    gets the distribution WITHOUT the declaration.
 
-def test_the_advice_keeps_its_promise() -> None:
-    """THE OTHER HALF OF THE CLAIM, AND THE POINT OF R-P4-16.
+    THE SENTENCE IS NOT REACHABLE ANY MORE, measured rather than
+    assumed. It needs two things at once: the non-numeric spellings
+    must REPEAT, because only spellings the floor would let it name are
+    counted, and removing them must leave a column with a distribution
+    -- which means what is left is numbers. A column of numbers beside
+    REPEATED non-numeric spellings is exactly what rule 7b claims, so
+    every column satisfying both is compound before the advice is
+    considered, and the advice is written on the free-text path. Gap
+    words appearing once apiece are not named by the floor at all, so
+    the reach is nought there.
 
-    The sentence tells its reader that `--missing-value` will get "this
-    column's distribution described". That is a promise, so it is run:
-    the same column, described again with exactly those words declared,
-    has to come out in a role that publishes a distribution.
-
-    A remark whose route was never run is a remark nobody checked, and
-    the plan's original trigger promised this on three column shapes
-    that do not publish one.
+    Retiring the sentence is a decision the owner has not been asked
+    for, so the code still carries it and R-P4-147 records what is
+    owed. Two sibling tests that exercised the sentence were removed
+    with this one rewritten, and the register says so rather than
+    leaving them renamed out of the way.
     """
-    values = _recoverable(_spread_numbers())
-    assert _said(_described(values, name="dose")["columns"][0], ADVICE_CLAUSE)
-    declared = _described(
-        values,
-        name="dose",
-        settings=taxonomy.Settings(declared_missing_values=GAP_WORDS),
-    )["columns"][0]
-    assert declared["role"] in (
-        taxonomy.ROLE_COUNT,
-        taxonomy.ROLE_CONTINUOUS,
-        taxonomy.ROLE_AFFIXED,
-    )
-    assert "mean" in declared and "percentiles" in declared
+    block = _described(_recoverable(_spread_numbers()), name="dose")["columns"][0]
+    assert block["role"] == taxonomy.ROLE_COMPOUND, block["role"]
+    # THE PROMISE, KEPT WITHOUT THE COMMAND: the sentence offered "this
+    # column's distribution described", and the column publishes one.
+    assert "percentiles" in block["numbers"]
+    assert block["n_numeric_cells"] + block["n_label_cells"] == block["n_present"]
+    assert not _said(block, ADVICE_CLAUSE)
 
 
 def test_no_advice_where_the_survivors_hold_no_number_R_P4_16() -> None:
@@ -549,32 +548,6 @@ def test_no_advice_where_the_gaps_wear_more_ways_than_a_few() -> None:
     many = [word for index in range(50) for word in (f"gap-{index}",) * 2]
     block = _described(_spread_numbers(count=100) + many, name="dose")["columns"][0]
     assert block["role"] == taxonomy.ROLE_TEXT
-    assert _said(block, ADVICE_CLAUSE) is None, block["remarks"]
-
-
-def test_the_advice_asks_the_reading_and_not_the_arithmetic(monkeypatch) -> None:
-    """The trigger is the RE-RUN, and this is what says so.
-
-    R-P4-16's whole point is that counting is not enough. Making the
-    re-read answer with a role that publishes nothing must silence the
-    advice on a column whose counts are unchanged -- so a producer that
-    had kept the arithmetic trigger fails here.
-    """
-    values = _recoverable(_spread_numbers())
-    assert _said(_described(values, name="dose")["columns"][0], ADVICE_CLAUSE)
-
-    real = taxonomy._decide
-
-    def declined(cells, forced_identifier, *rest, **named):
-        verdict = real(cells, forced_identifier, *rest, **named)
-        if named.get("probing"):
-            return taxonomy.dataclasses.replace(
-                verdict, role=taxonomy.ROLE_TEXT
-            )
-        return verdict
-
-    monkeypatch.setattr(taxonomy, "_decide", declined)
-    block = _described(values, name="dose")["columns"][0]
     assert _said(block, ADVICE_CLAUSE) is None, block["remarks"]
 
 

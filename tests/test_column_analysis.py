@@ -72,8 +72,28 @@ def test_a_column_one_value_below_the_line_publishes_nothing() -> None:
     # line is 0.99. Publishing a mean here would leave two values out of
     # the distribution with nothing in the profile to reproduce them.
     described = describe([str(index) for index in range(98)] + ["trace"] * 2)
-    assert described.role == taxonomy.ROLE_TEXT
+    # SUPERSEDED BY LANDING L8, on the same reasoning as
+    # `test_a_column_that_is_only_mostly_numbers_publishes_nothing`:
+    # ninety-eight readings beside a marker on two rows is a compound
+    # column, and both halves are described rather than one published
+    # and one dropped. The line itself is untouched -- the column is
+    # still not read as NUMBERS -- and a column beside all-different
+    # prose still publishes nothing.
+    assert described.role == taxonomy.ROLE_COMPOUND
     assert "percentiles" not in described.details
+    assert described.details["n_numeric_cells"] == 98
+    assert described.details["n_label_cells"] == 2
+    assert "percentiles" in described.details["numbers"]
+    # THE LABEL HALF IS DESCRIBED, WHICH IS NOT THE SAME AS NAMED. Its
+    # one word covers fewer rows than the publication floor asks, so
+    # the floor holds the word back and the half publishes a COUNT of
+    # what it holds back instead -- which still accounts for every one
+    # of its cells, and is the floor doing its work rather than the
+    # description falling short.
+    half = described.details["labels"]
+    shown = sum(level["count"] for level in half["levels"])
+    assert shown + half["suppressed_rows"] == half["n_present"]
+    assert half["n_present"] == described.details["n_label_cells"]
 
 
 def test_a_minority_numeric_column_is_not_described_as_numbers() -> None:

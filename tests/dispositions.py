@@ -384,6 +384,14 @@ PLAN4_REGIONS = {
         "## Decision P4-D29 — a joined column's distinctness is EXACT "
         "(closes part of R-P4-62, 2026-08-31)"
     ),
+    # The compound role's own two counts and its two containers. Every
+    # other fact such a column publishes lives inside a sub-block and
+    # is held by the group whose block it is, so this region binds four
+    # facts and no more.
+    "compound": (
+        "## Decision P4-D33 — the compound role's two halves are checked "
+        "by the groups that already check them (landing L8, 2026-09-03)"
+    ),
 }
 
 # THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
@@ -846,6 +854,67 @@ REGISTRY += [
         plan_region="joined-distinct",
     )
     for field in ("n_distinct", "n_distinct_folded")
+]
+# THE COMPOUND ROLE (plan P4-D33, contract 9.4b). Four facts, and four
+# is the whole of it: the two counts of the split are this role's own,
+# and each sub-block is a container that carries the block another
+# group already disposes. A fact inside `numbers` is a numeric fact and
+# is registered under `numeric`; a fact inside `labels` is a label fact
+# and is registered under `label`.
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="compound",
+    )
+    for field in ("n_numeric_cells", "n_label_cells")
+]
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        STRUCTURAL,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="compound",
+    )
+    for field in ("numbers", "labels")
+]
+# ...and the two counts 9.2 sets "per role group", stated in this
+# role's own table so they are not filed under whatever group a
+# dispatch falls through to. That is what happened one role above
+# (P4-D29), and it is why they are written out here.
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "THE FOUR DISTINCTNESS COUNTS ARE EXACT-OBSERVABLE"
+        ),
+        plan_region="compound",
+        # UNDER G12.8's ENVELOPE, exactly as the numeric group's two
+        # are. The half IS a numeric block, so a shortfall its own
+        # published spellings cannot avoid is authorized here for the
+        # same reason it is there -- and holding this role to the
+        # exact bar where the role its half is borrowed from has a
+        # window was measured: 108 of 120 authorized on a plain
+        # column, 100 of 113 MISSED on a compound one, the same
+        # machinery and the same shortfall.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
+    )
+    for field in (
+        "n_distinct",
+        "n_distinct_folded",
+        # ...AND THE NUMERIC HALF'S OWN TWO, which the generator spends
+        # as its budget of different SPELLINGS. They are published
+        # because a count of different NUMBERS cannot buy a second
+        # spelling of a number, and the twin could not reach the
+        # column's own count without them.
+        "n_numeric_distinct",
+        "n_numeric_distinct_folded",
+    )
 ]
 REGISTRY += [
     Fact(
@@ -1329,6 +1398,27 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "numeric",
         APPROXIMATED,
     ),
+    # ...and the same fallback on all four of a compound column's
+    # counts of different cells, for the reason the role's whole
+    # settlement rests on: its numeric half IS a numeric block, so a
+    # shortfall the published spellings cannot avoid is authorized here
+    # exactly where it is authorized there. Measured before it was
+    # written -- 108 of 120 authorized on a plain column, 100 of 113
+    # reported MISSED on a compound one, same machinery, same
+    # shortfall.
+    ("compound", "n_distinct", _ENVELOPE_SAID): ("compound", APPROXIMATED),
+    ("compound", "n_distinct_folded", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
+    ("compound", "n_numeric_distinct", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
+    ("compound", "n_numeric_distinct_folded", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
     # ...and the same fallback on a column of labels, in the paragraph
     # that sets raw distinctness beside the folded one.
     ("label", "n_distinct", _LABEL_ENVELOPE): (
@@ -1390,6 +1480,13 @@ CONTRACT_SECTIONS = {
     ),
     "affixed": "9.4 affixed_number",
     "joined": "9.4a The joined role: `joined_numbers`",
+    # THE COMPOUND ROLE PUBLISHES TWO SUB-BLOCKS AND TWO COUNTS
+    # (residual R-P4-13, landing L8). Its numeric half carries the
+    # numeric group's facts and its label half the label group's, each
+    # read over its own cells -- so a report line naming a fact of
+    # either half looks the fact up in the group that already disposes
+    # it, and only the two COUNTS are this role's own.
+    "compound": "9.4b The compound role: `numbers_with_labels`",
     "label": (
         "9.5 The label roles: `constant`, `binary`, `categorical`, "
         "`long_tail_labels`"
@@ -1428,6 +1525,7 @@ ROLES = (
     "continuous",
     "affixed_number",
     "joined_numbers",
+    "numbers_with_labels",
     "datetime",
     "time_of_day",
     "free_text",
@@ -1446,6 +1544,7 @@ RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 # and top-level groups, which every role shares.
 ROLE_GROUPS = {
     "joined_numbers": "joined",
+    "numbers_with_labels": "compound",
     "time_of_day": "clock",
     "count": "numeric",
     "continuous": "numeric",

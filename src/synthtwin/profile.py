@@ -896,6 +896,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # nothing about the rest.
     ("columns", _EACH, "n_numeric_cells"): _COUNT,
     ("columns", _EACH, "n_label_cells"): _COUNT,
+    # The numeric half's own counts of different written cells, which
+    # the generator spends as its spelling budget. They are stated
+    # HERE, at the column's own level, rather than inside `numbers`:
+    # the rules for that sub-block are derived from what one position
+    # of a joined column publishes, and a position publishes neither.
+    ("columns", _EACH, "n_numeric_distinct"): _COUNT,
+    ("columns", _EACH, "n_numeric_distinct_folded"): _COUNT,
     ("columns", _EACH, "parts"): _ARRAY,
     ("columns", _EACH, "parts", _EACH): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "percentiles"): _OBJECT,
@@ -1069,6 +1076,7 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
     # is a red test and not a run-time refusal.
     label_keys = (
         "levels",
+        "n_distinct",
         "n_distinct_folded",
         "n_present",
         "suppressed_levels",

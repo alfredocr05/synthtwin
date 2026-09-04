@@ -36,3 +36,8 @@ venv/
 
 # uv project lock (requirements-dev.lock is the governed lock)
 uv.lock
+
+# Agent scratch worktrees. A tool running in this folder may make a
+# worktree under `.claude/`; those are working copies of this same
+# repository and never part of it.
+.claude/

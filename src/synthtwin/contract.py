@@ -431,6 +431,17 @@ LABEL_KEYS = (
 
 CATEGORICAL_KEYS = LABEL_KEYS + ("level_ceiling",)
 
+# The label half of a compound column: the five above, plus the two
+# counts the half carries for ITSELF because the column's own counts
+# include the numbers (invariant NL2). Written as an extension of
+# LABEL_KEYS rather than as a list of its own, so a key added to a
+# label block reaches this one.
+COMPOUND_LABEL_KEYS = LABEL_KEYS + (
+    "n_distinct",
+    "n_distinct_folded",
+    "n_present",
+)
+
 # The clock role's own five, and the two forms its cells can wear.
 # Nothing else joins them: these five are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
@@ -547,6 +558,16 @@ COMPOUND_KEYS = (
     #
     "n_numeric_cells",
     "n_label_cells",
+    # ...AND THE NUMERIC HALF'S TWO COUNTS OF DIFFERENT WRITTEN CELLS,
+    # which the generator spends as its budget of different SPELLINGS.
+    # They were not here at first, and the twin could not reach the
+    # column's own count of different cells because of it: a count of
+    # different NUMBERS buys one spelling per number, so a column
+    # holding `07` beside `7` lost every second spelling (review round
+    # 1 of this landing, item 1; measured at 113 published against 56
+    # written).
+    "n_numeric_distinct",
+    "n_numeric_distinct_folded",
     # ...AND THE TWO HALVES THEMSELVES. `numbers` holds a quantitative
     # block read over the numeric cells and `labels` a label block read
     # over the rest, each by the reader that reads its own kind of
@@ -1404,7 +1425,18 @@ def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
     applies. Determinism: a fixed function of the block. Raises
     nothing. No I/O of any kind.
     """
-    return isinstance(column.facts, (NumericFacts, UnrepresentableFacts))
+    # AND THE COMPOUND ROLE, whose numeric HALF is written by the same
+    # machinery and must be spelled the same way (review round 4 of
+    # landing L8, item 1). Excluding it left a declared column of
+    # `1,5` cells profiled under the comma grammar and written back
+    # with points: sixteen checks missed on a twin that was otherwise
+    # correct. Its LABEL half is not touched -- both the writeback and
+    # the validator's reading translate a cell of this role only where
+    # the translation makes it a number, so a label spelled `E11.9`
+    # keeps its dot.
+    return isinstance(
+        column.facts, (NumericFacts, UnrepresentableFacts, CompoundFacts)
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1800,6 +1832,12 @@ class CompoundFacts:
 
     n_numeric_cells: int
     n_label_cells: int
+    n_numeric_distinct: int
+    n_numeric_distinct_folded: int
+    # ...and the label half's own two, so neither view has to borrow a
+    # count from the whole column.
+    n_label_distinct: int
+    n_label_distinct_folded: int
     numbers: "NumericFacts"
     labels: "LabelFacts"
 
@@ -1876,6 +1914,12 @@ ColumnFacts = (
     | AffixedFacts
     | ClockFacts
     | JoinedFacts
+    # THE FIFTEENTH ROLE, and it was missing from this union while
+    # every reader dispatched on it (review round 3 of landing L8,
+    # item 1). A strict type run named it: `_facts_of` returns one of
+    # these and returned a `CompoundFacts` that the union did not
+    # carry, so the checker could not hold any reader to the branch.
+    | CompoundFacts
 )
 
 
@@ -1918,6 +1962,120 @@ class ColumnBlock:
     detection_evidence: str
     remarks: "tuple[str, ...]"
     facts: ColumnFacts
+
+
+# -- the two halves of a compound column, as columns ------------------
+#
+# THE HALVES ARE READ THE SAME WAY BY BOTH SIDES. The generator builds
+# each half with the machinery that builds a whole column of that kind,
+# and the validator checks each half with the checks that check a whole
+# column of that kind -- so what a half IS has to be one definition,
+# read from here by both. Writing it twice is how a producer and a
+# reader come to disagree about the same cells.
+
+
+def _not_its_own_facts(name: str) -> "errors.ProfileError":
+    """A column handed a view builder that its own kind does not have.
+
+    An internal check, and it stays one: both halves of a compound
+    column are read into `CompoundFacts` when the description is
+    loaded, so a column reaching either view without them is a mistake
+    in synthtwin rather than anything a description did.
+    """
+    return errors.ProfileError(
+        f"synthtwin internal check: the description of the column "
+        f"'{parsing.visible(name)}' does not carry the facts its own kind "
+        f"of column needs. Both are checked when the description is "
+        f"read, so this means a mistake in synthtwin; please report it."
+    )
+
+
+def compound_numbers_view(
+    column: "ColumnBlock",
+) -> "ColumnBlock":
+    """The numeric half of a compound column, as a column of numbers.
+
+    THE SAME MOVE `_core_view` MAKES, for the same reason. A compound
+    column has two populations and the numeric machinery is written
+    over one of them; its universal counts answer for the CELLS, and a
+    cell reading `NOT DETECTED` is not a number, so those counts say
+    the column holds fewer numbers than its numeric half does. The
+    quantitative block answers for the numeric cells alone.
+
+    Handed over as a column in its own right, every rule of G5 and G6
+    applies unchanged -- which is the point: the numbers inside a
+    compound column are built by exactly the code that builds a plain
+    numeric column.
+    """
+    facts = column.facts
+    # The TUPLE form of the type gate, which is how this module writes
+    # one (`a_decimal_comma_reaches` above). The offline audit refuses
+    # a bare class name handed to a callee it does not scan, and
+    # `isinstance` is not scanned code: it cannot tell a class from any
+    # other callable a caller might keep and run later.
+    if not isinstance(facts, (CompoundFacts,)):
+        raise _not_its_own_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=facts.n_numeric_cells,
+        # A HALF HAS NO ABSENT CELLS OF ITS OWN. A blank cell is in
+        # neither population -- the two counts of the split are taken
+        # over the PRESENT cells and sum to `n_present` -- so carrying
+        # the column's own missing count into a half would say the half
+        # has room for cells it cannot hold. It is read: the style
+        # ceiling asks how many cells of this population a file could
+        # write in one form, and with the column's blanks left in, that
+        # capacity came out above the half's own size and an obligation
+        # no file can exceed was filed as a check that cannot fail.
+        n_missing=0,
+        n_numeric=facts.n_numeric_cells,
+        n_not_numeric=0,
+        n_out_of_range=0,
+        n_contradictory=0,
+        # THE HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and NOT
+        # its count of different numbers. The layout spends these two
+        # as a budget of SPELLINGS, and `07` and `7` are one number
+        # written two ways: a budget of numbers cannot buy the second
+        # way, so a column publishing 113 different cells produced a
+        # twin holding 56 (review round 1, item 1).
+        n_distinct=facts.n_numeric_distinct,
+        n_distinct_folded=facts.n_numeric_distinct_folded,
+        facts=facts.numbers,
+    )
+
+
+def compound_labels_view(
+    column: "ColumnBlock",
+) -> "ColumnBlock":
+    """The label half of a compound column, as a column of labels."""
+    facts = column.facts
+    # The TUPLE form of the type gate, which is how this module writes
+    # one (`a_decimal_comma_reaches` above). The offline audit refuses
+    # a bare class name handed to a callee it does not scan, and
+    # `isinstance` is not scanned code: it cannot tell a class from any
+    # other callable a caller might keep and run later.
+    if not isinstance(facts, (CompoundFacts,)):
+        raise _not_its_own_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="long_tail_labels",
+        role="long_tail_labels",
+        n_present=facts.n_label_cells,
+        n_missing=0,
+        # THE HALF'S OWN COUNTS OF DIFFERENT CELLS, and this view
+        # carried the WHOLE COLUMN's until review round 3 named it:
+        # `n_present` said five and `n_distinct` said two hundred and
+        # ninety-six, which is not a column any file could hold.
+        n_distinct=facts.n_label_distinct,
+        n_distinct_folded=facts.n_label_distinct_folded,
+        n_numeric=0,
+        n_not_numeric=facts.n_label_cells,
+        n_out_of_range=0,
+        n_contradictory=0,
+        facts=facts.labels,
+    )
+
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2601,6 +2759,17 @@ _A_SPELLING_OF_YOURS = "(a spelling out of your own table)"
 _THE_SOURCE_KEYS = ("columns", canonical.EACH, "missing_by_source")
 _THE_VARIANT_KEYS = (
     "columns", canonical.EACH, "levels", canonical.EACH, "variants"
+)
+
+# THE SAME MAPPING ONE STEP DEEPER, inside the label half of a compound
+# column (residual R-P4-13, landing L8). The half publishes levels
+# exactly as a label column does, so a person's own spellings stand
+# here too -- and a refusal that quoted one would be a refusal printing
+# the data it refused. The path is passed rather than inferred for the
+# reason every other table-keyed mapping passes one: a caller that
+# forgot would fail OPEN.
+_THE_COMPOUND_VARIANT_KEYS = (
+    "columns", canonical.EACH, "labels", "levels", canonical.EACH, "variants"
 )
 
 
@@ -4390,7 +4559,9 @@ def _facts(
     if role == ROLE_JOINED:
         return _joined_facts(mapping, where, frame, n_present)
     if role == ROLE_COMPOUND:
-        return _compound_facts(mapping, where, frame, n_present)
+        return _compound_facts(
+            mapping, where, frame, n_present, n_distinct, n_folded
+        )
     if role == ROLE_AFFIXED:
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
@@ -4556,6 +4727,7 @@ def _levels(
     floor: int,
     n_present: int,
     n_folded: int,
+    inside_a_half: bool = False,
 ) -> "tuple[tuple[LevelEntry, ...], int, int, tuple[int, ...]]":
     """The published labels and everything the floor held back (6.3).
 
@@ -4664,7 +4836,9 @@ def _levels(
                     f"{previous_count}"
                 ),
             )
-        variants, withheld = _variants(block, seat, floor, label, count)
+        variants, withheld = _variants(
+            block, seat, floor, label, count, inside_a_half
+        )
         entries = entries + [
             LevelEntry(
                 label=label,
@@ -4793,7 +4967,12 @@ def _shape_form_cells(
 
 
 def _variants(
-    block: "dict[str, object]", seat: str, floor: int, label: str, count: int
+    block: "dict[str, object]",
+    seat: str,
+    floor: int,
+    label: str,
+    count: int,
+    inside_a_half: bool = False,
 ) -> "tuple[dict[str, int], dict[str, int]]":
     """How the rows under one published label actually wrote it (7.4).
 
@@ -4804,9 +4983,10 @@ def _variants(
     byte for byte -- unlike the spellings of an empty cell, which are
     for a person to read and are escaped for display.
     """
-    named = _counts(
-        block["variants"], "variants", seat, 1, _THE_VARIANT_KEYS
-    )
+    keys: "tuple[str, ...]" = _THE_VARIANT_KEYS
+    if inside_a_half:
+        keys = _THE_COMPOUND_VARIANT_KEYS
+    named = _counts(block["variants"], "variants", seat, 1, keys)
     for spelling in sorted(named):
         if named[spelling] < floor:
             raise _broken(
@@ -4915,7 +5095,7 @@ def _compound_label_facts(
     Both refusals were about roles this half does not have.
     """
     entries, suppressed, rows, sizes = _levels(
-        mapping, where, floor, n_present, n_folded
+        mapping, where, floor, n_present, n_folded, True
     )
     return LongTailFacts(
         levels=entries,
@@ -7217,6 +7397,8 @@ def _compound_facts(
     where: str,
     frame: _Frame,
     n_present: int,
+    n_distinct: int,
+    n_distinct_folded: int,
 ) -> CompoundFacts:
     """A column of numbers beside labels (residual R-P4-13, landing L8).
 
@@ -7243,6 +7425,24 @@ def _compound_facts(
         n_present,
         "the number of present cells",
     )
+    # BOTH HALVES HOLD SOMETHING, which is what this role IS. The
+    # producer never writes an empty half -- rule 7b refuses a column
+    # with one -- and the loader accepted it, so a plain numeric
+    # description rewritten with `n_label_cells: 0` and an empty label
+    # block was read as this role: a column whose statistical type says
+    # two populations and whose twin has one (review round 2 of this
+    # landing, item 3).
+    for count, key in ((numeric, "n_numeric_cells"), (labels, "n_label_cells")):
+        if count == 0:
+            raise _out_of_range(
+                key,
+                where,
+                "0",
+                "at least one cell, because a column of numbers beside "
+                "labels holds both populations and a description of "
+                "one of them is a description of some other kind of "
+                "column",
+            )
     if numeric + labels != n_present:
         raise _out_of_range(
             "n_numeric_cells",
@@ -7252,6 +7452,36 @@ def _compound_facts(
             "column has, so that every one of them is in one published "
             "population and none is in two",
         )
+    # THE NUMERIC HALF'S COUNTS OF DIFFERENT WRITTEN CELLS, held inside
+    # two bounds a file cannot argue with: a half cannot hold more
+    # different cells than it has cells, and the two halves together
+    # cannot hold more than the column does. Folding never separates
+    # two cells that were the same, so the folded count is at most the
+    # raw one.
+    numeric_distinct = _bounded(
+        mapping["n_numeric_distinct"],
+        "n_numeric_distinct",
+        where,
+        0,
+        numeric,
+        "the number of cells in the numeric half",
+    )
+    _bounded(
+        mapping["n_numeric_distinct"],
+        "n_numeric_distinct",
+        where,
+        0,
+        n_distinct,
+        "the number of different cells the whole column holds",
+    )
+    numeric_distinct_folded = _bounded(
+        mapping["n_numeric_distinct_folded"],
+        "n_numeric_distinct_folded",
+        where,
+        0,
+        numeric_distinct,
+        "the raw count of different cells in the numeric half",
+    )
     numbers = _numeric_facts(
         _mapping(mapping["numbers"], "numbers", where),
         f"{where} -> numbers",
@@ -7260,27 +7490,121 @@ def _compound_facts(
         numeric,
         0,
         0,
+        # THE ROW COUNT THIS BLOCK ECHOES IS THE HALF'S OWN, on the
+        # joined role's precedent: a block that describes a SUBSET of
+        # the column's cells echoes the count of that subset, and
+        # holding it to the table's count is what made a joined column
+        # with one unsplit cell unreadable by the tool that wrote it.
+        echoes=numeric,
     )
     label_block = _mapping(mapping["labels"], "labels", where)
+    # EXACTLY THESE KEYS IN EACH HALF, AND NO OTHERS. Without this a
+    # sub-block carried whatever a file put in it: `raw_note: "Jane
+    # Doe"` inside `labels` was ACCEPTED, survived the canonical
+    # round trip, and was read by nothing -- so a description could
+    # carry text nothing in this package ever looks at (review round 1
+    # of this landing, item 2). Every other block of the description is
+    # held to its key set, including each POSITION of a joined column,
+    # and these two were the exception.
+    _keys(
+        _mapping(mapping["numbers"], "numbers", where),
+        where,
+        NUMERIC_KEYS,
+        "the numeric half of a column of numbers beside labels",
+    )
+    _keys(
+        label_block,
+        where,
+        COMPOUND_LABEL_KEYS,
+        "the label half of a column of numbers beside labels",
+    )
+    # AND THE HALF'S OWN CELL COUNT IS THE SPLIT'S, which is invariant
+    # NL2 and was stated in the contract and enforced nowhere: a file
+    # publishing `n_label_cells: 20` beside `labels -> n_present: 999`
+    # was accepted, and every fact of that half is stated over the
+    # count it carries.
+    _bounded(
+        label_block["n_present"],
+        "labels -> n_present",
+        where,
+        labels,
+        labels,
+        "the number of cells the split puts in the label half",
+    )
+    label_distinct = _bounded(
+        label_block["n_distinct"],
+        "labels -> n_distinct",
+        where,
+        1,
+        labels,
+        "the number of cells in the label half",
+    )
     folded = _bounded(
         label_block["n_distinct_folded"],
         "labels -> n_distinct_folded",
         where,
-        0,
-        labels,
-        "the number of cells in the label half",
+        1,
+        label_distinct,
+        "the raw count of different cells in the label half",
     )
-    # READ BY THE LONG-TAIL READER, which is what this half IS: any
-    # number of levels, the small ones held back by the floor, and no
-    # cardinality rule of its own. `_label_facts` is the CONSTANT and
-    # BINARY reader and demanded two different values of a half that
-    # has one.
+    # THE FOUR COUNTS OF DIFFERENT CELLS ARE ONE ARITHMETIC, and until
+    # this they were four separate bounds that could each hold while
+    # the set of them was impossible (review round 2 of this landing,
+    # item 2). A file publishing ninety-seven different numeric cells
+    # in the half and ONE in `n_numeric_distinct` cleared every bound
+    # there was, and the generator writes ninety-seven whatever the
+    # budget says.
     #
-    # THE CEILING IS NOT ASKED OF IT. A long-tail column earns its role
-    # by passing the categorical ceiling; this half does not -- it is a
-    # half, and rule 7b already decided what it is. Handing the reader
-    # a ceiling of zero says "no ceiling was the reason", which is
-    # true.
+    # The two halves hold disjoint spellings -- a cell that reads as a
+    # number is in the numeric half by the rule that made the column,
+    # so no label cell can wear a numeric cell's folded identity -- so
+    # the folded counts ADD. Measured before it was asserted, over
+    # sixty generated compound columns of three shapes: readings that
+    # repeat, values written two ways each, and exponents in both
+    # cases. The equality held on every one.
+    if (
+        numeric_distinct_folded + folded != n_distinct_folded
+        and n_distinct_folded > 0
+    ):
+        raise _out_of_range(
+            "n_numeric_distinct_folded",
+            where,
+            f"a total of {numeric_distinct_folded + folded} with the "
+            "label half's own count",
+            f"a total of exactly the {n_distinct_folded} folded "
+            "identities this column holds, because the two halves hold "
+            "no spelling in common",
+        )
+    # AND THE HALF'S FOLDED COUNT IS AT LEAST ITS COUNT OF DIFFERENT
+    # NUMBERS: two spellings of one value fold to two identities, and
+    # two different values can never fold to one.
+    if numeric_distinct_folded < numbers.n_distinct_values:
+        raise _out_of_range(
+            "n_numeric_distinct_folded",
+            where,
+            f"{numeric_distinct_folded}",
+            f"at least the {numbers.n_distinct_values} different "
+            "number(s) the numeric half holds, because two different "
+            "numbers are never written the same way",
+        )
+    # ...and the column's own raw count is the two halves' counts
+    # ADDED, now that both are published. It was a range between them
+    # while the label half published only a folded count (review round
+    # 3, item 5): every different numeric cell is a different cell of
+    # the column, the two halves share no spelling, and nothing else
+    # can contribute.
+    if numeric_distinct + label_distinct != n_distinct:
+        raise _out_of_range(
+            "n_numeric_distinct",
+            where,
+            f"a total of {numeric_distinct + label_distinct} with the "
+            "label half's own count",
+            f"a total of exactly the {n_distinct} different cell(s) "
+            "this column holds, because the two halves share no "
+            "spelling and nothing else can add one",
+        )
+    # READ BY THIS HALF'S OWN READER, and the docstring beside it says
+    # why the two readers already here would not do.
     label_facts = _compound_label_facts(
         label_block,
         f"{where} -> labels",
@@ -7291,6 +7615,10 @@ def _compound_facts(
     return CompoundFacts(
         n_numeric_cells=numeric,
         n_label_cells=labels,
+        n_numeric_distinct=numeric_distinct,
+        n_numeric_distinct_folded=numeric_distinct_folded,
+        n_label_distinct=label_distinct,
+        n_label_distinct_folded=folded,
         numbers=numbers,
         labels=label_facts,
     )

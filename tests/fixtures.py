@@ -324,6 +324,50 @@ def joined_column_text(n_rows: int = 240) -> "list[str]":
     ]
 
 
+def numbers_with_labels_table(n_rows: int = 300) -> str:
+    """Readings beside a repeated marker, for the battery (L8).
+
+    THE FIFTEENTH ROLE, and a fixture of its own for the reason the
+    joined one has its own: a column of this role must hold BOTH
+    populations at once, and the shared every-role table's columns each
+    hold one. Adding a fifteenth column there would move every golden
+    in the suite for a role that needs a shape none of the others has.
+
+    THE SHAPE IS THE ONE THE ROLE EXISTS FOR: a long-format panel
+    export, readings beside `NOT DETECTED`. It is chosen so neither
+    half is trivial and so the description cannot be met by accident:
+
+    * **The numbers are a QUANTITY and not a code set.** 280 readings
+      across a wide band, most of them different, so the rule's own
+      test -- more different values than a set of categories may have
+      -- is answered by the column rather than by its size.
+    * **The marker repeats, and only the marker.** Twenty rows share
+      one word, so the words are a vocabulary rather than prose, and
+      the label half publishes a level rather than a held-back count at
+      the default floor.
+    * **The two halves do not divide the rows evenly**, so a twin that
+      swapped them would be caught by the counts rather than passing
+      on symmetry.
+    * **AND SOME CELLS ARE BLANK.** Six of them, which is a third
+      reason: a column with no blank cell has none to FILL, so the
+      perturbations that fill one -- the only edits that move
+      `n_left_out_of_statistics`, `n_negative_unrepresentable` and
+      `numeric_share` -- cannot be built on it at all, and three of
+      this role's sites would have reached the entry table with no red
+      case behind them.
+    """
+    rows = []
+    for index in range(n_rows):
+        if index % 50 == 23:
+            rows.append(["", "one"])
+        elif index % 15 == 7:
+            rows.append(["NOT DETECTED", "one"])
+        else:
+            reading = 1 + (index * 37) % 4000
+            rows.append([f"{reading / 100:.2f}", "one"])
+    return rows_to_csv(["reading", "clinic"], rows)
+
+
 def joined_numbers_table(n_rows: int = 120) -> str:
     """A column of two numbers written in one cell, for the battery.
 
