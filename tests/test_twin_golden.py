@@ -137,7 +137,13 @@ FIELD_WIDTH_FACT = "numeric.field_widths"
 # subtracted together and each is then named, so a listing that moved
 # for any other reason still has nowhere to hide.
 EMPTY_BIN_FACT = "numeric.empty_bins"
-LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT)
+# ...and the THIRD listing to arrive after that baseline was frozen
+# (plan P4-D35, 2026-09-04). `empty_edges` stands beside `empty_bins`
+# and is listed under exactly the same condition, so it appears on the
+# same columns and nowhere else. Subtracted the same way, and named
+# the same way just below.
+EMPTY_EDGE_FACT = "numeric.empty_edges"
+LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT, EMPTY_EDGE_FACT)
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -160,6 +166,7 @@ WIDE_CHECK_DIGEST = (
 # carry the listing; the other numeric-family columns make no claim
 # here and get no line.
 EMPTY_BIN_LISTINGS = ["visits|numeric.empty_bins|"]
+EMPTY_EDGE_LISTINGS = ["visits|numeric.empty_edges|"]
 # A HUNDRED AND TWENTY-SIX UNTIL 2026-09-04, and the four that left are
 # named where the assertion is made: `numeric.n_distinct_values` was
 # listed whole on every column carrying a quantitative block, and
@@ -342,6 +349,13 @@ def test_widening_the_demonstration_lost_no_obligation(
     assert sorted(
         entry for entry in listings if EMPTY_BIN_FACT in entry
     ) == EMPTY_BIN_LISTINGS
+    # ...and the edges beside them, on the SAME columns and no others:
+    # the two are one fact in two keys and a run that listed one
+    # without the other would leave a reader told about the stretches
+    # and not about where they really lie.
+    assert sorted(
+        entry for entry in listings if EMPTY_EDGE_FACT in entry
+    ) == EMPTY_EDGE_LISTINGS
     for name, digest in NARROW_COLUMN_DIGESTS.items():
         cells = twin.columns[twin.names.index(name)]
         found = hashlib.sha256(
@@ -610,8 +624,28 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # the change is to what a description RECORDS rather than to what the
 # twin holds: the demonstration's twin is byte-identical, measured
 # against the tree at the commit before this landing.
+# RE-RECORDED 2026-09-04 for residual R-P4-138, and the counted
+# difference was read first: every numeric block gains `empty_edges`,
+# and SIX blocks of this description carry the key while ONE carries
+# anything -- the count column, whose nine empty bins lie between
+# consecutive whole numbers, so its pairs are [0,1] ... [8,9]. The
+# same procedure as before: building these bytes, deleting that one
+# key from every block and writing again reproduces the digest this
+# one replaces --
+# 050bc4c6f684af271f9a46a8c583c2151094311ee04e95500f9d0e05e97a1f16
+# -- character for character, so the single added key is the whole of
+# the difference.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and on this landing that is
+# the load-bearing observation twice over. The value stage now walks
+# from the published EDGES instead of from the bin edges, and on this
+# description it reaches the same cells: the one block with a stretch
+# is whole-numbered with its gaps between consecutive integers, where
+# the edge and the bin edge ask for the same value. A description whose
+# clusters sit further apart is where the two differ, and
+# tests/test_p4d32_empty_bins.py is where that is measured.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "050bc4c6f684af271f9a46a8c583c2151094311ee04e95500f9d0e05e97a1f16"
+    "0447c62f69393e836f514ae6f67844cf022292f45d5ddbdeebd061dc56bdf561"
 )
 
 
@@ -1425,8 +1459,22 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # what the checks SAY about a twin whose distinct count rose, and not
 # which checks were taken. A census carrying fewer obligations would
 # have turned those two counts red first.
+# RE-RECORDED 2026-09-04 for plan P4-D35. The census carries ONE MORE
+# obligation and none fewer: `numeric.empty_edges` is LISTED beside
+# `numeric.empty_bins`, on the same one column of this demonstration
+# and no other, which the two assertions above name by identity rather
+# than by count. The check counts held whole -- 416 wide and 407 narrow
+# by digest -- and the twin's own digest did not move, so what changed
+# here is one line the report SAYS.
+# RE-RECORDED AGAIN 2026-09-04 for review round 2 item 3. The census
+# carries the SAME obligations -- both check counts held by digest and
+# both listing sets are asserted by identity above -- and what moved is
+# ONE SENTENCE: the `numeric.empty_edges` listing used to say a cell
+# that could not reach an edge takes the nearest free place inside the
+# stretch, which the pass no longer does. It says the cell STAYS where
+# it was and the report names it, which is what the pass does.
 GOLDEN_QUALITY_SHA256 = (
-    "5190c7152ba68f270a3ca45086a9cb1f319a8b12234ba16c18329d0571f50cae"
+    "6596af3c834e0c737140d279c743a1071fdc35802f147ed934d71f27ba868f0d"
 )
 
 

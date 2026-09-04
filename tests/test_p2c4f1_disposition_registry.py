@@ -1061,8 +1061,17 @@ def _numeric_classes(
 # untouched. It states no less than the numeric table it delegates to,
 # because it states nothing of its own at all, which is the shape this
 # region requires of every shared key.
+#
+# MOVED 2026-09-04 BY LANDING L9 (plan P4-D35). What changed is that
+# ONE ROW of the delegation table gained a second name --
+# `| `empty_bins`, `empty_edges` | as on `count` and `continuous`
+# above |` -- carrying the same delegation phrase character for
+# character, with no second class word, no conditional clause and no
+# prose beside it. The head prose is untouched. It states no less than
+# the numeric table it delegates to, because it states nothing of its
+# own at all.
 AFFIXED_REGION_DIGEST = (
-    "82aab1f37753ee2fdecc9711c09c21d9bca25dd7f782c3610a07d5ed92a6d6cf"
+    "4e0fd47dd475751959438e197767a74c2fc89f6c4f73fa20cf8c47516d99d2e9"
 )
 
 

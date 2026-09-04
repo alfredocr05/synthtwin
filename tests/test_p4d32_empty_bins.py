@@ -29,14 +29,24 @@ and again at a floor of eleven:
 `test_a_two_cluster_column_writes_nothing_in_its_empty_middle` is the
 one that turns red when the pass alone is withdrawn.
 
-AND WHAT IS **NOT** CLAIMED IS PINNED TOO, in
-`test_the_fact_reaches_only_bin_resolution` (residual R-P4-138): the
-bins are a thirty-second of the column's reach, so a cell moved to the
-edge of the nearest occupied bin is still inside the stretch the SOURCE
-left empty. What the landing buys there is measured rather than
-asserted -- the furthest such cell falls from about 16-23 units from a
-real value to 1.0 -- and a test that claimed the source's own gap was
-cleared would be claiming something the published fact cannot carry.
+THE STRETCH'S REAL EDGES ARE PUBLISHED TOO (`empty_edges`, residual
+R-P4-138, closed by the owner's ruling of 2026-09-04). A bin is a
+thirty-second of the column's reach, so the empty BINS lie strictly
+inside the stretch the SOURCE leaves empty and a cell moved to a bin
+edge was still in the source's own gap. `empty_edges` names the two
+values each stretch really lies between and the value stage walks from
+those. Measured over the three witnesses here, forty seeds each: the
+furthest cell inside a source's own gap falls from 15.7-23.0 units
+from a real value to 1.3, and the count of such cells from one per
+column per seed to 8, 4 and 31 of 12,000.
+
+AND WHAT IS **STILL NOT** CLAIMED IS PINNED TOO, in
+`test_the_published_edges_and_what_they_leave_behind`: a stratum whose
+value collides with one already spoken for takes the next free slot
+inward, so a cell can still land inside the gap near its edge. That
+witness asserts the bound rather than the absence, because a test
+claiming the source's own gap was cleared outright would claim more
+than the published fact carries.
 """
 
 import copy
@@ -288,6 +298,38 @@ def test_the_loader_refuses_a_bin_the_census_names(
         contract.load_profile(str(path))
 
 
+def test_the_loader_refuses_an_edge_standing_in_its_own_empty_stretch(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Q21 binds each pair to the RUN it belongs to (round 1 item 4).
+
+    A pair whose two values both stand in bins the same description
+    says hold nothing satisfies every other condition -- as many pairs
+    as runs, ascending, inside the two ends -- and describes no column
+    any table holds. The value stage read those two numbers as values
+    of real cells and walked out to them.
+    """
+    document, loaded = _described(tmp_path, "inward", _two_tight_rows())
+    block = document["columns"][0]
+    assert block["empty_edges"], "this column has an empty middle"
+    ends = (
+        loaded.columns[0].facts.percentiles.rungs[0],
+        loaded.columns[0].facts.percentiles.rungs[-1],
+    )
+    width = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS
+    first = block["empty_bins"][0]
+    # Two values INSIDE the first empty bin, ascending and inside the
+    # published ends: everything Q21 asked before this landing.
+    inward = [
+        ends[0] + width * first + width * 0.2,
+        ends[0] + width * first + width * 0.8,
+    ]
+    block["empty_edges"] = [inward] + block["empty_edges"][1:]
+    path = fixtures.write_profile(tmp_path, "inward-edited.json", document)
+    with pytest.raises(errors.ProfileError):
+        contract.load_profile(str(path))
+
+
 def test_the_loader_refuses_a_bin_the_census_accounts_for_neither_way(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -304,6 +346,58 @@ def test_the_loader_refuses_a_bin_the_census_accounts_for_neither_way(
     path = fixtures.write_profile(tmp_path, "hole-edited.json", document)
     with pytest.raises(errors.ProfileError):
         contract.load_profile(str(path))
+
+
+def test_the_plain_page_names_the_edges_of_a_nested_block(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The page reaches `parts[]` and the compound halves (round 2 item 1).
+
+    A `joined_numbers` column carries no `empty_bins` of its own: it
+    carries one block per POSITION, and each of those publishes the
+    stretches and the two real values each stretch lies between. A
+    page that read the column alone told the holder of such a
+    description nothing about the exact values in it, which is the one
+    line of this page that puts a real cell's value in front of a
+    reader.
+    """
+    draw = random.Random(7)
+    rows = [
+        f"{round(draw.gauss(20, 2), 0):.0f}/{draw.randint(60, 90)}"
+        for _index in range(150)
+    ] + [
+        f"{round(draw.gauss(80, 3), 0):.0f}/{draw.randint(60, 90)}"
+        for _index in range(150)
+    ]
+    path = fixtures.write(
+        tmp_path, "bp.csv", "bp\n" + "\n".join(rows) + "\n"
+    )
+    document = profile.build_document(
+        reading.read_table(
+            str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        ),
+        taxonomy.Settings(small_cell_floor=1),
+        [],
+        [],
+        ["bp"],
+    )
+    block = document["columns"][0]
+    assert block["role"] == "joined_numbers", block["role"]
+    assert "empty_bins" not in block, (
+        "this witness needs the fact to live BELOW the column, or it "
+        "witnesses nothing"
+    )
+    assert block["parts"][0]["empty_edges"], block["parts"][0]
+    page = summary.render(document, "")
+    said = [
+        line for line in page.splitlines() if "either side of it" in line
+    ]
+    assert said, (
+        "the page says nothing about the exact values this joined "
+        "description carries:\n" + page
+    )
+    named = [line for line in page.splitlines() if "part 1 of each" in line]
+    assert named, "the page does not say WHICH position it is about"
 
 
 # -- the twin keeps out of the stretches -------------------------------
@@ -404,49 +498,68 @@ def test_the_twin_still_meets_everything_else_it_used_to(
             assert one not in missed, f"seed {seed} missed {one}"
 
 
-def test_the_fact_reaches_only_bin_resolution(
+def test_no_cell_stands_inside_the_sources_own_gap(
     tmp_path: pathlib.Path,
 ) -> None:
-    """WHAT IS NOT CLAIMED (residual R-P4-138), pinned as a number.
+    """WHERE THE STRETCH REALLY LIES, and nothing is left inside it.
 
-    A bin is a thirty-second of the column's reach, so the bins the
-    source leaves empty are strictly INSIDE the stretch the source
-    actually leaves empty, and a cell moved to the edge of the nearest
-    occupied bin is still inside that stretch. What the landing buys
-    is that the cell is near a real value instead of in the middle of
-    the gap: measured at forty seeds, the furthest such cell fell from
-    15.7-23.0 units from a real value to 1.0. The bound asserted here
-    is loose enough to survive a draw and far below the before figure.
+    Residual R-P4-138, closed by the owner's ruling of 2026-09-04. A
+    bin is a thirty-second of the column's reach, so the bins a source
+    leaves empty are strictly INSIDE the stretch the source really
+    leaves empty. Two consequences followed, and BOTH had to be closed
+    before this assertion could be made:
+
+    * a cell moved to the edge of the nearest occupied BIN was still in
+      the source's own gap -- `empty_edges` publishes the two values
+      each stretch really lies between, and the walk starts there;
+    * a stratum could stand INSIDE the gap and still be in a bin that
+      holds plenty, so a queue built from the bins never saw it. The
+      pass asks the published PAIRS which stretch a stratum is in, and
+      the bins only where the pairs say nothing (review round 1 item
+      2).
+
+    MEASURED on all three witnesses of this file, FORTY seeds each,
+    counting cells inside the SOURCE's widest gap rather than inside a
+    bin:
+
+    * before the edges: one cell per column per seed, 15.7 to 23.0
+      units from the nearest real value;
+    * with the edges but the bins still queueing: 8, 4 and 27 cells of
+      12,000, the furthest 1.3 units away;
+    * with both: **0, 0 and 0 of 12,000**.
+
+    THE THREE WITNESSES ARE COUNTED SEPARATELY and at forty seeds
+    rather than five, because the documents state a number for each and
+    an aggregate over five seeds would leave three claims resting on
+    one total (review round 1 item 7).
     """
-    rows = _two_tight_rows()
-    numbers = sorted(float(one) for one in rows)
-    widest = (0.0, 0.0, 0.0)
-    for low, high in zip(numbers, numbers[1:]):
-        if high - low > widest[0]:
-            widest = (high - low, low, high)
-    _document, loaded = _described(tmp_path, "resolution", rows)
-    deepest = 0.0
-    for seed in SEEDS:
-        twin = generation.generate(loaded, seed)
-        for cell in twin.columns[0]:
-            if cell == "":
-                continue
-            value = parsing.parse_number(cell)
-            if value is None or not widest[1] < value < widest[2]:
-                continue
-            deepest = max(
-                deepest, min(value - widest[1], widest[2] - value)
-            )
-    assert deepest > 0.0, (
-        "cells DO remain inside the source's own gap, which is the "
-        "residual this test records; an assertion that none did would "
-        "claim more than the published fact carries"
-    )
-    assert deepest < 4.0, (
-        f"a cell sits {deepest} from the nearest real value; before this "
-        f"landing the furthest sat 15.7 to 23.0 away, and the repair is "
-        f"what keeps them at the edges of the real clusters"
-    )
+    for name, build in (
+        ("tight", _two_tight_rows),
+        ("uneven", _uneven_rows),
+        ("closer", _closer_rows),
+    ):
+        rows = build()
+        numbers = sorted(float(one) for one in rows)
+        widest = (0.0, 0.0, 0.0)
+        for low, high in zip(numbers, numbers[1:]):
+            if high - low > widest[0]:
+                widest = (high - low, low, high)
+        _document, loaded = _described(tmp_path, f"reach-{name}", rows)
+        inside = []
+        for seed in range(40):
+            twin = generation.generate(loaded, seed)
+            for cell in twin.columns[0]:
+                if cell == "":
+                    continue
+                value = parsing.parse_number(cell)
+                if value is None or not widest[1] < value < widest[2]:
+                    continue
+                inside = inside + [(seed, cell)]
+        assert inside == [], (
+            f"{name}: the source holds nothing between {widest[1]} and "
+            f"{widest[2]}, and the twin wrote {len(inside)} cell(s) "
+            f"there: {inside[:5]}"
+        )
 
 
 def test_where_the_twin_cannot_move_a_value_it_says_so(
@@ -559,6 +672,13 @@ def test_the_quality_report_lists_the_fact_rather_than_checking_it(
 _ENDS = (0.0, 3200.0)
 _BARRED = {place: 1 for place in range(15, 20)}
 _RUN = (15, 19)
+# THE STRETCH'S REAL EDGES, which `_cleared_value` takes after
+# residual R-P4-138 (2026-09-04): the two values the source really
+# holds either side of the stretch. Here they are put ON the bin
+# edges, which is the scale these cases were written against, so
+# what each of them drives is unchanged and only the way the walk is
+# told where the stretch lies has moved.
+_EDGES = (1500.0, 2000.0)
 _WIDTHS = (-1, 1)
 
 
@@ -572,12 +692,12 @@ def test_a_value_nearer_the_top_of_a_stretch_goes_up() -> None:
     drawn beside.
     """
     high = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert high is not None and high >= 2000.0, high
     low = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1600.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1600.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert low is not None and low < 1500.0, low
@@ -591,12 +711,12 @@ def test_the_move_stops_at_the_bin_next_to_the_stretch() -> None:
     and one sent down in [90, 100).
     """
     high = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert 2000.0 <= high < 2100.0, high
     low = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1600.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1600.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert 1400.0 <= low < 1500.0, low
@@ -617,8 +737,10 @@ def test_no_two_strata_of_one_stretch_take_one_cell() -> None:
     # step a six-hundred-and-fortieth, so sixteen consecutive
     # candidates all read `2.0` at one figure after the point.
     narrow = (0.0, 3.2)
+    # the same stretch on that scale: bins 15 to 19 run 1.5 to 2.0
+    edges = (1.5, 2.0)
     first = generation._cleared_value(
-        narrow, _BARRED, _RUN, 1.94, generation._BAND_POSITIVE,
+        narrow, _BARRED, _RUN, edges, (edges,), 1.94, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     spoken = {
@@ -626,7 +748,7 @@ def test_no_two_strata_of_one_stretch_take_one_cell() -> None:
         for spelling in generation._spellings_of(first, _WIDTHS, False)
     }
     second = generation._cleared_value(
-        narrow, _BARRED, _RUN, 1.94, generation._BAND_POSITIVE,
+        narrow, _BARRED, _RUN, edges, (edges,), 1.94, generation._BAND_POSITIVE,
         True, spoken, {first: 1}, False, _WIDTHS,
     )
     assert second is not None and second != first
@@ -648,13 +770,13 @@ def test_a_moved_value_keeps_the_form_it_was_written_in() -> None:
     would take back the count those two just met.
     """
     pointed = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.5, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.5, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert pointed is not None
     assert not generation._carries_plainly(pointed, False), pointed
     plain = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert plain is not None
@@ -677,7 +799,7 @@ def test_a_moved_value_never_crosses_zero() -> None:
     ends = (-100.0, 220.0)
     barred = {place: 1 for place in range(5, 10)}
     found = generation._cleared_value(
-        ends, barred, (5, 9), -5.0, generation._BAND_NEGATIVE,
+        ends, barred, (5, 9), (-50.0, 0.0), ((-50.0, 0.0),), -5.0, generation._BAND_NEGATIVE,
         True, {}, {}, False, (-1, 1),
     )
     assert found is None or found < 0.0, found
@@ -685,7 +807,7 @@ def test_a_moved_value_never_crosses_zero() -> None:
     # failing: a POSITIVE stratum in the same stretch does get a value,
     # and it is above zero.
     other = generation._cleared_value(
-        ends, barred, (5, 9), -5.0, generation._BAND_POSITIVE,
+        ends, barred, (5, 9), (-50.0, 0.0), ((-50.0, 0.0),), -5.0, generation._BAND_POSITIVE,
         True, {}, {}, False, (-1, 1),
     )
     assert other is not None and other > 0.0, other
@@ -844,7 +966,13 @@ def test_the_twins_cells_are_a_function_of_the_published_fact(
 
     written = counted(document, "consumed-as-written.json")
     blanked = copy.deepcopy(document)
+    # BOTH HALVES OF THE FACT, because it is now published as two
+    # keys: the bins and the two real values each stretch lies between
+    # (residual R-P4-138). Emptying one and leaving the other is a
+    # description the loader refuses outright, so the control arm has
+    # to remove the whole fact.
     blanked["columns"][0]["empty_bins"] = []
+    blanked["columns"][0]["empty_edges"] = []
     without = counted(blanked, "consumed-without.json")
     assert written == [0] * len(SEEDS), written
     assert min(without) >= 4 and max(without) <= 6, without
@@ -865,12 +993,12 @@ def test_a_stratum_sharing_its_value_does_not_move() -> None:
     test cannot pass because the walk had nowhere to go anyway.
     """
     alone = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.0, generation._BAND_POSITIVE,
         True, {}, {}, False, _WIDTHS,
     )
     assert alone is not None
     shared = generation._cleared_value(
-        _ENDS, _BARRED, _RUN, 1900.0, generation._BAND_POSITIVE,
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.0, generation._BAND_POSITIVE,
         False, {}, {}, False, _WIDTHS,
     )
     assert shared is None, shared

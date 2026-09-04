@@ -5674,6 +5674,77 @@ def _bin_census(numbers: "list[float]") -> "dict[int, int] | None":
     return counts
 
 
+def _empty_edges(numbers: "list[float]") -> "list[list[float]]":
+    """The REAL boundaries of each stretch this column leaves empty.
+
+    RESIDUAL R-P4-138, CLOSED BY THE OWNER'S RULING OF 2026-09-04.
+    `empty_bins` divides the column's reach into thirty-two and names
+    the bins that hold nothing, and the bins a column leaves empty are
+    strictly INSIDE the stretch it really leaves empty -- so a twin
+    repaired to the edge of the nearest occupied bin still lands inside
+    the source's own gap. Measured on a 300-row column whose real gap
+    runs 26.9 to 74.0: five cells of three hundred sat in that gap at
+    every seed, each about one unit past the cluster edge.
+
+    THIS FACT IS THE TWO REAL VALUES, one per side: the largest value
+    below the gap and the smallest above it. The twin then has the
+    edge itself to keep out of rather than a bin edge inside it.
+
+    WHAT IT COSTS A READER TO KNOW, priced against the owner's ruling
+    of 2026-09-03 on the small-cell floor. Each edge IS a value of a
+    real cell -- the same kind of fact a percentile rung is, and a
+    ladder publishes eleven of them on every numeric column. It says
+    that some row holds 26.9 and some row holds 74.0, and nothing about
+    which rows, how many, or what those rows hold anywhere else. The
+    ruling that covers a rung covers this.
+
+    Guarantees: accepts the numbers the statistics used; returns one
+    ascending `[below, above]` pair per maximal run of empty bins, in
+    ascending order, and the empty list where the column has no scale
+    or leaves no bin empty. Determinism: a fixed function of the
+    values. Raises nothing. No I/O of any kind.
+    """
+    bins = _empty_bins(numbers)
+    if not bins:
+        return []
+    ordered = sorted(numbers)
+    edges: "list[list[float]]" = []
+    for run in _bin_runs(bins):
+        # The values on each side of this run of empty bins. A run
+        # never reaches an end -- the smallest value is in the first
+        # bin and the largest in the last -- so both sides exist.
+        below = None
+        above = None
+        for value in ordered:
+            place = parsing.histogram_bin(value, ordered[0], ordered[-1])
+            if place < run[0]:
+                below = value
+            if place > run[1] and above is None:
+                above = value
+        if below is None or above is None:
+            continue
+        if above <= below:
+            continue
+        edges = edges + [[below, above]]
+    return edges
+
+
+def _bin_runs(bins: "list[int]") -> "list[tuple[int, int]]":
+    """The maximal runs of consecutive bin numbers, ascending."""
+    runs: "list[tuple[int, int]]" = []
+    start = -1
+    last = -2
+    for place in bins:
+        if place != last + 1:
+            if start >= 0:
+                runs = runs + [(start, last)]
+            start = place
+        last = place
+    if start >= 0:
+        runs = runs + [(start, last)]
+    return runs
+
+
 def _empty_bins(numbers: "list[float]") -> "list[int]":
     """Which of the bins hold NONE of this column's numbers (P4-D32).
 
@@ -5912,6 +5983,13 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # publishes a middle rung no cell of it holds, and the value
         # stage honoured that rung until this fact told it not to.
         "empty_bins": _empty_bins(numbers),
+        # ...AND THE REAL EDGES OF EACH OF THOSE STRETCHES (residual
+        # R-P4-138, closed by the owner's ruling of 2026-09-04). The
+        # bins a column leaves empty sit strictly INSIDE the stretch it
+        # really leaves empty, so a twin repaired to a bin edge still
+        # lands in the source's own gap. These two values are the gap
+        # itself.
+        "empty_edges": _empty_edges(numbers),
         # HOW MANY DIFFERENT NUMBERS, as distinct from how many
         # different SPELLINGS (plan P4-D4.9, closing residual R-P4-20).
         # `n_distinct` counts spellings and the contract defines it that

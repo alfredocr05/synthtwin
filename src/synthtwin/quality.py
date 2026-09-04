@@ -670,6 +670,10 @@ _LISTING_WORDS = {
     "numeric.empty_bins": (
         "which stretches of your column's range held no value at all"
     ),
+    "numeric.empty_edges": (
+        "the two values your column really holds on either side of "
+        "each of those stretches"
+    ),
     "numeric.field_widths": (
         "how many figures each of your whole-numbered cells was "
         "written with"

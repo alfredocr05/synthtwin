@@ -152,16 +152,49 @@ Stated here so that no reader has to discover them independently:
   table needs it should raise it.
 
   **THE SAME RULING COVERS A PERCENTILE LADDER** (owner, 2026-09-03,
-  extending the above). A ladder is made of ORDER STATISTICS: its rungs
-  are values the column really holds. So describing a column's numbers
-  puts some of those numbers into the description verbatim, and that is
-  true of every numeric column this tool has ever described. It became
-  visible on a new one: a column of readings beside a repeated marker
-  used to be described as labels and published none of its readings,
-  and the compound role now describes its numeric half. The reasoning
-  is the reasoning above — a ladder records that the column holds
+  extending the above). Describing a column's numbers puts some of
+  those numbers into the description verbatim, and that is true of
+  every numeric column this tool has ever described. It became visible
+  on a new one: a column of readings beside a repeated marker used to
+  be described as labels and published none of its readings, and the
+  compound role now describes its numeric half. The reasoning is the
+  reasoning above — the description records that the column holds
   `1.7` and where in its order it sits, not which row holds it and not
   what that row holds anywhere else.
+
+  **HOW MANY OF THOSE NUMBERS THERE REALLY ARE, corrected here
+  (2026-09-04).** This paragraph used to say a ladder is made of order
+  statistics and its rungs are values the column really holds. That is
+  true of `min` and `max` and NOT of the nine rungs between them: the
+  interior rungs of a NUMERIC ladder are INTERPOLATED between the two
+  order statistics on either side, and on most columns most of them
+  are numbers no cell of the column holds. Measured on six columns of
+  17 to 250 drawn values, between three and nine of the nine interior
+  rungs were held by no cell. So a numeric ladder puts TWO exact
+  values into a description, not eleven, and a sentence resting on
+  eleven was resting on the wrong number. A DATE ladder and a CLOCK
+  ladder are different and were measured the same way: every rung of
+  either lands on a real value, so those roles do publish eleven.
+
+  **AND `empty_edges` PUTS MORE THERE, which is stated with its real
+  ceiling rather than by comparison** (owner ruling 2026-09-04, plan
+  P4-D35). For each run of bins a column leaves empty, the description
+  names the largest value the column holds below the run and the
+  smallest above it, and both are values of real cells. The ceiling
+  was computed rather than estimated. A reach is divided into
+  thirty-two bins; the first and the last always hold the two
+  endpoints, so at most fifteen of the thirty between them can be
+  empty runs, and two runs sharing the one value between them name it
+  once. So a numeric block carries **at most fifteen pairs, thirty
+  entries and SIXTEEN distinct values**. On a dense column there is
+  usually no run at all and so no value here. On a SPARSE column the
+  ceiling is reached, and it was reached on purpose to check it: a
+  17-row column occupying bins 0, 2, 4 … 30 and 31 publishes fifteen
+  pairs naming **sixteen of its seventeen values**. A person
+  describing a small, widely spread numeric column should read that
+  sentence before sharing the description, and `--smallest-group` does
+  not reduce it: this fact, like the empty bins it stands with, is
+  published at every floor.
 
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is

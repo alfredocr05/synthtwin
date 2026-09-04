@@ -424,14 +424,90 @@ def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
     their readings run from 15 to 90 with a middle of 50 has every
     reason to take it that some cell held about 50, and none did.
 
-    IT NAMES NO VALUE AND NO CELL. The stretch is worked out from the
-    two ends the line above already prints, and what is said about it
-    is that NOBODY is there.
+    AND THE DESCRIPTION NAMES TWO VALUES FOR EACH STRETCH, which this
+    page says out loud because it is the one line here that puts a real
+    cell's value in front of a reader (review round 1 item 3). The bins
+    themselves name no value and no cell -- they are a division of a
+    range the line above already prints -- but `empty_edges` names, for
+    each stretch, the largest value the column holds below it and the
+    smallest above it, and those two are values of real cells. The
+    person who is deciding whether they may share the description has
+    to be told that in the plain-language page and not only in the
+    contract.
 
-    The count is said rather than the edges themselves, because the
-    edges are a division of a range this page has already given and a
-    list of them would be arithmetic rather than words. A person who
-    wants the edges has the description.
+    THE COUNT IS SAID AND THE EDGES ARE NOT LISTED. A list of them
+    would be arithmetic rather than words on a page written for a
+    reader; what this line owes is the SENTENCE that they are there
+    and what kind of fact they are. A person who wants the numbers has
+    the description.
+    """
+    return _empty_bin_lines_of(_quantitative_blocks(column, ""))
+
+
+def _quantitative_blocks(
+    column: "dict[str, object]", where: str
+) -> "list[tuple[str, dict[str, object]]]":
+    """Every block of this column that carries a numeric shape.
+
+    THE KEY IS NOT ALWAYS ON THE COLUMN. A `joined_numbers` column
+    carries one block per POSITION under `parts`, and a
+    `numbers_with_labels` column carries its numeric half under
+    `numbers`; both publish `empty_bins` and `empty_edges` at that
+    depth and neither carries them at the top. A page that read the
+    column alone therefore told the holder of a joined or compound
+    description nothing about the exact values in it (review round 2
+    item 1).
+
+    Guarantees: accepts one column block; returns the column itself
+    where it carries the key, and otherwise every nested block that
+    does, in the order the description writes them. Determinism: a
+    function of the mapping. Raises nothing. No I/O of any kind.
+    """
+    found: "list[tuple[str, dict[str, object]]]" = []
+    if "empty_bins" in column:
+        found = found + [(where, column)]
+    for key in ("numbers", "labels"):
+        if key in column:
+            half = column[key]
+            if isinstance(half, dict):
+                found = found + _quantitative_blocks(
+                    half, f"its {key}"
+                )
+    if "parts" in column:
+        parts = column["parts"]
+        if isinstance(parts, list):
+            for place in range(len(parts)):
+                part = parts[place]
+                if isinstance(part, dict):
+                    found = found + _quantitative_blocks(
+                        part, f"part {place + 1} of each cell"
+                    )
+    return found
+
+
+def _empty_bin_lines_of(
+    blocks: "list[tuple[str, dict[str, object]]]",
+) -> "list[str]":
+    """The stretch lines for every block that carries the fact.
+
+    Guarantees: accepts the blocks `_quantitative_blocks` found;
+    returns the lines they earn, joined in order. Determinism: a
+    function of those mappings. Raises nothing. No I/O of any kind.
+    """
+    lines: "list[str]" = []
+    for where, block in blocks:
+        lines = lines + _one_blocks_empty_bin_lines(block, where)
+    return lines
+
+
+def _one_blocks_empty_bin_lines(
+    column: "dict[str, object]", where: str
+) -> "list[str]":
+    """The stretch lines for ONE block that carries the fact.
+
+    Guarantees: accepts a block carrying `empty_bins`; returns its
+    lines, or none where it names no stretch. Determinism: a function
+    of the mapping. Raises nothing. No I/O of any kind.
     """
     if "empty_bins" not in column:
         return []
@@ -446,12 +522,22 @@ def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
         if place != last + 1:
             stretches = stretches + 1
         last = place
-    return [
-        f"    held no value at all in {stretches} stretch(es) of its "
-        f"range, covering {len(bins)} of the "
+    named = f"{where}: " if where else ""
+    lines = [
+        f"    {named}held no value at all in {stretches} stretch(es) "
+        f"of its range, covering {len(bins)} of the "
         f"{parsing.HISTOGRAM_BINS} equal steps between its smallest "
         f"value and its largest"
     ]
+    edges = column["empty_edges"] if "empty_edges" in column else []
+    if isinstance(edges, list) and edges:
+        lines = lines + [
+            f"      and for each of those stretches the description "
+            f"names the two values your column really holds on either "
+            f"side of it -- {2 * len(edges)} value(s) of real cells, "
+            f"like the smallest and the largest above"
+        ]
+    return lines
 
 
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:

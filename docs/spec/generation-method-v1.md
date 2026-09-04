@@ -2284,10 +2284,12 @@ cell actually wears cannot come apart between them.
 
 ### G6.7 No value stands where the description says there is none
 
-**THE FACT THIS SECTION SERVES IS `empty_bins`** (contract 7.11, plan
-P4-D32), and it is served at the value stage because it is a statement
-about VALUES and about nothing else. A cell cannot be written out of a
-stretch it stands in; only the value can be moved.
+**THE FACTS THIS SECTION SERVES ARE `empty_bins` AND `empty_edges`**
+(contract 7.11 and 7.11a, plan P4-D32), and they are served at the
+value stage because each is a statement about VALUES and about nothing
+else. A cell cannot be written out of a stretch it stands in; only the
+value can be moved. The first says WHICH stretches there are and the
+second says where each one really begins and ends.
 
 **G6.7.1 What was wrong.** A column with two clusters and nothing
 between them publishes a middle rung BETWEEN the clusters — the median
@@ -2299,6 +2301,17 @@ at the default floor, the twins of three such columns put 4–6, 2–3 and
 3–6 of their 300 cells in a stretch the real column left completely
 empty. Nothing crashed and nothing was named. Anybody plotting the
 twin met a third cluster that is not there.
+
+**AND WHAT THE FIRST REPAIR LEFT.** Moving a cell to the nearest
+occupied BIN emptied the named stretches but not the source's own gap,
+because the bins lie strictly inside it: measured at forty seeds, one
+cell per column per seed still sat in the real gap, 15.7 to 23.0 units
+from the nearest real value. Publishing the real edges (`empty_edges`,
+residual R-P4-138, owner's ruling of 2026-09-04) took that to 8, 4 and
+31 cells of 12,000, and asking the published PAIRS which stretch a
+stratum stands in — rather than its bin, which is coarser than the gap
+— took it to **NONE: 0 of 12,000 on each of the three columns at forty
+seeds**.
 
 **G6.7.2 The bins, and where they come from.** The scale is the one
 G6.6's sibling census is counted on: `HISTOGRAM_BINS` equal bins
@@ -2318,12 +2331,64 @@ how far that is. Both of those bins always exist, because the smallest
 value of a block is in the first bin of the scale and the largest is
 in the last, so neither end bin is ever empty (contract Q20).
 
-**G6.7.4 Which stratum moves, and the rules it may not break.** Every
-stratum whose value falls in a named bin moves, subject to:
+**AND THE STRETCH'S REAL EDGES ARE PUBLISHED, one pair per stretch, in
+the same order** (`empty_edges`, contract 7.11a; residual R-P4-138,
+closed by the owner's ruling of 2026-09-04). The pair is the largest
+value the block holds below the stretch and the smallest above it. It
+matters because a bin is a thirty-second of the block's reach, so the
+bins a column leaves empty lie strictly INSIDE the stretch it really
+leaves empty: a cell moved to a bin edge was still in the source's own
+gap. Contract Q21 holds a description to one pair per stretch, in
+order, and to each pair standing either side of its OWN run of bins,
+so the generator indexes the pairs by the stretch's position and needs
+no search.
+
+**WHICH STRETCH A STRATUM IS IN IS ASKED OF THE PAIRS, and of the bins
+only where the pairs say nothing.** A bin is a thirty-second of the
+block's reach and a pair is the gap itself, so a value can stand
+INSIDE the gap and still be in a bin that holds plenty. A pass that
+gathered its queue from the bins alone never saw those values: it is
+what left 8, 4 and 31 cells of 12,000 inside the source's own gap
+after the edges were published, and asking the pairs first took all
+three to nought. A stratum is in the FIRST pair that holds it, read by
+the value and by every spelling of it, in the width order
+`_census_widths` fixes.
+
+**AND A CANDIDATE IS REFUSED IF IT READS INSIDE ANY PUBLISHED PAIR,
+not only inside a barred bin.** A column with two stretches sharing
+the one value between them let the further-edge walk step past that
+value into the FIRST stretch's real gap — outside every barred bin,
+because a bin is coarser than a gap, and so accepted with nothing
+naming it. The pairs are OPEN intervals: an edge is a value the source
+really holds, so landing ON one is not landing in the gap.
+
+**G6.7.4 Which stratum moves, and the rules it may not break.**
+
+**ELIGIBILITY, STATED EXACTLY, because the enumerated rule below used
+to say "falls in a named bin" and the shipped pass moves more than
+that.** A stratum is IN a stretch when its value, or any spelling of
+it at any width the fraction census could reach that cell at, reads
+strictly inside one of the published `empty_edges` pairs — the FIRST
+such pair, taking the pairs in ascending order and the spellings in
+the width order G6.4's census fixes. Where no pair holds it, and only
+then, the BINS are asked: a stratum whose value or spelling falls in a
+named bin belongs to the stretch that bin is part of. A generator that
+asked the bins alone recreates the residual this pass exists to remove
+— measured, 8, 4 and 31 cells of 12,000 on the three witnesses — since
+a gap is finer than a bin and a value can sit inside the gap while
+standing in a bin that holds plenty.
+
+**AND THE FACT A FAILED MOVE NAMES FOLLOWS FROM WHICH ROUTE QUEUED
+IT.** A stratum queued because it stands in a named BIN that cannot be
+moved names `empty_bins`; one queued only because its value is inside
+a published PAIR names `empty_edges`. Naming the bins for the second
+would send a reader to a fact the twin did not break.
+
+Every stratum so identified moves, subject to:
 
 1. not one of the two PINNED strata, which hold the published ends of
-   the ladder — and which are never in a named bin anyway, being the
-   two values the end bins are defined by;
+   the ladder — and which are never in a named stretch anyway, being
+   the two values the end bins are defined by;
 2. not in the ZERO band, so the count of zero values does not move;
 3. never across zero, so the sign counts do not move;
 4. keeping its WRITTEN FORM — a value that carries no point moves to a
@@ -2363,12 +2428,24 @@ G6.7.8: none.** The three two-cluster columns still write no cell in a
 named stretch at any of forty seeds at either floor, and the forty
 described columns still leak on the same 119 runs of 1600.
 
-**G6.7.5 Where it goes, and the bound.** To the occupied bin NEARER to
-it — measured from the value to each end of the stretch — and no
-further. **That is this move's whole reach, and it is written in the
-published fact's own terms**: a value moves out of the stretch the
-description says holds nothing, into the bin next to it, and stops
-there.
+**G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
+to it — measured from the value to each of the stretch's two edges —
+and no further past that edge than one bin. **That is this move's
+whole reach, and it is written in the published fact's own terms**: a
+value moves out of the stretch the description says holds nothing, to
+the real value the description says stands beside it, and stops there.
+
+**THE FURTHER EDGE IS WALKED AFTER THE NEARER ONE**, and only where
+the nearer one has nothing free. Both edges are edges of the SAME
+stretch, so a value reaching either has left it; the nearer is tried
+first because that is the smaller move. This is what a published edge
+made necessary rather than a preference: a BIN edge has a whole
+occupied bin behind it, while a published edge may have a single value
+— a column whose two clusters sit close together publishes a stretch
+whose lower edge is one value alone in its bin with ANOTHER stretch
+below it, so the downward walk had a twelfth of a bin to work in and
+gave up. Walking the other edge afterwards moved that cell and cost
+the near-side answers nothing.
 
 **IT IS NOT A-P4-18's BOUND, and it cannot be.** That amendment bounds
 the width snap by the stretch of the ladder a stratum covers. Measured
@@ -2381,9 +2458,13 @@ nothing and the method fills the silence by interpolating, which is an
 INFERENCE, while "no cell of the real column lies between these two
 edges" is a MEASUREMENT. Where the two meet, the measurement wins.
 
-**G6.7.6 The walk inside the bin.** From the edge of the stretch
-inward, in sixty-fourths of a bin, taking the first position that
-breaks none of G6.7.4's rules. The strata standing nearest the edge
+**G6.7.6 The walk inside the bin.** From the published edge outward,
+in sixty-fourths of a bin, taking the first position that breaks none
+of G6.7.4's rules. The edge ITSELF is the first candidate on both
+sides, because each published edge is a value the source really holds
+and so a target in its own right; the bin edges this walk took before
+were the edges of the EMPTY bin, so the downward one had to start a
+step past it. The strata standing nearest the edge
 are walked FIRST, so each takes a position nearer the edge than the
 one after it and the values keep the order the ladder gave them. On a
 whole-numbered column each position is rounded to a whole number
@@ -2411,7 +2492,12 @@ width — and that census is REPORT-ONLY with its shortfalls named.
 
 **G6.7.8 Where the move cannot be made.** The value STAYS and a
 deviation names it, carrying the two edges of the stretch and the
-value that is still inside it. Measured over forty described columns
+value that is still inside it. **The edges it carries are the
+PUBLISHED ones and not the bin boundaries**, which is stated here
+because the note was written in the bins until 2026-09-04: on a real
+gap of 26.6 to 72.7 it read "no value from 26.7 to 71.3", telling a
+reader the column was empty over a narrower range than the description
+says. Measured over forty described columns
 at forty seeds each, the runs writing a cell into a named stretch went
 from 1049 of 1600 to 119, and every one of the 119 is a column whose
 other published facts leave no room beside the stretch: a

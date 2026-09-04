@@ -556,6 +556,16 @@ _NOT_CHECKABLE_EMPTY_BINS = (
     "stretch and the value. A file whose values fall in different "
     "stretches misses no obligation this description makes"
 )
+_NOT_CHECKABLE_EMPTY_EDGES = (
+    "the description also records the two real values each of those "
+    "stretches lies between, and the twin walks out to the nearer of "
+    "them without being held to it: where nothing beside either edge "
+    "is free -- because the twin's own signs, its written forms and "
+    "the values its other cells hold have taken it -- the cell STAYS "
+    "where it was, inside the stretch, and the report beside the twin "
+    "names the stretch and the value. A file whose values fall in "
+    "different stretches misses no obligation this description makes"
+)
 _NOT_CHECKABLE_FIELD_WIDTHS = (
     "the description records how many of the real column's cells were "
     "written as a whole number at each field width, and the twin "
@@ -12233,7 +12243,24 @@ def _numeric_listings(
                 "numeric.empty_bins",
                 "",
                 _NOT_CHECKABLE_EMPTY_BINS,
-            )
+            ),
+            # AND THE EDGES OF THOSE STRETCHES, LISTED BESIDE THEM
+            # (plan P4-D35, residual R-P4-138). They are one fact in
+            # two keys and they are listed together: the bins say
+            # WHICH stretches there are, the edges say where each one
+            # really begins and ends, and a reader told about one and
+            # not the other would not know which of the two the twin
+            # was walking from. REPORT-ONLY for the reason the bins
+            # are, and measured: over three two-cluster columns at
+            # forty seeds each, 8, 4 and 31 cells of 12,000 still sit
+            # inside a source's own gap, each within 1.3 units of a
+            # real value (residual R-P4-155).
+            Listing(
+                column.name,
+                "numeric.empty_edges",
+                "",
+                _NOT_CHECKABLE_EMPTY_EDGES,
+            ),
         ]
     listings = listings + [
         # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never

@@ -267,8 +267,21 @@ def test_nothing_that_varies_between_runs_is_written(
 # gains nine lines and loses none. No count, no statistic, no label, no
 # role and no spelling of any column moved, and the TWIN's own digest in
 # tests/test_twin_golden.py did not move at all.
+# RE-RECORDED 2026-09-04 for residual R-P4-138: every numeric block
+# gains `empty_edges`, the two values each run of empty bins really
+# lies between. FIVE blocks of this description carry the key and ONE
+# of them carries anything -- the count column, whose nine empty bins
+# lie between consecutive whole numbers, so its pairs are
+# [0,1] ... [8,9]. CHECKED by the procedure the previous re-recordings
+# used: building these bytes, deleting that one key from every block
+# and serializing again reproduces the previous digest,
+# 4ee359b3e90f8cb80047e0475c0266529bb32bd7048c231fa37b889c58632dce,
+# character for character. No count, no statistic, no label, no role
+# and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all -- so the value stage
+# reading the new fact wrote the same cells it wrote from the bins.
 GOLDEN_SHA256 = (
-    "4ee359b3e90f8cb80047e0475c0266529bb32bd7048c231fa37b889c58632dce"
+    "4d2639fbb0ae72ab59cbffe2679348de5a01008eccbdb5e93c1aaf12e3d7b673"
 )
 
 

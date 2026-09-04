@@ -9693,6 +9693,8 @@ def _cleared_value(
     ends: "tuple[float, float]",
     barred: "dict[int, int]",
     run: "tuple[int, int]",
+    edges: "tuple[float, float]",
+    every: "tuple[tuple[float, float], ...]",
     value: float,
     band: str,
     sole: bool,
@@ -9788,8 +9790,23 @@ def _cleared_value(
     width = reach / parsing.HISTOGRAM_BINS
     if not math.isfinite(width) or not width > 0.0:
         return None
-    under = lowest + width * run[0]
-    over = lowest + width * (run[1] + 1)
+    # THE STRETCH'S REAL EDGES, WHICH THE DESCRIPTION PUBLISHES
+    # (residual R-P4-138, closed by the owner's ruling of 2026-09-04).
+    # This walk once took the edges of the empty BINS, and those lie
+    # strictly INSIDE the stretch the source really leaves empty, so a
+    # value moved to one of them still landed in the source's own gap
+    # -- measured on a 300-row column whose real gap runs 26.6 to 72.7:
+    # one cell of three hundred sat inside it at every seed, 15.7 to
+    # 23.0 units from the nearest real value. `empty_edges` names the
+    # two values each stretch really lies between and the walk starts
+    # from those, which put the same cell within 1.3 units.
+    #
+    # BOTH WALKS START ON THE EDGE ITSELF, because each published edge
+    # is a value the source really holds and so a target in its own
+    # right; the lower BIN edge belonged to the empty bin, so that walk
+    # had to start a step below it.
+    under = edges[0]
+    over = edges[1]
     downward = value - under <= over - value
     step = width / _CLEAR_STEPS
     if not math.isfinite(step) or not step > 0.0:
@@ -9798,36 +9815,142 @@ def _cleared_value(
         return None
     plainly = _carries_plainly(value, whole_column)
     figures = _figure_count(value, whole_column) if plainly else 0
-    for inward in range(_CLEAR_STEPS):
-        if downward:
-            found = under - step * (inward + 1)
-        else:
-            found = over + step * inward
-        if not math.isfinite(found):
-            continue
-        if whole_column:
-            found = _whole_valued(found)
-        if not _reads_outside(found, ends, barred, widths, whole_column):
-            continue
-        if band == _BAND_NEGATIVE and not found < 0.0:
-            continue
-        if band == _BAND_POSITIVE and not found > 0.0:
-            continue
-        if _carries_plainly(found, whole_column) != plainly:
-            continue
-        if plainly and _figure_count(found, whole_column) != figures:
-            continue
-        if found in taken:
-            continue
-        clear = True
-        for spelling in _spellings_of(found, widths, whole_column):
-            if spelling in spoken:
-                clear = False
-                break
-        if not clear:
-            continue
-        return found
+    # THE NEARER SIDE FIRST AND THE FURTHER SIDE AFTER IT. Both edges
+    # of a stretch are edges of the SAME stretch, so a value that
+    # reaches either one has left the stretch; the near side is walked
+    # first because that is the smaller move, and the far side is
+    # walked only where the near one has nothing free.
+    #
+    # THIS IS WHAT THE PUBLISHED EDGES MADE NECESSARY. A bin edge has a
+    # whole occupied bin behind it and a published edge may have a
+    # single value: the `closer` witness of this file publishes a
+    # stretch whose lower edge is 47.0, one value alone in its bin with
+    # ANOTHER empty stretch below it, so the downward walk had a
+    # twelfth of a bin to work in and gave up. Walking the other edge
+    # afterwards moved that cell and cost the near-side answers
+    # nothing, because the near side is still tried first.
+    for side in (downward, not downward):
+        for inward in range(_CLEAR_STEPS):
+            if side:
+                found = under - step * inward
+            else:
+                found = over + step * inward
+            if not math.isfinite(found):
+                continue
+            if whole_column:
+                found = _whole_valued(found)
+            # NEVER PAST A PUBLISHED END, and the suite is what put this
+            # line here. A BIN edge always had a whole occupied bin
+            # between it and the end of the scale; a published edge may
+            # be the second value of the column, so a walk that ran a
+            # bin's width past it ran off the bottom of the ladder. An
+            # affixed column of sixty readings then missed `ladder.min`
+            # and `ladder.p01` at every seed. The ends are
+            # EXACT-OBSERVABLE and this fact is REPORT-ONLY, so where
+            # they meet this one gives way.
+            if found < lowest or found > highest:
+                continue
+            if not _reads_outside(
+                found, ends, barred, widths, whole_column
+            ):
+                continue
+            # AND OUTSIDE EVERY OTHER PUBLISHED STRETCH, not only the
+            # bins. Review round 1 item 2: a column with two stretches
+            # sharing the one value between them lets the further-edge
+            # walk step past that value into the FIRST stretch's real
+            # gap -- outside every barred bin, because a bin is coarser
+            # than the gap, and so accepted. The stratum is not queued
+            # again and nothing names it. Each pair is an OPEN interval:
+            # its two edges are values the source really holds.
+            if not _outside_every(found, every, widths, whole_column):
+                continue
+            if band == _BAND_NEGATIVE and not found < 0.0:
+                continue
+            if band == _BAND_POSITIVE and not found > 0.0:
+                continue
+            if _carries_plainly(found, whole_column) != plainly:
+                continue
+            if plainly and _figure_count(found, whole_column) != figures:
+                continue
+            if found in taken:
+                continue
+            clear = True
+            for spelling in _spellings_of(found, widths, whole_column):
+                if spelling in spoken:
+                    clear = False
+                    break
+            if not clear:
+                continue
+            return found
     return None
+
+
+def _stretch_holding(
+    value: float,
+    every: "tuple[tuple[float, float], ...]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> int:
+    """The published stretch this value stands inside, or -1.
+
+    Read by the value and by every spelling of it, in the order
+    `_census_widths` fixes, so two implementations pick the same one.
+    The pairs are OPEN intervals: an edge is a value the source really
+    holds, so standing ON one is not standing in the gap.
+
+    Guarantees: accepts a value, every published pair, the widths and
+    whether the column is whole; returns the index of the first pair
+    that holds it, or -1. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind.
+    """
+    readings = [value]
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is not None:
+            readings = readings + [read]
+    for index in range(len(every)):
+        below = every[index][0]
+        above = every[index][1]
+        for reading in readings:
+            if below < reading < above:
+                return index
+    return -1
+
+
+def _outside_every(
+    value: float,
+    every: "tuple[tuple[float, float], ...]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> bool:
+    """True when no published stretch holds this value or its spellings.
+
+    THE PAIRS ARE OPEN INTERVALS. `empty_edges` names the two values a
+    stretch really lies between, and both are values the source holds,
+    so landing ON an edge is landing on a real value and landing
+    between them is landing where the source has nobody.
+
+    AND THE TEST IS APPLIED TO THE SPELLING as well as to the value,
+    for the reason `_reads_outside` applies it: a value a thousandth
+    outside a stretch is written back inside it at the width the
+    fraction census gives that cell, and what a reader of the twin
+    meets is the CELL.
+
+    Guarantees: accepts a value, every published pair, the widths and
+    whether the column is whole; returns whether the value and all its
+    spellings lie outside every pair. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    readings = [value]
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is not None:
+            readings = readings + [read]
+    for below, above in every:
+        for reading in readings:
+            if below < reading < above:
+                return False
+    return True
 
 
 def _spellings_of(
@@ -9988,35 +10111,74 @@ def _clear_enough(
     # Asking the question of the value alone would have left this pass
     # blind to exactly the cells it exists to move.
     queued: "dict[int, list[int]]" = {}
+    # WHICH FACT PUT A STRETCH'S STRATA IN THE QUEUE, kept so that a
+    # move that cannot be made names the fact it really missed (review
+    # round 2 item 3). A stratum standing in a barred BIN is missing
+    # `empty_bins`; one standing in a bin that holds plenty while its
+    # value is inside the published PAIR is missing `empty_edges`, and
+    # a report that named the bins there would send a reader to a fact
+    # the twin did not break.
+    came: "dict[int, str]" = {}
     for place in range(total):
         if place == 0 or (place == total - 1 and total >= 2):
             continue
         if layout.bands[place] == _BAND_ZERO:
             continue
-        if _reads_outside(
-            moved[place], ends, barred, widths, facts.integer_valued
-        ):
-            continue
-        where = _barred_bin(
-            moved[place], ends, barred, widths, facts.integer_valued
+        # WHICH STRETCH THIS STRATUM IS IN, ASKED OF THE PUBLISHED
+        # PAIRS FIRST and of the bins only where the pairs say nothing.
+        # A bin is a thirty-second of the column's reach and the pair
+        # is the gap itself, so a value can sit INSIDE the gap and
+        # still stand in a bin that holds plenty -- and a queue built
+        # from the bins alone never saw it. That is where the cells
+        # this pass used to leave behind came from: measured on the
+        # three two-cluster witnesses at forty seeds, 8, 4 and 27 of
+        # 12,000 cells sat inside a source's own gap with the bins
+        # asked and none with the pairs asked.
+        index = _stretch_holding(
+            moved[place],
+            facts.empty_edges,
+            widths,
+            facts.integer_valued,
         )
-        if where < 0:
+        by_pair = "empty_edges"
+        if index >= 0 and _barred_bin(
+            moved[place], ends, barred, widths, facts.integer_valued
+        ) >= 0:
+            by_pair = "empty_bins"
+        if index < 0:
+            by_pair = "empty_bins"
+            if _reads_outside(
+                moved[place], ends, barred, widths, facts.integer_valued
+            ):
+                continue
+            where = _barred_bin(
+                moved[place], ends, barred, widths, facts.integer_valued
+            )
+            if where < 0:
+                continue
+            for one in range(len(runs)):
+                if runs[one][0] <= where <= runs[one][1]:
+                    index = one
+                    break
+        if index < 0 or index >= len(runs):
             continue
-        for index in range(len(runs)):
-            if runs[index][0] <= where <= runs[index][1]:
-                if index in queued:
-                    queued[index] = queued[index] + [place]
-                else:
-                    queued[index] = [place]
-                break
+        if index in queued:
+            queued[index] = queued[index] + [place]
+            came[index] = came[index] if came[index] else by_pair
+        else:
+            queued[index] = [place]
+            came[index] = by_pair
     for index in sorted(queued):
         run = runs[index]
-        under = ends[0] + (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS * run[0]
-        over = (
-            ends[0]
-            + (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS * (run[1] + 1)
-        )
+        # THE REAL EDGES OF THIS STRETCH where the description
+        # publishes them (residual R-P4-138). One pair per run, in the
+        # same order the runs are in, which is what the loader's Q21
+        # holds the description to.
+        edges = facts.empty_edges[index]
+        under = edges[0]
+        over = edges[1]
         places = queued[index]
+        origin = came[index]
         # THE ONES GOING DOWN, FURTHEST FIRST. A stratum standing just
         # inside the stretch is the one that ends up nearest the edge,
         # so the queue for the bin below is walked from the top of the
@@ -10031,12 +10193,14 @@ def _clear_enough(
         up = [place for place in places if place not in down]
         for step in range(len(down)):
             notes = notes + _cleared_into(
-                column, facts, layout, moved, ends, barred, run,
+                column, facts, layout, moved, ends, barred, run, edges,
+                facts.empty_edges, origin,
                 down[len(down) - 1 - step], widths, taken, spoken,
             )
         for place in up:
             notes = notes + _cleared_into(
-                column, facts, layout, moved, ends, barred, run,
+                column, facts, layout, moved, ends, barred, run, edges,
+                facts.empty_edges, origin,
                 place, widths, taken, spoken,
             )
     return moved, notes
@@ -10050,6 +10214,9 @@ def _cleared_into(
     ends: "tuple[float, float]",
     barred: "dict[int, int]",
     run: "tuple[int, int]",
+    edges: "tuple[float, float]",
+    every: "tuple[tuple[float, float], ...]",
+    origin: str,
     place: int,
     widths: "tuple[int, ...]",
     taken: "dict[float, int]",
@@ -10074,6 +10241,8 @@ def _cleared_into(
         ends,
         barred,
         run,
+        edges,
+        every,
         moved[place],
         layout.bands[place],
         sole,
@@ -10083,13 +10252,18 @@ def _cleared_into(
         widths,
     )
     if found is None:
-        width = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS
+        # THE STRETCH AS THE DESCRIPTION PUBLISHES IT, which is the
+        # pair and not the bins (review round 1 item 5). The bins are a
+        # thirty-second of the column's reach and lie strictly inside
+        # the stretch, so a report written in them told a reader the
+        # column was empty over a NARROWER range than the description
+        # says: on a real gap of 26.6 to 72.7 the note read 26.7 to
+        # 71.3.
         return [
             _deviation(
                 column.name,
-                "empty_bins",
-                f"no value from {ends[0] + width * run[0]} to "
-                f"{ends[0] + width * (run[1] + 1)}",
+                origin,
+                f"no value from {edges[0]} to {edges[1]}",
                 f"one cell holds {moved[place]}",
                 "The description says the real column holds no value in "
                 "that stretch, and this twin could find no value beside "

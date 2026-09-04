@@ -25,10 +25,16 @@ import fixtures
 # Derived, never named: review item P4-A1-R3-F2.
 CONTRACT = fixtures.GOVERNING_CONTRACT
 
-# The matrix abbreviates the FOURTEEN roles for width; section 6.11
-# states the expansion and this is it, in the matrix's own order.
-# `jnd` is `joined_numbers` and joined the matrix with plan P4-D26,
-# which is what put the fourteenth role into the contract at all.
+# The matrix abbreviates the roles for width; section 6.11 states the
+# expansion and this is it, in the matrix's own order.
+#
+# THIS LIST WAS HAND-WRITTEN AND FELL BEHIND, which is the defect this
+# whole file exists to stop. It held fourteen names while the loader
+# knew fifteen, so the matrix could omit `numbers_with_labels` -- the
+# role landing L8 added -- and this guard endorsed the omission
+# instead of catching it. The names are read from the LOADER now and
+# the matrix's own order is asserted against them, so a role added to
+# the product and not to section 6.11 turns this red on its first run.
 COLUMNS = (
     "empty",
     "numeric_unrepresentable",
@@ -44,14 +50,68 @@ COLUMNS = (
     "identifier",
     "free_text",
     "joined_numbers",
+    "numbers_with_labels",
 )
+
+
+def test_the_matrix_has_a_column_for_every_role_the_loader_knows() -> None:
+    """The list above is the matrix's ORDER; the loader is its CONTENT.
+
+    An order cannot be derived -- section 6.11 chooses it and this file
+    has to follow it to read a row -- but the SET can be, and it is the
+    set that fell behind: fourteen names here against the loader's
+    fifteen, so `numbers_with_labels` was missing from the matrix and
+    from this guard together and neither could see the other's gap.
+    """
+    assert set(COLUMNS) == set(contract.ROLES), (
+        "section 6.11's columns and the roles the loader knows are "
+        f"not the same set: {sorted(set(COLUMNS) ^ set(contract.ROLES))}"
+    )
+    assert len(COLUMNS) == len(contract.ROLES), COLUMNS
+
+
+HEAD = "| key | emp |"
+_TENS = (
+    "", "ten", "twenty", "thirty", "forty", "fifty", "sixty",
+    "seventy", "eighty", "ninety",
+)
+_ONES = (
+    "", "one", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "ten", "eleven", "twelve", "thirteen",
+    "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+    "nineteen",
+)
+
+
+def _in_words(count: int) -> str:
+    """A count written the way this contract writes its counts.
+
+    So the guard can build the sentence it is looking for instead of
+    carrying a copy of it that a landing has to remember to move.
+    """
+    if count < 20:
+        return _ONES[count]
+    if count < 100:
+        rest = count % 10
+        tail = f"-{_ONES[rest]}" if rest else ""
+        return f"{_TENS[count // 10]}{tail}"
+    hundreds = _ONES[count // 100]
+    rest = count % 100
+    if not rest:
+        return f"{hundreds} hundred"
+    return f"{hundreds} hundred and {_in_words(rest)}"
 
 
 def _matrix() -> "tuple[dict[str, set[str]], int, int]":
     """Every marked cell of section 6.11, read out of the document."""
     text = CONTRACT.read_text(encoding="utf-8")
     start = text.index("### 6.11 The forbidden-key matrix")
-    body = text[start : text.index("\n**Seventy-two rows", start)]
+    # THE TABLE'S OWN END, not a sentence beneath it. This read the
+    # count sentence by its words, so every landing that moved a total
+    # had to move this string too -- and a landing that moved the
+    # sentence and not the string, or the other way, made the reader
+    # find a different table or none at all.
+    body = text[start : text.index("\n\n**", text.index(HEAD, start))]
     marked: "dict[str, set[str]]" = {role: set() for role in COLUMNS}
     rows = 0
     cells = 0
@@ -123,12 +183,54 @@ def test_the_matrix_totals_are_the_numbers_the_matrix_holds() -> None:
     """So a hand-edited cell cannot slip past the count sentence either."""
     _marked, rows, cells = _matrix()
     said = CONTRACT.read_text(encoding="utf-8")
+    assert _in_words(rows).capitalize() in said, rows
     assert (
-        "**Seventy-two rows, one hundred and forty-seven marked cells**"
-        in said
-    )
-    assert rows == 72, rows
-    assert cells == 147, cells
+        f"**{_in_words(rows).capitalize()} rows, {_in_words(cells)} "
+        f"marked cells**" in " ".join(said.split())
+    ), (rows, cells)
+    # AND THE PER-ROLE BREAKDOWN BESIDE THE TOTAL, which this guard did
+    # not read until 2026-09-04 and which was stale by six on three
+    # roles and silent on a fourth. A total that adds up says nothing
+    # about the numbers it adds.
+    # Read with the line breaks taken out: the sentence wraps, and a
+    # role and its count can fall on either side of a wrap.
+    flat = " ".join(said.split())
+    for role, many in _matrix()[0].items():
+        assert f"`{role}` {len(many)}" in flat, (
+            f"section 6.11's sentence does not say `{role}` "
+            f"{len(many)}, which is what its own matrix holds"
+        )
+
+
+def test_the_key_counts_in_words_are_the_key_sets_the_loader_holds(
+) -> None:
+    """The two role sections count their own keys, in words.
+
+    THE SAME SHAPE AS THE MATRIX TOTALS, and it drifted the same way:
+    the `count`/`continuous` table said "eighteen keys" while it held
+    twenty-four, and the `affixed_number` section said "forty-seven
+    keys ... eighteen additions" while the loader wanted fifty-four
+    and thirty-two. A schema written to those numerals refuses keys
+    the shipped tool writes.
+
+    The numerals are built from the loader's own tuples here, so a
+    landing that adds a key and leaves a sentence behind turns red.
+    """
+    said = " ".join(CONTRACT.read_text(encoding="utf-8").split())
+    numeric = len(contract.NUMERIC_KEYS)
+    affixed = len(contract.AFFIXED_KEYS)
+    universal = len(contract.UNIVERSAL_COLUMN_KEYS)
+    assert f"{_in_words(numeric).capitalize()} keys." in said, numeric
+    assert (
+        f"**The block is {_in_words(universal + affixed)} keys**" in said
+    ), universal + affixed
+    assert (
+        f"the {_in_words(universal)} universal keys of section 5.1 and "
+        f"the {_in_words(affixed)} above" in said
+    ), affixed
+    assert (
+        f"a `count` block's {_in_words(numeric)} additions" in said
+    ), numeric
 
 
 def test_the_form_census_stands_on_exactly_five_roles() -> None:
