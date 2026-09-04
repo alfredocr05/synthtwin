@@ -7258,6 +7258,32 @@ _SPLIT_CONSTANT_SUBCHECKS = (
 )
 
 
+def _half_distinct_is_listed(
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> str:
+    """The corner that makes this half's count a LISTING, or "".
+
+    THE ONE PLACE THE DECISION IS MADE, read by the check side and by
+    the census side (review round 5 of this landing, item 2). V3.5: a
+    corner whose envelope licenses every count a file of this length
+    can hold settles nothing a CSV can evidence, so the fact is named
+    on the census rather than checked. `_distinctness_checks` makes
+    that call for the COLUMN's two counts and the half's copy of it
+    made only two of the three -- so a numeric half of a hundred plain
+    numbers, where G12.8 licenses every count from one to a hundred,
+    was given the exact bar and reported MISSED at 94 where a plain
+    numeric column of the same values is listed.
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if corner and _envelope_admits_every_count(view, facts, published):
+        return corner
+    return ""
+
+
 def _half_distinct_check(
     column: contract.ColumnBlock,
     view: contract.ColumnBlock,
@@ -7268,13 +7294,17 @@ def _half_distinct_check(
     measured: "int | None",
     mine: "tuple[str, ...]",
     field: str,
-) -> Check:
+) -> "Check | None":
     """One count of different cells in one HALF, at its own bar.
 
     THE SAME THREE-WAY `_distinctness_checks` MAKES, and writing it out
     here rather than calling that one is deliberate: that function
     answers for the COLUMN's two counts and reads them off the block,
     while these are the halves' and are read off the typed facts.
+
+    None where the envelope licenses every count the file could hold:
+    that is a listing and not a check, and `_half_distinct_is_listed`
+    is the one place the two sides ask the question.
 
     THE EXACT BAR WHERE THERE IS NO CORNER. A first writing handed
     every one of these to `_lesser_or_held`, which is written for a
@@ -7284,17 +7314,6 @@ def _half_distinct_check(
     two spellings of `Trace` (review round 4 of this landing, item 2).
     """
     corner = _distinct_corner(facts, mine, field)
-    if corner and _envelope_admits_every_count(view, facts, published):
-        # The envelope licenses every count a file of this length can
-        # hold, so nothing a CSV carries settles it (V3.5). The census
-        # names it instead.
-        return _exact(
-            column.name,
-            fact,
-            subcheck,
-            _shown_count(published),
-            None if measured is None else _shown_count(measured),
-        )
     if corner:
         return _lesser_or_held(
             column.name, fact, subcheck, published, measured, corner, view
@@ -7389,19 +7408,21 @@ def _compound_checks(
         under = _RAW_DISTINCT
         if field == "n_numeric_distinct_folded":
             under = _FOLDED_DISTINCT
-        checks = checks + [
-            _half_distinct_check(
-                column,
-                numbers,
-                facts,
-                f"compound.{field}",
-                f"distinct.{field}",
-                published,
-                _count_at(block, field),
-                mine,
-                under,
-            )
-        ]
+        if _half_distinct_is_listed(numbers, facts, published, mine, under):
+            continue
+        found = _half_distinct_check(
+            column,
+            numbers,
+            facts,
+            f"compound.{field}",
+            f"distinct.{field}",
+            published,
+            _count_at(block, field),
+            mine,
+            under,
+        )
+        if found is not None:
+            checks = checks + [found]
     # NAMED FOR WHAT IT HOLDS, and it was `mine` -- the name of this
     # function's own corner parameter (review round 3 of this landing,
     # item 1). The order of the lines kept it correct: the corner was
@@ -7438,19 +7459,23 @@ def _compound_checks(
         (_RAW_DISTINCT, facts.n_label_distinct),
         (_FOLDED_DISTINCT, facts.n_label_distinct_folded),
     ):
-        checks = checks + [
-            _half_distinct_check(
-                column,
-                labels,
-                facts.labels,
-                f"label.{field}",
-                f"distinct.labels.{field}",
-                published,
-                _count_at(label_block, field),
-                mine,
-                field,
-            )
-        ]
+        if _half_distinct_is_listed(
+            labels, facts.labels, published, mine, field
+        ):
+            continue
+        found = _half_distinct_check(
+            column,
+            labels,
+            facts.labels,
+            f"label.{field}",
+            f"distinct.labels.{field}",
+            published,
+            _count_at(label_block, field),
+            mine,
+            field,
+        )
+        if found is not None:
+            checks = checks + [found]
     checks = checks + _label_checks(
         labels, facts.labels, label_block, floor
     )
@@ -11784,7 +11809,9 @@ def _listings(
         # review item P4-A1-R2-F2 opened one role earlier, which is
         # why the line is written with the role rather than after it.
         if isinstance(facts, contract.CompoundFacts):
-            listings = listings + _compound_listings(column, facts)
+            listings = listings + _compound_listings(
+                column, facts, _corner_names(corners, column.name)
+            )
 
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
@@ -11833,7 +11860,9 @@ def _endpoint_listings(
 
 
 def _compound_listings(
-    column: contract.ColumnBlock, facts: contract.CompoundFacts
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    mine: "tuple[str, ...]",
 ) -> "list[Listing]":
     """What a compound column publishes and no check can measure.
 
@@ -11853,6 +11882,58 @@ def _compound_listings(
     """
     numbers = contract.compound_numbers_view(column)
     listings = _numeric_listings(numbers, facts.numbers)
+    # AND EVERY HALF COUNT THE ENVELOPE SETTLES, named here with the
+    # passage that authorizes it. The check side asks the same
+    # question through the same function, so a count cannot be checked
+    # on one page and listed on the other.
+    labels = contract.compound_labels_view(column)
+    for view, half_facts, fact, subcheck, published, field in (
+        (
+            numbers,
+            facts,
+            "compound.n_numeric_distinct",
+            "distinct.n_numeric_distinct",
+            facts.n_numeric_distinct,
+            _RAW_DISTINCT,
+        ),
+        (
+            numbers,
+            facts,
+            "compound.n_numeric_distinct_folded",
+            "distinct.n_numeric_distinct_folded",
+            facts.n_numeric_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+        (
+            labels,
+            facts.labels,
+            "label.n_distinct",
+            "distinct.labels.n_distinct",
+            facts.n_label_distinct,
+            _RAW_DISTINCT,
+        ),
+        (
+            labels,
+            facts.labels,
+            "label.n_distinct_folded",
+            "distinct.labels.n_distinct_folded",
+            facts.n_label_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        corner = _half_distinct_is_listed(
+            view, half_facts, published, mine, field
+        )
+        if not corner:
+            continue
+        listings = listings + [
+            Listing(
+                column.name,
+                fact,
+                subcheck,
+                _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner],
+            )
+        ]
     for fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS:
         listings = listings + [
             Listing(

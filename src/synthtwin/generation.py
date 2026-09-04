@@ -11725,6 +11725,25 @@ def _is_a_usable_stand_in(
         return False
     if parsing.classify_number(candidate) == parsing.NUMBER:
         return False
+    # ...AND NOT A NUMBER UNDER THE OTHER GRAMMAR EITHER (review round
+    # 5 of landing L8, item 1). A column declared `--decimal-comma` is
+    # READ with a dot as a thousands mark, so `0E.27` -- which is text
+    # under the ordinary rules and was accepted here -- becomes `0E27`,
+    # a number. On a compound column that moves the cell from the label
+    # half to the numeric half when the twin is described again, and
+    # the twin comes back as another role entirely.
+    #
+    # Asked of EVERY column and not only a declared one, because a
+    # stand-in is a spelling this package CHOOSES: one that is a number
+    # under a grammar this package reads is a spelling it should not
+    # choose, and refusing it costs a step of the walk.
+    if (
+        parsing.classify_number(
+            parsing.written_with_a_decimal_comma(candidate)
+        )
+        == parsing.NUMBER
+    ):
+        return False
     for name in parsing.DATE_FORMATS:
         if parsing.parse_datetime(candidate, name) is not None:
             return False
@@ -19002,6 +19021,80 @@ def _numeric_cardinalities(
     return found
 
 
+def _compound_cardinalities(
+    column: "contract.ColumnBlock",
+    facts: "contract.CompoundFacts",
+    plan: "_ColumnPlan",
+    numeric: "list[str]",
+) -> "list[Approximation]":
+    """The counts of different cells this role sends to an envelope.
+
+    REVIEW ROUND 5 OF LANDING L8, item 3. Contract 9.4b sends all four
+    to G12.8's two-sided envelope, and the report carried none of them:
+    a twin whose numeric half fell short was told so as an
+    unconditional deviation, with no range beside it, so a reader could
+    not see whether the shortfall was one the description's own
+    spellings made unavoidable.
+
+    THE HALF'S TWO ARE RENAMED, exactly as a joined position's are.
+    `_numeric_cardinalities` builds them from the view, which carries
+    the HALF's counts, and calls them `n_distinct` -- the identifier
+    the whole column's count is reported under. Two facts under one
+    name on one page is the fault that withdrew the joined role's
+    first report, and round 4 of this landing found it here.
+
+    THE OUTER TWO ARE THE HALF'S WINDOW SHIFTED BY THE LABEL HALF,
+    which is exact: the label construction writes the published
+    spellings, the two halves share none, so whatever the numeric half
+    reaches, the column reaches that many more.
+    """
+    inner = _numeric_cardinalities(
+        contract.compound_numbers_view(column), plan, numeric
+    )
+    found: "list[Approximation]" = []
+    for record in inner:
+        name = "n_numeric_distinct"
+        published = facts.n_numeric_distinct
+        if record.fact == "n_distinct_folded":
+            name = "n_numeric_distinct_folded"
+            published = facts.n_numeric_distinct_folded
+        found = found + [
+            dataclasses.replace(
+                record,
+                fact=name,
+                note="how many different ways the numbers in this "
+                "column are written",
+            )
+        ]
+        outer = facts.n_label_distinct
+        whole = column.n_distinct
+        if name == "n_numeric_distinct_folded":
+            outer = facts.n_label_distinct_folded
+            whole = column.n_distinct_folded
+        low = int(record.lowest) + outer
+        high = int(record.highest) + outer
+        reached = int(record.achieved) + outer
+        found = found + [
+            Approximation(
+                column=column.name,
+                fact=(
+                    "n_distinct"
+                    if name == "n_numeric_distinct"
+                    else "n_distinct_folded"
+                ),
+                published=f"{whole}",
+                achieved=f"{reached}",
+                lowest=f"{min(low, whole)}",
+                highest=f"{max(high, whole)}",
+                inside=min(low, whole) <= reached <= max(high, whole),
+                note="how many different values this column holds",
+                covers_published=True,
+            )
+        ]
+        _ = published
+    return found
+
+
 def _joined_approximations(
     column: contract.ColumnBlock,
     facts: contract.JoinedFacts,
@@ -20421,11 +20514,11 @@ def _approximations(
             # so the numeric rules have something to work with, and
             # `_numeric_cardinalities` would print them as `n_distinct`
             # -- the same identifier the whole column's count is
-            # reported under, on the same page, with a different
-            # number. `_half_distinct_notes` reports the half's two
-            # under their own names.
+            # `_half_distinct_notes` reports the half's two under
+            # their own names, and the records with their WINDOWS are
+            # built below.
             cardinalities=False,
-        )
+        ) + _compound_cardinalities(column, facts, plan, numeric)
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):
