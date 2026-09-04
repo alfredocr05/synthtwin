@@ -562,6 +562,46 @@ def test_every_approximated_fact_of_every_role_is_measured(
         assert measured == owed, f"{column.name} ({column.role})"
 
 
+def test_every_approximated_fact_of_the_compound_role_is_measured(
+    numbers_with_labels_document: "dict[str, typing.Any]",
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """The same completeness, on the role the shared table cannot hold.
+
+    REVIEW ROUND 5 OF LANDING L8, item 6. The inventory above gained a
+    row for `numbers_with_labels` and nothing measured one: the walk
+    reads the shared every-role description, which has no compound
+    column, so the whole role's report -- four counts of different
+    cells and a whole quantitative block -- was covered by nothing.
+
+    WHAT THIS ROLE OWES is two tables added: 9.4b's four counts, which
+    are its own, and the NUMERIC section's rungs and moments, which its
+    numeric half carries and which are measured over that half.
+    """
+    folder = tmp_path_factory.mktemp("f4-compound-approximations")
+    written = fixtures.write_profile(
+        folder, "compound-profile.json", numbers_with_labels_document
+    )
+    described = contract.load_profile(str(written))
+    twin = generation.generate(described, 7)
+    measured = [record.fact for record in twin.outcomes[0].approximations]
+    numeric = list(APPROXIMATED["continuous"])
+    if "skew" in numeric:
+        numeric.insert(numeric.index("skew") + 1, "kurtosis")
+    owed = [
+        name
+        for name in numeric
+        if name not in ("n_distinct", "n_distinct_folded")
+    ] + list(APPROXIMATED["numbers_with_labels"])
+    assert sorted(measured) == sorted(owed), sorted(measured)
+    # ...and the four counts each carry BOTH ends of their window, which
+    # is what makes the fallback checkable (review item P2-C2-F4).
+    for record in twin.outcomes[0].approximations:
+        if "distinct" not in record.fact:
+            continue
+        assert record.lowest and record.highest, record.fact
+
+
 def test_a_role_with_no_approximated_fact_measures_none(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:

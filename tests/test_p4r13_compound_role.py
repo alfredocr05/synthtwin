@@ -514,10 +514,15 @@ def test_the_four_counts_of_different_cells_are_one_arithmetic(
         block["numbers"]["n_distinct_values"]
         <= block["n_numeric_distinct_folded"]
     )
+    # THE EQUALITY, not the range it replaced (review round 5, item 5).
+    # A mutant that put the retired inequality back in the loader
+    # stayed green under the old assertion: with the outer count moved
+    # from 98 to 99 the range still held, though no file can hold a
+    # column whose two halves make 98 different cells and whose own
+    # count says 99.
     assert (
-        block["n_numeric_distinct"] + block["labels"]["n_distinct_folded"]
-        <= block["n_distinct"]
-        <= block["n_numeric_distinct"] + block["n_label_cells"]
+        block["n_numeric_distinct"] + block["labels"]["n_distinct"]
+        == block["n_distinct"]
     )
     # ...and each of the three refuses a file that breaks it.
     for spoil, name in (
@@ -532,6 +537,20 @@ def test_the_four_counts_of_different_cells_are_one_arithmetic(
             "folded-below-values",
         ),
         (lambda column: column.update({"n_label_cells": 0}), "no-labels"),
+        # ...and the two that move ONE side of the raw equality, which
+        # is the mutation review round 5 found nothing covering.
+        (
+            lambda column: column.update(
+                {"n_distinct": column["n_distinct"] + 1}
+            ),
+            "outer-raw-up",
+        ),
+        (
+            lambda column: column["labels"].update(
+                {"n_distinct": column["labels"]["n_distinct"] + 1}
+            ),
+            "label-raw-up",
+        ),
     ):
         spoiled = copy.deepcopy(document)
         spoil(spoiled["columns"][0])

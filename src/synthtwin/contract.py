@@ -1381,6 +1381,13 @@ DECIMAL_COMMA_HONOURED_ROLES = (
     "constant",
     "continuous",
     "count",
+    # The compound role, whose numeric half the declaration reaches
+    # (plan P4-D34). It was missing while `a_decimal_comma_reaches`
+    # already answered yes for the role, so the two statements of the
+    # same fact disagreed and the CLI told a person their declaration
+    # had not reached a column it had reached (review round 5 of
+    # landing L8, item 4).
+    "numbers_with_labels",
     "numeric_unrepresentable",
 )
 
