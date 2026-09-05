@@ -202,13 +202,36 @@ Stated here so that no reader has to discover them independently:
   commonest one.
 
   On a dense column there is usually no run at all and so no value
-  here, and that is the ordinary case. But a person describing a
-  small, widely spread numeric column should read the paragraph above
-  before sharing the description, and `--smallest-group` does not
+  here, and that is the ordinary case. `--smallest-group` does not
   reduce this key: like the empty bins it stands with, it is published
   at every floor. (`mode` is floor-governed and is withheld where the
   commonest value is held by fewer cells than the smallest group
   size.)
+
+  **THE OWNER WAS SHOWN THAT CEILING AND KEPT THE KEY** (2026-09-04,
+  reaffirming their rulings of 2026-08-31 and 2026-09-03). Their
+  ground, in their own terms: a value with no row attached, no date
+  beside it and nothing else from that row is a fact about a
+  DISTRIBUTION and not about a person. A haemoglobin of 13 in a
+  description says some row of that column held 13 — not who, not
+  when, not what their other columns held, and not whether they are
+  one of this reader's patients. **That is true of the sparse case
+  too**, which is the case worth stating plainly: naming every value a
+  small column holds names the column's whole SET of values, and
+  still names no row, no order, no pairing with any other column and
+  no time. This document's threat model already says statistical
+  disclosure is out of scope and that synthtwin offers no formal
+  privacy guarantee; the ruling is inside that model rather than an
+  exception to it.
+
+  **WHAT WOULD CHANGE THE ANSWER, stated so a later reader knows what
+  the ruling does not cover.** It is a ruling about values standing
+  ALONE. A key that tied two of them together — the same row's
+  haemoglobin and creatinine, a value and its date, a value and its
+  rank among named rows — is a different fact and is not covered by
+  it. The joined role's `part_above` and `part_agreements` are the
+  only joint facts this format carries and they live inside ONE cell,
+  which is why they are named separately in section 12.3.
 
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is

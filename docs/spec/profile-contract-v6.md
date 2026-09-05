@@ -6905,6 +6905,15 @@ value the column holds most often, so a whole numeric block may expose
 **thirty-three distinct values** — a number about the BLOCK and not
 about this key, and the one a disclosure review should weigh.
 
+**THE OWNER WAS SHOWN THAT NUMBER AND KEPT THE KEY** (2026-09-04,
+reaffirming 2026-08-31 and 2026-09-03). Their ground is that a value
+standing ALONE — no row attached, no date beside it, nothing else from
+that row — is a fact about a distribution and not about a person, and
+that this holds in the sparse case too: naming every value a small
+column holds names the column's SET of values and still names no row,
+no order, no pairing with another column and no time. `SECURITY.md`
+carries the ruling and what it does not cover.
+
 **THE FLOOR DOES NOT REACH IT**, for the reason 7.11 gives for
 `empty_bins` and for one more: a pair names two values, not a group,
 and the same two values are already published as candidates for a
