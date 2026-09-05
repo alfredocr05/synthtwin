@@ -895,6 +895,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # which deleted a rule describing part of a column and saying
     # nothing about the rest.
     ("columns", _EACH, "n_numeric_cells"): _COUNT,
+    # ...and the third population (residual R-P4-149).
+    ("columns", _EACH, "n_numeric_out_of_range"): _COUNT,
+    ("columns", _EACH, "n_numeric_contradictory"): _COUNT,
     ("columns", _EACH, "n_label_cells"): _COUNT,
     # The numeric half's own counts of different written cells, which
     # the generator spends as its spelling budget. They are stated

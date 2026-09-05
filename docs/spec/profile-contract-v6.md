@@ -4673,18 +4673,20 @@ rather than a list of its own, so the two cannot part again.
 | `parts` | | | | | | | | | | | | | | ● | |
 | `separator` | | | | | | | | | | | | | | ● | |
 | `n_numeric_cells` | | | | | | | | | | | | | | | ● |
+| `n_numeric_out_of_range` | | | | | | | | | | | | | | | ● |
+| `n_numeric_contradictory` | | | | | | | | | | | | | | | ● |
 | `n_label_cells` | | | | | | | | | | | | | | | ● |
 | `n_numeric_distinct` | | | | | | | | | | | | | | | ● |
 | `n_numeric_distinct_folded` | | | | | | | | | | | | | | | ● |
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Seventy-nine rows, one hundred and fifty-six marked cells**,
+**Eighty-one rows, one hundred and fifty-eight marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 13,
 `time_of_day` 5, `count` 25, `continuous` 25, `affixed_number` 32,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
-`numbers_with_labels` 6. The counts are stated so that a reader can
+`numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
 
@@ -5759,18 +5761,41 @@ Neither DESCRIBES it.
 | key | type | what it holds |
 |---|---|---|
 | `n_numeric_cells` | count | present cells that read as ordinary numbers |
+| `n_numeric_out_of_range` | count | present cells the number rules read as a numeral this format cannot hold — one too large or too small |
+| `n_numeric_contradictory` | count | present cells whose notation contradicts itself, so no number can be read from them |
 | `n_label_cells` | count | every other present cell |
 | `n_numeric_distinct` | count | how many DIFFERENT written cells the numeric half holds |
 | `n_numeric_distinct_folded` | count | the same over the folded identities |
 | `numbers` | object | a quantitative block over the numeric cells, carrying what one position of a `joined_numbers` column carries |
 | `labels` | object | a label block over the rest, carrying what a label-publishing column carries, plus `n_present` and `n_distinct_folded` of its own half |
 
-**Invariant NL1.** `n_numeric_cells + n_label_cells == n_present`.
-Every present cell is in exactly one of the two published populations
-and none is in two. This is the whole answer to review item P1-R6-F7,
-which deleted a rule that published a distribution over one population
-and said nothing about the other: a reader checks the arithmetic
-rather than trusting the prose.
+**Invariant NL1.** `n_numeric_cells + n_numeric_out_of_range +
+n_numeric_contradictory + n_label_cells == n_present`. Every present
+cell is in exactly one of the three published populations and none is
+in two. This is the whole answer to review item P1-R6-F7, which
+deleted a rule that published a distribution over one population and
+said nothing about the other: a reader checks the arithmetic rather
+than trusting the prose.
+
+**THERE ARE THREE POPULATIONS AND TWO SUB-BLOCKS**, and the third is
+counted with the FIRST (residual R-P4-149, closed by the owner's
+ruling of 2026-09-04). A cell the number rules recognise as a numeral
+this format cannot hold IS a number, and it used to join the labels:
+so a laboratory column of 280 readings with one `9e999` published that
+cell as a WORD beside `positive`, and the numeric half reported nought
+cells left out of its statistics on a column that had one. Worse at a
+raised smallest-group size, where one such cell does not clear it: the
+spelling was held back and the twin wrote `group-N` — a made-up word
+where the source had a numeral.
+
+Those cells now belong to the numeric half's population. The `numbers`
+block's four class counts are the ones a plain numeric column
+publishes and they sum to that half — `n_numeric` the usable cells,
+`n_out_of_range` and `n_contradictory` these, and `n_not_numeric`
+always nought, because a cell that is not a numeral at all is in the
+label half. The half's `n_rows` echo is that same sum, and its
+`n_left_out_of_statistics` says how many of its cells the statistics
+could not use.
 
 **Invariant NL2.** The `labels` block carries its OWN `n_present`,
 `n_distinct` and `n_distinct_folded`, and B2 is stated over those. The column's own
@@ -7981,7 +8006,7 @@ group's dispositions (plan P4-D33).
 
 | field | disposition |
 |---|---|
-| `n_numeric_cells`, `n_label_cells` | EXACT-OBSERVABLE. The two halves of the split, pinned rather than windowed: analysis code filters on them, and they sum to `n_present` by construction, so a window on either would let a description speak about part of a column without saying what the rest is — which review item P1-R6-F7 forbids |
+| `n_numeric_cells`, `n_numeric_out_of_range`, `n_numeric_contradictory`, `n_label_cells` | EXACT-OBSERVABLE. The three populations of the split, pinned rather than windowed: analysis code filters on them, and they sum to `n_present` by construction, so a window on either would let a description speak about part of a column without saying what the rest is — which review item P1-R6-F7 forbids |
 | `numbers` | STRUCTURAL — the container's own key carries no VALUE obligation, exactly as `parts[]` does on `joined_numbers` and as `length` and `words` do on `free_text`. IT CARRIES A QUANTITATIVE BLOCK AND TAKES 9.4's DISPOSITIONS, read over the numeric half's cells: its endpoints and ladder rungs, its moments, its sign and zero counts and its censuses are disposed exactly as `count` and `continuous` are |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE, recounted from the written twin, using the spellings the description permits — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count. **THE WINDOW IS THE TWO HALVES' WINDOWS ADDED**, because the column's count is the two halves' counts added (NL3) and the halves share no spelling: the numeric half's ends come from G12.8 and the label half's RAW end from G12.7, while its folded end is exact — folding is not a spelling question, so the published levels settle it. A window built by shifting the numeric half's by the label half's PUBLISHED count says the label half is always exact, which it need not be — the numeric group's own bar, because the half a shortfall comes from is a numeric block. The exact comparison is tried first on every file. They are stated HERE because 9.2 sets them "per role group, in 9.3 to 9.7" and a role whose own table sets neither has them filed under whatever group a validator's dispatch falls through to — the defect residual R-P4-62 found on `joined_numbers`, not repeated here |
 | `n_numeric_distinct`, `n_numeric_distinct_folded` | EXACT-OBSERVABLE the same way, and APPROXIMATED under the two-sided envelope only where even those cannot supply the count. The NUMERIC HALF's own counts of different written CELLS, and the twin is laid out from them: they are the budget of different SPELLINGS the half may write. The block's `n_distinct_values` cannot serve — it counts different NUMBERS, so `07` and `7` are one — and the column's own counts include the labels. Published because a twin built without them held 56 of a published 113 different cells at every seed |

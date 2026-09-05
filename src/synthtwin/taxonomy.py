@@ -4708,9 +4708,23 @@ def _levels(
 
 @dataclasses.dataclass(frozen=True)
 class _Compound:
-    """The two populations of a `numbers_with_labels` column."""
+    """The THREE populations of a `numbers_with_labels` column.
+
+    `numbers` are the cells that read as an ordinary number, `unusable`
+    the cells the number rules recognise as a numeral and this format
+    cannot hold -- one too large, or one whose notation contradicts
+    itself -- and `labels` everything else (residual R-P4-149, closed
+    by the owner's ruling of 2026-09-04).
+
+    THE THIRD POPULATION IS NOT A THIRD SUB-BLOCK. An unusable numeral
+    is a NUMBER, so it belongs to the numeric half's population and is
+    counted there the way a plain numeric column counts one: the half's
+    `n_out_of_range` and `n_contradictory`. What the split does is stop
+    calling it a word.
+    """
 
     numbers: "list[_Cell]"
+    unusable: "list[_Cell]"
     labels: "list[_Cell]"
     folded_counts: "dict[str, int]"
 
@@ -4758,10 +4772,24 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # the long tail, which describes none of the 280. One stray cell
     # undid the whole role.
     numbers: "list[_Cell]" = []
+    unusable: "list[_Cell]" = []
     labels: "list[_Cell]" = []
     for cell in cells.classified:
         if cell.kind == parsing.NUMBER:
             numbers = numbers + [cell]
+        elif cell.kind in (
+            parsing.NUMBER_OUT_OF_RANGE, parsing.NUMBER_CONTRADICTORY
+        ):
+            # A NUMERAL THIS FORMAT CANNOT HOLD IS STILL A NUMERAL
+            # (residual R-P4-149, closed by the owner's ruling of
+            # 2026-09-04). It used to join the labels, so a lab column
+            # of 280 readings with one `9e999` published that cell as a
+            # WORD beside `positive` and reported nought cells left out
+            # of its statistics on a column that has one. Worse at a
+            # raised floor: one such cell does not clear it, so the
+            # spelling was suppressed and the cell came back as
+            # `group-N` -- a fake word where the source had a number.
+            unusable = unusable + [cell]
         else:
             labels = labels + [cell]
     if not numbers or not labels:
@@ -5010,7 +5038,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     a_repeating_one = _levels_covering(folded_counts, cells.settings) >= 1
     if not a_small_set and not a_repeating_one:
         return None
-    return _Compound(numbers, labels, folded_counts)
+    return _Compound(numbers, unusable, labels, folded_counts)
 
 
 def _long_tail_line(settings: Settings) -> int:
@@ -6994,11 +7022,20 @@ def _compound_details(
     # numbers at all and an IndexError out of the percentile walk
     # (review round 4 of this landing, item 1). The tool crashed on a
     # real table, which is the worst outcome any of these rounds found.
+    # THE HALF'S POPULATION IS ITS NUMBERS AND ITS UNUSABLE NUMERALS
+    # (residual R-P4-149). Read together, so the block this half
+    # publishes is a genuine numeric block: its four class counts are
+    # the real ones, `n_left_out_of_statistics` says how many cells
+    # the statistics could not use, and its count of different
+    # spellings covers every cell the half holds. Read apart, the
+    # column's own count of different cells was one more than the two
+    # halves added, and the loader refused the description.
+    half = compound.numbers + compound.unusable
     numeric_cells = _tally(
         _classify_all(
-            [cell.text for cell in compound.numbers], cells.decimal_comma
+            [cell.text for cell in half], cells.decimal_comma
         ),
-        len(compound.numbers),
+        len(half),
         cells.settings,
         cells.decimal_comma,
     )
@@ -7019,8 +7056,24 @@ def _compound_details(
         label_cells.spellings_by_folded,
         cells.settings,
     )
+    unusable_out = 0
+    unusable_contradictory = 0
+    for cell in compound.unusable:
+        if cell.kind == parsing.NUMBER_OUT_OF_RANGE:
+            unusable_out = unusable_out + 1
+        else:
+            unusable_contradictory = unusable_contradictory + 1
     details: "dict[str, object]" = {
         "n_numeric_cells": len(compound.numbers),
+        # THE THIRD POPULATION (residual R-P4-149). Cells the number
+        # rules recognise as a numeral that this format cannot hold:
+        # one too large or small, and one whose notation contradicts
+        # itself. They are counted with the NUMERIC half -- an unusable
+        # numeral is a number -- and the two counts below are the same
+        # two a plain numeric column publishes, so the twin writes them
+        # back through the machinery that writes them there.
+        "n_numeric_out_of_range": unusable_out,
+        "n_numeric_contradictory": unusable_contradictory,
         "n_label_cells": len(compound.labels),
         # THE NUMERIC HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and
         # they are here because a SPELLING is not a VALUE (review round

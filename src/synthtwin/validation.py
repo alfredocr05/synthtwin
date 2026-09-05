@@ -7521,8 +7521,15 @@ def _compound_checks(
     """
     name = column.name
     checks: "list[Check]" = []
+    # THE THREE POPULATIONS, each recounted from the twin's own text
+    # (residual R-P4-149). The two in the middle are the cells the
+    # number rules read as a numeral this format cannot hold: they are
+    # counted with the numeric half, and a file that writes a word
+    # where the description says a numeral misses them.
     for field, published in (
         ("n_numeric_cells", facts.n_numeric_cells),
+        ("n_numeric_out_of_range", facts.n_numeric_out_of_range),
+        ("n_numeric_contradictory", facts.n_numeric_contradictory),
         ("n_label_cells", facts.n_label_cells),
     ):
         measured = _count_at(block, field)

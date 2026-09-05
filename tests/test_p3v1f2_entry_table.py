@@ -3310,12 +3310,31 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-reading", "counts.n_numeric"),
             ("filled-reading", "counts.n_numeric_cells"),
             ("one-tiny-reading", "counts.n_out_of_range"),
+            # ...and the column's own count of the same population,
+            # which is the third one the split publishes (residual
+            # R-P4-149). The perturbation puts a numeral too small for
+            # this format in the column; before the third population
+            # it joined the labels and moved a suppression instead.
+            ("one-tiny-reading", "counts.n_numeric_out_of_range"),
+            ("contradicted-reading", "counts.n_numeric_contradictory"),
             ("filled-reading", "counts.n_used_in_statistics"),
             ("zeroed-reading", "counts.n_zero"),
             ("vast-reading", "distinct.n_distinct"),
             ("vast-reading", "distinct.n_distinct_folded"),
             ("one-worded-reading", "distinct.labels.n_distinct"),
             ("one-worded-reading", "distinct.labels.n_distinct_folded"),
+            # THE LABEL HALF'S HELD-BACK COUNTS, and the perturbation
+            # that covers them changed with residual R-P4-149. It was
+            # `one-tiny-reading`, which puts a numeral too small for
+            # this format in the column: that cell used to join the
+            # LABEL half, where one cell does not clear the floor, so
+            # it produced a held-back level. It joins the NUMERIC half
+            # now -- an unusable numeral is a number -- so it moves
+            # `counts.n_out_of_range` instead, which is the fact it was
+            # always about. A word covers these three.
+            ("one-worded-reading", "suppressed.counts"),
+            ("one-worded-reading", "suppressed.suppressed_levels"),
+            ("one-worded-reading", "suppressed.suppressed_rows"),
             ("half-whole-reading", "distinct.n_numeric_distinct"),
             ("half-whole-reading", "distinct.n_numeric_distinct_folded"),
             ("raised-reading", "ladder.max"),
@@ -3351,9 +3370,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-reading", "styles.remainder"),
             ("padded-reading", "styles.spelled"),
             ("marked-reading", "styles.spill"),
-            ("one-tiny-reading", "suppressed.counts"),
-            ("one-tiny-reading", "suppressed.suppressed_levels"),
-            ("one-tiny-reading", "suppressed.suppressed_rows"),
             ("half-whole-reading", "type.integer_valued"),
             ("half-vast-reading", "type.std_unrepresentable"),
             ("marked-reading", "widths.published.2"),
@@ -4600,6 +4616,11 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "counts.n_not_numeric"): "universal.n_not_numeric",
     ("compound", "counts.n_numeric"): "universal.n_numeric",
     ("compound", "counts.n_numeric_cells"): "compound.n_numeric_cells",
+    # ...and the third population (residual R-P4-149).
+    ("compound", "counts.n_numeric_out_of_range"):
+        "compound.n_numeric_out_of_range",
+    ("compound", "counts.n_numeric_contradictory"):
+        "compound.n_numeric_contradictory",
     ("compound", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("compound", "counts.n_used_in_statistics"): (
         "numeric.n_used_in_statistics"

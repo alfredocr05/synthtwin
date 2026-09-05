@@ -560,6 +560,13 @@ COMPOUND_KEYS = (
     # of a column and said nothing about the rest.
     #
     "n_numeric_cells",
+    # ...AND THE THIRD POPULATION (residual R-P4-149, closed by the
+    # owner's ruling of 2026-09-04): the cells the number rules
+    # recognise as a numeral this format cannot hold. They are counted
+    # with the NUMERIC half rather than with the labels, so a lab
+    # column with one `9e999` no longer describes that cell as a word.
+    "n_numeric_out_of_range",
+    "n_numeric_contradictory",
     "n_label_cells",
     # ...AND THE NUMERIC HALF'S TWO COUNTS OF DIFFERENT WRITTEN CELLS,
     # which the generator spends as its budget of different SPELLINGS.
@@ -1841,8 +1848,9 @@ class AffixedFacts:
 class CompoundFacts:
     """Numbers and labels in one cell space (residual R-P4-13, L8).
 
-    TWO COUNTS OF CELLS THAT SUM TO `n_present`, so every present cell
-    is in exactly one published population. That sum is the whole
+    THREE COUNTS OF CELLS THAT SUM TO `n_present`, so every present
+    cell is in exactly one published population: the numbers, the
+    numerals this format cannot hold, and the labels. That sum is the whole
     answer to review item P1-R6-F7, which deleted a rule describing
     part of a column and saying nothing about the rest: a reader can
     check the arithmetic without trusting any prose.
@@ -1857,6 +1865,13 @@ class CompoundFacts:
     """
 
     n_numeric_cells: int
+    # THE THIRD POPULATION (residual R-P4-149, closed by the owner's
+    # ruling of 2026-09-04): cells the number rules recognise as a
+    # numeral this format cannot hold. They are counted with the
+    # NUMERIC half, because an unusable numeral is a number, and the
+    # two counts are the two a plain numeric column publishes.
+    n_numeric_out_of_range: int
+    n_numeric_contradictory: int
     n_label_cells: int
     n_numeric_distinct: int
     n_numeric_distinct_folded: int
@@ -2044,7 +2059,17 @@ def compound_numbers_view(
     return dataclasses.replace(
         column,
         statistical_type="continuous",
-        n_present=facts.n_numeric_cells,
+        # THE HALF'S POPULATION IS ITS NUMBERS AND ITS UNUSABLE
+        # NUMERALS (residual R-P4-149). A plain numeric column's
+        # `n_present` is the sum of its four class counts, and this
+        # view is handed to the same machinery, so it is that sum here
+        # too -- with `n_not_numeric` nought, because a cell that is
+        # not a numeral at all is in the OTHER half.
+        n_present=(
+            facts.n_numeric_cells
+            + facts.n_numeric_out_of_range
+            + facts.n_numeric_contradictory
+        ),
         # A HALF HAS NO ABSENT CELLS OF ITS OWN. A blank cell is in
         # neither population -- the two counts of the split are taken
         # over the PRESENT cells and sum to `n_present` -- so carrying
@@ -2057,8 +2082,8 @@ def compound_numbers_view(
         n_missing=0,
         n_numeric=facts.n_numeric_cells,
         n_not_numeric=0,
-        n_out_of_range=0,
-        n_contradictory=0,
+        n_out_of_range=facts.n_numeric_out_of_range,
+        n_contradictory=facts.n_numeric_contradictory,
         # THE HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and NOT
         # its count of different numbers. The layout spends these two
         # as a budget of SPELLINGS, and `07` and `7` are one number
@@ -7638,6 +7663,26 @@ def _compound_facts(
     # block was read as this role: a column whose statistical type says
     # two populations and whose twin has one (review round 2 of this
     # landing, item 3).
+    # THE THIRD POPULATION (residual R-P4-149). Numerals this format
+    # cannot hold. They used to be counted with the LABELS, which said
+    # a number was a word; they are counted with the numeric half now,
+    # and the sum below is three-way.
+    unusable_out = _bounded(
+        mapping["n_numeric_out_of_range"],
+        "n_numeric_out_of_range",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    unusable_contradictory = _bounded(
+        mapping["n_numeric_contradictory"],
+        "n_numeric_contradictory",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
     for count, key in ((numeric, "n_numeric_cells"), (labels, "n_label_cells")):
         if count == 0:
             raise _out_of_range(
@@ -7649,11 +7694,13 @@ def _compound_facts(
                 "one of them is a description of some other kind of "
                 "column",
             )
-    if numeric + labels != n_present:
+    total = numeric + unusable_out + unusable_contradictory + labels
+    if total != n_present:
         raise _out_of_range(
             "n_numeric_cells",
             where,
-            f"a total of {numeric + labels} with n_label_cells",
+            f"a total of {total} with n_numeric_out_of_range, "
+            f"n_numeric_contradictory and n_label_cells",
             f"a total of exactly the {n_present} present cell(s) this "
             "column has, so that every one of them is in one published "
             "population and none is in two",
@@ -7688,20 +7735,24 @@ def _compound_facts(
         numeric_distinct,
         "the raw count of different cells in the numeric half",
     )
+    # THE HALF'S WHOLE POPULATION: its numbers and its unusable
+    # numerals (residual R-P4-149). The four class counts of the block
+    # sum to this, exactly as they do on a plain numeric column.
+    half = numeric + unusable_out + unusable_contradictory
     numbers = _numeric_facts(
         _mapping(mapping["numbers"], "numbers", where),
         f"{where} -> numbers",
         frame,
+        half,
         numeric,
-        numeric,
-        0,
-        0,
+        unusable_out,
+        unusable_contradictory,
         # THE ROW COUNT THIS BLOCK ECHOES IS THE HALF'S OWN, on the
         # joined role's precedent: a block that describes a SUBSET of
         # the column's cells echoes the count of that subset, and
         # holding it to the table's count is what made a joined column
         # with one unsplit cell unreadable by the tool that wrote it.
-        echoes=numeric,
+        echoes=half,
     )
     label_block = _mapping(mapping["labels"], "labels", where)
     # EXACTLY THESE KEYS IN EACH HALF, AND NO OTHERS. Without this a
@@ -7838,6 +7889,8 @@ def _compound_facts(
             _a_label_and_not_a_number(spelling, where, decimal_comma)
     return CompoundFacts(
         n_numeric_cells=numeric,
+        n_numeric_out_of_range=unusable_out,
+        n_numeric_contradictory=unusable_contradictory,
         n_label_cells=labels,
         n_numeric_distinct=numeric_distinct,
         n_numeric_distinct_folded=numeric_distinct_folded,

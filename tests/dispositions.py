@@ -903,7 +903,17 @@ REGISTRY += [
         plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
         plan_region="compound",
     )
-    for field in ("n_numeric_cells", "n_label_cells")
+    # ...and the THIRD population's two counts (residual R-P4-149,
+    # closed by the owner's ruling of 2026-09-04). Cells the number
+    # rules read as a numeral this format cannot hold. They are counts
+    # of CELLS in a published population, checked the way the other
+    # two are: recounted from the twin's own text.
+    for field in (
+        "n_numeric_cells",
+        "n_numeric_out_of_range",
+        "n_numeric_contradictory",
+        "n_label_cells",
+    )
 ]
 REGISTRY += [
     Fact(
