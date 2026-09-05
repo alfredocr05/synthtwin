@@ -8614,6 +8614,31 @@ block, not eleven. A date ladder and a clock ladder do place every
 rung on a real value, measured the same way. `SECURITY.md` and
 contract 12.3 rows 3 and 21 carry the correction.
 
+**THE PRICE WAS PUT TO THE OWNER AGAIN AFTER IT WAS MEASURED, and the
+answer did not change** (2026-09-04). The approval of this decision
+rested on a comparison that review round 1 showed to be false — "two
+more beside the eleven a ladder already publishes", when a numeric
+ladder publishes two. The corrected number was put back to them: up to
+thirty exact values from this key, thirty-three per block with the
+endpoints and `mode`, and on a small widely-spread column that can be
+every value it holds.
+
+They kept the key, on the ground they have ruled from twice before: a
+value with no row attached, no date beside it and nothing else from
+that row says something about a DISTRIBUTION and not about a person.
+Their words: *"I don't see isolated values as a problem if I don't
+know the whole picture. If I say that the haemoglobin is 13 in a
+correlation table, without knowing the other values, who is that value
+from, when obtained... I don't see it as a problem."* It is the same
+ground as their ruling of 2026-08-31 that a rare finding must reach
+the twin, and of 2026-09-03 on the ladder.
+
+**WHAT THE RULING DOES NOT COVER**, recorded so a later landing does
+not read it wider than it is: it is about values standing ALONE. A key
+that tied two of them together — one row's two columns, a value and
+its date, a value and its rank among named rows — is a different fact
+and needs its own ask.
+
 **Disposition: REPORT-ONLY**, the same as the fact it stands beside
 and for the same measured reason: a block whose other published facts
 leave no free value beside a stretch cannot always be moved out of it,
