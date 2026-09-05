@@ -515,6 +515,11 @@ NUMERIC_KEYS = (
 AFFIXED_KEYS = NUMERIC_KEYS + (
     "affix_prefix",
     "affix_suffix",
+    # ...and the other wrappers this column wears (plan P4-D36),
+    # beside the counts of different cores the cells carry.
+    "affix_variants",
+    "n_core_distinct",
+    "n_core_distinct_folded",
     "n_affixed",
     "n_core_contradictory",
     "n_core_not_numeric",
@@ -1837,7 +1842,18 @@ class AffixedFacts:
     numbers: NumericFacts
     affix_prefix: str
     affix_suffix: str
+    # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36), each with the
+    # count of cells wearing it. Empty on a column wearing one wrapper,
+    # which is most of them, so a description written before this key
+    # existed reads the same way.
+    affix_variants: "tuple[tuple[str, str, int], ...]"
     n_affixed: int
+    # HOW MANY DIFFERENT CORES (plan P4-D36). The generator spends
+    # these as its budget of different core SPELLINGS; the column's own
+    # counts are of different CELLS, and once a column wears more than
+    # one wrapper the two are different numbers.
+    n_core_distinct: int
+    n_core_distinct_folded: int
     n_core_numeric: int
     n_core_out_of_range: int
     n_core_contradictory: int
@@ -5776,6 +5792,77 @@ def _endpoint_offset(
     return found
 
 
+def _affix_variants(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: "_Frame",
+) -> "tuple[tuple[str, str, int], ...]":
+    """The other wrappers a column of this role wears (AF9, P4-D36).
+
+    A column wears ONE wrapper on most tables and a small SET of them
+    on some that matter: a laboratory column whose readings carry an
+    abnormal flag wears three, and one recorded in two units wears
+    two. Each entry names a wrapper and how many cells wear it.
+
+    AF9, in four conditions:
+
+    1. Each count is at least the smallest group size. A wrapper is
+       PUBLISHED text, so one worn by fewer cells than may be named is
+       not published at all and its cells are stragglers.
+    2. No wrapper appears twice, and none of them is the pair the
+       block names. Two entries for one wrapper are two counts of one
+       thing.
+    3. The entries ascend by their own text, so a producer writes them
+       one way and two producers write them the same way.
+    4. They are read before AF1, because AF1 is stated over the whole
+       set: the bare wrapper is a member of a vocabulary even though it
+       cannot be the whole of one.
+
+    Guarantees: accepts the block, its place and the frame; returns the
+    wrappers in the order the file states them. Determinism: a function
+    of those inputs. Raises `ProfileError` on a description no column
+    could have. No I/O of any kind.
+    """
+    given = mapping["affix_variants"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "affix_variants", where, given, "a list of wrappers"
+        )
+    found: "list[tuple[str, str, int]]" = []
+    last: "tuple[str, str] | None" = None
+    for entry in given:
+        if not isinstance(entry, dict):
+            raise _wrong_type(
+                "affix_variants", where, entry,
+                "a wrapper with its two sides and its count",
+            )
+        for key in ("prefix", "suffix", "count"):
+            if key not in entry:
+                raise _wrong_type(
+                    "affix_variants", where, entry,
+                    f"a wrapper carrying {key}",
+                )
+        prefix = _text(entry["prefix"], "affix_variants", where)
+        suffix = _text(entry["suffix"], "affix_variants", where)
+        count = _bounded(
+            entry["count"], "affix_variants", where,
+            frame.floor, frame.n_rows,
+            "the number of rows the table has",
+        )
+        pair = (prefix, suffix)
+        if last is not None and not last < pair:
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {prefix!r}/{suffix!r} after "
+                f"{last[0]!r}/{last[1]!r}",
+                "wrappers in ascending order of their own text, each "
+                "named once",
+            )
+        last = pair
+        found = found + [(prefix, suffix, count)]
+    return tuple(found)
+
+
 def _numeric_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -7493,13 +7580,31 @@ def _affixed_facts(
     """
     prefix = _text(mapping["affix_prefix"], "affix_prefix", where)
     suffix = _text(mapping["affix_suffix"], "affix_suffix", where)
-    if not prefix and not suffix:
+    # THE OTHER WRAPPERS (plan P4-D36), read before AF1 because AF1 is
+    # stated over the whole set.
+    variants = _affix_variants(mapping, where, frame)
+    if not prefix and not suffix and not variants:
         # AF1. A pair with nothing on either side describes no shape,
         # and a cell wearing it is a bare number, which is a different
-        # role.
+        # role. WHERE THERE ARE OTHER WRAPPERS the bare one is a
+        # member of the vocabulary rather than the whole of it: a
+        # laboratory column of `13.5`, `4.2 H` and `9.8 L` wears three
+        # and the commonest may be the bare one.
         raise _out_of_range(
             "affix_prefix", where, "two empty spellings",
-            "at least one side carrying text",
+            "at least one side carrying text, or another wrapper "
+            "beside this one that does",
+        )
+    carrying = bool(prefix) or bool(suffix)
+    for one in variants:
+        if one[0] or one[1]:
+            carrying = True
+    if not carrying:
+        raise _out_of_range(
+            "affix_prefix", where, "wrappers that all carry nothing",
+            "at least one wrapper carrying text, because a column "
+            "whose every cell wears nothing is a column of bare "
+            "numbers and that is a different role",
         )
     n_affixed = _bounded(
         mapping["n_affixed"], "n_affixed", where, frame.floor, n_present,
@@ -7521,6 +7626,19 @@ def _affixed_facts(
             "had to wear one shared piece of text for it to be read "
             "this way at all",
         )
+    # AF10. HOW MANY DIFFERENT CORES, held inside the bounds a file
+    # cannot argue with: a set of cores cannot hold more different
+    # spellings than it has cells, and folding never separates two
+    # spellings that were the same.
+    core_distinct = _bounded(
+        mapping["n_core_distinct"], "n_core_distinct", where,
+        0, n_affixed, "the number of cells wearing a wrapper",
+    )
+    core_distinct_folded = _bounded(
+        mapping["n_core_distinct_folded"], "n_core_distinct_folded",
+        where, 0, core_distinct,
+        "the raw count of different cores",
+    )
     core_numeric = _bounded(
         mapping["n_core_numeric"], "n_core_numeric", where, 0, n_affixed,
         "the number of values wearing the pair",
@@ -7586,6 +7704,9 @@ def _affixed_facts(
             core_contradictory,
         ),
         affix_prefix=prefix,
+        affix_variants=variants,
+        n_core_distinct=core_distinct,
+        n_core_distinct_folded=core_distinct_folded,
         affix_suffix=suffix,
         n_affixed=n_affixed,
         n_core_numeric=core_numeric,

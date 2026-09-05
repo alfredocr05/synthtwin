@@ -422,6 +422,16 @@ def _matrix_sections() -> "dict[str, dict[str, str]]":
 # EXACT-OBSERVABLE the way every census here is: put each of the twin's
 # values in its bin by the published ends, count them, and the
 # published census comes back. Disposed in the Phase 4 plan (P4-D4.7).
+# The keys plan P4-D36 added to the affixed role (2026-09-04): the
+# wrapper SET a column may wear, and the two counts of different
+# CORES. They are EXACT-OBSERVABLE -- each is recounted from the
+# twin's own text -- and are named here because the contract states
+# them in prose rather than as rows of the role's sub-table.
+AFFIX_SET_KEYS = (
+    "affix_variants",
+    "n_core_distinct",
+    "n_core_distinct_folded",
+)
 PHASE_4_HISTOGRAM_KEYS = ("value_histogram",)
 
 # ...and the kurtosis, the owner's own second ask of 2026-08-26. It is
@@ -1383,6 +1393,15 @@ def test_every_key_the_producer_emits_has_a_disposition(
             table = dict(table)
             if role == "affixed_number":
                 table.update(sections["9.4 affixed_number"])
+                # ...and the three keys plan P4-D36 added, which the
+                # contract states in the same sub-table's prose rather
+                # than as rows of it: the wrapper SET a column may
+                # wear, and the two counts of different CORES the
+                # generator spends as its budget of core spellings.
+                for own in AFFIX_SET_KEYS:
+                    table[own] = (
+                        "EXACT-OBSERVABLE (Phase 4 plan, P4-D36)"
+                    )
             for own in PHASE_4_HISTOGRAM_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D4.7)"
             for own in PHASE_4_MOMENT_KEYS:

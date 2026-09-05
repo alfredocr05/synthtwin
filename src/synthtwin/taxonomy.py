@@ -3552,6 +3552,27 @@ def affixed_split(text: str) -> "tuple[str, str, str] | None":
     prefix = trimmed[:best_start]
     core = trimmed[best_start : best_start + best_length]
     suffix = trimmed[best_start + best_length :]
+    # THE SPACE BETWEEN THE NUMBER AND ITS UNIT BELONGS TO THE UNIT,
+    # not to the core, and this was wrong until 2026-09-04. The walk
+    # above takes the LONGEST span that reads as a number, and
+    # `classify_number` trims its own argument -- so `14.2 g/dL` split
+    # into a core of `14.2 ` and a suffix of `g/dL`. The core is then
+    # rewritten as a NUMBER by the value stage, which has no space to
+    # write, and the twin came back `12.7g/dL` where every real cell
+    # read `14.2 g/dL`. A person splitting the twin on a space got one
+    # field where their own table gives two.
+    #
+    # Moving the space into the wrapper is the whole repair: the core
+    # still reads as the same number, and the wrapper is the text the
+    # twin writes back character for character.
+    while core and core[:1] in " \t":
+        prefix = prefix + core[:1]
+        core = core[1:]
+    while core and core[-1:] in " \t":
+        suffix = core[-1:] + suffix
+        core = core[:-1]
+    if not core:
+        return None
     if not prefix and not suffix:
         return None
     return prefix, core, suffix
@@ -7246,10 +7267,24 @@ def _clock_form_said(form: str) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class _Affixed:
-    """One column's affixed reading: the pair, and the cores under it."""
+    """One column's affixed reading: the pairs, and the cores under them.
+
+    THE COMMONEST PAIR AND ITS VARIANTS (plan P4-D36). A column wears
+    ONE pair on most tables and a SMALL SET of them on some that
+    matter: a laboratory column whose values carry an abnormal flag --
+    `13.5`, `4.2 H`, `9.8 L` -- wears three, and a column recorded in
+    two units wears two. Before this, no single pair reached the parse
+    line on such a column and the whole thing fell to free text, which
+    publishes no ladder, no mean and no distribution at all.
+
+    `prefix` and `suffix` are the COMMONEST pair, unchanged, so a
+    column wearing one pair is described exactly as it was. `variants`
+    holds the others with their counts.
+    """
 
     prefix: str
     suffix: str
+    variants: "list[tuple[str, str, int]]"
     # The core text of every cell wearing the pair, in row order. The
     # cells NOT wearing it are the stragglers the parse line tolerates,
     # and they are counted rather than listed: nothing of a straggler
@@ -7393,6 +7428,24 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
     for text in present:
         split = affixed_split(text)
         if split is None:
+            # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
+            # P4-D36), proposed by a cell that reads as a number
+            # wearing nothing at all. A laboratory column of `13.5`,
+            # `4.2 H` and `9.8 L` wears three wrappers and one of them
+            # is empty; without it the two flagged thirds could never
+            # reach the line between them and the column was described
+            # as free text.
+            #
+            # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
+            # is asked first: a column most of whose cells are bare
+            # numbers is a column of numbers and never reaches here.
+            if parsing.classify_number(
+                parsing.trimmed(text)
+            ) == parsing.NUMBER:
+                key = ("", "")
+                proposing[key] = (
+                    proposing[key] + 1 if key in proposing else 1
+                )
             continue
         prefix, core, suffix = split
         key = (prefix, suffix)
@@ -7402,34 +7455,64 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
             proposing[key] = 1
     if not proposing:
         return None
-    # Walked over SORTED keys with a strict comparison, so the winner
-    # is the pair the most cells proposed and never the one that
-    # happened to be inserted first.
-    pair = ("", "")
-    best = 0
+    # WHICH PAIRS ARE PUBLISHABLE (plan P4-D36). A pair worn by fewer
+    # cells than the smallest group size cannot be published, so its
+    # cells are STRAGGLERS -- the population the parse line already
+    # tolerates and the straggler construction already writes. That is
+    # what keeps this rule from needing a held-back pool of its own.
+    #
+    # Walked over SORTED keys throughout, so nothing here depends on
+    # the order a dictionary happened to fill.
+    speaking: "list[tuple[str, str]]" = []
     for key in sorted(proposing):
+        if proposing[key] >= settings.small_cell_floor:
+            speaking = speaking + [key]
+    if not speaking:
+        return None
+    # A SET OF WRAPPERS MAY NOT DIFFER BY ITS DIGITS (plan P4-D36),
+    # and this guard was written against a false reading the set rule
+    # created. A column of feet and inches, `4'5"`, `5'11"` proposes one pair per
+    # inches value -- prefix nothing, suffix `'5"` -- and a dozen of
+    # them clear the floor and the ceiling together. The column then
+    # published a ladder over the FEET of some cells and the inches of
+    # others: a description saying something false, where before it
+    # said nothing at all.
+    #
+    # A WRAPPER IS SHARED TEXT. Where a column wears ONE, it may carry
+    # digits -- `mL/min/1.73m2` is a real unit and this rule read it
+    # before -- so the guard is asked only of a SET, where a digit is
+    # the mark of a split that cut through a number.
+    if len(speaking) > 1:
+        for key in speaking:
+            for side in key:
+                for mark in side:
+                    if mark in "0123456789":
+                        return None
+    # THE SET IS A VOCABULARY AND NOT PROSE, on the categorical rule's
+    # own ceiling. A column proposing dozens of different pairs is a
+    # column of text that happens to hold digits, and describing it as
+    # a quantity in many wrappers would be describing something else.
+    if len(speaking) > _categorical_ceiling(cells):
+        return None
+    # THE DETECTION LINE is over the cells wearing a PUBLISHABLE pair,
+    # together. The contract's test is that at least the parse-line
+    # count of present cells are affixed numbers; before plan P4-D36 it
+    # asked that of ONE pair, so a laboratory column of `13.5`,
+    # `4.2 H` and `9.8 L` -- where no pair carries a third of the
+    # column -- reached no rule at all and was described as free text.
+    covered = 0
+    for key in speaking:
+        covered = covered + proposing[key]
+    if covered < needed:
+        return None
+    # THE COMMONEST PAIR IS THE ONE THE BLOCK NAMES, ties broken by the
+    # pair's own text so two implementations pick the same one.
+    pair = speaking[0]
+    best = 0
+    for key in speaking:
         if proposing[key] > best:
             pair = key
             best = proposing[key]
-    # THE DETECTION LINE is over the proposing cells: the contract's
-    # test is that at least the parse-line count of present cells are
-    # AFFIXED NUMBERS -- cells whose core reads as a number -- wearing
-    # one pair.
-    if best < needed:
-        return None
-    # TWO readings that both clear the line is an ambiguity, and this
-    # role declines an ambiguous column rather than publishing half of
-    # it. At the default line the slack is one cell in a hundred and
-    # this cannot arise; at a lowered rate it can, and a column of
-    # fifty `$` cells and fifty `EUR` cells would otherwise publish a
-    # distribution over the dollars and quietly treat every euro as a
-    # straggler -- describing part of a column and dropping the rest.
-    clearing = 0
-    for key in proposing:
-        if proposing[key] >= needed:
-            clearing = clearing + 1
-    if clearing > 1:
-        return None
     # PASS TWO: which cells WEAR it. This is a different population and
     # a larger one, and keeping them apart is the whole of C6-7. A
     # column of `5 mg`, `7 mg` and `many mg` wears the pair three
@@ -7438,26 +7521,116 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
     # core classes would have been unreachable -- no producer could
     # ever have written `n_core_not_numeric` above zero.
     prefix, suffix = pair
+    worn = {key: 1 for key in speaking}
     cores: "list[str]" = []
+    counts: "dict[tuple[str, str], int]" = {}
     for text in present:
         trimmed = parsing.trimmed(text)
-        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        chosen = _pair_worn(trimmed, speaking)
+        if chosen is None:
             continue
-        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        core = trimmed[
+            len(chosen[0]) : len(trimmed) - len(chosen[1])
+        ]
         if not core:
             # `mg` on its own wears no pair: it IS the suffix, with
             # nothing between the two sides for a number to be.
             continue
         cores = cores + [core]
+        counts[chosen] = counts[chosen] + 1 if chosen in counts else 1
     n_affixed = len(cores)
+    variants: "list[tuple[str, str, int]]" = []
+    for key in sorted(counts):
+        if key == pair:
+            continue
+        variants = variants + [(key[0], key[1], counts[key])]
     # The floor is read HERE, at detection, deliberately: the pair is
     # PUBLISHED, so being able to publish a floor-clearing spelling is
     # constitutive of the role.
     if n_affixed < settings.small_cell_floor:
         return None
+    if pair not in counts:
+        return None
     return _Affixed(
-        prefix=prefix, suffix=suffix, cores=cores, n_affixed=n_affixed
+        prefix=prefix,
+        suffix=suffix,
+        variants=variants,
+        cores=cores,
+        n_affixed=n_affixed,
     )
+
+
+def _wears(text: str, prefix: str, suffix: str) -> bool:
+    """Whether one cell wears one wrapper with something between.
+
+    THE CELL IS TRIMMED HERE rather than handed in already trimmed,
+    which is what `_core_of` below does and what the offline audit
+    asks for: a method call is accepted on a value the audit watched
+    being made, and `parsing.trimmed` is such a maker while a
+    parameter is not.
+
+    Guarantees: accepts a cell and the two sides; returns whether the
+    cell starts with the one, ends with the other, and has at least
+    one character between them. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix):
+        return False
+    if not trimmed.endswith(suffix):
+        return False
+    return len(trimmed) > len(prefix) + len(suffix)
+
+
+def _pair_worn(
+    trimmed: str, speaking: "list[tuple[str, str]]"
+) -> "tuple[str, str] | None":
+    """Which of the publishable pairs this cell wears, or none.
+
+    THE LONGEST WRAPPER WINS, and the tie is broken by the pair's own
+    text. A cell of `13.5 H` wears both `('', ' H')` and `('', '')`,
+    and reading it as the second would put ` H` inside the CORE, where
+    no number rule can read it -- so the column would publish a core
+    class count of "not a number" for a cell that plainly holds one.
+    Taking the longest wrapper is what makes the split of a cell into
+    a wrapper and a core the same split a person would make.
+
+    Guarantees: accepts a trimmed cell and the publishable pairs;
+    returns the pair it wears or None. Determinism: a function of those
+    inputs, with a fixed order. Raises `TypeError` where the cell is
+    not text, which is the offline audit's own gate. No I/O of any
+    kind.
+    """
+    # THE CELL READS AS TEXT BEFORE A METHOD TOUCHES IT, in the exact
+    # gate the offline audit names: this function's caller hands it a
+    # value and a method call on an untraced value is refused.
+    if not isinstance(trimmed, str):
+        raise TypeError("a cell is text")
+    found: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(speaking):
+        # THE TWO SIDES GO THROUGH A FUNCTION THAT DECLARES THEM AS
+        # TEXT. The offline audit accepts a parameter annotated `str`
+        # and does not accept a tuple's member, which is how
+        # `_core_of` below already writes the same comparison.
+        front = key[0]
+        back = key[1]
+        if not _wears(trimmed, front, back):
+            continue
+        # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING ELSE,
+        # which is the rule it was PROPOSED under. It is a prefix and a
+        # suffix of every cell there is, so without this a cell of
+        # `9.9 CRITICAL` would wear it -- with the whole cell as its
+        # core -- and the straggler population would vanish from every
+        # column that publishes the bare wrapper.
+        if not front and not back:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
+        width = len(front) + len(back)
+        if width > reach:
+            found = key
+            reach = width
+    return found
 
 
 # The characters an address may be spelled with, as literal constants
@@ -7630,7 +7803,33 @@ def _affixed_verdict(
     details["numeric_share"] = _share(core_looking, n_present)
     details["affix_prefix"] = affixed.prefix
     details["affix_suffix"] = affixed.suffix
+    # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36). A laboratory
+    # column of `13.5`, `4.2 H` and `9.8 L` wears three, and until this
+    # key existed no single one of them reached the detection line, so
+    # the whole column was described as free text -- no ladder, no
+    # mean, no distribution at all. Each entry names a wrapper and how
+    # many cells wear it; the commonest one is the pair above and is
+    # not repeated here. Every wrapper published clears the smallest
+    # group size, and a wrapper worn by fewer cells than that is not
+    # published: its cells are STRAGGLERS, which is the population
+    # this role already has and already writes.
+    details["affix_variants"] = [
+        {"prefix": prefix, "suffix": suffix, "count": count}
+        for prefix, suffix, count in affixed.variants
+    ]
     details["n_affixed"] = affixed.n_affixed
+    # HOW MANY DIFFERENT CORES, as distinct from how many different
+    # CELLS (plan P4-D36). On a column wearing ONE wrapper the two are
+    # the same number, which is why this key was not needed until a
+    # column could wear several: with three wrappers, a hundred
+    # different cores make up to three hundred different cells, and the
+    # generator laid its cores out from the CELL count. Measured on a
+    # laboratory column of 200 cells, 141 different cells and about a
+    # hundred different cores: the core stage was asked for 141
+    # different cores, spent the leading-zero family reaching for them
+    # and wrote `0011.9 H` where every real cell read `11.9 H`.
+    details["n_core_distinct"] = core_cells.raw_distinct
+    details["n_core_distinct_folded"] = len(core_cells.folded_counts)
     details["n_core_numeric"] = n_core_numeric
     details["n_core_out_of_range"] = core_cells.n_out_of_range
     details["n_core_contradictory"] = core_cells.n_contradictory

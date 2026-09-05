@@ -8717,6 +8717,89 @@ the pairs say nothing — a stratum can stand inside a gap and still be
 in a bin that holds plenty, and a queue built from the bins alone
 never saw it. The second is what took the count to nought.
 
+### P4-D36 A column may wear a SET of wrappers (owner ruling 2026-09-04)
+
+The affixed role reads a column whose cells are numbers wearing one
+shared piece of text. It asked that ONE wrapper be worn by at least
+the parse line's count of cells, so a column wearing a small SET of
+them reached no rule at all and was described as **free text**, which
+publishes no ladder, no mean, no distribution and no count of anything
+a person analyses.
+
+**THE OWNER ASKED FOR THE SURVEY THAT FOUND IT.** About fifty real
+healthcare column shapes were put through the shipped reader,
+producer, loader, generator and validator on 2026-09-04. One defect
+wore four costumes:
+
+| shape | before |
+|---|---|
+| `13.5 H`, `4.2 L`, `9.8` — a laboratory value with an abnormal flag | free text |
+| `70 kg`, `154 lb` — a column recorded in two units | free text |
+| `18 months`, `2 years` — a duration in two units | free text |
+| `$98`, `EUR99` — a price column with two currencies | free text |
+
+The first is the one that matters most: abnormal flags are in a large
+share of real laboratory extracts, and a haemoglobin column with an
+`H` beside a third of its values published nothing at all.
+
+**THE RULE.** The wrappers a column's cells propose are gathered as
+before. Each one worn by at least the smallest group size is
+PUBLISHABLE; a wrapper worn by fewer cells than may be named is not
+published and its cells are STRAGGLERS, which is the population this
+role already has and already writes — so the set needs no held-back
+pool of its own. The publishable wrappers together must cover the
+parse line, and there may be no more of them than a set of categories
+may have levels: a column proposing dozens is a column of text that
+happens to hold digits.
+
+**THE BARE WRAPPER IS A MEMBER OF THE VOCABULARY**, proposed by a cell
+that reads as a number wearing nothing. Without it the two flagged
+thirds of a laboratory column could never reach the line between them.
+It cannot swallow a plain numeric column, because the numeric rule is
+asked first, and it is WORN only by a cell that reads as a number, so
+a cell of `9.9 CRITICAL` is still a straggler.
+
+**AND A SET OF WRAPPERS MAY NOT DIFFER BY ITS DIGITS.** A column of
+feet and inches proposes one wrapper per inches value and a dozen of
+them clear the floor together; the column then published a ladder over
+the feet of some cells and the inches of others — a description saying
+something FALSE where before it said nothing. A wrapper worn by one
+column may carry digits (`mL/min/1.73m2` is a real unit), so the guard
+is asked only of a set.
+
+**WHAT IS PUBLISHED.** `affix_prefix` and `affix_suffix` are the
+commonest wrapper, unchanged, so a column wearing one is described
+exactly as it was and no description written before this key existed
+reads differently. `affix_variants` holds the others, each with the
+count of cells wearing it, ascending by their own text.
+
+**AND TWO COUNTS OF DIFFERENT CORES**, `n_core_distinct` and
+`n_core_distinct_folded`. On a column wearing one wrapper the count of
+different cores and the count of different CELLS are the same number,
+which is why they were not needed until now: with three wrappers a
+hundred different cores make up to three hundred different cells, and
+the core stage laid its cores out from the cell count. Measured on a
+laboratory column of 200 cells, 141 different cells and 90 different
+cores: the core stage was asked for 141, spent the leading-zero family
+reaching for them and wrote `0011.9 H` where every real cell read
+`11.9 H`.
+
+**A DEFECT THIS FOUND ON THE WAY, and it was not new.** The split
+takes the longest span that reads as a number and the number reader
+trims its own argument, so `14.2 g/dL` split into a core of `14.2 `
+and a suffix of `g/dL`. The value stage rewrites a core as a NUMBER
+and has no space to write, so **every column of this role lost the
+space before its unit**: `14.2 g/dL` came back `12.7g/dL`, and a
+person splitting the twin on a space got one field where their own
+table gives two. The space belongs to the wrapper and goes there now.
+
+**MEASURED after, on the laboratory column**: the role fires, the
+three wrappers come back at their exact counts (73, 71 and 56 of 200),
+the spaces are there, and `synthtwin validate` misses only
+`distinct.n_distinct_values` and `widths.published.1` — the two
+residuals R-P4-154 and R-P4-139 that every numeric column of this
+shape misses.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free

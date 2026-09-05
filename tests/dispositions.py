@@ -399,6 +399,13 @@ PLAN4_REGIONS = {
         "## Decision P4-D29 — a joined column's distinctness is EXACT "
         "(closes part of R-P4-62, 2026-08-31)"
     ),
+    # The affixed role's wrapper SET and its two counts of different
+    # cores (plan P4-D36). The commonest wrapper is disposed by the
+    # affixed group already; these are the keys that landing added.
+    "affix-set": (
+        "### P4-D36 A column may wear a SET of wrappers "
+        "(owner ruling 2026-09-04)"
+    ),
     # The compound role's own two counts and its two containers. Every
     # other fact such a column publishes lives inside a sub-block and
     # is held by the group whose block it is, so this region binds four
@@ -895,6 +902,32 @@ REGISTRY += [
 # group already disposes. A fact inside `numbers` is a numeric fact and
 # is registered under `numeric`; a fact inside `labels` is a label fact
 # and is registered under `label`.
+REGISTRY += [
+    Fact(
+        "affixed",
+        "affix_variants",
+        EXACT_OBSERVABLE,
+        plan_words="each with the count of cells wearing it",
+        plan_region="affix-set",
+        aliases=("wrapper set", "affix variant"),
+    ),
+    Fact(
+        "affixed",
+        "n_core_distinct",
+        EXACT_OBSERVABLE,
+        plan_words="TWO COUNTS OF DIFFERENT CORES",
+        plan_region="affix-set",
+        aliases=("different cores",),
+    ),
+    Fact(
+        "affixed",
+        "n_core_distinct_folded",
+        EXACT_OBSERVABLE,
+        plan_words="TWO COUNTS OF DIFFERENT CORES",
+        plan_region="affix-set",
+        aliases=("different cores folded",),
+    ),
+]
 REGISTRY += [
     Fact(
         "compound",

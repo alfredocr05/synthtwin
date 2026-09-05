@@ -3661,6 +3661,31 @@ def _column_at(
     return block
 
 
+def _wears_the_wrapper(text: str, prefix: str, suffix: str) -> bool:
+    """Whether one cell wears one wrapper with something between.
+
+    The producer's own rule, written here in this module's own terms
+    rather than reached across a module boundary: the offline audit
+    refuses a private name from another module, and a recount that
+    read the producer's private function would be a recount tied to a
+    name nothing publishes.
+
+    THE CELL IS TRIMMED HERE, which is what makes the method calls
+    below acceptable to that audit: a value it watched being made.
+
+    Guarantees: accepts a cell and the two sides; returns whether the
+    cell starts with the one, ends with the other, and has at least
+    one character between them. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix):
+        return False
+    if not trimmed.endswith(suffix):
+        return False
+    return len(trimmed) > len(prefix) + len(suffix)
+
+
 def _count_at(block: "dict[str, object]", key: str) -> "int | None":
     """One whole number of a re-described block, or None if it is not there."""
     if key not in block:
@@ -8081,12 +8106,42 @@ def _affixed_checks(
     suffix = facts.affix_suffix
     # The CELL population: which cells wear the pair, counted the way
     # the producer counts them.
+    # EVERY WRAPPER THE DESCRIPTION PUBLISHES, not the commonest alone
+    # (plan P4-D36). A column may wear a small SET of them -- a
+    # laboratory column of `13.5`, `4.2 H` and `9.8 L` wears three --
+    # and a recount that stripped only the commonest treated every
+    # other cell as a straggler: the style census then recounted a
+    # third of the column and the twin missed an obligation it met.
+    #
+    # THE LONGEST WRAPPER WINS, as it does in the producer, so a cell
+    # of `4.2 H` is read with ` H` off it and not with nothing.
+    speaking: "list[tuple[str, str]]" = [(prefix, suffix)]
+    for one in facts.affix_variants:
+        speaking = speaking + [(one[0], one[1])]
     cores: list[str] = []
     for cell in cells:
         trimmed = parsing.trimmed(cell)
-        if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        chosen: "tuple[str, str] | None" = None
+        reach = -1
+        for key in sorted(speaking):
+            ahead = key[0]
+            behind = key[1]
+            if not _wears_the_wrapper(cell, ahead, behind):
+                continue
+            # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING
+            # ELSE, the rule the producer proposes it under: it is a
+            # prefix and a suffix of every cell, so without this a
+            # cell of `9.9 CRITICAL` would wear it with the whole cell
+            # as its core.
+            if not ahead and not behind:
+                if parsing.classify_number(trimmed) != parsing.NUMBER:
+                    continue
+            if len(ahead) + len(behind) > reach:
+                chosen = key
+                reach = len(key[0]) + len(key[1])
+        if chosen is None:
             continue
-        core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
         if core:
             cores = cores + [core]
     # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
