@@ -5632,9 +5632,47 @@ takes a slot outside every barred BIN instead.
   adjustment. Until one lands, the boundary is documented and `--code`
   is the answer.
 
-- **R-P4-149 — OPEN (opened 2026-09-03 by landing L8's own coverage
-  identity).** A NUMBER TOO LARGE FOR THE FORMAT IS DESCRIBED AS A
-  LABEL ON A COMPOUND COLUMN.
+- **R-P4-149 — CLOSED 2026-09-04 by the owner's ruling** ("I agree,
+  but we can close in phase 4"), which kept the design and moved the
+  date. A NUMBER TOO LARGE FOR THE FORMAT WAS DESCRIBED AS A LABEL ON
+  A COMPOUND COLUMN.
+
+  **WHAT WAS BUILT: the third population.** Rule 7b splits the present
+  cells three ways now — the cells that read as an ordinary number,
+  the cells the number rules recognise as a numeral this format cannot
+  hold, and everything else. The third is counted WITH the numeric
+  half, because an unusable numeral is a number: two new keys,
+  `n_numeric_out_of_range` and `n_numeric_contradictory`, and NL1 is a
+  four-term sum over three populations. The `numbers` block is then a
+  genuine numeric block — its four class counts are the real ones and
+  it echoes its own whole population — so the generator writes those
+  cells through the machinery that writes them on a plain numeric
+  column.
+
+  **MEASURED on the residual's own witness**, 280 readings, nineteen
+  `POSITIVE` and one `9e999`:
+
+  | | before | after |
+  |---|---|---|
+  | the numeral's population | a label | the numbers |
+  | `numbers.n_left_out_of_statistics` | 0 | **1** |
+  | published label levels | `positive`, and the numeral at floor 1 | `positive` |
+  | what the twin writes for it, floor 1 | `9e999` as a word | a numeral too large to hold |
+  | what the twin writes for it, floor 11 | **`group-N`** | a numeral too large to hold |
+
+  The floor-11 row is the one that mattered most and was not in the
+  residual's own text: one such cell never clears a raised smallest
+  group size, so the spelling was held back and the twin wrote a
+  MADE-UP WORD where the source had a numeral.
+
+  **WHAT THE ROLE'S OWN COVERAGE SAID ABOUT IT.** The three subchecks
+  that had no red case — `numeric_share`,
+  `n_left_out_of_statistics` and `n_negative_unrepresentable` — are
+  facts about cells that are numbers but not usable ones, and nothing
+  could move them because the split put every such cell in the other
+  half. The perturbation that puts a numeral too small for the format
+  in the column now moves `counts.n_out_of_range`, which is the fact
+  it was always about.
 
   Rule 7b splits a column's present cells by one question: does this
   cell read as a plain number? A cell spelled `9e999` does not — it

@@ -29,7 +29,15 @@ import random
 import pytest
 
 import fixtures
-from synthtwin import contract, errors, generation, profile, reading, taxonomy
+from synthtwin import (
+    contract,
+    errors,
+    generation,
+    parsing,
+    profile,
+    reading,
+    taxonomy,
+)
 
 
 def _described(
@@ -672,6 +680,71 @@ def test_the_two_bars_on_the_text_half_are_measured_at_their_boundaries(
     )
     _document, block = _described(tmp_path, prose, "prose")
     assert block["role"] != taxonomy.ROLE_COMPOUND, block["role"]
+
+
+def test_a_numeral_this_format_cannot_hold_is_described_as_a_number(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The THIRD population (residual R-P4-149, owner ruling 2026-09-04).
+
+    A cell the number rules read as a numeral this format cannot hold
+    used to join the LABEL half. So a laboratory column of 280
+    readings with one `9e999` published that cell as a WORD beside
+    `positive`, and the numeric half reported nought cells left out of
+    its statistics on a column that had one. At a raised smallest
+    group size it was worse: one such cell does not clear the floor,
+    so the spelling was held back and the twin wrote `group-N` -- a
+    made-up word where the source had a numeral.
+    """
+    rows = (
+        [f"{(index % 97) + 1}.5" for index in range(280)]
+        + ["POSITIVE"] * 19
+        + ["9e999"]
+    )
+    for floor in (1, 11):
+        document, block = _described(
+            tmp_path, rows, f"unusable-{floor}", floor=floor
+        )
+        assert block["role"] == taxonomy.ROLE_COMPOUND, block["role"]
+        # THE COUNTS: the numeral is with the NUMBERS, not the labels.
+        assert block["n_numeric_cells"] == 280, block["n_numeric_cells"]
+        assert block["n_numeric_out_of_range"] == 1, block
+        assert block["n_numeric_contradictory"] == 0, block
+        assert block["n_label_cells"] == 19, block["n_label_cells"]
+        # ...and the three add up to the present cells (NL1).
+        assert (
+            block["n_numeric_cells"]
+            + block["n_numeric_out_of_range"]
+            + block["n_numeric_contradictory"]
+            + block["n_label_cells"]
+        ) == block["n_present"]
+        # THE HALF SAYS THE CELL WAS LEFT OUT, which is the number the
+        # residual is named for: it read nought.
+        assert block["numbers"]["n_left_out_of_statistics"] == 1, (
+            block["numbers"]["n_left_out_of_statistics"]
+        )
+        # ...and the label half carries the word and nothing else.
+        assert [
+            level["label"] for level in block["labels"]["levels"]
+        ] == ["positive"], block["labels"]["levels"]
+        # AND THE TWIN WRITES A NUMERAL, not a word and not `group-N`.
+        written = fixtures.write_profile(
+            tmp_path, f"unusable-{floor}.json", document
+        )
+        loaded = contract.load_profile(f"{written}")
+        twin = generation.generate(loaded, 3)
+        cells = [row[0] for row in twin.rows]
+        assert not [one for one in cells if one.startswith("group")], (
+            "a numeral came back as a made-up word"
+        )
+        assert cells.count("POSITIVE") == 19, cells.count("POSITIVE")
+        too_large = [
+            one
+            for one in cells
+            if parsing.classify_number(one)
+            == parsing.NUMBER_OUT_OF_RANGE
+        ]
+        assert len(too_large) == 1, too_large
 
 
 def test_a_twin_of_a_column_well_clear_of_the_line_is_the_same_role(
