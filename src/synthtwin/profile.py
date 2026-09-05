@@ -958,7 +958,21 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # than for the cells.
     ("columns", _EACH, "affix_prefix"): _AFFIX,
     ("columns", _EACH, "affix_suffix"): _AFFIX,
+    # ...and the other wrappers this column wears (plan P4-D36), each
+    # with the count of cells that wear it. The two sides are written
+    # under the same rule the pair above is, so a wrapper is spelled
+    # one way wherever it appears.
+    ("columns", _EACH, "affix_variants"): _ARRAY,
+    ("columns", _EACH, "affix_variants", _EACH): _OBJECT,
+    ("columns", _EACH, "affix_variants", _EACH, "prefix"): _AFFIX,
+    ("columns", _EACH, "affix_variants", _EACH, "suffix"): _AFFIX,
+    ("columns", _EACH, "affix_variants", _EACH, "count"): _COUNT,
     ("columns", _EACH, "n_affixed"): _COUNT,
+    # ...and how many different CORES the cells carry (plan P4-D36),
+    # which is not how many different cells they are once a column
+    # wears more than one wrapper.
+    ("columns", _EACH, "n_core_distinct"): _COUNT,
+    ("columns", _EACH, "n_core_distinct_folded"): _COUNT,
     ("columns", _EACH, "n_core_numeric"): _COUNT,
     ("columns", _EACH, "n_core_out_of_range"): _COUNT,
     ("columns", _EACH, "n_core_contradictory"): _COUNT,

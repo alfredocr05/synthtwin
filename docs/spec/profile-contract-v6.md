@@ -4645,6 +4645,9 @@ rather than a list of its own, so the two cannot part again.
 | `empty_bins` | | | | | | | | | ● | ● | ● | | | | |
 | `empty_edges` | | | | | | | | | ● | ● | ● | | | | |
 | `affix_prefix` | | | | | | | | | | | ● | | | | |
+| `affix_variants` | | | | | | | | | | | ● | | | | |
+| `n_core_distinct` | | | | | | | | | | | ● | | | | |
+| `n_core_distinct_folded` | | | | | | | | | | | ● | | | | |
 | `affix_suffix` | | | | | | | | | | | ● | | | | |
 | `n_affixed` | | | | | | | | | | | ● | | | | |
 | `n_core_numeric` | | | | | | | | | | | ● | | | | |
@@ -4681,10 +4684,10 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Eighty-one rows, one hundred and fifty-eight marked cells**,
+**Eighty-four rows, one hundred and sixty-one marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 13,
-`time_of_day` 5, `count` 25, `continuous` 25, `affixed_number` 32,
+`time_of_day` 5, `count` 25, `continuous` 25, `affixed_number` 35,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
@@ -4958,11 +4961,14 @@ block carries, the quantitative ones computed over the CORES.
 | `value_histogram` | object | C6-31 | the CORES falling in each bin between the core ends; published only when every bin clears the floor | REPORT-ONLY |
 | `empty_bins` | array | C6-32 to C6-33 | which of those same bins hold none of the CORES, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-33a to C6-33b | one `[below, above]` pair per run of those empty bins, read over the CORES | REPORT-ONLY |
+| `affix_variants` | array | C6-7a below | the OTHER wrappers this column's cells wear, each with the count wearing it, ascending by their own text; empty on a column wearing one | EXACT-OBSERVABLE |
+| `n_core_distinct` | count | AF10 | how many DIFFERENT cores the cells carry | EXACT-OBSERVABLE |
+| `n_core_distinct_folded` | count | AF10 | the same over the folded identities | EXACT-OBSERVABLE |
 
-**The block is fifty-four keys**: the twenty-two universal keys of
-section 5.1 and the thirty-two above — a `count` block's twenty-five
-additions plus this role's own seven. The matrix of section 6.11 marks
-exactly those thirty-two cells in its `afx` column. There is no
+**The block is fifty-seven keys**: the twenty-two universal keys of
+section 5.1 and the thirty-five above — a `count` block's twenty-five
+additions plus this role's own ten. The matrix of section 6.11 marks
+exactly those thirty-five cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -7942,6 +7948,8 @@ now a bare delegation.
 | field | disposition |
 |---|---|
 | `affix_prefix`, `affix_suffix` | EXACT-OBSERVABLE — written byte-for-byte around every counted cell's core, and recounted from the written twin |
+| `affix_variants` | EXACT-OBSERVABLE — the other wrappers this column wears (plan P4-D36), each written byte-for-byte around the count of cores the description gives it, and recounted from the written twin. A column wearing one wrapper carries an empty list and is described exactly as it was |
+| `n_core_distinct`, `n_core_distinct_folded` | EXACT-OBSERVABLE, on the same terms as the column's own two counts of different cells. They are the counts of different CORES, which is a different number once a column wears more than one wrapper: the generator spends them as its budget of core spellings, and spending the cell counts there asked the core stage for spellings it does not need and cannot reach |
 | `n_affixed` | EXACT-OBSERVABLE — the twin writes exactly this many cells wearing the pair; the remaining present cells are reproduced by class through the straggler constructions |
 | `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`, `n_core_not_numeric` | EXACT-OBSERVABLE by class-preserving construction over the cores |
 | `percentiles.min`, `percentiles.max` | as on `count` and `continuous` above |
@@ -8829,12 +8837,13 @@ a marked row.
    `n_rows`, `numeric_styles` with its siblings `fraction_widths`,
    `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
-   `n_core_not_numeric`, `kurtosis`, `percentiles_between`,
+   `n_core_not_numeric`, `affix_variants`, `n_core_distinct`,
+   `n_core_distinct_folded`, `kurtosis`, `percentiles_between`,
    `n_distinct_values`, `mode` and `mode_count`, and the three shape
    keys `value_histogram`, `empty_bins` and `empty_edges` — each under
    the treatment the same fact has on a plain numeric column, all of
    it reaching columns that were free text. With row 2 this prices all
-   thirty-two keys the role adds; rows 4, 7, 20 and 21 restate four of
+   thirty-five keys the role adds; rows 4, 7, 20 and 21 restate four of
    them at their own floor or disclosure treatment and add nothing to
    the set.
 

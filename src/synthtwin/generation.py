@@ -5311,8 +5311,69 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
         n_not_numeric=facts.n_core_not_numeric,
         n_out_of_range=facts.n_core_out_of_range,
         n_contradictory=facts.n_core_contradictory,
+        # THE CORES' OWN COUNTS OF DIFFERENT SPELLINGS, and NOT the
+        # column's (plan P4-D36). The layout spends these as a budget
+        # of different core spellings; a column wearing three wrappers
+        # makes up to three cells out of one core, so its count of
+        # different CELLS asks the core stage for spellings it does not
+        # need and cannot reach. Measured on a laboratory column of 200
+        # cells: asked for 141, the core stage spent the leading-zero
+        # family and wrote `0011.9 H` for a source cell of `11.9 H`.
+        n_distinct=facts.n_core_distinct,
+        n_distinct_folded=facts.n_core_distinct_folded,
         facts=facts.numbers,
     )
+
+
+def _wrapper_at(
+    facts: "contract.AffixedFacts", place: int, total: int
+) -> "tuple[str, str]":
+    """Which wrapper the cell at `place` wears (plan P4-D36).
+
+    THE PUBLISHED COUNTS ARE MET AND THE WRAPPERS ARE INTERLEAVED, and
+    the second half of that is what the count of different CELLS needs.
+    The cores arrive in the order the value stage put them, so a core
+    that several cells share sits in a run: handing the wrappers out in
+    BLOCKS gives every cell of that run the same wrapper and makes one
+    cell out of them, while handing them out in turn makes as many
+    different cells as the run is long. Measured on a laboratory column
+    of 200 cells wearing three wrappers: in blocks the twin held 116
+    different cells against a published 141, and in turn it holds them.
+
+    THE ORDER IS A FUNCTION OF THE DESCRIPTION ALONE -- the quotas and
+    the place -- so no randomness is spent on a fact nothing publishes,
+    and two implementations reading the same description write the same
+    cell in the same row.
+
+    Guarantees: accepts the facts, a place and the number of cells;
+    returns the wrapper that place wears. Determinism: a function of
+    those inputs. Raises nothing. No I/O of any kind.
+    """
+    quotas: "list[tuple[int, str, str]]" = []
+    spoken = 0
+    for prefix, suffix, count in facts.affix_variants:
+        quotas = quotas + [(count, prefix, suffix)]
+        spoken = spoken + count
+    rest = total - spoken
+    if rest < 0:
+        rest = 0
+    quotas = quotas + [(rest, facts.affix_prefix, facts.affix_suffix)]
+    # THE LARGEST REMAINING QUOTA WINS AT EVERY STEP, which is what
+    # interleaves them. Walked from the front with a strict
+    # comparison, so a tie is broken by the order the description
+    # states the wrappers in and never by a dictionary's own order.
+    left = [one[0] for one in quotas]
+    for step in range(place + 1):
+        best = 0
+        for index in range(len(left)):
+            if left[index] > left[best]:
+                best = index
+        if left[best] <= 0:
+            return facts.affix_prefix, facts.affix_suffix
+        left[best] = left[best] - 1
+        if step == place:
+            return quotas[best][1], quotas[best][2]
+    return facts.affix_prefix, facts.affix_suffix
 
 
 def _position_notes(
@@ -6580,7 +6641,21 @@ def _affixed_content(
         raise _wrong_facts(column.name)
     core_plan = dataclasses.replace(plan, column=_core_view(column))
     cores, notes = _numeric_content(core_plan, words)
-    cells = [f"{facts.affix_prefix}{core}{facts.affix_suffix}" for core in cores]
+    # WHICH WRAPPER EACH CELL WEARS (plan P4-D36). Most columns of
+    # this role wear ONE and every cell gets it. Where the description
+    # names others, their published counts are honoured first, in the
+    # order the description states them, and the rest wear the
+    # commonest pair -- which is what the block's own `n_affixed`
+    # minus those counts says it holds.
+    #
+    # TAKEN FROM THE FRONT IN ORDER, so the wrapper a cell wears is a
+    # function of the description and the seed alone: the cores are
+    # already in the order the value stage put them, and shuffling
+    # them here would spend randomness on a fact nothing publishes.
+    cells: "list[str]" = []
+    for step in range(len(cores)):
+        prefix, suffix = _wrapper_at(facts, step, len(cores))
+        cells = cells + [f"{prefix}{cores[step]}{suffix}"]
     # THE STRAGGLERS: the cells wearing no pair. Their count is
     # `n_present - n_affixed`, and their CLASSES are published -- the
     # universal census counts cells, and an affixed cell is not a

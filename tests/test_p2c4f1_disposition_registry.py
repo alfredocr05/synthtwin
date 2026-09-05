@@ -1070,8 +1070,15 @@ def _numeric_classes(
 # prose beside it. The head prose is untouched. It states no less than
 # the numeric table it delegates to, because it states nothing of its
 # own at all.
+#
+# MOVED 2026-09-04 BY PLAN P4-D36. What changed is THREE ROWS added to
+# the delegation table for the keys that landing added -- the wrapper
+# SET a column may wear, and the two counts of different CORES -- each
+# carrying its own class and its own reason, with no conditional
+# clause and no prose that reaches any other row. The head prose is
+# untouched.
 AFFIXED_REGION_DIGEST = (
-    "4e0fd47dd475751959438e197767a74c2fc89f6c4f73fa20cf8c47516d99d2e9"
+    "6133315b5e641bfe106aecf55914944d16a068e973f0ec6b811527bee2a0ad8a"
 )
 
 

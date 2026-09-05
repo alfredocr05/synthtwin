@@ -24,6 +24,7 @@ only the first half is an invariant nothing shows can fail.
 
 import json
 import pathlib
+import random
 import tempfile
 
 import pytest
@@ -144,12 +145,23 @@ def test_the_line_is_read_off_the_settings_the_document_carries(
     )
     column = document["columns"][0]
     assert column["role"] == "affixed_number"
-    assert column["n_affixed"] == 60
+    # ALL HUNDRED WEAR A WRAPPER, and sixty of them wear the `$`.
+    # This read sixty until plan P4-D36: the forty bare numbers wore
+    # nothing, so they were STRAGGLERS and the column published no
+    # value of theirs at all. The bare wrapper is a member of the
+    # vocabulary now, so a price column where some cells omit the sign
+    # describes all hundred of its numbers.
+    assert column["n_affixed"] == 100, column["n_affixed"]
+    assert column["affix_prefix"] == "$", column["affix_prefix"]
+    assert [
+        (one["prefix"], one["suffix"], one["count"])
+        for one in column["affix_variants"]
+    ] == [("", "", 40)], column["affix_variants"]
     assert document["settings"]["minimum_parse_rate"] == 0.5
     loaded = _loaded(folder, document, "lowered")
     facts = loaded.columns[0].facts
     assert isinstance(facts, contract.AffixedFacts)
-    assert facts.n_affixed == 60
+    assert facts.n_affixed == 100
 
 
 # -- AF-R: the sentence this role always carries ----------------------
@@ -357,24 +369,33 @@ def test_removal_over_the_cores_does_not_hand_the_column_to_an_earlier_rule(
 def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The reviewer's scenario, from the CSV to the sentence.
+    """The reviewer's scenario, ANSWERED rather than reported (P4-D36).
 
-    Ninety-eight cells wearing one pair and two wearing another: no pair
-    clears the line, the column declines, and its owner is owed the
-    count the closest reading reached. Before this, the remark named the
-    numeric, date and categorical readings and said nothing at all about
-    the one that came within two cells.
+    Ninety-eight cells wearing one wrapper and two wearing another. The
+    reviewer's concern was that publishing a distribution over the
+    dollars would treat every euro as a straggler -- describing part of
+    a column and dropping the rest -- so the rule declined and the
+    column's owner was owed a sentence saying how far the reading got.
+
+    A column may wear a SET of wrappers now, so both are published and
+    all hundred values are described. The sentence is still owed by the
+    columns that DO decline, which the test below it holds.
     """
     values = [f"${index}" for index in range(1, 99)]
     values = values + ["EUR99", "EUR100"]
     document = _document(tmp_path / "two-pairs", "price", values)
     column = document["columns"][0]
-    assert column["role"] == "free_text"
-    said = " ".join(column["remarks"])
-    assert "98 of its values are numbers wearing one shared piece of text" in (
-        said
-    ), said
-    assert "which is the reading that came closest" in said
+    assert column["role"] == "affixed_number", column["role"]
+    assert column["affix_prefix"] == "$", column["affix_prefix"]
+    assert [
+        (one["prefix"], one["suffix"], one["count"])
+        for one in column["affix_variants"]
+    ] == [("EUR", "", 2)], column["affix_variants"]
+    assert column["n_affixed"] == 100, column["n_affixed"]
+    # ...and every one of the hundred values is in the ladder, which is
+    # what the old reading dropped.
+    assert column["percentiles"]["min"] == 1.0
+    assert column["percentiles"]["max"] == 100.0
 
 
 def test_a_column_no_pair_reaches_says_so_with_a_count_of_none(
@@ -879,13 +900,20 @@ def test_no_count_of_the_measured_file_is_printed_below_the_floor() -> None:
     described = contract.load_profile(
         f"{fixtures.write_profile(folder, 'note.json', document)}"
     )
+    # THE MEASURED FILE CARRIES NO NUMBER AT ALL, so its own
+    # description publishes no affixed fact and every count of this
+    # role is WITHHELD. It used to hold five `Chen Wu note N.5` cells
+    # beside fifty-five worded ones: since plan P4-D36 a column may
+    # wear a SET of wrappers, so that file describes as this role in
+    # its own right and the counts are held rather than withheld --
+    # which is the right answer for it and the wrong fixture for this
+    # question.
     theirs = fixtures.write(
         folder,
         "theirs.csv",
         fixtures.single_column_table(
             "note",
-            [f"Alice Brown note {index}" for index in range(1, 56)]
-            + [f"Chen Wu note {index}.5" for index in range(1, 6)],
+            [f"Alice Brown note {_WORDS[index % 5]}" for index in range(60)],
         ),
     )
     outcome = validation.measure(described, f"{theirs}")
@@ -1004,3 +1032,173 @@ def test_the_last_resort_straggler_refuses_a_published_hole() -> None:
         f"publishes a hole, so its twin reads them as absent: "
         f"{written_as_a_hole}"
     )
+
+
+# -- a column wearing a SET of wrappers (plan P4-D36) -------------------
+
+
+def _flagged_rows(n_rows: int = 200) -> "list[str]":
+    """A laboratory column whose readings carry an abnormal flag.
+
+    THE SHAPE THIS LANDING EXISTS FOR, and it is everywhere in real
+    laboratory extracts: a value, and beside a third of them an `H` or
+    an `L` saying the result is outside the reference range. Every cell
+    holds a number; no single wrapper is worn by enough of them to
+    reach the detection line on its own.
+    """
+    draw = random.Random(11)
+    return [
+        f"{round(draw.uniform(8, 18), 1)}"
+        f"{draw.choice(['', ' H', ' L'])}"
+        for _index in range(n_rows)
+    ]
+
+
+def test_a_column_wearing_three_wrappers_is_a_quantity(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE WITNESS. Before this landing the column published NOTHING.
+
+    No wrapper is worn by a third of the cells, so under the one-pair
+    rule none reached the detection line and the column fell to
+    `free_text` -- which publishes no ladder, no mean, no distribution
+    and no count of anything a person analyses.
+    """
+    rows = _flagged_rows()
+    document = _document(tmp_path, "flagged", rows)
+    block = document["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    # THE WRAPPERS, all three of them, with the counts the column has.
+    worn = [(block["affix_prefix"], block["affix_suffix"])] + [
+        (one["prefix"], one["suffix"]) for one in block["affix_variants"]
+    ]
+    assert sorted(worn) == [("", ""), ("", " H"), ("", " L")], worn
+    counted = {
+        "": len([one for one in rows if not one.endswith(("H", "L"))]),
+        " H": len([one for one in rows if one.endswith("H")]),
+        " L": len([one for one in rows if one.endswith("L")]),
+    }
+    published = {
+        one["suffix"]: one["count"] for one in block["affix_variants"]
+    }
+    published[block["affix_suffix"]] = block["n_affixed"] - sum(
+        one["count"] for one in block["affix_variants"]
+    )
+    assert published == counted, (published, counted)
+    # ...and the quantity itself, which is the whole point.
+    assert block["percentiles"]["min"] == min(
+        float(one.replace(" H", "").replace(" L", "")) for one in rows
+    )
+    assert block["n_core_numeric"] == 200, block["n_core_numeric"]
+
+
+def test_the_twin_wears_the_wrappers_in_their_published_numbers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every wrapper's count is met, and the values are still values."""
+    rows = _flagged_rows()
+    document = _document(tmp_path, "flagged-twin", rows)
+    loaded = _loaded(tmp_path, document, "flagged-twin")
+    for seed in (0, 3, 11, 29):
+        twin = generation.generate(loaded, seed)
+        cells = [row[0] for row in twin.rows]
+        for suffix in (" H", " L"):
+            assert len(
+                [one for one in cells if one.endswith(suffix)]
+            ) == len(
+                [one for one in rows if one.endswith(suffix.strip())]
+            ), (seed, suffix)
+        # ...and the space between the number and its flag is THERE.
+        # It was not: the split put the space in the CORE, the value
+        # stage rewrote the core as a number, and `14.2 g/dL` came back
+        # `12.7g/dL` on every column of this role.
+        for one in cells:
+            if one.endswith(("H", "L")):
+                assert one[-2] == " ", one
+        # ...and every cell still reads as a number under its wrapper.
+        for one in cells:
+            core = one
+            for suffix in (" H", " L"):
+                if core.endswith(suffix):
+                    core = core[: -len(suffix)]
+            assert parsing.parse_number(core) is not None, one
+
+
+def test_the_space_before_a_unit_survives_the_twin(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A ONE-wrapper column too, which is where this was wrong first.
+
+    `affixed_split` takes the longest span that reads as a number and
+    `classify_number` trims its own argument, so `14.2 g/dL` split into
+    a core of `14.2 ` and a suffix of `g/dL`. The value stage rewrites
+    a core as a NUMBER and has no space to write, so every cell of
+    every column of this role lost the space before its unit.
+    """
+    draw = random.Random(5)
+    rows = [f"{round(draw.uniform(8, 18), 1)} g/dL" for _index in range(200)]
+    document = _document(tmp_path, "spaced", rows)
+    block = document["columns"][0]
+    assert block["affix_suffix"] == " g/dL", block["affix_suffix"]
+    loaded = _loaded(tmp_path, document, "spaced")
+    cells = [row[0] for row in generation.generate(loaded, 3).rows]
+    for one in cells:
+        assert one.endswith(" g/dL"), one
+
+
+def test_a_set_of_wrappers_that_differ_by_digits_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The guard against a split that cut through a number.
+
+    A column of feet and inches, `4'5"`, `5'11"` proposes one wrapper per inches
+    value -- prefix nothing, suffix `'5"` -- and a dozen of them clear
+    the floor and the ceiling together. The column then published a
+    ladder over the FEET of some cells and the inches of others: a
+    description saying something false, where before it said nothing.
+
+    A wrapper worn by ONE column may carry digits -- `mL/min/1.73m2` is
+    a real unit -- so the guard is asked only of a SET.
+    """
+    draw = random.Random(3)
+    rows = [
+        f"{draw.randint(4, 6)}'{draw.randint(0, 11)}\""
+        for _index in range(200)
+    ]
+    document = _document(tmp_path, "feet-and-inches", rows)
+    assert document["columns"][0]["role"] != "affixed_number", (
+        document["columns"][0]["role"]
+    )
+
+
+def test_a_wrapper_too_rare_to_publish_leaves_stragglers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A wrapper worn by fewer cells than may be named is not published.
+
+    Its cells are STRAGGLERS -- the population this role already has
+    and already writes -- so the set rule needs no held-back pool of
+    its own.
+    """
+    draw = random.Random(7)
+    rows = (
+        [f"{round(draw.uniform(8, 18), 1)}" for _index in range(120)]
+        + [f"{round(draw.uniform(8, 18), 1)} H" for _index in range(78)]
+        + ["9.9 CRITICAL", "10.1 CRITICAL"]
+    )
+    draw.shuffle(rows)
+    path = fixtures.write(
+        tmp_path, "rare.csv", fixtures.single_column_table("v", rows)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{path}"),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+    )
+    block = document["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    worn = [(block["affix_prefix"], block["affix_suffix"])] + [
+        (one["prefix"], one["suffix"]) for one in block["affix_variants"]
+    ]
+    assert (" ", "CRITICAL") not in worn and ("", " CRITICAL") not in worn, worn
+    assert block["n_affixed"] == 198, block["n_affixed"]
