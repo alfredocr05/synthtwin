@@ -5524,9 +5524,31 @@ takes a slot outside every barred BIN instead.
   **It is a REPORT question and not a data question:** no count, no
   cell and no published fact moves either way.
 
-- **R-P4-151 — OPEN (opened 2026-09-04 by review round 3 of landing
-  L8, item 4).** A COMPOUND COLUMN THAT SITS ON THE DETECTION LINE HAS
-  A TWIN THAT RE-DESCRIBES AS ANOTHER ROLE.
+- **R-P4-151 — CLOSED 2026-09-04 by amendment A-P4-55, as the owner's
+  answer said it might be** ("fold it into A-P4-55 and re-measure").
+  A COMPOUND COLUMN THAT SITS ON THE DETECTION LINE HAD A TWIN THAT
+  RE-DESCRIBED AS ANOTHER ROLE.
+
+  **THE RE-MEASUREMENT** is
+  `tools/measurements/r_p4_151_detection_line.py`, run on this tree and
+  on the commit before A-P4-55: **40 of 40 seeds keep the role at every
+  count that reaches it**, against 31 of 40 at the line before. A
+  second construction — a skewed half where two values carry more than
+  half the cells and the rest are near-singletons, which is the shape
+  R-P4-40's shortfall bites hardest — keeps it at every seed too.
+
+  **AND THE RESIDUAL'S OWN TEXT WAS WRONG ABOUT THE LINE**, which the
+  re-measurement found and is recorded because a later reader would
+  otherwise inherit it. It says the numeric half sits on "the detection
+  line", meaning the long-tail line of eleven. Rule 7b also refuses a
+  half whose count of different numbers is at or below the CATEGORICAL
+  CEILING — thirty on a table of three hundred rows — so a half holding
+  eleven different numbers never reaches this role at all, and the
+  counts worth measuring are the ones just above the ceiling. The
+  original table below was taken against the line the residual named
+  rather than the line the rule uses.
+
+  **THE ORIGINAL MEASUREMENT, kept for the record:**
 
   **The measurement.** A numeric half holding exactly the detection
   line's worth of different numbers, beside a handful of markers, over
