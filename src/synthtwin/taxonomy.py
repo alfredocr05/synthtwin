@@ -7316,6 +7316,13 @@ class _Affixed:
     # and they are counted rather than listed: nothing of a straggler
     # is published.
     cores: "list[str]"
+    # WHICH WRAPPER EACH OF THOSE CORES WORE, in the same order (plan
+    # P4-D37). The cores were a flat list until that ruling, so nothing
+    # downstream could tell a kilogram from a pound: one ladder was
+    # read over all of them and published as the column's own. Every
+    # wrapper carries its own numbers now, and this is what lets them
+    # be read apart.
+    wrappers: "list[tuple[str, str]]"
     n_affixed: int
 
 
@@ -7610,6 +7617,7 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
     prefix, suffix = pair
     worn = {key: 1 for key in speaking}
     cores: "list[str]" = []
+    wrappers: "list[tuple[str, str]]" = []
     counts: "dict[tuple[str, str], int]" = {}
     for text in present:
         trimmed = parsing.trimmed(text)
@@ -7624,7 +7632,40 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
             # nothing between the two sides for a number to be.
             continue
         cores = cores + [core]
+        # ...AND WHICH WRAPPER IT WORE (plan P4-D37), kept beside it so
+        # the blocks below can be read one wrapper at a time.
+        wrappers = wrappers + [chosen]
         counts[chosen] = counts[chosen] + 1 if chosen in counts else 1
+    # A WRAPPER IS FILTERED ON WHAT WEARS IT, NOT ON WHAT PROPOSED IT
+    # (found while building plan P4-D37). `speaking` holds the wrappers
+    # that cleared the floor at PROPOSAL -- pass one, over the cells
+    # that read as a number wearing them -- and the count published is
+    # the count that WEARS them, which is a different population and
+    # can be far smaller. A column of `$1` to `$99` beside eleven cells
+    # spelled `1` and one spelled `7`, with `1` DECLARED a hole,
+    # proposes the bare wrapper twelve times and is worn by it ONCE:
+    # the eleven holes are not present cells. The bare wrapper was
+    # published with the count 1, which is a group of one named in a
+    # description under a floor of eleven.
+    #
+    # So the floor is applied again here, where the published count
+    # exists, and a wrapper that fails it is not published at all: its
+    # cells become STRAGGLERS, which is the population this role
+    # already has and already writes.
+    kept: "dict[tuple[str, str], int]" = {}
+    for key in counts:
+        if key == pair or counts[key] >= settings.small_cell_floor:
+            kept[key] = counts[key]
+    if len(kept) != len(counts):
+        held: "list[str]" = []
+        wearing: "list[tuple[str, str]]" = []
+        for place in range(len(cores)):
+            if wrappers[place] in kept:
+                held = held + [cores[place]]
+                wearing = wearing + [wrappers[place]]
+        cores = held
+        wrappers = wearing
+        counts = kept
     n_affixed = len(cores)
     variants: "list[tuple[str, str, int]]" = []
     for key in sorted(counts):
@@ -7643,6 +7684,7 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
         suffix=suffix,
         variants=variants,
         cores=cores,
+        wrappers=wrappers,
         n_affixed=n_affixed,
     )
 
@@ -7967,6 +8009,119 @@ def _is_an_address(side: str) -> bool:
     return True
 
 
+def _variant_blocks(
+    affixed: _Affixed, cells: _Cells
+) -> "list[dict[str, object]]":
+    """Every wrapper beside the commonest, with its own numbers (P4-D37).
+
+    FOUR CLASS COUNTS PER WRAPPER, and they are not decoration. The
+    block beside them is loaded the way any block of a subset is, and a
+    loader cannot check a block without knowing how many of the cores
+    under it read as numbers, how many are numerals this format cannot
+    hold, how many contradict themselves and how many are not numbers
+    at all. The column's own four are the sums; each wrapper's four
+    close on its own count, exactly as AF4 closes the column's on
+    `n_affixed`.
+
+    Guarantees: accepts the column's affixed reading and the cells it
+    was read from; returns one entry per wrapper beside the commonest,
+    in the order those wrappers were published. Determinism: a function
+    of those inputs. Raises nothing this module does not raise for any
+    tally. No I/O of any kind.
+    """
+    blocks: "list[dict[str, object]]" = []
+    for prefix, suffix, count in affixed.variants:
+        tally = _wrapper_tally(affixed, (prefix, suffix), cells)
+        looking = _numeric_looking(tally)
+        blocks = blocks + [
+            {
+                "prefix": prefix,
+                "suffix": suffix,
+                "count": count,
+                "n_core_numeric": len(tally.numbers),
+                "n_core_out_of_range": tally.n_out_of_range,
+                "n_core_contradictory": tally.n_contradictory,
+                "n_core_not_numeric": tally.n_not_numeric,
+                # ...AND HOW MANY DIFFERENT CORES THIS WRAPPER HOLDS.
+                # The generator lays each wrapper's cores out from its
+                # own block now, and a layout is divided by a count of
+                # different things: handed the COLUMN's count, a
+                # wrapper worn by fifty cells was asked for the
+                # spellings of two hundred.
+                "n_core_distinct": tally.raw_distinct,
+                "n_core_distinct_folded": len(tally.folded_counts),
+                "numbers": _numeric_details(
+                    tally, tally.n_whole == looking and looking > 0
+                ),
+            }
+        ]
+    return blocks
+
+
+def _wrapper_details(
+    affixed: _Affixed,
+    wrapper: "tuple[str, str]",
+    cells: _Cells,
+) -> "dict[str, object]":
+    """The quantitative block of ONE wrapper, over its own cores.
+
+    PLAN P4-D37, AND THE MEASUREMENTS THAT RULED IT IN. One block over
+    every core of a column wearing a SET is a statistic of no quantity
+    where the wrappers are units -- a hundred weights written `60.0 kg`
+    to `69.9 kg` beside a hundred written `132.0 lb` to `153.8 lb`
+    published mean 103.92, an average of nothing, with the column's
+    ends running from 60 to 153.8 -- and a wrong one where a wrapper
+    marks a different population: 240 readings written to one figure
+    beside sixty markers reading `note 0.0` to `note 59.0` published
+    mean 17.46, where the readings alone average 14.45.
+
+    THE BLOCK ANSWERS FOR ITS OWN WRAPPER AND SAYS SO IN ITS OWN ROW
+    COUNT. `_numeric_details` reads every population key off the tally
+    it is handed, so a tally built over one wrapper's cores, with that
+    wrapper's count as its row count, yields a block whose
+    `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share`
+    and echoed `n_rows` are all that wrapper's. That is the arrangement
+    a JOINED column's positions already have, word for word: a block
+    describing a subset of a column's cells answers for that subset.
+
+    Guarantees: accepts the column's affixed reading, one wrapper of
+    it, and the cells it was read from; returns that wrapper's block.
+    Determinism: a function of those inputs; the cores are taken in row
+    order. Raises nothing this module does not raise for any tally. No
+    I/O of any kind.
+    """
+    tally = _wrapper_tally(affixed, wrapper, cells)
+    looking = _numeric_looking(tally)
+    return _numeric_details(
+        tally, tally.n_whole == looking and looking > 0
+    )
+
+
+def _wrapper_tally(
+    affixed: _Affixed,
+    wrapper: "tuple[str, str]",
+    cells: _Cells,
+) -> _Cells:
+    """The cores ONE wrapper's cells hold, classified (plan P4-D37).
+
+    ONE TALLY, TWO READERS. The block above is read off it and so are
+    the four class counts beside that block, because a wrapper's cores
+    are classified once and a second pass over the same cells is a
+    second answer waiting to differ from the first.
+
+    Guarantees: accepts the column's affixed reading, one wrapper of
+    it, and the cells it was read from; returns the tally of that
+    wrapper's cores, in row order, with that wrapper's own count as its
+    row count. Determinism: a function of those inputs. Raises nothing
+    this module does not raise for any tally. No I/O of any kind.
+    """
+    worn: "list[str]" = []
+    for place in range(len(affixed.cores)):
+        if affixed.wrappers[place] == wrapper:
+            worn = worn + [affixed.cores[place]]
+    return _tally(_classify_all(worn), len(worn), cells.settings)
+
+
 def _affixed_verdict(
     cells: _Cells,
     affixed: _Affixed,
@@ -7995,20 +8150,58 @@ def _affixed_verdict(
     # `whole_everywhere` over the CORES, on the same test the numeric
     # roles use over their cells.
     core_looking = _numeric_looking(core_cells)
-    whole_everywhere = (
-        core_cells.n_whole == core_looking and core_looking > 0
-    )
-    details = _numeric_details(core_cells, whole_everywhere)
+    # THE COLUMN'S OWN QUANTITATIVE BLOCK IS THE COMMONEST WRAPPER'S
+    # (plan P4-D37). It was read over ALL the cores, and on a column
+    # wearing a SET that is a statistic of no quantity: a hundred
+    # weights in kilograms beside a hundred in pounds published mean
+    # 103.92, an average of nothing, presented as the column's own.
+    # Every published wrapper carries its own numbers now, this block
+    # is the commonest wrapper's, and each of the others is beside its
+    # own entry.
+    #
+    # A COLUMN WEARING ONE WRAPPER IS UNTOUCHED, which is the point of
+    # writing it this way round: its commonest wrapper is its only one,
+    # its cores are all of them, and `_cores_wearing` returns the same
+    # list `affixed.cores` already held.
     n_present = len(cells.present)
-    # The two keys whose population the core substitution does NOT
-    # reach. Version 4 defines them over PRESENT CELLS -- "how many
-    # present cells the statistics were computed from", "the share of
-    # present cells whose writer meant a number" -- so reading them
-    # over the cores would leave a straggler in NEITHER count and make
-    # both answer for a narrower population than their own published
-    # meaning.
-    details["n_left_out_of_statistics"] = n_present - n_core_numeric
-    details["numeric_share"] = _share(core_looking, n_present)
+    if not affixed.variants:
+        # ONE WRAPPER, AND EVERY LINE OF THIS BRANCH IS WHAT SHIPPED.
+        # Its commonest wrapper is its only one and its cores are all
+        # of them, so there is nothing to read apart and nothing here
+        # moves.
+        whole_everywhere = (
+            core_cells.n_whole == core_looking and core_looking > 0
+        )
+        details = _numeric_details(core_cells, whole_everywhere)
+        # The two keys whose population the core substitution does NOT
+        # reach. Version 4 defines them over PRESENT CELLS -- "how many
+        # present cells the statistics were computed from", "the share
+        # of present cells whose writer meant a number" -- so reading
+        # them over the cores would leave a straggler in NEITHER count
+        # and make both answer for a narrower population than their own
+        # published meaning.
+        details["n_left_out_of_statistics"] = n_present - n_core_numeric
+        details["numeric_share"] = _share(core_looking, n_present)
+        common_distinct = core_cells
+    else:
+        # A SET, SO THIS BLOCK IS THE COMMONEST WRAPPER'S AND ITS
+        # POPULATION KEYS ARE THAT WRAPPER'S TOO (plan P4-D37). Reading
+        # them over the whole column instead would leave the block
+        # saying its statistics were computed from two hundred cells
+        # and its ladder covering a hundred.
+        #
+        # This is the arrangement a JOINED column's positions already
+        # have, in the same words: a block describing a SUBSET of the
+        # column's cells answers for that subset, and echoes its count
+        # rather than the table's row count.
+        common = _wrapper_tally(
+            affixed, (affixed.prefix, affixed.suffix), cells
+        )
+        common_looking = _numeric_looking(common)
+        details = _numeric_details(
+            common, common.n_whole == common_looking and common_looking > 0
+        )
+        common_distinct = common
     details["affix_prefix"] = affixed.prefix
     details["affix_suffix"] = affixed.suffix
     # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36). A laboratory
@@ -8021,10 +8214,16 @@ def _affixed_verdict(
     # group size, and a wrapper worn by fewer cells than that is not
     # published: its cells are STRAGGLERS, which is the population
     # this role already has and already writes.
-    details["affix_variants"] = [
-        {"prefix": prefix, "suffix": suffix, "count": count}
-        for prefix, suffix, count in affixed.variants
-    ]
+    # ...AND EACH OF THEM CARRIES ITS OWN NUMBERS (plan P4-D37). One
+    # ladder over every core was a statistic of no quantity where the
+    # wrappers were units -- a hundred weights in kilograms beside a
+    # hundred in pounds published mean 103.92 -- and it was a wrong
+    # one where they were markers: 240 readings beside sixty `note N.0`
+    # cells published mean 17.46 where the readings alone average
+    # 14.45. Every wrapper is published only where its count clears the
+    # smallest group size, so every block below is read over at least
+    # that many cores and is governed by the floor like any other.
+    details["affix_variants"] = _variant_blocks(affixed, cells)
     details["n_affixed"] = affixed.n_affixed
     # HOW MANY DIFFERENT CORES, as distinct from how many different
     # CELLS (plan P4-D36). On a column wearing ONE wrapper the two are
@@ -8036,8 +8235,23 @@ def _affixed_verdict(
     # hundred different cores: the core stage was asked for 141
     # different cores, spent the leading-zero family reaching for them
     # and wrote `0011.9 H` where every real cell read `11.9 H`.
-    details["n_core_distinct"] = core_cells.raw_distinct
-    details["n_core_distinct_folded"] = len(core_cells.folded_counts)
+    # ...AND THEY ARE THE COMMONEST WRAPPER'S, LIKE THE BLOCK THEY
+    # BELONG TO (plan P4-D37). A count of different cores is the budget
+    # of core spellings ONE layout is laid out from, and each wrapper
+    # has its own layout now, so the column's pair belongs to the
+    # column's block -- which is the commonest wrapper's. Every other
+    # wrapper's pair is beside its own block. On a column wearing ONE
+    # wrapper the commonest is the only one and these are what they
+    # always were.
+    #
+    # The two counts CANNOT be left column-wide beside a per-wrapper
+    # block: a count of different things does not subtract, so a
+    # commonest wrapper's budget could not be recovered from the
+    # column's total and the wrappers' -- and a layout handed a total
+    # asks a wrapper worn by fifty cells for the spellings of two
+    # hundred.
+    details["n_core_distinct"] = common_distinct.raw_distinct
+    details["n_core_distinct_folded"] = len(common_distinct.folded_counts)
     details["n_core_numeric"] = n_core_numeric
     details["n_core_out_of_range"] = core_cells.n_out_of_range
     details["n_core_contradictory"] = core_cells.n_contradictory

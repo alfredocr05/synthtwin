@@ -5303,14 +5303,34 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     facts = column.facts
     if not isinstance(facts, contract.AffixedFacts):
         raise _wrong_facts(column.name)
+    # THE COMMONEST WRAPPER'S OWN POPULATION, AND NOT THE COLUMN'S
+    # (plan P4-D37). This block is that wrapper's, so the counts it is
+    # viewed through are that wrapper's: the column's totals less every
+    # other wrapper's. A column wearing ONE wrapper has nothing to
+    # subtract and is viewed exactly as it was.
+    worn_elsewhere = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    text_elsewhere = 0
+    for one in facts.affix_variants:
+        worn_elsewhere = worn_elsewhere + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
     return dataclasses.replace(
         column,
         statistical_type="continuous",
-        n_present=facts.n_affixed,
-        n_numeric=facts.n_core_numeric,
-        n_not_numeric=facts.n_core_not_numeric,
-        n_out_of_range=facts.n_core_out_of_range,
-        n_contradictory=facts.n_core_contradictory,
+        n_present=facts.n_affixed - worn_elsewhere,
+        n_numeric=facts.n_core_numeric - numeric_elsewhere,
+        n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
+        n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
+        n_contradictory=(
+            facts.n_core_contradictory - contradictory_elsewhere
+        ),
         # THE CORES' OWN COUNTS OF DIFFERENT SPELLINGS, and NOT the
         # column's (plan P4-D36). The layout spends these as a budget
         # of different core spellings; a column wearing three wrappers
@@ -5325,55 +5345,67 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     )
 
 
-def _wrapper_at(
-    facts: "contract.AffixedFacts", place: int, total: int
-) -> "tuple[str, str]":
-    """Which wrapper the cell at `place` wears (plan P4-D36).
+def _wrapper_view(
+    column: "contract.ColumnBlock", wrapper: "contract.AffixWrapper"
+) -> "contract.ColumnBlock":
+    """ONE wrapper of a set, as a numeric column of its own (P4-D37).
 
-    THE PUBLISHED COUNTS ARE MET AND THE WRAPPERS ARE INTERLEAVED, and
-    the second half of that is what the count of different CELLS needs.
-    The cores arrive in the order the value stage put them, so a core
-    that several cells share sits in a run: handing the wrappers out in
-    BLOCKS gives every cell of that run the same wrapper and makes one
-    cell out of them, while handing them out in turn makes as many
-    different cells as the run is long. Measured on a laboratory column
-    of 200 cells wearing three wrappers: in blocks the twin held 116
-    different cells against a published 141, and in turn it holds them.
+    The same trick `_core_view` plays for a column wearing one wrapper
+    and `_part_view` plays for one position of a joined column, and for
+    the same reason: the numeric machinery is written over ONE
+    population, and a column wearing a set has one per wrapper.
 
-    THE ORDER IS A FUNCTION OF THE DESCRIPTION ALONE -- the quotas and
-    the place -- so no randomness is spent on a fact nothing publishes,
-    and two implementations reading the same description write the same
-    cell in the same row.
-
-    Guarantees: accepts the facts, a place and the number of cells;
-    returns the wrapper that place wears. Determinism: a function of
-    those inputs. Raises nothing. No I/O of any kind.
+    WHY IT IS NOT THE COLUMN'S VIEW WITH A DIFFERENT COUNT. A wrapper's
+    cores are a population in their own right, so every count this view
+    carries is that wrapper's: its class counts, its counts of
+    different cores, and the block itself. Handed the column's, a
+    hundred pounds were laid out against a ladder running from sixty
+    kilograms to a hundred and fifty-three pounds, and the twin wrote a
+    pound where the source holds none.
     """
-    quotas: "list[tuple[int, str, str]]" = []
-    spoken = 0
-    for prefix, suffix, count in facts.affix_variants:
-        quotas = quotas + [(count, prefix, suffix)]
-        spoken = spoken + count
-    rest = total - spoken
-    if rest < 0:
-        rest = 0
-    quotas = quotas + [(rest, facts.affix_prefix, facts.affix_suffix)]
-    # THE LARGEST REMAINING QUOTA WINS AT EVERY STEP, which is what
-    # interleaves them. Walked from the front with a strict
-    # comparison, so a tie is broken by the order the description
-    # states the wrappers in and never by a dictionary's own order.
-    left = [one[0] for one in quotas]
-    for step in range(place + 1):
-        best = 0
-        for index in range(len(left)):
-            if left[index] > left[best]:
-                best = index
-        if left[best] <= 0:
-            return facts.affix_prefix, facts.affix_suffix
-        left[best] = left[best] - 1
-        if step == place:
-            return quotas[best][1], quotas[best][2]
-    return facts.affix_prefix, facts.affix_suffix
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=wrapper.count,
+        n_numeric=wrapper.n_core_numeric,
+        n_not_numeric=wrapper.n_core_not_numeric,
+        n_out_of_range=wrapper.n_core_out_of_range,
+        n_contradictory=wrapper.n_core_contradictory,
+        n_distinct=wrapper.n_core_distinct,
+        n_distinct_folded=wrapper.n_core_distinct_folded,
+        facts=wrapper.numbers,
+    )
+
+
+def _wrappers_of(
+    facts: "contract.AffixedFacts", column: "contract.ColumnBlock"
+) -> "list[tuple[tuple[str, str], contract.ColumnBlock, contract.NumericFacts]]":
+    """Every wrapper this column wears, each as a column of its own.
+
+    THE COMMONEST ONE FIRST AND THEN THE OTHERS IN THE ORDER THE
+    DESCRIPTION STATES THEM, so the cells a wrapper wears are a
+    function of the description and the seed alone.
+
+    A COLUMN WEARING ONE WRAPPER YIELDS EXACTLY THE VIEW IT ALWAYS
+    HAD -- `_core_view` -- because its commonest wrapper is its only
+    one and its cores are all of them.
+    """
+    walk: "list[tuple[tuple[str, str], contract.ColumnBlock, contract.NumericFacts]]" = [
+        (
+            (facts.affix_prefix, facts.affix_suffix),
+            _core_view(column),
+            facts.numbers,
+        )
+    ]
+    for one in facts.affix_variants:
+        walk = walk + [
+            (
+                (one.prefix, one.suffix),
+                _wrapper_view(column, one),
+                one.numbers,
+            )
+        ]
+    return walk
 
 
 def _position_notes(
@@ -6639,8 +6671,49 @@ def _affixed_content(
     facts = column.facts
     if not isinstance(facts, contract.AffixedFacts):
         raise _wrong_facts(column.name)
-    core_plan = dataclasses.replace(plan, column=_core_view(column))
-    cores, notes = _numeric_content(core_plan, words)
+    notes: "list[Deviation]" = []
+    cells: "list[str]" = []
+    if not facts.affix_variants:
+        # ONE WRAPPER, AND EVERY CELL WEARS IT. This branch is what
+        # shipped, to the line: the plan carries the layout, the cores
+        # are built from it, and the pair goes on afterwards.
+        core_plan = dataclasses.replace(plan, column=_core_view(column))
+        cores, notes = _numeric_content(core_plan, words)
+        for step in range(len(cores)):
+            cells = cells + [
+                f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
+            ]
+    else:
+        # A SET, SO EACH WRAPPER'S CELLS ARE BUILT FROM ITS OWN BLOCK
+        # (plan P4-D37). This is where that ruling is paid for. The
+        # cores were built from ONE block over every wrapper's numbers
+        # and the wrappers were handed out afterwards to meet their
+        # counts, so nothing tied a wrapper to the values it wore: `H`
+        # landed on a low reading, `L` on a high one, and a column of
+        # kilograms beside pounds had a kilogram written on a core of
+        # 150. Drawing each wrapper's cells from that wrapper's own
+        # ladder ties them by construction, and no order has to be
+        # arranged at all.
+        at = 0
+        for pair_view in _wrappers_of(facts, column):
+            wrapper_layout, layout_notes, wrapper_content = _numeric_layout(
+                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+            )
+            mine: "list[int]" = []
+            step = 0
+            while step < wrapper_content and at + step < len(words):
+                mine = mine + [words[at + step]]
+                step = step + 1
+            at = at + wrapper_content
+            wrapper_plan = dataclasses.replace(
+                plan, column=pair_view[1], layout=wrapper_layout
+            )
+            drawn, drawn_notes = _numeric_content(wrapper_plan, mine)
+            notes = notes + layout_notes + drawn_notes
+            for step in range(len(drawn)):
+                cells = cells + [
+                    f"{pair_view[0][0]}{drawn[step]}{pair_view[0][1]}"
+                ]
     # WHICH WRAPPER EACH CELL WEARS (plan P4-D36). Most columns of
     # this role wear ONE and every cell gets it. Where the description
     # names others, their published counts are honoured first, in the
@@ -6652,10 +6725,7 @@ def _affixed_content(
     # function of the description and the seed alone: the cores are
     # already in the order the value stage put them, and shuffling
     # them here would spend randomness on a fact nothing publishes.
-    cells: "list[str]" = []
-    for step in range(len(cores)):
-        prefix, suffix = _wrapper_at(facts, step, len(cores))
-        cells = cells + [f"{prefix}{cores[step]}{suffix}"]
+
     # THE STRAGGLERS: the cells wearing no pair. Their count is
     # `n_present - n_affixed`, and their CLASSES are published -- the
     # universal census counts cells, and an affixed cell is not a
@@ -17121,10 +17191,24 @@ def _plan_column(
         )
     elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
-        core = _core_view(column)
-        layout, notes, content = _numeric_layout(
-            core, facts.numbers, facts.numbers.n_distinct_values
-        )
+        #
+        # ONE LAYOUT PER WRAPPER once the column wears a SET (plan
+        # P4-D37), on the joined role's own arrangement above: the plan
+        # then holds none of its own and `_affixed_content` builds each
+        # where it builds that wrapper's numbers. What is settled here
+        # is the WORD BUDGET, which the capacity question needs before
+        # any cell exists, and it is the sum of what each wrapper will
+        # draw.
+        for pair_view in _wrappers_of(facts, column):
+            _each, each_notes, each_content = _numeric_layout(
+                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+            )
+            notes = notes + each_notes
+            content = content + each_content
+            if not facts.affix_variants:
+                # ONE WRAPPER, AND THE PLAN CARRIES ITS LAYOUT exactly
+                # as it did: nothing about such a column moves.
+                layout = _each
     elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts, None)
     elif isinstance(facts, contract.ClockFacts):
