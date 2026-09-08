@@ -1825,6 +1825,45 @@ class TextFacts:
 
 
 @dataclasses.dataclass(frozen=True)
+class AffixWrapper:
+    """One wrapper a column wears, with its own numbers (plan P4-D37).
+
+    A column wearing a SET of wrappers published ONE ladder over every
+    core it held, and that is a statistic of no quantity where the
+    wrappers are units: a hundred weights written `60.0 kg` to
+    `69.9 kg` beside a hundred written `132.0 lb` to `153.8 lb`
+    published mean 103.92, with the column's own ends running from 60
+    to 153.8. Every published wrapper carries its own block now.
+
+    THE FOUR CLASS COUNTS CLOSE ON `count`, exactly as the column's
+    four close on `n_affixed`. They are here rather than derived
+    because the block beside them cannot be checked without them: a
+    loader reading a block of a subset has to know how many of that
+    subset's cores read as numbers.
+
+    `numbers` echoes `count` rather than the table's row count, on the
+    joined role's own precedent -- a block describing a subset of a
+    column's cells answers for that subset.
+    """
+
+    prefix: str
+    suffix: str
+    count: int
+    n_core_numeric: int
+    n_core_out_of_range: int
+    n_core_contradictory: int
+    n_core_not_numeric: int
+    # HOW MANY DIFFERENT CORES THIS WRAPPER HOLDS. The generator lays
+    # each wrapper's cores out from its own block, and a layout is
+    # divided by a count of different things: handed the COLUMN's
+    # count, a wrapper worn by fifty cells is asked for the spellings
+    # of every core in the column.
+    n_core_distinct: int
+    n_core_distinct_folded: int
+    numbers: NumericFacts
+
+
+@dataclasses.dataclass(frozen=True)
 class AffixedFacts:
     """A column of numbers each wearing one shared piece of text.
 
@@ -1839,14 +1878,20 @@ class AffixedFacts:
     exception.
     """
 
+    # THE COMMONEST WRAPPER'S NUMBERS, AND NOT THE COLUMN'S (plan
+    # P4-D37). On a column wearing ONE wrapper those are the same
+    # thing, which is every column of this role until a set is worn.
+    # On a column wearing a SET they are not, and pooling them
+    # published a statistic of no quantity: a hundred weights in
+    # kilograms beside a hundred in pounds gave mean 103.92.
     numbers: NumericFacts
     affix_prefix: str
     affix_suffix: str
     # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36), each with the
-    # count of cells wearing it. Empty on a column wearing one wrapper,
-    # which is most of them, so a description written before this key
-    # existed reads the same way.
-    affix_variants: "tuple[tuple[str, str, int], ...]"
+    # count of cells wearing it AND ITS OWN NUMBERS (plan P4-D37).
+    # Empty on a column wearing one wrapper, which is most of them, so
+    # a description written before this key existed reads the same way.
+    affix_variants: "tuple[AffixWrapper, ...]"
     n_affixed: int
     # HOW MANY DIFFERENT CORES (plan P4-D36). The generator spends
     # these as its budget of different core SPELLINGS; the column's own
@@ -5805,11 +5850,29 @@ def _endpoint_offset(
     return found
 
 
+# EXACTLY THE KEYS ONE WRAPPER OF A SET CARRIES, AND NO OTHERS (plan
+# P4-D37). Without this an entry carried whatever a file put in it, and
+# the compound role's own sub-blocks were found holding text nothing in
+# this package ever reads.
+_WRAPPER_KEYS = (
+    "prefix",
+    "suffix",
+    "count",
+    "n_core_numeric",
+    "n_core_out_of_range",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+    "n_core_distinct",
+    "n_core_distinct_folded",
+    "numbers",
+)
+
+
 def _affix_variants(
     mapping: "dict[str, object]",
     where: str,
     frame: "_Frame",
-) -> "tuple[tuple[str, str, int], ...]":
+) -> "tuple[AffixWrapper, ...]":
     """The other wrappers a column of this role wears (AF9, P4-D36).
 
     A column wears ONE wrapper on most tables and a small SET of them
@@ -5841,7 +5904,7 @@ def _affix_variants(
         raise _wrong_type(
             "affix_variants", where, given, "a list of wrappers"
         )
-    found: "list[tuple[str, str, int]]" = []
+    found: "list[AffixWrapper]" = []
     last: "tuple[str, str] | None" = None
     for entry in given:
         if not isinstance(entry, dict):
@@ -5849,11 +5912,32 @@ def _affix_variants(
                 "affix_variants", where, entry,
                 "a wrapper with its two sides and its count",
             )
-        for key in ("prefix", "suffix", "count"):
+        for key in (
+            "prefix",
+            "suffix",
+            "count",
+            # ...AND ITS OWN FOUR CLASSES AND ITS OWN NUMBERS (plan
+            # P4-D37). A wrapper with no block is a wrapper whose cells
+            # nothing describes, which is the state this ruling ended.
+            "n_core_numeric",
+            "n_core_out_of_range",
+            "n_core_contradictory",
+            "n_core_not_numeric",
+            "n_core_distinct",
+            "n_core_distinct_folded",
+            "numbers",
+        ):
             if key not in entry:
                 raise _wrong_type(
                     "affix_variants", where, entry,
                     f"a wrapper carrying {key}",
+                )
+        for key in entry:
+            if key not in _WRAPPER_KEYS:
+                raise _wrong_type(
+                    "affix_variants", where, entry,
+                    "a wrapper carrying only the keys this format "
+                    "gives one",
                 )
         prefix = _text(entry["prefix"], "affix_variants", where)
         suffix = _text(entry["suffix"], "affix_variants", where)
@@ -5871,7 +5955,74 @@ def _affix_variants(
                 "the wrappers ascending, each named once",
             )
         last = pair
-        found = found + [(prefix, suffix, count)]
+        # AF11. THE WRAPPER'S FOUR CLASSES CLOSE ON ITS OWN COUNT,
+        # exactly as AF4 closes the column's four on `n_affixed`. A set
+        # of four that closes on something else describes a wrapper
+        # whose cells are in no class or in two.
+        classes: "list[int]" = []
+        for key in (
+            "n_core_numeric",
+            "n_core_out_of_range",
+            "n_core_contradictory",
+            "n_core_not_numeric",
+        ):
+            classes = classes + [
+                _bounded(
+                    entry[key], key, where, 0, count,
+                    "the number of cells wearing this wrapper",
+                )
+            ]
+        total = classes[0] + classes[1] + classes[2] + classes[3]
+        if total != count:
+            raise _out_of_range(
+                "affix_variants", where, f"a total of {total}",
+                f"a total of {count}, the number of cells wearing the "
+                f"wrapper {prefix!r}/{suffix!r}",
+            )
+        # AF13. A WRAPPER CANNOT HOLD MORE DIFFERENT CORES THAN IT HAS
+        # CELLS, and folding never separates two spellings that were
+        # the same.
+        wrapper_distinct = _bounded(
+            entry["n_core_distinct"], "n_core_distinct", where,
+            0, count, "the number of cells wearing this wrapper",
+        )
+        wrapper_folded = _bounded(
+            entry["n_core_distinct_folded"], "n_core_distinct_folded",
+            where, 0, wrapper_distinct,
+            "the raw count of different cores under this wrapper",
+        )
+        block = _mapping(entry["numbers"], "numbers", where)
+        _keys(
+            block, where, NUMERIC_KEYS,
+            f"the block for the wrapper {prefix!r}/{suffix!r}",
+        )
+        found = found + [
+            AffixWrapper(
+                prefix=prefix,
+                suffix=suffix,
+                count=count,
+                n_core_numeric=classes[0],
+                n_core_out_of_range=classes[1],
+                n_core_contradictory=classes[2],
+                n_core_not_numeric=classes[3],
+                n_core_distinct=wrapper_distinct,
+                n_core_distinct_folded=wrapper_folded,
+                numbers=_numeric_facts(
+                    block,
+                    f"{where}, the wrapper {prefix!r}/{suffix!r}",
+                    frame,
+                    count,
+                    classes[0],
+                    classes[1],
+                    classes[2],
+                    # THE ROW COUNT A WRAPPER'S BLOCK ECHOES IS ITS OWN
+                    # COUNT, on the joined role's precedent: a block
+                    # describing a SUBSET of the column's cells echoes
+                    # the count of that subset.
+                    echoes=count,
+                ),
+            )
+        ]
     return tuple(found)
 
 
@@ -7609,7 +7760,7 @@ def _affixed_facts(
         )
     carrying = bool(prefix) or bool(suffix)
     for one in variants:
-        if one[0] or one[1]:
+        if one.prefix or one.suffix:
             carrying = True
     if not carrying:
         raise _out_of_range(
@@ -7705,15 +7856,44 @@ def _affixed_facts(
             "many of them wore it, and says what to run if they "
             "are codes rather than measurements",
         )
+    # AF12. THE COMMONEST WRAPPER'S OWN POPULATION (plan P4-D37). The
+    # column's block is that wrapper's, so what it is checked against
+    # is that wrapper's counts: the column's totals less every other
+    # wrapper's. A column wearing ONE wrapper has nothing to subtract
+    # and is read exactly as it was, against the present cells and the
+    # table's row count.
+    worn_by_others = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    for one in variants:
+        worn_by_others = worn_by_others + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+    common_count = n_affixed - worn_by_others
+    if variants and common_count < frame.floor:
+        raise _out_of_range(
+            "affix_variants", where,
+            f"{worn_by_others} cell(s) wearing the other wrappers, "
+            f"leaving {common_count} for the one this block names",
+            f"at least {frame.floor} left for the commonest wrapper, "
+            "because it is published like any other and a wrapper "
+            "worn by fewer cells than may be named is not published "
+            "at all",
+        )
     return AffixedFacts(
         numbers=_numeric_facts(
             mapping,
             where,
             frame,
-            n_present,
-            core_numeric,
-            core_out_of_range,
-            core_contradictory,
+            n_present if not variants else common_count,
+            core_numeric - numeric_elsewhere,
+            core_out_of_range - out_elsewhere,
+            core_contradictory - contradictory_elsewhere,
+            echoes=None if not variants else common_count,
         ),
         affix_prefix=prefix,
         affix_variants=variants,

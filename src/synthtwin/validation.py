@@ -3714,8 +3714,25 @@ def _variant_set(
     return tuple(sorted(read))
 
 
+def _published_set(
+    facts: "contract.AffixedFacts",
+) -> "tuple[tuple[str, str, int], ...]":
+    """The wrapper set the DESCRIPTION states, in the shape it is compared in.
+
+    Sorted triples, so the comparison against what the measured file's
+    own description reads is a comparison of two sets and not of two
+    orders. The blocks each wrapper carries are checked one wrapper at
+    a time beside this; what this settles is that the file wears these
+    wrappers, these many times.
+    """
+    said: "list[tuple[str, str, int]]" = []
+    for one in facts.affix_variants:
+        said = said + [(one.prefix, one.suffix, one.count)]
+    return tuple(sorted(said))
+
+
 def _shown_variants(
-    published: "tuple[tuple[str, str, int], ...]"
+    published: "tuple[contract.AffixWrapper, ...]"
 ) -> str:
     """What the description asks for on the wrapper-set line.
 
@@ -7271,13 +7288,33 @@ def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
         return contract.compound_numbers_view(column)
     if not isinstance(facts, contract.AffixedFacts):
         return column
+    # THE COMMONEST WRAPPER'S OWN POPULATION, AND NOT THE COLUMN'S
+    # (plan P4-D37). This block is that wrapper's, so the counts it is
+    # viewed through are that wrapper's: the column's totals less every
+    # other wrapper's. A column wearing ONE wrapper has nothing to
+    # subtract and is viewed exactly as it was.
+    worn_elsewhere = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    text_elsewhere = 0
+    for one in facts.affix_variants:
+        worn_elsewhere = worn_elsewhere + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
     return dataclasses.replace(
         column,
-        n_present=facts.n_affixed,
-        n_numeric=facts.n_core_numeric,
-        n_not_numeric=facts.n_core_not_numeric,
-        n_out_of_range=facts.n_core_out_of_range,
-        n_contradictory=facts.n_core_contradictory,
+        n_present=facts.n_affixed - worn_elsewhere,
+        n_numeric=facts.n_core_numeric - numeric_elsewhere,
+        n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
+        n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
+        n_contradictory=(
+            facts.n_core_contradictory - contradictory_elsewhere
+        ),
         # AND THE COUNTS OF DIFFERENT THINGS ARE THE CORES' OWN (review
         # round 1 of the wrapper set, item 3). The two counts left here
         # were the CELLS', and once a column wears a set of wrappers
@@ -8202,8 +8239,9 @@ def _affixed_checks(
     # of `4.2 H` is read with ` H` off it and not with nothing.
     speaking: "list[tuple[str, str]]" = [(prefix, suffix)]
     for one in facts.affix_variants:
-        speaking = speaking + [(one[0], one[1])]
+        speaking = speaking + [(one.prefix, one.suffix)]
     cores: list[str] = []
+    worn: "list[tuple[str, str]]" = []
     for cell in cells:
         trimmed = parsing.trimmed(cell)
         chosen: "tuple[str, str] | None" = None
@@ -8229,6 +8267,13 @@ def _affixed_checks(
         core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
         if core:
             cores = cores + [core]
+            # ...AND WHICH WRAPPER IT WORE (plan P4-D37). Every
+            # published wrapper carries its own block now, so the
+            # recount is read one wrapper at a time: a style census
+            # published over a hundred kilograms, checked against a
+            # recount over two hundred cores, missed by the hundred
+            # pounds beside them.
+            worn = worn + [chosen]
     # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
     # recount of its cells under the published pair. The difference is
     # V5.1: this report may state about the measured file only what
@@ -8284,7 +8329,7 @@ def _affixed_checks(
             "affixed.affix_variants",
             "counts.affix_variants",
             _shown_variants(facts.affix_variants),
-            _variant_set(block) == tuple(sorted(facts.affix_variants)),
+            _variant_set(block) == _published_set(facts),
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
         if _variant_set(block) is not None
@@ -8440,8 +8485,20 @@ def _affixed_checks(
     # The CORE population, handed to the numeric checks as the column
     # its cores make -- so every quantitative obligation is measured by
     # the code that measures a plain numeric column.
+    #
+    # THE COMMONEST WRAPPER'S CORES, AND NOT EVERY CORE (plan P4-D37).
+    # The block this measures is that wrapper's, so the cells recounted
+    # against it are that wrapper's: a style census published over
+    # ninety-nine cores wearing `$`, recounted over the hundred cores
+    # the column holds, reported the spelling remainder MISSED on a
+    # twin that met it. On a column wearing ONE wrapper every core is
+    # the commonest wrapper's and this is the list it always was.
+    common_cores: "list[str]" = []
+    for step in range(len(cores)):
+        if worn[step] == (prefix, suffix):
+            common_cores = common_cores + [cores[step]]
     checks = checks + _numeric_checks(
-        column, facts.numbers, block, cores, floor, mine
+        column, facts.numbers, block, common_cores, floor, mine
     )
     return checks
 

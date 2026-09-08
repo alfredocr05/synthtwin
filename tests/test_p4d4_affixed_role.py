@@ -1162,6 +1162,92 @@ def test_a_column_whose_commonest_wrapper_is_BARE_describes_and_loads(
     assert "with others wearing text beside it" in said, said
 
 
+def test_two_units_are_never_averaged_into_one_number(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE WITNESS FOR P4-D37, and it is a number that should not exist.
+
+    A hundred weights written `60.0 kg` to `69.9 kg` beside a hundred
+    written `132.0 lb` to `153.8 lb` reached this role and published
+    ONE ladder over every core it held: **mean 103.92**, an average of
+    no quantity, with the column's ends running from 60 to 153.8. A
+    person reading that column's average read a number their table does
+    not hold, and code converting units against it was wrong in both
+    directions.
+
+    Every published wrapper carries its own numbers now, so what the
+    description states about kilograms is stated over kilograms.
+    """
+    draw = random.Random(5)
+    kilograms = [
+        f"{60 + draw.random() * 9.9:.1f} kg" for _index in range(100)
+    ]
+    pounds = [
+        f"{132 + draw.random() * 21.8:.1f} lb" for _index in range(100)
+    ]
+    block = _document(tmp_path, "weight", kilograms + pounds)["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    # THE COLUMN'S OWN BLOCK IS THE COMMONEST WRAPPER'S, so its ends
+    # are that wrapper's ends and not the two ranges laid end to end.
+    assert block["affix_suffix"] == " kg", block["affix_suffix"]
+    assert block["percentiles"]["min"] >= 60.0
+    assert block["percentiles"]["max"] <= 70.0
+    assert 60.0 <= block["mean"] <= 70.0, block["mean"]
+    # ...and the pounds are described as pounds, beside their wrapper.
+    assert len(block["affix_variants"]) == 1, block["affix_variants"]
+    other = block["affix_variants"][0]
+    assert other["suffix"] == " lb", other["suffix"]
+    assert other["count"] == 100, other["count"]
+    assert other["numbers"]["percentiles"]["min"] >= 132.0
+    assert other["numbers"]["percentiles"]["max"] <= 154.0
+    assert 132.0 <= other["numbers"]["mean"] <= 154.0, other["numbers"]["mean"]
+    # NO POOLED NUMBER SURVIVES ANYWHERE IN THE BLOCK: nothing in this
+    # column's description sits between the two ranges, which is where
+    # the average of the two used to be.
+    assert not 100.0 <= block["mean"] <= 110.0
+
+
+def test_the_twin_writes_each_wrapper_from_its_own_numbers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A flag lands on the values that carried it (plan P4-D37).
+
+    Nothing in the description said WHICH cores wore which wrapper, so
+    a twin meeting the published counts handed ` H` to a low reading
+    and ` L` to a high one -- and a person filtering the twin on its
+    abnormal flag met a population their own table does not hold. Each
+    wrapper's cells are drawn from that wrapper's own ladder now, so
+    the tie is made by construction rather than arranged afterwards.
+    """
+    draw = random.Random(41)
+    values = (
+        [f"{round(draw.uniform(9, 11), 1)}" for _index in range(120)]
+        + [f"{round(draw.uniform(13, 15), 1)} H" for _index in range(60)]
+        + [f"{round(draw.uniform(4, 5), 1)} L" for _index in range(60)]
+    )
+    loaded = _loaded(
+        tmp_path, _document(tmp_path, "hgb", values), "hgb"
+    )
+    for seed in (0, 3, 11):
+        twin = generation.generate(loaded, seed)
+        cells = [row[0] for row in twin.rows]
+        high: "list[float]" = []
+        low: "list[float]" = []
+        bare: "list[float]" = []
+        for cell in cells:
+            if cell.endswith(" H"):
+                high = high + [float(cell[:-2])]
+            elif cell.endswith(" L"):
+                low = low + [float(cell[:-2])]
+            else:
+                bare = bare + [float(cell)]
+        assert len(high) == 60 and len(low) == 60 and len(bare) == 120
+        # THE FLAGGED VALUES ARE WHERE THEIR FLAG SAYS, at every seed.
+        assert min(high) >= 12.5, (seed, min(high))
+        assert max(low) <= 5.5, (seed, max(low))
+        assert 8.5 <= min(bare) and max(bare) <= 11.5, (seed, min(bare), max(bare))
+
+
 def test_a_file_wearing_the_wrappers_in_OTHER_numbers_misses(
     tmp_path: pathlib.Path,
 ) -> None:

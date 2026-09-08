@@ -967,6 +967,25 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "affix_variants", _EACH, "prefix"): _AFFIX,
     ("columns", _EACH, "affix_variants", _EACH, "suffix"): _AFFIX,
     ("columns", _EACH, "affix_variants", _EACH, "count"): _COUNT,
+    # THE FOUR CLASSES OF ONE WRAPPER'S CORES (plan P4-D37), which
+    # close on that wrapper's own count exactly as the column's four
+    # close on `n_affixed`. The block beside them cannot be loaded
+    # without them: a loader checking a block of a subset has to know
+    # how many of its cores read as numbers.
+    ("columns", _EACH, "affix_variants", _EACH, "n_core_numeric"): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_out_of_range"
+    ): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_contradictory"
+    ): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_not_numeric"
+    ): _COUNT,
+    ("columns", _EACH, "affix_variants", _EACH, "n_core_distinct"): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_distinct_folded"
+    ): _COUNT,
     ("columns", _EACH, "n_affixed"): _COUNT,
     # ...and how many different CORES the cells carry (plan P4-D36),
     # which is not how many different cells they are once a column
@@ -1134,9 +1153,32 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
     return built
 
 
+def _wrapper_rules() -> "dict[tuple[str, ...], str]":
+    """The block each wrapper of a SET carries (plan P4-D37).
+
+    DERIVED FROM THE BLOCK IT IS, for the reason the compound role's
+    two sub-blocks are derived rather than written out: a wrapper's
+    numbers are built by the same code that builds one POSITION of a
+    joined column -- `_numeric_details` over a tally of that wrapper's
+    own cores -- so the paths under it are the paths under `parts[]`,
+    and a second copy of them would be a second list to keep in step.
+
+    The one written out here is the container itself, because nothing
+    above states it.
+    """
+    numeric_prefix = ("columns", _EACH, "parts", _EACH)
+    under = ("columns", _EACH, "affix_variants", _EACH, "numbers")
+    built: "dict[tuple[str, ...], str]" = {under: _OBJECT}
+    for path in _STATED_RULES:
+        if path[: len(numeric_prefix)] == numeric_prefix:
+            built[under + path[len(numeric_prefix):]] = _STATED_RULES[path]
+    return built
+
+
 PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     **_STATED_RULES,
     **_compound_rules(),
+    **_wrapper_rules(),
 }
 
 # For every path whose rule is `_WORD`, the WHOLE of what may stand
@@ -1220,6 +1262,18 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
 
 PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     **_STATED_WORDS,
+    # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
+    # P4-D37), read off a joined position's for the reason the rules
+    # under it are: a wrapper's numbers are built by the code that
+    # builds a position's, so the words its maps admit are the same
+    # words, and a second list of them is a second thing to keep in
+    # step.
+    **{
+        ("columns", _EACH, "affix_variants", _EACH, "numbers") + path[4:]:
+            _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if path[:4] == ("columns", _EACH, "parts", _EACH)
+    },
     # THE SAME VOCABULARIES INSIDE A COMPOUND COLUMN'S TWO HALVES, read
     # off the ones above for the same reason the rules are: a style map
     # inside `numbers` may hold exactly what a style map holds anywhere
