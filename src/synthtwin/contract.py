@@ -5855,8 +5855,7 @@ def _affix_variants(
                 "affix_variants", where,
                 f"the wrapper {prefix!r}/{suffix!r} after "
                 f"{last[0]!r}/{last[1]!r}",
-                "wrappers in ascending order of their own text, each "
-                "named once",
+                "the wrappers ascending, each named once",
             )
         last = pair
         found = found + [(prefix, suffix, count)]

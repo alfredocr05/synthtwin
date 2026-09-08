@@ -369,33 +369,39 @@ def test_removal_over_the_cores_does_not_hand_the_column_to_an_earlier_rule(
 def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The reviewer's scenario, ANSWERED rather than reported (P4-D36).
+    """The reviewer's scenario, and what P4-D36's guard costs.
 
-    Ninety-eight cells wearing one wrapper and two wearing another. The
-    reviewer's concern was that publishing a distribution over the
-    dollars would treat every euro as a straggler -- describing part of
-    a column and dropping the rest -- so the rule declined and the
-    column's owner was owed a sentence saying how far the reading got.
+    Ninety-eight cells wearing one wrapper and two wearing another. No
+    single wrapper clears the line, so this column declines and its
+    owner is owed the count the closest reading reached.
 
-    A column may wear a SET of wrappers now, so both are published and
-    all hundred values are described. The sentence is still owed by the
-    columns that DO decline, which the test below it holds.
+    A column may wear a SET of wrappers since plan P4-D36 -- but every
+    wrapper of a set must STAND APART from the number it wraps, and
+    `EUR99` writes its letters flush against the digits. That guard is
+    what keeps a set of code schemes from being read as a quantity, and
+    a currency written without a space is what it costs. The column is free
+    text here as it was before, so nothing anybody had is lost, and the
+    sentence saying how far the reading got is still owed and still
+    given.
     """
     values = [f"${index}" for index in range(1, 99)]
     values = values + ["EUR99", "EUR100"]
     document = _document(tmp_path / "two-pairs", "price", values)
     column = document["columns"][0]
-    assert column["role"] == "affixed_number", column["role"]
-    assert column["affix_prefix"] == "$", column["affix_prefix"]
-    assert [
-        (one["prefix"], one["suffix"], one["count"])
-        for one in column["affix_variants"]
-    ] == [("EUR", "", 2)], column["affix_variants"]
-    assert column["n_affixed"] == 100, column["n_affixed"]
-    # ...and every one of the hundred values is in the ladder, which is
-    # what the old reading dropped.
-    assert column["percentiles"]["min"] == 1.0
-    assert column["percentiles"]["max"] == 100.0
+    assert column["role"] == "free_text", column["role"]
+    said = " ".join(column["remarks"])
+    assert "98 of its values are numbers wearing one shared piece of text" in (
+        said
+    ), said
+    assert "which is the reading that came closest" in said
+    # ...and the same column with a SPACE between the currency and the
+    # number IS read, which is what says the guard is about the flush
+    # letters and not about the set.
+    spaced = [f"$ {index}" for index in range(1, 99)] + ["EUR 99", "EUR 100"]
+    apart = _document(tmp_path / "two-spaced", "price", spaced)
+    assert apart["columns"][0]["role"] == "affixed_number", (
+        apart["columns"][0]["role"]
+    )
 
 
 def test_a_column_no_pair_reaches_says_so_with_a_count_of_none(
@@ -589,15 +595,30 @@ def test_no_affix_of_the_measured_file_reaches_the_report() -> None:
     outcome = validation.measure(described, f"{other}")
     report = parsing.visible_lines(quality.quality_report(described, outcome))
     assert "SECRET" not in report
+    # THE TWO SPELLINGS, NAMED RATHER THAN MATCHED BY PREFIX. The set
+    # of wrappers (plan P4-D36) put a THIRD `counts.affix` subcheck
+    # beside these two, and a filter written over the shared first word
+    # took it in and read `0 == ""` as a report that had leaked. That
+    # entry is a COUNT of other wrappers, not a spelling of anybody's
+    # file, so V5.4 does not reach it and it is asserted below on its
+    # own terms.
     pair = [
         check
         for check in outcome.checks
-        if check.subcheck.startswith("counts.affix")
+        if check.subcheck
+        in ("counts.affix_prefix", "counts.affix_suffix")
     ]
     assert len(pair) == 2
     for check in pair:
         assert check.verdict == validation.MISSED
         assert check.achieved == ""
+    variants = [
+        check
+        for check in outcome.checks
+        if check.subcheck == "counts.affix_variants"
+    ]
+    assert len(variants) == 1
+    assert variants[0].achieved == "0"
 
 
 def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:

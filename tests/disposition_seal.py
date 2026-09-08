@@ -2154,6 +2154,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "af40c10e5586a4a8",
         "af430450819b3248",
         "af54dbd98af45f3c",
+        "b0188ed6925b2747",
         "b0b1dd018816259a",
         "b0dbb4ef94a1324c",
         "b0e810286929032a",
@@ -5160,6 +5161,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "9495e6893ac8ee76",
         "949da0731b872bda",
         "94a171a2d6f2bcc9",
+        "94cf4703c739bb1b",
         "94df30abc1ed0b51",
         "94f0ed255d43fe17",
         "94fe1402f09df868",
@@ -6042,7 +6044,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "f9e03518fbaa0d78",
         "fa3e6e3cbd355dad",
         "fa70b134dad23ad6",
-        "fa98e7866db897c9",
         "fab6e9991e3d1975",
         "fad54e95f5ff9962",
         "fae06733cf8cc204",
@@ -7320,7 +7321,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
 COUNTED: "dict[str, int]" = {
     "docs/plans/phase-2-generator.md": 173,
     "docs/plans/phase-3-product.md": 702,
-    "docs/plans/phase-4-columns.md": 1849,
+    "docs/plans/phase-4-columns.md": 1850,
     "docs/spec/profile-contract-v4.md": 966,
     "docs/spec/profile-contract-v5.md": 319,
     "docs/spec/profile-contract-v6.md": 2423,
@@ -7331,7 +7332,7 @@ COUNTED: "dict[str, int]" = {
 # The registry's own judgment, in the surfaces
 # `dispositions.judgment` separates.
 JUDGMENT: "dict[str, str]" = {
-    "authorizations": "67971a454368e208",
+    "authorizations": "feb364d9c4bbdcae",
     "bindings": "150cd17f28c3bf51",
     "classes": "59d0f2839ac6a0c2",
     "reports": "8726c800d2c56eee",

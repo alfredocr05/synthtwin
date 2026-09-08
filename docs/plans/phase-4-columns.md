@@ -8784,6 +8784,20 @@ cores: the core stage was asked for 141, spent the leading-zero family
 reaching for them and wrote `0011.9 H` where every real cell read
 `11.9 H`.
 
+Both counts are EXACT-OBSERVABLE, and both fall to the SAME ENVELOPE
+the column's own counts of different cells fall to. The cores are
+handed to the numeric block as a column in their own right, so the way
+a core column reaches a count of different values is the way any
+numeric column reaches one: the published spellings first, and then
+falling back to the two-sided envelope only where even those cannot
+supply the count. Holding the cores to the exact bar while the cells
+beside them had the envelope is not a stricter description, it is an
+inconsistent one — measured on the 240 record numbers of the every-role
+table, each five digits behind an `R`: the published spellings supply
+one identity, the twin holds 235 of the 240, and one run reported that
+one shortfall as an authorized deviation on the column's own count and
+as a MISS on the cores' count directly beneath it.
+
 **A DEFECT THIS FOUND ON THE WAY, and it was not new.** The split
 takes the longest span that reads as a number and the number reader
 trims its own argument, so `14.2 g/dL` split into a core of `14.2 `

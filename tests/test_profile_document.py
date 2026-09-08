@@ -280,8 +280,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # and no spelling of any column moved, and the TWIN's own digest in
 # tests/test_twin_golden.py did not move at all -- so the value stage
 # reading the new fact wrote the same cells it wrote from the bins.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_SHA256 = (
-    "4d2639fbb0ae72ab59cbffe2679348de5a01008eccbdb5e93c1aaf12e3d7b673"
+    "6907f320817040d3ff57fdaf36ce0f63e47d9f830d45f415484cd77b3986ab22"
 )
 
 
