@@ -4476,7 +4476,7 @@ def _where(said: str, part: str) -> int:
 def _affix_clause(prefix: str, suffix: str) -> str:
     """The clause the required remark writes about THIS block's pair.
 
-    Three shapes, because one side is usually empty and a sentence
+    Four shapes, because one side is usually empty and a sentence
     saying "written as nothing, a number, then 'mg'" describes a shape
     no cell has. Built from the block's OWN two spellings, so a remark
     holding this clause names the pair the block publishes, character
@@ -4485,12 +4485,25 @@ def _affix_clause(prefix: str, suffix: str) -> str:
     publishing `$` accepted a remark saying `'kg' followed by a
     number`, a required warning that misdescribes the column it warns
     about.
+
+    AND THE FOURTH IS THE BARE WRAPPER (plan P4-D36), which a column
+    wearing a SET may publish as its commonest: most laboratory results
+    carry no abnormal flag, so on the shape that landing was written
+    for, the wrapper worn by most cells is no text at all. With three
+    shapes this clause read `written as a number followed by ''`, the
+    producer's own sentence read the same, and THIS LOADER REFUSED THE
+    PRODUCER'S OWN DOCUMENT -- `synthtwin profile` wrote a file
+    `synthtwin generate` would not take. The sentence must stay
+    character-for-character the one `taxonomy._affix_shape` renders,
+    which is what `tests/test_p4d4_affixed_role.py` holds it to.
     """
     if prefix and suffix:
         return f"written as '{prefix}', a number, then '{suffix}'"
     if prefix:
         return f"written as '{prefix}' followed by a number"
-    return f"written as a number followed by '{suffix}'"
+    if suffix:
+        return f"written as a number followed by '{suffix}'"
+    return "written as a number, with others wearing text beside it"
 
 
 def _is_the_affixed_remark(

@@ -3661,25 +3661,76 @@ def _column_at(
     return block
 
 
-def _variant_count(block: "dict[str, object]") -> "int | None":
-    """How many other wrappers the measured file's own description reads.
+def _variant_set(
+    block: "dict[str, object]",
+) -> "tuple[tuple[str, str, int], ...] | None":
+    """The other wrappers the measured file's own description reads.
 
-    A COUNT AND NOT THE SPELLINGS. V5.4 is unconditional that no text
-    from a measured file reaches this report, and a wrapper is text;
-    what a reader is owed here is whether the file wears as many of
-    them as the description says.
+    THE WHOLE SET, SPELLINGS AND COUNTS, and it was the COUNT of them
+    until review round 1 of the wrapper set's landing (item 2). A
+    description publishing fifty `H` and fifty `L` checked against a
+    file holding eighty and twenty reads two wrappers on both sides,
+    and comparing the two twos reported an EXACT obligation HELD on a
+    file that does not meet it.
 
-    Guarantees: accepts a re-described block; returns the number of
-    wrappers beside the commonest, or None where the block reads no
-    affixed fact at all. Determinism: a function of the mapping.
-    Raises nothing. No I/O of any kind.
+    Nothing read here is PRINTED. The set is returned to the one caller
+    that compares it, that caller reports the outcome alone, and the
+    sentence beside a MISS says the measured side is kept back because
+    it is text of the file.
+
+    Guarantees: accepts a re-described block; returns the wrappers
+    beside the commonest as `(prefix, suffix, count)` triples in sorted
+    order, or None where the block reads no affixed fact at all -- and
+    None again where any entry is not of that shape, because a set this
+    module cannot read is not a set it may call equal. Determinism: a
+    function of the mapping. Raises nothing. No I/O of any kind.
     """
     if "affix_variants" not in block:
         return None
     given = block["affix_variants"]
     if not isinstance(given, list):
         return None
-    return len(given)
+    read: list[tuple[str, str, int]] = []
+    for entry in given:
+        if not isinstance(entry, dict):
+            return None
+        # READ BY SUBSCRIPT AND NOT BY `get`. The offline audit accepts
+        # no method call on a value it cannot trace, and an entry of
+        # this list is whatever the re-description put there; `in` and
+        # `[]` are operators, so the same three reads are made without
+        # calling anything the caller could have defined.
+        if "prefix" not in entry or "suffix" not in entry:
+            return None
+        if "count" not in entry:
+            return None
+        front = entry["prefix"]
+        behind = entry["suffix"]
+        many = entry["count"]
+        if not isinstance(front, str) or not isinstance(behind, str):
+            return None
+        if not isinstance(many, int) or isinstance(many, bool):
+            return None
+        read = read + [(front, behind, many)]
+    return tuple(sorted(read))
+
+
+def _shown_variants(
+    published: "tuple[tuple[str, str, int], ...]"
+) -> str:
+    """What the description asks for on the wrapper-set line.
+
+    The COUNT and what is being compared, and not the spellings: the
+    published wrappers are the description's own text and printing them
+    would be permitted, but the measured side beside them may never be
+    printed, and a line showing one side's spellings and withholding
+    the other's invites a reader to read the difference as the answer.
+    """
+    if not published:
+        return "no other wrapper"
+    return (
+        f"{len(published)} other wrapper(s), each with its published "
+        f"spelling and its published count"
+    )
 
 
 def _wears_the_wrapper(text: str, prefix: str, suffix: str) -> bool:
@@ -7227,6 +7278,19 @@ def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
         n_not_numeric=facts.n_core_not_numeric,
         n_out_of_range=facts.n_core_out_of_range,
         n_contradictory=facts.n_core_contradictory,
+        # AND THE COUNTS OF DIFFERENT THINGS ARE THE CORES' OWN (review
+        # round 1 of the wrapper set, item 3). The two counts left here
+        # were the CELLS', and once a column wears a set of wrappers
+        # those are a different number: three hundred cells made of a
+        # hundred cores under three wrappers publish three hundred
+        # different cells and a hundred different cores. Every G12.8
+        # supply and ceiling this view is handed to was then drawn for
+        # a core mechanism that can reach a hundred and told it might
+        # reach three hundred -- a ceiling three times the truth, so a
+        # file holding two hundred core identities could miss nothing.
+        # The counts the core rules mean are the ones they are handed.
+        n_distinct=facts.n_core_distinct,
+        n_distinct_folded=facts.n_core_distinct_folded,
         facts=facts.numbers,
     )
 
@@ -8197,22 +8261,40 @@ def _affixed_checks(
     # construction. A file whose description reads no affix at all
     # carries no such key, and the sentence below says that rather than
     # comparing against a spelling nothing wrote.
-    # THE OTHER WRAPPERS, AS A COUNT AND NOT AS SPELLINGS (plan
-    # P4-D36). How MANY wrappers the file's own description reads is a
-    # count, and V5.4 forbids a spelling of a measured file reaching
-    # this report under any verdict -- so the two sides of each
-    # wrapper are settled by the same route the pair above takes,
-    # against what the file's own description read off it, and what is
-    # compared here is the number of them.
+    # THE OTHER WRAPPERS, COMPARED IN FULL AND REPORTED AS A VERDICT
+    # (plan P4-D36; review round 1 of this landing, item 2). The first
+    # writing compared how MANY of them the file's own description
+    # reads and nothing else, while the sentence beside it claimed each
+    # wrapper's two sides were settled the way the commonest pair's
+    # are. They were not, and the obligation is stated EXACT: a
+    # description publishing a hundred bare cells, fifty `H` and fifty
+    # `L`, checked against a file holding a hundred bare, eighty `H`
+    # and twenty `L` -- same cores, same numbers, same count of other
+    # wrappers -- was reported HELD, and a person filtering the twin on
+    # its flag met a population the description does not describe.
+    #
+    # SO THE WHOLE SET IS COMPARED AND ONLY THE VERDICT IS PRINTED.
+    # V5.4 is unconditional that no text read out of a measured file
+    # reaches this report, and a wrapper is text, so the measured side
+    # is kept back exactly as the commonest pair's is; what a reader is
+    # shown is what the DESCRIPTION asks for, which is its own.
     checks = checks + [
-        _exact(
+        _silent(
             name,
             "affixed.affix_variants",
             "counts.affix_variants",
-            f"{len(facts.affix_variants)}",
-            _shown_count_or_none(
-                _variant_count(block)
-            ),
+            _shown_variants(facts.affix_variants),
+            _variant_set(block) == tuple(sorted(facts.affix_variants)),
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+        if _variant_set(block) is not None
+        else _silent(
+            name,
+            "affixed.affix_variants",
+            "counts.affix_variants",
+            _shown_variants(facts.affix_variants),
+            None,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
     ]
     # ...AND THE TWO COUNTS OF DIFFERENT CORES (plan P4-D36), UNDER
@@ -8230,6 +8312,10 @@ def _affixed_checks(
     # column's own `n_distinct` is a listing nothing written in a CSV
     # can settle, and a twin holding 235 of the 240 was reported
     # AUTHORIZED there and MISSED here, on one column, in one run.
+    # THE BAR IS DRAWN OVER THE CORES, NOT OVER THE CELLS. `_core_column`
+    # is the view every other core rule is handed, and the supply and
+    # ceiling these two counts are bracketed by are core supplies.
+    cores_as_column = _core_column(column)
     for field, stated, under in (
         ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
         (
@@ -8240,7 +8326,9 @@ def _affixed_checks(
     ):
         counted = _count_at(block, field)
         corner = _distinct_corner(facts, mine, under)
-        if corner and _envelope_admits_every_count(column, facts, stated):
+        if corner and _envelope_admits_every_count(
+            cores_as_column, facts, stated
+        ):
             # V3.4 FORBIDS A SUBCHECK THAT CANNOT FAIL, and this
             # envelope's low end is one core: the bar would admit every
             # count a file of this length can hold. `_corner_listings`
@@ -8257,7 +8345,7 @@ def _affixed_checks(
                     stated,
                     counted,
                     corner,
-                    column,
+                    cores_as_column,
                 )
             ]
             continue
@@ -12648,6 +12736,7 @@ def _corner_listings(
         # CSV settles -- so the two halves of that one decision are
         # written from one rule, and a dropped core count cannot go
         # uncounted.
+        cores_as_column = _core_column(column)
         for field, published, under in (
             ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
             (
@@ -12659,7 +12748,9 @@ def _corner_listings(
             corner = _distinct_corner(facts, mine, under)
             if not corner or corner == CORNER_IDENTIFIER_INFEASIBLE:
                 continue
-            if not _envelope_admits_every_count(column, facts, published):
+            if not _envelope_admits_every_count(
+                cores_as_column, facts, published
+            ):
                 continue
             listings = listings + [
                 Listing(

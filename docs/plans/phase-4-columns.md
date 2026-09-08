@@ -8814,6 +8814,88 @@ the spaces are there, and `synthtwin validate` misses only
 residuals R-P4-154 and R-P4-139 that every numeric column of this
 shape misses.
 
+### P4-D37 EVERY WRAPPER CARRIES ITS OWN NUMBERS (owner ruling 2026-09-08)
+
+**What P4-D36 got wrong, measured before this was written.** A column
+wearing a SET of wrappers published ONE quantitative block over ALL its
+cores. On the shape that decision was written for — a laboratory value
+beside its abnormal flag — pooling is right: `13.5 H`, `4.2 L` and
+`9.8` are one measurement and one scale. On the shape beside it in the
+same table it is not. A hundred weights written `60.0 kg` to `69.9 kg`
+beside a hundred written `132.0 lb` to `153.8 lb` reached the role and
+published **mean 103.92, minimum 60, maximum 153.8** — a mean of no
+quantity, over numbers that are not comparable, presented as the
+column's own. The twin built from it then handed `kg` to a core of 150
+and `lb` to a core of 61.
+
+The same pooling reaches a second way. Two hundred and forty readings
+written to one figure, beside sixty markers reading `note 0.0` to
+`note 59.0`, published **mean 17.46** where the readings alone average
+**14.45**: the markers' sequence numbers were in the ladder, the mean
+and the histogram of a column they are not values of.
+
+And a third: nothing in the description says WHICH cores wore which
+wrapper, so a twin meeting the published counts hands `H` to a low
+reading and `L` to a high one. A person filtering the twin on its flag
+meets a population their own table does not hold.
+
+**The owner ruled on 2026-09-08 that every published wrapper carries
+its own numbers.** Not a guard that refuses the unsafe sets, and not a
+declaration that asks the person to tell one case from the other:
+either would leave a column described by a statistic of nothing. The
+role is given the shape the JOINED role already has, where each
+position carries a quantitative block read over that position's own
+numbers.
+
+**The shape, in five rules.**
+
+1. **Each published wrapper carries a quantitative block over ITS OWN
+   cores** — its own ladder, its own mean and spread, its own spelling
+   census, its own histogram. A wrapper is published only where its
+   count clears the smallest group size, so every such block is read
+   over at least that many cores and is governed by the floor exactly
+   as any other block is.
+2. **The commonest wrapper's block is the block the role already
+   published.** `affix_prefix`, `affix_suffix` and the column's
+   `numbers` are its. A column wearing ONE wrapper is therefore
+   described character for character as it is today: its only wrapper
+   is its commonest one, and that wrapper's cores are all of them.
+3. **`affix_variants` gains a block per entry**, beside the two
+   spellings and the count already there.
+4. **The counts that are counts stay whole.** `n_affixed` and the four
+   `n_core_*` classes answer for every counted cell, and AF4 still
+   closes them on `n_affixed`. A count of how many cores are numbers is
+   true whatever scale those numbers are on, so nothing is gained by
+   cutting it up and a partition a reader can check is lost.
+   `n_core_distinct` and `n_core_distinct_folded` likewise stay over
+   all the cores: they are the budget of core SPELLINGS the generator
+   spends, and it spends one budget.
+5. **The twin writes each wrapper's cells from that wrapper's own
+   block.** This is where the ruling is paid for: `H` lands on the
+   values `H` had, `kg` never lands on a pound, and the order the
+   wrappers are handed out in stops being a fact anybody has to
+   arrange, because the wrapper and its numbers arrive together.
+
+**What this does NOT publish, said plainly.** There is no pooled
+ladder, mean or histogram over the whole column once it wears more than
+one wrapper, and that is deliberate: such a number is either the same
+as the parts (where the wrappers share a scale) or a statistic of
+nothing (where they do not), and the description cannot tell which. A
+consumer who wants the whole column's shape on a column whose wrappers
+share a scale can read the blocks; a consumer who wants it on a column
+of kilograms and pounds is asking for a number that does not exist.
+
+**AND THE BARE WRAPPER MAY BE THE COMMONEST ONE, which broke the
+loader.** Most laboratory results carry no abnormal flag, so on the
+shape this role was widened FOR, the wrapper worn by most cells is no
+text at all. The sentence every column of this role carries had three
+shapes, all written when a pair could not be empty, and it rendered
+`written as a number followed by ''`; the loader holds the same shapes
+and refused the sentence its own producer had just written. A fourth
+shape says what is true of such a column — a number, with others
+wearing text beside it — and `synthtwin profile` no longer writes a
+file `synthtwin generate` will not take.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free
