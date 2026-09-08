@@ -1547,8 +1547,20 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED 2026-09-08 for review round 1 of that same landing, item
+# 2, and the census was COUNTED on both sides before this moved: 1371
+# obligations, 1309 HELD, 62 WITHIN-BOUND, 0 MISSED and 145 NOT
+# CHECKABLE, identical before and after. What moved is TWO LINES, both
+# of them `counts.affix_variants` on a column wearing ONE wrapper. That
+# check compared how MANY other wrappers the file wears, which is a
+# check a file wearing the same number of DIFFERENT ones passes; it
+# compares the whole set now -- each wrapper's two spellings and its
+# count -- and reports the outcome alone, because a wrapper is text of
+# the measured file and V5.4 keeps that back. So the line's published
+# side reads `no other wrapper` where it read `0`, and its measured
+# side is no longer printed.
 GOLDEN_QUALITY_SHA256 = (
-    "4810f90453f72064a963e4267503edb279a82649bb91c44636449621412f0457"
+    "d555d27019cacda49cf912239fac396b02547ac079e3bef9a3926fe896a316f2"
 )
 
 

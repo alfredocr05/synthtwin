@@ -1121,9 +1121,21 @@ def _affix_shape(
 ) -> str:
     """The clause describing how a cell of an affixed column is written.
 
-    Three shapes, because one of the two sides is usually empty and a
+    Four shapes, because one of the two sides is usually empty and a
     sentence that said "written as nothing, a number, then 'mg'" would
     be describing a shape no cell has.
+
+    AND THE FOURTH IS THE BARE WRAPPER, WHICH MAY BE THE COMMONEST ONE
+    (plan P4-D36). It was three shapes until this landing, when the
+    wrapper worn by no text at all became a member of the vocabulary --
+    and on the shape this role was widened FOR it is usually the
+    commonest, because most laboratory results carry no abnormal flag.
+    A column of two hundred readings, a hundred of them bare, fifty
+    ` H` and fifty ` L`, then rendered `written as a number followed by
+    ''`, and the loader -- which holds the same shapes and cannot
+    import this module -- refused its own producer's document. A
+    documented command wrote a file the next command would not take,
+    which is the defect amendment A-P3-11 exists to keep closed.
     """
     prefix = _affix(arguments, prefix_place)
     suffix = _affix(arguments, suffix_place)
@@ -1131,7 +1143,9 @@ def _affix_shape(
         return f"written as {prefix}, a number, then {suffix}"
     if prefix:
         return f"written as {prefix} followed by a number"
-    return f"written as a number followed by {suffix}"
+    if suffix:
+        return f"written as a number followed by {suffix}"
+    return "written as a number, with others wearing text beside it"
 
 
 def _said(arguments: "tuple[object, ...]", place: int) -> str:
@@ -3565,10 +3579,22 @@ def affixed_split(text: str) -> "tuple[str, str, str] | None":
     # Moving the space into the wrapper is the whole repair: the core
     # still reads as the same number, and the wrapper is the text the
     # twin writes back character for character.
-    while core and core[:1] in " \t":
+    #
+    # WHICH CHARACTERS ARE SPACE IS ASKED OF `parsing.trimmed`, and the
+    # first writing of this repair listed two of them instead (review
+    # round 1 of this landing, item 7). `_core_character` above admits
+    # WHATEVER kind of whitespace that function admits -- which is the
+    # only way the splitter and the classifier can agree about where a
+    # number begins -- so a repair that knew about the plain space and
+    # the tab and nothing else left the others where they were:
+    # `14.2<no-break space>g/dL` split into a core of `14.2<no-break
+    # space>` and the value stage wrote the space away again, which is
+    # the very defect this loop exists to close. One question, one
+    # answer, asked of the one function that gives it.
+    while core and parsing.trimmed(core[:1]) == "":
         prefix = prefix + core[:1]
         core = core[1:]
-    while core and core[-1:] in " \t":
+    while core and parsing.trimmed(core[-1:]) == "":
         suffix = core[-1:] + suffix
         core = core[:-1]
     if not core:

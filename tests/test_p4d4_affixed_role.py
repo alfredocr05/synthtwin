@@ -618,7 +618,10 @@ def test_no_affix_of_the_measured_file_reaches_the_report() -> None:
         if check.subcheck == "counts.affix_variants"
     ]
     assert len(variants) == 1
-    assert variants[0].achieved == "0"
+    # THE SET IS COMPARED IN FULL AND ITS MEASURED SIDE IS KEPT BACK
+    # too, for the reason the pair's is: a wrapper is text of the file
+    # (review round 1, item 2).
+    assert variants[0].achieved == ""
 
 
 def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
@@ -1111,6 +1114,109 @@ def test_a_column_wearing_three_wrappers_is_a_quantity(
         float(one.replace(" H", "").replace(" L", "")) for one in rows
     )
     assert block["n_core_numeric"] == 200, block["n_core_numeric"]
+
+
+def test_a_column_whose_commonest_wrapper_is_BARE_describes_and_loads(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`profile` may not write a file `generate` refuses (amendment A-P3-11).
+
+    THE SHAPE THE WRAPPER SET WAS WIDENED FOR HITS THIS ON ITS FIRST
+    RUN. Most laboratory results carry no abnormal flag, so on a column
+    of readings beside ` H` and ` L` the wrapper worn by MOST cells is
+    no text at all -- and the bare wrapper became a member of the
+    vocabulary in this landing. The sentence every column of this role
+    carries had three shapes, all of them written when a pair could not
+    be empty, so it rendered `written as a number followed by ''`; the
+    loader holds the same three shapes and cannot import the module
+    that renders them, so it refused the sentence its own producer had
+    just written. `synthtwin profile` exited 0 and wrote both files,
+    and `synthtwin generate` would not take them.
+    """
+    draw = random.Random(41)
+    cores = [f"{round(draw.uniform(8, 18), 1)}" for _index in range(200)]
+    values = [
+        f"{core}{wrapper}"
+        for core, wrapper in zip(
+            cores, [""] * 100 + [" H"] * 50 + [" L"] * 50
+        )
+    ]
+    document = _document(tmp_path, "unflagged-mostly", values)
+    block = document["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    # THE COMMONEST WRAPPER IS THE BARE ONE, which is the premise.
+    assert block["affix_prefix"] == "", block["affix_prefix"]
+    assert block["affix_suffix"] == "", block["affix_suffix"]
+    assert sorted(
+        (one["suffix"], one["count"]) for one in block["affix_variants"]
+    ) == [(" H", 50), (" L", 50)], block["affix_variants"]
+    # ...and the document its own loader takes, which is the obligation.
+    loaded = _loaded(tmp_path, document, "unflagged-mostly")
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.AffixedFacts)
+    assert facts.n_affixed == 200
+    # THE SENTENCE SAYS SOMETHING TRUE OF THE COLUMN, and not that its
+    # cells are followed by nothing.
+    said = document["columns"][0]["remarks"][0]
+    assert "followed by ''" not in said, said
+    assert "with others wearing text beside it" in said, said
+
+
+def test_a_file_wearing_the_wrappers_in_OTHER_numbers_misses(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The wrapper set is an EXACT obligation, so its counts are checked.
+
+    REVIEW ROUND 1 OF THIS LANDING, ITEM 2. The validator compared how
+    MANY other wrappers the checked file wears and nothing else, while
+    the sentence beside it said each wrapper's two sides were settled
+    the way the commonest pair's are. A description publishing a
+    hundred bare readings, fifty ` H` and fifty ` L`, checked against a
+    file holding a hundred bare, EIGHTY ` H` and TWENTY ` L` -- the
+    same numbers, the same cores, two other wrappers on both sides --
+    was reported HELD, and a person filtering that file on its flag met
+    a population the description does not describe.
+    """
+    draw = random.Random(23)
+    cores = [f"{round(draw.uniform(8, 18), 1)}" for _index in range(200)]
+    described = _loaded(
+        tmp_path,
+        _document(
+            tmp_path,
+            "flags-fifty",
+            [
+                f"{core}{wrapper}"
+                for core, wrapper in zip(
+                    cores, [""] * 100 + [" H"] * 50 + [" L"] * 50
+                )
+            ],
+        ),
+        "flags-fifty",
+    )
+    other = fixtures.write(
+        tmp_path,
+        "flags-eighty.csv",
+        fixtures.single_column_table(
+            "flags-fifty",
+            [
+                f"{core}{wrapper}"
+                for core, wrapper in zip(
+                    cores, [""] * 100 + [" H"] * 80 + [" L"] * 20
+                )
+            ],
+        ),
+    )
+    outcome = validation.measure(described, f"{other}")
+    settled = [
+        check
+        for check in outcome.checks
+        if check.subcheck == "counts.affix_variants"
+    ]
+    assert len(settled) == 1, settled
+    assert settled[0].verdict == validation.MISSED, settled[0]
+    # ...AND THE MEASURED SIDE IS STILL KEPT BACK, because a wrapper is
+    # text of the file and V5.4 does not bend for a MISS.
+    assert settled[0].achieved == ""
 
 
 def test_the_twin_wears_the_wrappers_in_their_published_numbers(
