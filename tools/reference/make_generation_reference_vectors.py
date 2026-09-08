@@ -6938,6 +6938,15 @@ def _affixed_brackets():
         n_affixed=12, n_core_numeric=12, n_core_not_numeric=0,
         n_core_out_of_range=0, n_core_contradictory=0,
         affix_prefix="[", affix_suffix="]",
+        # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36), and it
+        # wears none: every cell of this case carries the same pair,
+        # which is the ordinary shape of this role.  The key is
+        # present and empty because this format has no optional keys.
+        affix_variants=[],
+        # ...and how many DIFFERENT cores the cells carry.  On a column
+        # wearing one wrapper this is the count of different cells, and
+        # every cell of this case carries a different number.
+        n_core_distinct=12, n_core_distinct_folded=12,
         percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
@@ -7562,6 +7571,8 @@ INTEGER_COLUMN_KEYS = frozenset({
     # how many cells wore the pair, and the four class counts read over
     # the CORES rather than over the cells.
     "n_affixed", "n_core_numeric", "n_core_not_numeric",
+    # ...and how many DIFFERENT cores the cells carry (plan P4-D36).
+    "n_core_distinct", "n_core_distinct_folded",
     "n_core_out_of_range", "n_core_contradictory",
     # The joined role's own whole numbers (contract 6.13, method
     # G6B.1): how many positions, and how many cells split that way.

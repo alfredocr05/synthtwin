@@ -2027,10 +2027,81 @@ def _pair_perturbations(
         if rows[row][index]:
             front[row][index] = f"x{rows[row][index]}"
             behind[row][index] = f"{rows[row][index]}x"
+    # ONE MORE WRAPPER, worn by enough cells to be published (plan
+    # P4-D36). A column may wear a SET of wrappers, so a file wearing
+    # one more than the description names is a file that misses
+    # `affix_variants` -- and the cells that take it keep their cores,
+    # so nothing else about them moves.
+    varied = _rows_of(twin)
+    worn = 0
+    for row in range(first, len(varied)):
+        if worn >= described.settings.small_cell_floor * 3:
+            break
+        cell = varied[row][index].strip()
+        if not cell.startswith(prefix) or not cell.endswith(suffix):
+            continue
+        core = cell[len(prefix) : len(cell) - len(suffix)]
+        if not core:
+            continue
+        # THE SECOND WRAPPER IS THE FIRST WITH A LETTER ON IT, so it
+        # is one word and stands apart exactly as the first does --
+        # the two rules plan P4-D36 asks of a SET. A wrapper that
+        # broke either of them would change the file's ROLE, and a
+        # perturbation that changes the role tests the role axis
+        # rather than the count it names.
+        if suffix:
+            varied[row][index] = f"{prefix}{core}{suffix}z"
+        elif prefix:
+            varied[row][index] = f"z{prefix}{core}"
+        else:
+            varied[row][index] = f"{core} z"
+        worn = worn + 1
+    # FEWER DIFFERENT CORES, by writing one core into every cell that
+    # wears the pair. The count of different cores is the budget the
+    # twin's core stage is laid out from, and a file holding one core
+    # where the description names many misses it.
+    same = _rows_of(twin)
+    # FEWER CORES, NOT ONE AND NOT THREE. Writing one core into every
+    # cell makes the column CONSTANT and writing three makes it a set
+    # of CATEGORIES; a perturbation that changes the role tests the
+    # role axis rather than the count it names. A count well above the
+    # categorical ceiling and well below what the description
+    # publishes keeps the role and moves the count.
+    keeping: list[str] = []
+    for row in range(first, len(same)):
+        cell = same[row][index].strip()
+        if not cell.startswith(prefix) or not cell.endswith(suffix):
+            continue
+        core = cell[len(prefix) : len(cell) - len(suffix)]
+        if not core:
+            continue
+        if len(keeping) < 60 and core not in keeping:
+            keeping = keeping + [core]
+    kept = "" if not keeping else keeping[0]
+    place = 0
+    for row in range(first, len(same)):
+        cell = same[row][index].strip()
+        if not cell.startswith(prefix) or not cell.endswith(suffix):
+            continue
+        core = cell[len(prefix) : len(cell) - len(suffix)]
+        if not core or not keeping:
+            continue
+        same[row][index] = (
+            f"{prefix}{keeping[place % len(keeping)]}{suffix}"
+        )
+        place = place + 1
     built: list[tuple[str, str, "str | bytes"]] = [
         (f"prefixed-{name}", CLASS_SPELLING, _rebuilt(front)),
         (f"suffixed-{name}", CLASS_SPELLING, _rebuilt(behind)),
     ]
+    if worn:
+        built = built + [
+            (f"varied-{name}", CLASS_SPELLING, _rebuilt(varied))
+        ]
+    if kept:
+        built = built + [
+            (f"one-cored-{name}", CLASS_SPELLING, _rebuilt(same))
+        ]
     if taken:
         built = built + [
             (f"unaffixed-{name}", CLASS_SPELLING, _rebuilt(stripped))
@@ -3539,6 +3610,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-dose", "counts.n_affixed"),
             ("prefixed-dose", "counts.affix_prefix"),
             ("suffixed-dose", "counts.affix_suffix"),
+            # ...and the wrapper SET and the core counts (P4-D36).
+            ("varied-dose", "counts.affix_variants"),
+            ("one-cored-dose", "counts.n_core_distinct"),
+            ("one-cored-dose", "counts.n_core_distinct_folded"),
             ("one-worded-dose", "counts.n_core_numeric"),
             ("marked-dose", "counts.n_core_out_of_range"),
             ("marked-dose", "counts.n_core_contradictory"),
@@ -5039,6 +5114,13 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "counts.affix_prefix"): "affixed.affix_prefix",
     ("numeric", "counts.affix_suffix"): "affixed.affix_suffix",
     ("numeric", "counts.n_affixed"): "affixed.n_affixed",
+    # ...and the wrapper SET beside it (plan P4-D36), with the two
+    # counts of different CORES the twin's core stage is laid out
+    # from.
+    ("numeric", "counts.affix_variants"): "affixed.affix_variants",
+    ("numeric", "counts.n_core_distinct"): "affixed.n_core_distinct",
+    ("numeric", "counts.n_core_distinct_folded"):
+        "affixed.n_core_distinct_folded",
     ("numeric", "counts.n_core_contradictory"): "affixed.n_core_contradictory",
     ("numeric", "counts.n_core_not_numeric"): "affixed.n_core_not_numeric",
     ("numeric", "counts.n_core_numeric"): "affixed.n_core_numeric",

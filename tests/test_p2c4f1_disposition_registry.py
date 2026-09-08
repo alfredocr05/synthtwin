@@ -1077,8 +1077,19 @@ def _numeric_classes(
 # carrying its own class and its own reason, with no conditional
 # clause and no prose that reaches any other row. The head prose is
 # untouched.
+#
+# MOVED AGAIN 2026-09-08, IN THE SAME LANDING, and this move LOWERS
+# nothing: the row for the two counts of different CORES now names the
+# envelope its own first clause already gave it. It read
+# "EXACT-OBSERVABLE, on the same terms as the column's own two counts
+# of different cells", the column's own counts fall to G12.8's
+# two-sided envelope, and the code held the cores to the exact bar
+# instead -- so one column reported one shortfall as an authorized
+# deviation on the cells and a MISS on the cores. The row now says
+# which terms those are, in the words the registry's authorization
+# rests on. No other row is touched and the head prose is untouched.
 AFFIXED_REGION_DIGEST = (
-    "6133315b5e641bfe106aecf55914944d16a068e973f0ec6b811527bee2a0ad8a"
+    "cfd7462595d96e5b9d112a896288e017ece0805999dfd8f922524cf20398c5de"
 )
 
 

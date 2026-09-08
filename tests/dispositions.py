@@ -918,6 +918,15 @@ REGISTRY += [
         plan_words="TWO COUNTS OF DIFFERENT CORES",
         plan_region="affix-set",
         aliases=("different cores",),
+        # UNDER THE ENVELOPE THE COLUMN'S OWN COUNTS FALL TO. The core
+        # stage IS the numeric one, so a shortfall the published
+        # spellings cannot avoid is authorized here exactly where it is
+        # authorized there -- and on a column wearing ONE wrapper the
+        # two are one shortfall measured twice. A first writing gave
+        # the cores the exact bar and the cells the envelope, and 235
+        # of 240 record numbers was reported AUTHORIZED on one line and
+        # MISSED on the next.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
     ),
     Fact(
         "affixed",
@@ -926,6 +935,7 @@ REGISTRY += [
         plan_words="TWO COUNTS OF DIFFERENT CORES",
         plan_region="affix-set",
         aliases=("different cores folded",),
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
     ),
 ]
 REGISTRY += [
@@ -1520,6 +1530,23 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ),
     ("compound", "n_numeric_distinct_folded", _ENVELOPE_SAID): (
         "compound",
+        APPROXIMATED,
+    ),
+    # ...and the same fallback on the affixed role's two counts of
+    # different CORES, for the reason the compound role's four have it:
+    # the block those cores are handed to IS a numeric block, so the
+    # shortfall its own published spellings cannot avoid is authorized
+    # here exactly where it is authorized there. On a column wearing
+    # one wrapper the core counts and the cell counts are one shortfall
+    # measured twice, and giving one the envelope and the other the
+    # exact bar reported 235 of 240 as authorized and as a miss in the
+    # same run.
+    ("affixed", "n_core_distinct", _ENVELOPE_SAID): (
+        "affix-set",
+        APPROXIMATED,
+    ),
+    ("affixed", "n_core_distinct_folded", _ENVELOPE_SAID): (
+        "affix-set",
         APPROXIMATED,
     ),
     # ...and the same fallback on a column of labels, in the paragraph

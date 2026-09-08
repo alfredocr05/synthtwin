@@ -19,6 +19,7 @@
       "column": {
         "affix_prefix": "[",
         "affix_suffix": "]",
+        "affix_variants": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
@@ -53,6 +54,8 @@
         "n_affixed": 12,
         "n_contradictory": 0,
         "n_core_contradictory": 0,
+        "n_core_distinct": 12,
+        "n_core_distinct_folded": 12,
         "n_core_not_numeric": 0,
         "n_core_numeric": 12,
         "n_core_out_of_range": 0,

@@ -157,6 +157,17 @@ LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT, EMPTY_EDGE_FACT)
 # must come back character for character, which is what says nothing
 # ELSE moved in the landing that added it.
 VALUE_COUNT_SUBCHECK = "distinct.n_distinct_values"
+# ...and the THREE checks plan P4-D36 added, set aside on the same
+# doctrine (2026-09-05). A column may wear a SET of wrappers now, so
+# the affixed role carries a count of them and two counts of different
+# CORES; the demonstration's `dose` column wears one wrapper, so all
+# three are held and none of them is a shortfall. Re-recording 416 as
+# 419 would retire the only thing this baseline buys.
+AFFIX_SET_SUBCHECKS = (
+    "counts.affix_variants",
+    "counts.n_core_distinct",
+    "counts.n_core_distinct_folded",
+)
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -197,7 +208,7 @@ NARROW_COLUMN_DIGESTS = {
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
-    "dose": "25d2ba15a194061e09be2bbf1d43912d",
+    "dose": "2ae37c8ee2b559405bcf24a3fe6ab5e0",
     "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -239,10 +250,28 @@ def test_widening_the_demonstration_lost_no_obligation(
     # added or dropped without this moving.
     # The new subcheck's own lines set aside, so the frozen baseline
     # below is the run it was frozen against (amendment A-P4-55).
-    counted = [
-        entry for entry in checks if VALUE_COUNT_SUBCHECK not in entry
-    ]
+    def _since(entry: str) -> bool:
+        """Whether this line belongs to a check added since the freeze."""
+        if VALUE_COUNT_SUBCHECK in entry:
+            return True
+        for one in AFFIX_SET_SUBCHECKS:
+            if one in entry:
+                return True
+        return False
+
+    counted = [entry for entry in checks if not _since(entry)]
     added = [entry for entry in checks if VALUE_COUNT_SUBCHECK in entry]
+    # ...and the wrapper set's own three, named rather than counted:
+    # the demonstration has ONE affixed column and it wears one
+    # wrapper, so all three are on that column and nowhere else.
+    wrapped = [
+        entry
+        for entry in checks
+        if any(one in entry for one in AFFIX_SET_SUBCHECKS)
+    ]
+    assert sorted(entry.split("|")[0] for entry in wrapped) == [
+        "dose", "dose", "dose",
+    ], wrapped
     assert len(counted) == WIDE_CHECK_COUNT, len(counted)
     # ...and the four the new obligation adds are the four it should,
     # named rather than counted: every column of this table that
@@ -273,7 +302,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         # this baseline too (amendment A-P4-55). Two keys set aside,
         # each named, and the 2026-08-31 digest still has to come back
         # character for character.
-        and VALUE_COUNT_SUBCHECK not in entry
+        and not _since(entry)
     ]
     assert len(before) == NARROW_CHECK_COUNT, len(before)
     assert (
@@ -644,8 +673,18 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # the edge and the bin edge ask for the same value. A description whose
 # clusters sit further apart is where the two differ, and
 # tests/test_p4d32_empty_bins.py is where that is measured.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0447c62f69393e836f514ae6f67844cf022292f45d5ddbdeebd061dc56bdf561"
+    "fc3452fe2ac65f523a5b21807c3aa43e43acfd1e05700382d9f6048c0cc3676d"
 )
 
 
@@ -736,8 +775,18 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # about. The independent oracle carries G6.5a too and its frozen
 # vectors agree, which is what makes these bytes the METHOD's answer
 # rather than the implementation's.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_TWIN_SHA256 = (
-    "a3b4d9bcbabcabd7d8f489f42c25669a55dd11d6aff846500117fd5fef1c4843"
+    "604642cadeb2c5094500752b8a618e57d894618d1dcfa7c91ba5d17a89acbca3"
 )
 
 
@@ -1041,8 +1090,18 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # "177 to 178", and four moment lines move by less than a twentieth.
 # Nothing else differs -- no sentence added, none removed, no verdict
 # changed -- so the page says the same things about a better twin.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_REPORT_SHA256 = (
-    "c4775bfd224c88beaf59c455743f1714bd41723c993c1ad462a6cced4b1b1c15"
+    "59e54f1321e1c0cd729de4ffcff91702a9a44055ccff2f3f307c79f4d97f044f"
 )
 
 
@@ -1478,8 +1537,18 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # listing sets are asserted by identity above -- and what moved is ONE
 # SENTENCE again: the `numeric.empty_edges` listing described a walk
 # that tries the nearer edge alone, and the walk tries four routes.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_QUALITY_SHA256 = (
-    "d1ab48b37a5a48bb5e836602988268a872f2f81e77c122001f72b503ac635c9d"
+    "4810f90453f72064a963e4267503edb279a82649bb91c44636449621412f0457"
 )
 
 

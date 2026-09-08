@@ -3661,6 +3661,27 @@ def _column_at(
     return block
 
 
+def _variant_count(block: "dict[str, object]") -> "int | None":
+    """How many other wrappers the measured file's own description reads.
+
+    A COUNT AND NOT THE SPELLINGS. V5.4 is unconditional that no text
+    from a measured file reaches this report, and a wrapper is text;
+    what a reader is owed here is whether the file wears as many of
+    them as the description says.
+
+    Guarantees: accepts a re-described block; returns the number of
+    wrappers beside the commonest, or None where the block reads no
+    affixed fact at all. Determinism: a function of the mapping.
+    Raises nothing. No I/O of any kind.
+    """
+    if "affix_variants" not in block:
+        return None
+    given = block["affix_variants"]
+    if not isinstance(given, list):
+        return None
+    return len(given)
+
+
 def _wears_the_wrapper(text: str, prefix: str, suffix: str) -> bool:
     """Whether one cell wears one wrapper with something between.
 
@@ -8176,6 +8197,79 @@ def _affixed_checks(
     # construction. A file whose description reads no affix at all
     # carries no such key, and the sentence below says that rather than
     # comparing against a spelling nothing wrote.
+    # THE OTHER WRAPPERS, AS A COUNT AND NOT AS SPELLINGS (plan
+    # P4-D36). How MANY wrappers the file's own description reads is a
+    # count, and V5.4 forbids a spelling of a measured file reaching
+    # this report under any verdict -- so the two sides of each
+    # wrapper are settled by the same route the pair above takes,
+    # against what the file's own description read off it, and what is
+    # compared here is the number of them.
+    checks = checks + [
+        _exact(
+            name,
+            "affixed.affix_variants",
+            "counts.affix_variants",
+            f"{len(facts.affix_variants)}",
+            _shown_count_or_none(
+                _variant_count(block)
+            ),
+        )
+    ]
+    # ...AND THE TWO COUNTS OF DIFFERENT CORES (plan P4-D36), UNDER
+    # THE SAME ENVELOPE AS THE COLUMN'S OWN TWO. They are the budget
+    # the twin's core stage was laid out from, and that stage IS the
+    # numeric one: a core column whose published spellings cannot
+    # supply the identities the description records falls short here
+    # for the reason G12.8 already authorizes there.
+    #
+    # ON A COLUMN WEARING ONE WRAPPER THE TWO PAIRS ARE ONE SHORTFALL
+    # MEASURED TWICE, which is what the exact bar written here first
+    # got wrong. A column of 240 record numbers, each five digits
+    # behind an `R`, publishes 240 different cells and 240 different
+    # cores; its published spellings supply ONE identity, so the
+    # column's own `n_distinct` is a listing nothing written in a CSV
+    # can settle, and a twin holding 235 of the 240 was reported
+    # AUTHORIZED there and MISSED here, on one column, in one run.
+    for field, stated, under in (
+        ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
+        (
+            "n_core_distinct_folded",
+            facts.n_core_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        counted = _count_at(block, field)
+        corner = _distinct_corner(facts, mine, under)
+        if corner and _envelope_admits_every_count(column, facts, stated):
+            # V3.4 FORBIDS A SUBCHECK THAT CANNOT FAIL, and this
+            # envelope's low end is one core: the bar would admit every
+            # count a file of this length can hold. `_corner_listings`
+            # names it in the census with the passage that authorizes
+            # the lesser outcome, exactly as it names the column's own
+            # count beside it.
+            continue
+        if corner:
+            checks = checks + [
+                _lesser_or_held(
+                    name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    stated,
+                    counted,
+                    corner,
+                    column,
+                )
+            ]
+            continue
+        checks = checks + [
+            _exact(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(counted),
+            )
+        ]
     for field, published in (
         ("affix_prefix", prefix),
         ("affix_suffix", suffix),
@@ -12544,6 +12638,36 @@ def _corner_listings(
                     f"{group}.{field}",
                     f"distinct.{field}",
                     why,
+                )
+            ]
+    if isinstance(facts, contract.AffixedFacts):
+        # THE TWO COUNTS OF DIFFERENT CORES, DROPPED BY THE SAME RULE
+        # AND LISTED IN THE SAME BREATH (plan P4-D36). `_affixed_checks`
+        # drops a core count whose envelope admits every count a file
+        # can hold, and the census counts every obligation nothing in a
+        # CSV settles -- so the two halves of that one decision are
+        # written from one rule, and a dropped core count cannot go
+        # uncounted.
+        for field, published, under in (
+            ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
+            (
+                "n_core_distinct_folded",
+                facts.n_core_distinct_folded,
+                _FOLDED_DISTINCT,
+            ),
+        ):
+            corner = _distinct_corner(facts, mine, under)
+            if not corner or corner == CORNER_IDENTIFIER_INFEASIBLE:
+                continue
+            if not _envelope_admits_every_count(column, facts, published):
+                continue
+            listings = listings + [
+                Listing(
+                    column.name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    _NOT_CHECKABLE_SPELLING_ENVELOPE
+                    + CORNER_CITATIONS[corner],
                 )
             ]
     return listings

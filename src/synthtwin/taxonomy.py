@@ -7469,6 +7469,49 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
             speaking = speaking + [key]
     if not speaking:
         return None
+    # EVERY WRAPPER OF A SET STANDS APART FROM THE NUMBER (plan
+    # P4-D36), and this guard is what keeps a set of CODE SCHEMES and
+    # a set of markers from being read as a quantity.
+    #
+    # A LETTER WRITTEN FLUSH AGAINST A NUMBER IS NOT A UNIT. A unit or
+    # an annotation is either separated from the number -- `13.5 H`,
+    # `70 kg` -- or is a mark that is no letter at all -- `$98`, `45%`.
+    # Two shapes were read as quantities without this and neither is
+    # one: a diagnosis column of `E10.0`, `I11.2`, `J44.9` published a
+    # LADDER over its code numbers, and a column of a hundred ages
+    # beside twenty `refused3` markers put the marker's own digit into
+    # the ladder with them.
+    #
+    # ASKING IT OF EVERY WRAPPER RATHER THAN OF ONE is what the second
+    # of those settled: the bare wrapper stands apart by itself, so a
+    # column of numbers beside ANY flush marker would have been
+    # admitted on the numbers' own account.
+    #
+    # THE PRICE, and it is small: a column of `$98` beside `EUR99` --
+    # a currency written flush -- is not read as a quantity. It was
+    # free text before this landing and stays that way, so nothing is
+    # lost that anybody had.
+    #
+    # ASKED OF A SET ONLY. A column wearing ONE wrapper is read exactly
+    # as it was, so `D0140` is still whatever it was before.
+    if len(speaking) > 1:
+        for key in speaking:
+            if not _stands_apart(key[0], key[1]):
+                return None
+        # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
+        # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
+        # `$` -- and a sentence is not. A column of `free comment
+        # number 03 written out` beside its upper-case variants
+        # proposes two wrappers of four words each; both clear the
+        # floor, and the column published a LADDER over what is a
+        # sequence number inside prose.
+        #
+        # ASKED OF A SET ONLY, so a column wearing ONE wrapper is read
+        # exactly as it was: `note 3 of the batch` was this role
+        # before this landing and still is.
+        for key in speaking:
+            if not _one_word(key[0]) or not _one_word(key[1]):
+                return None
     # A SET OF WRAPPERS MAY NOT DIFFER BY ITS DIGITS (plan P4-D36),
     # and this guard was written against a false reading the set rule
     # created. A column of feet and inches, `4'5"`, `5'11"` proposes one pair per
@@ -7513,6 +7556,24 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
         if proposing[key] > best:
             pair = key
             best = proposing[key]
+    if len(speaking) > 1:
+        # AND EVERY WRAPPER'S CELLS ARE WRITTEN THE WAY THE COMMONEST
+        # WRAPPER'S ARE (plan P4-D36). A unit or a flag does not change
+        # how a value is SPELLED: a column of `13.5`, `4.2 H` and
+        # `9.8 L` writes one figure after the point whichever wrapper a
+        # cell wears. A NOUN in front of an index does: a column of 240
+        # readings written to one figure beside sixty `note 3` cells
+        # proposes two wrappers that both stand apart and are both one
+        # word, and reading it as a quantity puts the notes' own
+        # sequence numbers into the ladder with the readings.
+        #
+        # THE TEST IS AN OVERLAP AND NOT AN IDENTITY, because a real
+        # flagged column may carry a whole value beside its fractional
+        # ones: each wrapper's cells must share at least one fraction
+        # width with the commonest wrapper's.
+        if not _written_alike(present, speaking, pair, cells):
+            return None
+
     # PASS TWO: which cells WEAR it. This is a different population and
     # a larger one, and keeping them apart is the whole of C6-7. A
     # column of `5 mg`, `7 mg` and `many mg` wears the pair three
@@ -7558,6 +7619,127 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
         cores=cores,
         n_affixed=n_affixed,
     )
+
+
+def _written_alike(
+    present: "list[str]",
+    speaking: "list[tuple[str, str]]",
+    pair: "tuple[str, str]",
+    cells: "_Cells",
+) -> bool:
+    """Whether every wrapper's cores are written like the commonest one's.
+
+    A unit or a flag qualifies a value and does not respell it, so the
+    cells wearing one carry cores written the way the rest are -- with
+    a point where the rest have one. A noun in front of an index is a
+    different thing wearing the same shape, and its cores are whole
+    numbers whatever the rest of the column does.
+
+    THE TEST IS AN OVERLAP AND NOT AN IDENTITY, because a real flagged
+    column may carry a whole value beside its fractional ones: what
+    each wrapper's cores must do is share a written form with the
+    commonest wrapper's, not match its whole census.
+
+    Guarantees: accepts the present cells, the publishable wrappers,
+    the commonest one and the tally; returns whether every wrapper's
+    cores are written with a point where the commonest wrapper's are,
+    or without one where they are without. A
+    wrapper whose cells carry no readable number at all is passed over
+    rather than refused -- the class counts describe those cells and
+    this question is about the ones that hold a value. Determinism: a
+    function of those inputs. Raises nothing. No I/O of any kind.
+    """
+    widths: "dict[tuple[str, str], dict[bool, int]]" = {}
+    for text in present:
+        chosen = _pair_worn(parsing.trimmed(text), speaking)
+        if chosen is None:
+            continue
+        trimmed = parsing.trimmed(text)
+        core = trimmed[
+            len(chosen[0]) : len(trimmed) - len(chosen[1])
+        ]
+        if not core:
+            continue
+        seen = _classify_all([core], cells.decimal_comma)
+        for one in seen:
+            if one.kind != parsing.NUMBER:
+                continue
+            # THE WRITTEN FORM AND NOT THE VALUE'S WHOLENESS. A cell
+            # spelled `23.0` holds a whole number and is written with
+            # a point, and it is the WRITING that a unit leaves alone:
+            # asking the value instead let a column of readings
+            # spelled to one figure share a form with a column of
+            # bare indexes, because some of those readings landed on
+            # a whole number.
+            mark = "," if cells.decimal_comma else "."
+            pointed = False
+            for letter in core:
+                if letter == mark:
+                    pointed = True
+            found = widths[chosen] if chosen in widths else {}
+            found[pointed] = 1
+            widths[chosen] = found
+    if pair not in widths:
+        return False
+    common = widths[pair]
+    for key in widths:
+        shared = False
+        for width in widths[key]:
+            if width in common:
+                shared = True
+        if not shared:
+            return False
+    return True
+
+
+def _one_word(side: str) -> bool:
+    """Whether one side of a wrapper is a single word.
+
+    The space that SEPARATES a unit from its number is part of the
+    wrapper -- `13.5 H` wears ` H` -- so that one space is taken off
+    before the question is asked. What is left must hold no space at
+    all: `kg`, `months`, `EUR` and `$` do, and `written out` does not.
+
+    Guarantees: accepts one side of a wrapper; returns whether it is a
+    single word. Determinism: a function of that input. Raises
+    nothing. No I/O of any kind.
+    """
+    rest = side
+    while rest and rest[:1] in " \t":
+        rest = rest[1:]
+    while rest and rest[len(rest) - 1 :] in " \t":
+        rest = rest[: len(rest) - 1]
+    for mark in rest:
+        if mark in " \t":
+            return False
+    return True
+
+
+def _stands_apart(prefix: str, suffix: str) -> bool:
+    """Whether a wrapper is a unit or an annotation rather than a scheme.
+
+    THE CHARACTER TOUCHING THE NUMBER is what says which. A unit is
+    written apart from its value (`13.5 H`, `70 kg`) or as a mark that
+    is no letter at all (`$98`, `45%`); a code scheme is a letter
+    written flush against the digits (`E10.0`, `D0140`). The bare
+    wrapper -- nothing on either side -- always stands apart, because a
+    cell wearing it IS a plain number.
+
+    Guarantees: accepts the two sides of a wrapper; returns whether it
+    stands apart from the number it wraps. Determinism: a function of
+    those inputs. Raises nothing. No I/O of any kind.
+    """
+    if not prefix and not suffix:
+        return True
+    touching = ""
+    if prefix:
+        touching = touching + prefix[len(prefix) - 1 :]
+    if suffix:
+        touching = touching + suffix[:1]
+    for mark in touching:
+        if mark in _LETTERS:
+            return False
+    return True
 
 
 def _wears(text: str, prefix: str, suffix: str) -> bool:
