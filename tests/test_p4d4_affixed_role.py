@@ -1489,6 +1489,42 @@ def _wearing_a_set(folder: pathlib.Path, stem: str) -> "dict[str, object]":
     return _document(folder, stem, _flagged_rows())
 
 
+def test_the_producer_never_writes_a_set_its_own_loader_refuses(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF17 against the producer, on review round 5's own column (item 1).
+
+    The commonest wrapper was chosen from what PROPOSED it — the cells
+    that read as a NUMBER wearing it — while AF17 checks what WEARS it,
+    cores that are no number included. A hundred distinct ` kg`
+    numerals beside ninety-eight ` aa` numerals and two `many aa` cells
+    proposes ` kg` and wears both a hundred times, so the loader's tie
+    rule wants ` aa`: `synthtwin profile` exited 0 and wrote a file
+    `synthtwin generate` would not take, which is the defect amendment
+    A-P3-11 exists to keep closed.
+    """
+    draw = random.Random(3)
+    values = (
+        [
+            f"{draw.randint(1, 999)}.{draw.randint(0, 9)} kg"
+            for _index in range(100)
+        ]
+        + [
+            f"{draw.randint(1, 999)}.{draw.randint(0, 9)} aa"
+            for _index in range(98)
+        ]
+        + ["many aa"] * 2
+    )
+    document = _document(tmp_path / "tie", "v", values)
+    block = document["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    # THE TIE GOES THE LOADER'S WAY: equal wear, and ` aa` sorts first.
+    assert block["affix_suffix"] == " aa", block["affix_suffix"]
+    # ...and the document its own loader takes, which is the obligation.
+    loaded = _loaded(tmp_path / "tie", document, "tie")
+    assert isinstance(loaded.columns[0].facts, contract.AffixedFacts)
+
+
 def test_a_wrapper_named_twice_across_the_vocabulary_is_refused(
     tmp_path: pathlib.Path,
 ) -> None:

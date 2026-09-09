@@ -4971,8 +4971,21 @@ declaration for only one of them.
   was described as a quantity and the twin's counts moved from 15 and 5
   to 16 and 4. The condition was withdrawn at round 4.
 
+  **AND THE DECLARATION DOES NOT REACH IT** (review round 5 of landing
+  L14, items 3 and 4). `--measurement` is read where the affix rule
+  runs, which is rule 9; the compound rule is rule 7b and runs first,
+  so a declared column still reaches compound on the draws where
+  compound fires — the forty draws come out 30 and 10 with the
+  declaration and without it. The same door lets an UNDECLARED register
+  of procedure codes past the narrowed suffix guard: 280 five-digit
+  code cells beside fifteen `3074F` and five `3075F` reach
+  `numbers_with_labels`, and the 280 bare codes acquire a
+  distribution — which is the harm the guard at rule 9 exists to stop,
+  arriving one rule earlier.
+
   **WHAT WOULD CLOSE IT.** A rule that tells a number wearing an
-  annotation from a label whose spelling ends in a figure. Every
+  annotation from a label whose spelling ends in a figure, applied
+  BEFORE both numeric-bearing routes rather than inside one of them. Every
   attempt so far has been written over the TEXT and each has been
   measured wrong in the other direction, which is the evidence that the
   text does not carry the answer. The two candidates left are a

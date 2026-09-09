@@ -5208,16 +5208,22 @@ the column's counted cells; one that reads the column's block as
 covering them all gets a description of the commonest wrapper and
 nothing about the rest.
 
-**AF7 continued.** Every quantitative key above obeys the invariant
-section 6.7 states for it on `count` and `continuous`, read over the
-CORES.
+
 Wherever such an invariant names a cell-census count it is read here
 over the matching core-class count — `n_core_numeric` for `n_numeric`,
 `n_core_out_of_range` for `n_out_of_range`, `n_core_contradictory` for
-`n_contradictory` — and over no other count. `n_present` and `n_rows`
-are read unchanged: they answer for the column's cells on every role.
-The six readings that produces are written out, so nothing is left to
-inference:
+`n_contradictory` — and over no other count.
+
+**`n_present` and `n_rows` READ FOR THE BLOCK'S OWN POPULATION** (C6-7b;
+review round 5, item 6). On a column wearing ONE wrapper that is the
+column's cells and the table's row count, which is what this paragraph
+said and what every column of this role meant until a set could be
+worn. On a column wearing a SET it is the wrapper the block belongs
+to: the column's own block reads for the COMMONEST wrapper's cells and
+echoes their count, and each entry's block reads for that entry's and
+echoes its `count`. The six readings below are written for the
+one-wrapper column, and on a set each is read with the block's own
+population standing where `n_present` and `n_rows` stand here:
 
 | invariant | as read on this role |
 |---|---|
@@ -7845,13 +7851,13 @@ at *F* = 0 it reads *W* ≤ 5 × (`small_cell_floor` − 1).
 
 | id | statement |
 |---|---|
-| AF1 | `affix_prefix` and `affix_suffix` are not both the empty string |
+| AF1 | `affix_prefix` and `affix_suffix` are not both the empty string, UNLESS `affix_variants` is non-empty: the bare wrapper is a member of a vocabulary and may be the commonest member of one (C6-7a), and at least one published wrapper carries text |
 | AF2 | `small_cell_floor <= n_affixed <= n_present` |
 | AF3 | `n_affixed` is at least the parse-line count of `n_present`, applied as a COUNT, never a compared share |
 | AF4 | `n_core_numeric + n_core_out_of_range + n_core_contradictory + n_core_not_numeric == n_affixed`, beside X2, not in place of it |
 | AF5 | `n_core_numeric >= 1`, Q3 read over the cores |
 | AF6 | *reading*: `integer_valued` is a fact about the CORES and is what a consumer routes on, never the role name |
-| AF7 | every quantitative key obeys the invariant stated for it on `count` and `continuous`, read over the CORES under that role's substitution, `n_present` and `n_rows` untouched |
+| AF7 | every quantitative key obeys the invariant stated for it on `count` and `continuous`, read over the CORES of the population the block it sits in describes (C6-7b): every core on a column wearing ONE wrapper, and that wrapper's own cores on a column wearing a SET, `n_present` and `n_rows` reading for that same population |
 | AF9 | `affix_variants` names each wrapper once, ascending by its own text, each count in `small_cell_floor .. n_rows` |
 | AF10 | `1 <= n_core_distinct <=` the commonest wrapper's own count; `1 <= n_core_distinct_folded <= n_core_distinct` |
 | AF11 | each entry's four class counts close on that entry's `count`, and its two core-distinct counts are bounded by it |
