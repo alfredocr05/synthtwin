@@ -59,7 +59,7 @@ def _sections() -> "set[str]":
     """
     found: "set[str]" = set()
     head = ""
-    for line in METHOD.read_text().splitlines():
+    for line in METHOD.read_text(encoding="utf-8").splitlines():
         if line.startswith("#"):
             words = line.lstrip("#").strip().split()
             if not words:
@@ -116,7 +116,7 @@ def _envelope_nodes() -> "list[tuple[str, str]]":
     built from several adjacent string pieces, is one value here
     exactly as it is one value at runtime.
     """
-    tree = ast.parse((SOURCE / "validation.py").read_text())
+    tree = ast.parse((SOURCE / "validation.py").read_text(encoding="utf-8"))
     found: "list[tuple[str, str]]" = []
     for node in tree.body:
         if not isinstance(node, ast.Assign):
@@ -260,7 +260,7 @@ def test_every_method_citation_in_the_source_resolves() -> None:
     for path in governed:
         if path.name == METHOD.name:
             continue
-        for one in sorted(_cited_in_prose(path.read_text())):
+        for one in sorted(_cited_in_prose(path.read_text(encoding="utf-8"))):
             if one not in sections:
                 trouble = trouble + [f"{path.name}: {one}"]
     assert not trouble, (

@@ -1219,16 +1219,29 @@ def test_a_flush_flag_needs_the_person_to_say_it_is_a_measurement(
         declared = profile.build_document(
             read, taxonomy.Settings(), [], forced_measurements=["v"]
         )
-        spaced = _document(
-            tmp_path / f"spaced{seed}", "v", _flagged(random.Random(seed), " ")
+        spaced_table = fixtures.write(
+            folder,
+            "spaced.csv",
+            fixtures.single_column_table("v", _flagged(random.Random(seed), " ")),
+        )
+        spaced = profile.build_document(
+            reading.read_table(f"{spaced_table}"),
+            taxonomy.Settings(),
+            [],
+            forced_measurements=["v"],
         )
         # DECLARED, THE FLUSH SPELLING READS LIKE THE SPACED ONE, which
-        # is the whole of what the declaration buys.
+        # is the whole of what the declaration buys. Both are compared
+        # DECLARED: the declaration answers two questions at once on
+        # this shape -- whether a flush letter is a unit, and which of
+        # two rules reads a column both can read (amendment A-P4-58) --
+        # so an undeclared column on either side is answering neither.
         assert declared["columns"][0]["role"] == spaced["columns"][0]["role"], (
             seed,
             declared["columns"][0]["role"],
             spaced["columns"][0]["role"],
         )
+        assert declared["columns"][0]["role"] == "affixed_number", seed
 
 
 def test_every_wrapper_owes_its_own_records_on_the_twin_report(
@@ -1313,6 +1326,60 @@ def test_a_flagged_column_is_read_by_one_of_TWO_rules(
     )
     block = _document(tmp_path / "staged", "stage", staged)["columns"][0]
     assert block["role"] != "affixed_number", block["role"]
+
+
+def test_an_ambiguous_column_is_ASKED_about_and_not_guessed_at(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AMENDMENT A-P4-58, the owner's ruling of 2026-09-09.
+
+    "It's better to ask the user than make wrong guesses. If there is a
+    chance of wrong guess, it's better to ask the user for
+    clarification. That is my decision!!!!"
+
+    A column of readings beside `H` and `L` flags satisfies the
+    compound rule and the affix rule both. Three rules were written
+    over the TEXT to separate them and all three were measured wrong --
+    the last turned `Stage 1` and `Stage 2` labels into a quantity --
+    so the values do not carry the answer and the person is asked.
+
+    WHERE BOTH READINGS FIT, THE CAUTIOUS ONE IS TAKEN and the column
+    says what was not settled. The two errors are not the same size:
+    read as labels, a measurement column publishes fewer numbers than
+    it holds and every number it publishes is true; read as
+    measurements, a label column publishes a mean of stage numbers,
+    which is a quantity that does not exist.
+    """
+    asked = 0
+    both = 0
+    for seed in range(12):
+        folder = tmp_path / f"ask{seed}"
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(
+            folder,
+            "v.csv",
+            fixtures.single_column_table("v", _flagged(random.Random(seed), " ")),
+        )
+        read = reading.read_table(f"{table}")
+        plain = profile.build_document(read, taxonomy.Settings(), [])
+        column = plain["columns"][0]
+        carried = [
+            remark
+            for remark in column["remarks"]
+            if "cannot tell from the values alone" in remark
+        ]
+        if column["role"] == "numbers_with_labels":
+            both = both + 1
+            # THE CAUTIOUS READING CARRIES THE QUESTION, every time.
+            assert carried, (seed, column["remarks"])
+            assert "--measurement" in carried[0], carried[0]
+            asked = asked + 1
+        # ...AND THE PERSON'S ANSWER SETTLES IT.
+        answered = profile.build_document(
+            read, taxonomy.Settings(), [], forced_measurements=["v"]
+        )
+        assert answered["columns"][0]["role"] == "affixed_number", seed
+    assert both and asked == both, (both, asked)
 
 
 def test_the_compound_role_keeps_the_column_it_was_written_for(

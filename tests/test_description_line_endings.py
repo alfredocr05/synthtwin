@@ -247,7 +247,7 @@ def _read_paths(tree: ast.Module) -> "dict[str, str]":
     and the write on the next -- so a rule that reads only the receiver
     of the call sees a bare variable and lets the defect through. That
     is exactly how the golden's measured file was written:
-    ``target = tmp_path / "twin.csv"`` and then ``target.write_text(...)``.
+    ``target = tmp_path / "twin.csv"`` and then ``target.write_text(..., encoding="utf-8")``.
 
     The names are gathered across the whole module rather than one scope
     at a time, which can ask a write in another function for a

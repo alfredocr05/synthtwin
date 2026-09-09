@@ -72,7 +72,7 @@ def load_manifest(path):
     """
     headers = {}
     body = []
-    for lineno, line in enumerate(path.read_text().splitlines(), 1):
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.startswith("#"):
             name, sep, value = line[1:].strip().partition(":")
             name = name.strip()

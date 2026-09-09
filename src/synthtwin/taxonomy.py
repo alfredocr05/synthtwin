@@ -718,6 +718,12 @@ READING_MONTH_FIRST = "month-first"
 NOTE_READING_WORDS = (READING_DAY_FIRST, READING_MONTH_FIRST)
 REMARK_CASE_ONLY_MANY = "remark_values_differ_in_case"
 REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
+# THE COLUMN TWO RULES BOTH READ, and the question the tool puts to the
+# person rather than guessing (amendment A-P4-58, owner ruling
+# 2026-09-09; residual R-P4-157). It carries the count of cells whose
+# spelling wears the shared text, so a reader can see how much of their
+# column the answer decides.
+REMARK_TWO_READINGS_FIT = "remark_two_readings_both_fit"
 REMARK_NO_READING_FITS = "remark_no_reading_fits"
 REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
 REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
@@ -847,6 +853,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
+    REMARK_TWO_READINGS_FIT: 1,
     # NINE SINCE THE ADVISORY REMARKS LANDED (contract NF29). Seven
     # shipped: the two readings, the parse line, the different values,
     # the ceiling, the affix reading's reach and what stand-in judging
@@ -1527,6 +1534,25 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
                 f"{month_only} only a month-first one."
             )
         return first
+    if form == REMARK_TWO_READINGS_FIT:
+        return (
+            f"{_whole(arguments, 0)} of this column's values are a "
+            f"number with a short piece of text beside it, and synthtwin "
+            f"cannot tell from the values alone which of two things "
+            f"that means. It may be a MEASUREMENT that some cells carry "
+            f"a marker beside -- a laboratory result flagged high or "
+            f"low -- or it may be a set of LABELS whose spellings "
+            f"happen to end in a figure, such as a stage or a category "
+            f"code. The two are described very differently: as "
+            f"measurements, every one of those numbers joins this "
+            f"column's average, spread and ends; as labels, they do not, "
+            f"and only the values wearing no marker are described that "
+            f"way. synthtwin has taken the CAUTIOUS reading, which "
+            f"publishes less, and has not guessed. If they are "
+            f"measurements, run the command again with --measurement "
+            f"and this column's name, and all of its numbers will be "
+            f"described"
+        )
     if form == REMARK_NEAR_CATEGORY_LINE:
         return (
             f"this column was close to the line between a set of "
@@ -8953,29 +8979,46 @@ def _decide(
     #
     # A column failing any of the three declines to the rules below
     # exactly as it does today.
-    # AND A COLUMN BOTH RULES CAN READ TAKES THIS ONE, WHICH IS A TIE
-    # NOTHING IN THE TEXT SETTLES (review round 3 item 1, WITHDRAWN by
-    # round 4 item 1; residual R-P4-157). A column of readings beside
-    # spaced `H` and `L` flags satisfies this rule and the affix rule
-    # both, and reaches this one on ten of forty draws -- where each
-    # flagged reading becomes a label LEVEL and its number leaves the
-    # distribution.
+    # A COLUMN BOTH RULES CAN READ IS AN AMBIGUOUS COLUMN, AND AN
+    # AMBIGUOUS COLUMN IS ASKED ABOUT RATHER THAN GUESSED AT
+    # (amendment A-P4-58, owner ruling 2026-09-09; residual R-P4-157).
     #
-    # ROUND 3 ASKED THIS RULE TO STAND ASIDE WHERE THE AFFIX RULE WOULD
-    # TAKE THE COLUMN, AND THAT WAS MEASURED WORSE. It made the tie one
-    # role at every draw, and it also handed this rule's own work away:
-    # 280 numbers beside fifteen `Stage 1` and five `Stage 2` cells
-    # became an affixed column wearing the wrapper `Stage `, so a
-    # vocabulary of two labels was described as a quantity and the
-    # twin's counts moved from 15 and 5 to 16 and 4. A label whose
-    # spelling happens to end in a figure is not a number wearing a
-    # unit, and no rule written over the TEXT has told the two apart:
-    # each attempt has been measured wrong in the other direction.
+    # A column of readings beside `H` and `L` flags satisfies this rule
+    # and the affix rule both, and WHICH IT REACHED DEPENDED ON THE
+    # VALUES DRAWN -- `affixed_number` on thirty of forty draws and
+    # `numbers_with_labels` on ten. Three rules were written over the
+    # TEXT to separate the two readings and all three were measured
+    # wrong; the last turned `Stage 1` and `Stage 2` labels into a
+    # quantity. The text does not carry the answer.
     #
-    # So the tie stands, both readings describe the column, and which
-    # is reached is recorded rather than guessed at. The residual
-    # carries both measurements.
+    # SO THE DRAW NO LONGER DECIDES IT. Where both readings are
+    # available the CAUTIOUS one is taken -- this rule, which describes
+    # the unmarked values as numbers and the marked ones as labels --
+    # and the column carries a remark saying what was not settled and
+    # which flag settles it. The two errors are not the same size: read
+    # as labels, a measurement column publishes fewer numbers than it
+    # holds and every number it publishes is true; read as
+    # measurements, a label column publishes a mean of stage numbers,
+    # which is a quantity that does not exist.
+    #
+    # AND `--measurement` IS THE ANSWER, not a bypass: the person who
+    # holds the table says it is a quantity, and rule 9 then reads it.
     compound = None if forced_code else _compound_reading(cells)
+    if compound is not None:
+        both_fit = (
+            not forced_code
+            and _affixed_reading(cells, forced_measurement) is not None
+        )
+        if both_fit and forced_measurement:
+            # The person has answered. Fall through to rule 9.
+            compound = None
+        elif both_fit:
+            remarks = remarks + [
+                note(
+                    REMARK_TWO_READINGS_FIT,
+                    (len(compound.labels),),
+                )
+            ]
     if compound is not None:
         return _compound_verdict(cells, compound, notes, remarks)
 

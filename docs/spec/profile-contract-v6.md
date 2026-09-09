@@ -1269,8 +1269,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 53 forms and 94 argument positions.
-Of those, 81 are whole numbers, 4 are package words, 4 are nested
+**The census.** The table holds 54 forms and 95 argument positions.
+Of those, 82 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1671,6 +1671,35 @@ the categorical ceiling.
 
 > this column was close to the line between a set of categories and
 > free text: it has «1» different values and the line is at «2»
+
+**NF54. `remark_two_readings_both_fit` — the ambiguous-column
+question** — arity 1. Argument 1: how many present cells hold a number
+with a short piece of text beside it.
+
+> «1» of this column's values are a number with a short piece of text
+> beside it, and synthtwin cannot tell from the values alone which of
+> two things that means. It may be a MEASUREMENT that some cells carry
+> a marker beside — a laboratory result flagged high or low — or it may
+> be a set of LABELS whose spellings happen to end in a figure, such as
+> a stage or a category code. The two are described very differently:
+> as measurements, every one of those numbers joins this column's
+> average, spread and ends; as labels, they do not, and only the values
+> wearing no marker are described that way. synthtwin has taken the
+> CAUTIOUS reading, which publishes less, and has not guessed. If they
+> are measurements, run the command again with --measurement and this
+> column's name, and all of its numbers will be described
+
+**THE ASKING, IN THE ONE PLACE IT EXISTS SO FAR** (plan amendment
+A-P4-58, owner ruling 2026-09-09; residual R-P4-157). A column of
+readings beside `H` and `L` flags satisfies rule 7b and rule 9 both,
+and three rules written over the TEXT to separate them were each
+measured wrong — the last read `Stage 1` and `Stage 2` labels as a
+quantity. Where both readings fit, the CAUTIOUS one is taken and this
+sentence says what was not settled and which declaration settles it.
+The two errors are not the same size: read as labels a measurement
+column publishes fewer numbers than it holds and every number it
+publishes is true, while read as measurements a label column publishes
+a mean of stage numbers, which is a quantity that does not exist.
 
 **NF29. `remark_no_reading_fits` — the competing-readings remark** —
 arity 9.
@@ -2397,7 +2426,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 53 in section 4.5.1 |
+| NG14 | the form is one of the 54 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7930,7 +7959,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 53 the note grammar enumerates |
+| NG14 | for every form: one of the 54 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -9017,7 +9046,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 53 closed forms: 94 argument positions, of which 81 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 54 closed forms: 95 argument positions, of which 82 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -10001,10 +10030,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 53 forms
+### 14.8 The note grammar — 54 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 94 argument positions: 81 whole numbers, 4 package words, 4
+argument. 95 argument positions: 82 whole numbers, 4 package words, 4
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -10062,6 +10091,7 @@ nested forms, 5 bound affix strings.
 | NG51 | `remark_whole_numbers_could_be_times` | 7 |
 | NG52 | `evidence_numbers_with_labels` | 4 |
 | NG53 | `evidence_numbers_with_a_few_labels` | 4 |
+| NG54 | `remark_two_readings_both_fit` | 1 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
