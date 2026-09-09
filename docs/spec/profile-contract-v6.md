@@ -3929,9 +3929,18 @@ that comes to differ.
 
 ### 6.7 `count` and `continuous` — the numeric roles
 
-Both roles carry exactly the same key set — the sixteen keys below,
-added to the universal set of section 5.1. They differ only in the
-verdict that produced them.
+Both roles carry exactly the same key set — the TWENTY-FIVE keys
+below, added to the universal set of section 5.1. They differ only in
+the verdict that produced them.
+
+**It read "sixteen" until 2026-09-09**, and the table under it has
+listed twenty-five for as long as the later keys have existed —
+`kurtosis`, `n_distinct_values`, `mode`, `mode_count`,
+`percentiles_between`, `field_widths`, `value_histogram`, `empty_bins`
+and `empty_edges` all arrived after the number was written and none of
+them moved it. `NUMERIC_KEYS` in the loader holds twenty-five, and an
+independent producer following "sixteen" writes a block missing nine
+obligations the loader requires.
 
 **When a column takes one of these roles.** Rule 7 of the order in
 section 5.2 claims a column when at least the parse-line count of its
@@ -5057,22 +5066,29 @@ column, in any spelling of that number, and naming `-999 mg` protects
 the cell spelled that way. That is wider than a spelling-granular rule
 would be and is stated here so nobody reads the narrower one into it.
 
-#### C6-6. Added keys: twenty-six
+#### C6-6. Added keys: thirty-five
 
-TEN of this role's own, and the sixteen a `count` or `continuous`
-block carries, the quantitative ones computed over the CORES of the
-COMMONEST wrapper (C6-7b). It read "seven" and "twenty-three" until
-2026-09-08, three keys after the wrapper set added them, while the
-block's own key-count sentence below already said ten — one fact
-written in two places with one of them updated.
+TEN of this role's own, and the TWENTY-FIVE a `count` or
+`continuous` block carries, the quantitative ones computed over the
+CORES of the COMMONEST wrapper (C6-7b). Ten and twenty-five make the
+thirty-five the block-size sentence below already states, and
+`AFFIXED_KEYS` in the loader holds exactly those thirty-five.
+
+**THIS COUNT HAS BEEN WRONG TWICE AND IN TWO DIFFERENT WAYS.** It read
+"seven" and "twenty-three" until 2026-09-08, three keys after the
+wrapper set added them; the repair moved the role's own half to ten and
+left the numeric half at "sixteen", a number no version of this
+document has been able to justify against `NUMERIC_KEYS`, which holds
+twenty-five. An independent producer following "sixteen" writes a block
+missing nine obligations the loader requires.
 
 **Each entry of `affix_variants` carries ten keys of its own**: its two
 spellings, its `count`, its four class counts, its two counts of
-different cores, and a `numbers` block holding exactly the sixteen keys
-a `count` or `continuous` block holds — the same set, read over that
-wrapper's cores, echoing that wrapper's `count` in `n_rows`. No entry
-carries an eleventh key, and a description whose entry does is refused
-rather than read.
+different cores, and a `numbers` block holding exactly the TWENTY-FIVE
+keys a `count` or `continuous` block holds — the same set, read over
+that wrapper's cores, echoing that wrapper's `count` in `n_rows`. No
+entry carries an eleventh key, and a description whose entry does is
+refused rather than read.
 
 | key | JSON type | range | meaning | disposition |
 |---|---|---|---|---|
@@ -5120,7 +5136,7 @@ rather than read.
 | `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
-| `affix_variants[].numbers` | object | AF13 | the sixteen keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
+| `affix_variants[].numbers` | object | AF13 | the twenty-five keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
 **The block is fifty-seven keys**: the twenty-two universal keys of
 section 5.1 and the thirty-five above — a `count` block's twenty-five
