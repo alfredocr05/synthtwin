@@ -5345,6 +5345,76 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     )
 
 
+def _vocabulary_of(
+    facts: "contract.AffixedFacts",
+) -> "list[tuple[str, str]]":
+    """Every wrapper this column wears, commonest first (plan P4-D37)."""
+    worn = [(facts.affix_prefix, facts.affix_suffix)]
+    for one in facts.affix_variants:
+        worn = worn + [(one.prefix, one.suffix)]
+    return worn
+
+
+def _worn_here(
+    trimmed: str, vocabulary: "list[tuple[str, str]]"
+) -> "tuple[str, str] | None":
+    """Which wrapper a written cell wears, by the LONGEST-WRAPPER rule.
+
+    THE SAME RULE THE PRODUCER AND THE VALIDATOR USE, and writing a
+    different one here was a defect of its own (review round 3, item
+    3): a recount that asked only whether a cell begins with the
+    commonest prefix and ends with its suffix gave every `12.0  kg`
+    cell to the ` kg` wrapper as well, because the one suffix is a
+    suffix of the other. The primary population then held both, and
+    the report named a mean of 51.151 for a wrapper whose cells average
+    15.95 and called it outside its own window.
+
+    Guarantees: accepts one trimmed cell and the column's vocabulary;
+    returns the longest wrapper the cell wears with something between
+    its two sides, or None. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind.
+    """
+    chosen: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(vocabulary):
+        ahead = key[0]
+        behind = key[1]
+        if len(trimmed) <= len(ahead) + len(behind):
+            continue
+        if trimmed[: len(ahead)] != ahead:
+            continue
+        if behind and trimmed[len(trimmed) - len(behind) :] != behind:
+            continue
+        if len(ahead) + len(behind) > reach:
+            chosen = key
+            reach = len(ahead) + len(behind)
+    return chosen
+
+
+def _cores_worn(
+    facts: "contract.AffixedFacts", written: "list[str]"
+) -> "dict[tuple[str, str], list[str]]":
+    """The cores the written cells hold, one list per wrapper (P4-D37).
+
+    Every cell is assigned ONCE, to the longest wrapper it wears, so no
+    core is counted for two populations and none is left out of all of
+    them.
+    """
+    vocabulary = _vocabulary_of(facts)
+    held: "dict[tuple[str, str], list[str]]" = {}
+    for key in vocabulary:
+        held[key] = []
+    for cell in written:
+        trimmed = parsing.trimmed(cell)
+        chosen = _worn_here(trimmed, vocabulary)
+        if chosen is None:
+            continue
+        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+        if core:
+            held[chosen] = held[chosen] + [core]
+    return held
+
+
 def _wrapper_notes(
     place: int, notes: "list[Deviation]"
 ) -> "list[Deviation]":
@@ -17922,11 +17992,20 @@ def _value_count_notes(
     published = facts.n_distinct_values
     if published < 1:
         return []
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
     prefix = ""
     suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
     if isinstance(column.facts, contract.AffixedFacts):
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
     for cell in _present_of(written, _hole_spellings(column)):
         # THE TRIMMED TEXT STAYS TRACED, and the body is derived from
@@ -17936,7 +18015,13 @@ def _value_count_notes(
         # `_pad_notes` uses for the same reason.
         trimmed = parsing.trimmed(cell)
         body = trimmed
-        if prefix or suffix:
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
             if not trimmed.startswith(prefix):
                 continue
             if not trimmed.endswith(suffix):
@@ -18377,18 +18462,33 @@ def _fraction_notes(
     # was written by NO cell of a twin that had in fact written every
     # one of them at it -- a report that accuses a correct twin is
     # worse than one that says nothing.
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
     prefix = ""
     suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
     if isinstance(column.facts, contract.AffixedFacts):
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     counted: dict[int, int] = {}
     for cell in _present_of(written, _hole_spellings(column)):
         # A cell the column's own description reads as absent
         # is not a present cell (review round 3 finding 4).
         trimmed = parsing.trimmed(cell)
         body = trimmed
-        if prefix or suffix:
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
             if not trimmed.startswith(prefix):
                 continue
             if not trimmed.endswith(suffix):
@@ -18465,18 +18565,33 @@ def _pad_notes(
     # `_fraction_notes` gives: reading a padded core still wearing its
     # prefix as a bare number finds no number at all, and a report that
     # accuses a correct twin is worse than one that says nothing.
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
     prefix = ""
     suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
     if isinstance(column.facts, contract.AffixedFacts):
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     counted: dict[int, int] = {}
     for cell in _present_of(written, _hole_spellings(column)):
         # A cell the column's own description reads as absent
         # is not a present cell (review round 3 finding 4).
         trimmed = parsing.trimmed(cell)
         body = trimmed
-        if prefix or suffix:
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
             if not trimmed.startswith(prefix):
                 continue
             if not trimmed.endswith(suffix):
@@ -18558,16 +18673,31 @@ def _field_notes(
     # the whole census; this is it read at one width.
     if contract.WITHHELD in facts.numeric_styles:
         pooled = pooled + facts.numeric_styles[contract.WITHHELD]
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
     prefix = ""
     suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
     if isinstance(column.facts, contract.AffixedFacts):
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     counted: dict[int, int] = {}
     for cell in _present_of(written, _hole_spellings(column)):
         trimmed = parsing.trimmed(cell)
         body = trimmed
-        if prefix or suffix:
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
             if not trimmed.startswith(prefix):
                 continue
             if not trimmed.endswith(suffix):
@@ -19181,11 +19311,20 @@ def _style_notes(
     facts = _quantitative_facts(column)
     if facts is None:
         return []
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
     prefix = ""
     suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
     if isinstance(column.facts, contract.AffixedFacts):
         prefix = column.facts.affix_prefix
         suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     published = {name: 0 for name in contract.NUMERIC_STYLES}
     for name in sorted(facts.numeric_styles):
         if name != contract.WITHHELD:
@@ -19196,7 +19335,13 @@ def _style_notes(
     for cell in _present_of(written, _hole_spellings(column)):
         trimmed = parsing.trimmed(cell)
         body = trimmed
-        if prefix or suffix:
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
             if not trimmed.startswith(prefix):
                 continue
             if not trimmed.endswith(suffix):
@@ -21315,22 +21460,47 @@ def _approximations(
         # all, so a ladder that landed outside its own window said
         # nothing -- the twin's report is where a person reads that,
         # and it was silent.
-        cores: list[str] = []
-        for cell in written:
-            trimmed = parsing.trimmed(cell)
-            if not trimmed.startswith(facts.affix_prefix):
-                continue
-            if not trimmed.endswith(facts.affix_suffix):
-                continue
-            core = trimmed[
-                len(facts.affix_prefix) : len(trimmed)
-                - len(facts.affix_suffix)
-            ]
-            if core:
-                cores = cores + [core]
-        return _numeric_approximations(
-            _core_view(column), facts.numbers, plan, cores
-        )
+        # ONE SET OF RECORDS PER WRAPPER, each measured over that
+        # wrapper's own cells and against that wrapper's own layout
+        # (review round 3, item 3). The walk here split on the
+        # COMMONEST pair alone and reported the primary block only, so
+        # a column of a hundred kilograms beside a hundred pounds gave
+        # thirteen records where each wrapper owes fifteen -- and the
+        # split itself was not the longest-wrapper rule, so a ` kg`
+        # population swallowed the `  kg` cells beside it.
+        #
+        # THE LAYOUT IS REBUILT RATHER THAN CARRIED. A set's plan holds
+        # no layout of its own -- each wrapper's is made where its
+        # cells are made -- and `_numeric_layout` is a function of the
+        # view and the facts, so asking it again here gives the same
+        # answer the writer used. Handed the plan's `None`, the bounds
+        # took the whole population as their widest stratum and two
+        # cardinality records vanished.
+        held = _cores_worn(facts, written)
+        records: "list[Approximation]" = []
+        step = -1
+        for pair_view in _wrappers_of(facts, column):
+            view = pair_view[1]
+            numbers = pair_view[2]
+            layout, _notes, _content = _numeric_layout(
+                view, numbers, numbers.n_distinct_values
+            )
+            mine = dataclasses.replace(plan, column=view, layout=layout)
+            for record in _numeric_approximations(
+                view, numbers, mine, held[pair_view[0]]
+            ):
+                records = records + [
+                    record
+                    if step < 0
+                    else dataclasses.replace(
+                        record,
+                        fact=(
+                            f"affix_variants[{step}].numbers.{record.fact}"
+                        ),
+                    )
+                ]
+            step = step + 1
+        return records
     if isinstance(facts, contract.JoinedFacts):
         # RESIDUAL R-P4-44, CLOSED. This role reported no approximation
         # at all, so a twin of a joined column carried a report saying

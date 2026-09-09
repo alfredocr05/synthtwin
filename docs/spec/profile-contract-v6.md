@@ -4882,12 +4882,22 @@ an entry of `affix_variants`.
    digits.** That is where a code scheme puts its letter — `E10.0`,
    `I11.2`, `J44.9`, `D0140` — and reading the rest as a quantity
    publishes a ladder over code numbers and writes codes nobody
-   issued. **Behind the digits a letter is permitted where the
-   vocabulary holds the bare wrapper**, because that is where an
-   abnormal flag goes and a column holding unwrapped numbers is a
-   column of numbers with annotations. `13.5H` is therefore read
-   exactly as `13.5 H` is; refusing both sides alike sent every
-   laboratory column whose flags are written flush to free text.
+   issued. No declaration reaches this half of the rule.
+
+   **BEHIND the digits a flush letter is AMBIGUOUS, and the person
+   settles it with `--measurement`.** `13.5H` is an abnormal flag on a
+   laboratory result and `1234F` is a category of procedure code, and
+   nothing in the text tells them apart. Two automatic rules were
+   written and both were measured wrong: refusing the shape outright
+   sent every laboratory column whose flags are written flush to free
+   text, and admitting it where the cores are not all of one width
+   refused an ordinary column of two-digit readings while admitting a
+   register whose bare codes had lost their leading zeros to a
+   spreadsheet. Undeclared, such a column is read as it was before this
+   role was widened; declared, its wrappers are read like any other.
+
+   A letter that STANDS APART — `13.5 H` — needs no declaration: a code
+   register does not put a space before its category letter.
 4. **Every wrapper of a SET is ONE WORD.** A unit or an annotation is
    a word — `H`, `kg`, `months`, `EUR`, `$`; a sentence is not. A
    column of `free comment number 03 written out` beside its

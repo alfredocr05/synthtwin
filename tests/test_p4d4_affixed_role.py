@@ -1176,45 +1176,138 @@ def _flagged(draw: "random.Random", flag: str) -> "list[str]":
     )
 
 
-def test_a_flush_abnormal_flag_reads_like_a_spaced_one(
+def test_a_flush_flag_needs_the_person_to_say_it_is_a_measurement(
     tmp_path: pathlib.Path,
 ) -> None:
-    """REVIEW ROUND 1, ITEM 6. `13.5H` is as ordinary as `13.5 H`.
+    """ROUNDS 1, 2 AND 3 — where the flush spelling settled.
 
-    The guard that keeps a code scheme out of this role refused a
-    LETTER written flush against the digits, on either side. That is
-    the right rule in front of the number -- `E10.0`, `I11.2`, `D0140`
-    put the letter there, and reading the rest as a quantity publishes
-    a ladder over code numbers and writes codes nobody issued. Behind
-    the number it is not: that is where an abnormal flag goes, and
-    refusing it sent every laboratory column whose flags are written
-    flush to free text, with no ladder, no mean and no distribution --
-    the exact shape this landing exists for, in one of its two ordinary
-    spellings.
+    `13.5H` is an abnormal flag on a laboratory result. `1234F` is a
+    category of procedure code. Nothing in the text tells them apart,
+    and this landing wrote two automatic rules that tried:
 
-    THE ASSERTION IS AN IDENTITY, not a role name, because the role a
-    column of numbers-beside-flags reaches is not settled by the flag's
-    spacing: on 10 of 40 draws it is `numbers_with_labels`, which reads
-    it too. What the spacing must not decide is WHICH, and it decided
-    everything before this: flush was free text at every draw.
+    * refusing a flush letter outright sent every laboratory column
+      whose flags are written flush to free text — no ladder, no mean,
+      no distribution — which is the shape this role was widened for;
+    * admitting it where the cores are not all of ONE WIDTH refused an
+      ordinary column of two-digit readings, and admitted a register
+      whose bare codes had lost their leading zeros to a spreadsheet.
+
+    So the question goes to whoever holds the table. Undeclared, the
+    column is read as it was before this landing; declared, its
+    wrappers are read like any other — and a flag that STANDS APART
+    needs no declaration at all, because a code register does not put a
+    space before its category letter.
     """
-    flush: "list[str]" = []
-    spaced: "list[str]" = []
+    for seed in range(6):
+        folder = tmp_path / f"draw{seed}"
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(
+            folder,
+            "v.csv",
+            fixtures.single_column_table("v", _flagged(random.Random(seed), "")),
+        )
+        read = reading.read_table(f"{table}")
+        plain = profile.build_document(read, taxonomy.Settings(), [])
+        # UNDECLARED IT IS NOT THIS ROLE. Which role it IS depends on
+        # the draw -- free text on most, a long tail on some -- and
+        # that is the reading it had before this landing; what this
+        # pins is that no wrapper is published and no distribution is
+        # taken over cores nobody has said are measurements.
+        assert plain["columns"][0]["role"] != "affixed_number", (
+            seed, plain["columns"][0]["role"]
+        )
+        declared = profile.build_document(
+            read, taxonomy.Settings(), [], forced_measurements=["v"]
+        )
+        spaced = _document(
+            tmp_path / f"spaced{seed}", "v", _flagged(random.Random(seed), " ")
+        )
+        # DECLARED, THE FLUSH SPELLING READS LIKE THE SPACED ONE, which
+        # is the whole of what the declaration buys.
+        assert declared["columns"][0]["role"] == spaced["columns"][0]["role"], (
+            seed,
+            declared["columns"][0]["role"],
+            spaced["columns"][0]["role"],
+        )
+
+
+def test_every_wrapper_owes_its_own_records_on_the_twin_report(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 3, ITEM 3. The report covered one wrapper of two.
+
+    Generation builds each wrapper's cells from that wrapper's own
+    layout and then threw the layouts away: the post-write recount
+    split the written cells on the COMMONEST pair alone and reported
+    the primary block only. A hundred kilograms beside a hundred pounds
+    produced thirteen records, all of them the kilograms' — so every
+    approximated fact of the pound block, which is approximated by
+    construction, was on no page at all.
+    """
+    draw = random.Random(5)
+    weights = [
+        f"{60 + draw.random() * 9.9:.1f} kg" for _index in range(100)
+    ] + [f"{132 + draw.random() * 9.9:.1f} lb" for _index in range(100)]
+    loaded = _loaded(
+        tmp_path, _document(tmp_path, "weight", weights), "weight"
+    )
+    twin = generation.generate(loaded, 5)
+    named = [record.fact for record in twin.approximations]
+    primary = [one for one in named if not one.startswith("affix_variants")]
+    variant = [one for one in named if one.startswith("affix_variants")]
+    assert primary, named
+    # EACH WRAPPER OWES THE SAME FACTS, because each is a numeric block
+    # of the same kind measured by the same code.
+    assert len(variant) == len(primary), (len(primary), len(variant))
+    for one in variant:
+        assert one.startswith("affix_variants[0].numbers."), one
+
+
+def test_a_flagged_column_reaches_ONE_role_at_every_draw(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 3, ITEM 1. The same shape described two ways.
+
+    A column of readings beside spaced `H` and `L` flags satisfies both
+    the compound rule and the affix rule, and which one it reached
+    depended on the values drawn: `affixed_number` on thirty of forty
+    draws and `numbers_with_labels` on ten. The compound reading is the
+    worse of the two here — each flagged reading becomes a LABEL LEVEL,
+    so those readings' numbers leave the distribution altogether, and a
+    level below the floor is suppressed on top of that.
+
+    The compound rule now stands aside where the affix rule would take
+    the column, so the shape reaches one role at every draw.
+    """
+    reached = set()
     for seed in range(12):
-        flush = flush + [
+        reached.add(
             _document(
-                tmp_path / f"flush{seed}", "v", _flagged(random.Random(seed), "")
+                tmp_path / f"d{seed}", "v", _flagged(random.Random(seed), " ")
             )["columns"][0]["role"]
-        ]
-        spaced = spaced + [
-            _document(
-                tmp_path / f"spaced{seed}", "v", _flagged(random.Random(seed), " ")
-            )["columns"][0]["role"]
-        ]
-    assert flush == spaced, list(zip(flush, spaced))
-    # ...AND NEITHER IS EVER FREE TEXT, which is what the column was.
-    for reached in flush + spaced:
-        assert reached in ("affixed_number", "numbers_with_labels"), reached
+        )
+    assert reached == {"affixed_number"}, sorted(reached)
+
+
+def test_the_compound_role_keeps_the_column_it_was_written_for(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and standing aside costs the compound role nothing (item 1).
+
+    Its own motivating shape — readings beside `<0.5` and
+    `NOT DETECTED` — has no affix reading at all, because `NOT
+    DETECTED` holds no number for a wrapper to sit around. So the
+    condition never fires on it and the column is compound exactly as
+    it was. What moves is only the column BOTH rules can read.
+    """
+    draw = random.Random(3)
+    values = (
+        [f"{draw.uniform(1, 9):.2f}" for _index in range(280)]
+        + ["<0.5"] * 10
+        + ["NOT DETECTED"] * 10
+    )
+    block = _document(tmp_path / "compound", "assay", values)["columns"][0]
+    assert block["role"] == "numbers_with_labels", block["role"]
 
 
 def test_a_letter_in_FRONT_of_the_digits_is_still_refused(
@@ -1263,8 +1356,11 @@ def test_a_mixed_procedure_code_column_is_not_a_quantity(
     )
     reached = _document(tmp_path / "register", "code", codes)["columns"][0]["role"]
     assert reached != "affixed_number", reached
-    # ...and a whole-number reading wearing the same kind of flag is
-    # still read, because its cores are not all one width.
+    # ...AND SO IS AN ORDINARY LABORATORY COLUMN WEARING THE SAME
+    # SHAPE, undeclared, which is the price and is stated rather than
+    # hidden: nothing in the text tells the two apart, so the safe
+    # reading is the one that publishes no distribution, and the
+    # person who knows which it is says so.
     draw = random.Random(2)
     readings = (
         [f"{draw.randint(70, 140)}" for _index in range(80)]
@@ -1272,8 +1368,7 @@ def test_a_mixed_procedure_code_column_is_not_a_quantity(
         + [f"{draw.randint(5, 69)}L" for _index in range(80)]
     )
     block = _document(tmp_path / "int", "bp", readings)["columns"][0]
-    assert block["role"] == "affixed_number", block["role"]
-    assert len(block["affix_variants"]) == 2, block["affix_variants"]
+    assert block["role"] != "affixed_number", block["role"]
 
 
 def test_the_measurement_declaration_reaches_flush_units(

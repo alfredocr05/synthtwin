@@ -7536,46 +7536,33 @@ def _affixed_before_the_address_test(
         # where a code scheme puts its letter, and the back is where an
         # abnormal flag puts one -- but only a column that holds
         # unwrapped numbers is a column of numbers with annotations.
-        # ...OR THE PERSON HAS SAID SO (review round 2, item 5). A
-        # column of `60.0kg` beside `132.0lb` holds no bare cell, so
-        # the rule below refused it and the per-wrapper machinery
-        # written FOR mixed scales was out of reach of the very shape
-        # that motivated it. `--measurement` is this project's own
-        # answer to "these are measurements, not codes", and it is
-        # the answer here: where it is given, the letter behind the
-        # digits is a unit by the person's own statement.
-        plainly = forced_measurement
-        for key in speaking:
-            if not key[0] and not key[1]:
-                plainly = True
-        for key in speaking:
-            if not _stands_apart(key[0], key[1], plainly):
-                return None
-        # ...AND A LETTER BEHIND THE DIGITS IS REFUSED AFTER ALL WHERE
-        # THE CORES ARE A CODE FAMILY (review round 2, item 4). The
-        # rule above lets a flag be written flush because a column
-        # holding unwrapped numbers is a column of numbers with
-        # annotations. A mixed register of procedure codes is exactly that
-        # shape and is not that thing: one category is five digits,
-        # a second is four digits and an `F`, a third four digits and
-        # a `T`, so eighty bare five-digit codes beside eighty of each
-        # reached this role with `F` and `T` as wrappers and a
-        # distribution over the bare codes.
+        # A LETTER FLUSH BEHIND THE DIGITS IS AMBIGUOUS AND THE PERSON
+        # SETTLES IT (review round 3, item 2). Round 1 relaxed this
+        # where the vocabulary held the bare wrapper, on the ground
+        # that a column holding unwrapped numbers is a column of
+        # numbers with annotations; round 2 then found a register of
+        # procedure codes wearing exactly that shape, and round 3 found
+        # that the width test written to separate them does neither
+        # job. Measured, both ways:
         #
-        # WHAT SEPARATES THEM IS THE CORES, not the wrapper. A code
-        # family is written at a FIXED WIDTH with no point: every
-        # Category II code is four digits, every Category I five. A
-        # measurement is not -- a haemoglobin carries a point, and an
-        # integer one runs 70 to 140 and is two digits or three. So the
-        # relaxation is withdrawn where every wrapper's cores are whole
-        # numbers all of one width, which is a description of a code
-        # register and not of a quantity.
-        if (
-            not forced_measurement
-            and _flush_behind(speaking)
-            and _code_shaped(present, speaking)
-        ):
-            return None
+        #   100 bare two-digit readings beside 50 ending `H` and 50
+        #   ending `L` -- an ordinary laboratory column -- was REFUSED,
+        #   because its cores are all two digits;
+        #
+        #   50 bare four-digit codes beside 50 five-digit ones and 100
+        #   ending `F` -- a register whose leading zeros a spreadsheet
+        #   ate -- was ADMITTED, because its bare cores are of two
+        #   widths.
+        #
+        # Nothing in the text tells a flagged measurement from a code
+        # register: both are figures with a letter behind them. So the
+        # question goes to whoever holds the table, which is this
+        # project's own answer where a guess is not confident, and
+        # `--measurement` is the flag that carries it. Undeclared, such
+        # a column is what it was before this landing.
+        for key in speaking:
+            if not _stands_apart(key[0], key[1], forced_measurement):
+                return None
         # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
         # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
         # `$` -- and a sentence is not. A column of `free comment
@@ -7828,110 +7815,39 @@ def _one_word(side: str) -> bool:
     return True
 
 
-def _flush_behind(speaking: "list[tuple[str, str]]") -> bool:
-    """Whether any wrapper of the set puts a LETTER flush behind the digits.
-
-    The relaxation of the stand-apart rule reaches only that shape, so
-    the code-family test beside it is asked only where the relaxation
-    was used.
-
-    Guarantees: accepts the wrappers; returns whether one of them has a
-    letter as the first character of its suffix. Determinism: a
-    function of that input. Raises nothing. No I/O of any kind.
-    """
-    for key in speaking:
-        if key[1]:
-            for mark in key[1][:1]:
-                if mark in _LETTERS:
-                    return True
-    return False
-
-
-def _code_shaped(
-    present: "list[str]", speaking: "list[tuple[str, str]]"
-) -> bool:
-    """Whether every wrapper's cores are a fixed-width whole-number family.
-
-    A CODE REGISTER IS WRITTEN AT A FIXED WIDTH WITH NO POINT and a
-    measurement is not, which is what tells a mixed register of
-    procedure codes from a laboratory column whose flags are written flush (review round 2,
-    item 4). Every code of one such category is four digits and an
-    `F`; a
-    haemoglobin carries a point, and an integer measurement runs across
-    widths.
-
-    ASKED OF EVERY WRAPPER, so one wrapper whose cores vary is enough
-    to say this is not a register. A wrapper with no core at all
-    answers for nothing and is skipped rather than counted either way.
-
-    Guarantees: accepts the present cells and the wrappers; returns
-    whether every wrapper's cores are all digits and all of one width.
-    Determinism: a function of those inputs. Raises nothing. No I/O of
-    any kind.
-    """
-    # WHICH WRAPPER A CELL WEARS IS `_pair_worn`'s QUESTION, and asking
-    # it any other way reads the wrong core: the bare wrapper is a
-    # prefix and a suffix of EVERY cell, so a walk that tested each
-    # wrapper on its own gave `1234F` to the bare one and read its core
-    # as `1234F` -- which holds a letter, so the test said "not a code
-    # family" about the very shape it exists to catch.
-    seen = False
-    widths: "dict[tuple[str, str], dict[int, int]]" = {}
-    for key in speaking:
-        widths[key] = {}
-    for text in present:
-        trimmed = parsing.trimmed(text)
-        chosen = _pair_worn(trimmed, speaking)
-        if chosen is None:
-            continue
-        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
-        if not core:
-            continue
-        for mark in core:
-            if mark not in _DIGITS:
-                return False
-        widths[chosen][len(core)] = 1
-    for key in speaking:
-        if not widths[key]:
-            continue
-        seen = True
-        if len(widths[key]) != 1:
-            return False
-    return seen
-
-
-def _stands_apart(prefix: str, suffix: str, plainly: bool) -> bool:
+def _stands_apart(prefix: str, suffix: str, declared: bool) -> bool:
     """Whether a wrapper is a unit or an annotation rather than a scheme.
 
-    THE CHARACTER TOUCHING THE NUMBER is what says which. A unit is
-    written apart from its value (`13.5 H`, `70 kg`) or as a mark that
-    is no letter at all (`$98`, `45%`); a code scheme is a letter
-    written flush against the digits (`E10.0`, `D0140`). The bare
-    wrapper -- nothing on either side -- always stands apart, because a
-    cell wearing it IS a plain number.
+    THE CHARACTER TOUCHING THE NUMBER is what says which, and the two
+    sides are not the same risk.
 
-    THE TWO SIDES ARE NOT THE SAME RISK, and treating them alike cost
-    the shape this role was widened FOR (review round 1, item 6). A
-    code scheme puts its letter IN FRONT: `E10.0`, `I11.2`, `J44.9`,
-    `D0140` -- the letter says which register the number belongs to,
-    and reading the rest as a quantity publishes a ladder over code
-    numbers and writes codes nobody issued. An abnormal flag goes
-    BEHIND: `13.5H`, `4.2L`. Refusing both sides alike sent every
-    laboratory column whose flags are written flush to free text --
-    no ladder, no mean, no distribution -- and flush flags are
-    ordinary in real extracts.
+    IN FRONT, a letter flush against the digits is a code scheme --
+    `E10.0`, `I11.2`, `J44.9`, `D0140` -- where the letter says which
+    register the number belongs to. Reading the rest as a quantity
+    publishes a ladder over code numbers and writes codes nobody
+    issued, so it is refused, and no declaration reaches it.
 
-    ...AND `plainly` IS WHAT MAKES THE BACK SIDE SAFE. It says some
-    cell of this column is a PLAIN NUMBER wearing nothing: the bare
-    wrapper is in the vocabulary. A column of numbers, some of them
-    annotated, is a column of numbers; a column where EVERY cell
-    carries a letter is a column of tokens, and this returns false for
-    its wrappers whichever side the letter is on. A code column never
-    holds a bare code, so `E10.0`/`I11.2`/`J44.9` is refused by the
-    front rule and would be refused by this one too.
+    BEHIND, a letter flush against the digits is AMBIGUOUS and the
+    person settles it. `13.5H` is an abnormal flag on a laboratory
+    result; `1234F` is a category of procedure code. Nothing in the
+    text tells them apart, and two rules written to try were both
+    measured wrong: refusing the shape outright sent every laboratory
+    column whose flags are written flush to free text (round 1, item
+    6), and admitting it where the cores are not all one width refused
+    an ordinary two-digit laboratory column while admitting a register
+    whose bare codes had lost their leading zeros (round 3, item 2).
+    So `--measurement` carries the answer, which is this project's own
+    way with a question it cannot settle for somebody.
+
+    A letter that STANDS APART -- `13.5 H`, `70 kg` -- is a unit or an
+    annotation and needs no declaration: a code register does not put a
+    space before its category letter. A mark that is no letter at all
+    (`$98`, `45%`) stands apart too, and the bare wrapper -- nothing on
+    either side -- always does, because a cell wearing it IS a plain
+    number.
 
     Guarantees: accepts the two sides of a wrapper and whether the
-    column's vocabulary holds the bare wrapper; returns whether the
+    person declared this column a measurement; returns whether the
     wrapper stands apart from the number it wraps. Determinism: a
     function of those inputs. Raises nothing. No I/O of any kind.
     """
@@ -7943,11 +7859,9 @@ def _stands_apart(prefix: str, suffix: str, plainly: bool) -> bool:
                 return False
     if suffix:
         for mark in suffix[:1]:
-            if mark in _LETTERS and not plainly:
+            if mark in _LETTERS and not declared:
                 return False
     return True
-
-
 def _wears(text: str, prefix: str, suffix: str) -> bool:
     """Whether one cell wears one wrapper with something between.
 
@@ -9019,8 +8933,28 @@ def _decide(
     #
     # A column failing any of the three declines to the rules below
     # exactly as it does today.
+    #
+    # AND IT STANDS ASIDE WHERE THE AFFIX READING WOULD TAKE THE COLUMN
+    # (review round 3 of landing L14, item 1). A column of readings
+    # beside `H` and `L` flags satisfies BOTH rules, and which one it
+    # reached depended on the draw: `affixed_number` on thirty of forty
+    # and `numbers_with_labels` on ten, the same shape either way. The
+    # compound reading is the worse of the two here -- it makes each
+    # flagged reading a LABEL LEVEL, so those readings' numbers leave
+    # the distribution entirely and a level below the floor is
+    # suppressed on top.
+    #
+    # THE PRESERVATION CASE IS THE POINT OF THE CONDITION. This role's
+    # own motivating shape -- 280 readings beside `<0.5` and `NOT
+    # DETECTED` -- has no affix reading at all, because `NOT DETECTED`
+    # holds no number for a wrapper to sit around, so it is compound
+    # here exactly as it was. What moves is only the column both rules
+    # can read, and it moves to the rule that publishes its numbers.
     compound = None if forced_code else _compound_reading(cells)
-    if compound is not None:
+    if compound is not None and (
+        forced_code
+        or _affixed_reading(cells, forced_measurement) is None
+    ):
         return _compound_verdict(cells, compound, notes, remarks)
 
     # RULE 8 -- a column of clock times: the `time_of_day` role.

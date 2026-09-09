@@ -7859,6 +7859,34 @@ def _affixed_facts(
             "worn by fewer cells than may be named is not published "
             "at all",
         )
+    # AF17. THE PAIR THIS BLOCK NAMES IS THE COMMONEST WRAPPER, and
+    # nothing said so until review round 3 (item 5). The subtraction
+    # above is nonnegative and closes, and a description can still be
+    # written with the two populations SWAPPED: the block naming the
+    # eighty cells wearing pounds and the entry naming the hundred and
+    # twenty wearing kilograms. Such a document loaded, and the twin
+    # built from it re-described with kilograms commonest and missed
+    # twenty-one of its own obligations -- a description no producer
+    # writes, accepted, and then failed by its own twin.
+    #
+    # THE TIE GOES THE PRODUCER'S WAY. Where a variant's count equals
+    # the commonest's, the producer keeps whichever pair sorts first,
+    # so an equal count is only admitted when the block's own pair
+    # sorts before the entry's.
+    for one in variants:
+        if one.count > common_count or (
+            one.count == common_count
+            and (one.prefix, one.suffix) < (prefix, suffix)
+        ):
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {one.prefix!r}/{one.suffix!r} worn by "
+                f"{one.count} cell(s) beside a commonest worn by "
+                f"{common_count}",
+                "the pair this block names to be the wrapper the most "
+                "cells wear, ties going to the pair that sorts first, "
+                "because that is the one a producer publishes there",
+            )
     # AF10. HOW MANY DIFFERENT CORES, held inside the bounds a file
     # cannot argue with: a set of cores cannot hold more different
     # spellings than it has cells, and folding never separates two
