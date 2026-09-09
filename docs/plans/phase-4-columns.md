@@ -2209,6 +2209,128 @@ the same direction: both are obligations.
 
 ---
 
+## Amendment A-P4-58 — THE ASKING GETS ITS SHAPE, and two residuals are settled (owner ruling 2026-09-09)
+
+**THE OWNER'S WORDS, on the ambiguous column.** "Again, we should try to
+guess what is a column as much as possible, because one of the
+principles of the tool is to be as simple as possible for the user.
+However, this does not mean that we shouldn't have user's imputs. I
+don't see any problem in asking the user everytime we fall into an
+ambiguous column!!! This is a principle!!!! It's better to ask the user
+than make wrong guesses. If there is a chance of wrong guess, it's
+better to ask the user for clarification."
+
+**WHAT IT SETTLES, AND IT IS A RULE RATHER THAN A CASE.** A-P4-56 made
+asking a first-class answer. This makes it the REQUIRED answer wherever
+a guess could be wrong: **a chance of a wrong guess is itself the
+trigger.** The tool does not weigh how likely the wrong guess is, or
+how bad it would be; where two readings of a column are both available
+and the values cannot separate them, it asks.
+
+**THE CASE THAT RAISED IT, and what the wrong guess costs.** Residual
+R-P4-157: a laboratory column of readings beside `H` and `L` flags
+satisfies rule 7b and rule 9 both, and reaches `affixed_number` on
+thirty of forty draws and `numbers_with_labels` on ten. In those ten
+every flagged reading becomes a label LEVEL, so its number leaves the
+distribution — and on a laboratory column the flags mark the CLINICAL
+TAILS, so what drops out is the extremes. The published mean, ladder
+and histogram then describe the unflagged middle and say so nowhere,
+because every number in them is internally consistent. Three rules were
+written over the TEXT to separate the two readings and all three were
+measured wrong, the last of them turning `Stage 1` and `Stage 2` labels
+into a quantity. The text does not carry the answer, which is exactly
+the condition this ruling names.
+
+**AND THE SECOND RESIDUAL: R-P4-49 IS CLOSED ON ITS MEASUREMENT.** The
+owner ruled the histogram in on 2026-08-26 with a stated worry —
+"moments and percentiles cannot show two peaks, so a bimodal column
+yields a smooth twin with every published number correct". Measured on
+2026-09-09, that is false: a 300-row column of two clean peaks, 150
+values around 20 and 150 around 70 with nothing between 35 and 55, is
+reproduced with **150 low, 150 high and ZERO cells in the empty middle
+at every seed tried**. The finer ladder is why — a hundred and one
+rungs place values where eleven could not. What remains is which BIN a
+cell falls in: 6.1% of cells misplaced on the bimodal column, 3.8% on a
+normal one, 3.3% on a skewed one, over 32 bins. The owner's ruling of
+2026-09-09: **close it.** Holding the twin to bin counts would allot
+cells by the histogram where they are allotted by the ladder's runs,
+which is the trade the histogram's own REPORT-ONLY disposition was
+written against, and the shape it was ruled in FOR is now reproduced.
+
+**AND THE THIRD QUESTION — the SHAPE of the asking, R-P4-153 — WAS PUT
+BACK TO THE ASSISTANT.** The owner: "I don't have the answer. What do
+you think would be the most user friendly way, considering that the
+last phase of this application is to build an user interface? ... It's
+needs and must be user friendly! I don't care if in the begining or
+not. I have a feeling that should be somewhere in the middle, after we
+have analyzed the columns and after we know where the problems will be,
+however i defer the final answer to you!"
+
+### The shape, decided on that delegation
+
+**IT IS A FILE THE TOOL WRITES AND THE PERSON HANDS BACK, and it is
+written IN THE MIDDLE — after the table is read and before the
+description is written.** The owner's instinct is right and there is a
+mechanical reason for it: a question can only name a COLUMN and a
+CHOICE once the table has been read, and asking beforehand means asking
+about columns that turn out to need no question at all.
+
+So `synthtwin profile` gains a middle stage:
+
+1. **Read and decide.** Every column the values settle is settled, and
+   nothing about that changes: the guess must still be good, and asking
+   is not a way to move work onto the person (A-P4-56, point 1).
+2. **Where a column is ambiguous, write a QUESTION rather than a
+   guess.** One entry per ambiguous column, in plain language, naming
+   the column, what the two readings would each mean for their
+   analysis, and which answer the tool would take if it had to.
+3. **Write the description anyway, under the SAFE reading**, and say on
+   every surface that it did. An unanswered question is not a refusal:
+   principle 2 is that somebody who has never programmed can run the
+   whole workflow, and a tool that stops dead on a question has broken
+   that. The safe reading is the one that publishes LESS.
+4. **The answers come back as an input and are recorded in the
+   description's own settings**, beside `--identifier` and the rest, so
+   the run is reproducible and an auditor can see what was asked and
+   what was answered.
+
+**WHY A FILE AND NOT A PROMPT, which is the part the owner deferred.**
+
+* **It is the same object in a terminal and behind a screen.** Phase 7
+  builds an interface; a written question with named choices renders as
+  a screen with no new vocabulary, and a terminal prompt does not
+  survive the trip. Deciding for the file now means Phase 7 draws what
+  already exists rather than making up a second way to say things,
+  which that phase's own charter forbids.
+* **It keeps determinism (plan D12).** Same profile, seed and version,
+  same bytes. An answered prompt is an input like any other, and an
+  input that is not recorded makes a run unrepeatable — so it must be
+  recorded either way, and once it is recorded the record IS the
+  interface.
+* **A question about medical data often cannot be answered on the
+  spot.** "Are these measurements or codes?" is a question a person may
+  have to take to a colleague. A prompt demands an answer while the
+  command is running; a file waits.
+* **It needs no terminal at all**, which the offline and no-subprocess
+  rules make the safe assumption, and which a scripted or scheduled run
+  needs.
+
+**WHAT THE QUESTIONS FILE MAY SAY.** It is written before the
+description exists, so its disclosure rule is stated here rather than
+inherited: it may name the column, the choices, and any spelling THE
+DESCRIPTION ITSELF WOULD PUBLISH under C6-9 — a wrapper, a separator —
+and nothing else. No value of the table, no count below the floor. And
+it is real-derived material like the five files a full run leaves
+behind, carries that sentence on its own face, and is counted with them
+wherever they are counted.
+
+**SEQUENCING, unchanged from A-P4-56.** This is a new surface and it is
+not one of the eleven landings of the close plan. What this amendment
+adds is that its SHAPE is now settled, so the landing can be written
+without another owner round.
+
+---
+
 ## Amendment A-P4-56 — ASKING THE PERSON IS PART OF THE PRODUCT (owner ruling 2026-09-04)
 
 **THE OWNER'S WORDS.** "Can we ask the user when is a date? Remember,
@@ -3007,7 +3129,25 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   is one function, and it moves what three published facts report on
   extreme columns, so it wants its own landing and its own goldens.
 
-- **R-P4-49** (opened with P4-D4.7, 2026-08-27). THE TWIN FOLLOWS THE
+- **R-P4-49 — CLOSED 2026-09-09 by owner ruling (amendment A-P4-58),
+  on the measurement below rather than by a build.** The shape it was
+  opened FOR is reproduced: a 300-row column of two clean peaks — 150
+  values around 20, 150 around 70, nothing between 35 and 55 — comes
+  back with **150 low, 150 high and ZERO cells in the empty middle at
+  every seed tried**. The finer percentile ladder is what closed it: a
+  hundred and one rungs place values where eleven could not. What
+  remains is which BIN a cell falls in — 6.1% of cells misplaced on the
+  bimodal column, 3.8% on a normal one, 3.3% on a skewed one, over 32
+  bins — and holding the twin to bin counts would allot cells by the
+  histogram where they are allotted by the ladder's runs, which is the
+  trade the census's own REPORT-ONLY disposition was written against.
+  The owner's worry was named exactly when the fact was ruled in —
+  "a bimodal column yields a smooth twin with every published number
+  correct" — and it is now measurably false. The original entry
+  follows, unchanged, because the measurement in it is what the closure
+  rests against.
+
+  THE TWIN FOLLOWS THE
   VALUE HISTOGRAM AND IS NOT HELD TO IT. Cells are allotted to values
   by G5.2's even share over the distinctness budget, which never sees
   the histogram: measured on a 229-value count column, the source's

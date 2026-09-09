@@ -41,7 +41,7 @@ _BOMS = [
 
 def load_magic(path: Path) -> list[tuple[int, bytes]]:
     table = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if line and not line.startswith("#"):
             off, sig, _label = line.split(" ", 2)
             table.append((int(off), bytes.fromhex(sig)))
