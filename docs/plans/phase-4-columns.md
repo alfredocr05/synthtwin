@@ -4952,6 +4952,35 @@ declaration for only one of them.
   published pair, not only inside a barred bin. Residual R-P4-155 was
   opened for the remainder and CLOSED the same day by that repair.
 
+- **R-P4-157 — OPEN. A COLUMN OF READINGS BESIDE FLAGS IS READ BY ONE
+  OF TWO RULES, AND NOTHING IN THE TEXT SETTLES WHICH.** A column of
+  numbers beside spaced `H` and `L` flags satisfies rule 7b — the
+  compound role — and rule 9 — the affixed role — both, and reaches
+  `affixed_number` on thirty of forty draws and `numbers_with_labels`
+  on ten. The affix reading is the better of the two: under the
+  compound one each flagged reading becomes a label LEVEL, so its
+  number leaves the distribution and a level below the floor is
+  suppressed on top of that.
+
+  **TWO REPAIRS WERE WRITTEN AND BOTH WERE MEASURED WRONG.** Review
+  round 3 of landing L14 asked the compound rule to stand aside where
+  the affix rule would take the column; it made the tie one role at
+  every draw and it also handed that rule's own work away — 280 numbers
+  beside fifteen `Stage 1` and five `Stage 2` cells became an affixed
+  column wearing the wrapper `Stage `, so a vocabulary of two labels
+  was described as a quantity and the twin's counts moved from 15 and 5
+  to 16 and 4. The condition was withdrawn at round 4.
+
+  **WHAT WOULD CLOSE IT.** A rule that tells a number wearing an
+  annotation from a label whose spelling ends in a figure. Every
+  attempt so far has been written over the TEXT and each has been
+  measured wrong in the other direction, which is the evidence that the
+  text does not carry the answer. The two candidates left are a
+  declaration — the person says which, as `--measurement` already does
+  for the flush spelling — and a rule over the CORES rather than the
+  wrapper. Both are owner decisions about what a person is asked, so
+  this is carried rather than guessed at.
+
 - **R-P4-156 — CLOSED 2026-09-04, the day it was opened.** MOVING MORE
   STRATA MEANT MORE OF THEM COULD NOT MOVE.
 

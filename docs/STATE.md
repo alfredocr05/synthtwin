@@ -1131,8 +1131,16 @@ are still ahead. The gap list itself is at the foot of this page.
 
   Each fix has a test that turns red when that fix alone is reverted.
 
-* **THE FINER PERCENTILE LADDER IS DESIGNED AND NOT BUILT (plan
-  P4-D4.10), and the measurement behind it is the useful part.** The
+* **THE FINER PERCENTILE LADDER IS BUILT (plan P4-D4.10), and this
+  entry said otherwise until 2026-09-09.** `taxonomy.FINER_LADDER_NAMES`
+  holds ninety rungs beside the eleven named ones — a hundred and one —
+  the producer publishes them as `percentiles_between`, the loader
+  reads them, and `generation._stratum_values` places values from the
+  whole hundred-and-one-rung list. The owner's second ask of 2026-08-26
+  is DONE. What follows is the measurement that ruled it in, kept
+  because it is the useful part.
+
+  **THE MEASUREMENT BEHIND IT.** The
   owner asked for "every p value (1 to 100)". Reconstructing R-P4-30's
   own dental-code column from its rungs alone: from eleven rungs, 79
   cells below 1000 against a true 97 — which IS that residual's defect,
@@ -3005,6 +3013,25 @@ validator while the disposition registry calls it EXACT-OBSERVABLE, so
 a file that drops a required missing spelling passes with no miss. Read
 the register before starting any of them.
 
+**RE-MEASURED 2026-09-09, and two of the three are already closed.** A
+`numeric_unrepresentable` twin was described, generated and checked:
+`counts.min_length` and `counts.max_length` are both CHECKS and both
+HELD, so R-P4-59 is closed by whatever landing built them and this page
+had not noticed. A column of 220 numbers beside twenty `n/a` cells was
+put through the same walk: `holes.by_source.n/a` is a CHECK and HELD,
+which is the EXACT-OBSERVABLE the registry asks for, so R-P4-60 is
+closed too.
+
+**R-P4-58 IS REAL AND WIDER THAN THIS ENTRY SAYS.** The same walk over
+a joined column returns 54 checks and **not one of them mentions a
+position**, and 0 listings do either. Every fact a joined column
+publishes about its numbers — each position's ladder, moments, styles,
+widths and histogram — is on neither page, while the census calls
+itself an identity over every published obligation. The wrapper set's
+own version of this gap was closed at review round 2 of landing L14
+(`_wrapper_checks`) and round 3 closed its listing half; the joined
+role's is the same shape and the same repair, one role along.
+
 **FOUR REVIEW ROUNDS BEFORE THAT, TWELVE SITES.** Rounds
 1, 2, 3 and 4 each returned REJECT and every item of all four was real.
 
@@ -3381,6 +3408,31 @@ list in on 2026-08-26:
 5. **The mode**, for columns where one value dominates. **PUBLISHED
    2026-08-27 (plan P4-D4.11), REPORT-ONLY until the generator carves
    its stratum.**
+
+**RE-MEASURED 2026-09-09, AND FOUR OF THE FIVE ARE DONE.** Kurtosis and
+the count of different numbers were already recorded so. The other two
+were measured rather than assumed:
+
+* **THE HISTOGRAM.** The owner's worry was named exactly: "moments and
+  percentiles cannot show two peaks, so a bimodal column yields a
+  smooth twin with every published number correct". That is now FALSE,
+  and the finer ladder is why. A 300-row column of two clean peaks —
+  150 values around 20 and 150 around 70, nothing between 35 and 55 —
+  was described and generated at three seeds: the twin holds **150 low
+  and 150 high at every seed, and ZERO cells in the empty middle**. The
+  shape is exact. What is not exact is which BIN a cell lands in: over
+  five seeds the twin misplaces 6.1% of cells on the bimodal column,
+  3.8% on a normal one and 3.3% on a skewed one, across 32 bins. So
+  R-P4-49 — the histogram is published and the twin is not held to it —
+  is still open on the letter of it, and the harm it was opened for is
+  gone. What remains is a placement detail, not a smooth twin.
+
+* **THE MODE.** Recorded here as "REPORT-ONLY until the generator
+  carves its stratum". The generator reaches it without a stratum of
+  its own: a 300-row column where one value covers 90 cells publishes
+  mode 50.0 with count 93, and the twin holds **50.0 at all five
+  seeds** with counts 91 to 93; a milder column publishing 33 holds 32.
+  The value is exact and the count is within two.
 
 Design notes — bin edges must be chosen by a reproducible RULE since
 the generator has only the description; bin counts fall under the
