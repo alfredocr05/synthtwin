@@ -4906,8 +4906,8 @@ argument 6).
 wearing a set published ONE quantitative block over ALL its cores
 until the owner's ruling of 2026-09-08, and that is a statistic of no
 quantity where the wrappers are units: a hundred weights written
-`60.0 kg` to `69.9 kg` beside a hundred written `132.0 lb` to
-`153.8 lb` published **mean 103.92**, with the column's ends running
+`60.0 kg` to `69.9 kg` beside a hundred written `132.3 lb` to
+`153.8 lb` published **mean 104.722**, with the column's ends running
 from 60 to 153.8.
 
 So each published wrapper carries a quantitative block read over its
@@ -5057,11 +5057,11 @@ rather than read.
 | `n_zero` | integer ≥ 0 | — | parsed CORES equal to zero | EXACT-OBSERVABLE |
 | `n_negative` | integer ≥ 0 | — | CORES whose notation settles a negative sign, including ones no statistic could use | EXACT-OBSERVABLE |
 | `n_negative_unrepresentable` | integer ≥ 0 | — | out-of-range CORES whose notation settles a negative sign | EXACT-OBSERVABLE |
-| `n_used_in_statistics` | integer ≥ 0 | — | present CELLS that contributed a core to the statistics | EXACT-OBSERVABLE |
-| `n_left_out_of_statistics` | integer ≥ 0 | — | present CELLS that did not, cells wearing no pair included | EXACT-OBSERVABLE |
-| `numeric_share` | number | 0.0 ≤ x ≤ 1.0 | share of present CELLS whose writer meant a number, read over the cores | EXACT-OBSERVABLE |
+| `n_used_in_statistics` | integer ≥ 0 | — | cells of the COMMONEST wrapper that contributed a core to the statistics | EXACT-OBSERVABLE |
+| `n_left_out_of_statistics` | integer ≥ 0 | — | cells of that same population that did not | EXACT-OBSERVABLE |
+| `numeric_share` | number | 0.0 ≤ x ≤ 1.0 | share of them whose writer meant a number, read over the cores | EXACT-OBSERVABLE |
 | `integer_valued` | boolean | — | true when every numeric-looking CORE is whole | EXACT-OBSERVABLE, routed by the FACT and not by role |
-| `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
+| `n_rows` | integer ≥ 0 | the table's row count where ONE wrapper is worn; the COMMONEST wrapper's own count where a SET is (C6-7b, AF13) | the row count of the population this block describes, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |

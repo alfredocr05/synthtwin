@@ -8822,8 +8822,8 @@ cores. On the shape that decision was written for — a laboratory value
 beside its abnormal flag — pooling is right: `13.5 H`, `4.2 L` and
 `9.8` are one measurement and one scale. On the shape beside it in the
 same table it is not. A hundred weights written `60.0 kg` to `69.9 kg`
-beside a hundred written `132.0 lb` to `153.8 lb` reached the role and
-published **mean 103.92, minimum 60, maximum 153.8** — a mean of no
+beside a hundred written `132.3 lb` to `153.8 lb` reached the role and
+published **mean 104.722, minimum 60, maximum 153.8** — a mean of no
 quantity, over numbers that are not comparable, presented as the
 column's own. The twin built from it then handed `kg` to a core of 150
 and `lb` to a core of 61.
@@ -8831,7 +8831,7 @@ and `lb` to a core of 61.
 The same pooling reaches a second way. Two hundred and forty readings
 written to one figure, beside sixty markers reading `note 0.0` to
 `note 59.0`, published **mean 17.46** where the readings alone average
-**14.45**: the markers' sequence numbers were in the ladder, the mean
+**14.514**: the markers' sequence numbers were in the ladder, the mean
 and the histogram of a column they are not values of.
 
 And a third: nothing in the description says WHICH cores wore which
@@ -8867,9 +8867,18 @@ numbers.
    closes them on `n_affixed`. A count of how many cores are numbers is
    true whatever scale those numbers are on, so nothing is gained by
    cutting it up and a partition a reader can check is lost.
-   `n_core_distinct` and `n_core_distinct_folded` likewise stay over
-   all the cores: they are the budget of core SPELLINGS the generator
-   spends, and it spends one budget.
+   **`n_core_distinct` and `n_core_distinct_folded` do NOT.** This
+   rule said they stay over all the cores and that the generator
+   spends one budget, and the build found otherwise: each wrapper's
+   cores are laid out from that wrapper's own block, so each spends
+   its own budget, and a count of different things does not subtract —
+   a commonest wrapper's budget could not be recovered from a column
+   total and the other wrappers'. So the column's pair is the
+   COMMONEST wrapper's, like the block it belongs to, and every other
+   wrapper carries its own pair beside its own block. Handed a column
+   total instead, a wrapper worn by fifty cells is asked for the
+   spellings of two hundred. (Amended 2026-09-09, review round 2 item
+   8, before anything rested on the first wording.)
 5. **The twin writes each wrapper's cells from that wrapper's own
    block.** This is where the ruling is paid for: `H` lands on the
    values `H` had, `kg` never lands on a pound, and the order the

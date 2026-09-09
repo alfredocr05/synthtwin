@@ -7382,7 +7382,7 @@ def _affixed_reading(
     is not silent: `_decide` asks `_declined_as_an_address` and the
     column carries `REMARK_ADDRESS_NOT_A_QUANTITY` (contract NF50).
     """
-    reading = _affixed_before_the_address_test(cells)
+    reading = _affixed_before_the_address_test(cells, forced_measurement)
     if reading is None:
         return None
     if not forced_measurement and _wrapped_in_an_address(
@@ -7418,7 +7418,9 @@ def _declined_as_an_address(cells: _Cells) -> bool:
     return _wrapped_in_an_address((reading.prefix, reading.suffix))
 
 
-def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
+def _affixed_before_the_address_test(
+    cells: _Cells, forced_measurement: bool = False
+) -> "_Affixed | None":
     """The one affix pair this column wears, address or not.
 
     Every rule of the role except the address decline. Two callers ask
@@ -7534,13 +7536,46 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
         # where a code scheme puts its letter, and the back is where an
         # abnormal flag puts one -- but only a column that holds
         # unwrapped numbers is a column of numbers with annotations.
-        plainly = False
+        # ...OR THE PERSON HAS SAID SO (review round 2, item 5). A
+        # column of `60.0kg` beside `132.0lb` holds no bare cell, so
+        # the rule below refused it and the per-wrapper machinery
+        # written FOR mixed scales was out of reach of the very shape
+        # that motivated it. `--measurement` is this project's own
+        # answer to "these are measurements, not codes", and it is
+        # the answer here: where it is given, the letter behind the
+        # digits is a unit by the person's own statement.
+        plainly = forced_measurement
         for key in speaking:
             if not key[0] and not key[1]:
                 plainly = True
         for key in speaking:
             if not _stands_apart(key[0], key[1], plainly):
                 return None
+        # ...AND A LETTER BEHIND THE DIGITS IS REFUSED AFTER ALL WHERE
+        # THE CORES ARE A CODE FAMILY (review round 2, item 4). The
+        # rule above lets a flag be written flush because a column
+        # holding unwrapped numbers is a column of numbers with
+        # annotations. A mixed register of procedure codes is exactly that
+        # shape and is not that thing: one category is five digits,
+        # a second is four digits and an `F`, a third four digits and
+        # a `T`, so eighty bare five-digit codes beside eighty of each
+        # reached this role with `F` and `T` as wrappers and a
+        # distribution over the bare codes.
+        #
+        # WHAT SEPARATES THEM IS THE CORES, not the wrapper. A code
+        # family is written at a FIXED WIDTH with no point: every
+        # Category II code is four digits, every Category I five. A
+        # measurement is not -- a haemoglobin carries a point, and an
+        # integer one runs 70 to 140 and is two digits or three. So the
+        # relaxation is withdrawn where every wrapper's cores are whole
+        # numbers all of one width, which is a description of a code
+        # register and not of a quantity.
+        if (
+            not forced_measurement
+            and _flush_behind(speaking)
+            and _code_shaped(present, speaking)
+        ):
+            return None
         # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
         # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
         # `$` -- and a sentence is not. A column of `free comment
@@ -7793,6 +7828,78 @@ def _one_word(side: str) -> bool:
     return True
 
 
+def _flush_behind(speaking: "list[tuple[str, str]]") -> bool:
+    """Whether any wrapper of the set puts a LETTER flush behind the digits.
+
+    The relaxation of the stand-apart rule reaches only that shape, so
+    the code-family test beside it is asked only where the relaxation
+    was used.
+
+    Guarantees: accepts the wrappers; returns whether one of them has a
+    letter as the first character of its suffix. Determinism: a
+    function of that input. Raises nothing. No I/O of any kind.
+    """
+    for key in speaking:
+        if key[1]:
+            for mark in key[1][:1]:
+                if mark in _LETTERS:
+                    return True
+    return False
+
+
+def _code_shaped(
+    present: "list[str]", speaking: "list[tuple[str, str]]"
+) -> bool:
+    """Whether every wrapper's cores are a fixed-width whole-number family.
+
+    A CODE REGISTER IS WRITTEN AT A FIXED WIDTH WITH NO POINT and a
+    measurement is not, which is what tells a mixed register of
+    procedure codes from a laboratory column whose flags are written flush (review round 2,
+    item 4). Every code of one such category is four digits and an
+    `F`; a
+    haemoglobin carries a point, and an integer measurement runs across
+    widths.
+
+    ASKED OF EVERY WRAPPER, so one wrapper whose cores vary is enough
+    to say this is not a register. A wrapper with no core at all
+    answers for nothing and is skipped rather than counted either way.
+
+    Guarantees: accepts the present cells and the wrappers; returns
+    whether every wrapper's cores are all digits and all of one width.
+    Determinism: a function of those inputs. Raises nothing. No I/O of
+    any kind.
+    """
+    # WHICH WRAPPER A CELL WEARS IS `_pair_worn`'s QUESTION, and asking
+    # it any other way reads the wrong core: the bare wrapper is a
+    # prefix and a suffix of EVERY cell, so a walk that tested each
+    # wrapper on its own gave `1234F` to the bare one and read its core
+    # as `1234F` -- which holds a letter, so the test said "not a code
+    # family" about the very shape it exists to catch.
+    seen = False
+    widths: "dict[tuple[str, str], dict[int, int]]" = {}
+    for key in speaking:
+        widths[key] = {}
+    for text in present:
+        trimmed = parsing.trimmed(text)
+        chosen = _pair_worn(trimmed, speaking)
+        if chosen is None:
+            continue
+        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+        if not core:
+            continue
+        for mark in core:
+            if mark not in _DIGITS:
+                return False
+        widths[chosen][len(core)] = 1
+    for key in speaking:
+        if not widths[key]:
+            continue
+        seen = True
+        if len(widths[key]) != 1:
+            return False
+    return seen
+
+
 def _stands_apart(prefix: str, suffix: str, plainly: bool) -> bool:
     """Whether a wrapper is a unit or an annotation rather than a scheme.
 
@@ -7918,7 +8025,12 @@ def _pair_worn(
 # rather than as method calls: the offline audit accepts membership
 # tests on gated text and does not carry `isalpha` or `isalnum`.
 _LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-_HOST_CHARACTERS = _LETTERS + "0123456789-."
+# The ten figures, written out for the same reason the letters are: the
+# code-family test asks whether a core is written in figures alone, and
+# a membership check against a literal is an operator rather than a
+# method call on a value the offline audit cannot trace.
+_DIGITS = "0123456789"
+_HOST_CHARACTERS = _LETTERS + _DIGITS + "-."
 
 
 def _wrapped_in_an_address(pair: "tuple[str, str]") -> bool:
@@ -8099,12 +8211,12 @@ def _wrapper_details(
     PLAN P4-D37, AND THE MEASUREMENTS THAT RULED IT IN. One block over
     every core of a column wearing a SET is a statistic of no quantity
     where the wrappers are units -- a hundred weights written `60.0 kg`
-    to `69.9 kg` beside a hundred written `132.0 lb` to `153.8 lb`
-    published mean 103.92, an average of nothing, with the column's
+    to `69.9 kg` beside a hundred written `132.3 lb` to `153.8 lb`
+    published mean 104.722, an average of nothing, with the column's
     ends running from 60 to 153.8 -- and a wrong one where a wrapper
     marks a different population: 240 readings written to one figure
     beside sixty markers reading `note 0.0` to `note 59.0` published
-    mean 17.46, where the readings alone average 14.45.
+    mean 17.46, where the readings alone average 14.514.
 
     THE BLOCK ANSWERS FOR ITS OWN WRAPPER AND SAYS SO IN ITS OWN ROW
     COUNT. `_numeric_details` reads every population key off the tally
@@ -8185,7 +8297,7 @@ def _affixed_verdict(
     # (plan P4-D37). It was read over ALL the cores, and on a column
     # wearing a SET that is a statistic of no quantity: a hundred
     # weights in kilograms beside a hundred in pounds published mean
-    # 103.92, an average of nothing, presented as the column's own.
+    # 104.722, an average of nothing, presented as the column's own.
     # Every published wrapper carries its own numbers now, this block
     # is the commonest wrapper's, and each of the others is beside its
     # own entry.
@@ -8248,7 +8360,7 @@ def _affixed_verdict(
     # ...AND EACH OF THEM CARRIES ITS OWN NUMBERS (plan P4-D37). One
     # ladder over every core was a statistic of no quantity where the
     # wrappers were units -- a hundred weights in kilograms beside a
-    # hundred in pounds published mean 103.92 -- and it was a wrong
+    # hundred in pounds published mean 104.722 -- and it was a wrong
     # one where they were markers: 240 readings beside sixty `note N.0`
     # cells published mean 17.46 where the readings alone average
     # 14.45. Every wrapper is published only where its count clears the

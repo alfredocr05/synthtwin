@@ -8497,10 +8497,154 @@ def _affixed_checks(
     for step in range(len(cores)):
         if worn[step] == (prefix, suffix):
             common_cores = common_cores + [cores[step]]
+    # ...AND THROUGH THE CORE VIEW, NOT THE COLUMN (review round 2,
+    # item 2). Every window `_numeric_checks` draws is a function of the
+    # population it is given: the supply and the ceiling come off the
+    # column's counts of different cells and its present count, and the
+    # outer column's are the WHOLE column's. Measured: 100 different
+    # kilogram cores beside 100 identical pound cores give the column
+    # 200 cells and 101 folded spellings where the commonest wrapper's
+    # block has 100 and 100 -- a displacement of 1.01 where the true one
+    # is 0.03, so a checked mean of 0.14751 was accepted against a
+    # published 4.95 whose own window runs 4.65891 to 5.24109. Every
+    # interior rung was accepted across the whole numeric range with it.
     checks = checks + _numeric_checks(
-        column, facts.numbers, block, common_cores, floor, mine
+        cores_as_column, facts.numbers, block, common_cores, floor, mine
     )
+    # ...AND ONE WRAPPER AT A TIME FOR EVERY OTHER (review round 2,
+    # item 1). Each published wrapper carries a quantitative block of
+    # its own since plan P4-D37, and NOTHING measured any of them: a
+    # description publishing pounds from 132.3 to 153.8, checked
+    # against a file whose pounds run from 232.0 to 241.9, reported
+    # zero MISSED. The only wrapper-shaped check compared the set's
+    # spellings and counts, which that file met exactly.
+    place = 0
+    for one in facts.affix_variants:
+        checks = checks + _wrapper_checks(
+            column, one, place, block, cores, worn, floor, mine
+        )
+        place = place + 1
     return checks
+
+
+def _wrapper_checks(
+    column: contract.ColumnBlock,
+    wrapper: "contract.AffixWrapper",
+    place: int,
+    block: "dict[str, object]",
+    cores: "list[str]",
+    worn: "list[tuple[str, str]]",
+    floor: int,
+    mine: "tuple[str, ...]",
+) -> "list[Check]":
+    """Every obligation ONE wrapper of a set carries (plan P4-D37).
+
+    ITS OWN BLOCK, MEASURED OVER ITS OWN CORES, AND NAMED FOR ITSELF.
+    The facts are the ones a numeric column carries, so they are
+    measured by the code that measures a numeric column -- as the
+    commonest wrapper's are -- over a view whose every count is this
+    wrapper's. What this function adds is the IDENTITY: a check coming
+    back bare would say `moments.mean` moved and leave a reader unable
+    to tell which wrapper's mean, and two wrappers moving the same fact
+    would produce two entries nothing tells apart.
+
+    THE WRAPPER IS FOUND IN THE FILE'S OWN DESCRIPTION BY ITS
+    SPELLINGS, never by position: a file wearing the same wrappers in
+    another order wears the same wrappers. Where the file's description
+    reads no such wrapper the gate closes and every one of this
+    wrapper's obligations is reported WITHHELD rather than compared
+    against a block nothing wrote.
+    """
+    named = f"affix_variants[{place}]"
+    mask = (wrapper.prefix, wrapper.suffix)
+    ours: "list[str]" = []
+    for step in range(len(cores)):
+        if worn[step] == mask:
+            ours = ours + [cores[step]]
+    inner = _wrapper_block(block, wrapper)
+    view = dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=wrapper.count,
+        n_numeric=wrapper.n_core_numeric,
+        n_not_numeric=wrapper.n_core_not_numeric,
+        n_out_of_range=wrapper.n_core_out_of_range,
+        n_contradictory=wrapper.n_core_contradictory,
+        n_distinct=wrapper.n_core_distinct,
+        n_distinct_folded=wrapper.n_core_distinct_folded,
+        facts=wrapper.numbers,
+    )
+    checks: "list[Check]" = []
+    # THE WRAPPER'S OWN COUNTS FIRST, then the block they describe.
+    for field, stated in (
+        ("count", wrapper.count),
+        ("n_core_numeric", wrapper.n_core_numeric),
+        ("n_core_out_of_range", wrapper.n_core_out_of_range),
+        ("n_core_contradictory", wrapper.n_core_contradictory),
+        ("n_core_not_numeric", wrapper.n_core_not_numeric),
+        ("n_core_distinct", wrapper.n_core_distinct),
+        ("n_core_distinct_folded", wrapper.n_core_distinct_folded),
+    ):
+        checks = checks + [
+            _exact(
+                column.name,
+                f"affixed.{field}",
+                f"counts.{named}.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(
+                    None if inner is None else _count_at(inner, field)
+                ),
+            )
+        ]
+    if inner is None:
+        # The file's own description reads no such wrapper, so nothing
+        # below has a measured side. The count lines above already say
+        # so; the block's own obligations are gated here.
+        return checks
+    inside = _numeric_checks(
+        view, wrapper.numbers, _mapping_at(inner, "numbers"), ours, floor, mine
+    )
+    for step in range(len(inside)):
+        checks = checks + [
+            dataclasses.replace(
+                inside[step],
+                subcheck=f"{named}.{inside[step].subcheck}",
+            )
+        ]
+    return checks
+
+
+def _wrapper_block(
+    block: "dict[str, object]", wrapper: "contract.AffixWrapper"
+) -> "dict[str, object] | None":
+    """The measured file's own entry for ONE wrapper, found by spelling."""
+    if "affix_variants" not in block:
+        return None
+    given = block["affix_variants"]
+    if not isinstance(given, list):
+        return None
+    for entry in given:
+        if not isinstance(entry, dict):
+            continue
+        if "prefix" not in entry or "suffix" not in entry:
+            continue
+        if entry["prefix"] == wrapper.prefix and (
+            entry["suffix"] == wrapper.suffix
+        ):
+            return entry
+    return None
+
+
+def _mapping_at(
+    block: "dict[str, object]", name: str
+) -> "dict[str, object]":
+    """One nested mapping of a re-described block, or an empty one."""
+    if name not in block:
+        return {}
+    found = block[name]
+    if not isinstance(found, dict):
+        return {}
+    return found
 
 
 def _numeric_checks(
@@ -12277,7 +12421,15 @@ def _listings(
         # too, so a role added later cannot be forgotten here.
         numbers = _quantitative_of(facts)
         if numbers is not None:
-            listings = listings + _numeric_listings(column, numbers)
+            # THROUGH THE CORE VIEW, for the reason the checks beside
+            # these go through it (review round 2, item 2): a listing
+            # says a window admits every count a file can hold, and
+            # that window is drawn from the population it is given.
+            # Given the whole column's, a listing could stand where a
+            # check belongs and the other way about.
+            listings = listings + _numeric_listings(
+                _core_column(column), numbers
+            )
             # AND THE COUNT OF DIFFERENT NUMBERS WHERE ITS ENVELOPE
             # LICENSES EVERY COUNT THE FILE COULD HOLD (V3.5). It is a
             # CHECK since amendment A-P4-55, and a check that cannot

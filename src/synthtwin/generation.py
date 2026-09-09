@@ -5345,6 +5345,29 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     )
 
 
+def _wrapper_notes(
+    place: int, notes: "list[Deviation]"
+) -> "list[Deviation]":
+    """Name the wrapper every one of these notes is about (P4-D37).
+
+    `place` is -1 for the COMMONEST wrapper, whose block is the
+    column's own and whose facts keep their bare keys, and 0 upward for
+    the entries of `affix_variants`. Written against the joined role's
+    `_position_notes`, which does the same for a position.
+    """
+    if place < 0:
+        return notes
+    named: "list[Deviation]" = []
+    for step in range(len(notes)):
+        named = named + [
+            dataclasses.replace(
+                notes[step],
+                fact=f"affix_variants[{place}].numbers.{notes[step].fact}",
+            )
+        ]
+    return named
+
+
 def _wrapper_view(
     column: "contract.ColumnBlock", wrapper: "contract.AffixWrapper"
 ) -> "contract.ColumnBlock":
@@ -6695,6 +6718,10 @@ def _affixed_content(
         # ladder ties them by construction, and no order has to be
         # arranged at all.
         at = 0
+        # -1 is the COMMONEST wrapper, whose facts are the column's own
+        # and are named bare; 0 upward are the entries of
+        # `affix_variants`, in the order the description states them.
+        step_of_wrapper = -1
         for pair_view in _wrappers_of(facts, column):
             wrapper_layout, layout_notes, wrapper_content = _numeric_layout(
                 pair_view[1], pair_view[2], pair_view[2].n_distinct_values
@@ -6709,7 +6736,18 @@ def _affixed_content(
                 plan, column=pair_view[1], layout=wrapper_layout
             )
             drawn, drawn_notes = _numeric_content(wrapper_plan, mine)
-            notes = notes + layout_notes + drawn_notes
+            # AND A WRAPPER'S NOTE NAMES ITS WRAPPER (review round 2,
+            # item 7), on the joined role's precedent in
+            # `_position_notes`. `Deviation.fact` is the description's
+            # own key, and a column wearing a set publishes
+            # `affix_variants[0].numbers.empty_edges`, not
+            # `empty_edges`: carried up bare, a reader is told a fact
+            # moved and not which wrapper's, and two wrappers moving
+            # the same fact make two entries nothing tells apart.
+            notes = notes + _wrapper_notes(
+                step_of_wrapper, layout_notes + drawn_notes
+            )
+            step_of_wrapper = step_of_wrapper + 1
             for step in range(len(drawn)):
                 cells = cells + [
                     f"{pair_view[0][0]}{drawn[step]}{pair_view[0][1]}"
