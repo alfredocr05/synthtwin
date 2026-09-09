@@ -8185,7 +8185,7 @@ def _wrapper_details(
     ends running from 60 to 153.8 -- and a wrong one where a wrapper
     marks a different population: 240 readings written to one figure
     beside sixty markers reading `note 0.0` to `note 59.0` published
-    mean 17.46, where the readings alone average 14.514.
+    mean 17.511, where the readings alone average 14.514.
 
     THE BLOCK ANSWERS FOR ITS OWN WRAPPER AND SAYS SO IN ITS OWN ROW
     COUNT. `_numeric_details` reads every population key off the tally
@@ -8331,8 +8331,8 @@ def _affixed_verdict(
     # wrappers were units -- a hundred weights in kilograms beside a
     # hundred in pounds published mean 104.722 -- and it was a wrong
     # one where they were markers: 240 readings beside sixty `note N.0`
-    # cells published mean 17.46 where the readings alone average
-    # 14.45. Every wrapper is published only where its count clears the
+    # cells published mean 17.511 where the readings alone average
+    # 14.514. Every wrapper is published only where its count clears the
     # smallest group size, so every block below is read over at least
     # that many cores and is governed by the floor like any other.
     details["affix_variants"] = _variant_blocks(affixed, cells)

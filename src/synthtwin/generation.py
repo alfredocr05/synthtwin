@@ -5322,6 +5322,15 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
         column,
         statistical_type="continuous",
         n_present=facts.n_affixed - worn_elsewhere,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
         n_numeric=facts.n_core_numeric - numeric_elsewhere,
         n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
         n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
@@ -5518,6 +5527,15 @@ def _wrapper_view(
         column,
         statistical_type="continuous",
         n_present=wrapper.count,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
         n_numeric=wrapper.n_core_numeric,
         n_not_numeric=wrapper.n_core_not_numeric,
         n_out_of_range=wrapper.n_core_out_of_range,
