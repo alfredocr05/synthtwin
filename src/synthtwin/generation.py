@@ -17375,12 +17375,22 @@ def _plan_column(
             _each, each_notes, each_content = _numeric_layout(
                 pair_view[1], pair_view[2], pair_view[2].n_distinct_values
             )
-            notes = notes + each_notes
             content = content + each_content
             if not facts.affix_variants:
-                # ONE WRAPPER, AND THE PLAN CARRIES ITS LAYOUT exactly
-                # as it did: nothing about such a column moves.
+                # ONE WRAPPER, AND THE PLAN CARRIES ITS LAYOUT AND ITS
+                # NOTES exactly as it did: nothing about such a column
+                # moves.
                 layout = _each
+                notes = notes + each_notes
+            # ...AND ON A SET THE NOTES ARE NOT TAKEN HERE (review
+            # round 6, item 6). `_affixed_content` builds each
+            # wrapper's layout again where it builds that wrapper's
+            # cells, and names every note for its wrapper; taking them
+            # here as well wrote each shortfall TWICE -- once as
+            # `n_distinct_folded`, a key an affixed block does not
+            # carry, and once as
+            # `affix_variants[0].n_core_distinct_folded`, which is the
+            # one it does.
     elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts, None)
     elif isinstance(facts, contract.ClockFacts):

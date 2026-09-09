@@ -8654,13 +8654,26 @@ def _wrapper_checks(
                 ),
             )
         ]
-    if inner is None:
-        # The file's own description reads no such wrapper, so nothing
-        # below has a measured side. The count lines above already say
-        # so; the block's own obligations are gated here.
-        return checks
+    # THE FILE'S OWN DESCRIPTION MAY READ NO SUCH WRAPPER, and then
+    # every obligation below is WITHHELD rather than absent (review
+    # round 6, item 4). The early return that stood here dropped them:
+    # a kilogram-and-pound description checked against a file holding
+    # only kilograms kept the wrapper-set verdict and the seven count
+    # lines, and the pound block's ends, moments, value count, types
+    # and styles left the report altogether -- so the census stopped
+    # being an identity over what the description publishes, on exactly
+    # the file that most needs the account.
+    #
+    # An empty mapping is what carries that: every recount comes back
+    # None, and each check reports the closed gate in the gate's own
+    # words.
     inside = _numeric_checks(
-        view, wrapper.numbers, _mapping_at(inner, "numbers"), ours, floor, mine
+        view,
+        wrapper.numbers,
+        {} if inner is None else _mapping_at(inner, "numbers"),
+        [] if inner is None else ours,
+        floor,
+        mine,
     )
     for step in range(len(inside)):
         checks = checks + [
@@ -12564,13 +12577,26 @@ def _listings(
                     # listing carries its key there and leaves the
                     # subcheck empty; qualifying the empty one produced
                     # `affix_variants[0].` and named nothing.
+                    # THE GROUP IS DROPPED, as `_joined_listings` drops
+                    # it (review round 6, item 5). A numeric listing's
+                    # fact is `numeric.field_widths` -- group and
+                    # field -- and prefixing the path to the whole of
+                    # it named `affix_variants[0].numbers.numeric
+                    # .field_widths`, a path no description carries, so
+                    # the obligation it stands for was named nowhere.
+                    # SLICED, NOT SEARCHED. The offline audit accepts
+                    # no method call on a value it cannot trace, and a
+                    # listing's fact is one; `_joined_listings` drops
+                    # its own group with the same comparison and this
+                    # is that comparison.
+                    leaf = entry.fact
+                    head = "numeric."
+                    if leaf[: len(head)] == head:
+                        leaf = leaf[len(head) :]
                     listings = listings + [
                         dataclasses.replace(
                             entry,
-                            fact=(
-                                f"affix_variants[{place}].numbers."
-                                f"{entry.fact}"
-                            ),
+                            fact=f"affix_variants[{place}].numbers.{leaf}",
                         )
                     ]
                 place = place + 1

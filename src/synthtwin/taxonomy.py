@@ -7867,11 +7867,20 @@ def _stands_apart(prefix: str, suffix: str, declared: bool) -> bool:
     THE CHARACTER TOUCHING THE NUMBER is what says which, and the two
     sides are not the same risk.
 
-    IN FRONT, a letter flush against the digits is a code scheme --
-    `E10.0`, `I11.2`, `J44.9`, `D0140` -- where the letter says which
-    register the number belongs to. Reading the rest as a quantity
-    publishes a ladder over code numbers and writes codes nobody
-    issued, so it is refused, and no declaration reaches it.
+    IN FRONT, a letter flush against the digits is USUALLY a code
+    scheme -- `E10.0`, `I11.2`, `J44.9`, `D0140` -- where the letter
+    says which register the number belongs to. Reading the rest as a
+    quantity publishes a ladder over code numbers and writes codes
+    nobody issued, so undeclared it is refused.
+
+    **AND THE DECLARATION REACHES THIS SIDE TOO** (review round 6, item
+    2). It did not, and the cost was a person answering the question
+    and getting nothing for it: a hundred readings of `7.000` to
+    `7.099` beside a hundred written `pH7.000` to `pH7.099` -- a real
+    unit, written in front, flush -- stayed free text WITH
+    `--measurement` given. A declaration the tool then ignores is worse
+    than no declaration, because the person has done the one thing
+    asked of them.
 
     BEHIND, a letter flush against the digits is AMBIGUOUS and the
     person settles it. `13.5H` is an abnormal flag on a laboratory
@@ -7901,7 +7910,7 @@ def _stands_apart(prefix: str, suffix: str, declared: bool) -> bool:
         return True
     if prefix:
         for mark in prefix[len(prefix) - 1 :]:
-            if mark in _LETTERS:
+            if mark in _LETTERS and not declared:
                 return False
     if suffix:
         for mark in suffix[:1]:
