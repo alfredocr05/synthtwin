@@ -1162,6 +1162,196 @@ def test_a_column_whose_commonest_wrapper_is_BARE_describes_and_loads(
     assert "with others wearing text beside it" in said, said
 
 
+def _flagged(draw: "random.Random", flag: str) -> "list[str]":
+    """A laboratory column whose flags are written with `flag` before them.
+
+    `flag` is `""` for the flush spelling -- `13.5H` -- and `" "` for
+    the spaced one -- `13.5 H`. Everything else about the column is the
+    same, which is the point of the test below.
+    """
+    return (
+        [f"{round(draw.uniform(9, 11), 1)}" for _index in range(120)]
+        + [f"{round(draw.uniform(13, 15), 1)}{flag}H" for _index in range(60)]
+        + [f"{round(draw.uniform(4, 5), 1)}{flag}L" for _index in range(60)]
+    )
+
+
+def test_a_flush_abnormal_flag_reads_like_a_spaced_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 1, ITEM 6. `13.5H` is as ordinary as `13.5 H`.
+
+    The guard that keeps a code scheme out of this role refused a
+    LETTER written flush against the digits, on either side. That is
+    the right rule in front of the number -- `E10.0`, `I11.2`, `D0140`
+    put the letter there, and reading the rest as a quantity publishes
+    a ladder over code numbers and writes codes nobody issued. Behind
+    the number it is not: that is where an abnormal flag goes, and
+    refusing it sent every laboratory column whose flags are written
+    flush to free text, with no ladder, no mean and no distribution --
+    the exact shape this landing exists for, in one of its two ordinary
+    spellings.
+
+    THE ASSERTION IS AN IDENTITY, not a role name, because the role a
+    column of numbers-beside-flags reaches is not settled by the flag's
+    spacing: on 10 of 40 draws it is `numbers_with_labels`, which reads
+    it too. What the spacing must not decide is WHICH, and it decided
+    everything before this: flush was free text at every draw.
+    """
+    flush: "list[str]" = []
+    spaced: "list[str]" = []
+    for seed in range(12):
+        flush = flush + [
+            _document(
+                tmp_path / f"flush{seed}", "v", _flagged(random.Random(seed), "")
+            )["columns"][0]["role"]
+        ]
+        spaced = spaced + [
+            _document(
+                tmp_path / f"spaced{seed}", "v", _flagged(random.Random(seed), " ")
+            )["columns"][0]["role"]
+        ]
+    assert flush == spaced, list(zip(flush, spaced))
+    # ...AND NEITHER IS EVER FREE TEXT, which is what the column was.
+    for reached in flush + spaced:
+        assert reached in ("affixed_number", "numbers_with_labels"), reached
+
+
+def test_a_letter_in_FRONT_of_the_digits_is_still_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """...and the guard keeps the half that is worth keeping (item 6).
+
+    A code scheme puts its letter in front. Relaxing the back of the
+    number must not relax the front, or a column of `E10.0`, `I11.2`
+    and `J44.9` is read as a quantity, publishes a ladder over its code
+    numbers, and its twin writes codes nobody ever issued.
+    """
+    draw = random.Random(9)
+    letters = ("E", "I", "J", "N", "K", "R")
+    codes = [
+        f"{letters[index % len(letters)]}{10 + index % 80}."
+        f"{index % 10}"
+        for index in range(240)
+    ]
+    reached = _document(tmp_path / "codes", "dx", codes)["columns"][0]["role"]
+    assert reached != "affixed_number", reached
+
+
+def _wearing_a_set(folder: pathlib.Path, stem: str) -> "dict[str, object]":
+    """A document for a column wearing three wrappers, to be forged."""
+    return _document(folder, stem, _flagged_rows())
+
+
+def test_a_wrapper_named_twice_across_the_vocabulary_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF14, on review round 1's own document (item 8).
+
+    AF9 orders the variants and so refuses a duplicate AMONG them; the
+    commonest pair is read somewhere else entirely, so a variant
+    repeating the pair the block already names passed both checks. Two
+    entries for one wrapper are two counts of one thing, and the count
+    of cells wearing the commonest is then the column's total less a
+    slice of itself.
+    """
+    document = _wearing_a_set(tmp_path / "af14", "flagged")
+    column = document["columns"][0]
+    twin = dict(column["affix_variants"][0])
+    twin["prefix"] = column["affix_prefix"]
+    twin["suffix"] = column["affix_suffix"]
+    column["affix_variants"] = sorted(
+        column["affix_variants"] + [twin],
+        key=lambda one: (one["prefix"], one["suffix"]),
+    )
+    with pytest.raises(errors.ProfileError) as raised:
+        _loaded(tmp_path / "af14", document, "forged")
+    assert "named twice" in f"{raised.value}", f"{raised.value}"
+
+
+def test_more_wrappers_than_a_set_of_categories_may_hold_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF15: the wrappers are published text and something must bound them.
+
+    A wrapper is a spelling taken from the table and printed in the
+    description, so what bounds how many may be named is what bounds
+    how many levels a categorical column may name. Without it a column
+    of one-off units published a spelling per cell under a key nothing
+    bounded.
+    """
+    document = _wearing_a_set(tmp_path / "af15", "flagged")
+    column = document["columns"][0]
+    many = []
+    for index in range(60):
+        many = many + [
+            {
+                "prefix": "",
+                "suffix": f" x{index:02d}",
+                "count": column["affix_variants"][0]["count"],
+                "n_core_numeric": column["affix_variants"][0][
+                    "n_core_numeric"
+                ],
+                "n_core_out_of_range": 0,
+                "n_core_contradictory": 0,
+                "n_core_not_numeric": 0,
+                "n_core_distinct": column["affix_variants"][0][
+                    "n_core_distinct"
+                ],
+                "n_core_distinct_folded": column["affix_variants"][0][
+                    "n_core_distinct_folded"
+                ],
+                "numbers": column["affix_variants"][0]["numbers"],
+            }
+        ]
+    column["affix_variants"] = many
+    with pytest.raises(errors.ProfileError) as raised:
+        _loaded(tmp_path / "af15", document, "forged")
+    said = f"{raised.value}"
+    assert "wrappers" in said, said
+
+
+def test_more_different_cores_than_the_commonest_wrapper_has_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF10, rebounded by plan P4-D37 (review round 1, item 8).
+
+    The two counts of different cores belong to the block above them,
+    and that block is the COMMONEST wrapper's. Bounded by `n_affixed`
+    they let a description say a wrapper worn by sixty cells holds two
+    hundred different cores -- a budget the core stage would then be
+    laid out from.
+    """
+    document = _wearing_a_set(tmp_path / "af10", "flagged")
+    column = document["columns"][0]
+    worn_elsewhere = sum(
+        one["count"] for one in column["affix_variants"]
+    )
+    column["n_core_distinct"] = column["n_affixed"] - worn_elsewhere + 1
+    column["n_core_distinct_folded"] = column["n_core_distinct"]
+    with pytest.raises(errors.ProfileError) as raised:
+        _loaded(tmp_path / "af10", document, "forged")
+    assert "n_core_distinct" in f"{raised.value}", f"{raised.value}"
+
+
+def test_a_block_holding_no_different_core_at_all_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF10's other end: a published zero is a description no column wrote.
+
+    A block whose numbers a file is held to describes at least one
+    core. The bound was zero, and a document saying a column holds no
+    different cores at all loaded and was generated from.
+    """
+    document = _wearing_a_set(tmp_path / "af10b", "flagged")
+    column = document["columns"][0]
+    column["n_core_distinct"] = 0
+    column["n_core_distinct_folded"] = 0
+    with pytest.raises(errors.ProfileError) as raised:
+        _loaded(tmp_path / "af10b", document, "forged")
+    assert "n_core_distinct" in f"{raised.value}", f"{raised.value}"
+
+
 def test_two_units_are_never_averaged_into_one_number(
     tmp_path: pathlib.Path,
 ) -> None:

@@ -7769,6 +7769,37 @@ def _affixed_facts(
             "whose every cell wears nothing is a column of bare "
             "numbers and that is a different role",
         )
+    # AF14. NO WRAPPER IS NAMED TWICE ACROSS THE WHOLE VOCABULARY
+    # (review round 1 of the wrapper set, item 8). AF9 orders the
+    # variants and so refuses a duplicate AMONG them, and the commonest
+    # pair is read here rather than there -- so a variant repeating the
+    # pair this block already names passed both. Two entries for one
+    # wrapper are two counts of one thing, and the count of cells
+    # wearing the commonest would then be the column's total less a
+    # slice of itself.
+    for one in variants:
+        if (one.prefix, one.suffix) == (prefix, suffix):
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {prefix!r}/{suffix!r} named twice",
+                "each wrapper named once, the commonest one under "
+                "`affix_prefix` and `affix_suffix` and every other "
+                "under `affix_variants`",
+            )
+    # AF15. A SET OF WRAPPERS IS NOT LARGER THAN A SET OF CATEGORIES
+    # MAY BE. The wrappers are published text drawn from the table, so
+    # what bounds how many of them may be named is what bounds how many
+    # levels a categorical column may name. Without it a column of a
+    # thousand one-off units published a thousand spellings under a key
+    # nothing bounded.
+    ceiling = _category_ceiling(frame)
+    if len(variants) + 1 > ceiling:
+        raise _out_of_range(
+            "affix_variants", where,
+            f"{len(variants) + 1} wrappers",
+            f"no more than {ceiling}, the most different published "
+            "spellings a column of this table may name",
+        )
     n_affixed = _bounded(
         mapping["n_affixed"], "n_affixed", where, frame.floor, n_present,
         "the number of values the column holds",
@@ -7789,17 +7820,57 @@ def _affixed_facts(
             "had to wear one shared piece of text for it to be read "
             "this way at all",
         )
+    # AF12. THE COMMONEST WRAPPER'S OWN POPULATION (plan P4-D37). The
+    # column's block is that wrapper's, so what it is checked against
+    # is that wrapper's counts: the column's totals less every other
+    # wrapper's. A column wearing ONE wrapper has nothing to subtract
+    # and is read exactly as it was, against the present cells and the
+    # table's row count.
+    worn_by_others = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    for one in variants:
+        worn_by_others = worn_by_others + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+    common_count = n_affixed - worn_by_others
+    if variants and common_count < frame.floor:
+        raise _out_of_range(
+            "affix_variants", where,
+            f"{worn_by_others} cell(s) wearing the other wrappers, "
+            f"leaving {common_count} for the one this block names",
+            f"at least {frame.floor} left for the commonest wrapper, "
+            "because it is published like any other and a wrapper "
+            "worn by fewer cells than may be named is not published "
+            "at all",
+        )
     # AF10. HOW MANY DIFFERENT CORES, held inside the bounds a file
     # cannot argue with: a set of cores cannot hold more different
     # spellings than it has cells, and folding never separates two
     # spellings that were the same.
+    #
+    # THE CELLS ARE THE COMMONEST WRAPPER'S, NOT THE COLUMN'S (plan
+    # P4-D37, and review round 1 item 8). These two counts belong to
+    # the block above them, that block is the commonest wrapper's, and
+    # bounding them by `n_affixed` let a description say a wrapper worn
+    # by fifty cells holds two hundred different cores.
+    #
+    # AND AT LEAST ONE. A block whose numbers a file is held to
+    # describes at least one core, so a published zero is a description
+    # no column could have written; the bound was zero and a document
+    # saying so loaded.
     core_distinct = _bounded(
         mapping["n_core_distinct"], "n_core_distinct", where,
-        0, n_affixed, "the number of cells wearing a wrapper",
+        1, common_count,
+        "the number of cells wearing the commonest wrapper",
     )
     core_distinct_folded = _bounded(
         mapping["n_core_distinct_folded"], "n_core_distinct_folded",
-        where, 0, core_distinct,
+        where, 1, core_distinct,
         "the raw count of different cores",
     )
     core_numeric = _bounded(
@@ -7855,34 +7926,6 @@ def _affixed_facts(
             "which names the shared text its values wear, says how "
             "many of them wore it, and says what to run if they "
             "are codes rather than measurements",
-        )
-    # AF12. THE COMMONEST WRAPPER'S OWN POPULATION (plan P4-D37). The
-    # column's block is that wrapper's, so what it is checked against
-    # is that wrapper's counts: the column's totals less every other
-    # wrapper's. A column wearing ONE wrapper has nothing to subtract
-    # and is read exactly as it was, against the present cells and the
-    # table's row count.
-    worn_by_others = 0
-    numeric_elsewhere = 0
-    out_elsewhere = 0
-    contradictory_elsewhere = 0
-    for one in variants:
-        worn_by_others = worn_by_others + one.count
-        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
-        out_elsewhere = out_elsewhere + one.n_core_out_of_range
-        contradictory_elsewhere = (
-            contradictory_elsewhere + one.n_core_contradictory
-        )
-    common_count = n_affixed - worn_by_others
-    if variants and common_count < frame.floor:
-        raise _out_of_range(
-            "affix_variants", where,
-            f"{worn_by_others} cell(s) wearing the other wrappers, "
-            f"leaving {common_count} for the one this block names",
-            f"at least {frame.floor} left for the commonest wrapper, "
-            "because it is published like any other and a wrapper "
-            "worn by fewer cells than may be named is not published "
-            "at all",
         )
     return AffixedFacts(
         numbers=_numeric_facts(
