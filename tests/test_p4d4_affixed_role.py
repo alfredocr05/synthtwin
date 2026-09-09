@@ -1238,6 +1238,132 @@ def test_a_letter_in_FRONT_of_the_digits_is_still_refused(
     assert reached != "affixed_number", reached
 
 
+def test_a_mixed_procedure_code_column_is_not_a_quantity(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 2, ITEM 4. A code register is not a measurement.
+
+    Letting a flag be written flush behind the digits — which is what a
+    laboratory column needs — admitted a shape that is not a
+    measurement at all. A mixed register of procedure codes holds one category as
+    five digits, a second as four digits and an `F`, and a third as
+    four digits and a `T`; eighty of each reached this role with `F`
+    and `T` as wrappers and a distribution published over the bare
+    codes, whose twin would then write codes nobody issued.
+
+    WHAT SEPARATES THEM IS THE CORES. A code register is written at a
+    FIXED WIDTH with no point; a measurement is not — a haemoglobin
+    carries a point, and an integer one runs across widths.
+    """
+    draw = random.Random(2)
+    codes = (
+        [f"{draw.randint(10000, 99999)}" for _index in range(80)]
+        + [f"{draw.randint(1000, 9999)}F" for _index in range(80)]
+        + [f"{draw.randint(1000, 9999)}T" for _index in range(80)]
+    )
+    reached = _document(tmp_path / "register", "code", codes)["columns"][0]["role"]
+    assert reached != "affixed_number", reached
+    # ...and a whole-number reading wearing the same kind of flag is
+    # still read, because its cores are not all one width.
+    draw = random.Random(2)
+    readings = (
+        [f"{draw.randint(70, 140)}" for _index in range(80)]
+        + [f"{draw.randint(141, 200)}H" for _index in range(80)]
+        + [f"{draw.randint(5, 69)}L" for _index in range(80)]
+    )
+    block = _document(tmp_path / "int", "bp", readings)["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    assert len(block["affix_variants"]) == 2, block["affix_variants"]
+
+
+def test_the_measurement_declaration_reaches_flush_units(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 2, ITEM 5. The person may say these are measurements.
+
+    A column of `60.0kg` beside `132.0lb` holds no bare cell, so the
+    code-risk rule refused it — and the per-wrapper machinery written
+    FOR mixed scales was out of reach of the very shape that motivated
+    it. `--measurement` is this project's own answer to "these are
+    measurements, not codes", and it is the answer here.
+
+    Undeclared the column stays free text, which is what it was before
+    this landing, so nothing anybody had is lost either way.
+    """
+    draw = random.Random(5)
+    weights = [
+        f"{60 + draw.random() * 9.9:.1f}kg" for _index in range(100)
+    ] + [f"{132 + draw.random() * 9.9:.1f}lb" for _index in range(100)]
+    folder = tmp_path / "flushunits"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(
+        folder, "w.csv", fixtures.single_column_table("w", weights)
+    )
+    read = reading.read_table(f"{table}")
+    plain = profile.build_document(read, taxonomy.Settings(), [])
+    assert plain["columns"][0]["role"] == "free_text", (
+        plain["columns"][0]["role"]
+    )
+    declared = profile.build_document(
+        read, taxonomy.Settings(), [], forced_measurements=["w"]
+    )
+    block = declared["columns"][0]
+    assert block["role"] == "affixed_number", block["role"]
+    assert len(block["affix_variants"]) == 1, block["affix_variants"]
+    # ...and each unit keeps its own numbers, which is the point.
+    assert block["percentiles"]["max"] < 100.0
+    assert block["affix_variants"][0]["numbers"]["percentiles"]["min"] > 100.0
+
+
+def test_a_wrapper_whose_numbers_are_wrong_is_caught(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 2, ITEM 1. Each wrapper's block was published and unread.
+
+    Plan P4-D37 gave every published wrapper a quantitative block of its
+    own, and the validator measured NONE of them. A description of a
+    hundred weights in kilograms beside a hundred in pounds, checked
+    against a file whose pounds are a hundred higher and whose
+    kilograms, wrappers and counts are identical, reported zero
+    obligations MISSED: the only wrapper-shaped check compared the
+    set's spellings and counts, which that file meets exactly.
+
+    Every fact a wrapper's block carries is now measured over that
+    wrapper's own cores and named for that wrapper, so a report says
+    WHICH one moved.
+    """
+    draw = random.Random(5)
+    kilograms = [
+        f"{60 + draw.random() * 9.9:.1f} kg" for _index in range(100)
+    ]
+    pounds = [
+        f"{132 + draw.random() * 9.9:.1f} lb" for _index in range(100)
+    ]
+    described = _loaded(
+        tmp_path, _document(tmp_path, "weight", kilograms + pounds), "weight"
+    )
+    again = random.Random(5)
+    shifted = [
+        f"{60 + again.random() * 9.9:.1f} kg" for _index in range(100)
+    ] + [f"{232 + again.random() * 9.9:.1f} lb" for _index in range(100)]
+    other = fixtures.write(
+        tmp_path,
+        "shifted.csv",
+        fixtures.single_column_table("weight", shifted),
+    )
+    outcome = validation.measure(described, f"{other}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    assert missed, "a file whose pounds are a hundred higher misses nothing"
+    # ...AND EVERY MISS NAMES THE WRAPPER IT BELONGS TO.
+    for subcheck in missed:
+        assert subcheck.startswith("affix_variants[0]."), subcheck
+    assert "affix_variants[0].ladder.min" in missed, missed
+
+
 def _wearing_a_set(folder: pathlib.Path, stem: str) -> "dict[str, object]":
     """A document for a column wearing three wrappers, to be forged."""
     return _document(folder, stem, _flagged_rows())
@@ -1358,8 +1484,8 @@ def test_two_units_are_never_averaged_into_one_number(
     """THE WITNESS FOR P4-D37, and it is a number that should not exist.
 
     A hundred weights written `60.0 kg` to `69.9 kg` beside a hundred
-    written `132.0 lb` to `153.8 lb` reached this role and published
-    ONE ladder over every core it held: **mean 103.92**, an average of
+    written `132.3 lb` to `153.8 lb` reached this role and published
+    ONE ladder over every core it held: **mean 104.722**, an average of
     no quantity, with the column's ends running from 60 to 153.8. A
     person reading that column's average read a number their table does
     not hold, and code converting units against it was wrong in both

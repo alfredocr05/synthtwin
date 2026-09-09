@@ -5967,6 +5967,14 @@ holds the shapes to the writing rules that build them:
 
 * `parts[<n>].<key>` — any key above, carried by one POSITION of a
   `joined_numbers` cell, `<n>` counting from nought
+* `affix_variants[<n>].numbers.<key>` — any key above, carried by one
+  WRAPPER of an `affixed_number` column that wears a set of them (plan
+  P4-D37), `<n>` counting from nought over the wrappers the description
+  states beside the commonest. The commonest wrapper's own block is the
+  column's, so its keys are carried bare and appear above rather than
+  here: a report naming `affix_variants[0].numbers.mean` says WHICH
+  wrapper's mean moved, and a bare `mean` on such a column says it was
+  the commonest one's
 * `numbers.<key>` — any key above, carried by the NUMERIC HALF of a
   `numbers_with_labels` cell, which is where that role publishes its
   quantitative facts

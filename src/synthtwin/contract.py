@@ -1831,8 +1831,8 @@ class AffixWrapper:
     A column wearing a SET of wrappers published ONE ladder over every
     core it held, and that is a statistic of no quantity where the
     wrappers are units: a hundred weights written `60.0 kg` to
-    `69.9 kg` beside a hundred written `132.0 lb` to `153.8 lb`
-    published mean 103.92, with the column's own ends running from 60
+    `69.9 kg` beside a hundred written `132.3 lb` to `153.8 lb`
+    published mean 104.722, with the column's own ends running from 60
     to 153.8. Every published wrapper carries its own block now.
 
     THE FOUR CLASS COUNTS CLOSE ON `count`, exactly as the column's
@@ -1883,7 +1883,7 @@ class AffixedFacts:
     # thing, which is every column of this role until a set is worn.
     # On a column wearing a SET they are not, and pooling them
     # published a statistic of no quantity: a hundred weights in
-    # kilograms beside a hundred in pounds gave mean 103.92.
+    # kilograms beside a hundred in pounds gave mean 104.722.
     numbers: NumericFacts
     affix_prefix: str
     affix_suffix: str
@@ -5854,6 +5854,14 @@ def _endpoint_offset(
 # P4-D37). Without this an entry carried whatever a file put in it, and
 # the compound role's own sub-blocks were found holding text nothing in
 # this package ever reads.
+# The four class keys in the order AF4 and AF16 read them.
+_CORE_CLASS_KEYS = (
+    "n_core_numeric",
+    "n_core_out_of_range",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+)
+
 _WRAPPER_KEYS = (
     "prefix",
     "suffix",
@@ -7837,6 +7845,9 @@ def _affixed_facts(
         contradictory_elsewhere = (
             contradictory_elsewhere + one.n_core_contradictory
         )
+    text_elsewhere = 0
+    for one in variants:
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
     common_count = n_affixed - worn_by_others
     if variants and common_count < frame.floor:
         raise _out_of_range(
@@ -7902,6 +7913,43 @@ def _affixed_facts(
             "n_core_numeric", where, f"a total of {total}",
             f"a total of {n_affixed}, the number of values wearing the pair",
         )
+    # AF16. EVERY ONE OF THE COMMONEST WRAPPER'S FOUR CLASS RESIDUALS
+    # IS A COUNT, and they close on its own cell count (review round 2,
+    # item 3). AF4 closes the column's four on `n_affixed` and AF11
+    # closes each entry's four on its own count, and a document can
+    # satisfy BOTH while leaving the commonest wrapper a negative
+    # remainder: move two contradictory cores into a variant, call the
+    # column's contradictory count zero and its not-numeric count two,
+    # and AF4 still adds up. The commonest wrapper's contradictory
+    # count is then `0 - 2`. Such a document loaded, and generation
+    # stopped with the internal-check message that tells its user
+    # synthtwin has a bug -- it had built 202 cells for a 200-row
+    # description.
+    residuals = (
+        core_numeric - numeric_elsewhere,
+        core_out_of_range - out_elsewhere,
+        core_contradictory - contradictory_elsewhere,
+        core_not_numeric - text_elsewhere,
+    )
+    for place in range(len(residuals)):
+        if residuals[place] < 0:
+            raise _out_of_range(
+                _CORE_CLASS_KEYS[place], where,
+                f"{residuals[place]} left for the commonest wrapper "
+                f"once every other wrapper's count is taken from it",
+                "a count of 0 or more, because the commonest wrapper's "
+                "cells are the column's less the other wrappers' and "
+                "no wrapper holds fewer than none",
+            )
+    left = residuals[0] + residuals[1] + residuals[2] + residuals[3]
+    if left != common_count:
+        raise _out_of_range(
+            "n_core_numeric", where,
+            f"a total of {left} for the commonest wrapper",
+            f"a total of {common_count}, the number of cells wearing "
+            "it, because its four classes are a partition of them "
+            "exactly as AF4's are of every counted cell",
+        )
     # AF-R, ASKED WHERE THE BLOCK'S OWN NUMBERS ARE. It is
     # unconditional -- no test of the values can separate a column of
     # measurements from a column of codes, so the sentence is owed by
@@ -7933,9 +7981,9 @@ def _affixed_facts(
             where,
             frame,
             n_present if not variants else common_count,
-            core_numeric - numeric_elsewhere,
-            core_out_of_range - out_elsewhere,
-            core_contradictory - contradictory_elsewhere,
+            residuals[0],
+            residuals[1],
+            residuals[2],
             echoes=None if not variants else common_count,
         ),
         affix_prefix=prefix,
