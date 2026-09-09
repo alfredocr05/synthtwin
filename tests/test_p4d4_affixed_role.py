@@ -1502,6 +1502,64 @@ def test_the_measurement_declaration_reaches_flush_units(
     assert block["affix_variants"][0]["numbers"]["percentiles"]["min"] > 100.0
 
 
+def test_the_sentence_names_the_count_that_wears_the_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 8, ITEM 3. The required warning said something false.
+
+    The sentence every column of this role carries names ONE wrapper,
+    and the count beside it was `n_affixed` — every counted cell. So a
+    column of a hundred kilograms beside a hundred pounds published
+    "200 of this column's values are written as a number followed by
+    ` kg`" when a hundred are. The role's evidence line made the same
+    claim, and the loader REQUIRED it, so the description, the
+    plain-language summary and the warning all said it together.
+    """
+    draw = random.Random(9)
+    document = _document(
+        tmp_path,
+        "weight",
+        [f"{28 + draw.random() * 5:.2f} kg" for _index in range(100)]
+        + [f"{128 + draw.random() * 5:.2f} lb" for _index in range(100)],
+    )
+    block = document["columns"][0]
+    assert block["affix_suffix"] == " kg", block["affix_suffix"]
+    assert block["n_affixed"] == 200, block["n_affixed"]
+    said = block["remarks"][0]
+    assert said[:3] == "100", said[:60]
+    assert "200" not in said[:40], said[:60]
+    assert block["detection_evidence"][:3] == "100", block["detection_evidence"]
+    # ...AND THE LOADER TAKES ITS OWN PRODUCER'S SENTENCE.
+    _loaded(tmp_path, document, "weight")
+
+
+def test_a_no_break_space_does_not_make_two_words_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 8, ITEM 4, and the same repair as round 1's item 7.
+
+    A wrapper of a SET must be ONE WORD, and that guard knew about the
+    plain space and the tab alone — while `affixed_split` moves EVERY
+    kind of whitespace into the wrapper, which was round 1's own
+    repair. So a wrapper could arrive holding a no-break space and be
+    counted as one word: 120 cells reading `Clinical Stage 001` to
+    `120` and 120 reading `Followup Stage 121` to `240`, written with a
+    no-break space, were read as a quantity and published a
+    distribution over sequence numbers inside two-word text. The same
+    cells with an ordinary space were free text.
+    """
+    for gap in ("\u00a0", " ", "\u2003"):
+        values = [
+            f"Clinical{gap}Stage {index:03d}" for index in range(1, 121)
+        ] + [
+            f"Followup{gap}Stage {index:03d}" for index in range(121, 241)
+        ]
+        reached = _document(
+            tmp_path / f"gap{ord(gap[0])}", "stage", values
+        )["columns"][0]["role"]
+        assert reached != "affixed_number", (repr(gap), reached)
+
+
 def test_a_wrapper_is_measured_against_its_OWN_spelling(
     tmp_path: pathlib.Path,
 ) -> None:

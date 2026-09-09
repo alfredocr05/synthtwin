@@ -8647,8 +8647,13 @@ def _wrapper_checks(
         ),
     ):
         counted = None if inner is None else _count_at(inner, field)
-        corner = _distinct_corner(wrapper.numbers, mine, under)
+        corner = _distinct_corner(
+            wrapper.numbers, _wrapper_corners(view, wrapper.numbers), under
+        )
         if corner and _envelope_admits_every_count(view, wrapper.numbers, stated):
+            # A BAR ADMITTING EVERY COUNT IS NO BAR, and the listing
+            # that names it is emitted beside the wrapper's other
+            # census entries -- see `_corner_listings`' wrapper walk.
             continue
         if corner:
             checks = checks + [
@@ -8720,6 +8725,32 @@ def _wrapper_checks(
             )
         ]
     return checks
+
+
+def _wrapper_corners(
+    view: contract.ColumnBlock, numbers: contract.NumericFacts
+) -> "tuple[str, ...]":
+    """G12.8's corner, asked of ONE wrapper rather than of the column.
+
+    REVIEW ROUND 8, ITEM 2. `corners_of` answers once per column, from
+    the commonest wrapper's numbers and the outer column, and every
+    other wrapper then borrowed that answer. Both directions were
+    wrong: on `1 kg` to `100 kg` beside `101 lb` to `200 lb` both
+    blocks have an exhaustive envelope, and the pound wrapper's two
+    core counts were dropped from the checks and named in no listing
+    either -- published obligations on neither page; and on 120 copies
+    of `$1` as the commonest wrapper beside 100 different kilogram
+    values, the commonest has no corner and the variant does, so the
+    variant was held to exact equality where its own supply cannot
+    reach the count.
+
+    A corner is a condition on published numbers, so asking it of the
+    wrapper's own view and the wrapper's own facts is the same question
+    the column asks of its own.
+    """
+    if _numeric_spellings_are_short(view, numbers):
+        return (CORNER_NUMERIC_SPELLINGS_SHORT,)
+    return ()
 
 
 def _worn_entry(
@@ -12693,6 +12724,39 @@ def _listings(
                     n_distinct_folded=one.n_core_distinct_folded,
                     facts=one.numbers,
                 )
+                # ...AND THE TWO CORE COUNTS THIS WRAPPER'S OWN CORNER
+                # DROPS FROM THE CHECKS (review round 8, item 2). The
+                # check side skips them where the wrapper's envelope
+                # admits every count a file can hold; the census counts
+                # every obligation nothing in a CSV settles, so the two
+                # halves of that one decision are written from one rule
+                # here as they are for the column's own pair.
+                for field, stated, under in (
+                    ("n_core_distinct", one.n_core_distinct, _RAW_DISTINCT),
+                    (
+                        "n_core_distinct_folded",
+                        one.n_core_distinct_folded,
+                        _FOLDED_DISTINCT,
+                    ),
+                ):
+                    corner = _distinct_corner(
+                        one.numbers, _wrapper_corners(inner, one.numbers), under
+                    )
+                    if not corner or corner == CORNER_IDENTIFIER_INFEASIBLE:
+                        continue
+                    if not _envelope_admits_every_count(
+                        inner, one.numbers, stated
+                    ):
+                        continue
+                    listings = listings + [
+                        Listing(
+                            column.name,
+                            f"affix_variants[{place}].{field}",
+                            f"counts.affix_variants[{place}].{field}",
+                            _NOT_CHECKABLE_SPELLING_ENVELOPE
+                            + CORNER_CITATIONS[corner],
+                        )
+                    ]
                 for entry in _numeric_listings(inner, one.numbers):
                     # THE IDENTITY GOES ON THE FACT, because a numeric
                     # listing carries its key there and leaves the
