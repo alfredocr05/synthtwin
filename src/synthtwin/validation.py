@@ -12476,6 +12476,46 @@ def _listings(
             listings = listings + _compound_listings(
                 column, facts, _corner_names(corners, column.name)
             )
+        # ...AND EVERY WRAPPER OF A SET, whose block is a block of the
+        # same kind (plan P4-D37; review round 3, item 4). The line
+        # above unwraps an affixed column to its COMMONEST wrapper's
+        # numbers and stops there, so on a column of kilograms beside
+        # pounds the commonest block took eight listings and the pound
+        # block none: its histogram, its empty-bin pair, its field-width
+        # census, its finer percentiles, its mode pair and its unbounded
+        # style obligation were on neither page. The census calls itself
+        # an identity over every published obligation, and those were
+        # published.
+        if isinstance(facts, contract.AffixedFacts):
+            place = 0
+            for one in facts.affix_variants:
+                inner = dataclasses.replace(
+                    column,
+                    statistical_type="continuous",
+                    n_present=one.count,
+                    n_numeric=one.n_core_numeric,
+                    n_not_numeric=one.n_core_not_numeric,
+                    n_out_of_range=one.n_core_out_of_range,
+                    n_contradictory=one.n_core_contradictory,
+                    n_distinct=one.n_core_distinct,
+                    n_distinct_folded=one.n_core_distinct_folded,
+                    facts=one.numbers,
+                )
+                for entry in _numeric_listings(inner, one.numbers):
+                    # THE IDENTITY GOES ON THE FACT, because a numeric
+                    # listing carries its key there and leaves the
+                    # subcheck empty; qualifying the empty one produced
+                    # `affix_variants[0].` and named nothing.
+                    listings = listings + [
+                        dataclasses.replace(
+                            entry,
+                            fact=(
+                                f"affix_variants[{place}].numbers."
+                                f"{entry.fact}"
+                            ),
+                        )
+                    ]
+                place = place + 1
 
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
