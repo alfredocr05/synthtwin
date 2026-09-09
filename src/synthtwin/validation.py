@@ -3742,17 +3742,29 @@ def _shown_variants(
 ) -> str:
     """What the description asks for on the wrapper-set line.
 
-    The COUNT and what is being compared, and not the spellings: the
+    HOW MANY AND WHAT IS BEING COMPARED, and not the spellings: the
     published wrappers are the description's own text and printing them
     would be permitted, but the measured side beside them may never be
     printed, and a line showing one side's spellings and withholding
     the other's invites a reader to read the difference as the answer.
+
+    IT NAMES ONLY WHAT THIS LINE SETTLES (review round 5, item 5). The
+    set comparison is over membership and spelling; a wrapper's count
+    is its own published fact with its own line, and saying otherwise
+    here described a check this report does not make.
     """
     if not published:
         return "no other wrapper"
+    # WHAT THIS LINE ACTUALLY SETTLES, and it said more than that until
+    # review round 5 (item 5). The set comparison covers which wrappers
+    # the file wears and how they are spelled; each wrapper's COUNT is
+    # a published fact with a line of its own. Naming the count here
+    # too told a reader the set line had checked something it had not,
+    # and a file wearing the right wrappers in the wrong numbers then
+    # read HELD on this line and MISSED on the next.
     return (
-        f"{len(published)} other wrapper(s), each with its published "
-        f"spelling and its published count"
+        f"{len(published)} other wrapper(s), by their published "
+        f"spellings; each one's count is settled on its own line"
     )
 
 

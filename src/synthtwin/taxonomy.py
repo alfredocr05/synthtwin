@@ -7698,6 +7698,27 @@ def _affixed_before_the_address_test(
         wrappers = wearing
         counts = kept
     n_affixed = len(cores)
+    # THE COMMONEST WRAPPER IS CHOSEN FROM WHAT WEARS IT, and it was
+    # chosen from what PROPOSED it (review round 5, item 1). The
+    # proposal pass counts cells that read as a NUMBER wearing a
+    # wrapper; the wear pass counts every cell that wears it, cores
+    # that are no number included, and the two orders can differ. AF17
+    # then refused what this function had just written: a hundred
+    # distinct ` kg` numerals beside ninety-eight ` aa` numerals and
+    # two `many aa` cells proposes ` kg` as commonest and WEARS both a
+    # hundred times, so the loader's tie rule wants ` aa` -- and
+    # `synthtwin profile` wrote a file `synthtwin generate` refused,
+    # which is the defect amendment A-P3-11 exists to keep closed.
+    #
+    # THE TIE RULE IS THE LOADER'S, character for character: most cells
+    # first, and where two wrappers wear the same number of cells the
+    # pair that sorts first.
+    for key in sorted(counts):
+        if counts[key] > counts[pair] or (
+            counts[key] == counts[pair] and key < pair
+        ):
+            pair = key
+    prefix, suffix = pair
     variants: "list[tuple[str, str, int]]" = []
     for key in sorted(counts):
         if key == pair:
