@@ -210,7 +210,7 @@ def main() -> int:
 
     try:
         att = json.loads(
-            att_path.read_text(encoding="utf-8"), object_pairs_hook=_no_duplicate_members
+            att_path.read_text(), object_pairs_hook=_no_duplicate_members
         )
     except DuplicateMemberError as err:
         print(
