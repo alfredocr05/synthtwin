@@ -7995,8 +7995,12 @@ def _affixed_facts(
     # the offline audit refuses on a value it cannot trace.
     carried = False
     for remark in remarks:
+        # AGAINST THE COMMONEST WRAPPER'S OWN COUNT, which is the
+        # count the sentence names (review round 8, item 3): it names
+        # ONE spelling, so the number beside it is how many cells wear
+        # THAT spelling and not how many wear any of them.
         if _is_the_affixed_remark(
-            remark, n_affixed, _affix_clause(prefix, suffix)
+            remark, common_count, _affix_clause(prefix, suffix)
         ):
             carried = True
     if not carried:

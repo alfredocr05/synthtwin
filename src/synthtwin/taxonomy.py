@@ -7846,17 +7846,31 @@ def _one_word(side: str) -> bool:
     before the question is asked. What is left must hold no space at
     all: `kg`, `months`, `EUR` and `$` do, and `written out` does not.
 
+    WHICH CHARACTERS ARE SPACE IS ASKED OF `parsing.trimmed`, and this
+    knew about the plain space and the tab alone until review round 8
+    (item 4). `affixed_split` moves EVERY kind of whitespace into the
+    wrapper -- that repair was itself review round 1's item 7 -- so a
+    wrapper could arrive here holding a no-break space, and a no-break
+    space is not in a two-character list. Measured: 120 cells reading
+    `Clinical Stage 001` to `120` and 120 reading `Followup Stage 121`
+    to `240`, with a no-break space between the words, were admitted
+    as a quantity and published a distribution over sequence numbers
+    inside two-word text; the same cells written with an ordinary
+    space were free text. One question, one answer, asked of the one
+    function that gives it -- the same repair, in the second of the two
+    places that needed it.
+
     Guarantees: accepts one side of a wrapper; returns whether it is a
     single word. Determinism: a function of that input. Raises
     nothing. No I/O of any kind.
     """
     rest = side
-    while rest and rest[:1] in " \t":
+    while rest and parsing.trimmed(rest[:1]) == "":
         rest = rest[1:]
-    while rest and rest[len(rest) - 1 :] in " \t":
+    while rest and parsing.trimmed(rest[len(rest) - 1 :]) == "":
         rest = rest[: len(rest) - 1]
     for mark in rest:
-        if mark in " \t":
+        if parsing.trimmed(mark) == "":
             return False
     return True
 
@@ -8372,7 +8386,25 @@ def _affixed_verdict(
     # of the values separates an opaque token family from a
     # measurement, so the choice is between telling every such column's
     # owner and telling none.
-    pair = (affixed.prefix, affixed.suffix, affixed.n_affixed)
+    # THE COUNT NAMED BESIDE A SPELLING IS THE COUNT THAT WEARS IT
+    # (review round 8, item 3). It was `n_affixed` -- every counted
+    # cell -- and the sentence names ONE wrapper, so a column of a
+    # hundred kilograms beside a hundred pounds published "200 of this
+    # column's values are written as a number followed by ` kg`" when
+    # a hundred are. The role's evidence line made the same false
+    # claim and the loader required it, so the description, its
+    # summary and its warning all said it together.
+    #
+    # On a column wearing ONE wrapper the two counts are the same
+    # number, so nothing about such a column moves.
+    worn_elsewhere = 0
+    for _prefix, _suffix, count in affixed.variants:
+        worn_elsewhere = worn_elsewhere + count
+    pair = (
+        affixed.prefix,
+        affixed.suffix,
+        affixed.n_affixed - worn_elsewhere,
+    )
     # ...AND THE ALL-DIFFERENT REMARK IS THE NUMBERS ONE, NOT THE FREE
     # TEXT ONE. The observation reaches this role and must: a column of
     # `R1` to `R240` wearing one prefix is exactly the shape somebody
