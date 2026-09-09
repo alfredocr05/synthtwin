@@ -161,7 +161,7 @@ def main() -> None:
                         )
                     )
                 )
-            except Exception as exc:      # a shape the loader refuses
+            except Exception:      # a shape the loader refuses
                 refused = refused + 1
                 continue
             built = built + 1

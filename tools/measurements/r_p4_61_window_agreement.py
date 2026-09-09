@@ -4,7 +4,10 @@ They print numbers differing in the last places. The question that
 matters is whether a twin the generator calls inside its range is ever
 one the validator calls MISSED, or the other way round.
 """
-import sys, pathlib, tempfile, random
+import sys
+import pathlib
+import tempfile
+import random
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))

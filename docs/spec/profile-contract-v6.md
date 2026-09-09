@@ -5192,7 +5192,25 @@ text drawn from the table, so what bounds how many may be named is what
 bounds how many levels a categorical column may name.
 
 **AF7.** Every quantitative key above obeys the invariant section 6.7
-states for it on `count` and `continuous`, read over the CORES.
+states for it on `count` and `continuous`, read over the CORES **of the
+population the block it sits in describes** (C6-7b; review round 4,
+item 7).
+
+For a column wearing ONE wrapper that population is every counted core
+and every reading below is unchanged, which is every column of this
+role until a set is worn. For a column wearing a SET it is not: the
+column's own block describes the COMMONEST wrapper's cores and each
+entry's block describes that entry's, so `n_rows`, `n_used_in
+_statistics`, `n_left_out_of_statistics` and `numeric_share` answer for
+that wrapper's cells and Q1 is read against that wrapper's count rather
+than the table's. A consumer that adds the wrappers' populations gets
+the column's counted cells; one that reads the column's block as
+covering them all gets a description of the commonest wrapper and
+nothing about the rest.
+
+**AF7 continued.** Every quantitative key above obeys the invariant
+section 6.7 states for it on `count` and `continuous`, read over the
+CORES.
 Wherever such an invariant names a cell-census count it is read here
 over the matching core-class count — `n_core_numeric` for `n_numeric`,
 `n_core_out_of_range` for `n_out_of_range`, `n_core_contradictory` for

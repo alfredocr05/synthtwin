@@ -13,7 +13,6 @@ twin's own report files.
 
 import pathlib
 import random
-import re
 import sys
 import tempfile
 

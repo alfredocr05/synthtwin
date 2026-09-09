@@ -7647,7 +7647,6 @@ def _affixed_before_the_address_test(
     # core classes would have been unreachable -- no producer could
     # ever have written `n_core_not_numeric` above zero.
     prefix, suffix = pair
-    worn = {key: 1 for key in speaking}
     cores: "list[str]" = []
     wrappers: "list[tuple[str, str]]" = []
     counts: "dict[tuple[str, str], int]" = {}
@@ -8933,28 +8932,30 @@ def _decide(
     #
     # A column failing any of the three declines to the rules below
     # exactly as it does today.
+    # AND A COLUMN BOTH RULES CAN READ TAKES THIS ONE, WHICH IS A TIE
+    # NOTHING IN THE TEXT SETTLES (review round 3 item 1, WITHDRAWN by
+    # round 4 item 1; residual R-P4-157). A column of readings beside
+    # spaced `H` and `L` flags satisfies this rule and the affix rule
+    # both, and reaches this one on ten of forty draws -- where each
+    # flagged reading becomes a label LEVEL and its number leaves the
+    # distribution.
     #
-    # AND IT STANDS ASIDE WHERE THE AFFIX READING WOULD TAKE THE COLUMN
-    # (review round 3 of landing L14, item 1). A column of readings
-    # beside `H` and `L` flags satisfies BOTH rules, and which one it
-    # reached depended on the draw: `affixed_number` on thirty of forty
-    # and `numbers_with_labels` on ten, the same shape either way. The
-    # compound reading is the worse of the two here -- it makes each
-    # flagged reading a LABEL LEVEL, so those readings' numbers leave
-    # the distribution entirely and a level below the floor is
-    # suppressed on top.
+    # ROUND 3 ASKED THIS RULE TO STAND ASIDE WHERE THE AFFIX RULE WOULD
+    # TAKE THE COLUMN, AND THAT WAS MEASURED WORSE. It made the tie one
+    # role at every draw, and it also handed this rule's own work away:
+    # 280 numbers beside fifteen `Stage 1` and five `Stage 2` cells
+    # became an affixed column wearing the wrapper `Stage `, so a
+    # vocabulary of two labels was described as a quantity and the
+    # twin's counts moved from 15 and 5 to 16 and 4. A label whose
+    # spelling happens to end in a figure is not a number wearing a
+    # unit, and no rule written over the TEXT has told the two apart:
+    # each attempt has been measured wrong in the other direction.
     #
-    # THE PRESERVATION CASE IS THE POINT OF THE CONDITION. This role's
-    # own motivating shape -- 280 readings beside `<0.5` and `NOT
-    # DETECTED` -- has no affix reading at all, because `NOT DETECTED`
-    # holds no number for a wrapper to sit around, so it is compound
-    # here exactly as it was. What moves is only the column both rules
-    # can read, and it moves to the rule that publishes its numbers.
+    # So the tie stands, both readings describe the column, and which
+    # is reached is recorded rather than guessed at. The residual
+    # carries both measurements.
     compound = None if forced_code else _compound_reading(cells)
-    if compound is not None and (
-        forced_code
-        or _affixed_reading(cells, forced_measurement) is None
-    ):
+    if compound is not None:
         return _compound_verdict(cells, compound, notes, remarks)
 
     # RULE 8 -- a column of clock times: the `time_of_day` role.

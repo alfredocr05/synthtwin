@@ -4,7 +4,10 @@ Real CSV, real reader, real profiler, real loader, real generator. The
 twin's RAW and FOLDED spelling counts are compared with the published
 ones, with the guard as it shipped and as it is now.
 """
-import pathlib, random, sys, tempfile
+import pathlib
+import random
+import sys
+import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))

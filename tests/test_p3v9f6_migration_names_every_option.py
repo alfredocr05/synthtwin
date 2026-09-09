@@ -571,7 +571,13 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     # is a disclosure change to a shipped option and it is R-P4-148.
     assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
+    # THE DECLARATION REACHES THE WRITTEN DESCRIPTION, and this line
+    # measured nothing until 2026-09-09: it serialized the settings and
+    # asserted on neither the string nor anything derived from it, so
+    # the one thing it was here to show -- that the declared word is
+    # carried into the file a person keeps -- was shown by nothing.
     written = json.dumps(kept)
+    assert json.dumps(word) in written, written
     # The COLUMN publishes no distribution of its own; the numeric HALF
     # does, which is the change.
     assert "percentiles" not in column

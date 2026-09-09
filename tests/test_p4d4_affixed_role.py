@@ -1259,25 +1259,41 @@ def test_every_wrapper_owes_its_own_records_on_the_twin_report(
     # EACH WRAPPER OWES THE SAME FACTS, because each is a numeric block
     # of the same kind measured by the same code.
     assert len(variant) == len(primary), (len(primary), len(variant))
+    # THE BLOCK'S OWN FIELDS TAKE `numbers.`; the two counts of
+    # different cores sit BESIDE the block and take the wrapper's own
+    # path (review round 4, item 4). A record naming
+    # `affix_variants[0].numbers.n_distinct` named a field of neither.
     for one in variant:
-        assert one.startswith("affix_variants[0].numbers."), one
+        assert one.startswith("affix_variants[0]."), one
+        if "n_core_distinct" in one:
+            assert ".numbers." not in one, one
+        else:
+            assert ".numbers." in one, one
 
 
-def test_a_flagged_column_reaches_ONE_role_at_every_draw(
+def test_a_flagged_column_is_read_by_one_of_TWO_rules(
     tmp_path: pathlib.Path,
 ) -> None:
-    """REVIEW ROUND 3, ITEM 1. The same shape described two ways.
+    """RESIDUAL R-P4-157, recorded rather than guessed at.
 
-    A column of readings beside spaced `H` and `L` flags satisfies both
-    the compound rule and the affix rule, and which one it reached
-    depended on the values drawn: `affixed_number` on thirty of forty
-    draws and `numbers_with_labels` on ten. The compound reading is the
-    worse of the two here — each flagged reading becomes a LABEL LEVEL,
-    so those readings' numbers leave the distribution altogether, and a
-    level below the floor is suppressed on top of that.
+    A column of readings beside spaced `H` and `L` flags satisfies the
+    compound rule and the affix rule BOTH, and which it reaches depends
+    on the values drawn: `affixed_number` on most and
+    `numbers_with_labels` on the rest. The affix reading is the better
+    of the two — under the compound one each flagged reading becomes a
+    label LEVEL, so its number leaves the distribution and a level
+    below the floor is suppressed on top.
 
-    The compound rule now stands aside where the affix rule would take
-    the column, so the shape reaches one role at every draw.
+    REVIEW ROUND 3 ASKED THE COMPOUND RULE TO STAND ASIDE and round 4
+    measured what that cost: 280 numbers beside fifteen `Stage 1` and
+    five `Stage 2` cells became an affixed column wearing the wrapper
+    `Stage `, so a vocabulary of two labels was described as a quantity
+    and the twin's counts moved from 15 and 5 to 16 and 4. A label
+    whose spelling ends in a figure is not a number wearing a unit, and
+    no rule written over the TEXT has told the two apart — each attempt
+    has been measured wrong in the other direction.
+
+    So this pins the tie itself: BOTH readings, and no third.
     """
     reached = set()
     for seed in range(12):
@@ -1286,7 +1302,17 @@ def test_a_flagged_column_reaches_ONE_role_at_every_draw(
                 tmp_path / f"d{seed}", "v", _flagged(random.Random(seed), " ")
             )["columns"][0]["role"]
         )
-    assert reached == {"affixed_number"}, sorted(reached)
+    assert reached <= {"affixed_number", "numbers_with_labels"}, sorted(reached)
+    # ...AND A LABEL WHOSE SPELLING ENDS IN A FIGURE IS STILL A LABEL,
+    # which is what the withdrawn condition took away.
+    draw = random.Random(4)
+    staged = (
+        [f"{draw.randint(1, 500)}" for _index in range(280)]
+        + ["Stage 1"] * 15
+        + ["Stage 2"] * 5
+    )
+    block = _document(tmp_path / "staged", "stage", staged)["columns"][0]
+    assert block["role"] != "affixed_number", block["role"]
 
 
 def test_the_compound_role_keeps_the_column_it_was_written_for(
@@ -1320,7 +1346,6 @@ def test_a_letter_in_FRONT_of_the_digits_is_still_refused(
     and `J44.9` is read as a quantity, publishes a ladder over its code
     numbers, and its twin writes codes nobody ever issued.
     """
-    draw = random.Random(9)
     letters = ("E", "I", "J", "N", "K", "R")
     codes = [
         f"{letters[index % len(letters)]}{10 + index % 80}."
@@ -1361,11 +1386,11 @@ def test_a_mixed_procedure_code_column_is_not_a_quantity(
     # hidden: nothing in the text tells the two apart, so the safe
     # reading is the one that publishes no distribution, and the
     # person who knows which it is says so.
-    draw = random.Random(2)
+    again = random.Random(2)
     readings = (
-        [f"{draw.randint(70, 140)}" for _index in range(80)]
-        + [f"{draw.randint(141, 200)}H" for _index in range(80)]
-        + [f"{draw.randint(5, 69)}L" for _index in range(80)]
+        [f"{again.randint(70, 140)}" for _index in range(80)]
+        + [f"{again.randint(141, 200)}H" for _index in range(80)]
+        + [f"{again.randint(5, 69)}L" for _index in range(80)]
     )
     block = _document(tmp_path / "int", "bp", readings)["columns"][0]
     assert block["role"] != "affixed_number", block["role"]
@@ -1704,16 +1729,29 @@ def test_a_file_wearing_the_wrappers_in_OTHER_numbers_misses(
         ),
     )
     outcome = validation.measure(described, f"{other}")
+    # THE SET LINE COVERS MEMBERSHIP AND SPELLINGS; each wrapper's
+    # COUNT is a published fact with a check of its own (round 4, item
+    # 6). This file wears the right wrappers in the wrong numbers, so
+    # the set holds and the counts miss.
     settled = [
         check
         for check in outcome.checks
         if check.subcheck == "counts.affix_variants"
     ]
     assert len(settled) == 1, settled
-    assert settled[0].verdict == validation.MISSED, settled[0]
-    # ...AND THE MEASURED SIDE IS STILL KEPT BACK, because a wrapper is
-    # text of the file and V5.4 does not bend for a MISS.
+    assert settled[0].verdict == validation.HELD, settled[0]
     assert settled[0].achieved == ""
+    counts = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+        and check.subcheck.endswith(".count")
+    ]
+    assert counts, [
+        (one.subcheck, one.verdict)
+        for one in outcome.checks
+        if one.verdict == validation.MISSED
+    ]
 
 
 def test_the_twin_wears_the_wrappers_in_their_published_numbers(

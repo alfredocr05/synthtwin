@@ -309,6 +309,35 @@ def _say(message: str) -> None:
     print(parsing.visible_lines(f"{message}"))
 
 
+def _described_columns(
+    document: "dict[str, object]",
+) -> "list[dict[str, object]]":
+    """The column blocks of a freshly built description.
+
+    `build_document` returns a plain mapping of published keys, so its
+    `columns` entry is typed as loosely as every other value in it, and
+    walking it directly is a walk over something the type check cannot
+    name. This narrows it once, where the narrowing can be read, rather
+    than at each of the two places that walk it.
+
+    Guarantees: accepts a document this package built; returns its
+    column blocks, or an empty list where the entry is not a list of
+    mappings -- which no document this package writes can be, and is
+    handled rather than assumed. Determinism: a function of the
+    mapping. Raises nothing. No I/O of any kind.
+    """
+    if "columns" not in document:
+        return []
+    given = document["columns"]
+    if not isinstance(given, list):
+        return []
+    found: "list[dict[str, object]]" = []
+    for entry in given:
+        if isinstance(entry, dict):
+            found = found + [entry]
+    return found
+
+
 def _warn(message: str) -> None:
     """Print one refusal or caution to the error stream, likewise.
 
@@ -1487,7 +1516,7 @@ def _run_profile(
     # saying so: principle 5's silent miscast, arriving through a
     # declaration rather than through a guess.
     for name in sorted(forced_decimal_commas):
-        for described_column in document["columns"]:
+        for described_column in _described_columns(document):
             if described_column["name"] != name:
                 continue
             if described_column["role"] in contract.DECIMAL_COMMA_HONOURED_ROLES:
@@ -1574,7 +1603,7 @@ def _run_profile(
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
                 for name in sorted(forced_decimal_commas):
-                    for rebuilt in document["columns"]:
+                    for rebuilt in _described_columns(document):
                         if rebuilt["name"] != name:
                             continue
                         if rebuilt["role"] in contract.DECIMAL_COMMA_HONOURED_ROLES:

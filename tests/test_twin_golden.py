@@ -1100,8 +1100,16 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED 2026-09-09 for review round 4 of landing L14, item 4, and
+# the report SAYS MORE than it did rather than less. Two records about
+# the `dose` column named `n_distinct` and `n_distinct_folded` -- keys
+# an affixed column does not publish. What it publishes is
+# `n_core_distinct` and `n_core_distinct_folded`, which is AF7's
+# substitution, and a person following the old names into the
+# description found nothing under them. No record was added or removed
+# and no measured value moved; two identifiers now name real fields.
 GOLDEN_REPORT_SHA256 = (
-    "59e54f1321e1c0cd729de4ffcff91702a9a44055ccff2f3f307c79f4d97f044f"
+    "c751c01eee0ebf3c0f521c2b12a4ed0631af3130d7e0fa8045b4b3f6746c0a4b"
 )
 
 
