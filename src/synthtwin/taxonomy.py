@@ -7528,8 +7528,18 @@ def _affixed_before_the_address_test(cells: _Cells) -> "_Affixed | None":
     # ASKED OF A SET ONLY. A column wearing ONE wrapper is read exactly
     # as it was, so `D0140` is still whatever it was before.
     if len(speaking) > 1:
+        # SOME CELL OF THIS COLUMN IS A PLAIN NUMBER, which is what
+        # lets a flag be written flush against the digits (review round
+        # 1, item 6). See `_stands_apart`: the front of the number is
+        # where a code scheme puts its letter, and the back is where an
+        # abnormal flag puts one -- but only a column that holds
+        # unwrapped numbers is a column of numbers with annotations.
+        plainly = False
         for key in speaking:
-            if not _stands_apart(key[0], key[1]):
+            if not key[0] and not key[1]:
+                plainly = True
+        for key in speaking:
+            if not _stands_apart(key[0], key[1], plainly):
                 return None
         # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
         # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
@@ -7783,7 +7793,7 @@ def _one_word(side: str) -> bool:
     return True
 
 
-def _stands_apart(prefix: str, suffix: str) -> bool:
+def _stands_apart(prefix: str, suffix: str, plainly: bool) -> bool:
     """Whether a wrapper is a unit or an annotation rather than a scheme.
 
     THE CHARACTER TOUCHING THE NUMBER is what says which. A unit is
@@ -7793,20 +7803,41 @@ def _stands_apart(prefix: str, suffix: str) -> bool:
     wrapper -- nothing on either side -- always stands apart, because a
     cell wearing it IS a plain number.
 
-    Guarantees: accepts the two sides of a wrapper; returns whether it
-    stands apart from the number it wraps. Determinism: a function of
-    those inputs. Raises nothing. No I/O of any kind.
+    THE TWO SIDES ARE NOT THE SAME RISK, and treating them alike cost
+    the shape this role was widened FOR (review round 1, item 6). A
+    code scheme puts its letter IN FRONT: `E10.0`, `I11.2`, `J44.9`,
+    `D0140` -- the letter says which register the number belongs to,
+    and reading the rest as a quantity publishes a ladder over code
+    numbers and writes codes nobody issued. An abnormal flag goes
+    BEHIND: `13.5H`, `4.2L`. Refusing both sides alike sent every
+    laboratory column whose flags are written flush to free text --
+    no ladder, no mean, no distribution -- and flush flags are
+    ordinary in real extracts.
+
+    ...AND `plainly` IS WHAT MAKES THE BACK SIDE SAFE. It says some
+    cell of this column is a PLAIN NUMBER wearing nothing: the bare
+    wrapper is in the vocabulary. A column of numbers, some of them
+    annotated, is a column of numbers; a column where EVERY cell
+    carries a letter is a column of tokens, and this returns false for
+    its wrappers whichever side the letter is on. A code column never
+    holds a bare code, so `E10.0`/`I11.2`/`J44.9` is refused by the
+    front rule and would be refused by this one too.
+
+    Guarantees: accepts the two sides of a wrapper and whether the
+    column's vocabulary holds the bare wrapper; returns whether the
+    wrapper stands apart from the number it wraps. Determinism: a
+    function of those inputs. Raises nothing. No I/O of any kind.
     """
     if not prefix and not suffix:
         return True
-    touching = ""
     if prefix:
-        touching = touching + prefix[len(prefix) - 1 :]
+        for mark in prefix[len(prefix) - 1 :]:
+            if mark in _LETTERS:
+                return False
     if suffix:
-        touching = touching + suffix[:1]
-    for mark in touching:
-        if mark in _LETTERS:
-            return False
+        for mark in suffix[:1]:
+            if mark in _LETTERS and not plainly:
+                return False
     return True
 
 

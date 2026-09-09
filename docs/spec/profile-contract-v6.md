@@ -4475,7 +4475,7 @@ one row of the table below:
 | class | roles | what the class means |
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only when at least `small_cell_floor` rows share them |
-| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix` and `affix_suffix`, and section 6.15's, at `separator` |
+| ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix`, `affix_suffix` and the `prefix`/`suffix` of each `affix_variants` entry — a column may wear a SET of wrappers (C6-7a) and every member of the vocabulary is published on the same terms as the commonest, which is what the exception was always about — and section 6.15's, at `separator` |
 | nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict |
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
@@ -4803,16 +4803,26 @@ its number begins. In `$1,200.00` the longest parsing substring is
 candidates tie at three characters, `-12` and `-34`, and the leftmost
 wins, so the prefix is empty and the suffix is `-34`.
 
-**The classifier trims, so whitespace between the number and the text
-around it belongs to the CORE and never to the pair.** The longest
-parsing substring of `5 mg` is `5 `, not `5`, because the classifier
-reads `5 ` as the number 5. So `5mg`, `5 mg` and `5  mg` all wear the
-one pair — empty prefix, suffix `mg` — and differ only in their cores,
-and the same holds on the prefix side, where `$1,200` and `$ 1,200`
-both wear `$` and an empty suffix. This is a consequence of the two
-rules above and it is written down because a reader will assume the
-opposite: a column mixing spaced and unspaced units is a ONE-PAIR
-column that takes this role, not a mixed-affix column that declines.
+**C6-5a (the space belongs to the WRAPPER).** The classifier trims, so
+the longest parsing substring of `5 mg` is `5 ` and not `5`. The split
+then moves every edge character of the core for which
+`parsing.trimmed` reads nothing — the plain space, the tab, the
+no-break space, the em space, every kind — OUT of the core and into
+the side it touches. So `5 mg` splits as prefix `""`, core `5`, suffix
+`" mg"`.
+
+This document said the opposite until 2026-09-05, and the code did the
+opposite with it. The value stage rewrites a core as a NUMBER and has
+no space to write, so **every column of this role lost the space before
+its unit**: a source cell of `165.1 mg` came back `165.1mg`, on all 240
+cells of the shipped demonstration and in a committed golden, and a
+person splitting the twin on a space got one field where their own
+table gives two.
+
+A consequence a reader will not assume: `5mg` and `5 mg` wear DIFFERENT
+wrappers — `mg` and `" mg"` — and a column holding both wears a set of
+two. It was one pair under the old rule. Whether such a column takes
+this role is settled by the test below like any other set.
 
 **C6-5 (the pair's identity).** The pair is the EXACT text of the
 trimmed cell on either side of the core — no case folding, no inner
@@ -4823,23 +4833,109 @@ trimming. `mg` and `MG` are two pairs and not one, and so are `$` and
 claimed it and both of these hold:
 
 1. at least the parse-line count of its present cells are affixed
-   numbers wearing ONE affix pair — the count `minimum_parse_rate`
-   fixes (section 4.4), applied as a COUNT and never as a compared
-   share, so no rounding of a division decides a role; and
-2. that pair's cell count is at least `small_cell_floor`.
+   numbers wearing a wrapper of ONE SMALL SET — the count
+   `minimum_parse_rate` fixes (section 4.4), applied as a COUNT and
+   never as a compared share, so no rounding of a division decides a
+   role; and
+2. every wrapper the description publishes is worn by at least
+   `small_cell_floor` cells.
 
-**The floor is read at DETECTION time, deliberately:** the pair is
+**The floor is read at DETECTION time, deliberately:** a wrapper is
 published, so publishing a floor-clearing spelling is constitutive of
 the role, and a column that cannot publish one under the recorded
-settings takes the next rule instead.
+settings takes the next rule instead. **The floor is read again over
+what WEARS each wrapper**, because those are two populations: the cells
+that propose a wrapper are the ones that read as a number wearing it,
+and the cells that wear it are more or fewer. A column of `$1` to
+`$99` beside eleven cells spelled `1`, with `1` declared a hole,
+proposes the bare wrapper twelve times and is worn by it once. A
+wrapper failing the second reading is not published and its cells are
+STRAGGLERS.
 
-**A column whose cells wear more than one pair past the line's slack
-does not take this role.** A column mixing `$` cells with `EUR` cells,
-or `mg` with `MG`, declines to the later rules: a recorded decline,
-not a partial publication, because publishing a distribution over some
-cells while dropping the others is what the outcome principle forbids.
-Its competing-readings remark says how far the affix reading got
-(section 4.5, the form `remark_no_reading_fits`, argument 6).
+**C6-7a (a column may wear a SET of wrappers).** Until 2026-09-05 this
+document required ONE pair and said a column wearing more "declines to
+the later rules". That rule cost the shape this role most needs to
+reach: a laboratory column of `13.5`, `4.2 H` and `9.8 L` wears three
+wrappers, no one of them reaches the parse line, and the whole column
+fell to free text — no ladder, no mean, no distribution, nothing about
+a haemoglobin reading at all.
+
+So the vocabulary is a SET, under five conditions. The commonest
+wrapper is published under `affix_prefix` and `affix_suffix`, unchanged,
+so a column wearing ONE is described exactly as it was. Every other is
+an entry of `affix_variants`.
+
+1. **The BARE wrapper is a member of the vocabulary** — nothing on
+   either side — proposed by a cell that reads as a number wearing
+   nothing and worn only by such a cell. It may be the commonest one,
+   and on the shape above it usually is, because most laboratory
+   results carry no flag. It cannot be the WHOLE vocabulary: a column
+   whose every cell wears nothing is a column of bare numbers, which
+   is a different role (AF1).
+2. **No wrapper of a SET may carry a digit.** A column of feet and
+   inches proposes one wrapper per inches value and a dozen clear the
+   floor together, and the column then published a ladder over the
+   feet of some cells and the inches of others. A column wearing ONE
+   wrapper may carry digits — `mL/min/1.73m2` is a real unit — so this
+   is asked of a set alone.
+3. **No wrapper of a SET may put a LETTER flush in FRONT of the
+   digits.** That is where a code scheme puts its letter — `E10.0`,
+   `I11.2`, `J44.9`, `D0140` — and reading the rest as a quantity
+   publishes a ladder over code numbers and writes codes nobody
+   issued. **Behind the digits a letter is permitted where the
+   vocabulary holds the bare wrapper**, because that is where an
+   abnormal flag goes and a column holding unwrapped numbers is a
+   column of numbers with annotations. `13.5H` is therefore read
+   exactly as `13.5 H` is; refusing both sides alike sent every
+   laboratory column whose flags are written flush to free text.
+4. **Every wrapper of a SET is ONE WORD.** A unit or an annotation is
+   a word — `H`, `kg`, `months`, `EUR`, `$`; a sentence is not. A
+   column of `free comment number 03 written out` beside its
+   upper-case variants proposes two wrappers of four words each, both
+   clearing the floor, and published a ladder over a sequence number
+   inside prose.
+5. **Every wrapper's cores are written like the commonest wrapper's**,
+   with a point where those have one.
+
+A column failing any of these declines to the later rules exactly as
+it did, and its competing-readings remark says how far the affix
+reading got (section 4.5, the form `remark_no_reading_fits`,
+argument 6).
+
+**C6-7b (every published wrapper carries its own numbers).** A column
+wearing a set published ONE quantitative block over ALL its cores
+until the owner's ruling of 2026-09-08, and that is a statistic of no
+quantity where the wrappers are units: a hundred weights written
+`60.0 kg` to `69.9 kg` beside a hundred written `132.0 lb` to
+`153.8 lb` published **mean 103.92**, with the column's ends running
+from 60 to 153.8.
+
+So each published wrapper carries a quantitative block read over its
+own cores, on the arrangement `joined`'s positions already have
+(section 6.14): **the block a wrapper carries echoes that wrapper's
+own count in `n_rows`, and every population key in it — its ladder,
+its moments, its spelling census, `n_used_in_statistics`,
+`n_left_out_of_statistics` and `numeric_share` — answers for that
+wrapper's cells and for no others.**
+
+The COLUMN's own block is the COMMONEST wrapper's. On a column wearing
+one wrapper that is every core it holds, so nothing about such a column
+moves; on a column wearing a set it is the commonest wrapper's cells,
+and its `n_rows` echoes their count rather than the table's. **There is
+no pooled ladder, mean or histogram over a column wearing more than one
+wrapper**, and that is deliberate: such a number is either the same as
+the parts, where the wrappers share a scale, or a statistic of nothing,
+where they do not, and this format cannot tell which.
+
+The counts that are COUNTS stay whole. `n_affixed` and the four
+`n_core_*` classes answer for every counted cell and close on
+`n_affixed` (AF4) — a count of how many cores read as numbers is true
+whatever scale those numbers are on. `n_core_distinct` and
+`n_core_distinct_folded` belong to the block above them and are
+therefore the COMMONEST wrapper's, with each other wrapper's pair
+beside its own block: a count of different things does not subtract, so
+a commonest wrapper's budget could not be recovered from a column total
+and the others'.
 
 **Stragglers are permitted up to the parse line.** A hundred-cell
 column with ninety-nine affixed values and one plain number conforms.
@@ -4922,10 +5018,22 @@ column, in any spelling of that number, and naming `-999 mg` protects
 the cell spelled that way. That is wider than a spelling-granular rule
 would be and is stated here so nobody reads the narrower one into it.
 
-#### C6-6. Added keys: twenty-three
+#### C6-6. Added keys: twenty-six
 
-Seven of this role's own, and the sixteen a `count` or `continuous`
-block carries, the quantitative ones computed over the CORES.
+TEN of this role's own, and the sixteen a `count` or `continuous`
+block carries, the quantitative ones computed over the CORES of the
+COMMONEST wrapper (C6-7b). It read "seven" and "twenty-three" until
+2026-09-08, three keys after the wrapper set added them, while the
+block's own key-count sentence below already said ten — one fact
+written in two places with one of them updated.
+
+**Each entry of `affix_variants` carries ten keys of its own**: its two
+spellings, its `count`, its four class counts, its two counts of
+different cores, and a `numbers` block holding exactly the sixteen keys
+a `count` or `continuous` block holds — the same set, read over that
+wrapper's cores, echoing that wrapper's `count` in `n_rows`. No entry
+carries an eleventh key, and a description whose entry does is refused
+rather than read.
 
 | key | JSON type | range | meaning | disposition |
 |---|---|---|---|---|
@@ -4964,6 +5072,16 @@ block carries, the quantitative ones computed over the CORES.
 | `affix_variants` | array | C6-7a below | the OTHER wrappers this column's cells wear, each with the count wearing it, ascending by their own text; empty on a column wearing one | EXACT-OBSERVABLE |
 | `n_core_distinct` | count | AF10 | how many DIFFERENT cores the cells carry | EXACT-OBSERVABLE |
 | `n_core_distinct_folded` | count | AF10 | the same over the folded identities | EXACT-OBSERVABLE |
+| `affix_variants[].prefix` | string | possibly empty | the exact text cells wearing this wrapper carry before their core | EXACT-OBSERVABLE |
+| `affix_variants[].suffix` | string | possibly empty | the exact text they carry after it | EXACT-OBSERVABLE |
+| `affix_variants[].count` | integer | `small_cell_floor` .. `n_rows` | CELLS wearing this wrapper | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_numeric` | count | AF11 | its CORES reading as a number this format can hold | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_out_of_range` | count | AF11 | its CORES too large or too small to hold | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_contradictory` | count | AF11 | its CORES whose written form contradicts itself | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
+| `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
+| `affix_variants[].numbers` | object | AF13 | the sixteen keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
 **The block is fifty-seven keys**: the twenty-two universal keys of
 section 5.1 and the thirty-five above — a `count` block's twenty-five
@@ -4999,7 +5117,13 @@ classify.
 
 #### C6-8. The invariants
 
-**AF1.** `affix_prefix` and `affix_suffix` are not both empty.
+**AF1.** `affix_prefix` and `affix_suffix` are not both empty, UNLESS
+`affix_variants` is non-empty. The bare wrapper is a member of a
+vocabulary and may be the commonest member of one (C6-7a), and on a
+laboratory column of readings beside abnormal flags it usually is. It
+cannot be the whole of a vocabulary: at least one published wrapper
+carries text, because a column whose every cell wears nothing is a
+column of bare numbers and that is a different role.
 
 **AF2.** `small_cell_floor <= n_affixed <= n_present`.
 
@@ -5016,6 +5140,46 @@ n_core_not_numeric == n_affixed`.
 **AF6.** `integer_valued` is a fact about the CORES and is what a
 consumer routes on, never the role name. A column of whole cores
 publishes `integer_valued: true` and its twin cores are whole numbers.
+
+**AF9.** `affix_variants` names each wrapper once, ascending by its own
+text, each with a count of at least `small_cell_floor` and at most
+`n_rows`; none of them is the pair `affix_prefix`/`affix_suffix` names
+(AF14).
+
+**AF10.** `1 <= n_core_distinct <= ` the COMMONEST wrapper's own count,
+which is `n_affixed` less every entry's `count`; and
+`1 <= n_core_distinct_folded <= n_core_distinct`. These two belong to
+the column's block, that block is the commonest wrapper's (C6-7b), and
+bounding them by `n_affixed` let a description say a wrapper worn by
+sixty cells holds two hundred different cores — a budget the core stage
+would then be laid out from. A published zero is a description no
+column wrote.
+
+**AF11.** Each entry of `affix_variants` carries its own four class
+counts and they close on that entry's `count`, exactly as AF4 closes
+the column's four on `n_affixed`; and `1 <= n_core_distinct <= count`
+within the entry, with the folded count bounded by the raw one.
+
+**AF12.** The commonest wrapper's own count — `n_affixed` less every
+entry's `count` — is at least `small_cell_floor` wherever
+`affix_variants` is non-empty. It is published like any other wrapper,
+and a wrapper worn by fewer cells than may be named is not published at
+all. This also refuses a set of counts summing above `n_affixed`,
+whose remainder is negative.
+
+**AF13.** Each entry's `numbers` block satisfies section 6.7's
+invariants over that entry's own counts, and echoes that entry's
+`count` in `n_rows` — the reading `joined` positions take (C6-7b).
+
+**AF14.** No wrapper is named twice across the whole vocabulary. AF9
+orders the entries and so refuses a duplicate among them; the commonest
+pair is read elsewhere, so a variant repeating it satisfied both.
+
+**AF15.** The vocabulary holds no more wrappers than a set of
+categories may hold levels on this table — `1 + len(affix_variants)` is
+at most the category ceiling of section 4.4. A wrapper is published
+text drawn from the table, so what bounds how many may be named is what
+bounds how many levels a categorical column may name.
 
 **AF7.** Every quantitative key above obeys the invariant section 6.7
 states for it on `count` and `continuous`, read over the CORES.
@@ -7660,6 +7824,13 @@ at *F* = 0 it reads *W* ≤ 5 × (`small_cell_floor` − 1).
 | AF5 | `n_core_numeric >= 1`, Q3 read over the cores |
 | AF6 | *reading*: `integer_valued` is a fact about the CORES and is what a consumer routes on, never the role name |
 | AF7 | every quantitative key obeys the invariant stated for it on `count` and `continuous`, read over the CORES under that role's substitution, `n_present` and `n_rows` untouched |
+| AF9 | `affix_variants` names each wrapper once, ascending by its own text, each count in `small_cell_floor .. n_rows` |
+| AF10 | `1 <= n_core_distinct <=` the commonest wrapper's own count; `1 <= n_core_distinct_folded <= n_core_distinct` |
+| AF11 | each entry's four class counts close on that entry's `count`, and its two core-distinct counts are bounded by it |
+| AF12 | the commonest wrapper's own count — `n_affixed` less every entry's `count` — is at least `small_cell_floor` where a set is worn |
+| AF13 | each entry's `numbers` block obeys section 6.7 over that entry's own counts and echoes its `count` in `n_rows` |
+| AF14 | no wrapper is named twice across the whole vocabulary, the commonest pair included |
+| AF15 | `1 + len(affix_variants)` is at most the category ceiling of section 4.4 |
 | AF-R | every `affixed_number` column bears the affixed-column remark, without condition, at arity 3, under NG11 and NG12 |
 
 ### 8.x The clock role — T
