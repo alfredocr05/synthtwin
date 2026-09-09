@@ -6,7 +6,10 @@ strata hold, and how many different spellings come out once the
 published fraction width is applied. Also whether the twin then writes
 a cell wearing a leading zero no source cell wore.
 """
-import pathlib, random, sys, tempfile, collections
+import pathlib
+import random
+import sys
+import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))

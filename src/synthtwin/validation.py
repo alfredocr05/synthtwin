@@ -158,6 +158,7 @@ rules the real table is kept under.
 import csv
 import dataclasses
 import math
+from synthtwin.paths import validate_local_path
 import pathlib
 
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy
@@ -264,7 +265,6 @@ def _lowered(bound: float) -> float:
     """
     return _stepped(bound, False)
 
-from synthtwin.paths import validate_local_path
 
 # -- the five verdicts (V6.1) -----------------------------------------
 
@@ -3663,7 +3663,7 @@ def _column_at(
 
 def _variant_set(
     block: "dict[str, object]",
-) -> "tuple[tuple[str, str, int], ...] | None":
+) -> "tuple[tuple[str, str], ...] | None":
     """The other wrappers the measured file's own description reads.
 
     THE WHOLE SET, SPELLINGS AND COUNTS, and it was the COUNT of them
@@ -3690,7 +3690,7 @@ def _variant_set(
     given = block["affix_variants"]
     if not isinstance(given, list):
         return None
-    read: list[tuple[str, str, int]] = []
+    read: list[tuple[str, str]] = []
     for entry in given:
         if not isinstance(entry, dict):
             return None
@@ -3710,13 +3710,13 @@ def _variant_set(
             return None
         if not isinstance(many, int) or isinstance(many, bool):
             return None
-        read = read + [(front, behind, many)]
+        read = read + [(front, behind)]
     return tuple(sorted(read))
 
 
 def _published_set(
     facts: "contract.AffixedFacts",
-) -> "tuple[tuple[str, str, int], ...]":
+) -> "tuple[tuple[str, str], ...]":
     """The wrapper set the DESCRIPTION states, in the shape it is compared in.
 
     Sorted triples, so the comparison against what the measured file's
@@ -3725,9 +3725,15 @@ def _published_set(
     a time beside this; what this settles is that the file wears these
     wrappers, these many times.
     """
-    said: "list[tuple[str, str, int]]" = []
+    # THE MEMBERSHIP AND THE SPELLINGS, NOT THE COUNTS (review round 4,
+    # item 6). Each wrapper's count is a published fact with a check of
+    # its own -- `counts.affix_variants[i].count` -- so binding it here
+    # too made one moved count report two misses, and a reader could
+    # not tell whether the file wore a wrapper it should not or wore
+    # the right ones the wrong number of times.
+    said: "list[tuple[str, str]]" = []
     for one in facts.affix_variants:
-        said = said + [(one.prefix, one.suffix, one.count)]
+        said = said + [(one.prefix, one.suffix)]
     return tuple(sorted(said))
 
 
@@ -8575,15 +8581,55 @@ def _wrapper_checks(
         facts=wrapper.numbers,
     )
     checks: "list[Check]" = []
-    # THE WRAPPER'S OWN COUNTS FIRST, then the block they describe.
+    # THE WRAPPER'S TWO COUNTS OF DIFFERENT CORES TAKE THE SAME
+    # ENVELOPE THE COLUMN'S DO (review round 4, item 3). They are the
+    # budget this wrapper's own core stage was laid out from, so a
+    # shortfall its published spellings cannot avoid is the shortfall
+    # G12.8 authorizes -- and holding them exactly here while the
+    # generator reports an authorized interval of 236 to 240 made the
+    # twin's own report and the quality report disagree about one
+    # number, on one wrapper, in one run.
+    for field, stated, under in (
+        ("n_core_distinct", wrapper.n_core_distinct, _RAW_DISTINCT),
+        (
+            "n_core_distinct_folded",
+            wrapper.n_core_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        counted = None if inner is None else _count_at(inner, field)
+        corner = _distinct_corner(wrapper.numbers, mine, under)
+        if corner and _envelope_admits_every_count(view, wrapper.numbers, stated):
+            continue
+        if corner:
+            checks = checks + [
+                _lesser_or_held(
+                    column.name,
+                    f"affixed.{field}",
+                    f"counts.{named}.{field}",
+                    stated,
+                    counted,
+                    corner,
+                    view,
+                )
+            ]
+            continue
+        checks = checks + [
+            _exact(
+                column.name,
+                f"affixed.{field}",
+                f"counts.{named}.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(counted),
+            )
+        ]
+    # ...AND THE COUNTS THAT ARE COUNTS, held exactly.
     for field, stated in (
         ("count", wrapper.count),
         ("n_core_numeric", wrapper.n_core_numeric),
         ("n_core_out_of_range", wrapper.n_core_out_of_range),
         ("n_core_contradictory", wrapper.n_core_contradictory),
         ("n_core_not_numeric", wrapper.n_core_not_numeric),
-        ("n_core_distinct", wrapper.n_core_distinct),
-        ("n_core_distinct_folded", wrapper.n_core_distinct_folded),
     ):
         checks = checks + [
             _exact(

@@ -5,7 +5,11 @@ and cubes are representable the two arithmetics compute the same
 quantity, but not necessarily the same binary64 -- so this measures it
 rather than asserting it, over columns of many shapes and magnitudes.
 """
-import math, pathlib, random, sys, tempfile
+import math
+import pathlib
+import random
+import sys
+import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))

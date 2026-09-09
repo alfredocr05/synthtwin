@@ -570,6 +570,19 @@ def test_every_approximated_fact_of_every_role_is_measured(
         # is the order the description writes the moments in.
         if "skew" in owed:
             owed.insert(owed.index("skew") + 1, "kurtosis")
+        # THE AFFIXED ROLE PUBLISHES THE TWO DISTINCTNESS COUNTS UNDER
+        # ITS OWN NAMES, which is AF7's substitution and is what a
+        # report must name (review round 4 of landing L14, item 4). The
+        # inventory is read from the NUMERIC section, where they are
+        # `n_distinct` and `n_distinct_folded`; this column publishes
+        # `n_core_distinct` and `n_core_distinct_folded`, and a record
+        # naming the numeric spelling names a key the description does
+        # not carry.
+        if column.role == "affixed_number":
+            owed = [
+                f"n_core_{one[2:]}" if one.startswith("n_distinct") else one
+                for one in owed
+            ]
         assert measured == owed, f"{column.name} ({column.role})"
 
 

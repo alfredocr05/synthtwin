@@ -5967,6 +5967,9 @@ holds the shapes to the writing rules that build them:
 
 * `parts[<n>].<key>` — any key above, carried by one POSITION of a
   `joined_numbers` cell, `<n>` counting from nought
+* `affix_variants[<n>].<key>` — one WRAPPER's own key, which is where
+  its two counts of different cores sit: they belong beside the block
+  rather than inside it, so a record about them takes this path
 * `affix_variants[<n>].numbers.<key>` — any key above, carried by one
   WRAPPER of an `affixed_number` column that wears a set of them (plan
   P4-D37), `<n>` counting from nought over the wrappers the description

@@ -140,6 +140,7 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
+from synthtwin import contract, errors, parsing, taxonomy
 
 import numpy.random
 
@@ -167,9 +168,6 @@ import numpy.random
 # `frexp` and `ldexp` are allowed and say the same thing.
 # The smallest positive number this format holds, which is also the gap
 # between any two neighbouring subnormals.
-# The ten figures a published width is written with.
-_DIGITS = "0123456789"
-
 _SMALLEST = math.ldexp(1.0, -1074)
 
 
@@ -249,7 +247,6 @@ def _lowered(bound: float) -> float:
     return _stepped(bound, False)
 
 
-from synthtwin import contract, errors, parsing, taxonomy
 
 # The one draw form of method G3.2, written out so the numbers are
 # checkable against the specification: the whole of 0 .. 2**64 - 1,
@@ -5345,6 +5342,58 @@ def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
     )
 
 
+# The two counts a core view carries under a NUMERIC name and the
+# affixed role publishes under its own (review round 4, item 4). A
+# report naming `n_distinct` on such a column names a key that column
+# does not have: what it published is `n_core_distinct`, and a wrapper
+# publishes its own beside its own block rather than inside it.
+_CORE_COUNT_KEYS = {
+    "n_distinct": "n_core_distinct",
+    "n_distinct_folded": "n_core_distinct_folded",
+}
+
+
+def _affixed_key(place: int, fact: str) -> str:
+    """The key a record about ONE wrapper names in the description.
+
+    `place` is -1 for the COMMONEST wrapper, whose block IS the
+    column's, and 0 upward for the entries of `affix_variants`.
+
+    THE TWO CORE COUNTS SIT BESIDE A WRAPPER'S BLOCK AND NOT INSIDE IT,
+    so they take the wrapper's own path and not the block's; every
+    other key here is a field of that block and takes `numbers.`. A
+    report that wrote `affix_variants[0].numbers.n_distinct` named a
+    field of neither (review round 4, item 4).
+
+    BOTH PATHS ARE WRITTEN AS f-STRINGS AT A `fact=` KEYWORD, because
+    that is what `test_every_deviation_key_is_one_the_method_authorizes`
+    reads to hold the method's key index and this module to each other.
+    A helper returning the finished path hides the family from it, and
+    the index then named a shape nothing produced.
+    """
+    named = _CORE_COUNT_KEYS[fact] if fact in _CORE_COUNT_KEYS else fact
+    if place < 0:
+        return named
+    if fact in _CORE_COUNT_KEYS:
+        return _named_beside(place, named)
+    return _named_inside(place, named)
+
+
+def _named_beside(place: int, named: str) -> str:
+    """One wrapper's own key, beside its block."""
+    return _keyed(fact=f"affix_variants[{place}].{named}")
+
+
+def _named_inside(place: int, named: str) -> str:
+    """One key of the block a wrapper carries."""
+    return _keyed(fact=f"affix_variants[{place}].numbers.{named}")
+
+
+def _keyed(fact: str) -> str:
+    """The identity, unchanged -- the two writers above name it here."""
+    return fact
+
+
 def _vocabulary_of(
     facts: "contract.AffixedFacts",
 ) -> "list[tuple[str, str]]":
@@ -5385,6 +5434,16 @@ def _worn_here(
             continue
         if behind and trimmed[len(trimmed) - len(behind) :] != behind:
             continue
+        # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING ELSE,
+        # which is the rule the producer proposes it under and the
+        # validator recounts it under (review round 4, item 5). An
+        # empty pair is a prefix and a suffix of every cell, so without
+        # this a rare ` CRITICAL` straggler wore it and the report
+        # claimed 73 core identities where the producer's own split
+        # gives 71.
+        if not ahead and not behind:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
         if len(ahead) + len(behind) > reach:
             chosen = key
             reach = len(ahead) + len(behind)
@@ -5431,8 +5490,7 @@ def _wrapper_notes(
     for step in range(len(notes)):
         named = named + [
             dataclasses.replace(
-                notes[step],
-                fact=f"affix_variants[{place}].numbers.{notes[step].fact}",
+                notes[step], fact=_affixed_key(place, notes[step].fact)
             )
         ]
     return named
@@ -11411,7 +11469,12 @@ def _label_content(
     # publish none, so the debt is empty for them and the neutral
     # `group-N` spelling stands as before.
     owing = _forms_owed(facts, cells)
-    wanted = _shared_out(
+    # NAMED FOR ITSELF rather than reusing `wanted`, which this module
+    # already binds to a COUNT and to a STYLE NAME elsewhere: the strict
+    # type check reads one name as one type per scope, and three
+    # meanings under one spelling is a reading nobody should have to
+    # hold in their head either.
+    shared: "list[str]" = _shared_out(
         facts.suppressed_level_counts,
         owing,
         used,
@@ -11424,7 +11487,7 @@ def _label_content(
     shaped = 0
     for place in range(len(facts.suppressed_level_counts)):
         size = facts.suppressed_level_counts[place]
-        form = wanted[place]
+        form = shared[place]
         number, label = _made_up_label(
             number, used, owners, form, plan.all_holes, walked
         )
@@ -16778,7 +16841,8 @@ def _exponent_span(kind: int, room: int) -> int:
     places = _exponent_places(kind, room)
     if places < 1:
         return 0
-    return 10 ** places - 1
+    room_here: int = 10 ** places
+    return room_here - 1
 
 
 def _wide_reads_back(kind: int, candidate: str) -> bool:
@@ -20524,15 +20588,19 @@ def _numeric_approximations(
     # The plain form is kept wherever it answers, so no column that
     # already had a window changes a byte, and the scaled form is
     # reached only where the other has none.
-    reach = math.sqrt(_mean_of([step * step for step in steps]))
+    reach: float = math.sqrt(_mean_of([step * step for step in steps]))
     if not math.isfinite(reach):
-        widest = max(steps)
+        # NAMED APART FROM THE STRATUM WIDTH ABOVE, which is a count of
+        # slots and is an integer; this is a SPREAD in the column's own
+        # units. One spelling for both made the strict type check read
+        # the second as the first.
+        largest = float(max(steps))
         reach = 0.0
-        if math.isfinite(widest) and widest > 0.0:
+        if math.isfinite(largest) and largest > 0.0:
             scaled = [
-                (step / widest) * (step / widest) for step in steps
+                (step / largest) * (step / largest) for step in steps
             ]
-            reach = widest * math.sqrt(_mean_of(scaled))
+            reach = largest * math.sqrt(_mean_of(scaled))
     centre = _moments_of(middles)
     if facts.std is not None and deviation is not None:
         room = reach * math.sqrt(held / (held - 1))
@@ -21490,14 +21558,7 @@ def _approximations(
                 view, numbers, mine, held[pair_view[0]]
             ):
                 records = records + [
-                    record
-                    if step < 0
-                    else dataclasses.replace(
-                        record,
-                        fact=(
-                            f"affix_variants[{step}].numbers.{record.fact}"
-                        ),
-                    )
+                    dataclasses.replace(record, fact=_affixed_key(step, record.fact))
                 ]
             step = step + 1
         return records

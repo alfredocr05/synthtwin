@@ -2909,7 +2909,6 @@ def _label_content(column):
             content.extend([spelling] * level["variants"][spelling])
             used.append(spelling)
         withheld = level["variants_withheld"]
-        wanted = sum(withheld.values())
         if not level["variants"] and not withheld:
             content.extend([level["label"]] * level["count"])
             used.append(level["label"])

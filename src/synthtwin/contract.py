@@ -5990,13 +5990,19 @@ def _affix_variants(
         # AF13. A WRAPPER CANNOT HOLD MORE DIFFERENT CORES THAN IT HAS
         # CELLS, and folding never separates two spellings that were
         # the same.
+        # AT LEAST ONE, exactly as AF10 asks of the column's own pair
+        # (review round 4, item 2). The bound here was zero while the
+        # column's was one, so a description saying a wrapper worn by
+        # sixty cells holds no different core at all loaded, and
+        # generation then built 236 identities inside an interval it
+        # reported as 0 to 236.
         wrapper_distinct = _bounded(
             entry["n_core_distinct"], "n_core_distinct", where,
-            0, count, "the number of cells wearing this wrapper",
+            1, count, "the number of cells wearing this wrapper",
         )
         wrapper_folded = _bounded(
             entry["n_core_distinct_folded"], "n_core_distinct_folded",
-            where, 0, wrapper_distinct,
+            where, 1, wrapper_distinct,
             "the raw count of different cores under this wrapper",
         )
         block = _mapping(entry["numbers"], "numbers", where)
