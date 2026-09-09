@@ -1502,6 +1502,60 @@ def test_the_measurement_declaration_reaches_flush_units(
     assert block["affix_variants"][0]["numbers"]["percentiles"]["min"] > 100.0
 
 
+def test_a_wrapper_is_measured_against_its_OWN_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 7, ITEM 1. The file's commonest wrapper need not be ours.
+
+    Both sides publish their own commonest wrapper at the block's root
+    and every other beside it, so a file whose dominance is FLIPPED
+    puts the description's commonest wrapper among its own variants. A
+    description of 120 kilograms and 80 pounds, checked against a file
+    of 120 pounds and 80 kilograms whose kilograms are ten times
+    heavier, compared the kilogram facts against the POUND block --
+    because that is what the root held -- and reported them HELD, while
+    the pound facts came back WITHHELD because nothing looked at the
+    root for them. Both answers were about the wrong population and
+    neither said so.
+
+    A wrapper is found by its SPELLING across both shapes now.
+    """
+    draw = random.Random(11)
+    described = _loaded(
+        tmp_path,
+        _document(
+            tmp_path,
+            "weight",
+            [f"{28 + draw.random() * 5:.2f} kg" for _index in range(120)]
+            + [f"{128 + draw.random() * 5:.2f} lb" for _index in range(80)],
+        ),
+        "weight",
+    )
+    block = described.columns[0].facts
+    assert isinstance(block, contract.AffixedFacts)
+    assert block.affix_suffix == " kg", block.affix_suffix
+    again = random.Random(11)
+    flipped = fixtures.write(
+        tmp_path,
+        "flipped.csv",
+        fixtures.single_column_table(
+            "weight",
+            [f"{28 + again.random() * 5:.2f} lb" for _index in range(120)]
+            + [f"{298 + again.random() * 5:.2f} kg" for _index in range(80)],
+        ),
+    )
+    outcome = validation.measure(described, f"{flipped}")
+    missed = [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
+    # THE KILOGRAM ENDS ARE COMPARED AGAINST KILOGRAMS, which in that
+    # file run near 300, so they miss rather than holding.
+    assert "ladder.min" in missed, missed[:10]
+    assert "ladder.max" in missed, missed[:10]
+
+
 def test_a_wrapper_whose_numbers_are_wrong_is_caught(
     tmp_path: pathlib.Path,
 ) -> None:

@@ -9012,7 +9012,7 @@ and `lb` to a core of 61.
 
 The same pooling reaches a second way. Two hundred and forty readings
 written to one figure, beside sixty markers reading `note 0.0` to
-`note 59.0`, published **mean 17.46** where the readings alone average
+`note 59.0`, published **mean 17.511** where the readings alone average
 **14.514**: the markers' sequence numbers were in the ladder, the mean
 and the histogram of a column they are not values of.
 

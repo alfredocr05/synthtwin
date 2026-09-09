@@ -7327,6 +7327,11 @@ def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
     return dataclasses.replace(
         column,
         n_present=facts.n_affixed - worn_elsewhere,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item 3).
+        # The blanks belong to the COLUMN, not to a wrapper.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
         n_numeric=facts.n_core_numeric - numeric_elsewhere,
         n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
         n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
@@ -8526,8 +8531,31 @@ def _affixed_checks(
     # is 0.03, so a checked mean of 0.14751 was accepted against a
     # published 4.95 whose own window runs 4.65891 to 5.24109. Every
     # interior rung was accepted across the whole numeric range with it.
+    # ...AND AGAINST THE MEASURED WRAPPER OF THE SAME SPELLING, which
+    # is not always the measured file's root (review round 7, item 1).
+    # A file whose dominance is flipped puts the description's
+    # commonest wrapper among its OWN variants, and reading the root
+    # regardless compared kilograms against pounds and called it HELD.
+    # ASKED ONLY OF A SET, because only a set can flip: a column
+    # wearing ONE wrapper has no other place for its numbers to be, and
+    # its block IS the measured root whatever spelling that root names.
+    # Resolving it by spelling regardless closed the gate on every
+    # ordinary affixed column whose checked file reads a different pair
+    # -- the numbers went silent rather than being compared, which is
+    # the shape `test_silence_is_never_free` refuses.
+    measured = block
+    used = common_cores
+    if facts.affix_variants:
+        common_entry = _worn_entry(
+            block, facts.affix_prefix, facts.affix_suffix
+        )
+        measured = (
+            {} if common_entry is None
+            else _mapping_at(common_entry, "numbers")
+        )
+        used = [] if common_entry is None else common_cores
     checks = checks + _numeric_checks(
-        cores_as_column, facts.numbers, block, common_cores, floor, mine
+        cores_as_column, facts.numbers, measured, used, floor, mine
     )
     # ...AND ONE WRAPPER AT A TIME FOR EVERY OTHER (review round 2,
     # item 1). Each published wrapper carries a quantitative block of
@@ -8579,11 +8607,20 @@ def _wrapper_checks(
     for step in range(len(cores)):
         if worn[step] == mask:
             ours = ours + [cores[step]]
-    inner = _wrapper_block(block, wrapper)
+    inner = _worn_entry(block, wrapper.prefix, wrapper.suffix)
     view = dataclasses.replace(
         column,
         statistical_type="continuous",
         n_present=wrapper.count,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
         n_numeric=wrapper.n_core_numeric,
         n_not_numeric=wrapper.n_core_not_numeric,
         n_out_of_range=wrapper.n_core_out_of_range,
@@ -8685,10 +8722,78 @@ def _wrapper_checks(
     return checks
 
 
-def _wrapper_block(
-    block: "dict[str, object]", wrapper: "contract.AffixWrapper"
+def _worn_entry(
+    block: "dict[str, object]", prefix: str, suffix: str
 ) -> "dict[str, object] | None":
-    """The measured file's own entry for ONE wrapper, found by spelling."""
+    """One wrapper of the measured file, WHEREVER its description put it.
+
+    THE FILE'S COMMONEST WRAPPER NEED NOT BE THE DESCRIPTION'S (review
+    round 7, item 1). Both sides publish their own commonest wrapper at
+    the block's root and every other beside it, so a file whose
+    dominance is flipped puts the same spelling in the other place: a
+    description of 120 `kg` cells and 80 `lb` reads a file of 120 `lb`
+    and 80 `kg`, and the kilogram facts were then compared against the
+    POUND block because that is what the root held, while the pound
+    facts were reported WITHHELD because nothing looked at the root for
+    them. Both answers were about the wrong population and neither said
+    so.
+
+    So a wrapper is found by its SPELLING across both shapes, and the
+    root's shape -- where the numeric keys sit at the top level and the
+    counts are the column's -- is normalised to an entry's, so one
+    caller reads one shape. The root wrapper's own counts are the
+    column's totals less every other wrapper's, which is the same
+    arithmetic AF12 and AF16 hold a description to.
+
+    Guarantees: accepts a re-described block and one wrapper's two
+    sides; returns an entry-shaped mapping for that wrapper, or None
+    where the file's own description names no such wrapper.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    if "affix_prefix" not in block or "affix_suffix" not in block:
+        return None
+    if block["affix_prefix"] == prefix and block["affix_suffix"] == suffix:
+        return _root_as_entry(block)
+    return _variant_entry(block, prefix, suffix)
+
+
+def _root_as_entry(block: "dict[str, object]") -> "dict[str, object]":
+    """The measured root, wearing the shape one variant entry wears."""
+    entry: "dict[str, object]" = {"numbers": block}
+    worn = 0
+    classes = {
+        "n_core_numeric": 0,
+        "n_core_out_of_range": 0,
+        "n_core_contradictory": 0,
+        "n_core_not_numeric": 0,
+    }
+    if "affix_variants" in block and isinstance(block["affix_variants"], list):
+        for one in block["affix_variants"]:
+            if not isinstance(one, dict):
+                continue
+            if "count" in one and isinstance(one["count"], int):
+                worn = worn + one["count"]
+            for field in classes:
+                if field in one and isinstance(one[field], int):
+                    classes[field] = classes[field] + one[field]
+    counted = _count_at(block, "n_affixed")
+    if counted is not None:
+        entry["count"] = counted - worn
+    for field in classes:
+        here = _count_at(block, field)
+        if here is not None:
+            entry[field] = here - classes[field]
+    for field in ("n_core_distinct", "n_core_distinct_folded"):
+        here = _count_at(block, field)
+        if here is not None:
+            entry[field] = here
+    return entry
+
+
+def _variant_entry(
+    block: "dict[str, object]", prefix: str, suffix: str
+) -> "dict[str, object] | None":
+    """The measured file's own entry for ONE wrapper beside its commonest."""
     if "affix_variants" not in block:
         return None
     given = block["affix_variants"]
@@ -8699,9 +8804,7 @@ def _wrapper_block(
             continue
         if "prefix" not in entry or "suffix" not in entry:
             continue
-        if entry["prefix"] == wrapper.prefix and (
-            entry["suffix"] == wrapper.suffix
-        ):
+        if entry["prefix"] == prefix and entry["suffix"] == suffix:
             return entry
     return None
 
@@ -12511,10 +12614,23 @@ def _listings(
             corner = _distinct_corner(
                 numbers, _corner_names(corners, column.name), _RAW_DISTINCT
             )
+            # THE CORE VIEW HERE TOO, because `_numeric_checks` decides
+            # the same question over it (review round 7, item 2). Given
+            # the outer column, the two halves of one decision were
+            # taken over two different populations: on 100 cells `$1`
+            # to `$100` beside 100 cells `1 lb` to `100 lb`, the CHECK
+            # side found the commonest wrapper's 100-cell envelope
+            # admits every count and emitted nothing, while this side
+            # read the outer 200-cell column, decided the envelope was
+            # not exhaustive and emitted nothing either -- so a
+            # published fact was on NEITHER page and the census stopped
+            # being an identity.
             if (
                 published is not None
                 and corner
-                and _envelope_admits_every_count(column, numbers, published)
+                and _envelope_admits_every_count(
+                    _core_column(column), numbers, published
+                )
             ):
                 listings = listings + [
                     Listing(
@@ -12564,6 +12680,11 @@ def _listings(
                     column,
                     statistical_type="continuous",
                     n_present=one.count,
+                    # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item 3).
+                    # The blanks belong to the COLUMN, not to a wrapper.
+                    n_missing=0,
+                    n_missing_blank=0,
+                    n_missing_withheld=0,
                     n_numeric=one.n_core_numeric,
                     n_not_numeric=one.n_core_not_numeric,
                     n_out_of_range=one.n_core_out_of_range,
