@@ -3660,6 +3660,21 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   column census stays what it was and stays unproducible, which is the
   point the entry makes and the reason no sum rule may read it.
 
+- **R-P4-33 — OPEN, and RE-HOMED 2026-09-10 by landing L18.** The
+  entry asks for a sentence on an undeclared column whose affix
+  suffix is a comma and one or two figures -- `10,5` read as the
+  integer 10 wearing the text `,5`, silently. L18 did not build that
+  sentence, and the reason is a design one rather than a cut: such a
+  column is AMBIGUOUS in exactly the sense amendment A-P4-58 names,
+  and an ambiguous column is ASKED about rather than remarked at.
+  Its home is the questions file's own section, beside the code
+  columns and the annotated ones, so a person answers one question
+  in one place instead of meeting a fourth advisory sentence. If
+  that landing does not reach it, this entry is carried by name
+  under A-P4-59 with the silence intact and recorded.
+
+  What follows is the entry as it stood.
+
 - **R-P4-33** (opened at the third read of P4-D17, 2026-08-25). A
   DECIMAL COMMA THE AFFIX RULE HAS SWALLOWED IS NOT DETECTED, AND THE
   ATTEMPT TO DETECT IT WAS WITHDRAWN. `10,5` through `249,5` is read as
@@ -7453,6 +7468,21 @@ takes a slot outside every barred BIN instead.
   What would close this is a decision about how a separator, an affix
   and a decimal comma are told apart inside one cell, which is its own
   owner question and not one to guess at.
+
+- **R-P4-31 — CLOSED 2026-09-10 BY LANDING L18, the last half being
+  the words.** The reading landed 2026-08-27 (`--decimal-comma`, plan
+  P4-D26) and this entry never got its marker, so the register went
+  on saying a person with a decimal-comma file CANNOT get a correct
+  description while the option that gives them one had shipped. What
+  L18 closes is the other half: both loud P4-D17 remarks told the
+  person to REWRITE THEIR OWN FILE with a decimal point and named
+  neither the declaration, for a fortnight after it existed. They
+  name `--decimal-comma` first now and the rewrite second, because
+  the rewrite is still true and still changes the person's file
+  where the declaration does not. The contract's two quoted
+  sentences moved with them.
+
+  What follows is the entry as it stood.
 
 - **R-P4-31** (opened by P4-D17, 2026-08-24). A PERSON WHOSE FILE
   WRITES DECIMALS WITH A COMMA CANNOT GET A CORRECT DESCRIPTION. P4-D17
@@ -13100,7 +13130,94 @@ person holding an older description on this branch still gets is the
 plain missing-key refusal, and the route is to describe the table
 again.
 
-## Residual R-P4-4 — RESTATED, and one half of it is a silent misreading (2026-08-26)
+## Residual R-P4-4 — OPEN, NARROWED 2026-09-10 BY LANDING L18 TO THE TEXTUAL TWO-FIGURE FORM
+
+**THE SILENT MISREADING IS CLOSED, AND IT WAS WORSE THAN THIS ENTRY
+SAID.** A dotted date with a two-figure year is the commonest European
+export shape there is, and it was the one member of the family no
+reading claimed: the dotted pair needs a four-figure year and the
+two-figure pair needs slashes. Measured on 300 rows of `19.08.24`
+before the repair, and again after it:
+
+| | before | after |
+| --- | --- | --- |
+| role | `affixed_number`, suffix `.24` | `datetime` |
+| what it published | a ladder from 1.01 to 28.12 over day-and-month numbers | 2024-01-01 to 2024-12-28 |
+| twin cells that are not a date | **151 of 300** — months 74, 85, 62 | **0 of 300** |
+| `synthtwin validate` on that twin | — | exit 0 |
+
+**HOW IT IS READ.** Two members join the closed format table,
+`dotted-two-digit-month-first-date` and
+`dotted-two-digit-day-first-date`, and they are one branch with the
+slashed two-figure pair rather than a second copy of it: three
+year-last fields on one mark, the year two figures, the century at the
+pivot C6-D8P fixes. They join `SLASHED_PAIRS`, so the column's own
+evidence decides day-first against month-first, `--day-first` breaks a
+tie, and the century remark is carried — measured on all four paths.
+**The `--day-first` help text already promised "written with dots, and
+written with a two-figure year"; this landing makes that sentence
+true** rather than editing it.
+
+**PADDED ONLY, AND THE COST OF THAT IS NAMED.** `1.2.24` is a version
+identifier, so this family is padded exactly as its four-figure parent
+is (C6-22). The rule separates the two well enough to be worth having
+and not perfectly: a column written `01.02.24` whose every triple is
+also a real day, month and year IS read as dates. That is the cost the
+slashed two-figure family has carried since P4-D15 — `01/02/24` has it
+too — and it is accepted on the same ground, with a test that records
+it as a decision rather than leaving it to be met.
+
+**WHAT STAYS OPEN.** The TEXTUAL month with a two-figure year,
+`17-Mar-24`, which no member reads; it declines to free text with the
+competing-readings remark, which is a decline with an explanation
+rather than a misdescription. Carried by name under A-P4-59.
+
+**AND THE TWIN STILL WRITES ISO**, which is owner decision 5 and
+residual R-P2-7, unchanged here: the twin's report names the column's
+own spelling and says in as many words that it is not kept.
+
+What follows is the entry as it stood.
+
+- **R-P4-159 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L18, item 4; the SILENT half of a deliberate restriction).** AN
+  UNPADDED DOTTED DATE IS STILL READ AS A QUANTITY. The dotted families
+  are padded on purpose (C6-22): `1.2.24` is how a version identifier
+  is written. What that leaves is measured rather than assumed — the
+  192 valid dates formed by days 13 to 28 and months 1 to 12, written
+  `day.month.24` without padding, take `affixed_number` with a
+  published mean of **20.9025** and no sentence about dates anywhere.
+  The restriction is right and its consequence is the same
+  silent-quantity reading landing L18 exists to close, one spelling
+  over. Carried by name under A-P4-59; closing it means a sentence on
+  the decline rather than a widened reading.
+
+- **R-P4-160 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L18, item 2's sibling; PRE-EXISTING).** THE ZERO-FIELD GUARD IS THE
+  NEW FAMILY'S ALONE. A dotted triple naming a zeroth month or day is
+  a version saying so, and landing L18 refuses such a column for the
+  two-figure members it added. The FOUR-figure dotted pair has admitted
+  `01.00.2024` since P4-D15 and the slashed pair for longer: measured
+  on this tree, a firmware column of `01.02.2024`, `01.03.2024`,
+  `01.04.2024` and one `01.00.2024` is `datetime` with one cell
+  reported unparsed. The guard was bounded to the new family because
+  widening it moves columns that have read one way for weeks, which is
+  a change to make on its own evidence rather than inside a repair.
+
+- **R-P4-161 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L18, item 3; a sibling of R-P4-52).** THE COMMA ADVICE PROMISES A
+  ROUTE THE ROLE DOES NOT HONOUR. Landing L18 made both NF44 sentences
+  name `--decimal-comma`, which is right for the roles that honour it.
+  On a column of `1,795 mg` through `240,795 mg` the declaration is
+  accepted and NOT honoured — the column is `affixed_number` either
+  way, with a mean of **121295.0** where the person meant 121.295 —
+  because which mark inside a larger spelling is the decimal point is
+  the question R-P4-52 carries. `synthtwin profile` does print its
+  unsupported-role warning, so this is misleading advice beside a true
+  warning rather than a silent failure. Closing it means qualifying the
+  sentence by the roles that honour the declaration, which is text
+  rather than machinery.
+
+## Residual R-P4-4 (the record of the misreading)
 
 The adversarial re-check refuted the claim that P4-D15 closed this.
 P4-D15 landed a proper SUBSET of each family and nothing narrowed the

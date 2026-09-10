@@ -300,6 +300,14 @@ def test_the_pairs_are_every_ambiguous_grammar_and_no_others() -> None:
         ("month-first-datetime", "day-first-datetime"),
         ("dotted-month-first-date", "dotted-day-first-date"),
         ("two-digit-month-first-date", "two-digit-day-first-date"),
+        # ...and the DOTTED two-figure family, which residual R-P4-4
+        # opened and landing L18 built. `19.08.24` says no more about
+        # which field is the month than `19/08/24` does, so it is read
+        # by this machinery too rather than by a rule of its own.
+        (
+            "dotted-two-digit-month-first-date",
+            "dotted-two-digit-day-first-date",
+        ),
     )
     for pair in taxonomy.SLASHED_PAIRS:
         for member in pair:

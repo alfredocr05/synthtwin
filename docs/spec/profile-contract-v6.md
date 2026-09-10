@@ -1198,15 +1198,16 @@ contract:
    `day-first-date`, `textual-day-first-date`,
    `textual-month-first-date`, `dotted-month-first-date`,
    `dotted-day-first-date`, `two-digit-month-first-date`,
-   `two-digit-day-first-date`, `year-quarter`, `slashed-iso-date`,
+`two-digit-day-first-date`, `dotted-two-digit-month-first-date`,
+   `dotted-two-digit-day-first-date`, `year-quarter`, `slashed-iso-date`,
    `iso-month`, `iso-mixed`, `month-first-datetime`,
-   `day-first-datetime` — the seventeen `format` members — and
+   `day-first-datetime` — the nineteen `format` members — and
    `day-first`, `month-first`, the two reading names the
    day-and-month remark needs, and `hours_and_minutes`,
    `hours_minutes_and_seconds`, the two clock words NF46 names a form
    by. No other string is a word of this class. **The two clock words
    are NOT `format` members** and never stand at a `format` key; a
-   consumer that admitted only the nineteen would refuse NF46, which
+   consumer that admitted only the twenty-one would refuse NF46, which
    the shipped producer has written since the clock role landed.
 
    **Membership is not enough; the position is bound too** (NG18).
@@ -1431,12 +1432,14 @@ examples is closed:
 | `dotted-day-first-date` | `17.03.2024 (day first)` |
 | `two-digit-month-first-date` | `03/17/24 (month first)` |
 | `two-digit-day-first-date` | `17/03/24 (day first)` |
+| `dotted-two-digit-month-first-date` | `03.17.24 (month first)` |
+| `dotted-two-digit-day-first-date` | `17.03.24 (day first)` |
 | `year-quarter` | `2024-Q1` |
 
 A format name with no row of its own is written out as itself, so
 `slashed-iso-date`, `iso-month`, `iso-mixed`, `month-first-datetime`
 and `day-first-datetime` render as their own wire spellings. The
-rendering is therefore fixed for all seventeen members and two
+rendering is therefore fixed for all nineteen members and two
 implementations cannot diverge, but the five that fall through the
 table read badly ("are dates written as slashed-iso-date"), and an
 example for each of them should be fixed and added to this table.
@@ -1574,7 +1577,13 @@ identically whatever word sits at position 2.
 
 ---
 
-##### D. The remarks (nineteen forms)
+##### D. The remarks (twenty-one forms)
+
+> This heading read "nineteen" while the section declared twenty,
+> and NF55 made it twenty-one (landing L18). It counts the forms
+> banner-declared below and nothing else; the note grammar's own
+> totals are 4.5.1's and 14.8's, which the disposition guard binds
+> to `taxonomy.NOTE_ARITY` in both directions.
 
 **NF19. `remark_values_out_of_range`** — arity 1. Argument 1:
 out-of-range cells.
@@ -2139,8 +2148,11 @@ zero:
 > `1,795` means 1.795 and each of those values has been read as a
 > thousand times its real size, carrying any average, spread or ends
 > this profile publishes for this column with them. Nothing in this
-> column settles which was meant. If your file writes decimals with a comma, write this
-> column with a decimal point instead and run the command again
+> column settles which was meant. If your file writes decimals with a
+> comma, run the command again with --decimal-comma and this column's
+> name, and this column is read that way. Rewriting the column with a
+> decimal point works too, and changes your file where the declaration
+> does not
 
 and where it is not:
 
@@ -2153,8 +2165,10 @@ and where it is not:
 > hundred and ninety-five; every one of those that was meant the way
 > the values above are written has been read a thousand times too
 > large, and any average, spread or ends this profile publishes for
-> this column are wrong with them. Write this column with a decimal
-> point and run the command again
+> this column are wrong with them. Run the command again with
+> --decimal-comma and this column's name, and every one of them is
+> read as a decimal number. Rewriting the column with a decimal point
+> works too, and changes your file where the declaration does not
 
 **A CELL CAN SETTLE IT, AND AN EARLIER WORDING HERE SAID OTHERWISE**
 (plan P4-D17). That wording was wrong in both directions. A point AFTER
@@ -3492,7 +3506,7 @@ ISO reading below may still claim the column.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `format` | string | one of the SEVENTEEN members of the table below | the parser family that read the REAL file |
+| `format` | string | one of the NINETEEN members of the table below | the parser family that read the REAL file |
 | `resolution` | string | `date`, `datetime`, `quarter`, `month` | which canonical form the published datetimes are written in |
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
@@ -3507,9 +3521,9 @@ ISO reading below may still claim the column.
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
 
 **Three closed vocabularies stand in that table** — `format` with
-SEVENTEEN members, `resolution` with FOUR, `time_precision` with SIX —
+NINETEEN members, `resolution` with FOUR, `time_precision` with SIX —
 and each is written again below inside a table that BINDS it: the
-seventeen formats are the rows of the next table, where D1 fixes each one's
+nineteen formats are the rows of the next table, where D1 fixes each one's
 resolution; the four resolutions are the rows of the canonical-forms
 table, which fixes what each one's instants are written as, and of D6's
 table; and the six precisions are named in D6's table, which admits no
@@ -3534,6 +3548,8 @@ requires:
 | `dotted-day-first-date` | a dotted day-first date: a TWO-digit day, a TWO-digit month, a four-digit year, dot-delimited. Padded, and the one family that is — C6-22 says why | `date` |
 | `two-digit-month-first-date` | a slashed month-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
 | `two-digit-day-first-date` | a slashed day-first date whose year is TWO figures, read at the pivot C6-D8P fixes | `date` |
+| `dotted-two-digit-month-first-date` | a DOTTED month-first date whose year is TWO figures, read at the pivot C6-D8P fixes. Padded, for C6-22's reason: `1.2.24` is a version identifier | `date` |
+| `dotted-two-digit-day-first-date` | a DOTTED day-first date whose year is TWO figures, read at the pivot C6-D8P fixes. Padded, for C6-22's reason | `date` |
 | `compact-date` | `YYYYMMDD`: exactly eight digits and nothing else | `date` |
 | `slashed-iso-date` | `YYYY/MM/DD`, fields padded | `date` |
 | `iso-month` | `YYYY-MM` | `month` |
@@ -3557,7 +3573,7 @@ table reaching further back than 1969.
 total: every member of the format vocabulary appears exactly once, a
 document whose pair is not a row does not conform, and a loader refuses
 it naming both the format and the resolution it found. Totality is the
-point of writing all seventeen rows out. A partial binding — one that
+point of writing all nineteen rows out. A partial binding — one that
 named the resolutions of some members and left the rest unbound — would
 let a document pair `format: iso-date` with `resolution: datetime` and
 be refused by no rule at all, so a whole-date source could be routed as
@@ -7892,7 +7908,7 @@ it answers to.
 
 | id | statement | loader? |
 |---|---|---|
-| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all SEVENTEEN members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date` and `two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` take `datetime` | yes |
+| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all NINETEEN members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
@@ -8398,7 +8414,7 @@ form, the stand-in is written in it (7.9.1).
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | REPORT-ONLY — it names the real file's parser family across all seventeen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
+| `format` | REPORT-ONLY — it names the real file's parser family across all nineteen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12) |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
@@ -9178,11 +9194,13 @@ a marked row.
 5. **Every ROLE-ADDED fact a datetime block publishes**, on every
    column the five calendar members `slashed-iso-date`, `iso-month`,
    `iso-mixed`, `month-first-datetime` and `day-first-datetime`, the
-   unpadded reading of the slashed month and day fields, or the SIX
+   unpadded reading of the slashed month and day fields, the SIX
    members of plan P4-D15 — `textual-day-first-date`,
    `textual-month-first-date`, `dotted-month-first-date`,
    `dotted-day-first-date`, `two-digit-month-first-date` and
-   `two-digit-day-first-date` — newly claim.
+   `two-digit-day-first-date` — or the TWO of residual R-P4-4,
+   `dotted-two-digit-month-first-date` and
+   `dotted-two-digit-day-first-date`, newly claim.
    **NEW for such a column.** The universal keys it newly fills are
    priced at row 15, not here. The role-added set is thirteen keys, of
    which a `free_text` block carries none, so every one is new for such
@@ -9819,7 +9837,7 @@ never edited to change what it requires, and a description is governed
 by exactly one version's documents.
 
 **13.35 Inherited invariants keep their exact identifiers.** `D1` binds
-seventeen formats rather than six and is still `D1`. This is not a style
+nineteen formats rather than six and is still `D1`. This is not a style
 preference: the sealed generation method, the validation method and the
 test suite cite these by name, and a document that renames them
 silently breaks every citation pointing at it. New checkable rules join
@@ -10076,6 +10094,8 @@ count and the blank count live in `n_missing_withheld` and
 | `dotted-day-first-date` | `date` |
 | `two-digit-month-first-date` | `date` |
 | `two-digit-day-first-date` | `date` |
+| `dotted-two-digit-month-first-date` | `date` |
+| `dotted-two-digit-day-first-date` | `date` |
 | `iso-month` | `month` |
 | `year-quarter` | `quarter` |
 | `iso-datetime` | `datetime` |
@@ -10177,8 +10197,8 @@ nested forms, 5 bound affix strings.
 | NG54 | `remark_two_readings_both_fit` | 1 |
 | NG55 | `remark_a_letter_against_the_digits` | 1 |
 
-**The package-word vocabulary — 21**, the whole of the second argument
-class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`
+**The package-word vocabulary — 23**, the whole of the second argument
+class (4.5.1): the nineteen `format` members of 14.6, plus `day-first`
 and `month-first`, the two reading names the day-and-month remark
 needs, plus `hours_and_minutes` and `hours_minutes_and_seconds`, the
 two clock words NF46 names a form by. **The count read nineteen and

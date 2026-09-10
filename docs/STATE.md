@@ -28,7 +28,7 @@ without the same help.
 | branch | `l14-affix-set` (never merged; `main` is pull-request only). The worktree it was cut from carries landings L8 and L9 under the branch name `l8-compound-role`, which is left alone rather than rewritten under a landing |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,391 collected; `4340 passed, 51 skipped in 1067.64s (0:17:47)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. The ten days before it produced 95 commits of which 44 were review-round repairs, ran EIGHT rounds on each of three landings against a five-round ruling, and opened 32 residuals against 19 closed. |
+| suite | 4,400 collected; `4349 passed, 51 skipped in 1160.93s (0:19:20)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **ONE suite run for this landing**, which is what the order buys: every edit, then the scanners, then the seal LAST, then one run. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. The ten days before it produced 95 commits of which 44 were review-round repairs, ran EIGHT rounds on each of three landings against a five-round ruling, and opened 32 residuals against 19 closed. |
 | suite, before the wrapper set | 4,355 collected on the worktree with the STRETCH EDGES (landing L9, plan P4-D35, all eight review rounds), residual R-P4-151 closed by measurement and residual R-P4-149's THIRD POPULATION in it; `4304 passed, 51 skipped in 1005.62s (0:16:45)` verbatim. **ELEVEN new tests**: round 8 added the block-wide disclosure ceiling and the affixed key-row completeness check to guards that already existed; round 7 moved the stretch report to a recount over the finished cells and rebuilt two witnesses on it; round 6 adds the looser-walk witness (residual R-P4-156); round 5 rebuilt the deviation-inventory guard around G12's new key index; **TEN before them**: round 4 adds the deviation-inventory guard, which found `shape_forms` missing from the method's own complete list on its first run; round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
 | suite, before the stretch edges | 4,343 collected on the worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4292 passed, 51 skipped in 979.16s (0:16:19)` verbatim after amendment A-P4-55's build. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
 | suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
@@ -52,6 +52,85 @@ honesty; **L22** the record; **L23** the close and the merge. Review is
 ONE round per landing and does not run on L22 or L23. Everything not in
 those landings is CARRIED to Phase 5 by name in the closure section —
 about forty entries, each with a line and a size.
+
+* **LANDING L18 IS BUILT (2026-09-10). A EUROPEAN DATE IS A DATE.**
+  `19.08.24` was the commonest export shape no reading claimed: the
+  dotted pair needs a four-figure year, the two-figure pair needs
+  slashes, and the gap between them was filled by the AFFIX rule, which
+  read the column as the number 19.08 wearing the text `.24`. Measured
+  on 300 rows: a ladder from 1.01 to 28.12 over day-and-month numbers,
+  and **151 of 300 twin cells that were not dates** (months 74, 85,
+  62). After: `datetime`, 2024-01-01 to 2024-12-28, **0 of 300** bad
+  cells, validate exit 0.
+
+  **Two members join the closed format table** and share ONE branch
+  with the slashed two-figure pair rather than copying it. They join
+  `SLASHED_PAIRS`, so evidence decides, `--day-first` breaks a tie and
+  the century remark is carried; all four paths are measured. The
+  `--day-first` help already promised dots with a two-figure year, so
+  the landing makes an existing sentence true instead of editing it.
+  Padded only, for C6-22's reason: `1.2.24` is a version identifier.
+  The cost of that rule -- a padded column whose every triple is also a
+  real date IS read as dates, exactly as `01/02/24` already was -- is
+  pinned by a test so it is a decision somebody recorded.
+
+  **Nineteen formats now, and the contract said seventeen in eleven
+  places.** Every one moved with the pair, plus the two binding tables,
+  the appendix, D1's TOTAL clause and the package-word count. Three
+  guards caught what the first pass missed, which is what they are for.
+
+  **And both decimal-comma messages name `--decimal-comma`.** They told
+  a person to rewrite their own file, and went on saying it for a
+  fortnight after the declaration shipped. R-P4-31 gets the CLOSED
+  marker it never had; R-P4-33 is RE-HOMED rather than built, because a
+  `10,5` column is ambiguous in A-P4-58's sense and belongs in the
+  questions file beside the code columns.
+
+  **Carried from this landing's own scope, by name:** the three
+  advisory remarks for durations (R-P4-2), a month-and-date mix
+  (R-P4-6) and multi-valued cells (R-P4-7). Each needs its own note
+  form, contract clause and appendix row -- three times NF55's weight
+  -- and R-P4-7's belongs with the questions file for the same reason
+  R-P4-33 does.
+
+  **REVIEW ROUND 1 RETURNED RATIFY-WITH-CONDITIONS, two items repaired
+  and three carried.** Both repairs were PRE-EXISTING defects the new
+  family inherited, and the second was a regression this landing owed.
+  (1) `_slashed_evidence` has always said the better-parsing reading
+  wins "whatever the person said", and its only caller asked it under
+  `--day-first` alone -- so undeclared, the member standing first in
+  the format table won by ORDER on all five pairs, and a column of 299
+  ambiguous cells beside one decisive day-first cell was read month
+  first with that cell called unreadable. The override is bounded to
+  the case where day-first parses strictly more, because contract
+  NF36's other two renderings say "you asked for" and a first writing
+  of the repair put those words on columns whose owner asked nothing.
+  (2) A firmware column of `01.00.24` became dates: no zeroth month
+  exists, but one cell in three hundred sits under the stray
+  tolerance. A dotted triple naming a zero field is contrary evidence
+  now; a stray that is no triple, and a typo like `32.08.24`, are
+  tolerated as before.
+
+  **AND THE REPAIR FOUND A QUADRATIC WALK NOBODY COULD SEE.**
+  `_reads` grew its list with `answers = answers + [item]`, which
+  copies the whole prefix every cell -- the defect review item
+  P1-R6-F10 fixed for the numeric path and wrote into this module's
+  opening paragraph. It survived because the function ran only under
+  `--day-first`, and no growth test declares that option. Item 1's
+  repair put it on every column that reaches the date pass, and
+  `test_a_large_numeric_column_is_not_built_quadratically` turned red
+  at once: **14.4 times the work for four times the values**, where
+  proportional growth is about 4 and quadratic is about 16. With the
+  in-place form the whole growth file runs in 5.9 seconds where that
+  one test took 74. *A guard nothing exercised was watching nothing;
+  what exercised it was a change made for another reason entirely.*
+
+  **Carried by name:** R-P4-159 (an UNPADDED dotted date is still a
+  silent quantity, mean 20.9025 -- the padding restriction is right and
+  its consequence needs a sentence), R-P4-160 (the zero-field guard is
+  the new family's alone; the four-figure pair still admits
+  `01.00.2024`), R-P4-161 (the comma advice names a declaration the
+  affixed role does not honour, beside a true warning).
 
 * **LANDING L16 IS BUILT (2026-09-10). It closes the silence review
   round 8 named, which is the half of R-P4-157 that was a defect.**

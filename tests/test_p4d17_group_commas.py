@@ -127,7 +127,17 @@ def test_the_sentence_states_the_size_of_the_error() -> None:
     assert said is not None
     assert "thousand times its real size" in said
     assert "every statistic this profile publishes" in said
-    assert "write this column with a decimal point" in said
+    # WHAT TO DO NAMES THE DECLARATION FIRST (landing L18). This
+    # sentence said only "write this column with a decimal point", and
+    # went on saying it after `--decimal-comma` shipped (plan P4-D26,
+    # 2026-08-27): a person meeting the loudest message this tool
+    # writes was told to edit their own file, while the option that
+    # reads the column correctly and changes nothing had been there for
+    # a fortnight. Both routes are offered now, in that order, and the
+    # rewrite is still named because it is still true.
+    assert "--decimal-comma" in said
+    assert said.index("--decimal-comma") < said.index("decimal point")
+    assert "Rewriting the column with a decimal point works too" in said
     # ...AND IT DOES NOT NAME A STATISTIC THE COLUMN MIGHT NOT HAVE,
     # nor promise one is wrong. A symmetric column's mean is unchanged
     # by a factor of a thousand applied to every value, so "any average

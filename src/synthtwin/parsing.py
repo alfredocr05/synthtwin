@@ -169,6 +169,20 @@ DATE_FORMATS = (
     "dotted-day-first-date",
     "two-digit-month-first-date",
     "two-digit-day-first-date",
+    # THE SAME TWO-FIGURE YEAR WRITTEN WITH DOTS (residual R-P4-4,
+    # landing L18). `19.08.24` is how a great many European exports
+    # write a date, and it was the one shape of that family no member
+    # read: the four-figure dotted pair above needs `19.08.2024`, and
+    # the two-figure pair needs slashes. Measured before this landing,
+    # a 300-row column of them took the AFFIXED role -- read as the
+    # number 19.08 wearing the text `.24` -- and published a ladder
+    # from 1.01 to 28.12 over day-and-month numbers, with 151 of its
+    # 300 twin cells holding months like 74 and 85.
+    #
+    # AFTER the slashed two-figure pair, so no spelling that already
+    # reads keeps its reading only by luck of the order.
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
     "year-quarter",
@@ -196,6 +210,8 @@ _FORMAT_EXAMPLES = {
     "dotted-day-first-date": "17.03.2024 (day first)",
     "two-digit-month-first-date": "03/17/24 (month first)",
     "two-digit-day-first-date": "17/03/24 (day first)",
+    "dotted-two-digit-month-first-date": "03.17.24 (month first)",
+    "dotted-two-digit-day-first-date": "17.03.24 (day first)",
     "month-first-datetime": "03/17/2024 14:05 (month first)",
     "day-first-datetime": "17/03/2024 14:05 (day first)",
     "year-quarter": "2024-Q1",
@@ -1763,6 +1779,38 @@ def _delimited_fields(
 TWO_DIGIT_YEAR_PIVOT = 68
 
 
+def names_a_zero_field(text: str) -> bool:
+    """Whether a padded dotted triple carries a zero where a date cannot.
+
+    THE EVIDENCE THAT A DOTTED TRIPLE IS A VERSION AND NOT A DATE
+    (review round 1 of landing L18, item 2). The padding rule separates
+    `1.2.24` from `17.03.24` and is silent about `01.00.24`, which is
+    padded, is shaped exactly like a date, and is not one: no month is
+    the zeroth month and no day is the zeroth day. A firmware column of
+    `01.02.24`, `01.03.24`, `01.04.24` and one `01.00.24` therefore had
+    299 of its 300 cells read as dates, cleared the parse line with the
+    odd one counted as a stray, and became a date column -- where
+    before this family existed it kept its versions as a set of
+    categories.
+
+    A STRAY IS NOT THE SAME AS A CONTRADICTION, which is why this asks
+    about the SHAPE and not about parsing. A cell that is no dotted
+    triple at all -- a blank, a marker, a word -- is a stray and the
+    parse line exists to tolerate it. A cell that IS a dotted triple
+    and names a zero field is the column telling you what it holds, and
+    tolerating it reads the column against its own evidence.
+
+    Guarantees: accepts one cell as text; returns whether it is a
+    padded dotted triple with a two-figure last field naming a zero.
+    Determinism: a function of that text. Raises nothing. No I/O.
+    """
+    fields = _delimited_fields(text, ".", 2, True)
+    if fields is None:
+        return False
+    first, second, _year = fields
+    return first == "00" or second == "00"
+
+
 def year_of_two_figures(year: str) -> str:
     """The four-figure year a two-figure year is read as.
 
@@ -2119,17 +2167,34 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
     if (
         format_name == "two-digit-month-first-date"
         or format_name == "two-digit-day-first-date"
+        or format_name == "dotted-two-digit-month-first-date"
+        or format_name == "dotted-two-digit-day-first-date"
     ):
-        # A SLASHED DATE WHOSE YEAR IS TWO FIGURES (plan P4-D15). The
-        # century is not in the cell, so it is decided by the pivot
-        # `year_of_two_figures` fixes and named in the column's
-        # remarks.
-        fields = _delimited_fields(body, "/", 2)
+        # A DATE WHOSE YEAR IS TWO FIGURES (plan P4-D15; the dotted
+        # half is residual R-P4-4, landing L18). The century is not in
+        # the cell, so it is decided by the pivot `year_of_two_figures`
+        # fixes and named in the column's remarks.
+        #
+        # ONE BRANCH FOR BOTH PUNCTUATIONS, because they are one
+        # grammar: three year-last fields on one mark, the year two
+        # figures. Writing the dotted half as a second copy is how the
+        # families come to disagree, which is the reason
+        # `_delimited_fields` exists at all.
+        dotted = format_name.startswith("dotted-")
+        # PADDED ONLY WHERE THE MARK IS A DOT, and for the reason the
+        # four-figure dotted family gives: `1.2.24` is how a version
+        # identifier is written and, character for character, how an
+        # unpadded dotted date is written. Nothing in the cell settles
+        # it; the padding does, well enough to be worth a rule. A
+        # slashed `1/2/24` carries no such rival and keeps its reading.
+        fields = _delimited_fields(
+            body, "." if dotted else "/", 2, dotted
+        )
         if fields is None:
             return None
         first, second, short = fields
         year = year_of_two_figures(short)
-        if format_name == "two-digit-month-first-date":
+        if format_name.endswith("month-first-date"):
             canonical = _canonical_date(year, first, second)
         else:
             canonical = _canonical_date(year, second, first)
