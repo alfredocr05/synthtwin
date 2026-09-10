@@ -6,6 +6,87 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a European date is read as a date, not as a quantity
+
+- **A column of dates written `19.08.24` was described as a
+  measurement.** It was read as the number 19.08 wearing the text
+  `.24`, so the description published an average and a ladder over
+  day-and-month numbers, and nothing said so. Measured on 300 rows:
+  the profile's smallest and largest came out 1.01 and 28.12, and
+  **151 of the 300 cells in the twin were not dates at all** -- months
+  74, 85 and 62 among them. Analysis code that read your real column
+  could not read its twin, which is the one thing the twin exists to
+  allow.
+
+- **It is a date column now.** The same 300 rows describe as dates
+  running 2024-01-01 to 2024-12-28, the twin holds 300 real dates, and
+  `synthtwin validate` on that twin misses nothing. Which field is the
+  day is decided the way it already was for slashed dates: your own
+  values first, then `--day-first`, then the stated default; and
+  because the year has two figures, the column says out loud which
+  century it was read in.
+
+- **`--day-first` now reaches what its help text always promised.** The
+  option said it reaches dates "written with dots, and written with a
+  two-figure year". Until this release the two together were the one
+  shape it did not reach.
+
+- **A column of version numbers is still a column of version numbers.**
+  `1.2.24` is how a version is written and, character for character,
+  how an unpadded dotted date would be. Only the padded spelling is
+  read as a date, which is the same rule the four-figure dotted dates
+  have always used. The cost is written down rather than left to be
+  met: a padded column whose every value is also a real date IS read as
+  dates, exactly as `01/02/24` already was.
+
+- **Your own values now decide which field is the day, even when you
+  have not said.** A column of 300 dates where 299 could be read either
+  way and ONE can only be a day-first date was read month first, and
+  that one cell was reported as unreadable. The column had answered the
+  question and the tool overruled it with a default. This was true of
+  every shape whose day and month are both numbers, not only the new
+  one. Where your values point one way, that way is used; where they do
+  not, `--day-first` decides and the stated default stands.
+
+- **A firmware version column stays a version column.** Values like
+  `01.02.24`, `01.03.24` and one `01.00.24` were read as dates once the
+  dotted two-figure shape had a reader: there is no zeroth month, but
+  one odd cell in three hundred slipped under the tolerance for stray
+  cells. A dotted value naming a zeroth month or day is now taken as
+  the column telling you it holds versions. An ordinary stray cell, or
+  a typo like `32.08.24`, is still tolerated exactly as before.
+
+### Fixed: `--day-first` was quadratic, and nobody could see it
+
+- **Describing a column under `--day-first` did work that grew as the
+  SQUARE of the column's length.** The helper that counts how many
+  cells each reading accepts built its answer by copying everything it
+  had accumulated so far, one cell at a time -- the exact defect that
+  was found and fixed for numeric columns long ago, and written into
+  this module's own rules. It survived here because this helper only
+  ran when you passed `--day-first`, and no growth test passes that
+  option, so the walk sat unmeasured.
+
+- **It was found by making the tool better at something else.** Once
+  your own values decide the day-first question whether or not you
+  declare anything, that helper runs on every column that could be
+  dates -- and the growth guard that has watched numeric columns for
+  months turned red immediately, measuring 14.4 times the work for four
+  times the values where proportional growth is about 4. The list is
+  extended in place now, and that guard is what pins it from here.
+
+### Fixed: the decimal-comma message names the option that exists
+
+- **A person whose file writes `1,795` for one and three-quarters was
+  told to rewrite their own file.** The message said to write the
+  column with a decimal point and run the command again. It said that
+  for a fortnight after `--decimal-comma` shipped, and never named it.
+
+- **Both messages name the declaration first now**, and the rewrite
+  second, because rewriting still works and changes your file where the
+  declaration does not.
+
+
 ### Fixed: a column of codes is no longer averaged in silence
 
 - **A register of procedure codes, most of them bare figures and a few

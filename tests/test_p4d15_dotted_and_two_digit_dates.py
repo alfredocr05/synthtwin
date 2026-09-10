@@ -314,3 +314,274 @@ def test_the_pivot_remark_states_a_range_and_not_a_distance() -> None:
     assert len(said) == 1
     assert "1969 to 2068" in said[0]
     assert "hundred years" not in said[0]
+
+
+# -- the fourth family: a dotted date whose year is two figures --------
+#
+# RESIDUAL R-P4-4, landing L18. The three families above left one hole
+# and it is the commonest European export of all.
+
+
+def test_a_dotted_two_figure_year_is_a_date_and_not_a_quantity() -> None:
+    """THE DEFECT, MEASURED BEFORE THE REPAIR AND WRITTEN DOWN HERE.
+
+    A 300-row column of `19.08.24` took the AFFIXED role: it was read
+    as the number `19.08` wearing the shared text `.24`, and published
+    a ladder from 1.01 to 28.12 over day-and-month numbers. That is the
+    silent-statistical-wrongness class -- nothing crashed, no message
+    appeared, and a person got a mean of day numbers.
+
+    The twin was worse than the description. 151 of its 300 cells were
+    not dates at all: months 74, 85, 62, and days written without their
+    padding. Analysis code that parsed the real column could not parse
+    its twin, which is the one thing the twin exists to allow.
+    """
+    values = [
+        f"{day:02d}.{month:02d}.24"
+        for day in range(1, 26)
+        for month in range(1, 13)
+    ]
+    document, _loaded, _folder = _described(values)
+    block = document["columns"][0]
+    assert block["role"] == "datetime", block["role"]
+    assert block["format"] == "dotted-two-digit-day-first-date", block
+    # ...and the ends are real dates rather than day-and-month numbers.
+    assert block["earliest"].startswith("2024-"), block["earliest"]
+    assert block["latest"].startswith("2024-"), block["latest"]
+
+
+def test_the_dotted_two_figure_family_reads_only_its_own_spelling() -> None:
+    """It takes nothing from the three families that shipped before it."""
+    for member in (
+        "dotted-two-digit-day-first-date",
+        "dotted-two-digit-month-first-date",
+    ):
+        # a four-figure year belongs to the dotted pair above it
+        assert parsing.parse_datetime("17.03.2024", member) is None
+        # slashes belong to the two-digit pair beside it
+        assert parsing.parse_datetime("17/03/24", member) is None
+        # one dot is a decimal number and always was
+        assert parsing.parse_datetime("17.03", member) is None
+    assert parsing.parse_datetime(
+        "17.03.24", "dotted-two-digit-day-first-date"
+    ) == ("2024-03-17", "")
+    assert parsing.parse_datetime(
+        "03.17.24", "dotted-two-digit-month-first-date"
+    ) == ("2024-03-17", "")
+
+
+def test_the_dotted_two_figure_family_is_padded_like_its_parent() -> None:
+    """`1.2.24` IS A VERSION IDENTIFIER, and the same rule keeps it one.
+
+    The four-figure dotted pair is the one padded family because
+    `1.2.2024` is written by version numbers and by nothing else. A
+    two-figure year does not change that argument -- it sharpens it,
+    because `1.2.24` is a shorter and commoner version string than
+    `1.2.2024` is. So this family is padded too, and a column of
+    unpadded dotted triples keeps the values it had.
+    """
+    for text in ("1.2.24", "1.12.24", "2.0.24", "7.3.24"):
+        for member in (
+            "dotted-two-digit-day-first-date",
+            "dotted-two-digit-month-first-date",
+        ):
+            assert parsing.parse_datetime(text, member) is None, text
+    values = [
+        f"{major}.{minor}.24"
+        for major in range(1, 4)
+        for minor in range(1, 13)
+    ] * 3
+    document, _loaded, _folder = _described(values)
+    assert document["columns"][0]["role"] != "datetime"
+
+
+def test_a_padded_version_that_is_also_a_date_reads_as_a_date() -> None:
+    """THE COST OF THE PADDING RULE, named rather than left to be found.
+
+    Padding separates a version from a date well enough to be worth a
+    rule, and not perfectly: a column written `01.02.24` whose every
+    triple is also a real day, month and year IS read as dates. That is
+    the same cost the slashed two-figure family has carried since
+    P4-D15 -- `01/02/24` has it too -- and it is accepted on the same
+    ground: the person is told which reading was taken, in the summary
+    and in the twin's report, and `--day-first` turns it round.
+
+    This test exists so the cost is a decision somebody recorded rather
+    than a surprise somebody meets.
+    """
+    values = [
+        f"{major:02d}.{minor:02d}.24"
+        for major in range(1, 10)
+        for minor in range(1, 13)
+    ]
+    document, _loaded, _folder = _described(values)
+    assert document["columns"][0]["role"] == "datetime"
+
+
+def test_the_new_family_answers_to_the_declaration_and_the_evidence(
+) -> None:
+    """It joins the machinery rather than bringing a rule of its own."""
+    ambiguous = [
+        f"{first:02d}.{second:02d}.24"
+        for first in range(1, 13)
+        for second in range(1, 13)
+    ]
+    document, _loaded, _folder = _described(ambiguous)
+    assert (
+        document["columns"][0]["format"]
+        == "dotted-two-digit-month-first-date"
+    )
+    declared, _loaded, _folder = _described(
+        ambiguous, taxonomy.Settings(day_first=True)
+    )
+    assert (
+        declared["columns"][0]["format"]
+        == "dotted-two-digit-day-first-date"
+    )
+    # ...and the column's own evidence beats the declaration, as it
+    # does for every other pair: a field above twelve first can only be
+    # a day.
+    evident = [
+        f"{day:02d}.{month:02d}.24"
+        for day in range(13, 29)
+        for month in range(1, 13)
+    ]
+    document, _loaded, _folder = _described(evident)
+    assert (
+        document["columns"][0]["format"]
+        == "dotted-two-digit-day-first-date"
+    )
+
+
+def test_the_new_family_says_its_century_out_loud() -> None:
+    """A two-figure year is a guess, and every family making it says so."""
+    values = [
+        f"{day:02d}.{month:02d}.24"
+        for day in range(1, 26)
+        for month in range(1, 13)
+    ]
+    document, _loaded, _folder = _described(values)
+    spoken = [
+        remark
+        for remark in document["columns"][0]["remarks"]
+        if "two figures" in remark
+    ]
+    assert spoken, document["columns"][0]["remarks"]
+
+
+# -- what review round 1 of landing L18 sent back ---------------------
+
+
+def test_the_columns_own_evidence_decides_without_a_declaration() -> None:
+    """ROUND 1, ITEM 1, and the defect was on every family not just ours.
+
+    `_slashed_evidence` has said since it was written that the reading
+    parsing strictly more cells wins "whatever the person said". Its
+    only caller asked it under `--day-first` alone, so undeclared the
+    member standing FIRST in the format table won by ORDER and the
+    column's own values were never counted.
+
+    Measured on 299 cells both readings accept beside ONE that only a
+    day-first reading accepts: every one of the five pairs came out
+    month-first with that cell reported unparsed. The column had
+    settled the question and a default overruled it.
+
+    THE REPAIR IS BOUNDED BY THE SENTENCE IT HAS TO WRITE. Contract
+    NF36 gives the evidence remark three renderings and only one is
+    true of a column nobody declared, so the override reaches exactly
+    the case where DAY-first parses strictly more. Where month-first
+    parses at least as many the format order already picks it and
+    nothing changes.
+    """
+    families = (
+        "{first:02d}.{second:02d}.24",
+        "{first:02d}/{second:02d}/24",
+        "{first:02d}/{second:02d}/2024",
+        "{first:02d}.{second:02d}.2024",
+    )
+    for pattern in families:
+        values = (
+            [pattern.format(first=2, second=3)] * 100
+            + [pattern.format(first=4, second=5)] * 100
+            + [pattern.format(first=6, second=7)] * 99
+            + [pattern.format(first=19, second=8)] * 1
+        )
+        document, _loaded, _folder = _described(values)
+        block = document["columns"][0]
+        assert block["format"].endswith("day-first-date"), (
+            pattern,
+            block["format"],
+        )
+        assert block["n_unparsed"] == 0, (pattern, block["n_unparsed"])
+        # ...and the sentence it writes invents no declaration.
+        spoken = [
+            remark
+            for remark in block["remarks"]
+            if "read day first" in remark
+        ]
+        assert spoken, block["remarks"]
+        assert "you asked for" not in spoken[0], spoken[0]
+
+
+def test_an_undeclared_tie_and_a_month_first_column_do_not_move() -> None:
+    """The other side of item 1: the override reaches nothing else."""
+    ambiguous = [
+        f"{first:02d}.{second:02d}.2024"
+        for first in range(1, 10)
+        for second in range(1, 10)
+    ] * 2
+    document, _loaded, _folder = _described(ambiguous)
+    block = document["columns"][0]
+    assert block["format"] == "dotted-month-first-date"
+    assert any(
+        "read month first" in remark for remark in block["remarks"]
+    ), block["remarks"]
+    # ...and a column whose evidence points the OTHER way keeps the
+    # standing sentence too, because the order already served it.
+    month_evident = [f"0{1 + place % 9}/0{1 + place % 9}/2024" for place in
+                     range(99)] + ["12/25/2024"]
+    document, _loaded, _folder = _described(month_evident)
+    block = document["columns"][0]
+    assert block["format"] == "month-first-date"
+    assert block["n_unparsed"] == 0
+
+
+def test_a_dotted_triple_naming_a_zero_field_is_not_a_date_column(
+) -> None:
+    """ROUND 1, ITEM 2: a version column this landing had newly claimed.
+
+    Firmware versions `01.02.24`, `01.03.24`, `01.04.24` and one
+    `01.00.24`. The padding rule admits all four spellings, `01.00.24`
+    is not a real date, and 299 of 300 cleared the parse line -- so the
+    column became dates with the odd one counted as a stray, where
+    before this landing it kept its versions as a set of categories.
+
+    A STRAY IS NOT A CONTRADICTION. A cell that is no dotted triple at
+    all is what the parse line exists to tolerate; a cell that IS one
+    and names a zeroth month or a zeroth day is the column saying what
+    it holds. So the guard asks about the SHAPE, which keeps ordinary
+    typo tolerance intact.
+    """
+    versions = (
+        ["01.02.24"] * 100
+        + ["01.03.24"] * 100
+        + ["01.04.24"] * 99
+        + ["01.00.24"] * 1
+    )
+    document, _loaded, _folder = _described(versions)
+    assert document["columns"][0]["role"] != "datetime"
+
+    dates = [
+        f"{day:02d}.{month:02d}.24"
+        for day in range(1, 26)
+        for month in range(1, 13)
+    ]
+    # a real date column is untouched...
+    document, _loaded, _folder = _described(dates)
+    assert document["columns"][0]["role"] == "datetime"
+    # ...and so is one carrying a stray that is no triple...
+    document, _loaded, _folder = _described(dates[:-1] + ["n/a"])
+    assert document["columns"][0]["role"] == "datetime"
+    # ...and so is one carrying a typo that names no zero.
+    document, _loaded, _folder = _described(dates[:-1] + ["32.08.24"])
+    assert document["columns"][0]["role"] == "datetime"

@@ -695,6 +695,8 @@ DATE_FORMATS = (
     "dotted-day-first-date",
     "two-digit-month-first-date",
     "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
     "year-quarter",

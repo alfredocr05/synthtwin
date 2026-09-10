@@ -1696,8 +1696,11 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
                 f"are written has been read a thousand times too "
                 f"large, and any average, spread or ends this profile "
                 f"publishes for this column are wrong with them. "
-                f"Write this column with a decimal point and run the "
-                f"command again"
+                f"Run the command again with --decimal-comma and "
+                f"this column's name, and every one of them is read "
+                f"as a decimal number. Rewriting the column with a "
+                f"decimal point works too, and changes your file "
+                f"where the declaration does not"
             )
         return (
             f"{_whole(arguments, 0)} of this column's values are "
@@ -1710,9 +1713,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"and each of those values has been read as a thousand "
             f"times its real size, and every statistic this profile "
             f"publishes about this column was computed from those "
-            f"numbers. Nothing in this column settles which was meant. If your "
-            f"file writes decimals with a comma, write this column "
-            f"with a decimal point instead and run the command again"
+            f"numbers. Nothing in this column settles which was meant. "
+            f"If your file writes decimals with a comma, run the "
+            f"command again with --decimal-comma and this column's "
+            f"name, and this column is read that way. Rewriting the "
+            f"column with a decimal point works too, and changes your "
+            f"file where the declaration does not"
         )
     if form == REMARK_PADDED_NUMBERS:
         # IT DECIDES NOTHING, and says so, on the exact pattern the
@@ -6273,6 +6279,7 @@ _MONTH_FIRST_GUESSES = (
     "month-first-datetime",
     "dotted-month-first-date",
     "two-digit-month-first-date",
+    "dotted-two-digit-month-first-date",
 )
 
 # Both readings of the two-figure-year family, either of which leaves
@@ -6280,6 +6287,11 @@ _MONTH_FIRST_GUESSES = (
 _TWO_DIGIT_YEAR_MEMBERS = (
     "two-digit-month-first-date",
     "two-digit-day-first-date",
+    # The dotted half of the same family (residual R-P4-4, landing
+    # L18). It leaves the century undecided by the cell for exactly
+    # the same reason, so it carries exactly the same sentence.
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
 )
 
 SLASHED_PAIRS = (
@@ -6293,6 +6305,8 @@ SLASHED_PAIRS = (
     # person's declaration, then the ratified default.
     ("dotted-month-first-date", "dotted-day-first-date"),
     ("two-digit-month-first-date", "two-digit-day-first-date"),
+    ("dotted-two-digit-month-first-date",
+     "dotted-two-digit-day-first-date"),
 )
 
 
@@ -6316,12 +6330,27 @@ class _SlashedEvidence:
 
 
 def _reads(present: "list[str]", format_name: str) -> "list[bool]":
-    """Which of these cells one reading parses."""
+    """Which of these cells one reading parses.
+
+    IT GREW ITS LIST THE COPYING WAY, and this module's own rule says
+    not to: `answers = answers + [item]` copies everything accumulated
+    so far, so the work grew as the SQUARE of the column's length --
+    the very defect review item P1-R6-F10 fixed for the numeric path
+    and wrote into this module's opening paragraph.
+
+    IT WAS INVISIBLE UNTIL LANDING L18, and that is the part worth
+    keeping. This function ran only under `--day-first`, which no
+    growth test declares, so a quadratic walk sat in the tree
+    unmeasured. Landing L18 made the column's own evidence decide
+    whether or not anybody declared anything, which put this walk on
+    every column that reaches the date pass -- and the growth guard
+    that has watched the numeric path since P1-R6-F10 turned red at
+    once, measuring 14.4 times the work for four times the values
+    where proportional growth is about 4.
+    """
     answers: list[bool] = []
     for value in present:
-        answers = answers + [
-            parsing.parse_datetime(value, format_name) is not None
-        ]
+        answers += [parsing.parse_datetime(value, format_name) is not None]
     return answers
 
 
@@ -6423,14 +6452,70 @@ def _matching_date_format(
     evidence where a declaration put a pair in play), or None.
     """
     needed = _needed(settings.minimum_parse_rate, len(present))
+    # A DOTTED TRIPLE NAMING A ZERO FIELD IS A VERSION SAYING SO
+    # (review round 1 of landing L18, item 2). It is worked out once
+    # for the column rather than per format, because it is a fact about
+    # the column and not about a reading.
+    contradicted = False
+    for value in present:
+        if parsing.names_a_zero_field(value):
+            contradicted = True
+            break
     for format_name in parsing.DATE_FORMATS:
+        # THE GUARD IS THE NEW FAMILY'S ALONE, and that bound is
+        # deliberate. This landing gave the two-figure dotted spelling
+        # its first reader, so a column of `01.00.24` firmware moved
+        # from a set of categories to dates and back is a regression
+        # this landing owes. The FOUR-figure dotted family has admitted
+        # `01.00.2024` since P4-D15 and the slashed pair since before
+        # that; widening the guard to them would move columns that have
+        # read one way for weeks, which is a change to make on its own
+        # evidence rather than inside a repair. Carried as a residual.
+        if contradicted and format_name in (
+            "dotted-two-digit-month-first-date",
+            "dotted-two-digit-day-first-date",
+        ):
+            continue
         evidence: "_SlashedEvidence | None" = None
         reading = format_name
-        if settings.day_first:
-            for pair in SLASHED_PAIRS:
-                if format_name == pair[0]:
-                    evidence = _slashed_evidence(present, pair, True)
-                    reading = evidence.used
+        # THE COLUMN'S OWN EVIDENCE IS READ WHETHER OR NOT ANYBODY
+        # DECLARED ANYTHING (review round 1 of landing L18, item 1).
+        # `_slashed_evidence` has said since it was written that the
+        # reading parsing strictly more cells wins "whatever the person
+        # said", and this caller asked it only under `--day-first` --
+        # so undeclared, the member standing first in the format table
+        # won by ORDER and the column's own values were never counted.
+        #
+        # Measured on all four shipped pairs and the one this landing
+        # adds: 299 cells both readings accept beside ONE that only a
+        # day-first reading accepts came out month-first with that cell
+        # reported unparsed, on every family. The column had settled the
+        # question and the tool overruled it with a default.
+        #
+        # UNDECLARED, IT REACHES EXACTLY THE CASE THE ORDER GETS WRONG,
+        # and no other. Where month-first parses at least as many, the
+        # format table's own order already picks month-first and there
+        # is nothing to correct. Where DAY-first parses strictly more,
+        # the order picks the worse reading and this overrides it.
+        #
+        # THAT BOUND IS THE SENTENCE'S AS WELL AS THE READING'S, which
+        # is why it is drawn here rather than around the whole
+        # comparison. Contract NF36 gives the evidence remark three
+        # renderings and only ONE of them is true of a column nobody
+        # declared: "read day first, which parses N of these values
+        # against the month-first reading's M". The other two say
+        # "though you asked for day first" and "because you asked for
+        # it", and a first writing of this repair put those words on
+        # columns whose owner had asked for nothing. A sentence that
+        # makes up a declaration is worse than the reading it stands
+        # beside.
+        for pair in SLASHED_PAIRS:
+            if format_name != pair[0]:
+                continue
+            weighed = _slashed_evidence(present, pair, settings.day_first)
+            if settings.day_first or weighed.day_parsed > weighed.month_parsed:
+                evidence = weighed
+                reading = weighed.used
         good: list[tuple[str, str]] = []
         sources: list[str] = []
         for value in present:
