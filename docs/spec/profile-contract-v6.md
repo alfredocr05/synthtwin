@@ -1269,8 +1269,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 54 forms and 95 argument positions.
-Of those, 82 are whole numbers, 4 are package words, 4 are nested
+**The census.** The table holds 55 forms and 96 argument positions.
+Of those, 83 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1676,18 +1676,25 @@ the categorical ceiling.
 question** — arity 1. Argument 1: how many present cells hold a number
 with a short piece of text beside it.
 
-> «1» of this column's values are a number with a short piece of text
+> «1» of this column's values are a number with a short word or letter
 > beside it, and synthtwin cannot tell from the values alone which of
-> two things that means. It may be a MEASUREMENT that some cells carry
-> a marker beside — a laboratory result flagged high or low — or it may
-> be a set of LABELS whose spellings happen to end in a figure, such as
-> a stage or a category code. The two are described very differently:
-> as measurements, every one of those numbers joins this column's
-> average, spread and ends; as labels, they do not, and only the values
-> wearing no marker are described that way. synthtwin has taken the
-> CAUTIOUS reading, which publishes less, and has not guessed. If they
-> are measurements, run the command again with --measurement and this
-> column's name, and all of its numbers will be described
+> three things that means. It may be a MEASUREMENT that some cells
+> carry a marker beside — a laboratory result flagged high or low; it
+> may be numbers beside a small set of LABELS whose spellings hold a
+> figure, such as a stage; or the whole column may be a CODING SYSTEM,
+> some of whose codes end in a letter. The three are described very
+> differently: as measurements, every one of these numbers joins this
+> column's average, spread and ends; as labels, only the values wearing
+> no marker are described that way; as codes, no average is published
+> at all, and the codes themselves are published under the
+> smallest-group size in force — at the default of one, every one of
+> them, with the rows that carried it. synthtwin has
+> described the unmarked values as numbers and the marked ones as
+> labels, and has not guessed further. If they are measurements, run
+> the command again with --measurement and this column's name, and
+> every one of its numbers will be described; if they are codes, run it
+> again with --code and this column's name, and no average, smallest or
+> largest will be published over them
 
 **THE ASKING, IN THE ONE PLACE IT EXISTS SO FAR** (plan amendment
 A-P4-58, owner ruling 2026-09-09; residual R-P4-157). A column of
@@ -1700,6 +1707,48 @@ The two errors are not the same size: read as labels a measurement
 column publishes fewer numbers than it holds and every number it
 publishes is true, while read as measurements a label column publishes
 a mean of stage numbers, which is a quantity that does not exist.
+
+**WHICH READING FITS IS ASKED OF THE WALK AS IF THE COLUMN WERE
+DECLARED** (landing L16). The question was put to the affix reading
+with the person's own declaration, which cannot see the tie it exists
+to find: undeclared, the letter guard refuses a letter written flush
+against the digits, so the reading answered "none" and the tie was
+invisible. A register of 280 five-digit procedure codes beside fifteen
+`3074F` and five `3075F` took the cautious role in silence and
+published an average of 54,239 over its bare codes. Two refusals are
+kept rather than inherited from the declared walk: an electronic
+address is NF50's sentence and not this one, and a wrapper carrying no
+letter raises no question at all — `<0.5` is a detection limit, `$98`
+is money, and neither is a coding system.
+
+**NF55. `remark_a_letter_against_the_digits` — the flush-letter
+decline** — arity 1. Argument 1: how many present cells hold a number
+with a word or letter beside it, counted as NF54 counts it.
+
+> «1» of this column's values are a number with a letter written
+> against it, and synthtwin does not read such a column as a quantity
+> unless it is told to: `13.5H` is a flagged laboratory result and
+> `1234F` is a category of procedure code, and the values cannot say
+> which. Nothing was assumed, so this column is described without a
+> distribution. If these are measurements, run the command again with
+> --measurement and this column's name; if they are codes, run it again
+> with --code and this column's name, and no average, smallest or
+> largest will be published over them
+
+**THE ADDRESS REMARK'S SIBLING, AND OWED FOR THE SAME REASON** (landing
+L16; residual R-P4-157). The decline itself is right and is not touched:
+nothing in the text tells a flagged measurement from a code register, so
+the guard refuses the shape and asks. What was missing is the second
+half of principle 5 — a column is either handled or declined with a
+plain-language explanation — and this decline had none. A person met
+NF29 telling them to rewrite their data as plain numbers while two
+declarations that read the column correctly had already shipped and
+neither was named. It routes nothing: no role, no published fact and no
+cell moves. It is not carried where `--measurement` was given, because
+under that declaration rule 9 read the column and there is no decline
+to speak about, nor where `--code` was given, for the reason NF50
+gives. A column carrying NF50 never carries this sentence, because an
+address is refused before this question is asked.
 
 **NF29. `remark_no_reading_fits` — the competing-readings remark** —
 arity 9.
@@ -2031,8 +2080,26 @@ may have pooled the form below the floor. Carried on a `count` or
 > usually a code rather than a measurement — nothing is assumed from
 > that, and the column is described as numbers either way, which keeps
 > its distribution. If these are codes, run the command again with
-> --identifier NAME, where NAME is this column's name, and no value of
-> this column will be published at all
+> --code NAME, where NAME is this column's name, and no average will
+> be published over them; each code a smallest-group's worth of rows
+> share is kept exactly as written, leading zeros and all, with the
+> number of rows that carried it. If instead they are record numbers
+> nothing should publish, --identifier NAME leaves them out of the
+> profile altogether
+
+**IT NAMES `--code`, NOT `--identifier`** (landing L16). This sentence
+was written before `--code` existed (amendment A-P4-38, 2026-08-25)
+and went on proposing the declaration that WITHHOLDS a column to a
+person whose column is codes — while the screen notice raised on the
+same column by the same signal said `--code`. Two surfaces of one
+profile named opposite declarations for one column: `--code` keeps
+every code with the rows that carried it, `--identifier` publishes
+none of them. The sentence names the route that keeps the codes
+first, and `--identifier` after it, for the column that really is a
+record number. **NF35's affixed sentence carries the same flaw and
+is NOT repaired here**: it is pinned by a frozen reference vector,
+so it moves with the code-wording landing that also moves the
+oracle, and residual R-P4-72 carries it until then.
 
 **IT DECIDES NOTHING, and the sentence says so** (plan P4-D16). The
 README's ratified rule is that no rule may DECIDE the identifier role
@@ -2426,7 +2493,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 54 in section 4.5.1 |
+| NG14 | the form is one of the 55 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -7975,7 +8042,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 54 the note grammar enumerates |
+| NG14 | for every form: one of the 55 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -9062,7 +9129,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 54 closed forms: 95 argument positions, of which 82 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 55 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -10046,10 +10113,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 54 forms
+### 14.8 The note grammar — 55 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 95 argument positions: 82 whole numbers, 4 package words, 4
+argument. 96 argument positions: 83 whole numbers, 4 package words, 4
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -10108,6 +10175,7 @@ nested forms, 5 bound affix strings.
 | NG52 | `evidence_numbers_with_labels` | 4 |
 | NG53 | `evidence_numbers_with_a_few_labels` | 4 |
 | NG54 | `remark_two_readings_both_fit` | 1 |
+| NG55 | `remark_a_letter_against_the_digits` | 1 |
 
 **The package-word vocabulary — 21**, the whole of the second argument
 class (4.5.1): the seventeen `format` members of 14.6, plus `day-first`

@@ -165,6 +165,29 @@ def why_joined_is_worth_asking(values: "list[str]") -> "str | None":
     return None
 
 
+def publishes_its_values(role: str) -> bool:
+    """Whether a column on this role publishes the values themselves.
+
+    WHAT A SCREEN MAY SAY ABOUT A COLUMN IT IS ASKING ABOUT (review
+    round 1 of landing L16, item 2). The joined question reaches three
+    roles and they do not agree on this: a column of few enough
+    different pairs publishes every one of them with the rows that
+    carried it, and a column of three hundred different pairs reaches
+    free text and publishes NONE of them. One sentence covering both
+    told the second kind that its values were kept as written, which
+    is the opposite of the profile written beside it.
+
+    It asks `taxonomy.ROLES_PUBLISHING_NOTHING`, which is the closed
+    enumeration that already answers this question for every role, so
+    a role added later cannot be missed here.
+
+    Guarantees: accepts a role name; returns whether that role
+    publishes any value of the column. Determinism: a function of the
+    name against a closed tuple. Raises nothing. No I/O of any kind.
+    """
+    return role not in taxonomy.ROLES_PUBLISHING_NOTHING
+
+
 @dataclasses.dataclass(frozen=True)
 class Question:
     """One column synthtwin cannot read on its own, ready to be put.

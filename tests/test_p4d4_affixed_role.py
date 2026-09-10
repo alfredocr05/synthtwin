@@ -31,6 +31,8 @@ import pytest
 
 import fixtures
 from synthtwin import (
+    asking,
+    cli,
     contract,
     errors,
     generation,
@@ -1380,6 +1382,367 @@ def test_an_ambiguous_column_is_ASKED_about_and_not_guessed_at(
         )
         assert answered["columns"][0]["role"] == "affixed_number", seed
     assert both and asked == both, (both, asked)
+
+
+def test_a_rear_letter_code_register_is_asked_about(
+    tmp_path: pathlib.Path,
+) -> None:
+    """LANDING L16, closing the first item of review round 8.
+
+    THE REGISTER THE REVIEWER NAMED. 280 five-digit procedure codes
+    beside fifteen `3074F` and five `3075F`. Undeclared it reached the
+    compound role and published a full distribution over the 280 bare
+    codes -- a mean of 54,239, which is true of nothing -- with an
+    EMPTY remark list: no question, no sentence, nothing on any
+    surface.
+
+    THE CAUSE WAS THAT THE QUESTION ASKED THE WRONG COMPUTATION. It
+    was put to the affix reading with the person's own declaration,
+    and undeclared the letter guard refuses a rear letter flush against
+    the digits -- so the reading answered "none", the tie was invisible
+    and the cautious role was taken in silence. It is asked of the walk
+    AS IF DECLARED now, which is the reading the person could have.
+
+    All three outcomes are asserted, because the reviewer's closure
+    asks for all three: undeclared takes the cautious role AND carries
+    the question, `--measurement` selects the affixed reading, and
+    `--code` publishes no distribution at all.
+    """
+    draw = random.Random(2)
+    register = (
+        [f"{draw.randint(10000, 99999)}" for _index in range(280)]
+        + ["3074F"] * 15
+        + ["3075F"] * 5
+    )
+    folder = tmp_path / "register"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(
+        folder, "v.csv", fixtures.single_column_table("code", register)
+    )
+    read = reading.read_table(f"{table}")
+
+    undeclared = profile.build_document(read, taxonomy.Settings(), [])
+    block = undeclared["columns"][0]
+    assert block["role"] == "numbers_with_labels", block["role"]
+    asked = [
+        remark
+        for remark in block["remarks"]
+        if "cannot tell from the values alone" in remark
+    ]
+    assert asked, block["remarks"]
+    # BOTH declarations are named, which is the half the sentence was
+    # missing: it offered only the one that publishes MORE of the codes.
+    assert "--measurement" in asked[0], asked[0]
+    assert "--code" in asked[0], asked[0]
+    # ...and the count is the cells wearing the letter, not the whole
+    # text half.
+    assert "20 of this column's values" in asked[0], asked[0]
+
+    measured = profile.build_document(
+        read, taxonomy.Settings(), [], forced_measurements=["code"]
+    )
+    assert measured["columns"][0]["role"] == "affixed_number"
+
+    coded = profile.build_document(
+        read, taxonomy.Settings(), [], forced_codes=["code"]
+    )
+    coded_block = coded["columns"][0]
+    assert coded_block["role"] in ("long_tail_labels", "categorical")
+    assert "numbers" not in coded_block, sorted(coded_block)
+
+
+def test_a_marker_that_carries_no_letter_raises_no_question(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A QUESTION THAT SHOULD NOT BE ASKED IS A COST (A-P4-56 point 1).
+
+    280 readings beside twenty `<0.5` cells. The ambiguity this asks
+    about is a WORD against a number -- a laboratory flag, a stage, a
+    code's category letter. A detection limit is none of those, and
+    the sentence would have sent the person to `--measurement`, which
+    then publishes a distribution over the limit itself.
+
+    The column keeps its role either way; what it must not carry is
+    the question.
+    """
+    draw = random.Random(7)
+    values = [f"{draw.uniform(5, 10):.1f}" for _index in range(280)] + [
+        "<0.5"
+    ] * 20
+    block = _document(tmp_path / "limit", "assay", values)["columns"][0]
+    assert block["role"] == "numbers_with_labels", block["role"]
+    assert not [
+        remark
+        for remark in block["remarks"]
+        if "cannot tell from the values alone" in remark
+    ], block["remarks"]
+
+
+def test_the_question_counts_the_cells_that_wear_the_word(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE ARGUMENT IS A COUNT OF CELLS, and it was a count of levels.
+
+    It read the whole text half, so on 280 readings beside seventeen
+    flagged cells and three `NOT DETECTED` the sentence said twenty
+    where seventeen wear a marker. Contract NF54 has always defined the
+    argument as the present cells holding a number with text beside it,
+    so this makes the producer agree with the contract rather than the
+    other way about.
+    """
+    draw = random.Random(7)
+    values = (
+        [f"{draw.uniform(5, 10):.1f}" for _index in range(280)]
+        + ["10.5 H"] * 9
+        + ["11.0 H"] * 8
+        + ["NOT DETECTED"] * 3
+    )
+    block = _document(tmp_path / "mixed", "assay", values)["columns"][0]
+    asked = [
+        remark
+        for remark in block["remarks"]
+        if "cannot tell from the values alone" in remark
+    ]
+    assert asked, block["remarks"]
+    assert "17 of this column's values" in asked[0], asked[0]
+
+
+def test_a_letter_flush_against_the_digits_declines_OUT_LOUD(
+    tmp_path: pathlib.Path,
+) -> None:
+    """CONTRACT NF55, the address remark's sibling (landing L16).
+
+    260 readings beside twenty cells ending `H` and twenty ending `L`,
+    written flush, none of the flagged spellings repeating -- so the
+    compound rule declines as well and the column falls to free text.
+    The decline is right: nothing in the text tells a flagged
+    measurement from a code register. What was missing is that it was
+    SILENT. The person met the competing-readings remark telling them
+    to write their column as plain numbers, while two declarations
+    that read it correctly had already shipped and neither was named.
+
+    It routes nothing: the role is what it was, and the answer is the
+    person's.
+    """
+    draw = random.Random(3)
+    values = (
+        [f"{draw.uniform(5, 10):.2f}" for _index in range(260)]
+        + [f"{10.0 + index * 0.01:.2f}H" for index in range(20)]
+        + [f"{4.0 + index * 0.01:.2f}L" for index in range(20)]
+    )
+    folder = tmp_path / "flush"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(
+        folder, "v.csv", fixtures.single_column_table("lab", values)
+    )
+    read = reading.read_table(f"{table}")
+
+    block = profile.build_document(read, taxonomy.Settings(), [])["columns"][0]
+    assert block["role"] == "free_text", block["role"]
+    spoken = [
+        remark
+        for remark in block["remarks"]
+        if "written against it" in remark
+    ]
+    assert spoken, block["remarks"]
+    assert "--measurement" in spoken[0], spoken[0]
+    assert "--code" in spoken[0], spoken[0]
+    assert "40 of this column's values" in spoken[0], spoken[0]
+
+    # AND THE DECLARATION READS IT, which is what the sentence promises.
+    answered = profile.build_document(
+        read, taxonomy.Settings(), [], forced_measurements=["lab"]
+    )
+    assert answered["columns"][0]["role"] == "affixed_number"
+
+
+def test_an_address_carries_its_own_sentence_and_not_the_letter_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The two declines cannot both speak about one column.
+
+    An electronic address is refused before the flush-letter question
+    is asked, so a column carrying NF50 never carries NF55. Without
+    that ordering a person would meet two sentences about one column,
+    one of them proposing a declaration that publishes the average of
+    their record numbers.
+    """
+    values = [f"user{10000 + index}@example.org" for index in range(300)]
+    block = _document(tmp_path / "address", "contact", values)["columns"][0]
+    remarks = block["remarks"]
+    assert [
+        remark for remark in remarks if "electronic address" in remark
+    ], remarks
+    assert not [
+        remark for remark in remarks if "written against it" in remark
+    ], remarks
+
+
+def test_a_marker_written_in_another_alphabet_still_asks(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 1 OF L16, ITEM 1: the filter REMOVED a warning.
+
+    The first writing of the letter test asked whether any character of
+    the wrapper was an ASCII letter. A laboratory marker written in
+    another alphabet is a letter and is not an ASCII one, so 280
+    readings beside twenty `10.50 α` carried the question before this
+    landing and carried NOTHING after it -- the twenty marked readings
+    left the distribution in silence, which is the exact defect the
+    landing exists to close, reintroduced by its own repair.
+
+    The test is a closed set of SYMBOLS now, not a closed set of
+    letters: a mark nobody listed is read as a word and asks, which
+    costs one question, where a letter nobody listed costs the person
+    the warning.
+    """
+    draw = random.Random(1)
+    values = [f"{draw.uniform(5.0, 7.79):.2f}" for _index in range(280)] + [
+        "10.50 α"
+    ] * 20
+    block = _document(tmp_path / "greek", "assay", values)["columns"][0]
+    assert block["role"] == "numbers_with_labels", block["role"]
+    assert [
+        remark
+        for remark in block["remarks"]
+        if "cannot tell from the values alone" in remark
+    ], block["remarks"]
+
+
+def test_the_question_counts_only_numbers_wearing_a_word(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW ROUND 1 OF L16, ITEM 3: the count was neither half.
+
+    The sentence names present cells holding a NUMBER with a WORD
+    beside it, and the first writing counted every cell whose wrapper
+    was not the bare one. Two shapes show the two halves it missed:
+
+    * ten `10.50 H` beside ten `<0.50` said twenty, and `<` is a
+      comparison rather than a word;
+    * seventeen `10.50 H` beside three `many H` said twenty, and
+      `many` is not a number.
+    """
+    draw = random.Random(1)
+    base = [f"{draw.uniform(5.0, 7.79):.2f}" for _index in range(280)]
+
+    worded = _document(
+        tmp_path / "worded",
+        "assay",
+        base + ["10.50 H"] * 17 + ["many H"] * 3,
+    )["columns"][0]
+    spoken = [
+        remark
+        for remark in worded["remarks"]
+        if "cannot tell from the values alone" in remark
+    ]
+    assert spoken and "17 of this column's values" in spoken[0], spoken
+
+    symboled = _document(
+        tmp_path / "symboled",
+        "assay",
+        base + ["10.50 H"] * 10 + ["<0.50"] * 10,
+    )["columns"][0]
+    spoken = [
+        remark
+        for remark in symboled["remarks"]
+        if "cannot tell from the values alone" in remark
+    ]
+    assert spoken and "10 of this column's values" in spoken[0], spoken
+
+
+def test_neither_question_promises_what_the_floor_can_take_away() -> None:
+    """REVIEW ROUND 1 OF L16, ITEM 4: the advice over-promised.
+
+    Both sentences told a person that `--code` keeps every value
+    exactly as written. At a raised smallest-group size it does not:
+    a register of 280 different codes publishes the levels that clear
+    the floor and pools the rest, so 283 rows can be held back from a
+    column the sentence said would be kept whole. An advice sentence
+    that promises coverage the settings prevent is the same defect as a
+    report that overstates what it checked.
+    """
+    for form in (
+        taxonomy.REMARK_TWO_READINGS_FIT,
+        taxonomy.REMARK_A_LETTER_NEEDS_A_DECLARATION,
+    ):
+        said = taxonomy.rendered(form, (20,))
+        assert "every value is kept exactly as written" not in said, form
+        assert "every value will be kept exactly as written" not in said, form
+        # ...and what it says instead is true at every floor.
+        assert "no average" in said, form
+    padded = taxonomy.rendered(taxonomy.REMARK_PADDED_NUMBERS, (48,))
+    assert "smallest-group" in padded, padded
+
+
+def test_the_contract_quotes_the_sentence_the_producer_writes() -> None:
+    """The two new clauses are quoted, so the quote must be the words.
+
+    The note-grammar guard compares names and arities and never the
+    rendered words (residual R-P4-67), so a clause can quote a sentence
+    this package stopped writing and nothing turns red. These two are
+    the landing's own, and both moved once already under review.
+    """
+    document = fixtures.GOVERNING_CONTRACT.read_text(encoding="utf-8")
+    for anchor, form, argument in (
+        ("**NF54. `remark_two_readings_both_fit`", taxonomy.REMARK_TWO_READINGS_FIT, 20),
+        (
+            "**NF55. `remark_a_letter_against_the_digits`",
+            taxonomy.REMARK_A_LETTER_NEEDS_A_DECLARATION,
+            40,
+        ),
+    ):
+        start = document.index(anchor)
+        quote = ""
+        for part in document[start:].split("\n\n"):
+            if part.lstrip().startswith(">"):
+                lines = [line.lstrip("> ").strip() for line in part.split("\n")]
+                quote = " ".join(lines)
+                break
+        spoken = quote.replace("«1»", f"{argument}").replace(
+            "—", "--"
+        )
+        assert " ".join(spoken.split()) == " ".join(
+            taxonomy.rendered(form, (argument,)).split()
+        ), form
+
+
+def test_the_screen_says_what_each_joined_column_publishes() -> None:
+    """REVIEW ROUND 1 OF L16, ITEM 2: the screen claimed retention.
+
+    The joined question reaches three roles and they do not agree about
+    whether the values are published. One sentence covered all of them
+    and said the values "are kept as they are written"; a column of
+    three hundred different pairs reaches free text and publishes NONE
+    of them, so the screen said the opposite of the profile written
+    beside it.
+    """
+    notice = cli._assumptions_notice(
+        [
+            asking.Question(
+                "bp", taxonomy.ROLE_TEXT, asking.BECAUSE_JOINED, ["110/60"]
+            ),
+            asking.Question(
+                "obs",
+                taxonomy.ROLE_LONG_TAIL,
+                asking.BECAUSE_JOINED,
+                ["2345-7"],
+            ),
+        ]
+    )
+    assert "no value of this column is published" in notice, notice
+    assert "its values are published as they are written" in notice, notice
+    assert "are kept as they are written" not in notice, notice
+    # ...and a numeric-reason column is never told it is text.
+    numeric = cli._assumptions_notice(
+        [
+            asking.Question(
+                "vax", taxonomy.ROLE_COUNT, asking.BECAUSE_PADDED, ["08"]
+            )
+        ]
+    )
+    assert "TWO NUMBERS IN ONE CELL" not in numeric, numeric
+    assert "MIGHT BE CODES" in numeric, numeric
 
 
 def test_the_compound_role_keeps_the_column_it_was_written_for(

@@ -4471,8 +4471,30 @@ declaration for only one of them.
 
   What it costs to leave open is what A-P4-30 priced: a person whose
   column of repeating padded codes is described as numbers is told
-  about `--identifier` by NF43 and, where the codes are not padded, by
-  nothing at all.
+  about `--code` by NF43 and, where the codes are not padded, by
+  nothing at all. (NF43 named `--identifier` until landing L16, which
+  is the opposite declaration: it withholds the column instead of
+  keeping the codes, and the screen notice beside it had always said
+  `--code`. One answer per page now.)
+
+  **AND NF35 STILL CARRIES THE FLAW NF43 SHED** (landing L16). The
+  affixed role's standing remark proposes `--identifier` in the same
+  words NF43 used, on a column whose codes `--code` would keep. It was
+  NOT repaired with NF43 because it is quoted inside a frozen
+  reference vector (`tests/reference/generation-branch-vectors.json`),
+  so moving it moves committed bytes and the independent oracle in the
+  same commit — which is the code-wording landing's work under the
+  one-week close, not this one's. Named here rather than found later.
+
+  **AND THIS EXCEPTION HAS AN ARITHMETIC THAT IS NOW VISIBLE** (review
+  round 1 of landing L16, item 6). Because both rows state the arity
+  the contract wants rather than the one the producer emits, the note
+  grammar's own census does not add up: measured on this tree,
+  `sum(taxonomy.NOTE_ARITY.values())` is **94** while the 14.8 appendix
+  sums to **96**, and the two-position difference is exactly NG32 and
+  NG34. That is this residual seen from the other side rather than a
+  second defect, and it closes when this one does. Until then no count
+  taken from the appendix may be described as the producer's.
 
 - **R-P4-67 — OPEN (opened 2026-08-31 while adding contract NF50;
   PRE-EXISTING).** THE NOTE GRAMMAR'S GUARD COMPARES NAMES AND
@@ -5092,7 +5114,77 @@ declaration for only one of them.
   published pair, not only inside a barred bin. Residual R-P4-155 was
   opened for the remainder and CLOSED the same day by that repair.
 
-- **R-P4-157 — OPEN. A COLUMN OF READINGS BESIDE FLAGS IS READ BY ONE
+- **R-P4-158 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L16, item 5; PRE-EXISTING and not caused by that landing).** THE
+  FLUSH-LETTER SENTENCE IS BELOW THE LABEL ROLES, SO A COLUMN THAT
+  REACHES ONE OF THEM FIRST NEVER CARRIES IT. Measured: a hundred each
+  of `7.1`, `7.2H` and `7.3L` takes `categorical` at rule 7, which
+  returns before rule 9 runs at all — so NF55 is not raised, and
+  `--measurement` leaves the column exactly where it was. The person is
+  told nothing, and the declaration that would describe their readings
+  does nothing when they make it.
+
+  **WHY IT IS NOT REPAIRED HERE.** NF55 attaches after rule 9 declines,
+  which is where the decline it speaks about happens. Reaching a column
+  rule 7 already claimed means either raising the sentence above the
+  label roles — where it would speak about columns that never met the
+  affix rule — or making `--measurement` reach rule 7, which moves a
+  declared column between roles and is the widening P4-D22 priced for
+  `--code` and nobody has priced for this one. Both are design
+  decisions rather than adjustments. Carried to Phase 5 by name under
+  amendment A-P4-59.
+
+- **R-P4-157 — OPEN, NARROWED 2026-09-10 BY LANDING L16 TO THE DRAW
+  ALONE.** WHAT CLOSED IS THE SILENCE, WHICH IS THE HALF REVIEW ROUND
+  8 NAMED. The reviewer's closure asked that an undeclared register
+  take the cautious role WITH the question, that `--measurement` select
+  the affixed reading, and that the exact 280/15/5 register be pinned
+  as a regression asserting both. All three are built and measured on
+  this tree:
+
+  | the register, 280 five-digit codes beside fifteen `3074F` and five `3075F` | before L16 | after |
+  | --- | --- | --- |
+  | undeclared | `numbers_with_labels`, mean **54,239.18** over the 280 bare codes, **remarks EMPTY** | `numbers_with_labels`, and it carries NF54 naming all three readings and BOTH declarations |
+  | `--measurement` | `affixed_number` | unchanged |
+  | `--code` | `long_tail_labels` | unchanged |
+
+  **THE CAUSE, and it was one line.** The question was put to
+  `_affixed_reading` with the person's own declaration. Undeclared, the
+  letter guard `_stands_apart` refuses a letter written flush against
+  the digits — so the reading answered "none", the tie was invisible,
+  and the cautious role was taken in silence. `_annotated_reading` asks
+  the walk AS IF DECLARED, which is the reading the person could have,
+  and refuses an address (NF50's sentence) or a wrapper carrying no
+  letter (`<0.5` is a detection limit and raised a question it should
+  never have raised).
+
+  **TWO SIBLINGS CLOSED WITH IT.** The sentence's argument counted the
+  whole text half, so 280 readings beside seventeen flagged cells and
+  three `NOT DETECTED` said twenty where seventeen wear a marker; it
+  counts CELLS now, which is what contract NF54 always defined it as.
+  And the flush decline was silent: 260 readings beside forty cells
+  ending `H` or `L` fell to free text while NF29 told the person to
+  rewrite their data as plain numbers, naming neither declaration that
+  already reads it. Contract **NF55** is that sentence, the address
+  remark's sibling, and it routes nothing.
+
+  **WHAT STAYS OPEN, AND IT IS NO LONGER A SILENT WRONGNESS.** Which
+  role a flagged column reaches is still decided by rule 7b's
+  vocabulary test over the label half — that is, by how often the
+  flagged spellings happen to repeat — so one column can be described
+  two ways at two draws. Neither description is wrong now: the affixed
+  reading describes every number under its own wrapper, and the
+  compound reading describes the unmarked numbers and carries the
+  question. What is left is that a person cannot predict which they
+  will get. Closing it means routing the undeclared flush case away
+  from rule 7b, which moves undeclared columns between roles and
+  prefers one guess over the other on the exact shape A-P4-58 says the
+  text cannot separate, so it is carried rather than guessed at.
+
+  What follows is the entry as it stood, kept because the three failed
+  repairs it records are worth more than the one that worked.
+
+  **A COLUMN OF READINGS BESIDE FLAGS IS READ BY ONE
   OF TWO RULES, AND NOTHING IN THE TEXT SETTLES WHICH.** A column of
   numbers beside spaced `H` and `L` flags satisfies rule 7b — the
   compound role — and rule 9 — the affixed role — both, and reaches
@@ -13111,6 +13203,7 @@ documentation however much it looks like it.
 |---|---|---|---|---|
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-50** | 2026-09-01 | Where the published ladder and the published empty-bin fact disagree about where a cell goes, the FACT wins and the ladder gives way. The move's bound is the fact's own — out of the stretch, into the bin next to it, no further — and not A-P4-18's, whose share-bounded reach was measured to reach nothing on the columns this concerns. | Between the rungs the ladder says nothing and the method interpolates, which is an inference; "no cell lies between these two edges" is a measurement of real cells. Measured on three two-cluster columns at forty seeds, a share-bounded move could not free four of six, one of three and four of six of the offending strata. | The rungs near an empty middle are met by interpolation less exactly than before. Measured at forty seeds on all three columns through the real path, the quality report misses exactly what it missed before and nothing more, so on these shapes the cost is nil. A-P4-18 is untouched for the width snap it governs. |
+| **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 
 ## Residual R-P4-51 — CLOSED 2026-09-01 by decision P4-D31 (landing L7)

@@ -724,6 +724,17 @@ REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
 # spelling wears the shared text, so a reader can see how much of their
 # column the answer decides.
 REMARK_TWO_READINGS_FIT = "remark_two_readings_both_fit"
+# THE SAME QUESTION, ON THE COLUMN NO RULE CLAIMED AT ALL (amendment
+# A-P4-58; residual R-P4-157, landing L16). Where a letter is written
+# FLUSH against the digits -- `13.5H` beside `1234F` -- the affix rule
+# refuses the column undeclared, on purpose, because a rear letter is
+# an abnormal flag on one table and a category of procedure code on
+# the next. That refusal was SILENT: the column fell to free text and
+# the competing-readings remark told the person to rewrite their data,
+# naming neither declaration that already reads it. A chance of a
+# wrong guess is the trigger, so the column is asked about rather than
+# left in silence. It routes nothing.
+REMARK_A_LETTER_NEEDS_A_DECLARATION = "remark_a_letter_against_the_digits"
 REMARK_NO_READING_FITS = "remark_no_reading_fits"
 REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
 REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
@@ -854,6 +865,11 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
     REMARK_TWO_READINGS_FIT: 1,
+    # The count of cells wearing a wrapper that holds a letter, on a
+    # column the affix rule refused undeclared. It is the same argument
+    # NF54 carries and is counted the same way, so the two sentences a
+    # person may meet about one hazard state one number.
+    REMARK_A_LETTER_NEEDS_A_DECLARATION: 1,
     # NINE SINCE THE ADVISORY REMARKS LANDED (contract NF29). Seven
     # shipped: the two readings, the parse line, the different values,
     # the ceiling, the affix reading's reach and what stand-in judging
@@ -1535,23 +1551,53 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             )
         return first
     if form == REMARK_TWO_READINGS_FIT:
+        # THREE READINGS, NOT TWO, AND BOTH DECLARATIONS (landing L16).
+        # The sentence named a measurement and a label set and stopped
+        # there, which left out the reading that costs a person most: a
+        # CODING SYSTEM some of whose codes end in a letter. Measured on
+        # a register of 280 five-digit codes beside fifteen `3074F` and
+        # five `3075F`, the cautious reading publishes an average of
+        # 54,239 over the bare codes -- true of nothing -- and the
+        # sentence that reached the person offered only the declaration
+        # that would publish MORE of them.
         return (
             f"{_whole(arguments, 0)} of this column's values are a "
-            f"number with a short piece of text beside it, and synthtwin "
-            f"cannot tell from the values alone which of two things "
-            f"that means. It may be a MEASUREMENT that some cells carry "
-            f"a marker beside -- a laboratory result flagged high or "
-            f"low -- or it may be a set of LABELS whose spellings "
-            f"happen to end in a figure, such as a stage or a category "
-            f"code. The two are described very differently: as "
-            f"measurements, every one of those numbers joins this "
-            f"column's average, spread and ends; as labels, they do not, "
-            f"and only the values wearing no marker are described that "
-            f"way. synthtwin has taken the CAUTIOUS reading, which "
-            f"publishes less, and has not guessed. If they are "
+            f"number with a short word or letter beside it, and "
+            f"synthtwin cannot tell from the values alone which of "
+            f"three things that means. It may be a MEASUREMENT that "
+            f"some cells carry a marker beside -- a laboratory result "
+            f"flagged high or low; it may be numbers beside a small set "
+            f"of LABELS whose spellings hold a figure, such as a stage; "
+            f"or the whole column may be a CODING SYSTEM, some of whose "
+            f"codes end in a letter. The three are described very "
+            f"differently: as measurements, every one of these numbers "
+            f"joins this column's average, spread and ends; as labels, "
+            f"only the values wearing no marker are described that way; "
+            f"as codes, no average is published at all, and the codes "
+            f"themselves are published under the smallest-group size in "
+            f"force -- at the default of one, every one of them, with "
+            f"the rows that carried it. synthtwin has described the "
+            f"unmarked values as numbers and the marked ones as labels, "
+            f"and has not guessed further. If they are measurements, "
+            f"run the command again with --measurement and this "
+            f"column's name, and every one of its numbers will be "
+            f"described; if they are codes, run it again with --code "
+            f"and this column's name, and no average, smallest or "
+            f"largest will be published over them"
+        )
+    if form == REMARK_A_LETTER_NEEDS_A_DECLARATION:
+        return (
+            f"{_whole(arguments, 0)} of this column's values are a "
+            f"number with a letter written against it, and synthtwin "
+            f"does not read such a column as a quantity unless it is "
+            f"told to: `13.5H` is a flagged laboratory result and "
+            f"`1234F` is a category of procedure code, and the values "
+            f"cannot say which. Nothing was assumed, so this column is "
+            f"described without a distribution. If these are "
             f"measurements, run the command again with --measurement "
-            f"and this column's name, and all of its numbers will be "
-            f"described"
+            f"and this column's name; if they are codes, run it again "
+            f"with --code and this column's name, and no average, "
+            f"smallest or largest will be published over them"
         )
     if form == REMARK_NEAR_CATEGORY_LINE:
         return (
@@ -1684,9 +1730,14 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"is usually a code rather than a measurement -- nothing "
             f"is assumed from that, and the column is described as "
             f"numbers either way, which keeps its distribution. If "
-            f"these are codes, run the command again with --identifier "
-            f"NAME, where NAME is this column's name, and no value of "
-            f"this column will be published at all"
+            f"these are codes, run the command again with --code NAME, "
+            f"where NAME is this column's name, and no average will be "
+            f"published over them; each code a smallest-group's worth of "
+            f"rows share is kept exactly as written, leading zeros and "
+            f"all, with the number of rows that carried it. If instead "
+            f"they are "
+            f"record numbers nothing should publish, --identifier NAME "
+            f"leaves them out of the profile altogether"
         )
     if form == REMARK_ALL_DIFFERENT_NUMBERS:
         return (
@@ -7444,6 +7495,171 @@ def _declined_as_an_address(cells: _Cells) -> bool:
     return _wrapped_in_an_address((reading.prefix, reading.suffix))
 
 
+def _pairs_of(reading: "_Affixed") -> "list[tuple[str, str]]":
+    """Every wrapper this reading would publish: the commonest and its set."""
+    pairs = [(reading.prefix, reading.suffix)]
+    for prefix, suffix, _count in reading.variants:
+        pairs = pairs + [(prefix, suffix)]
+    return pairs
+
+
+# THE MARKS THAT ARE NOT PART OF A WORD, enumerated rather than
+# derived (review round 1 of landing L16, item 1). The question this
+# governs is whether a wrapper is a WORD against a number -- a unit, a
+# laboratory flag, a code's category letter -- and the first writing
+# asked whether any character was an ASCII letter. That REMOVED a
+# warning the tree already gave: 280 readings beside twenty `10.50 α`
+# carried the question before this landing and carried nothing after
+# it, because a Greek letter is a letter and `_LETTERS` is ASCII.
+#
+# WHY A CLOSED SET OF SYMBOLS RATHER THAN `str.isalpha`. The five
+# supported Pythons carry five Unicode databases, so an alphabetic
+# test can answer differently on two of them, and which sentences a
+# profile carries is a published fact of the document (plan D12). The
+# refusal set is closed and platform-stable, and it errs the way the
+# owner's ruling errs: a symbol nobody listed is read as a word and
+# raises a question, which costs one question, where a missing letter
+# costs a person the warning entirely.
+_SYMBOL_MARKS = "<>=~+-*/\\|^%$#@&()[]{}.,:;'\"!?_"
+
+
+def _is_a_word_mark(mark: str) -> bool:
+    """Whether one character belongs to a word rather than to a symbol.
+
+    Guarantees: accepts one character; returns whether it is part of a
+    word. Determinism: a function of that character against a closed
+    set. Raises nothing. No I/O of any kind.
+    """
+    if parsing.trimmed(mark) == "":
+        return False
+    if mark in _DIGITS:
+        return False
+    if mark in _SYMBOL_MARKS:
+        return False
+    return True
+
+
+def _carries_a_word(prefix: str, suffix: str) -> bool:
+    """Whether one wrapper holds a word mark on either side."""
+    for mark in prefix + suffix:
+        if _is_a_word_mark(mark):
+            return True
+    return False
+
+
+def _wears_a_word(reading: "_Affixed") -> bool:
+    """Whether any wrapper this reading publishes holds a letter.
+
+    THE FILTER THAT KEEPS A QUESTION FROM BEING NOISE (landing L16).
+    The ambiguity this asks about is a WORD against a number -- a
+    laboratory flag, a stage, a code's category letter. A mark that is
+    no letter is not that ambiguity and never was: `<0.5` is a
+    detection limit, `$98` is money, `45%` is a proportion, and none of
+    them is a coding system. Measured before this filter existed: a
+    column of 280 readings beside twenty `<0.5` cells raised the
+    question and pointed at `--measurement`, which would then have
+    published a distribution over the detection limit itself.
+
+    Guarantees: accepts an affix reading; returns whether any wrapper
+    it would publish carries a letter. Determinism: a function of that
+    reading. Raises nothing. No I/O of any kind.
+    """
+    for prefix, suffix in _pairs_of(reading):
+        if _carries_a_word(prefix, suffix):
+            return True
+    return False
+
+
+def _wearing_a_word(reading: "_Affixed") -> int:
+    """How many cells hold a NUMBER with a word written beside it.
+
+    THE ARGUMENT BOTH QUESTION SENTENCES CARRY, and it is a count of
+    CELLS rather than of anything else. It read `len(compound.labels)`
+    until this landing, which is the whole text half: on 280 readings
+    beside seventeen `<0.5` and three `NOT DETECTED` the sentence said
+    twenty where seventeen wear text. The contract has always defined
+    the argument as the present cells holding a number with text beside
+    it, so this makes the producer match the contract rather than the
+    other way about.
+
+    **AND IT COUNTS BOTH HALVES OF THAT DEFINITION** (review round 1 of
+    landing L16, item 3). The first writing counted every cell whose
+    wrapper was not the bare one, which is neither half:
+
+    * ten `10.50 H` beside ten `<0.50` came out TWENTY, and `<` is a
+      comparison rather than a word -- the sentence names a word or a
+      letter and only ten cells hold one;
+    * seventeen `10.50 H` beside three `many H` came out TWENTY, and
+      `many` is not a number -- the sentence names a NUMBER with a word
+      beside it and only seventeen cells hold one.
+
+    So a cell is counted when its wrapper carries a word AND its core
+    reads as a number, which is exactly the population both sentences
+    describe.
+
+    Guarantees: accepts an affix reading; returns a count. Determinism:
+    a function of that reading. Raises nothing. No I/O of any kind.
+    """
+    total = 0
+    place = 0
+    for prefix, suffix in reading.wrappers:
+        if place >= len(reading.cores):
+            break
+        core = reading.cores[place]
+        place = place + 1
+        if not _carries_a_word(prefix, suffix):
+            continue
+        if parsing.classify_number(core) != parsing.NUMBER:
+            continue
+        total = total + 1
+    return total
+
+
+def _annotated_reading(cells: _Cells) -> "_Affixed | None":
+    """The affix reading a DECLARATION would admit, where one would.
+
+    RESIDUAL R-P4-157, AND THE PLACE IT IS ANSWERED FROM. A column of
+    numbers beside figure-ending labels satisfies rule 7b and rule 9
+    both, and which one claimed it depended on the values drawn.
+    Amendment A-P4-58 rules that such a column is ASKED about rather
+    than guessed at, and asks it BEFORE both numeric-bearing routes --
+    so the question cannot be answered from inside either rule, and
+    this is the one computation both of them consult.
+
+    IT ASKS THE AFFIX WALK AS IF THE COLUMN WERE DECLARED. The letter
+    guard `_stands_apart` is the only test that reads the declaration,
+    and it is precisely the test that hides this column: a rear letter
+    flush against the digits is refused undeclared, so asking the walk
+    undeclared answers "no reading fits" and the tie is never seen.
+    Asking it as if declared sees the reading the person could have,
+    which is what the question is about.
+
+    TWO REFUSALS ARE KEPT rather than inherited. An electronic address
+    is not this question -- it has its own sentence, contract NF50 --
+    and a wrapper carrying no letter is not this question either
+    (`_wears_a_word`).
+
+    IT ROUTES NOTHING AND IT IS NOT A READING. No rule takes a column
+    because of this function: rule 7b still decides by
+    `_compound_reading` and rule 9 still decides by `_affixed_reading`
+    with the person's own declaration. What this answers is whether a
+    SENTENCE is owed.
+
+    Guarantees: accepts a tally; returns the reading a declaration
+    would admit, or None. Determinism: a function of that tally.
+    Raises nothing. No I/O of any kind, and no value of the column
+    leaves it -- its callers publish only a count.
+    """
+    reading = _affixed_before_the_address_test(cells, forced_measurement=True)
+    if reading is None:
+        return None
+    if _wrapped_in_an_address((reading.prefix, reading.suffix)):
+        return None
+    if not _wears_a_word(reading):
+        return None
+    return reading
+
+
 def _affixed_before_the_address_test(
     cells: _Cells, forced_measurement: bool = False
 ) -> "_Affixed | None":
@@ -9044,22 +9260,42 @@ def _decide(
     #
     # AND `--measurement` IS THE ANSWER, not a bypass: the person who
     # holds the table says it is a quantity, and rule 9 then reads it.
+    # THE ARBITRATION ASKS ONE COMPUTATION, AND IT IS NOT THE ONE THAT
+    # DECIDES THE ROLE (landing L16, closing round 8's first item).
+    #
+    # The question used to be put to `_affixed_reading` with the
+    # person's own declaration, which cannot see the tie it was meant
+    # to find: undeclared, the letter guard refuses a rear letter
+    # flush against the digits, so `both_fit` came out false and a
+    # register of 280 five-digit procedure codes beside fifteen
+    # `3074F` and five `3075F` took this role in silence, publishing an
+    # average of 54,239 over the bare codes and carrying no sentence at
+    # all. `_annotated_reading` asks the walk AS IF DECLARED, which is
+    # what makes the tie visible, and refuses an address or a wrapper
+    # holding no letter so the question stays a real one.
+    #
+    # WHAT READS WHAT, because the three must not blur. Rule 7b decides
+    # by `_compound_reading`. Rule 9 decides by `_affixed_reading` with
+    # the person's own declaration, untouched, so no undeclared column
+    # moves role and the no-regression rule is not disturbed. Only the
+    # SENTENCE is decided here.
     compound = None if forced_code else _compound_reading(cells)
-    if compound is not None:
-        both_fit = (
-            not forced_code
-            and _affixed_reading(cells, forced_measurement) is not None
-        )
-        if both_fit and forced_measurement:
-            # The person has answered. Fall through to rule 9.
-            compound = None
-        elif both_fit:
-            remarks = remarks + [
-                note(
-                    REMARK_TWO_READINGS_FIT,
-                    (len(compound.labels),),
-                )
-            ]
+    if compound is not None and not forced_code:
+        if forced_measurement:
+            # The person has answered. Fall through to rule 9, on the
+            # same test as before this landing: whether the declaration
+            # gives them an affixed reading at all.
+            if _affixed_reading(cells, True) is not None:
+                compound = None
+        else:
+            annotated = _annotated_reading(cells)
+            if annotated is not None:
+                remarks = remarks + [
+                    note(
+                        REMARK_TWO_READINGS_FIT,
+                        (_wearing_a_word(annotated),),
+                    )
+                ]
     if compound is not None:
         return _compound_verdict(cells, compound, notes, remarks)
 
@@ -9114,6 +9350,38 @@ def _decide(
     # made one of them is noise.
     if not forced_code and _declined_as_an_address(cells):
         remarks = remarks + [note(REMARK_ADDRESS_NOT_A_QUANTITY)]
+
+    # ...AND WHERE IT DECLINED BECAUSE A LETTER IS WRITTEN FLUSH
+    # AGAINST THE DIGITS, THE COLUMN SAYS THAT TOO (landing L16,
+    # residual R-P4-157, amendment A-P4-58). This is the address
+    # remark's sibling and it is owed for the same reason: the decline
+    # is right and it was silent. `13.5H` is a flagged laboratory
+    # result and `1234F` is a category of procedure code; the guard at
+    # `_stands_apart` refuses the shape undeclared BECAUSE the values
+    # cannot tell them apart, and a person meeting that refusal was
+    # told by the competing-readings remark to rewrite their data --
+    # while two declarations that read the column correctly already
+    # shipped and neither was named.
+    #
+    # IT ROUTES NOTHING, exactly as the address remark routes nothing:
+    # no role, no published fact and no cell moves. `--measurement` is
+    # excluded because under it rule 9 read the column and there is no
+    # decline to speak about; `forced_code` is excluded for the reason
+    # the address remark gives -- proposing declarations to somebody
+    # who has just made one is noise.
+    #
+    # AND IT CANNOT COLLIDE WITH THE ADDRESS REMARK: an address is
+    # refused inside `_annotated_reading`, so a column carrying that
+    # sentence never carries this one.
+    if not forced_code and not forced_measurement:
+        letter_bound = _annotated_reading(cells)
+        if letter_bound is not None:
+            remarks = remarks + [
+                note(
+                    REMARK_A_LETTER_NEEDS_A_DECLARATION,
+                    (_wearing_a_word(letter_bound),),
+                )
+            ]
 
     # RULE 9b -- a LONG TAIL of labels (plan P4-D5). Past the
     # ceiling, and at least one folded level covers the detection

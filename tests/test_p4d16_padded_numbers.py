@@ -69,15 +69,35 @@ def _code_column() -> "list[str]":
 # -- the case the decision is for -------------------------------------
 
 
-def test_a_padded_code_column_is_told_about_identifier() -> None:
-    """THE WHOLE OF WHAT THIS BUYS, on the column it was raised for."""
+def test_a_padded_code_column_is_told_about_code_first() -> None:
+    """THE WHOLE OF WHAT THIS BUYS, on the column it was raised for.
+
+    **IT NAMED `--identifier` UNTIL LANDING L16, AND THAT WAS THE WRONG
+    ROUTE FOR THE COLUMN THE SENTENCE IS ABOUT.** P4-D16 wrote this
+    remark before `--code` existed (amendment A-P4-38, 2026-08-25), so
+    it went on proposing the declaration that WITHHOLDS a column of
+    codes -- while the screen notice raised on the same column by the
+    same signal said `--code`. One profile, two surfaces, opposite
+    advice: `--code` keeps every code with the rows that carried it and
+    `--identifier` publishes none of them. A person following the
+    written sentence lost the distribution the sentence exists to
+    protect.
+
+    The sentence names `--code` first now, and `--identifier` after it
+    for the column that really is a record number. What has NOT changed
+    is what this decision is about: the column is described as numbers
+    either way, and the remark routes nothing.
+    """
     document = _described(_code_column())
     block = document["columns"][0]
     assert block["role"] == "count"
     said = _padded_remark(document)
     assert said is not None, _remarks(document)
-    assert "--identifier" in said
-    assert "no value of this column will be published at all" in said
+    assert "--code" in said
+    assert said.index("--code") < said.index("--identifier"), said
+    assert "leaves them out of the profile altogether" in said
+    # ...and it does not promise what a raised floor takes away.
+    assert "smallest-group" in said, said
 
 
 def test_the_remark_names_a_count_and_no_value() -> None:

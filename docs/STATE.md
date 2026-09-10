@@ -28,7 +28,7 @@ without the same help.
 | branch | `l14-affix-set` (never merged; `main` is pull-request only). The worktree it was cut from carries landings L8 and L9 under the branch name `l8-compound-role`, which is left alone rather than rewritten under a landing |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,381 collected; `4330 passed, 51 skipped in 1034.75s (0:17:14)` verbatim, fully green, with `ruff`, `mypy --strict`, the decontamination scan and the signed attestation all clean. **EIGHT REVIEW ROUNDS HAVE RUN AND EVERY ONE RETURNED REJECT**; round 8 named four items and three are closed. A column of a hundred kilograms beside a hundred pounds published the sentence **"200 of this column's values are written as a number followed by ` kg`"** when a hundred are — the required warning, the role's evidence line and the loader all saying it together; the count named beside a spelling is now the count that wears it. The ONE-WORD guard knew about the plain space and the tab alone, so `Clinical<no-break space>Stage 001` was one word and 240 cells of two-word text published a distribution over sequence numbers — it asks `parsing.trimmed` now, the same repair round 1 made to the split. And G12.8's corner was decided once per column and inherited by every wrapper, which dropped a wrapper's two core counts from BOTH pages in one direction and held a wrapper to exact equality it cannot reach in the other. **ROUND 8'S ITEM 1 IS R-P4-157** and is the one thing standing between this landing and a ratification: a rear-letter code register reaches the compound route before any affix guard sees it, and A-P4-58 places that repair BEFORE both numeric-bearing rules — a landing of its own. |
+| suite | 4,391 collected; `4340 passed, 51 skipped in 1067.64s (0:17:47)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. The ten days before it produced 95 commits of which 44 were review-round repairs, ran EIGHT rounds on each of three landings against a five-round ruling, and opened 32 residuals against 19 closed. |
 | suite, before the wrapper set | 4,355 collected on the worktree with the STRETCH EDGES (landing L9, plan P4-D35, all eight review rounds), residual R-P4-151 closed by measurement and residual R-P4-149's THIRD POPULATION in it; `4304 passed, 51 skipped in 1005.62s (0:16:45)` verbatim. **ELEVEN new tests**: round 8 added the block-wide disclosure ceiling and the affixed key-row completeness check to guards that already existed; round 7 moved the stretch report to a recount over the finished cells and rebuilt two witnesses on it; round 6 adds the looser-walk witness (residual R-P4-156); round 5 rebuilt the deviation-inventory guard around G12's new key index; **TEN before them**: round 4 adds the deviation-inventory guard, which found `shape_forms` missing from the method's own complete list on its first run; round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
 | suite, before the stretch edges | 4,343 collected on the worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4292 passed, 51 skipped in 979.16s (0:16:19)` verbatim after amendment A-P4-55's build. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
 | suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
@@ -38,15 +38,93 @@ without the same help.
 | suite, before this landing | 4,266 collected, measured on the second worktree at the commit this branched from (`7266c31`). Its SKIPPED count was not re-measured there, so this line does not state one. The twenty-eight new tests are `tests/test_p4d32_empty_bins.py`, of which nine were written against a SILENT mutant and three against defects the suite itself found |
 | suite, before this landing | 4,256 collected / **51** skipped, measured on a second worktree at the commit this branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
 | suite, before the landing before it | 4,256 collected / **51** skipped, measured on a second worktree at the commit L7 branched from. **This page said 52 and the true figure was 51 on both trees**, so the skipped count had drifted by one while the collected count -- the half a test enforces -- stayed right. Corrected here rather than carried |
-| lint | **10 pre-existing errors** (`ruff check .`) under the rule set pinned in `pyproject.toml`, re-measured 2026-09-01 on this tree: 2 mid-file imports in `src/` (`generation.py`, `validation.py`), 7 in `tools/measurements/`, and 1 unused local in `tools/reference/make_generation_reference_vectors.py`. **This line read 9 and the ninth-and-tenth were both real** — the re-count that lowered it walked `src/` and `tools/measurements/` and never named the oracle, so one error had no line to stand on. Measured again on the whole tree with `git stash` holding this landing's edits out: 10 before it and 10 after, none of them in anything it changed. Re-measured after the WIDTH landing of 2026-09-01 as well: still 10, and its own new measurement tool `tools/measurements/r_p4_30_l6_widths.py` adds none of them. Re-measured after the JOINED landing (L7) of the same day: still 10, and `tools/measurements/r_p4_40_l7_joined.py` adds none. Re-measured after the EMPTY-BIN landing (L12, named L8 on this page until review round 4 of the integer-grid landing; the plan reserves L8 for the unbuilt compound role): still 10, the two in `src/` still the mid-file imports at `generation.py:252` and `validation.py:267`, and `tools/measurements/r_p4_136_l8_empty_bins.py` adds none |
+| lint | **clean.** `ruff check .` prints `All checks passed!` and `mypy --strict src/` reports no issues in 17 source files, re-measured 2026-09-10. This row read "10 pre-existing errors" for nine days after commit `60f996c` repaired them, and the "What is broken right now" section said so a second time -- one fact written twice, neither copy updated, which is this page's own standing lesson. |
 
 ## What is being built right now
 
-**THE PHASE 4 GAP RUN**, under the owner's standing authorization of
-2026-08-26 ("feel free to move through all the gaps without my
-consent", review aimed at machinery only). Gaps 1, 2 and 3 have
-landed; gaps 4 to 7, the richer number family and the worked examples
-are still ahead. The gap list itself is at the foot of this page.
+**THE ONE-WEEK CLOSE (amendment A-P4-59, owner rulings of
+2026-09-10).** Seven landings, one a day, each ending in a commit:
+**L16** the arbitration and codes asked about (this one, done);
+**L18** the shapes a European table meets — dotted two-figure dates,
+the decimal-comma remark, three advisory remarks; **L17** the questions
+file and its answers, two days; **L19 with L20** the twin's own report
+honesty; **L22** the record; **L23** the close and the merge. Review is
+ONE round per landing and does not run on L22 or L23. Everything not in
+those landings is CARRIED to Phase 5 by name in the closure section —
+about forty entries, each with a line and a size.
+
+* **LANDING L16 IS BUILT (2026-09-10). It closes the silence review
+  round 8 named, which is the half of R-P4-157 that was a defect.**
+  A register of 280 five-digit procedure codes beside fifteen `3074F`
+  and five `3075F` reached the compound role undeclared and published
+  an average of **54,239.18** over its bare codes with an **empty
+  remark list** — no question, no sentence, nothing on any surface.
+
+  **The cause was that the question asked the wrong computation.** It
+  was put to the affix reading with the person's own declaration, and
+  undeclared the letter guard refuses a letter written flush against
+  the digits, so the reading answered "none" and the tie was invisible.
+  `_annotated_reading` asks the walk AS IF DECLARED — the reading the
+  person could have — and refuses an address or a wrapper carrying no
+  letter, so the question stays a real one. **Rule 9 still decides by
+  the person's own declaration**, so no undeclared column moved role
+  and the no-regression rule is untouched; only the SENTENCE is decided
+  there.
+
+  **Three sentences moved.** NF54 names all three readings — a flagged
+  measurement, numbers beside labels, and a coding system whose codes
+  end in a letter — and BOTH declarations, where it offered only the
+  one that publishes more. Its argument counts CELLS now, so 280
+  readings beside seventeen flagged cells and three `NOT DETECTED` says
+  seventeen where it said twenty. And contract **NF55** is new: the
+  flush decline was silent, and a person met NF29 telling them to
+  rewrite their column as plain numbers while two declarations that
+  read it correctly had already shipped and neither was named.
+
+  **Two false sentences on the screen went with them.** The scripted
+  notice told a hyphenated laboratory-code column, which publishes no
+  numeric statistic at all, that it was "being described with an
+  average" — it is per reason now. And the padded-number remark sent a
+  person to `--identifier`, which withholds the column, while the same
+  page's screen line said `--code`, which keeps every code: one answer
+  per page now.
+
+  **What stays open is no longer a silent wrongness.** Which role a
+  flagged column reaches is still decided by how often its flagged
+  spellings repeat, so one column can be described two ways at two
+  draws — but neither description is wrong now, and the register entry
+  is narrowed to that.
+
+  Five tests pin it: the exact 280/15/5 register at all three
+  declarations, the no-letter marker raising no question, the count of
+  seventeen, the flush decline speaking with `--measurement` reading it,
+  and an address carrying its own sentence and not this one.
+
+  **REVIEW ROUND 1 RETURNED RATIFY-WITH-CONDITIONS, and four of its
+  six items were repaired before the commit.** Three were in the
+  landing's own new machinery and one of them was a REGRESSION the
+  repair itself introduced: the letter test was written over ASCII,
+  so 280 readings beside twenty `10.50` with a Greek marker carried
+  the question BEFORE this landing and carried nothing after it. The
+  test is a closed set of SYMBOLS now rather than of letters, which
+  errs toward asking. The count was neither half of what its own
+  sentence names -- ten flagged readings beside ten `<0.50` said
+  twenty, and seventeen beside three `many H` said twenty -- so it
+  counts cells whose wrapper carries a word AND whose core reads as
+  a number. Both sentences promised that `--code` keeps every value
+  exactly as written, which a raised smallest-group size takes away,
+  so both are qualified by the floor. And the joined block of the
+  screen notice said a free-text column's values "are kept as they
+  are written" when that role publishes none of them; it says what
+  each column publishes, per column, now.
+
+  **Two items are carried by name under A-P4-59** rather than built:
+  R-P4-158, a column that reaches a label role before rule 9 never
+  carries the flush-letter sentence and does not answer to
+  `--measurement`; and the note grammar's census drift, which is
+  R-P4-72 seen from the other side -- `NOTE_ARITY` sums to 94 while
+  the appendix sums to 96, and the two positions are exactly the two
+  rows that residual already holds open.
 
 * **LANDING L8, THE COMPOUND ROLE, IS BUILT AND HAS HAD EIGHT ROUNDS
   OF REVIEW (2026-09-03 to 2026-09-04).** `numbers_with_labels` is the
@@ -3155,32 +3233,16 @@ say which.
 
 ## What is broken right now
 
-- **LINT IS NOT CLEAN: ten errors stand** (`ruff check .` under the
-  pinned rule set, re-measured 2026-09-01 on this tree, so the count is
-  the tree's and not this landing's). Two are in `src/` -- a mid-file
-  import in `generation.py` and one in `validation.py`. Seven are in
-  `tools/measurements/`: four `E401`, two unused imports and one
-  unused local. **The tenth is in `tools/reference/make_generation_
-  reference_vectors.py`**, an unused local at the label-variants walk.
-
-  **It said TEN, then NINE, and ten is right.** The R-P4-53 landing
-  counted them again after the dead `mine = _position_cells(...)` went
-  from `validation.py` with the joined role's landing, and lowered the
-  count -- but its re-count walked `src/` and `tools/measurements/` and
-  never looked at `tools/reference/`, so one real error was left with
-  no line to stand on and the total came out one short. Measured again
-  here on the WHOLE tree, with `git stash` holding this landing's edits
-  out and putting them back: ten before and ten after, none of them in
-  anything this landing changed. *A count is only as wide as the walk
-  that took it, and a narrowed walk reads as a repair.* The
-  measurement behind the earlier lowering stands as it was written: the
-  dead recount was BENIGN rather than a wrong population, because the
-  joined ladder and moment checks read the profiler's re-description
-  and not a recount there.
-
-  This page said lint was CLEAN until 2026-08-31, which is the same
-  defect as the commit messages below: a green claim about a check
-  that was not run on the tree being described.
+- **LINT AND TYPES ARE CLEAN, and this entry is what the page's own
+  rule is for.** `ruff check .` prints `All checks passed!` and
+  `mypy --strict src/` reports no issues in 17 source files,
+  re-measured 2026-09-10. Commit `60f996c` repaired the ten errors on
+  2026-09-09 and this page went on saying they stood -- in the table
+  at the head, in the paragraph about what is owed to the owner, and
+  here. *One fact written three times, no copy updated.* The lesson
+  is the page's own: a fact stated more than once will disagree with
+  itself, so state it where it is measured and point at it from
+  everywhere else.
 - **CI ran again after 86 commits.** `pyproject.toml` pins the ruff
   rule set (the 183 errors that stood before it were 120 quoted type
   annotations, a deliberate style here, plus tooling import order). When it did, all three of its failures were checks that had
