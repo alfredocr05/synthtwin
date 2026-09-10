@@ -6,6 +6,82 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a column of codes is no longer averaged in silence
+
+- **A register of procedure codes, most of them bare figures and a few
+  ending in a letter, was described as a quantity and said nothing
+  about it.** Measured on 300 rows -- 280 five-digit codes beside
+  fifteen `3074F` and five `3075F` -- the description published an
+  average of 54,239 over the codes, a smallest, a largest and nine
+  points between, every one of them a real code, and the profile
+  carried no remark at all. Nothing on the screen, in the description
+  or in the plain-language summary said a choice had been made.
+
+- **The tool asks about that column now, instead of guessing.** Where
+  a column can be read as a measurement carrying markers, as numbers
+  beside labels, or as a coding system whose codes end in a letter,
+  the description says so and names both of the options that settle
+  it: `--measurement NAME` describes every number, and `--code NAME`
+  keeps every value exactly as written and publishes no average at all.
+  The sentence used to name only the first of those, which is the one
+  that publishes MORE of your codes.
+
+- **A column whose letter is written hard against the digits is
+  declined out loud.** `13.5H` is a flagged laboratory result and
+  `1234F` is a category of procedure code, and nothing in the values
+  tells them apart, so the tool does not read such a column as a
+  quantity unless you say so. Until now it simply fell to free text,
+  and the message you met told you to rewrite your column as plain
+  numbers -- while both options that read it correctly already
+  existed and neither was named.
+
+- **Two messages that were plainly wrong are fixed.** A column of
+  hyphenated laboratory codes, which publishes no average at all, was
+  told on screen that it was "being described with an average, a
+  smallest and a largest"; that text now depends on what was actually
+  read. And a column of zero-padded numbers was told in one place to
+  use `--code` and in another to use `--identifier`, which are opposite
+  things: `--code` keeps every code with the rows that carried it,
+  `--identifier` publishes nothing at all. One answer per page now.
+
+- **A question that should never have been asked is not asked.** 280
+  readings beside twenty `<0.5` cells raised the question and pointed
+  at `--measurement`, which would then have published a distribution
+  over the detection limit itself. A mark that is no letter -- `<`,
+  `$`, `%` -- is not this ambiguity, and raises nothing.
+
+- **A marker written in another alphabet asks the same question.** The
+  first version of this repair tested for English letters, which would
+  have taken the warning away from a column of readings marked with a
+  Greek letter -- a warning that column already had. The test is a
+  closed list of symbols now, so a mark nobody listed is treated as a
+  word and asks.
+
+- **The counts in those sentences are the counts they name.** "How many
+  of this column's values are a number with a word beside it" now
+  counts exactly that: a cell whose marker is `<` is a comparison and
+  not a word, and a cell reading `many H` holds no number, and neither
+  is counted any more.
+
+- **And the advice no longer promises more than your settings allow.**
+  Both sentences said `--code` keeps every value exactly as written.
+  That is true at the default, where nothing is held back, and not true
+  when you ask for a larger smallest-group size, which pools rare codes
+  away. They now say what is published under the size in force.
+
+- **What is still true and is written down:** which of the two
+  readings a flagged laboratory column reaches still depends on how
+  often its flagged values repeat, so one column can be described two
+  ways. Neither description is wrong -- both are now said out loud --
+  but the choice is not predictable, and it is recorded rather than
+  quietly left (residual R-P4-157, narrowed). A column that reaches a
+  set-of-categories reading before the number rules is not reached by
+  the new decline sentence at all, which is recorded too (R-P4-158).
+  And the message on a column wearing a unit still points at
+  `--identifier` where it should point at `--code`, for the same reason
+  the padded-number message did; it moves with the next piece of this
+  work, and is recorded rather than left to be found (R-P4-72).
+
 ### Added: a lab column of readings and markers is now described as both
 
 - **A column that holds numbers AND words -- `4.2`, `7.8`,

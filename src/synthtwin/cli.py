@@ -638,8 +638,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "leading zeros and all, and publishes how many rows carried "
             "each one -- instead of an average, a smallest and a largest, "
             "which for a code are meaningless and are real codes besides. "
-            "Use this for a column written in digits: one written with a "
-            "letter or a dash is already read as codes. Name a column "
+            "Use this for a column written in digits. A column whose "
+            "every value carries a letter or a dash usually reads as "
+            "codes already, but one whose values are mostly bare "
+            "figures does not, however a few of them are spelled. Name "
             "here only if it is codes -- use --identifier for a record "
             "number nothing should publish, and neither one for a "
             "measurement. May be given more than once"
@@ -1095,25 +1097,87 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     a scripted run is one rerun away from right rather than silently
     wrong.
     """
-    lines = ""
-    parts: list[str] = []
+    # THE SENTENCE IS PER REASON, BECAUSE ONE SENTENCE WAS FALSE OF
+    # HALF THE COLUMNS IT REACHED (landing L16). This said every column
+    # above "is being described with an average, a smallest and a
+    # largest", and the joined reason fires on columns that reached a
+    # LABEL role -- a hyphenated laboratory code publishing no numeric
+    # statistic at all was told its codes were being averaged. A false
+    # sentence on the honesty surface is the defect principle 6 names,
+    # and it reached the screen because nothing tests this text.
+    numeric: list[asking.Question] = []
+    joined: list[asking.Question] = []
     for question in questions:
-        shown = _shown_examples(question.examples)
-        lines = lines + f"\n  '{_shown(question.name)}' -- {shown}"
-        parts = parts + [f"--code {_shown(question.name)}"]
-    flags = _joined(parts, " ")
+        if question.reason == asking.BECAUSE_JOINED:
+            joined = joined + [question]
+        else:
+            numeric = numeric + [question]
+
+    def _listing(group: "list[asking.Question]", say_what: bool) -> str:
+        shown = ""
+        for question in group:
+            examples = _shown_examples(question.examples)
+            line = f"\n  '{_shown(question.name)}' -- {examples}"
+            if say_what:
+                # WHAT THAT COLUMN ACTUALLY PUBLISHES, per column
+                # (review round 1 of landing L16, item 2). One sentence
+                # covered the whole group and said its values "are kept
+                # as they are written"; a column of three hundred
+                # different readings reaches free text, which publishes
+                # no value of it at all, and the notice said the
+                # opposite of the profile sitting beside it.
+                if not asking.publishes_its_values(question.role):
+                    line = line + (
+                        "\n      (no value of this column is published)"
+                    )
+                else:
+                    line = line + (
+                        "\n      (its values are published as they are "
+                        "written, under the smallest-group size in force)"
+                    )
+            shown = shown + line
+        return shown
+
+    blocks: list[str] = []
+    if numeric:
+        flags = _joined(
+            [f"--code {_shown(one.name)}" for one in numeric], " "
+        )
+        blocks = blocks + [
+            f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
+            f"{_listing(numeric, False)}\n\n"
+            f"synthtwin cannot tell a coding system from a measurement: "
+            f"they are written identically, and only you know which this "
+            f"is. Each column above is being described with an average, a "
+            f"smallest and a largest -- which for a code are meaningless, "
+            f"and are real codes besides -- and its twin will lose any "
+            f"leading zeros.\n\n"
+            f"If any of them holds codes, run the command again naming "
+            f"them:\n  {flags}"
+        ]
+    if joined:
+        flags = _joined(
+            [f"--measurement {_shown(one.name)}" for one in joined], " "
+        )
+        blocks = blocks + [
+            f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND MIGHT BE "
+            f"READINGS.{_listing(joined, True)}\n\n"
+            f"Each column above is being described as text rather than as "
+            f"numbers, so NO number inside those cells is described: no "
+            f"average, no smallest, no largest, and the twin's cells are "
+            f"built from what is published beside each column above. A "
+            f"blood pressure of `120/80` is two readings and a laboratory "
+            f"code is not, and only you know which this is.\n\n"
+            f"If any of them holds readings, run the command again naming "
+            f"them:\n  {flags}"
+        ]
+    # `_joined` rather than `str.join`, for the offline audit's reason:
+    # the formatting protocol of whatever is handed to `join` runs, so
+    # the audit accepts only literals and values it watched being built.
     return (
-        f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
-        f"{lines}\n\n"
-        f"synthtwin cannot tell a coding system from a measurement: they "
-        f"are written identically, and only you know which this is. Each "
-        f"column above is being described with an average, a smallest and "
-        f"a largest -- which for a code are meaningless, and are real "
-        f"codes besides -- and its twin will lose any leading zeros.\n\n"
-        f"If any of them holds codes, run the command again naming them:\n"
-        f"  {flags}\n"
-        f"Nothing is wrong with this profile if they really are "
-        f"measurements."
+        _joined(blocks, "\n\n")
+        + "\nNothing is wrong with this profile if they really are "
+        + "what synthtwin read them as."
     )
 
 
