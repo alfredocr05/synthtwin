@@ -210,8 +210,20 @@ def test_an_already_declared_column_is_not_asked_about() -> None:
     assert asking.questions_for(document, read.columns, settings, ["col"]) == []
 
 
-def test_a_question_carries_examples_and_never_a_whole_column() -> None:
-    """The person needs values to answer; four of them is enough."""
+def test_a_question_describes_the_shape_and_carries_no_value() -> None:
+    """THE FILE TRAVELS AND THE SCREEN DOES NOT (owner ruling 2026-09-10).
+
+    This carried four of the column's real values, on the argument that
+    a question about a column cannot be answered without them. It can:
+    what a person needs is what synthtwin SAW, and a shape says that in
+    words that may leave the machine where a cell may not.
+
+    The rule amendment A-P4-58 fixes for the questions file is that it
+    may name the column, the choices and any spelling the description
+    itself would publish, and no value of the table. Showing values on
+    the screen while withholding them in the file would make one
+    question into two, so the screen shows the shape as well.
+    """
     values = ["08", "20", "213", "141", "03"] * 20
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
@@ -223,8 +235,20 @@ def test_a_question_carries_examples_and_never_a_whole_column() -> None:
     asked = asking.questions_for(document, read.columns, settings, [])
     assert len(asked) == 1
     assert asked[0].name == "col"
-    assert len(asked[0].examples) == 4
-    assert len(set(asked[0].examples)) == 4
+    # ...it says what was seen...
+    assert "leading zero" in asked[0].shape, asked[0].shape
+    # ...and no cell of the column is in it.
+    for value in set(values):
+        assert value not in asked[0].shape, (value, asked[0].shape)
+    # ...and every choice says what the description would publish.
+    assert len(asked[0].choices) == 3
+    for choice in asked[0].choices:
+        assert choice.publishes
+        assert choice.means
+    # ...with the reading that stands if nobody answers named, and put
+    # first, so the list agrees with the behaviour.
+    assert asked[0].taken == asking.ANSWER_MEASUREMENT
+    assert asked[0].choices[0].answer == asked[0].taken
 
 
 # -- the owner's eighteen coding systems -------------------------------

@@ -1720,13 +1720,20 @@ def test_the_screen_says_what_each_joined_column_publishes() -> None:
     notice = cli._assumptions_notice(
         [
             asking.Question(
-                "bp", taxonomy.ROLE_TEXT, asking.BECAUSE_JOINED, ["110/60"]
+                "bp",
+                taxonomy.ROLE_TEXT,
+                asking.BECAUSE_JOINED,
+                "every value is two or more numbers with '/' between them",
+                asking._joined_choices(taxonomy.ROLE_TEXT, 1),
+                asking.ANSWER_KEEP,
             ),
             asking.Question(
                 "obs",
                 taxonomy.ROLE_LONG_TAIL,
                 asking.BECAUSE_JOINED,
-                ["2345-7"],
+                "every value is two or more numbers with '-' between them",
+                asking._joined_choices(taxonomy.ROLE_LONG_TAIL, 1),
+                asking.ANSWER_KEEP,
             ),
         ]
     )
@@ -1737,7 +1744,17 @@ def test_the_screen_says_what_each_joined_column_publishes() -> None:
     numeric = cli._assumptions_notice(
         [
             asking.Question(
-                "vax", taxonomy.ROLE_COUNT, asking.BECAUSE_PADDED, ["08"]
+                "vax",
+                taxonomy.ROLE_COUNT,
+                asking.BECAUSE_PADDED,
+                "every value is written in figures alone, and 40 of "
+                "them carry a leading zero",
+                asking._numeric_choices(
+                    asking.ANSWER_MEASUREMENT,
+                    taxonomy.ROLE_COUNT,
+                    1,
+                ),
+                asking.ANSWER_MEASUREMENT,
             )
         ]
     )

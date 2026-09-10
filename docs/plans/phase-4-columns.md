@@ -5739,7 +5739,71 @@ takes a slot outside every barred BIN instead.
   numbers than the description records, and both the twin's own report
   and `synthtwin validate` name the shortfall.
 
-- **R-P4-153 — OPEN (opened 2026-09-04 by the owner's ruling
+- **R-P4-162 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17a, item 5).** THE NO-CELL TEST IS A SUBSTRING WALK AND THE RULE IS
+  ABOUT ORIGINS. The property test asserts that no cell of the table
+  appears anywhere in a question. Two permitted things break it as
+  written rather than in fact: a column whose HEADER is itself a value
+  of another column puts that spelling in as a column NAME, and a
+  joined column's separator is a spelling the description publishes
+  under C6-9. Neither copies a row value as an example, which is what
+  the rule forbids. Closing it means stating disclosure by permitted
+  ORIGIN -- column names, choices, floor-governed counts, published
+  spellings -- and testing those boundaries, rather than by a universal
+  substring exclusion that is incompatible with naming a column at all.
+
+- **R-P4-163 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17a, item 6; PRE-EXISTING).** A TYPED ANSWER IS NOT CHECKED AGAINST
+  THE CHOICES SHOWN. A numeric question prints keys 1, 2 and 3; typing
+  4 reaches the joined branch and records a measurement declaration.
+  The displayed keys map correctly and are stable, so a person
+  following the screen is served; a person typing a key that is not
+  there gets a declaration nobody offered them. It predates this
+  landing, which only made the choices data. Closing it means
+  validating input against the current question's own choices while
+  keeping the established key assignments.
+
+- **R-P4-164 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17a, item 7; PRE-EXISTING).** A SPACED JOINED COLUMN IS NEVER ASKED
+  ABOUT. `100 / 30` is read by the declared joined reader, which
+  accepts a mark with a space either side, and the question detector
+  tries bare marks alone -- so the one column the declaration exists
+  for is not offered it. It predates this landing. Closing it means
+  aligning detection with the separator spellings the reader already
+  supports, and it changes no automatic routing.
+
+- **R-P4-153 — OPEN, NARROWED 2026-09-10 BY LANDING L17a TO THE FILE
+  ITSELF.** The SHAPE of the asking is settled and built: choices, what
+  each reading publishes, and the reading that stands unanswered are
+  DATA on `asking.Question`, so the terminal prompt, the scripted
+  notice and the questions file render one object rather than three
+  sets of words that drift. Two owner decisions of 2026-09-10 landed
+  with it. **The question describes the column instead of showing it**
+  -- "every value is written in figures alone, all 5 characters wide"
+  where four real cells used to be -- because the file travels and a
+  cell may not, and a screen showing values while the file withheld
+  them would be a second question. **And every column read as a number
+  is listed under ONE question** (decision D14), which is the only
+  thing that reaches a register no rule can see: measured on a clinic
+  table, a `drug_concept_id` column of six- and seven-figure
+  identifiers publishes a mean over concept identifiers, raises no
+  signal of any kind, and is now named to the person.
+
+  **WHAT IS NOT BUILT, AND IT IS NOT A CUT.** The file. It was built,
+  run end to end and WITHDRAWN before the commit, on the claim
+  inventory's own refusal: a file a run leaves in the folder joins
+  every handling surface in the SAME commit, because "a file nobody
+  named is a file the institution's rules were never stated about".
+  This one is CONDITIONAL where the other five are not -- it exists
+  only where synthtwin had a question -- so "a full run leaves five
+  files" is still true of a table with no ambiguous column, and the
+  handling rule needs a form that says both, on eight surfaces at once,
+  including the frozen contract and excluding the historical ones. That
+  is a deliberate pass and not a line at the end of a landing. It lands
+  with the hand-back (`--answers`), which is what makes the file
+  answerable anyway.
+
+- **R-P4-153 (the record of the question) — OPEN (opened 2026-09-04 by the owner's ruling
   A-P4-56).** WHAT SHAPE THE ASKING TAKES, AND WHEN IT RUNS.
 
   Amendment A-P4-56 rules that where a judgement cannot be made from

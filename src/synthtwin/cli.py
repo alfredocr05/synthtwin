@@ -1042,50 +1042,91 @@ def _joined(parts: "list[str]", separator: str) -> str:
     return out
 
 
-def _shown_examples(examples: "list[str]") -> str:
-    """A column's example values, escaped, for a screen."""
-    safe: list[str] = []
-    for value in examples:
-        safe = safe + [_shown(value)]
-    return _joined(safe, ", ")
+_KEY_OF = {
+    asking.ANSWER_MEASUREMENT: "1",
+    asking.ANSWER_CODE: "2",
+    asking.ANSWER_IDENTIFIER: "3",
+    asking.ANSWER_JOINED: "4",
+    # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
+    # never appear on one question: a column of figures offers
+    # `measurement` as the reading it already has, and a joined-looking
+    # column offers `keep`, which is the reading IT already has. Both
+    # mean "make no declaration", and `_put_the_questions` gives
+    # neither a branch, so they are one behaviour under two words --
+    # the words differing because what a person is keeping differs.
+    asking.ANSWER_KEEP: "1",
+}
 
 
 def _the_question(question: asking.Question, place: int, total: int) -> str:
-    """One column's question, as the person sees it."""
-    shown = _shown_examples(question.examples)
-    why = _WHY_SHOWN[question.reason]
-    head = (
-        f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
-        f"    values look like: {shown}\n"
-    )
-    if question.reason == asking.BECAUSE_JOINED:
-        # A COLUMN OF JOINED NUMBERS IS THE SAME QUESTION WITH ONE MORE
-        # ANSWER (plan P4-D21). Read as text it publishes no reading at
-        # all, so the reading it is missing is what the first answer
-        # offers; the other two are the answers a code column and a
-        # record number need, and they are the readings that make a
-        # laboratory code come back whole.
-        return (
-            f"{head}"
-            f"    synthtwin cannot read this on its own, so its twin "
-            f"would hold no readings at all. It is written as {why}.\n"
-            f"    What does this column hold?\n"
-            f"      [4] measurements written as two numbers -- read each "
-            f"number separately, so the twin holds believable readings\n"
-            f"      [2] codes -- keep every value exactly as written, and "
-            f"publish which ones are common\n"
-            f"      [3] record numbers -- publish none of its values\n"
-            f"      [1] leave it as text -- publish no value of it"
+    """One column's question, as the person sees it.
+
+    IT RENDERS THE QUESTION'S OWN DATA AND WRITES NONE OF ITS OWN
+    (amendment A-P4-58). The choices, what each publishes, and the
+    reading that stands if nobody answers are `asking.Question`'s, so
+    the questions file and this screen ask ONE question rather than two
+    that drift; Phase 7 renders the same object again.
+
+    AND IT SHOWS NO VALUE OF THE TABLE (owner ruling 2026-09-10). It
+    printed four real cells until then, on the argument that the
+    question is unanswerable without them. It is answerable: the shape
+    says what synthtwin saw -- "every value is written in figures
+    alone, all five characters wide" -- and says it in words that may
+    travel where a cell may not. Showing values here while the file
+    withholds them would make one question into two.
+    """
+    lines = ""
+    for choice in question.choices:
+        key = _KEY_OF[choice.answer]
+        lines = lines + (
+            f"\n      [{key}] {choice.means}\n"
+            f"          then the description publishes {choice.publishes}"
         )
     return (
-        f"{head}"
-        f"    synthtwin read this as a MEASUREMENT, and would publish an "
-        f"average, a smallest and a largest for it. But {why}.\n"
-        f"    What does this column hold?\n"
-        f"      [1] measurements -- keep reading it as numbers\n"
-        f"      [2] codes -- keep every value exactly as written, and "
-        f"publish which ones are common\n"
-        f"      [3] record numbers -- publish none of its values"
+        f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
+        f"    what synthtwin saw: {question.shape}.\n"
+        f"    What does this column hold?{lines}\n"
+        f"    Press Enter to keep the reading synthtwin made, "
+        f"which is the first one above."
+    )
+
+
+def _checklist_notice(listed: "list[asking.Question]") -> str:
+    """Every column read as a number, under ONE question.
+
+    THE COLUMNS NOTHING ELSE REACHES (owner ruling 2026-09-10, decision
+    D14). The questions beside this are the ones whose VALUES raised
+    one. A register of drug concept identifiers six and seven figures
+    wide raises nothing and can raise nothing -- it is written exactly
+    as a column of ages is, and the rule that tried to tell them apart
+    was deleted for guessing in review item P1-R6-F7. What reaches such
+    a column is a person reading a list of their own columns, and
+    nothing else ever will.
+
+    ONE QUESTION AND NOT ONE PER COLUMN, which keeps it from being a
+    burden (amendment A-P4-56 point 1): twelve columns under one
+    question is a minute's reading, and twelve separate questions is a
+    form nobody finishes.
+
+    IT IS SHOWN ONCE PER RUN AND ON ITS OWN (review round 1, item 1).
+    It hung off the scripted notice, which fires only where a column's
+    values raised a question AND only where nobody is at the keyboard,
+    so three of the four ways a person runs this command never saw it
+    -- and a table whose only finding was this list showed nothing at
+    all.
+    """
+    rows = ""
+    for question in listed:
+        rows = rows + f"\n  '{_shown(question.name)}' -- {question.shape}"
+    return (
+        f"{asking.CHECKLIST_HEADING}{rows}\n\n"
+        f"Nothing in these columns' values can tell a coding system "
+        f"from a measurement -- a code register and a column of counts "
+        f"are written identically -- so they raised no question of "
+        f"their own. Only you know which is which. Name any that hold "
+        f"codes with --code, and any that hold record numbers with "
+        f"--identifier. Nothing is wrong with this profile if they are "
+        f"already read the way you meant."
     )
 
 
@@ -1116,8 +1157,14 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     def _listing(group: "list[asking.Question]", say_what: bool) -> str:
         shown = ""
         for question in group:
-            examples = _shown_examples(question.examples)
-            line = f"\n  '{_shown(question.name)}' -- {examples}"
+            # THE SHAPE, NOT THE VALUES (owner ruling 2026-09-10).
+            # This listed four real cells beside every column
+            # name; the questions file may not, and one question
+            # asked two ways is two questions.
+            line = (
+                f"\n  '{_shown(question.name)}' -- "
+                f"{question.shape}"
+            )
             if say_what:
                 # WHAT THAT COLUMN ACTUALLY PUBLISHES, per column
                 # (review round 1 of landing L16, item 2). One sentence
@@ -1193,7 +1240,7 @@ def _cleaned(line: str) -> str:
     return line.strip().lower()
 
 
-def _read_one_answer() -> "str | None":
+def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
     """One typed answer, or None where the person ended the run.
 
     Enter alone keeps the reading synthtwin already made, so a person
@@ -1209,7 +1256,12 @@ def _read_one_answer() -> "str | None":
             return None
         typed = _cleaned(line)
         if not typed:
-            return asking.ANSWER_MEASUREMENT
+            # ...and what it keeps is THIS question's standing reading,
+            # not a fixed one (review round 1 of landing L17a, item 3).
+            # A joined-looking column's standing reading is the text or
+            # label reading it already has; returning `measurement`
+            # there named a reading Enter does not give.
+            return standing
         if typed in _ANSWER_KEYS:
             return _ANSWER_KEYS[typed]
         _say(
@@ -1246,7 +1298,7 @@ def _put_the_questions(
     for question in questions:
         place = place + 1
         _say(_the_question(question, place, total))
-        answer = _read_one_answer()
+        answer = _read_one_answer(question.taken)
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
@@ -1594,6 +1646,19 @@ def _run_profile(
     asked_about = asking.questions_for(
         document, read.columns, settings, forced_identifiers + forced_codes
     )
+    # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
+    # (owner ruling 2026-09-10, amendment A-P4-58). The questions
+    # above are the columns whose VALUES raised a question; these
+    # are the ones no rule can reach, because a register of concept
+    # identifiers and a column of ages are written identically. A
+    # person reads one list and names the codes.
+    listed_about = asking.checklist_for(
+        document,
+        read.columns,
+        settings,
+        forced_identifiers + forced_codes,
+        asked_about,
+    )
     answered = False
     if asked_about:
         if _there_is_somebody_to_ask():
@@ -1680,6 +1745,16 @@ def _run_profile(
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about)}\n")
+    # THE CHECKLIST IS SHOWN ONCE PER RUN, WHOEVER IS THERE (review
+    # round 1 of landing L17a, item 1). It hung off the scripted notice
+    # above, which fires only where a column's VALUES raised a question
+    # and only where nobody is at the keyboard -- so three of the four
+    # ways a person runs this command never saw it, and a table whose
+    # only finding IS this list showed nothing at all. It is the one
+    # class of column nothing else can reach, so it is the last thing
+    # that should depend on another column raising a question.
+    if listed_about:
+        _say(f"\n{_checklist_notice(listed_about)}\n")
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
@@ -1797,6 +1872,19 @@ def _run_profile(
         # the one confirming what already went well.
         _warn(_left_behind_note(left_behind))
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
+    # THE QUESTIONS FILE IS NOT WRITTEN YET, and the reason is the
+    # claim inventory's rather than the calendar's. A file this run
+    # leaves in the folder must be named on every handling surface in
+    # the SAME commit -- "a file nobody named is a file the
+    # institution's rules were never stated about" -- and this one is
+    # conditional where the other five are not: it exists only where
+    # synthtwin had a question. "A full run leaves five files" is still
+    # true of a table with no ambiguous column, so the handling rule
+    # needs a form that says five and a sixth where there are
+    # questions, on eight surfaces at once. That is a deliberate pass,
+    # not a line added at the end of a landing. The questions are
+    # computed here and shown on the screen; the file lands with the
+    # naming pass and the hand-back (`--answers`) it belongs with.
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
     return 0
