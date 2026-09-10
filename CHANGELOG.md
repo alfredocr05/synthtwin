@@ -6,6 +6,62 @@ exists).
 
 ## [Unreleased]
 
+### Changed: synthtwin asks about your codes without showing your data
+
+- **The list of columns to check now appears whoever is running the
+  command.** It was printed only in a scripted run, and only when some
+  other column had already raised a question of its own -- so a table
+  whose only finding was this list showed you nothing at all. It is
+  shown once, every run.
+
+- **Every answer now says what it would really publish for YOUR
+  column.** A column of numbers too large for the file format to hold
+  publishes no average at all, and the "measurements" answer used to
+  promise one anyway. If you have asked for groups of eleven, the
+  "codes" answer no longer promises that every value is kept, because
+  values held by fewer than eleven rows are not. Both sentences are
+  worked out from your column and your settings now.
+
+- **A column of two numbers in one cell says what pressing Enter
+  actually does.** It said Enter would keep it read as two readings; it
+  would not, because reading it that way is a change you have to ask
+  for. Enter keeps it as text, and the question says so.
+
+- **And a count of cells is never named below your smallest-group
+  size.** A column with a single leading-zero value used to say "1 of
+  them", which is a count of one on a surface that names no group
+  smaller than you allowed. It says "some of them" now, and the count
+  itself once it is at or above your floor.
+
+- **Every column read as a number is now listed for you, under one
+  question.** synthtwin has always asked about a column whose values
+  gave it a signal -- figures with a leading zero, or every value the
+  same width. It could never ask about the rest, because there is
+  nothing to see: a register of drug concept identifiers six and seven
+  figures wide is written exactly the way a column of ages is written,
+  and a rule that guessed between them was removed from this tool years
+  of work ago for guessing wrongly. So they are not guessed at and not
+  singled out either. They are listed, once, with one question over
+  them: which of these hold codes or record numbers? A person who holds
+  the table answers it in a minute; nothing else can answer it at all.
+
+- **The questions no longer print your values.** They used to show four
+  real cells from the column, on the reasoning that you cannot answer a
+  question about a column without seeing it. You can: what you need is
+  what synthtwin saw, and it now says that instead -- "every value is
+  written in figures alone, all 5 characters wide", or "and 167 of them
+  carry a leading zero". That describes the column exactly as well and
+  carries none of it, which matters because these questions are about
+  to become a file you can save, hand to a colleague and send back.
+
+- **Each answer says what it would publish.** "Codes" and
+  "measurements" are labels; the choice is really between "an average,
+  a spread, a smallest and a largest" and "every value exactly as
+  written, with the number of rows that carried it". The questions say
+  that now, and the reading that stands if you answer nothing is named
+  and listed first.
+
+
 ### Fixed: a European date is read as a date, not as a quantity
 
 - **A column of dates written `19.08.24` was described as a

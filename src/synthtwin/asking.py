@@ -189,13 +189,49 @@ def publishes_its_values(role: str) -> bool:
 
 
 @dataclasses.dataclass(frozen=True)
+class Choice:
+    """One answer a person may give, and what taking it would publish.
+
+    A CHOICE IS DATA, NOT PROSE AT A CALL SITE (plan amendment
+    A-P4-58). The questions file and the terminal prompt are the same
+    question asked in two places, and Phase 7 will ask it in a third.
+    Where each of them writes its own words they drift, and a person
+    answering one is answering a different question from the person
+    answering another. So the words live here, once, and every surface
+    renders them.
+
+    `publishes` is the half a person actually decides on. "Codes" and
+    "measurements" are labels for a choice whose real content is what
+    the description will carry: an average over the values, or every
+    value kept with the rows that held it.
+    """
+
+    answer: str
+    means: str
+    publishes: str
+
+
+@dataclasses.dataclass(frozen=True)
 class Question:
     """One column synthtwin cannot read on its own, ready to be put.
 
-    It carries the column's name, the role it landed on, the reason it
-    is being asked about, and a few of its values to show the person.
-    The values are shown because the question is unanswerable without
-    them: nobody can say whether a column is codes from its name.
+    THE SHAPE IS DESCRIBED, NOT SHOWN (owner ruling 2026-09-10, on the
+    disclosure rule amendment A-P4-58 fixes for the questions file).
+    This carried four of the column's real values until then, because a
+    question about a column seemed unanswerable without them. It is
+    not: what a person needs is what synthtwin SAW, and the shape says
+    that without carrying a cell off the machine -- "every value is
+    written in figures alone, all five characters wide" answers the
+    question that four copies of `99213` answers, and travels where
+    they may not.
+
+    That matters because the file travels and the screen does not. A
+    person hands the file to a colleague, keeps it beside the profile,
+    or opens it on another machine; the plan's rule for it is that it
+    may name the column, the choices and any spelling the description
+    itself would publish, and no value of the table. Showing values on
+    the screen while withholding them in the file would make one
+    question into two, which is the thing that rule exists to stop.
 
     A dataclass rather than a written constructor, for the reason
     `taxonomy.Settings` gives: the offline policy accepts no
@@ -205,23 +241,161 @@ class Question:
     name: str
     role: str
     reason: str
-    examples: "list[str]"
+    shape: str
+    choices: "list[Choice]"
+    taken: str
 
 
-def _examples(values: "list[str]", most: int = 4) -> "list[str]":
-    """A few different values of the column, in the order they appear.
+# THE READING THAT STANDS WHERE NOBODY ANSWERS, as an answer of its
+# own (review round 1 of landing L17a, item 3). A joined-looking column
+# of three hundred different pairs lands on `free_text`, and this
+# recorded `joined` as the reading taken -- so the prompt told a person
+# that pressing Enter kept a reading Enter does not give them, and the
+# file would have said so in writing. The standing reading is not one
+# of the three declarations; it is what the column already is.
+ANSWER_KEEP = "keep"
 
-    Different ones, because four copies of the same value show a person
-    nothing. In file order, because that is reproducible and because
-    the first rows are what they would see opening the file.
+
+def _publishes_under(answer: str, role: str, floor: int) -> str:
+    """What the description carries if this answer is taken.
+
+    DERIVED FROM THE ROLE AND THE FLOOR, never a constant (review round
+    1 of landing L17a, item 4). Two measured sentences were false:
+
+    * a column of 400-figure integers takes `numeric_unrepresentable`,
+      which publishes NO numeric statistic at all, and the measurement
+      choice promised it an average, a spread and ends;
+    * at a smallest-group size of eleven a categorical column withholds
+      its rare levels, and the code choice promised that every value is
+      kept exactly as written -- which is the whole point of that
+      answer, and not true above the default floor.
+
+    A choice that overstates what it buys is worse than no choice: the
+    person is deciding on this sentence, and it is the only part of the
+    question they cannot check for themselves.
+
+    Guarantees: accepts an answer word, the role the column holds now,
+    and the publication floor; returns one sentence. Determinism: a
+    function of the three. Raises nothing. No I/O, and no value of any
+    table is reachable from here.
     """
-    shown: list[str] = []
-    for value in values:
-        if value not in shown:
-            shown = shown + [value]
-        if len(shown) == most:
-            return shown
-    return shown
+    if answer == ANSWER_IDENTIFIER:
+        return "no value of the column at all"
+    if answer == ANSWER_MEASUREMENT:
+        if role == taxonomy.ROLE_UNREPRESENTABLE:
+            return (
+                "how its numbers are WRITTEN -- how many figures, how "
+                "many carry a sign -- and no average, smallest or "
+                "largest, because numbers this large are past what this "
+                "file format can hold"
+            )
+        return (
+            "an average, a spread, a smallest and a largest, and points "
+            "between"
+        )
+    if answer == ANSWER_JOINED:
+        return (
+            "each number inside the cell described on its own, with its "
+            "own average and ends"
+        )
+    if answer == ANSWER_CODE:
+        if floor > 1:
+            return (
+                f"every value that at least {floor} rows share, exactly "
+                f"as written and with the number of rows that carried "
+                f"it; rarer ones counted together and never named, "
+                f"because you asked for groups of {floor}"
+            )
+        return (
+            "every value exactly as written, with the number of rows "
+            "that carried it, and no average at all"
+        )
+    # ANSWER_KEEP: whatever the column already is.
+    if not publishes_its_values(role):
+        return "no value of the column at all, which is what it does now"
+    if floor > 1:
+        return (
+            f"what it publishes now: every value that at least {floor} "
+            f"rows share, with its count, and the rarer ones counted "
+            f"together"
+        )
+    return (
+        "what it publishes now: every value as written, with the number "
+        "of rows that carried it"
+    )
+
+
+def _numeric_choices(
+    taken: str, role: str, floor: int
+) -> "list[Choice]":
+    """The three answers a column of figures may take.
+
+    `taken` names the reading that stands where nobody answers, and it
+    is put FIRST: a person reads the first of three as the default
+    whatever the words underneath say, so the order has to agree with
+    the behaviour or the list itself misleads.
+    """
+    every = [
+        Choice(
+            ANSWER_MEASUREMENT,
+            "measurements -- quantities somebody counted or measured",
+            _publishes_under(ANSWER_MEASUREMENT, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system, where the value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
+    first: list[Choice] = []
+    rest: list[Choice] = []
+    for choice in every:
+        if choice.answer == taken:
+            first = first + [choice]
+        else:
+            rest = rest + [choice]
+    return first + rest
+
+
+def _joined_choices(role: str, floor: int) -> "list[Choice]":
+    """The answers a column of two-numbers-in-one-cell may take.
+
+    THE FIRST ONE IS WHAT ENTER GIVES YOU, and it is not `joined`
+    (review round 1, item 3). Such a column is read as text or as
+    labels today; declaring it joined is an affirmative answer that
+    CHANGES the reading. Listing the change as the default told a
+    person that doing nothing would describe their blood pressures,
+    when doing nothing leaves them undescribed.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "leave it as it is -- synthtwin reads these cells as text",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_JOINED,
+            "measurements written as two numbers in one cell, such as "
+            "a blood pressure",
+            _publishes_under(ANSWER_JOINED, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system that writes its codes in parts",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
 
 
 def questions_for(
@@ -274,8 +448,389 @@ def questions_for(
         else:
             reason = why_worth_asking(present)
         if reason is not None:
+            # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES,
+            # not the one it ought to take. The owner ruled on
+            # 2026-09-10 that an unanswered column of figures should
+            # be read as CODES, which is a change to what `profile`
+            # does and lands with the answers path that makes it.
+            # Until then this says `measurement`, because a file that
+            # named a reading the run does not take would be the one
+            # thing a questions file may never be.
+            if reason == BECAUSE_JOINED:
+                # ENTER KEEPS THE READING THE COLUMN ALREADY HAS, which
+                # for a joined-looking column is text or labels and is
+                # never `joined`: declaring it joined CHANGES the
+                # reading (review round 1, item 3).
+                choices = _joined_choices(role, settings.small_cell_floor)
+                taken = ANSWER_KEEP
+            else:
+                choices = _numeric_choices(
+                    ANSWER_MEASUREMENT, role, settings.small_cell_floor
+                )
+                taken = ANSWER_MEASUREMENT
             asked = asked + [
-                Question(name, role, reason, _examples(present))
+                Question(
+                    name,
+                    role,
+                    reason,
+                    _shape_of(reason, present, settings.small_cell_floor),
+                    choices,
+                    taken,
+                )
             ]
         position = position + 1
     return asked
+
+
+def _joining_mark(values: "list[str]") -> str:
+    """The one mark every cell of a joined-looking column splits on."""
+    for separator in taxonomy.JOINED_SEPARATORS:
+        parts = 0
+        for value in values:
+            split = taxonomy.splits_into_numbers(value, separator)
+            if split is None:
+                parts = 0
+                break
+            if parts and len(split) != parts:
+                parts = 0
+                break
+            parts = len(split)
+        if parts >= 2:
+            return separator
+    return ""
+
+
+def _sayable(count: int, floor: int) -> str:
+    """A count of cells, or the word for one the floor will not name.
+
+    THE DISCLOSURE FLOOR REACHES THE SHAPE TOO (review round 1 of
+    landing L17a, item 2). At a smallest-group size of eleven, a column
+    of one `001` beside 299 ordinary numbers said "1 of them carry a
+    leading zero" -- a count of one, on a surface the plan holds to
+    naming no count below the floor, reaching the prompt and, once the
+    file lands, a document that travels.
+
+    "Some" is not a count. That a column carries padding at all is a
+    fact about how it was written, which is what the question is about;
+    HOW MANY carry it is a count of a group, and a group smaller than
+    the floor is not named here any more than anywhere else.
+    """
+    if count >= floor:
+        return f"{count} of them"
+    return "some of them"
+
+
+def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
+    """What synthtwin SAW, in words carrying no value of the table.
+
+    THE DISCLOSURE RULE OF THE QUESTIONS FILE, made into a sentence
+    (amendment A-P4-58; owner ruling 2026-09-10). The file may name the
+    column, the choices, and any spelling the description itself would
+    publish -- a separator is one, because the joined role publishes it
+    -- and no value of the table. A count of how many cells carry a
+    leading zero is a count and not a value; a width is a width.
+
+    Guarantees: accepts a reason and the present cells; returns one
+    sentence. Determinism: a fixed function of both. Raises nothing.
+    No I/O. **No cell of the column appears in what it returns.**
+    """
+    if reason == BECAUSE_PADDED:
+        padded = 0
+        for value in present:
+            if len(value) > 1 and value[0] == "0":
+                padded = padded + 1
+        return (
+            f"every value is written in figures alone, and "
+            f"{_sayable(padded, floor)} carry a leading zero"
+        )
+    if reason == BECAUSE_FIXED_WIDTH:
+        # A COMPREHENSION RATHER THAN `add` (plan D6.2). The offline
+        # audit reads the source and accepts no method call on a
+        # value it cannot trace to an allowlisted API, which a local
+        # set is not; `why_worth_asking` builds its widths the same
+        # way one screen above.
+        widths = {len(value) for value in present}
+        only = 0
+        for width in sorted(widths):
+            only = width
+        return (
+            f"every value is written in figures alone, all {only} "
+            f"characters wide"
+        )
+    if reason == BECAUSE_JOINED:
+        mark = _joining_mark(present)
+        return (
+            f"every value is two or more numbers with '{mark}' between "
+            f"them"
+        )
+    return "this column could be read more than one way"
+
+
+# A COLUMN NAMED ON THE CHECKLIST RATHER THAN ASKED ABOUT (owner
+# ruling 2026-09-10, decision D14 of the close plan). Nothing in its
+# values raised a question -- an unpadded, variable-width column of
+# figures is written exactly as a count is -- so no rule can find it
+# and no remark can honestly single it out. What reaches it is a
+# person reading one list of every column that was read as a number.
+BECAUSE_LISTED = "listed"
+# ...and its sibling: a column already read as codes, listed so the
+# person can see the whole register in one place and correct it if the
+# reading is wrong.
+BECAUSE_LISTED_AS_CODES = "listed-as-codes"
+
+# The roles whose description carries statistics over the cells. A
+# column here that is really a coding system publishes an average over
+# its codes, which is the hazard the checklist exists to reach.
+_MEASURED_ROLES = (
+    taxonomy.ROLE_COUNT,
+    taxonomy.ROLE_CONTINUOUS,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_AFFIXED,
+    taxonomy.ROLE_COMPOUND,
+)
+# The roles that publish the values themselves. A code column that
+# reached one of these is already described the way its owner wants,
+# and is listed only so they can say if it is not.
+_LABELLED_ROLES = (
+    taxonomy.ROLE_CATEGORICAL,
+    taxonomy.ROLE_LONG_TAIL,
+)
+
+
+def _looks_like_a_code(present: "list[str]") -> bool:
+    """Whether these cells are written the way a coding system writes.
+
+    Figures with a letter, a dot or a dash among them, no spaces, and
+    short. This decides NOTHING -- it chooses which columns a person is
+    shown on one list, and being shown costs a line of reading where
+    being missed costs the column's description.
+    """
+    if not present:
+        return False
+    for value in present:
+        if not value or len(value) > 20:
+            return False
+        figures = False
+        for mark in value:
+            if "0" <= mark <= "9":
+                figures = True
+            elif mark not in ".-_/" and not (
+                "a" <= mark <= "z" or "A" <= mark <= "Z"
+            ):
+                return False
+        if not figures:
+            return False
+    return True
+
+
+def checklist_for(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[Question]",
+) -> "list[Question]":
+    """Every column read as a number, listed once for one question.
+
+    THE SHAPES NO RULE CAN SEE (owner ruling 2026-09-10, decision D14).
+    A register of drug concept identifiers six and seven figures wide,
+    a column of month codes 1 to 12, a set of case-mix codes 5, 470 and
+    871 -- each is written exactly as a count is written, each is
+    published with an average over its codes, and NOTHING in the values
+    can tell them apart from a quantity. The rule that would find them
+    was deleted in review item P1-R6-F7 for guessing, and every
+    replacement measured wrong.
+
+    So they are not guessed at and not remarked at either: they are
+    LISTED, once, under one question. A person who holds the table
+    reads one list and names the ones that are codes. That is the
+    cheapest true thing this tool can do about a class of column no
+    amount of cleverness will reach.
+
+    ONE QUESTION AND NOT N, which is what keeps it from being a burden
+    (amendment A-P4-56, point 1). Asking is for what a count cannot
+    settle; it is not a way to move work onto the person. A list of
+    twelve columns with one question over it is a minute's reading. A
+    separate question per column is a form nobody finishes.
+
+    Guarantees:
+
+    - Inputs: the profile document, the table's columns as text in the
+      same order, the settings that produced it, the names already
+      declared, and the questions already asked so no column appears
+      twice.
+    - Determinism: a fixed function of the arguments.
+    - Errors raised: none.
+    - Boundary: opens no file, prints nothing, and no cell of any
+      column appears in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    spoken: list[str] = []
+    for question in asked:
+        spoken = spoken + [question.name]
+    listed: list[Question] = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or name in spoken:
+            position = position + 1
+            continue
+        if position >= len(table_columns):
+            position = position + 1
+            continue
+        present, _absent = taxonomy.split_missing(
+            table_columns[position], settings
+        )
+        if role in _MEASURED_ROLES:
+            listed = listed + [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_LISTED,
+                    "read as a measurement, so its description carries "
+                    "statistics over these values",
+                    _numeric_choices(
+                        ANSWER_MEASUREMENT,
+                        role,
+                        settings.small_cell_floor,
+                    ),
+                    ANSWER_MEASUREMENT,
+                )
+            ]
+        elif role in _LABELLED_ROLES and _looks_like_a_code(present):
+            listed = listed + [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_LISTED_AS_CODES,
+                    "already read as codes: "
+                    + _publishes_under(
+                        ANSWER_KEEP, role, settings.small_cell_floor
+                    ),
+                    _numeric_choices(
+                        ANSWER_CODE, role, settings.small_cell_floor
+                    ),
+                    ANSWER_CODE,
+                )
+            ]
+        position = position + 1
+    return listed
+
+
+# The one question the checklist puts, in the words every surface uses.
+CHECKLIST_QUESTION = (
+    "Which of these columns hold codes or record numbers rather than "
+    "measurements?"
+)
+# The same question as a screen heading. Written out rather than
+# upper-cased at the call site: the offline audit reads a single
+# named attribute of a module and no deeper, so `CHECKLIST_QUESTION
+# .upper()` is two steps past `asking` and is refused (plan D6.2).
+CHECKLIST_HEADING = (
+    "WHICH OF THESE COLUMNS HOLD CODES OR RECORD NUMBERS RATHER "
+    "THAN MEASUREMENTS?"
+)
+# What the file is, said on its own face. It is real-derived material
+# like the five files a full run leaves behind: it names columns, it
+# counts cells, and it says what each column's shape is. It carries no
+# value of the table, and that is a narrower promise than being
+# anonymous (amendment A-P4-58).
+FILE_CARRIES = (
+    "This file was written from your real table. It names your columns, "
+    "counts their cells and describes the shape of what they hold. It "
+    "carries no value of your table. Keep it under the same rules your "
+    "institution applies to the table itself."
+)
+HOW_TO_ANSWER = (
+    "Write one of the answers offered beside 'your_answer' for any "
+    "column you want to correct, save the file, and run synthtwin "
+    "profile again on the same table naming this file after --answers. "
+    "Columns you leave blank keep the reading named in 'read_as_now'."
+)
+
+
+def _question_entry(question: Question) -> "dict[str, object]":
+    """One question as the plain data both the file and a screen show."""
+    offered: list[dict[str, str]] = []
+    for choice in question.choices:
+        offered = offered + [
+            {
+                "answer": choice.answer,
+                "means": choice.means,
+                "then_the_description_publishes": choice.publishes,
+            }
+        ]
+    return {
+        "column": question.name,
+        "what_synthtwin_saw": question.shape,
+        "read_as_now": question.taken,
+        "answers_you_can_give": offered,
+        "your_answer": "",
+    }
+
+
+def questions_document(
+    table_name: str,
+    asked: "list[Question]",
+    listed: "list[Question]",
+) -> "dict[str, object]":
+    """The questions file's whole content, as plain data.
+
+    TWO SECTIONS, AND THE ORDER IS THE POINT (amendment A-P4-58; owner
+    ruling 2026-09-10). `asked` holds the columns synthtwin could read
+    more than one way and did not guess about -- a real question, one
+    per column, each with what was seen and what each answer would
+    publish. `checklist` holds every column read as a number that
+    raised no question at all, under ONE question, because nothing in
+    their values can single them out: a register of concept
+    identifiers, a set of month codes and a column of ages are written
+    identically, and the rule that tried to tell them apart was deleted
+    for guessing.
+
+    The asked section comes first because it is the shorter one and the
+    one with a real question in it. The checklist is longer and is read
+    the way a person reads a list of their own columns.
+
+    Guarantees:
+
+    - Inputs: the table's name and the two lists of questions.
+    - Determinism: a fixed function of the arguments, in the table's
+      own column order.
+    - Errors raised: none.
+    - Boundary: **no value of the table appears anywhere in the
+      result.** Every question carries a shape, which is a count, a
+      width or a separator, and never a cell.
+    """
+    asked_entries: list[dict[str, object]] = []
+    for question in asked:
+        asked_entries = asked_entries + [_question_entry(question)]
+    listed_entries: list[dict[str, object]] = []
+    for question in listed:
+        listed_entries = listed_entries + [_question_entry(question)]
+    return {
+        "what_this_is": (
+            "synthtwin could not settle these columns from their values "
+            "alone, so it is asking you rather than guessing."
+        ),
+        "what_this_file_carries": FILE_CARRIES,
+        "how_to_answer": HOW_TO_ANSWER,
+        "table": table_name,
+        "asked": asked_entries,
+        "checklist": {
+            "question": CHECKLIST_QUESTION,
+            "why": (
+                "Nothing in these columns' values can tell a coding "
+                "system from a measurement -- a code register and a "
+                "column of counts are written identically -- so they "
+                "raised no question of their own. Only you know which "
+                "is which."
+            ),
+            "columns": listed_entries,
+        },
+    }
