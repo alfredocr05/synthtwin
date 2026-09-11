@@ -4478,8 +4478,8 @@ declaration for only one of them.
   removal in that edit. Closing it means an inventory of governance
   node identities compared set against set, not a total.
 
-- **R-P4-70 — OPEN (opened 2026-08-31 while closing R-P4-53;
-  PRE-EXISTING).** THE TWIN'S OWN REPORT TELLS A READER THE PERSON'S
+- **R-P4-70 — CLOSED 2026-09-10 by landing L19** (opened 2026-08-31
+  while closing R-P4-53; PRE-EXISTING).** THE TWIN'S OWN REPORT TELLS A READER THE PERSON'S
   "NO VALUE" SPELLING DID NOT TRAVEL, AND IT DID. `rendering.
   _missing_lines` prints, for every column with an absent cell, "The
   twin writes every one of them as an empty cell, so how your table
@@ -4507,15 +4507,29 @@ declaration for only one of them.
   states everywhere depends on a person knowing which file carries
   what.
 
-  Not fixed here for two reasons, both of them about scope rather than
-  difficulty. The sentence has to distinguish the spellings the twin
-  REPRODUCES from those it writes blank, and which of the two a
-  spelling is, is a generator rule (`missing_by_source` versus the
-  judged-stand-in exception), so the report needs that split rather
-  than a reworded sentence. And moving any line of the twin's report
-  moves the five golden reports, which this branch is holding still on
-  purpose until the oracle rebuild settles. It goes with the landing
-  that touches them.
+  **CLOSED, AND THE SPLIT IS ASKED OF THE WRITE RULE ITSELF.**
+  `generation.spellings_the_twin_reproduces` is published for this,
+  because the report working the same question out a second way could
+  disagree with the file it describes. Three things moved. The
+  per-column paragraph says how many of the cells the twin WRITES the
+  way the table wrote them and how many it leaves empty, and says what
+  that buys: code filtering on the person's own word for "no value"
+  does the same thing on the twin as on the table. Every published
+  spelling line is marked one by one -- `-9.99: 20 cell(s) -- the twin
+  writes this spelling in all of them` -- because a reader deciding
+  what their twin carries needs it against the spelling rather than as
+  a total. And the section heading stopped naming those spellings among
+  the things "no twin can carry".
+
+  **THE HEADING'S NEW PARAGRAPH IS PRINTED ONLY WHERE IT IS TRUE OF
+  THAT DESCRIPTION.** Printed flatly it would tell the reader of a
+  table whose holes are all blanks or judged stand-ins that their twin
+  carries spellings while every column block under it said the
+  opposite -- one page, two answers, which is the defect R-P4-152
+  closes on the same day. `tests/test_p4r70_the_report_says_what_the_
+  twin_carries.py` holds both halves, including the judged-stand-in
+  case the old sentence fitted, which is the case that kept the defect
+  alive.
 
 - **R-P4-66 — OPEN (opened 2026-08-31 by adversarial round P4-A1-R5,
   item 6; PRE-EXISTING).** A CI CONTROL CAN REMOVE ITSELF UNNOTICED.
@@ -4572,14 +4586,28 @@ declaration for only one of them.
   keeping the codes, and the screen notice beside it had always said
   `--code`. One answer per page now.)
 
-  **AND NF35 STILL CARRIES THE FLAW NF43 SHED** (landing L16). The
-  affixed role's standing remark proposes `--identifier` in the same
-  words NF43 used, on a column whose codes `--code` would keep. It was
-  NOT repaired with NF43 because it is quoted inside a frozen
-  reference vector (`tests/reference/generation-branch-vectors.json`),
-  so moving it moves committed bytes and the independent oracle in the
-  same commit — which is the code-wording landing's work under the
-  one-week close, not this one's. Named here rather than found later.
+  **NF35's HALF IS CLOSED 2026-09-10 BY LANDING L19.** The affixed
+  role's standing remark proposed `--identifier` in the same words NF43
+  used, on a column whose codes `--code` keeps: a person told "if these
+  are codes rather than measurements, run the command again with
+  --identifier", doing exactly as they were told, published no value of
+  the column at all and threw away the distribution they were trying to
+  keep. It names `--code` first now, with what it publishes, and
+  `--identifier` after it for the column that really is a record
+  number — the same shape NF43 took at landing L16.
+
+  **FOUR COPIES OF ONE SENTENCE MOVED IN ONE COMMIT**, which is why it
+  waited: contract NF35's clause, the producer's rendering in
+  `taxonomy.rendered`, the LOADER's `AFFIXED_REMARK_PARTS` (invariant
+  AF-R refuses a block whose remark is not that sentence, so a producer
+  change alone makes every affixed description unloadable), and the
+  independent oracle in
+  `tools/reference/make_generation_reference_vectors.py`. The frozen
+  vector was REGENERATED rather than edited, the proof layer proved the
+  same 544 numbers across 12 cases, exactly one string moved in it, and
+  the provenance manifest moved with it. The golden description and
+  report digests moved by that one string; no cell, count, statistic,
+  label, role or spelling changed.
 
   **AND THIS EXCEPTION HAS AN ARITHMETIC THAT IS NOW VISIBLE** (review
   round 1 of landing L16, item 6). Because both rows state the arity
@@ -5960,8 +5988,8 @@ takes a slot outside every barred BIN instead.
   a date column no rule recognises, a measurement column that reads as
   two numbers -- are the same shape and would be answered the same way.
 
-- **R-P4-152 — OPEN (opened 2026-09-04 by review round 8 of landing
-  L8, item 1).** THE TWIN'S REPORT NAMES A FACT AS UNMET AND AS INSIDE
+- **R-P4-152 — CLOSED 2026-09-10 by landing L19** (opened 2026-09-04
+  by review round 8 of landing L8, item 1).** THE TWIN'S REPORT NAMES A FACT AS UNMET AND AS INSIDE
   ITS RANGE, ON THE SAME PAGE — AND IT DOES THIS ON EVERY ROLE, NOT
   ONLY THE NEW ONE.
 
@@ -5985,13 +6013,32 @@ takes a slot outside every barred BIN instead.
   EVERY role that recounts a count with a window -- numeric, label,
   affixed, joined, clock, and this one.
 
-  **WHAT THE CHOICE IS.** Either a deviation is raised only where the
-  measurement is OUTSIDE the window (which is what `_bound_notes`
-  already does for approximated facts, so the two would agree), or the
-  deviation stays and says in its own words that the shortfall is
-  authorized. The first is cleaner and is a report change across six
-  roles; the second is smaller and leaves two sections saying
-  different things about one number.
+  **CLOSED ON THE FIRST OF THOSE TWO, AND IN ONE PLACE.** A deviation
+  means the twin does not hold what the description published, which is
+  the meaning `_bound_notes` has always used; for an approximated fact
+  the publication IS the range. `_not_settled_by_a_bound` drops a
+  deviation for a fact whose approximation record landed inside its
+  bound, applied once where the two kinds of note are assembled rather
+  than in each of the six roles that recount a count with a window, so
+  the filter cannot drift from itself.
+
+  **AND IT TOOK A SECOND MEASUREMENT TO GET RIGHT, which is worth
+  recording because the first version was wrong in the quiet
+  direction.** Dropping on `inside` alone also removed `recorded_on`'s
+  two counts from the demonstration report: that column publishes
+  `n_distinct` 84, the twin holds 224, and its bound runs 106 to 240.
+  The twin landed inside what the method promises and nowhere near what
+  the description says, because NONE of these bounds is a margin around
+  the published value -- each is worked out from the description and
+  the size of the column, and can lie wholly to one side of it. A
+  reader grouping rows by that column meets 224 groups where the real
+  table has 84, and that is a fact the twin did not hold. The filter
+  asks `covers_published` as well, so a deviation is settled only where
+  landing inside the range MEANS the published fact was honoured.
+  Measured on the demonstration report: `seen_at` (published 121, bound
+  62 to 122, achieved 122) leaves the deviations; `recorded_on` keeps
+  both of its. `tests/test_p4r152_one_page_one_answer.py` holds both
+  directions.
 
   **It is a REPORT question and not a data question:** no count, no
   cell and no published fact moves either way.

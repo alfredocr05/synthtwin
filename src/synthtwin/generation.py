@@ -7373,6 +7373,50 @@ def _absent_cells(
     return written[: column.n_missing]
 
 
+def spellings_the_twin_reproduces(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """Which absent spellings the twin WRITES, and which it leaves blank.
+
+    THE SPLIT THE TWIN'S OWN REPORT NEEDS (residual R-P4-70). Version 5
+    wrote every absent cell empty, and the report said so in one
+    sentence. Version 6 writes each published `missing_by_source`
+    spelling at its count and keeps only the judged passes' cells blank
+    (C6-115, C6-116) -- and that sentence was not moved with the rule,
+    so the report told a researcher their own `NA`, `-9.99` or
+    `Not recorded` had stayed behind in the description while the twin
+    they were about to move held it, character for character, at its
+    published count.
+
+    It is published here rather than recomputed in the renderer because
+    it is the WRITE rule: `_absent_cells` decides what the twin holds,
+    and a report that worked the same question out a second way could
+    disagree with the file it describes. One rule, two readers.
+
+    Guarantees:
+
+    - Inputs: one loaded column block and the description it came from.
+    - Determinism: a fixed function of the two, both tuples sorted, so
+      the report's bytes stay a pure function of the description.
+    - Errors raised: none.
+    - Boundary: reads the description only. No table, no file, no
+      clock, no random source.
+
+    Returns the reproduced spellings first and the ones left blank
+    second. A spelling in neither tuple does not exist: every key of
+    `missing_by_source` is in exactly one of them.
+    """
+    comma = _declared_a_decimal_comma(column, profile)
+    reproduced: list[str] = []
+    left_blank: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _a_judged_pass_put_it_there(column, spelling, comma):
+            left_blank += [spelling]
+        else:
+            reproduced += [spelling]
+    return tuple(reproduced), tuple(left_blank)
+
+
 def _a_judged_pass_put_it_there(
     column: contract.ColumnBlock,
     spelling: str,
@@ -17968,6 +18012,23 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # method G12 fixes for it. One that landed outside its bound is
         # a fact the twin did not hold, so it joins the deviations too.
         approximated_here = _approximations(column, each, measured)
+        # AND A FACT THAT LANDED INSIDE ITS OWN BOUND IS NOT A FACT THE
+        # TWIN MISSED (residual R-P4-152). The two sections disagreed
+        # about one number on the same page: the deviations section said
+        # `n_distinct 100 -> 94` and the approximations section said
+        # `n_distinct`, published 100, achieved 94, INSIDE ITS RANGE. A
+        # reader was told a fact was not met and, four lines later, that
+        # the measurement landed where the method said it would.
+        #
+        # `_bound_notes` below has always raised a deviation only where
+        # an approximated fact landed OUTSIDE its bound, which is the
+        # right convention: a deviation means the twin does not hold
+        # what was published. The recount notes were written before the
+        # approximation records existed and kept the older, flatter one.
+        # They agree now, and they agree HERE rather than in each of the
+        # six roles that recount a count with a window, because one
+        # filter cannot drift from itself.
+        notes = _not_settled_by_a_bound(notes, approximated_here)
         notes = notes + _bound_notes(approximated_here)
         approximated = approximated + approximated_here
         deviations = deviations + notes
@@ -21654,6 +21715,67 @@ def _approximations(
     if isinstance(facts, contract.LabelFacts):
         return _label_approximations(column, facts, written)
     return []
+
+
+def _not_settled_by_a_bound(
+    notes: "list[Deviation]", measured: "list[Approximation]"
+) -> "list[Deviation]":
+    """Drop a deviation for a fact that landed inside its own bound.
+
+    WHY A DEVIATION HAS TO MEAN ONE THING (residual R-P4-152). The
+    twin's report has two sections about a fact whose value moved: the
+    deviations, which say the twin does not hold what the description
+    published, and the approximations, which show how close an
+    approximate fact came and whether it landed inside the range the
+    method promises. A fact inside its range DID hold what was
+    published -- the publication is the range -- so naming it in both
+    sections told a reader two different things about one number.
+
+    The fact is not silenced: `_bound_notes` raises it as a deviation
+    the moment it lands OUTSIDE, and the approximations section prints
+    it either way with the published value, the achieved value and both
+    ends of the bound. What is dropped is the second, contradictory
+    telling.
+
+    Guarantees:
+
+    - Inputs: one column's deviations and its approximation records.
+    - Determinism: a fixed function of the two, order preserved, so the
+      report's bytes stay a pure function of the description and seed.
+    - Errors raised: none.
+    - Boundary: reads the two lists and nothing else.
+
+    A fact with no approximation record is never dropped, which is what
+    keeps an exactly-published count's shortfall as loud as it was: a
+    count nothing authorized to move is a count the twin missed.
+    """
+    # AND THE BOUND MUST CONTAIN THE PUBLISHED VALUE, which `inside`
+    # alone does not say. None of these bounds is a margin around the
+    # published value: each is worked out from the description and the
+    # size of the column, so a bound can lie wholly to one side of the
+    # number printed beside it. Measured on the demonstration table:
+    # `recorded_on` publishes `n_distinct` 84, the twin holds 224, and
+    # the bound runs 106 to 240 -- the twin landed inside what the
+    # method promises AND nowhere near what the description says. A
+    # reader grouping rows by that column meets 224 groups where the
+    # real table has 84, and that is a fact the twin did not hold.
+    #
+    # So a deviation is settled only where landing inside the range
+    # MEANS the published fact was honoured, which is exactly what
+    # `covers_published` answers. Dropping it on `inside` alone made
+    # the report quieter rather than honester, which is the defect this
+    # filter exists to avoid rather than to commit.
+    settled = {
+        (found.column, found.fact)
+        for found in measured
+        if found.inside and found.covers_published
+    }
+    kept: list[Deviation] = []
+    for note in notes:
+        if (note.column, note.fact) in settled:
+            continue
+        kept += [note]
+    return kept
 
 
 def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":

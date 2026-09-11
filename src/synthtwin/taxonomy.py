@@ -1406,14 +1406,29 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # It names the COUNTED cells, never "every value": the role
         # tolerates stragglers up to the parse line, so a sentence
         # about every value would be false of them.
+        # AND IT NAMES `--code` FIRST (residual R-P4-72, landing L19).
+        # It named `--identifier` alone, which is the OPPOSITE
+        # declaration: a person told "if these are codes, run with
+        # --identifier" and doing as they were told published no value
+        # of the column at all -- throwing away the distribution of
+        # codes that is the whole reason the column was declared. NF43
+        # shed this flaw at landing L16 and this sentence kept it,
+        # because it is quoted inside a frozen reference vector and
+        # moving it moves committed bytes. One answer per page now, and
+        # each route says what it does.
         return (
             f"{_whole(arguments, 2)} of this column's values are "
             f"{_affix_shape(arguments, 0, 1)}, and synthtwin described "
             f"those numbers as quantities: their average, their spread "
             f"and their ends are in this profile. If these are codes "
             f"rather than measurements, run the command again with "
-            f"--identifier and no value of this column will be "
-            f"published at all"
+            f"--code NAME, where NAME is this column's name, and no "
+            f"average will be published over them; each code a "
+            f"smallest-group's worth of rows share is kept exactly as "
+            f"written, with the number of rows that carried it. If "
+            f"instead they are record numbers nothing should publish, "
+            f"--identifier NAME leaves them out of the profile "
+            f"altogether"
         )
     if form == REMARK_OUT_OF_RANGE:
         return (

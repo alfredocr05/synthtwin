@@ -999,13 +999,34 @@ def _range_miss_lines(found: generation.Approximation) -> "list[str]":
 
 
 def _missing_lines(
-    column: contract.ColumnBlock, floor: int
+    column: contract.ColumnBlock, floor: int, profile: contract.Profile
 ) -> "list[str]":
-    """How the real table wrote its absent cells, which the twin does not.
+    """How the real table wrote its absent cells, and which the twin holds.
 
-    Every absent cell of the twin is written as an empty cell, so the
-    spellings and the reasons behind them are recorded here and nowhere
-    else (residual R-P2-2).
+    THE PROMISE THIS DOCSTRING USED TO MAKE WAS WITHDRAWN BY THE CODE
+    AND NOT BY THE WORDS (residual R-P4-70). It said every absent cell
+    of the twin is written empty, so the spellings live here and
+    nowhere else, citing residual R-P2-2. That was true of version 5.
+    **P4-D6.1 closed R-P2-2**: version 6 writes each published
+    `missing_by_source` spelling into the twin at its count, keeping
+    blank only the cells a judged pass put there (C6-115, C6-116) --
+    and this sentence stayed behind.
+
+    IT IS A DISCLOSURE SENTENCE, WHICH IS WHY IT MATTERED. Measured on
+    four twins at seed 7: a declared `-9.99` column came out with 0
+    blank cells and 20 wearing `-9.99`; a joined column declaring
+    `-1/-1` the same; an affixed column declaring `EUR 0.00` the same.
+    All three printed a sentence telling the researcher their own
+    spelling had stayed behind in the description, while the twin they
+    were about to move held it twenty times over, character for
+    character. The one case that survived the measurement was a judged
+    `-999` stand-in, which C6-116 does write blank -- the one case the
+    sentence still fitted.
+
+    So the split is asked of `generation.spellings_the_twin_reproduces`,
+    which is the WRITE rule itself rather than a second reading of it,
+    and it is marked per spelling below rather than totalled: a reader
+    deciding what their twin carries needs it against the spelling.
 
     TWO GROUPINGS OF ONE SET OF CELLS, SAID TO BE THAT (review of the
     shipped reports, 2026-08-15). `missing_by_source` and
@@ -1043,21 +1064,54 @@ def _missing_lines(
     """
     if not column.n_missing:
         return []
-    lines = [
-        "  The twin writes every one of them as an empty cell, so how your",
-        "  table wrote them is here rather than in the twin. The two",
-        f"  groups below are two groupings of the same {column.n_missing} cell(s) --",
+    # WHICH OF THESE CELLS THE TWIN ACTUALLY HOLDS (residual R-P4-70).
+    # The rule is the generator's and is asked of the generator, so the
+    # report cannot disagree with the file it describes.
+    reproduced, _blank = generation.spellings_the_twin_reproduces(
+        column, profile
+    )
+    carried = 0
+    for spelling in reproduced:
+        carried = carried + column.missing_by_source[spelling]
+    if carried == column.n_missing:
+        lines = [
+            "  The twin WRITES every one of these cells the way your table",
+            "  wrote them, spelling for spelling, rather than leaving them",
+            "  empty. Code that filters on your own word for 'no value'",
+            "  does the same thing on the twin as on your table -- and the",
+            "  twin carries that word out of this run, so it travels under",
+            "  the same rules the description does.",
+        ]
+    elif carried:
+        lines = [
+            f"  The twin WRITES {carried} of these cells the way your table",
+            "  wrote them, spelling for spelling, and leaves the other",
+            f"  {column.n_missing - carried} as empty cells; which is which",
+            "  is marked below. For the spellings it writes, code that",
+            "  filters on your own word for 'no value' does the same thing",
+            "  on the twin as on your table -- and the twin carries those",
+            "  words out of this run, so they travel under the same rules",
+            "  the description does.",
+        ]
+    else:
+        lines = [
+            "  The twin writes every one of them as an empty cell, so how",
+            "  your table wrote them is here rather than in the twin.",
+        ]
+    lines = lines + [
+        f"  The two groups below are two groupings of the same "
+        f"{column.n_missing} cell(s) --",
         "  once by what your table wrote in them, once by the reason each",
         "  was counted absent -- so their numbers are not added together.",
         "  By what your table wrote in them:",
     ]
-    lines = lines + _by_spelling_lines(column, floor)
+    lines = lines + _by_spelling_lines(column, floor, profile)
     lines = lines + ["  By the reason each was counted absent:"]
     return lines + _by_reason_lines(column, floor)
 
 
 def _by_spelling_lines(
-    column: contract.ColumnBlock, floor: int
+    column: contract.ColumnBlock, floor: int, profile: contract.Profile
 ) -> "list[str]":
     """The absent cells grouped by the spelling the table wrote.
 
@@ -1082,9 +1136,23 @@ def _by_spelling_lines(
                 f"written in them"
             )
         ]
+    # MARKED ONE BY ONE, because the split is per spelling and a reader
+    # deciding what their twin carries needs it against the spelling
+    # rather than as a total (residual R-P4-70). A spelling a judged
+    # pass put here stays blank in the twin by contract C6-116; every
+    # other published spelling is written at its count.
+    reproduced, _blank = generation.spellings_the_twin_reproduces(
+        column, profile
+    )
     for spelling in sorted(column.missing_by_source):
         count = column.missing_by_source[spelling]
-        lines = lines + [f"    {_shown(spelling)}: {count} cell(s)"]
+        if spelling in reproduced:
+            carries = "the twin writes this spelling in all of them"
+        else:
+            carries = "the twin leaves these cells empty"
+        lines = lines + [
+            f"    {_shown(spelling)}: {count} cell(s) -- {carries}"
+        ]
     if pooled:
         lines = lines + [
             f"    {pooled} cell(s) whose spelling is not named here:",
@@ -1274,11 +1342,29 @@ def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
     ]
 
 
+def _any_spelling_travels(profile: contract.Profile) -> bool:
+    """Whether any column of this description has a spelling the twin writes.
+
+    Asked of the whole document because the sentence it governs is
+    printed once for the whole document. A page that announced carried
+    spellings over a table whose holes are all blanks would contradict
+    every column block under it (residual R-P4-70).
+    """
+    for column in profile.columns:
+        reproduced, _blank = generation.spellings_the_twin_reproduces(
+            column, profile
+        )
+        if reproduced:
+            return True
+    return False
+
+
 def _column_lines(
     column: contract.ColumnBlock,
     outcome: generation.ColumnOutcome,
     notes: "list[str]",
     floor: int,
+    profile: contract.Profile,
 ) -> "list[str]":
     """One column's block: what it holds, and what only the description has.
 
@@ -1336,7 +1422,7 @@ def _column_lines(
         ]
     for note in notes:
         lines = lines + [f"  Held back from the description: {_shown(note)}"]
-    lines = lines + _missing_lines(column, floor)
+    lines = lines + _missing_lines(column, floor, profile)
     lines = lines + _sentinel_lines(column)
     lines = lines + _datetime_lines(column)
     if column.n_sentinel_candidates_unpublished:
@@ -1642,11 +1728,33 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "Where your description publishes values, the twin writes them and",
         "reproduces the counts. Where it publishes none, the cells are",
         "synthtwin's own -- each block below says which of its cells are",
-        "which. What no twin can carry -- how your table wrote the cells it",
-        "left empty, what was held back as too rare to publish, how",
-        "synthtwin read each column -- is recorded here, once per column.",
+        "which. What no twin can carry -- what was held back as too rare",
+        "to publish, and how synthtwin read each column -- is recorded",
+        "here, once per column.",
         "",
     ]
+    # AND THE EMPTY CELLS LEFT THAT LIST (residual R-P4-70). The
+    # sentence above named "how your table wrote the cells it left
+    # empty" among the things no twin can carry, which was true of
+    # version 5 and stopped being true when P4-D6.1 made the twin write
+    # each published spelling at its count. A reader deciding which
+    # file carries their own word for "no value" was told the wrong
+    # one.
+    #
+    # SAID ONLY WHERE IT IS TRUE OF THIS DESCRIPTION. Printed flatly it
+    # would tell the reader of a table whose holes are all blanks or
+    # judged stand-ins that their twin carries spellings, while every
+    # column block below said the opposite -- one page, two answers,
+    # which is the defect this landing is also closing elsewhere.
+    if _any_spelling_travels(profile):
+        lines = lines + [
+            "How your table wrote the cells it left empty is recorded here",
+            "too -- and this twin CARRIES some of those spellings rather",
+            "than leaving them behind, so each block below marks, spelling",
+            "by spelling, which ones it writes and which it leaves as",
+            "empty cells.",
+            "",
+        ]
     # The description's columns and the twin's outcomes are the same
     # list in the same order -- the schema order the contract fixes and
     # the generator consumes (S3) -- so the two are walked by position.
@@ -1657,6 +1765,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
             twin.outcomes[place],
             _notes_for(profile, column.name),
             profile.settings.small_cell_floor,
+            profile,
         )
     # The count of what this twin invented, after the blocks that name it
     # column by column and before the page turns to what the report is

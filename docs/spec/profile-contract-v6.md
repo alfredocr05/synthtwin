@@ -1915,8 +1915,24 @@ many present cells actually wore the pair.
 > «3» of this column's values are written as «1», a number, then «2»,
 > and synthtwin described those numbers as quantities: their average,
 > their spread and their ends are in this profile. If these are codes
-> rather than measurements, run the command again with --identifier
-> NAME and no value of this column will be published at all.
+> rather than measurements, run the command again with --code NAME,
+> where NAME is this column's name, and no average will be published
+> over them; each code a smallest-group's worth of rows share is kept
+> exactly as written, with the number of rows that carried it. If
+> instead they are record numbers nothing should publish, --identifier
+> NAME leaves them out of the profile altogether.
+
+**IT NAMES `--code`, NOT `--identifier`** (residual R-P4-72, landing
+L19). This sentence was written before `--code` existed (amendment
+A-P4-38, 2026-08-25) and named the OPPOSITE declaration: a person told
+"if these are codes, run with --identifier", doing exactly as they were
+told, published no value of the column at all — throwing away the
+distribution of codes that is the reason for declaring it. NF43 shed
+the same flaw at landing L16 and this one kept it, because it is quoted
+inside a frozen reference vector
+(`tests/reference/generation-branch-vectors.json`), so repairing it
+moves committed bytes and the independent oracle in the same commit.
+That is what landing L19 did.
 
 **Carried by EVERY affixed-number column, without condition.** No test
 of the values can separate an opaque token family from a measurement —

@@ -683,8 +683,20 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-72, and ONE
+# STRING OF ONE COLUMN moved. `dose`'s affixed remark (contract NF35)
+# told its reader "if these are codes rather than measurements, run the
+# command again with --identifier and no value of this column will be
+# published at all" -- which is the OPPOSITE declaration: `--code`
+# keeps every code with the rows that carried it, `--identifier`
+# publishes none of them, so a person doing exactly as the sentence
+# said threw away the distribution they were trying to keep. NF43 shed
+# the same flaw at landing L16; this one was pinned by a frozen
+# reference vector and had to move with the oracle, which is what this
+# landing did. No count, statistic, label, role, spelling or cell
+# changed on `dose` or on any other column.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "fc3452fe2ac65f523a5b21807c3aa43e43acfd1e05700382d9f6048c0cc3676d"
+    "0f054c7189ba838402ec78a021c617e10abe6029823b2268f26a1d2893164e81"
 )
 
 
@@ -1115,8 +1127,51 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # is named among them. ONE PARAGRAPH moved and it is that one: no
 # record, count, statistic, label, role, spelling or verdict changed,
 # and the twin's own digest above held.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-70, and the
+# report SAYS MORE than it did -- one sentence of it was FALSE and is
+# now true. The section heading named "how your table wrote the cells
+# it left empty" among the things no twin can carry, and every column
+# block said the twin writes every absent cell empty. Both were true of
+# contract version 5; P4-D6.1 made the twin write each published
+# `missing_by_source` spelling at its count and neither sentence moved
+# with it. The heading now excludes them and, where some spelling of
+# THIS description travels, says so; every published spelling line says
+# which way it goes. On the demonstration table every hole is a blank
+# or a judged `-999`, so no spelling travels and the per-column
+# sentence is unchanged in substance -- what moved is the heading, the
+# per-spelling marking, and the wrapping of one paragraph. No count,
+# statistic, label, role, spelling or verdict changed, and the twin's
+# own digest above held.
+# RE-RECORDED AGAIN 2026-09-10, same landing, for residual R-P4-152,
+# and this one makes the report say LESS in two places. Both removals
+# were the CONTRADICTORY telling of a fact the page states twice.
+# `seen_at` printed `n_distinct 121 -> 122` among the facts the twin
+# could not meet, and four lines later printed the same fact as
+# "allowed anywhere from 62 to 122: inside the range". For an
+# approximated fact the publication IS the range, so a measurement
+# inside a range that CONTAINS the published value is the fact held.
+# It is still printed, with the published value, the achieved value and
+# both ends of the bound; what is gone is the second, opposite reading
+# of it.
+#
+# AND `recorded_on` KEPT ITS TWO, which is what makes this a repair
+# rather than a silencing: it publishes 84, the twin holds 224, and its
+# bound runs 106 to 240 -- the twin landed inside what the method
+# promises and nowhere near what the description says, so a reader
+# grouping rows by that column still meets the fact that they will see
+# 224 groups where the real table has 84.
+#
+# The R-P4-70 paragraph added above also leaves this page: nothing in
+# the demonstration description travels into its twin -- every hole is
+# a blank or a judged `-999` -- so the sentence saying spellings are
+# carried is not printed here. No count, statistic, label, role,
+# spelling or verdict changed, and the twin's own digest above held.
+# RE-RECORDED A THIRD TIME 2026-09-10, same landing, for residual
+# R-P4-72: the report quotes `dose`'s remark back as "Note from the
+# description", so the corrected NF35 sentence moves this digest with
+# the description's. Nothing else on the page changed.
 GOLDEN_REPORT_SHA256 = (
-    "daa92d48064c51c266fc661a857fe0c20d61d5fc86eb3614bf137287d7d180c1"
+    "0e15720a05f16d7c44bcd47d42fed9201a5e0f0a4b2332a14ff86014d12aa3da"
 )
 
 

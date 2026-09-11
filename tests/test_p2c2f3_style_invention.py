@@ -216,11 +216,43 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
     published = loaded.columns[0].facts.n_distinct_values
     held = len({float(cell) for cell in written})
     assert held < published, (held, published)
+    # THE SHORTFALL SPEAKS, AND SINCE LANDING L19 IT SPEAKS ONCE
+    # (residual R-P4-152). This named `n_distinct` and
+    # `n_distinct_folded` among the facts the twin could not meet.
+    # Both are APPROXIMATED facts with a bound of 71 to 74 that
+    # contains the published 74, and the twin holds 71 -- inside what
+    # the method promises -- so the page also printed each of them,
+    # four lines later, as "inside the range". A reader was told a fact
+    # was not met and that the measurement landed where the method said
+    # it would.
+    #
+    # What carries the shortfall now is `n_distinct_values`, which
+    # counts different NUMBERS, has no window at all, and says the
+    # thing a person acts on: code that groups rows by this column
+    # meets a different number of groups here than on the real table.
+    # The point of review item P2-C2-F4 is kept -- the shortfall is
+    # named, with the range beside it -- and it is no longer named
+    # twice with the two tellings disagreeing.
     named = [
         note.fact for note in twin.deviations
         if note.fact in ("n_distinct", "n_distinct_folded")
     ]
-    assert named == ["n_distinct", "n_distinct_folded"]
+    assert named == []
+    assert "n_distinct_values" in [note.fact for note in twin.deviations], (
+        "the shortfall still speaks, in the fact no window authorizes "
+        "to move"
+    )
+    bounded = {
+        found.fact: found
+        for found in twin.approximations
+        if found.fact in ("n_distinct", "n_distinct_folded")
+    }
+    assert sorted(bounded) == ["n_distinct", "n_distinct_folded"]
+    for found in bounded.values():
+        assert found.inside and found.covers_published, (
+            "and each is printed with the range it was allowed, which "
+            "is why naming it as unmet as well was the contradiction"
+        )
 
 
 def test_a_small_whole_number_column_now_reaches_its_count(

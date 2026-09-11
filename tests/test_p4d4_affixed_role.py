@@ -277,13 +277,19 @@ def test_the_written_out_literals_are_the_tuple_beside_them(
     The offline audit refuses a method call whose argument it cannot
     resolve, so the fragment tests are written out one call at a time
     rather than walked out of `AFFIXED_REMARK_PARTS`. Two lists of the
-    same four phrases is two lists that can stop being the same, so the
+    same phrases is two lists that can stop being the same, so the
     tuple is checked against what the function actually accepts: a
     sentence built from the tuple passes, and one with any single
     fragment removed does not.
+
+    FIVE SINCE LANDING L19 (residual R-P4-72). The fourth fragment
+    named `--identifier` as the answer for a column of codes, which is
+    the declaration that publishes none of them; it now names `--code`
+    first and `--identifier` after it, so the sentence carries two
+    routes and this tuple carries two fragments for them.
     """
     parts = contract.AFFIXED_REMARK_PARTS
-    assert len(parts) == 4
+    assert len(parts) == 5
     clause = contract._affix_clause("$", "")
     built = f"100 {parts[0]} {clause}, " + " ".join(parts[1:])
     assert contract._is_the_affixed_remark(built, 100, clause)
