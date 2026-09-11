@@ -33,7 +33,7 @@ where it is measured and point at it from everywhere else.
 | branch | `phase-5-relationships`, cut from `main` after Phase 4 merged. `main` is pull-request only |
 | phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried by name. **Phase 5 — relationships — is CURRENT; its plan is drafted and NOT ratified.** |
 | plan | `docs/plans/phase-5-relationships.md` (revision 1, DRAFT, unreviewed). Phase 4's is `docs/plans/phase-4-columns.md` and its closure section is the register Phase 5 inherits |
-| suite | 4,457 collected; `4406 passed, 51 skipped in 1160.11s (0:19:20)` verbatim, fully green. Four new tests: `tests/test_p5r1_the_grain_clause_is_true.py` |
+| suite | 4,457 collected; `4406 passed, 51 skipped in 1171.61s (0:19:31)` verbatim, fully green. Four new tests: `tests/test_p5r1_the_grain_clause_is_true.py` |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at the closing commit |
 | CI | **runs on every pull request, on five Pythons across Ubuntu and Windows.** A green local suite is not a green CI: the close's last defect was a test that asserted the POSIX outcome on every platform and failed every Windows cell three runs running. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (A-P4-59), `codex exec -m gpt-6-astra -c model_reasoning_effort="high" -s read-only`, launched without checking in. A crash or a silent wrongness in what THAT landing built is repaired; every other item is recorded as a residual and carried |
@@ -53,11 +53,31 @@ revision 1. Nothing may be built from it until it has been through
 adversarial plan review and the owner has taken the four P5-D0
 decisions it names.
 
-**What it proposes:** three of the eight reserved slots, in this order
-— `temporal` (two event columns keep their order), `deterministic` (a
-derived column agrees with what it is derived from), `grain` (what one
-row is). The other five stay `null`. Correlation is deliberately NOT
-first, and the plan says why in terms the owner can overturn.
+**What it proposes, after review round 1 returned REJECT with six
+blocking items and was right about all six:** TWO of the eight reserved
+slots — `temporal` (two event columns keep their order) and
+`deterministic` (a derived column agrees with its sources). `grain`
+LEFT the phase: the identifier role already reproduces the multiset of
+group sizes, so a grain slot would have added no measurable obligation.
+
+**Two owner rulings are taken.** P5-D0.2: a relationship is DECLARED
+and never detected. P5-D0.3 (2026-09-11): cross-column publication is
+governed by **the same floor as everything else** — a relationship is
+published only where it cannot narrow which values met in a row below
+the smallest-group size. That decision had to be taken again rather
+than inherited, because contract version 6 says the marginal floor
+ruling "is a ruling about MARGINAL publication" and that anything
+crossing two columns must be decided on its own facts.
+
+**Three things the plan asserted and had wrong**, corrected in
+revision 3 and recorded in `docs/plans/reviews/`: that an order
+constraint could be imposed on placements that already hold (it cannot
+— a valid pairing exists exactly when the SORTED values agree at every
+rank); that correlation was deferred because it is mechanically hard
+(the opposite — permuting whole columns preserves every marginal and
+changes the correlation, so a formula is the expensive one and the
+deferral stands only on the owner's priority); and that the owner's
+marginal disclosure position covered a cross-column fact.
 
 **Measured on an event table of 300 rows, at seed 7, the day the
 plan was written** — this is the phase in three numbers:
