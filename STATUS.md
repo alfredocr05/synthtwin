@@ -1,6 +1,6 @@
 # synthtwin — where the project stands
 
-*Written 2026-08-18, at commit `95136aa` on branch `phase-3-open-defect-repairs`.*
+*Written 2026-08-18; updated 2026-08-20, on branch `phase-4-plan` (pull request #4, CI green).*
 *Version `0.1.0.dev0` — not yet released.*
 
 This is a plain-language status document. It says what synthtwin is, what
@@ -29,9 +29,9 @@ run the finished code on the real table, inside your safe environment.
 | **0** | the repository, licence, CI, and the security baseline | **done** |
 | **1** | the profiler — read a table, write the description | **done** |
 | **2** | the generator — build the twin from the description alone | **done** |
-| **3** | the whole product through one command, plus the checker | **essentially done**, see below |
-| **4** | every column type, rare categories, missing-data patterns | not started |
-| **5** | relationships between columns | **not started — this is the one that matters most for statistics** |
+| **3** | the whole product through one command, plus the checker | **product done; closed 2026-08-19 without its release** |
+| **4** | every column type, rare categories, missing-data patterns | **closed 2026-09-11**, with sixty-six register entries carried to Phase 5 by name rather than built |
+| **5** | relationships between columns | **next — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
 | **7** | **a screen, so none of this needs a terminal** | not started |
 
@@ -55,6 +55,9 @@ it has to state that limit where a person meets the twin.
 Phase 3 made the three commands work together and added the **quality
 report** — the checker that measures a written file against a
 description and says which of its published obligations the file meets.
+It was closed by owner decision on 2026-08-19 **without the release its
+charter asked for**; the section further down says what that leaves
+owed.
 
 It also went through **thirteen rounds of adversarial review**. Those
 rounds were not cosmetic. Early ones found that the checker would tell
@@ -62,9 +65,11 @@ you a file was fine when it held almost none of its published facts.
 Later ones found a message telling you the description does not keep
 words that it does keep. Every one of those is fixed.
 
-Late in the phase the profile format moved from version 4 to **version 5**,
-so the description now records *how each cell was read* — which word you
-called "missing", which you rescued as real data. That was done now
+Late in the phase the profile format moved from version 4 to **version
+5**, and during Phase 4 to **version 6**, so the description now records
+*how each cell was read* — which word you called "missing", which you
+rescued as real data, how a date whose day and month are both numbers
+was read, and the shape of the writing in each column. That is done now
 because Phase 5 needs it anyway, and changing the format costs nothing
 while nobody outside has the tool.
 
@@ -72,7 +77,7 @@ while nobody outside has the tool.
 
 ## What you have today
 
-Three commands, and a full run leaves **five files**.
+Three commands, and a full run leaves **six files**.
 
 ```
 synthtwin profile   my-table.csv           # writes the description
@@ -84,12 +89,13 @@ synthtwin validate  my-table-profile.json  # writes the quality report
 |---|---|
 | `my-table-profile.json` | the description — the only thing the generator reads |
 | `my-table-profile.txt` | the same description in plain language |
+| `my-table-questions.json` | the columns synthtwin could read more than one way, and the answers you can give. Fill it in and hand it back with `--answers` |
 | `my-table-twin.csv` | **the synthetic twin — the file you develop against** |
 | `my-table-twin-report.txt` | what the twin holds exactly, approximately, and not at all |
 | `my-table-twin-quality.txt` | the checker's report on a file you name |
 
-**All five carry facts computed from your real data.** Your institution's
-rules for real-derived material apply to all five, not to the twin alone.
+**All six carry facts computed from your real data.** Your institution's
+rules for real-derived material apply to all six, not to the twin alone.
 
 ---
 
@@ -113,7 +119,15 @@ Useful options:
 - `--seed 7` — same description and seed always give the same twin
 - `--missing-value -999` — "in my table, `-999` means missing"
 - `--keep-value -999` — "no, `-999` is real data here"
-- `--identifier record_id` — "this column is a code, not a measurement"
+- `--code procedure_code` — "this column is a coding system": every code
+  is kept exactly as written, with how many rows carried it, and no
+  average is published over it
+- `--identifier record_id` — "this column is a record number": nothing
+  of it is published at all
+- `--answers my-table-questions.json` — the questions file from an
+  earlier run, with your answers written in. Each answer becomes the
+  declaration it stands for, so you can settle a whole table's columns
+  by editing one file instead of remembering flags
 - `--smallest-group 11` — the privacy floor; groups smaller than this are
   not named in the description
 
@@ -173,11 +187,71 @@ results.
 
 ## Before this can be released
 
-1. **Push the branch and let CI run.** Seventeen commits have never been
-   through CI. The Windows fix in particular was only ever *emulated*
-   locally — real Windows is the one thing that cannot be checked here.
-2. Merge, once CI is green.
-3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4).
+Phase 3 was closed on 2026-08-19 **without its release**. That was an
+owner decision, and it changes nothing about the list below: the
+release is still owed, still has the same preconditions, and no surface
+here says otherwise. What closing settled is which phase is current, so
+the project stops describing itself as being in a phase it has left.
+
+1. ~~**Push this branch and let CI run.**~~ **Done 2026-08-20.** The
+   Phase 4 commits are pushed as pull request #4 and CI is **green on
+   all twenty jobs** — every test cell on Linux, macOS and Windows for
+   Python 3.10 through 3.14, plus the eight guard jobs. That includes
+   the first real check of the Windows fix Phase 3 made, which until
+   now had only ever been *emulated* locally: five Windows cells, all
+   passing.
+2. Merge, once reviewed. CI is green and the gate passed.
+3. The release steps in `docs/plans/phase-3-product.md` (P3-D8.2–8.4),
+   which need the owner's go decision naming the commit they approve.
+
+**Owner decision 2026-08-20: the release is PARKED until Phase 4 is
+finished and the tool has been used on real tables.** Nothing is lost
+by waiting and something is lost by hurrying: a version number
+published to the package index can never be reused, and this tool is
+about to change substantially. There is also a piece that was never
+built — the release workflow itself, which P3-D8.3 specifies as a
+tag-triggered pipeline with signed-tag verification, reproducible
+builds and the owner's approval before upload. Only `ci.yml` exists,
+and it checks package metadata without ever publishing. Building that
+pipeline is the first release step, not the last, and it happens when
+a release is actually imminent.
+
+Until that runs, Phase 1's residual R3 stays open with it: the wheel's
+own digest is not verified in the documented institutional install, and
+it is a release that closes it.
+
+---
+
+## What Phase 4 has built
+
+**More kinds of column are read correctly, and the ones that cannot be
+are said out loud rather than guessed at.**
+
+- **The column types a real table actually holds.** Numbers wearing a
+  unit or a currency mark (`165.1 mg`, `$1,200`), two numbers in one
+  cell (`120/80`), clock times, dates written the European way — with
+  dots, with a two-figure year, day before month — and long tails of
+  labels where a handful repeat and the rest do not.
+- **Your own word for "no value" reaches the twin.** If your table
+  writes `NA`, `-999` or `Not recorded`, the twin writes it too, at the
+  same count. Code that filters on that word does the same thing on
+  both tables.
+- **Leading zeros survive.** A column of `00100` comes back five
+  characters wide, so a length check or a fixed-width slice runs on the
+  twin as it will on your table.
+- **The twin tells you which of its cells synthtwin made up**, per
+  column, once, whatever the cells look like — and the generate command
+  prints the count on screen before you use anything.
+- **And where the values cannot settle what a column IS, synthtwin
+  asks.** A column of figures might be a coding system or a set of
+  measurements, and nothing in the values can tell them apart. Every
+  run writes a questions file naming those columns and what was seen in
+  each; you fill in the answers and hand it back with `--answers`. It
+  carries no value of your table.
+
+What is NOT built is Phase 5: anything that crosses two columns. The
+twin reproduces what the description publishes about each column **on
+its own**, and nothing about how two of them move together.
 
 ---
 

@@ -156,7 +156,7 @@ def test_the_decision_survives_without_the_spelling(
     # `(withheld)` is synthtwin's word for "not published here", and
     # "(withheld), in 20 row(s): kept as a number" reads as a spelling
     # this table wrote (review of the shipped reports, 2026-08-15).
-    assert "a number not named here, in 20 row(s)" in said
+    assert "a value not named here, in 20 row(s)" in said
     assert taxonomy.SUPPRESSED_LABEL not in said
     assert "kept as a number" in said
 
@@ -174,7 +174,14 @@ def test_the_summary_claim_about_such_a_column_is_true(
         ["--identifier", "record_id", f"--keep-value={SENTINEL}"],
         capsys,
     )
-    assert "No value at all, in any form" in said
+    # The wording carries one more clause since the form census landed
+    # (plan P4-D18): what these columns publish is counts, lengths, the
+    # SHAPE their values were written in where enough shared one, and
+    # what synthtwin decided -- and a shape carries no letter and no
+    # figure of any value, which is why "no value at all" is still the
+    # claim the sentence opens with.
+    assert "No value at all" in said
+    assert "the SHAPE its values" in said
     assert "record_id" in said
     for column in document["columns"]:
         assert column["role"] in taxonomy.ROLES_PUBLISHING_NOTHING
@@ -256,9 +263,14 @@ def test_free_text_reaches_this_field_with_nothing_in_it() -> None:
     # never described as free text. The field is still present and
     # empty, which is what makes the profile's shape the same on every
     # role.
+    # TEN OF THE STAND-IN, NOT TWENTY, and the number is the point
+    # since plan P4-D5: a spelling twenty rows share clears the
+    # publication floor, so such a column is a long tail of labels and
+    # not free text at all. The property under test is free text's, so
+    # the fixture stays under the line.
     described = describe(
-        [f"a sentence number {index} in words" for index in range(60)]
-        + [SENTINEL] * 20
+        fixtures.prose(70)
+        + [SENTINEL] * 10
     )
     assert described.role == taxonomy.ROLE_TEXT
     assert described.sentinel_verdicts == []
@@ -280,7 +292,7 @@ def _nothing_publishing() -> "dict[str, taxonomy.ColumnProfile]":
             ["1e999"] * 189 + [SENTINEL] * 11
         ),
         taxonomy.ROLE_TEXT: describe(
-            [f"a sentence number {index} in words" for index in range(60)]
+            fixtures.prose(60)
         ),
     }
 
@@ -479,7 +491,7 @@ def test_the_summary_prints_what_the_profile_holds(
         assert entry["candidate"] == taxonomy.SUPPRESSED_LABEL
         # The profile's pooled name reaches the page as what it means --
         # "not published here" -- and never as a spelling of the table.
-        assert "a number not named here, in" in said
+        assert "a value not named here, in" in said
     assert taxonomy.SUPPRESSED_LABEL not in said
     for entry in named["sentinel_verdicts"]:
         assert entry["candidate"] == SENTINEL

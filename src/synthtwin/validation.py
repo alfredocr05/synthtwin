@@ -150,18 +150,121 @@ force a twin row to match a real one, with nothing copied, and a check
 here confirming that count does not change it. synthtwin offers no
 formal privacy guarantee. Every measurement this module returns is
 taken from a file derived from real data, so the description, the
-plain-language summary beside it, the twin, the twin's report and the
-quality report are all real-derived material and are kept under the
-rules the real table is kept under.
+plain-language summary beside it, the questions file, the twin, the
+twin's report and the quality report are all real-derived material and
+are kept under the rules the real table is kept under.
 """
 
 import csv
 import dataclasses
 import math
+from synthtwin.paths import validate_local_path
 import pathlib
 
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy
-from synthtwin.paths import validate_local_path
+
+
+# ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
+#
+# The universal bounds a moment is held to -- the largest skew a sample
+# of this size can take, the largest tail weight -- are stated as exact
+# expressions and computed in binary64, where two roundings can land the
+# endpoint one place INSIDE the true limit. `(3 - 2) / sqrt(3 - 1)`
+# comes out 0.7071067811865475 while the true limit rounds to
+# ...76, so a column whose skew IS the maximum is outside a bound it
+# exactly meets. Reproduced on the three cells `-1e20`, `0` and `1`:
+# the description publishes -0.7071067811865476, the twin holds
+# -0.7071067811865476, and the report said OUTSIDE and told the reader
+# to treat the fact as not reproduced.
+#
+# A bound stated as a limit must therefore be widened by one place
+# before it is compared against anything. The direction is always
+# outward, so the widening can never turn a real miss into a pass: it
+# admits exactly the values the limit itself admits.
+#
+# `math.nextafter` is not among the names this package's offline audit
+# allows, and widening the audit to admit one is the wrong way round --
+# `frexp` and `ldexp` are allowed and say the same thing.
+# The smallest positive number this format holds, which is also the gap
+# between any two neighbouring subnormals.
+_SMALLEST = math.ldexp(1.0, -1074)
+
+
+def _stepped(bound: float, upward: bool) -> float:
+    """The number this format holds next to ``bound``, in one direction.
+
+    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE, and the first
+    version of this function assumed it was (review item P4-G6-R7-F2).
+    It added a fixed `2 ** -53` to the fraction `frexp` returns, which
+    is the gap ABOVE a value whose fraction is exactly one half and
+    twice the gap BELOW it -- so `_lowered(1.0)` returned
+    0.9999999999999998 where the number next to 1.0 is
+    0.9999999999999999, stepping two places instead of one. It also
+    moved no subnormal at all, because the gap it computed there
+    underflows to nothing, and it raised `OverflowError` on the largest
+    number the format holds.
+
+    Two of those three only ever widened a bound further than intended,
+    which weakens a check without breaking it; the third was a crash
+    and the second left the very smallest bounds unwidened, which is
+    the case the widening exists for.
+
+    So the gap is worked out on the side being moved toward: `2 ** (e -
+    53)` going away from zero, and half of that going toward zero from
+    a value sitting exactly on the edge of its binade. Subnormals take
+    the one gap they have. A bound already at the edge of the range is
+    returned unchanged, since there is no number beyond it to widen to
+    and it already admits everything this format can write.
+
+    `math.nextafter` says all of this in one call and is not among the
+    names this package's offline audit allows. Widening that audit to
+    admit one would be the wrong way round; `frexp` and `ldexp` are
+    allowed and say the same thing. `tests/` checks this against
+    `math.nextafter` over the whole range, which is what an audit's
+    allowlist costing a line of arithmetic is supposed to look like.
+    """
+    if not math.isfinite(bound):
+        return bound
+    if bound == 0.0:
+        return _SMALLEST if upward else -_SMALLEST
+    magnitude = abs(bound)
+    growing = (bound > 0.0) == upward
+    fraction, exponent = math.frexp(magnitude)
+    gap = math.ldexp(1.0, exponent - 53)
+    if not growing and fraction == 0.5:
+        gap = math.ldexp(1.0, exponent - 54)
+    if gap < _SMALLEST:
+        gap = _SMALLEST
+    stepped = magnitude + gap if growing else magnitude - gap
+    if not math.isfinite(stepped):
+        return bound
+    if bound < 0.0:
+        return -stepped
+    return stepped
+
+
+def _raised(bound: float) -> float:
+    """The smallest number this format holds above ``bound``.
+
+    An UPPER limit is widened with this, so a value that is correctly
+    rounded onto the limit itself cannot fall outside it.
+    """
+    return _stepped(bound, True)
+
+
+def _lowered(bound: float) -> float:
+    """The largest number this format holds below ``bound``.
+
+    A LOWER limit is widened with this, for the same reason -- and the
+    direction is what makes it a widening rather than a shift. Moving
+    an upper limit away from zero and a lower limit away from zero are
+    the same thing only when the pair straddles zero, which the skew
+    bound does and the tail weight's does not: its two ends are both
+    positive, and widening its low end AWAY from zero moved that end
+    UP, past the very value the window was drawn to admit.
+    """
+    return _stepped(bound, False)
+
 
 # -- the five verdicts (V6.1) -----------------------------------------
 
@@ -191,6 +294,8 @@ CORNER_IDENTIFIER_INFEASIBLE = "identifier-infeasible"
 CORNER_DATETIME_OFFSETS_WITHHELD = "datetime-offsets-withheld"
 CORNER_LABEL_VARIANTS_SHORT = "label-variants-short"
 CORNER_NUMERIC_SPELLINGS_SHORT = "numeric-spellings-short"
+# THE ONE KEY OF `missing_by_source` A TWIN MAY NOT WRITE (R-P4-60).
+CORNER_JUDGED_HOLE = "judged-hole"
 
 CORNERS = (
     CORNER_IDENTIFIER_INFEASIBLE,
@@ -224,6 +329,13 @@ CORNER_CITATIONS = {
         "withheld-variant multiset do not supply enough spellings "
         "(docs/spec/generation-method-v1.md G12.7)"
     ),
+    CORNER_JUDGED_HOLE: (
+        "phase-4 plan P4-D6.1 and contract C6-116, as the disposition "
+        "registry cites it: a spelling a JUDGED PASS put there is "
+        "REPORT-ONLY for that key, because the twin writes it blank -- "
+        "reproducing it would make the twin's own measurement depend "
+        "on a re-judgement of the same number"
+    ),
     CORNER_NUMERIC_SPELLINGS_SHORT: (
         "phase-2 plan P2-D6: falling back to the two-sided envelope "
         "only where even the permitted spellings cannot supply the "
@@ -244,6 +356,29 @@ ENVELOPE_NUMERIC_RUNGS = (
 ENVELOPE_MOMENTS = "docs/spec/generation-method-v1.md G12.3"
 ENVELOPE_DATETIME_RUNGS = "docs/spec/generation-method-v1.md G12.4"
 ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
+# The clock role's two, cited and never restated. Both point at the
+# clause the generation method carries for this role, which is written
+# in the same landing as the construction it bounds.
+ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.10"
+ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.11"
+# The window a joined column's rank agreement is met inside. It is
+# published rounded to four figures and reached by a walk that stops
+# once it is close enough, so it is approximated and not exact -- and
+# the window says by how much, rather than leaving a reader to guess
+# from a number that nearly matches (plan P4-D25).
+# The window a joined column's rank agreement is approximated inside.
+# It cited a PLAN until 2026-08-27, which is residual R-P4-42: every
+# other envelope here names a section of the generation method, and an
+# implementer working from that method alone could not find this one.
+ENVELOPE_JOINED_AGREEMENT = "docs/spec/generation-method-v1.md G12.9"
+# READ FROM THE ONE PLACE IT IS WRITTEN, never copied here (review
+# item P4-G3-R1-F6). This module may not import the generator, so a
+# second `0.02` used to sit here beside the generator's own with
+# nothing binding them: a later hand could move one and leave the
+# other, and then the twin's report and this check would disagree
+# about whether the very same numbers were sound.
+_AGREEMENT_SLACK = parsing.RANK_AGREEMENT_WINDOW
+
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
 ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
@@ -350,6 +485,18 @@ INPUT_SIDE_ENTRIES = (
     ("label", "level_ceiling"),
     ("free_text", "length"),
     ("free_text", "words"),
+    # The joined role's own container, on the same terms as the two
+    # above: the key carries no VALUE obligation of its own and each
+    # position inside it takes 9.4's dispositions, which are checked
+    # per position under their own numeric names.
+    ("joined", "parts"),
+    # The compound role's two sub-blocks, on the same terms. Neither
+    # key carries a VALUE obligation of its own: `numbers` holds the
+    # quantitative block and `labels` the label block, and every fact
+    # inside either is checked below under the name of the group whose
+    # block it is (contract 9.4b, plan P4-D33).
+    ("compound", "numbers"),
+    ("compound", "labels"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -357,6 +504,83 @@ INPUT_SIDE_ENTRIES = (
 _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
+)
+_NOT_CHECKABLE_RESOLUTION_MIX = (
+    "the description records which written form each of the real "
+    "table's dates wore, and how many wore each, and it asks no file "
+    "to write them the same way: a file that writes them all one way "
+    "misses no obligation this description makes"
+)
+# THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
+# the sentence it carried is kept here as the record of what changed:
+# "the description records how many different NUMBERS the real column
+# holds ... and it asks no file to hold that many". Amendment A-P4-55
+# makes it an obligation on the owner's ruling -- analysis code groups
+# by and counts distinct on numeric columns, so a twin holding fewer
+# different numbers than the description records is a twin that column
+# cannot be developed against. It is a CHECK now, in `_numeric_checks`.
+_NOT_CHECKABLE_FINER_LADDER = (
+    "the description records the ninety percentile rungs its named "
+    "ladder does not carry, as ONE fact rather than ninety: no file is "
+    "held to any of them, and holding one to each would mean ninety "
+    "obligations whose red cases could not honestly be written. What "
+    "they buy is where a twin PLACES its values, which the eleven "
+    "named rungs beside them are still checked for. A file whose finer "
+    "rungs differ misses no obligation this description makes"
+)
+_NOT_CHECKABLE_MODE = (
+    "the description records which number the real column held most "
+    "often and how many cells held it, and it asks no file to hold "
+    "that many: a twin allots its cells to values by the runs of the "
+    "published ladder rather than by any published count of them, and "
+    "the only value given a group of its own sized to a published "
+    "count is zero. A file whose "
+    "commonest number differs, or whose count of it differs, misses no "
+    "obligation this description makes"
+)
+_NOT_CHECKABLE_HISTOGRAM = (
+    "the description records the SHAPE of the real column's numbers -- "
+    "how many of them fall between each pair of edges -- and the twin "
+    "follows that shape without being held to it: meeting a bin's "
+    "count exactly would mean the cells being allotted to values by "
+    "the histogram, and they are allotted by the runs of the published "
+    "ladder instead. A file whose numbers fall in different bins "
+    "misses no obligation this description makes"
+)
+_NOT_CHECKABLE_EMPTY_BINS = (
+    "the description records which stretches of your column's range "
+    "held no value at all, and the twin keeps out of them without "
+    "being held to it: where the twin's own ladder, its signs and the "
+    "values its other cells hold leave no room beside a stretch, one "
+    "cell stays inside it and the report beside the twin names the "
+    "stretch and the value. A file whose values fall in different "
+    "stretches misses no obligation this description makes"
+)
+_NOT_CHECKABLE_EMPTY_EDGES = (
+    "the description also records the two real values each of those "
+    "stretches lies between -- the column holds nothing STRICTLY "
+    "between them -- and the twin walks out to them without being "
+    "held to it: it tries the nearer edge, then the further one, and "
+    "then the same two again allowed to land in some other stretch "
+    "so long as it is out of a named bin, because a cell that moves "
+    "is never worse than one that stays. Where every one of those is "
+    "taken -- by the twin's own signs, its written forms and the "
+    "values its other cells hold -- the cell stays where it was, and "
+    "the report beside the twin names the stretch, the number of "
+    "cells in it and the values they read as. A file whose values "
+    "fall in different stretches misses no obligation this "
+    "description makes"
+)
+_NOT_CHECKABLE_FIELD_WIDTHS = (
+    "the description records how many of the real column's cells were "
+    "written as a whole number at each field width, and the twin "
+    "follows that census without being held to it: an unpadded cell is "
+    "exactly as wide as its value, so meeting a width exactly would "
+    "mean the values being placed by the census, and they are placed "
+    "by the runs of the published ladder instead. Where a width is "
+    "missed the report beside the twin names it with the count it "
+    "reached, and a file whose cells fall at different widths misses "
+    "no obligation this description makes"
 )
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
@@ -371,6 +595,20 @@ _NOT_CHECKABLE_NO_LADDER = (
     "the published ladder is null at every rung, so the description "
     "carries no shape for these values and there is no window to "
     "measure against"
+)
+_NOT_CHECKABLE_JUDGED_HOLE = (
+    "this spelling is one synthtwin JUDGED to be a stand-in for 'no "
+    "value' rather than one your description names outright, so the "
+    "twin writes those cells empty: reproducing the number would make "
+    "the twin's own reading of it depend on judging it the same way a "
+    "second time. Every other spelling of an absent cell is written at "
+    "exactly its published count and is checked"
+)
+_NOT_CHECKABLE_NO_WINDOW = (
+    "the published ladder for this column reaches so far across the "
+    "range of numbers this format holds that the window the generation "
+    "method draws has no end this format can write, so there is "
+    "nothing here a file could be compared against"
 )
 _NOT_CHECKABLE_DECLARED_AXIS = (
     "this says whether the person who owns the table declared this "
@@ -394,10 +632,32 @@ _NOT_CHECKABLE_SKEW_UNBOUNDED = (
     "they are, so a comparison against it would admit every file and "
     "prove nothing"
 )
+_NOT_CHECKABLE_TAILS_UNBOUNDED = (
+    "the published ladder for this column is too coarse for the "
+    "generation method's own envelope to narrow: its bound falls back "
+    "to the whole range the tail weight of this many values can take, "
+    "so a comparison against it would admit every file and prove "
+    "nothing"
+)
 _NOT_CHECKABLE_STYLE_CEILING = (
     "the description names this form for as many cells as the file has "
     "rows, so every cell the file can carry in it is already accounted "
     "for and there is no unnamed cell left for this ceiling to govern"
+)
+# THE THREE FACTS THE SPLIT RULE ITSELF SETTLES (landing L8). A cell
+# joins a compound column's numeric half only if it reads as a plain
+# number, so that half holds no cell that is out of range, none that
+# contradicts itself and none that fails to read at all -- on every
+# file there is. Its share of numbers is one, and its two counts of
+# cells left out of the statistics are zero, whatever the file does.
+# A check on any of the three could report HELD or be WITHHELD and
+# could never report MISSED, which is a green light that means nothing
+# (V3.5). Measured before it was written: ninety-odd perturbations of a
+# compound twin, none of them able to make one of the three differ.
+_NOT_CHECKABLE_SPLIT_CONSTANT = (
+    "a cell joins this column's numeric half only if it reads as a "
+    "plain number, so this fact has the same value on every file that "
+    "carries the role at all and no CSV can evidence otherwise"
 )
 _NOT_CHECKABLE_OFFSETS_WITHHELD = (
     "the description withholds this column's offsets, so it publishes "
@@ -742,7 +1002,11 @@ _MEASURED_FROM_THE_CELLS = (
 # string reaches the settings.
 _KEPT_OVER_THE_SPLIT = tuple(
     sorted(
-        [spelling for spelling in parsing.MISSING_TEXTS if spelling]
+        [
+            spelling
+            for spelling in parsing.built_in_missing_texts()
+            if spelling
+        ]
         + [f"{value:g}" for value in parsing.NUMERIC_SENTINELS]
     )
 )
@@ -753,7 +1017,13 @@ _KEPT_OVER_THE_SPLIT = tuple(
 # `sentinel_verdicts` instead, because a stand-in is judged per column
 # and a published key alone does not say which way that judgment went.
 _BUILT_IN_TEXTS = tuple(
-    sorted([spelling for spelling in parsing.MISSING_TEXTS if spelling])
+    sorted(
+        [
+            spelling
+            for spelling in parsing.built_in_missing_texts()
+            if spelling
+        ]
+    )
 )
 
 # The same three stand-ins, as the EXACT numbers the producer decides
@@ -1006,6 +1276,8 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         declared_missing_values=declared_spellings(description),
         declaration_matching=block.declaration_matching,
         near_threshold_slack=block.near_threshold_slack,
+        day_first=block.day_first,
+        long_tail_minimum_level=block.long_tail_minimum_level,
     )
 
 
@@ -1186,14 +1458,44 @@ def settings_over_the_split(
     settled = _stand_ins_the_description_reads_as_holes(description)
     named = _built_in_words_the_description_names_as_holes(description)
     for spelling in _KEPT_OVER_THE_SPLIT:
-        if _explained_by(spelling, block.declared_missing_values):
+        if _names_this_member(spelling, block.declared_missing_values):
             continue
-        if _explained_by(spelling, settled):
+        if _names_this_member(spelling, settled):
             continue
-        if _explained_by(spelling, named):
+        if _names_this_member(spelling, named):
             continue
         found[spelling] = 1
     return dataclasses.replace(block, kept_values=tuple(sorted(found)))
+
+
+def _names_this_member(member: str, recovered: "tuple[str, ...]") -> bool:
+    """Whether anything recovered from the description names THIS member.
+
+    `_explained_by` answers the DECLARATION's question -- would this
+    declaration take a cell spelled this way -- and folds to do it. This
+    answers the VOCABULARY's question, which for the one exact-spelling
+    member is a different question with a different answer (contract
+    C6-32, which names the validator's reconstruction as one of the
+    places the one operation applies).
+
+    The two came apart here. Somebody may declare a value of their
+    own that folds onto the exact member, and their column then
+    names that value among its own hole spellings. The validator reads
+    it back as a declaration, compared it folded against the member, and took
+    the member off the measured side's kept list -- so a file whose
+    own cells wear the member exactly had them counted absent on a
+    description that says nothing about the member at all.
+
+    Guarantees: accepts a member and the recovered spellings; returns a
+    truth value; raises TypeError if handed anything that is not text.
+    No I/O of any kind.
+    """
+    if member in parsing.MISSING_TEXTS_EXACT:
+        for declared in recovered:
+            if parsing.missing_text_matches(declared, member):
+                return True
+        return False
+    return _explained_by(member, recovered)
 
 
 def _built_in_words_the_description_names_as_holes(
@@ -1241,7 +1543,16 @@ def _built_in_words_the_description_names_as_holes(
     for column in description.columns:
         for key in sorted(column.missing_by_source):
             for spelling in _BUILT_IN_TEXTS:
-                if _explained_by(key, (spelling,)):
+                # THE VOCABULARY'S OWN RULE, NOT THE DECLARATION'S
+                # (contract C6-32, which names this reconstruction as
+                # one of the places the one operation applies). Asking
+                # `_explained_by` here folded both sides, so a column
+                # publishing the key `nat` -- which it can, under a
+                # declaration of the person's own -- was read as naming
+                # the member `NaT` and un-pinned it from the measured
+                # side's kept values. That is the exception coming
+                # apart from the rule it excepts.
+                if parsing.missing_text_matches(key, spelling):
                     found[spelling] = 1
     return tuple(sorted(found))
 
@@ -1371,6 +1682,12 @@ def _vocabulary_spellings(
         for value, spelling in _STAND_IN_SPELLINGS:
             if number == value:
                 found[spelling] = 1
+    # AND THE THIRD LIST (plan amendment A-P4-1 item 3). A placeholder
+    # day the person named is a value they kept, and a reconstruction
+    # that stopped at two lists could not rebuild the reading rule of a
+    # column whose placeholder they rescued.
+    for day in record.built_in_dates:
+        found[day] = 1
     return tuple(sorted(found))
 
 
@@ -1619,7 +1936,8 @@ def _own_words_named(record: contract.DeclarationRecord) -> int:
     being asked.
     """
     named = record.n_declared - len(record.built_in_texts)
-    return named - len(record.built_in_numbers)
+    named = named - len(record.built_in_numbers)
+    return named - len(record.built_in_dates)
 
 
 def unrebuildable_columns(
@@ -1772,6 +2090,23 @@ def unrebuildable_columns(
     short = own_recovered < own_named
     unrebuildable: dict[str, str] = {}
     for column in description.columns:
+        # A CELL RESCUED OVER ITS CORE, whose spelling this description
+        # does not carry. On the affixed role a `--keep-value` names a
+        # WHOLE CELL -- `-999 mg` -- and the rescue is recorded as a
+        # verdict about the core `-999`, so the document holds the
+        # decision without holding the word that made it. Rebuilding
+        # the reading rule from the description would judge those cells
+        # holes again, which is a rule the description was not written
+        # under: a hundred-cell column checked against the file it was
+        # written from reported fifteen obligations MISSED, every one
+        # of them a number untrue of that file. The obligations go to
+        # the NOT-CHECKABLE census instead, which is what this function
+        # exists for.
+        if _rescued_over_a_core(column):
+            unrebuildable[column.name] = _core_rescue_not_recorded(
+                _cells_rescued_over_cores(column)
+            )
+            continue
         if not _publishes_no_source_accounting(column):
             unnamed = _holes_no_spelling_accounts_for(column, recovered)
             if unnamed > 0:
@@ -1784,6 +2119,42 @@ def unrebuildable_columns(
                 own_named, own_recovered
             )
     return unrebuildable
+
+
+def _rescued_over_a_core(column: contract.ColumnBlock) -> bool:
+    """Whether a declaration rescued this column's cells over their cores.
+
+    Read from the description alone, as V3.3 requires: the role says
+    the stand-in pass ran over cores, and a verdict reading
+    `kept_by_you` says a declaration decided one. What the document
+    does NOT carry is the spelling that decided it -- the cell, not the
+    core -- so the rule cannot be rebuilt from here.
+    """
+    if column.role != contract.ROLE_AFFIXED:
+        return False
+    for entry in column.sentinel_verdicts:
+        if entry.reason == "kept_by_you":
+            return True
+    return False
+
+
+def _cells_rescued_over_cores(column: contract.ColumnBlock) -> int:
+    """How many cells the rescue kept, from the published verdicts."""
+    found = 0
+    for entry in column.sentinel_verdicts:
+        if entry.reason == "kept_by_you":
+            found = found + entry.n_occurrences
+    return found
+
+
+def _core_rescue_not_recorded(kept: int) -> str:
+    """A column whose rescue this description records without its word."""
+    return (
+        f"the description records {_shown_count(kept)} cell(s) of this "
+        f"column kept as values by a word you named, and the word names "
+        f"the whole cell while the description records only the number "
+        f"inside it, so " + UNREBUILDABLE_REASON_TAIL
+    )
 
 
 def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:
@@ -1932,10 +2303,25 @@ def corners_of(
             facts, contract.LabelFacts
         ) and _label_variants_are_short(column, facts):
             corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+        # G12.8's corner is asked of the QUANTITATIVE facts, so a column
+        # whose numbers are held inside its own facts reaches it: an
+        # affixed column's cells stand one for one with its cores under
+        # a shared pair, so the supply its core spellings carry is the
+        # supply its cells carry.
+        quantitative = _quantitative(facts)
         if isinstance(
-            facts, contract.NumericFacts
-        ) and _numeric_spellings_are_short(column, facts):
+            quantitative, contract.NumericFacts
+        ) and _numeric_spellings_are_short(column, quantitative):
             corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
+        # AND A COMPOUND COLUMN'S LABEL HALF, which this asked of an
+        # OUTER `LabelFacts` alone -- so the half's own G12.7 corner was
+        # never found, and the check that needed it was handed an empty
+        # corner name (review round 4 of this landing, item 2).
+        if isinstance(facts, contract.CompoundFacts):
+            if _label_variants_are_short(
+                contract.compound_labels_view(column), facts.labels
+            ):
+                corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
         if corners:
             found[column.name] = tuple(corners)
     return found
@@ -2355,6 +2741,11 @@ def _numeric_spellings_are_short(
     reading one of them for both would put a bar drawn from the raw
     allocation on the folded fact.
     """
+    column = _core_column(column)
+    quantitative = _quantitative(facts)
+    if not isinstance(quantitative, contract.NumericFacts):
+        return False
+    facts = quantitative
     for published in (column.n_distinct, column.n_distinct_folded):
         supply = _spelling_supply(column, facts, published)
         ceiling = _spelling_ceiling(column, facts, published)
@@ -3030,12 +3421,107 @@ def _ladder_points(
     return points
 
 
+def _fine_ladder_points(
+    facts: contract.NumericFacts,
+) -> "list[tuple[float, float]]":
+    """The published ladder as (share, value) points, ALL of its rungs.
+
+    THE WINDOWS MUST BE DRAWN THROUGH THE LADDER THE TWIN WAS PLACED ON
+    (review item P4-G5-A1). A column publishes eleven NAMED rungs and
+    ninety more beside them, and since the allotment of method G5.2a
+    the construction reads all hundred and one -- so a window drawn
+    through the eleven invents a rise between them that the column does
+    not have, and then accuses a twin that sat exactly where the finer
+    rungs said it should.
+
+    Measured on one two-figure column: the eleven-rung reading gives
+    `5.003667` at share 0.4333 where the hundred-and-one gives `5.0`,
+    which is what the source itself holds there. The window that came
+    out ran from 0.0013 BELOW the published value to 0.0393 above it --
+    thirty times more room on one side than the other -- and the twin,
+    whose own error was never more than 0.0025, was reported MISSED on
+    forty runs of two hundred.
+
+    The nulls are dropped exactly as `_ladder_points` drops them: a
+    rung the format cannot hold carries no obligation (contract rule
+    L3) and is not a point a window may be drawn through.
+    """
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
+            index
+        ]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    points: "list[tuple[float, float]]" = []
+    for percent in range(101):
+        value = named[percent] if percent in named else finer[percent]
+        if value is not None:
+            points = points + [(percent / 100.0, float(value))]
+    return points
+
+
+def _longest_plateau(
+    facts: contract.NumericFacts, numbers: int
+) -> int:
+    """The most cells the ladder puts on one value, read off the ladder.
+
+    THE WIDEST STRATUM UNDER THE ALLOTMENT OF G5.2a, which is what the
+    rung window's displacement is made of. That allotment sizes a
+    stratum by the run of ranks the ladder gives one value, so the
+    widest stratum a column can have is its longest such run -- and a
+    column of two hundred and forty cells holding one value thirty
+    times has a stratum of thirty where the even split had two.
+
+    Read from the DESCRIPTION and never from the generator, which this
+    module may not import: the ladder is published and the rank count
+    is published, and between them they say where the plateaus are.
+
+    Used only to WIDEN, never to narrow. A window too wide can fail to
+    catch a twin that missed; a window too narrow accuses a conforming
+    one, and this module may never do the second.
+    """
+    points = _fine_ladder_points(facts)
+    if not points or numbers <= 0:
+        return 0
+    longest = 0
+    run = 0
+    previous: "float | None" = None
+    for rank in range(numbers):
+        share = rank / numbers if numbers > 0 else 0.0
+        value = _ladder_at(points, share)
+        if previous is not None and value == previous:
+            run = run + 1
+        else:
+            run = 1
+        previous = value
+        if run > longest:
+            longest = run
+    return longest
+
+
 def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
     """The ladder's value at ``share``, read piecewise-linearly.
 
     The convex form of method G5.3: between two published rungs the
     ladder is a straight line, and outside the published ends it is
     flat, because no rung beyond them says otherwise.
+
+    THE CONVEX FORM, AND NOT THE DIFFERENCE FORM (review item
+    P4-G6-R1-F2). This function said "convex" and computed `low + (high
+    - low) * t`, which is the form the generator's own `_interpolated`
+    docstring rules out in as many words: two rungs at opposite ends of
+    the representable range make that difference an infinity. An
+    accepted description whose `p49` is `-1.5e308` and whose `p50` is
+    `1.5e308` holds nothing but finite numbers, and at share 0.495 the
+    generator returns a value near zero while this returned an infinity
+    -- which then reached `_longest_plateau` and every rung and moment
+    window, so a conforming twin could be reported MISSED and a wrong
+    one given a bound with no width to it. The validator may not import
+    the generator, so the two arithmetics can only be held together by
+    being written the same way; this is now written the same way.
     """
     if share <= points[0][0]:
         return points[0][1]
@@ -3050,9 +3536,14 @@ def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
             width = high_share - low_share
             if width <= 0.0:
                 return high_value
-            return low_value + (high_value - low_value) * (
-                (share - low_share) / width
-            )
+            part = (share - low_share) / width
+            rest = 1 - part
+            value = rest * low_value + part * high_value
+            # The same clamp `_interpolated` takes, and for the same
+            # reason: `1 - part` rounds, so the pair can leave the
+            # segment by one unit in the last place.
+            value = max(value, min(low_value, high_value))
+            return min(value, max(low_value, high_value))
         index = index + 1
     return points[last][1]
 
@@ -3168,6 +3659,138 @@ def _column_at(
     if not isinstance(block, dict):
         return None
     return block
+
+
+def _variant_set(
+    block: "dict[str, object]",
+) -> "tuple[tuple[str, str], ...] | None":
+    """The other wrappers the measured file's own description reads.
+
+    THE WHOLE SET, SPELLINGS AND COUNTS, and it was the COUNT of them
+    until review round 1 of the wrapper set's landing (item 2). A
+    description publishing fifty `H` and fifty `L` checked against a
+    file holding eighty and twenty reads two wrappers on both sides,
+    and comparing the two twos reported an EXACT obligation HELD on a
+    file that does not meet it.
+
+    Nothing read here is PRINTED. The set is returned to the one caller
+    that compares it, that caller reports the outcome alone, and the
+    sentence beside a MISS says the measured side is kept back because
+    it is text of the file.
+
+    Guarantees: accepts a re-described block; returns the wrappers
+    beside the commonest as `(prefix, suffix, count)` triples in sorted
+    order, or None where the block reads no affixed fact at all -- and
+    None again where any entry is not of that shape, because a set this
+    module cannot read is not a set it may call equal. Determinism: a
+    function of the mapping. Raises nothing. No I/O of any kind.
+    """
+    if "affix_variants" not in block:
+        return None
+    given = block["affix_variants"]
+    if not isinstance(given, list):
+        return None
+    read: list[tuple[str, str]] = []
+    for entry in given:
+        if not isinstance(entry, dict):
+            return None
+        # READ BY SUBSCRIPT AND NOT BY `get`. The offline audit accepts
+        # no method call on a value it cannot trace, and an entry of
+        # this list is whatever the re-description put there; `in` and
+        # `[]` are operators, so the same three reads are made without
+        # calling anything the caller could have defined.
+        if "prefix" not in entry or "suffix" not in entry:
+            return None
+        if "count" not in entry:
+            return None
+        front = entry["prefix"]
+        behind = entry["suffix"]
+        many = entry["count"]
+        if not isinstance(front, str) or not isinstance(behind, str):
+            return None
+        if not isinstance(many, int) or isinstance(many, bool):
+            return None
+        read = read + [(front, behind)]
+    return tuple(sorted(read))
+
+
+def _published_set(
+    facts: "contract.AffixedFacts",
+) -> "tuple[tuple[str, str], ...]":
+    """The wrapper set the DESCRIPTION states, in the shape it is compared in.
+
+    Sorted triples, so the comparison against what the measured file's
+    own description reads is a comparison of two sets and not of two
+    orders. The blocks each wrapper carries are checked one wrapper at
+    a time beside this; what this settles is that the file wears these
+    wrappers, these many times.
+    """
+    # THE MEMBERSHIP AND THE SPELLINGS, NOT THE COUNTS (review round 4,
+    # item 6). Each wrapper's count is a published fact with a check of
+    # its own -- `counts.affix_variants[i].count` -- so binding it here
+    # too made one moved count report two misses, and a reader could
+    # not tell whether the file wore a wrapper it should not or wore
+    # the right ones the wrong number of times.
+    said: "list[tuple[str, str]]" = []
+    for one in facts.affix_variants:
+        said = said + [(one.prefix, one.suffix)]
+    return tuple(sorted(said))
+
+
+def _shown_variants(
+    published: "tuple[contract.AffixWrapper, ...]"
+) -> str:
+    """What the description asks for on the wrapper-set line.
+
+    HOW MANY AND WHAT IS BEING COMPARED, and not the spellings: the
+    published wrappers are the description's own text and printing them
+    would be permitted, but the measured side beside them may never be
+    printed, and a line showing one side's spellings and withholding
+    the other's invites a reader to read the difference as the answer.
+
+    IT NAMES ONLY WHAT THIS LINE SETTLES (review round 5, item 5). The
+    set comparison is over membership and spelling; a wrapper's count
+    is its own published fact with its own line, and saying otherwise
+    here described a check this report does not make.
+    """
+    if not published:
+        return "no other wrapper"
+    # WHAT THIS LINE ACTUALLY SETTLES, and it said more than that until
+    # review round 5 (item 5). The set comparison covers which wrappers
+    # the file wears and how they are spelled; each wrapper's COUNT is
+    # a published fact with a line of its own. Naming the count here
+    # too told a reader the set line had checked something it had not,
+    # and a file wearing the right wrappers in the wrong numbers then
+    # read HELD on this line and MISSED on the next.
+    return (
+        f"{len(published)} other wrapper(s), by their published "
+        f"spellings; each one's count is settled on its own line"
+    )
+
+
+def _wears_the_wrapper(text: str, prefix: str, suffix: str) -> bool:
+    """Whether one cell wears one wrapper with something between.
+
+    The producer's own rule, written here in this module's own terms
+    rather than reached across a module boundary: the offline audit
+    refuses a private name from another module, and a recount that
+    read the producer's private function would be a recount tied to a
+    name nothing publishes.
+
+    THE CELL IS TRIMMED HERE, which is what makes the method calls
+    below acceptable to that audit: a value it watched being made.
+
+    Guarantees: accepts a cell and the two sides; returns whether the
+    cell starts with the one, ends with the other, and has at least
+    one character between them. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix):
+        return False
+    if not trimmed.endswith(suffix):
+        return False
+    return len(trimmed) > len(prefix) + len(suffix)
 
 
 def _count_at(block: "dict[str, object]", key: str) -> "int | None":
@@ -3642,6 +4265,9 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         )
     try:
         declared = _declared_here(description, table)
+        declared_codes = _declared_codes_here(description, table)
+        declared_measured = _declared_measured_here(description, table)
+        declared_commas = _declared_commas_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -3662,10 +4288,22 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         # which of its own checks run, so nothing about the file decides
         # which of these is built.
         redescribed = profile.build_document(
-            table, settings_for(description), declared
+            table,
+            settings_for(description),
+            declared,
+            declared_codes,
+            declared_measured,
+            declared_commas,
+            True,
         )
         over_the_split = profile.build_document(
-            table, settings_over_the_split(description), declared
+            table,
+            settings_over_the_split(description),
+            declared,
+            declared_codes,
+            declared_measured,
+            declared_commas,
+            True,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -3913,6 +4551,74 @@ def _declared_here(
     return [
         name
         for name in description.settings.forced_identifiers
+        if name in table.column_names
+    ]
+
+
+def _declared_codes_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared code columns the measured file actually carries.
+
+    The same rule as `_declared_here` above, for the other declaration
+    (plan P4-D19), and it is needed for the same reason. Describing the
+    measured file is how its obligations are checked, and a description
+    made WITHOUT the declaration reads a coding system written in
+    digits as a quantity -- so every declared code column reported its
+    role as MISSED against a twin that was correct in every cell. What
+    is being checked is whether the file matches the description; both
+    sides must therefore be described under the same declarations.
+
+    A declared name the measured file does not carry is dropped, for
+    the reason `_declared_here` gives: a column that is not there
+    cannot be classified as anything, and a wrong name must stay a
+    reportable MISSED verdict rather than stop the run.
+    """
+    return [
+        name
+        for name in description.settings.forced_codes
+        if name in table.column_names
+    ]
+
+
+def _declared_measured_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared measurement columns the measured file carries.
+
+    The third declaration (plan P4-D21), on the rule the two above
+    carry and for the reason they carry it: describing the measured
+    file is how its obligations are checked, and a description made
+    WITHOUT the declaration reads `120/80` as free text -- so every
+    declared column reported its role MISSED against a twin whose every
+    cell was right. Both sides must be described under the same
+    declarations.
+    """
+    return [
+        name
+        for name in description.settings.forced_measurements
+        if name in table.column_names
+    ]
+
+
+def _declared_commas_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The declared decimal-comma columns the measured file carries.
+
+    The fourth declaration (plan P4-D26), on the rule the three above
+    carry and for the reason they carry it: describing the measured
+    file is how its obligations are checked, and both sides must be
+    described under the same declarations. A description made WITHOUT
+    this one reads a twin's `221,39` as free text where the twin's own
+    description says `continuous` -- so a twin whose every cell is
+    exactly what was asked for reports its role, its ladder and its
+    moments all MISSED. The declaration is recorded in the description
+    precisely so this side can recover it.
+    """
+    return [
+        name
+        for name in description.settings.forced_decimal_commas
         if name in table.column_names
     ]
 
@@ -4634,7 +5340,21 @@ def _column_checks(
         return _nothing_stands_here(
             description, column, table.column_names, headed
         )
+    # THE ONE PLACE A DECLARED COLUMN'S CELLS ARE READ (plan P4-D26),
+    # so every check below sees the spelling the DESCRIPTION was made
+    # from rather than the file's own characters.
+    #
+    # The validator has two ways of measuring and both must agree. One
+    # re-describes the file with the profiler's own producer and is
+    # handed the declaration; the other recounts cells here, in
+    # helpers of its own. Handing the declaration to only the first
+    # left `221,39` reading as a number to one and as free text to the
+    # other, and a twin whose every cell was exactly what the
+    # description asked for came back with its style census MISSED.
     block = _column_at(redescribed, column.position)
+    cells = _cells_read_as_declared(
+        description, column, cells, block if block is not None else {}
+    )
     split = _column_at(over_the_split, column.position)
     return _obligations(
         description,
@@ -4709,6 +5429,9 @@ def _obligations(
             _shown_count(missing),
         ),
     ]
+    checks = checks + _hole_spelling_checks(
+        column, cells, description
+    )
     # THE FOUR AXES, and all four rather than one (review item
     # P3-V1-F3). The re-description publishes each of them for the file's
     # own column, so each is a read-back a file can evidence: the twin
@@ -4766,18 +5489,52 @@ def _obligations(
     # becoming seventeen misses and seven withholdings. The reviewer's
     # witness named the presence counts; repairing only those would have
     # left this half of the same class open.
-    own_cells = cells
-    if not split_published:
-        own_cells = _cells_that_description_reads(
-            block,
-            cells,
-            kept_spellings(description),
-            declared_spellings(description),
-        )
+    #
+    # AND EACH SIDE COUNTS THE CELLS ITS OWN READING COUNTS, WHATEVER
+    # THE SPLIT PUBLISHES (residual R-P4-53). The narrowing above ran
+    # this rule only where the description POOLS its missing sources,
+    # because the leak it was written for needs a pool. The POPULATION
+    # question is not the leak question and does not need one: a
+    # description publishes its style census over the cells IT counts as
+    # values, and a recount that walks every written cell is answering a
+    # different question about a different set. A column declaring
+    # `-9.99` as its "no value" word publishes `numeric_styles` over 180
+    # present cells; the recount found 200, because `-9.99` reads as a
+    # number -- and the file the description was WRITTEN FROM was told
+    # it missed `numeric.numeric_styles`, with five more style
+    # obligations withheld beside it. Measured through `profile` and
+    # `validate` on the source table itself: 1 missed and 5 withheld
+    # with the hole spelled `-9.99`, 0 and 0 with the same twenty holes
+    # written blank. It needs no declaration either -- twenty `-999`
+    # cells the column's own stand-in rule judges take six of the same
+    # obligations to withheld -- and it reaches every role that recounts
+    # cells: a joined column declaring `-1/-1` was told it missed a
+    # style census at BOTH of its positions.
+    #
+    # The two sides get two populations because they read the same cells
+    # under two rules: `settings_over_the_split` names this package's
+    # own built-in words as data where the description passes no verdict
+    # on them, so a cell absent to one reading can be a value to the
+    # other. Asking each side's own settings is what keeps a recount
+    # standing beside the census it is compared with.
+    own_settings = settings_for(description)
+    split_settings = settings_over_the_split(description)
+    own_cells = _cells_that_description_reads(
+        block,
+        cells,
+        own_settings.kept_values,
+        own_settings.declared_missing_values,
+    )
+    split_cells = _cells_that_description_reads(
+        split,
+        cells,
+        split_settings.kept_values,
+        split_settings.declared_missing_values,
+    )
     gated = _universal_checks(column, block, mine)
     gated = gated + _role_checks(column, block, own_cells, floor, mine)
     measured = _universal_checks(column, split, mine)
-    measured = measured + _role_checks(column, split, cells, floor, mine)
+    measured = measured + _role_checks(column, split, split_cells, floor, mine)
     return checks + _governed(gated, measured, split_published)
 
 
@@ -4795,6 +5552,20 @@ def _cells_that_description_reads(
     be the cells that description counts -- otherwise two files the
     producer describes byte for byte alike are recounted differently and
     the report tells them apart, which V5.1 forbids.
+
+    AND IT IS WHAT EVERY RECOUNT IS HANDED, ON BOTH SIDES AND ALWAYS
+    (residual R-P4-53). It used to run only where the description POOLS
+    its missing sources, because the leak above needs a pool. But a
+    census is published over the cells a description counts as values
+    whether or not anything is pooled, so a recount over any other set
+    is answering a different question -- and a column declaring `-9.99`
+    as its "no value" word had its census published over 180 cells,
+    recounted over 200, and the file the description was written from
+    was told it MISSED. `_obligations` now calls this twice, once per
+    reading: `block` with the file's own settings for the gated side,
+    `split` with the settings taken over the blank split for the
+    measured one. Passing one side's settings to the other block would
+    put a recount beside a census neither of them made.
 
     AND A CELL THAT DESCRIPTION READS AS DATA STAYS (review item
     P3-V4-F1). The version this replaces dropped every cell wearing a
@@ -5291,6 +6062,74 @@ def _nothing_left_to_measure(
     return filled
 
 
+def _cells_read_as_declared(
+    description: contract.Profile,
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    block: "dict[str, object]",
+) -> "list[str]":
+    """One column's cells in the spelling its description was made from.
+
+    Unchanged unless the column was named `--decimal-comma`, and then
+    swapped by the profiler's OWN function -- the same call
+    `taxonomy._classify` makes -- because the two sides comparing
+    different translations of one cell would be the very disagreement
+    this exists to remove.
+
+    Applied only where the description gives the column a plain numeric
+    role. The declaration changes what a NUMBER means; a column
+    described by a label or text role publishes spellings, and swapping
+    a character inside one of those would rewrite a value the
+    description publishes exactly.
+
+    Guarantees: accepts the description, one column's block and its
+    cells; returns cells of the same length in the same order.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    named = False
+    for name in description.settings.forced_decimal_commas:
+        if name == column.name:
+            named = True
+    if not named:
+        return cells
+    if not contract.a_decimal_comma_reaches(column):
+        return cells
+    # A HOLE IS DECIDED ON THE FILE'S OWN TEXT AND IS LEFT ALONE, which
+    # is the order the profiler works in (review item P4-G3-R2-F5). It
+    # settles which cells are "no value" from the spelling the file
+    # holds, and only then reads what remains as numbers. Translating a
+    # hole first turns `7,5` -- a word this description names as "no
+    # value" -- into `7.5`, which every census downstream then counts
+    # as a number the column never held: the source file itself came
+    # back MISSING its own style obligation, with twenty numbers in a
+    # recount of a column published as holding one hundred and eighty.
+    holes = _holes_by_the_description(
+        block,
+        cells,
+        kept_spellings(description),
+        declared_spellings(description),
+    )
+    compound = isinstance(column.facts, contract.CompoundFacts)
+    swapped: "list[str]" = []
+    for place in range(len(cells)):
+        if holes[place]:
+            swapped = swapped + [cells[place]]
+            continue
+        read = parsing.written_with_a_decimal_comma(cells[place])
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
+        # the rule the writeback follows (review round 4 of landing L8,
+        # item 1). This translation reads the comma grammar, where a
+        # dot is a thousands mark and is REMOVED -- so a marker spelled
+        # `E11.9` would be read as `E119` and the half's published
+        # spelling would never be found. A cell of this role is
+        # translated only where the translation makes it a number.
+        if compound and parsing.classify_number(read) != parsing.NUMBER:
+            swapped = swapped + [cells[place]]
+            continue
+        swapped = swapped + [read]
+    return swapped
+
+
 def _cells_of(
     table: reading.Table, position: int
 ) -> "list[str] | None":
@@ -5298,6 +6137,158 @@ def _cells_of(
     if position < 1 or position > len(table.columns):
         return None
     return table.columns[position - 1]
+
+
+def _judged_hole_spellings(
+    column: contract.ColumnBlock, description: contract.Profile
+) -> "tuple[str, ...]":
+    """The `missing_by_source` keys a judged pass put there (R-P4-60).
+
+    Where the profiler judged a number to be a stand-in for "no value"
+    -- a `-999` among readings -- the twin writes those cells BLANK,
+    because reproducing the number would make the twin's own
+    measurement depend on a re-judgement of it (contract C6-116). Every
+    other key is written at its published count and is checked.
+    """
+    # THE COLUMN'S OWN DECLARATION, and not the ROLES a declaration
+    # would be honoured on. `a_decimal_comma_reaches` answers the
+    # second question and returns true for every plain numeric column,
+    # declared or not; reading an ordinary `-999.0` under a comma
+    # grammar makes it no number at all, so the value test failed and
+    # the text test it replaced was reinstated by accident. The
+    # generator asks `forced_decimal_commas` and so does this.
+    comma = False
+    for named in description.settings.forced_decimal_commas:
+        if named == column.name:
+            comma = True
+    found: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _one_judged_candidate(column, spelling, comma):
+            found = found + [spelling]
+    return tuple(found)
+
+
+def _one_judged_candidate(
+    column: contract.ColumnBlock, spelling: str, comma: bool
+) -> bool:
+    """Whether a judged pass is what made cells of this spelling absent.
+
+    THE SAME RULE THE GENERATOR APPLIES, WRITTEN THE SAME WAY (review
+    item P4-R60-R2-F1). This asked whether the published spelling and
+    the verdict's candidate were the same TEXT, and the generator asks
+    whether they are the same NUMBER -- which is how the producer
+    counted the candidate's rows in the first place. A column whose
+    twelve outlier cells are spelled `-999.0` publishes that spelling
+    and a candidate of `-999`: the generator writes twelve blanks, the
+    text test did not match, and a check was built that reported a
+    CORRECT twin MISSED, twelve published against nothing written.
+    Calendar placeholders part the same way, an alternate date form
+    against the canonical one, and so does a declared decimal comma.
+
+    The validator may not import the generator, so the rule is written
+    out here from the same two modules the generator uses -- `parsing`
+    for what a spelling denotes and `contract` for the verdicts -- and
+    the two are held together by a test that walks both.
+    """
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        candidate = verdict.candidate
+        if candidate in parsing.calendar_placeholders():
+            for name in parsing.DATE_FORMATS:
+                if parsing.placeholder_day_of(spelling, name) == candidate:
+                    return True
+            continue
+        read = spelling
+        if comma:
+            read = parsing.written_with_a_decimal_comma(spelling)
+        held = parsing.exact_of_spelling(read)
+        if held is None:
+            continue
+        if held == parsing.exact_of_spelling(candidate):
+            return True
+    return False
+
+
+def _hole_spelling_checks(
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    description: contract.Profile,
+) -> "list[Check]":
+    """Each `missing_by_source` spelling at exactly its count (R-P4-60).
+
+    THE FIELD STOPPED BEING REPORT-ONLY AT CONTRACT VERSION 6 AND THIS
+    MODULE DID NOT NOTICE. Version 5 wrote every absent cell empty, so
+    the field owed a twin nothing and the census listed it as a fact no
+    file could evidence. Version 6 writes each spelling at its published
+    count (plan P4-D6.1, contract C6-115), the disposition registry has
+    said EXACT-OBSERVABLE ever since -- "each `missing_by_source`
+    spelling at exactly its count" -- and the validator went on filing
+    the whole field as not-checkable and building no check at all.
+
+    So a file that dropped a required spelling passed with no miss.
+    Reproduced: a 36-row column publishing `missing_by_source` of
+    `{"n/a": 12}` was checked twice, once as written and once with every
+    `n/a` replaced by a blank. Both came back 49 checks and 0 missed.
+    For a table of medical records that is the wrong answer twice over:
+    the convention a column uses for "no value" is a fact somebody's
+    analysis branches on, and a twin that quietly drops it teaches that
+    analysis the wrong shape.
+
+    THE ONE KEY THAT IS NOT CHECKED, and the registry names it: a
+    spelling a JUDGED PASS put there. Where the profiler judged a
+    number to be a stand-in for "no value" -- a `-999` among readings --
+    the twin writes those cells BLANK, because reproducing the number
+    would make the twin's own measurement depend on a re-judgement of
+    it (contract C6-116). That key is an AUTHORIZED-DEVIATION with the
+    achieved zero named beside the published count, which is what the
+    registry authorizes and no more.
+
+    Guarantees:
+
+    - Inputs: one published column and the measured file's cells for it.
+    - Determinism: a fixed function of both, walked in sorted spelling
+      order.
+    - Errors raised: none. No I/O.
+    """
+    judged = set(_judged_hole_spellings(column, description))
+    checks: list[Check] = []
+    for spelling in sorted(column.missing_by_source):
+        published = column.missing_by_source[spelling]
+        written = 0
+        for cell in cells:
+            if cell == spelling:
+                written = written + 1
+        # THE RAW SPELLING NAMES THE SUBCHECK, and the renderer is what
+        # makes it printable. This escaped it here first, out of a fear
+        # that a control character in somebody's table would reach a
+        # report -- and `tests/test_p3v9f3_escaping_is_display_only`
+        # turned red, because a comparison is not a screen and this
+        # module has no screen. The fear was already answered one layer
+        # down: `quality.py` prints every subcheck through `_shown`,
+        # which crosses the display boundary once, where it belongs.
+        subcheck = f"holes.by_source.{spelling}"
+        if spelling in judged:
+            # A JUDGED KEY IS REPORT-ONLY, WHICH IS A CENSUS LINE AND
+            # NOT A CHECK. The registry's own word for it is
+            # "REPORT-ONLY for that key", and a check that can only
+            # ever come back AUTHORIZED-DEVIATION is a check nothing
+            # can make miss -- which the entry table's red battery
+            # refuses by name, and rightly. `_judged_hole_listings`
+            # files it where a fact no file can evidence belongs.
+            continue
+        checks = checks + [
+            _exact(
+                column.name,
+                "universal.missing_by_source",
+                subcheck,
+                _shown_count(published),
+                _shown_count(written),
+            )
+        ]
+    return checks
 
 
 def _presence_over_the_split(
@@ -5528,8 +6519,18 @@ def _governed(
       the split's number is not shown, because showing it is what the
       gate exists to prevent.
     * The gate is open and this subcheck measures the WRITTEN CELLS
-      rather than a re-description (`_MEASURED_FROM_THE_CELLS`). Either
-      side's measurement is the same one; the gated side's is taken.
+      rather than a re-description (`_MEASURED_FROM_THE_CELLS`). The
+      GATED side's is taken, and it is taken because it is the one
+      settled against the description the gate itself reads. It is no
+      longer safe to say the two sides measure the same thing here, and
+      that sentence stood in this docstring after it had stopped being
+      true: since residual R-P4-53 each side recounts the cells ITS OWN
+      reading counts as values, and the two readings differ on a
+      built-in missing word the submitted description passes no verdict
+      on -- which the split pins to data and the file's own description
+      does not. The subchecks named in that tuple are the ones whose
+      window comes off the file's own published style map, so the gated
+      side is the side that has both halves of the comparison.
     * The gate is open and the split has the measurement. The split's
       verdict, which is the only one taken over the right set of cells.
     * The gate is open and the split has NO measurement of that kind:
@@ -5654,6 +6655,24 @@ def _distinctness_checks(
         measured = _count_at(block, field)
         fact = f"{group}.{field}"
         subcheck = f"distinct.{field}"
+        if isinstance(facts, contract.ClockFacts):
+            # This role's own explicit cardinality bound, for the
+            # reason the date role has one: the construction writes a
+            # value per RANK, so a column publishing fewer different
+            # times than it has rows is met by a twin holding more.
+            checks = checks + [
+                _within(
+                    name,
+                    fact,
+                    subcheck,
+                    _shown_count(published),
+                    None if measured is None else float(measured),
+                    _clock_distinct_window(column, facts),
+                    ENVELOPE_CLOCK_DISTINCT,
+                    float(published),
+                )
+            ]
+            continue
         if isinstance(facts, contract.DatetimeFacts):
             # A column of dates has its own explicit cardinality bound:
             # the construction writes a value per rank and holds far
@@ -5669,6 +6688,58 @@ def _distinctness_checks(
                     _datetime_distinct_window(column, facts),
                     ENVELOPE_DATETIME_DISTINCT,
                     float(published),
+                )
+            ]
+            continue
+        if isinstance(facts, contract.CompoundFacts):
+            # THE COLUMN'S OWN COUNT IS THE TWO HALVES' COUNTS ADDED,
+            # so the window it owes is the two halves' windows added
+            # (review round 6 of this landing, item 2). Asking
+            # `_distinct_corner` here unwraps this role to its numeric
+            # half, so a column whose LABEL half is the one that cannot
+            # supply its spellings was given the numeric half's corner
+            # -- which is none -- and the exact bar, and a conforming
+            # twin was reported MISSED.
+            low, high, said = _compound_window(column, facts, mine, field)
+            if measured is not None and low <= measured <= high:
+                if low == high:
+                    checks = checks + [
+                        _exact(
+                            name,
+                            fact,
+                            subcheck,
+                            _shown_count(published),
+                            _shown_count(measured),
+                        )
+                    ]
+                    continue
+                checks = checks + [
+                    Check(
+                        name,
+                        fact,
+                        subcheck,
+                        AUTHORIZED_DEVIATION
+                        if measured != published
+                        else HELD,
+                        f"{_shown_count(published)} "
+                        f"({_shown_window(float(low), float(high))})"
+                        if measured != published
+                        else _shown_count(published),
+                        _shown_count(measured),
+                        said if measured != published else "",
+                    )
+                ]
+                continue
+            checks = checks + [
+                _exact(
+                    name,
+                    fact,
+                    subcheck,
+                    _shown_count(published)
+                    if low == high
+                    else f"{_shown_count(published)} "
+                    f"({_shown_window(float(low), float(high))})",
+                    None if measured is None else _shown_count(measured),
                 )
             ]
             continue
@@ -5702,6 +6773,24 @@ def _distinctness_checks(
             )
         ]
     return checks
+
+
+def _quantitative_of(
+    facts: object,
+) -> "contract.NumericFacts | None":
+    """The numeric block of a column, whichever role carries it.
+
+    Three roles publish a ladder: the two numeric ones directly, the
+    affixed role over its CORES, and a joined column over each of its
+    parts. Only the first two are asked here, because a joined column's
+    parts each carry their own block and are checked in their own
+    right.
+    """
+    if isinstance(facts, contract.NumericFacts):
+        return facts
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    return None
 
 
 def _lesser_or_held(
@@ -5803,6 +6892,8 @@ def _spelling_supply(
     numbers were told a twin could hold as few as one different value,
     where the classes alone settle three.
     """
+    column = _core_column(column)
+    facts = _quantitative(facts)
     if isinstance(facts, contract.LabelFacts):
         supply = 0
         for level in facts.levels:
@@ -5825,6 +6916,16 @@ def _spelling_supply(
                 pooled = pooled + facts.numeric_styles[style]
             else:
                 supply = supply + facts.numeric_styles[style]
+        # ...less the padded cells the width census pins, which carry no
+        # family of their own -- but NOT folded into the plain pool,
+        # because a padded cell and a plain one spell the SAME VALUE
+        # differently: `5` and `05` are two identities wherever both
+        # forms appear. So each named width keeps one spelling of its
+        # own, which is the floor a column all of whose cells carried a
+        # single value would still reach.
+        pinned = _pinned_padding(facts)
+        if pinned > 0:
+            supply = max(0, supply - pinned) + _named_pad_widths(facts)
         if pooled > 0:
             supply = supply + 1
         return supply + _other_class_spellings(column, published)
@@ -5915,6 +7016,55 @@ def _other_class_spellings(
     return found
 
 
+def _pinned_padding(facts: "contract.NumericFacts") -> int:
+    """How many padded cells the width census pins to a field width.
+
+    A CELL WHOSE FIELD WIDTH IS PUBLISHED IS KEYED BY ITS VALUE, exactly
+    as a `plain` cell is, and that is the whole of why this number is
+    needed on both ends of G12.8's supply. The leading-zero family is
+    the one unbounded supply of alternate spellings a numeric column
+    has -- `5`, `05`, `005` -- and every step of it writes ONE MORE
+    FIGURE. So where the census names the width, the family is spent:
+    a value has exactly one leading-zero spelling five figures wide,
+    and a twin reaching for a second would leave the published width.
+
+    Both ends read this. Counting a pinned cell as carrying a family it
+    cannot reach put the exact bar on a column whose twin cannot meet
+    it, and reported a twin that honoured every published width as
+    MISSED for the distinctness that honouring them costs -- which is
+    the case owner decision 11 already authorizes the envelope for,
+    "only where even those cannot supply".
+
+    The `(withheld)` remainder is NOT pinned: the floor held those cells
+    back precisely because no width of theirs was named, so the twin
+    writes them at whatever width its construction reaches and the
+    family is still open to them.
+    """
+    pinned = 0
+    for key in facts.pad_widths:
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        pinned = pinned + facts.pad_widths[key]
+    return pinned
+
+
+def _named_pad_widths(facts: "contract.NumericFacts") -> int:
+    """How many field widths the census names, the `(withheld)` pool aside.
+
+    Each named width is a spelling family of its own: one value written
+    two figures wide is `05` and five figures wide is `00005`, so a
+    column whose cells all carried one value still holds one identity
+    per named width. That is why the pinned cells do not simply join
+    the plain pool at the floor.
+    """
+    named = 0
+    for key in facts.pad_widths:
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + 1
+    return named
+
+
 def _spelling_ceiling(
     column: contract.ColumnBlock,
     facts: contract.ColumnFacts,
@@ -5942,6 +7092,8 @@ def _spelling_ceiling(
     G12.7's `S` is settled by the published level blocks alone -- so the
     ceiling IS the floor there and both ends are exact.
     """
+    column = _core_column(column)
+    facts = _quantitative(facts)
     if isinstance(facts, contract.LabelFacts):
         return _spelling_supply(column, facts, published)
     if not isinstance(facts, contract.NumericFacts):
@@ -5953,6 +7105,34 @@ def _spelling_ceiling(
             plain = plain + facts.numeric_styles[style]
         else:
             others = others + facts.numeric_styles[style]
+    # A PINNED PADDED CELL IS KEYED BY ITS VALUE TOO -- the census fixed
+    # its width, and every further spelling of its value is a figure
+    # wider -- BUT IT IS NOT KEYED WITH THE PLAIN CELLS. `5` and `05`
+    # are two spellings of one value, so a column holding both carries
+    # two identities for it, and folding the padded cells into the plain
+    # bucket capped the pair at the plain bucket's own ceiling. That put
+    # the twin the shipped generator writes OUTSIDE its own bound: a
+    # description with three plain and three padded cells over three
+    # values was given a ceiling of three where the construction writes
+    # four, and a conforming twin was reported MISSED -- which is review
+    # item P3-V7-F4's defect reached by a new route. The padded cells
+    # take a bucket of their own, capped the same way.
+    pinned = _pinned_padding(facts)
+    padded_room = 0
+    if pinned > 0:
+        others = max(0, others - pinned)
+        # ONE SPELLING PER VALUE PER NAMED WIDTH, which is why the count
+        # of named widths is a factor here and not an afterthought. A
+        # value has exactly one padded spelling at one field width, so
+        # where a single width is named this is the plain bucket's own
+        # cap; where SEVERAL are, the same value reaches a different
+        # spelling in each -- `01`, `001` and `0001` are one number and
+        # three identities -- and a cap of `n_distinct` then excludes
+        # twins the construction actually writes. A column of
+        # thirty-three padded cells over three named widths wrote
+        # thirty-one identities against a ceiling of thirty and was
+        # reported MISSED for it.
+        padded_room = min(pinned, column.n_distinct * _named_pad_widths(facts))
     # A PLAIN GROUP IS KEYED BY ITS VALUE, so the plain cells supply one
     # spelling for each different value among them and no more -- and
     # the value construction of G5 and G7 is built to the published
@@ -5961,7 +7141,7 @@ def _spelling_ceiling(
     # is counted here at its own cell count, which is the side that
     # claims MORE room: those cells may each be wearing a style with a
     # leading-zero family of its own.
-    room = others + min(plain, column.n_distinct)
+    room = others + min(plain, column.n_distinct) + padded_room
     # Cells outside the numbers class carry their own share of the G6.5
     # budget, never more than one identity per cell -- and the share is
     # what is added, not the cell count. Adding the cell count was the
@@ -6054,6 +7234,7 @@ def _distinct_corner(
     holding three folded identities where the description publishes two
     was reported an AUTHORIZED DEVIATION instead of a MISS.
     """
+    facts = _quantitative(facts)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         return CORNER_IDENTIFIER_INFEASIBLE
     if (
@@ -6069,8 +7250,167 @@ def _distinct_corner(
     return ""
 
 
+# What an EMPTY side of the pair is called where a person reads it.
+# One side is permitted to be empty and the report prints a value only
+# where there is one, so an empty side printed itself as nothing at all:
+# the line `counts.affix_prefix: HELD` stood with neither what was
+# asked for nor what was found under it, and a check whose two sides
+# are both invisible tells a reader nothing about what was checked.
+_NO_AFFIX_FRONT = "nothing in front of the number"
+_NO_AFFIX_BEHIND = "nothing after the number"
+
+
+def _shown_affix(side: str, front: bool) -> str:
+    """One side of the pair as a person reads it in the report."""
+    if side:
+        return side
+    if front:
+        return _NO_AFFIX_FRONT
+    return _NO_AFFIX_BEHIND
+
+
+def _core_column(column: contract.ColumnBlock) -> contract.ColumnBlock:
+    """An affixed column seen as the column its own cores make.
+
+    The universal counts of an affixed column answer for its CELLS, and
+    a cell reading `250 mg` is not a number, so those counts say the
+    column holds no numbers at all. Every G12.8 supply is written over
+    a column's number classes, so reading them off the cells put all
+    two hundred and forty cells in the "not a number" class and handed
+    the bracket an identity for each -- a floor at the published count
+    and a ceiling at twice it, which is a bracket that authorizes
+    nothing below and everything above. The cores are what those rules
+    mean, so they are what the rules are handed.
+
+    IT IS WRITTEN HERE RATHER THAN SHARED WITH THE GENERATOR'S OWN.
+    The generator holds a view of the same shape, and importing it
+    would put the planner inside the validator's import graph, which
+    the profile/generator boundary forbids outright: a validator that
+    read the planner could inherit the planner's defects and call the
+    result a measurement.
+
+    A column of any other role is returned unchanged, so callers do not
+    have to ask which kind they hold.
+    """
+    facts = column.facts
+    # AND A COMPOUND COLUMN SEEN AS ITS NUMERIC HALF, for the same
+    # reason word for word: this column's universal counts answer for
+    # its CELLS, and a cell reading `NOT DETECTED` is not a number, so
+    # G12.8's supply rules read off the cells would put every marker in
+    # the "not a number" class and hand the bracket an identity for
+    # each. The half's own view is the one those rules mean. It is the
+    # SHARED view in `contract` -- the generator builds its half from
+    # the same function -- because a validator and a producer that each
+    # decide what a half is would be one fact written twice.
+    if isinstance(facts, contract.CompoundFacts):
+        return contract.compound_numbers_view(column)
+    if not isinstance(facts, contract.AffixedFacts):
+        return column
+    # THE COMMONEST WRAPPER'S OWN POPULATION, AND NOT THE COLUMN'S
+    # (plan P4-D37). This block is that wrapper's, so the counts it is
+    # viewed through are that wrapper's: the column's totals less every
+    # other wrapper's. A column wearing ONE wrapper has nothing to
+    # subtract and is viewed exactly as it was.
+    worn_elsewhere = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    text_elsewhere = 0
+    for one in facts.affix_variants:
+        worn_elsewhere = worn_elsewhere + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
+    return dataclasses.replace(
+        column,
+        n_present=facts.n_affixed - worn_elsewhere,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item 3).
+        # The blanks belong to the COLUMN, not to a wrapper.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
+        n_numeric=facts.n_core_numeric - numeric_elsewhere,
+        n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
+        n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
+        n_contradictory=(
+            facts.n_core_contradictory - contradictory_elsewhere
+        ),
+        # AND THE COUNTS OF DIFFERENT THINGS ARE THE CORES' OWN (review
+        # round 1 of the wrapper set, item 3). The two counts left here
+        # were the CELLS', and once a column wears a set of wrappers
+        # those are a different number: three hundred cells made of a
+        # hundred cores under three wrappers publish three hundred
+        # different cells and a hundred different cores. Every G12.8
+        # supply and ceiling this view is handed to was then drawn for
+        # a core mechanism that can reach a hundred and told it might
+        # reach three hundred -- a ceiling three times the truth, so a
+        # file holding two hundred core identities could miss nothing.
+        # The counts the core rules mean are the ones they are handed.
+        n_distinct=facts.n_core_distinct,
+        n_distinct_folded=facts.n_core_distinct_folded,
+        facts=facts.numbers,
+    )
+
+
+def _quantitative(facts: contract.ColumnFacts) -> contract.ColumnFacts:
+    """The facts the numeric machinery reads, for any role that has some.
+
+    An affixed column's quantitative block is a `NumericFacts` HELD BY
+    its own facts rather than being one, so every rule written as "if
+    this is a numeric column" walked straight past it -- and walking
+    past an envelope is not a neutral omission, because a fact with no
+    envelope is compared exactly. That is how the distinctness of a
+    column of whole cores came to miss on a correct twin: two hundred
+    and forty different cores published, two hundred and thirty-three
+    written, and no envelope to say which of the two G12.8 authorizes.
+    Unwrapping here puts the affixed role under the same brackets as
+    the plain numeric one, which is what its axes already promise.
+    """
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    # AND THE COMPOUND ROLE'S numeric half, which is a `NumericFacts`
+    # held by its own facts exactly as an affixed column's is. Without
+    # this line every rule written as "if this is a numeric column"
+    # walked past it, and walking past an ENVELOPE is not neutral: the
+    # count of different cells was compared exactly, so a compound twin
+    # that fell as far short as a plain numeric twin does was reported
+    # MISSED where the plain one is reported an authorized deviation.
+    # Measured, on 300 cells holding sixty values written two ways
+    # each: the plain column 108 of 120 and authorized, the compound
+    # column 100 of 113 and missed.
+    if isinstance(facts, contract.CompoundFacts):
+        return facts.numbers
+    return facts
+
+
 def _group_of(facts: contract.ColumnFacts) -> str:
     """Which registry group a column's role publishes under."""
+    if isinstance(facts, contract.JoinedFacts):
+        # THIS BRANCH WAS MISSING and the fall-through below answered
+        # for it, so a joined column's two distinctness counts were
+        # reported as `empty.n_distinct` -- the identity of a role that
+        # publishes both as 0 and exactly observable. Found by
+        # measuring a blood-pressure column rather than by any guard,
+        # which is residual R-P4-62's own point.
+        return "joined"
+    if isinstance(facts, contract.CompoundFacts):
+        # AND THIS ONE WAS WRITTEN WITH THE ROLE, not after it. The
+        # branch above records what happens when a role reaches this
+        # dispatch with no answer of its own: the fall-through at the
+        # end returns `empty`, whose registry says both counts are 0
+        # and exactly observable, so a real column's distinctness was
+        # reported under another role's identity. The fifteenth role
+        # publishes both counts over BOTH halves and has its own group.
+        return "compound"
+    if isinstance(facts, contract.ClockFacts):
+        return "clock"
+    if isinstance(facts, contract.AffixedFacts):
+        # Its quantitative block IS the numeric block, read over the
+        # cores, so it takes the numeric group's dispositions entire.
+        return "numeric"
     if isinstance(facts, contract.NumericFacts):
         return "numeric"
     if isinstance(facts, contract.LabelFacts):
@@ -6095,14 +7435,30 @@ def _role_checks(
 ) -> "list[Check]":
     """Everything the column's own role adds."""
     facts = column.facts
+    if isinstance(facts, contract.CompoundFacts):
+        return _compound_checks(column, facts, block, cells, floor, mine)
+    if isinstance(facts, contract.JoinedFacts):
+        return _joined_checks(column, facts, block, cells, floor)
+    if isinstance(facts, contract.ClockFacts):
+        return _clock_checks(column, facts, block)
+    if isinstance(facts, contract.AffixedFacts):
+        return _affixed_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.NumericFacts):
-        return _numeric_checks(column, facts, block, cells, floor)
+        return _numeric_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.LabelFacts):
-        return _label_checks(column, facts, block, floor)
+        # THE CENSUS IS CHECKED ON ALL FOUR LABEL ROLES (P4-D18,
+        # corrected). It was dispatched on `LongTailFacts` alone while
+        # it stood on that role alone; a categorical column with a rare
+        # tail carries it too, and it is exactly the case the census
+        # was raised for.
+        return _label_checks(column, facts, block, floor) + _form_checks(
+            column.name, "label.shape_forms", facts.shape_forms,
+            block, floor,
+        )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(column, facts, block, floor, mine)
     if isinstance(facts, contract.TextFacts):
-        return _text_checks(column, facts, block)
+        return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
         return _identifier_checks(column, facts, block, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
@@ -6110,7 +7466,1390 @@ def _role_checks(
     return []
 
 
+def _at_place(
+    block: "dict[str, object]", key: str, place: int
+) -> "object | None":
+    """One entry of a list a re-described block carries, or None."""
+    if key not in block:
+        return None
+    held = block[key]
+    if not isinstance(held, list) or place >= len(held):
+        return None
+    found: object = held[place]
+    return found
+
+
+# The three subchecks of the numeric half that the split rule settles,
+# named once and read by both the check side and the census side, so
+# neither can come to hold a fact the other lists.
+_SPLIT_CONSTANT_SUBCHECKS = (
+    ("numeric.numeric_share", "counts.numeric_share"),
+    (
+        "numeric.n_left_out_of_statistics",
+        "counts.n_left_out_of_statistics",
+    ),
+    (
+        "numeric.n_negative_unrepresentable",
+        "counts.n_negative_unrepresentable",
+    ),
+)
+
+
+def _half_window(
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> "tuple[int, int]":
+    """What one HALF of a compound column may hold, both ends.
+
+    The published count itself where no corner reaches the half -- a
+    half with no corner owes its count exactly -- and the corner's own
+    two-sided window where one does. G12.8 reaches the numeric half and
+    G12.7 the label half, and the two are asked the same way.
+
+    IT EXISTS BECAUSE THE COLUMN'S OWN COUNT IS THE TWO HALVES ADDED
+    (invariant NL3), so the window the column owes is the two halves'
+    windows added -- and the first writing of this shifted the numeric
+    half's window by the label half's PUBLISHED count, which assumes
+    the label half is exact. It need not be: a label half of `alpha`,
+    `Alpha`, `beta` and `Beta` whose variants the floor holds back can
+    supply three spellings for a published four, and the twin then
+    holds one fewer different cell than the arithmetic said it must
+    (review round 6 of this landing, items 1 and 2).
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if not corner:
+        return (published, published)
+    supply = _spelling_supply(view, facts, published)
+    ceiling = _spelling_ceiling(view, facts, published)
+    if supply is None or ceiling is None:
+        return (published, published)
+    return (min(supply, published), max(ceiling, published))
+
+
+def _compound_window(
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> "tuple[int, int, str]":
+    """What the WHOLE compound column may hold, both ends, and by what.
+
+    The two halves' windows added, because the two halves share no
+    spelling and the column's count is their counts added. The third
+    value is the citation a reader is sent to: the passage of the half
+    that WIDENED the window, and both where both did.
+
+    THE CITATION IS NOT ALWAYS G12.8 (review round 7 of this landing,
+    item 3). On a column whose numeric half is exact and whose LABEL
+    half cannot supply its spellings, the authorization that covers the
+    outcome is G12.7's; naming the numeric envelope sends a reader to a
+    passage that does not cover what they are reading.
+    """
+    numeric = facts.n_numeric_distinct
+    labels = facts.n_label_distinct
+    if field == _FOLDED_DISTINCT:
+        numeric = facts.n_numeric_distinct_folded
+        labels = facts.n_label_distinct_folded
+    low_numbers, high_numbers = _half_window(
+        contract.compound_numbers_view(column), facts, numeric, mine, field
+    )
+    low_labels, high_labels = _half_window(
+        contract.compound_labels_view(column),
+        facts.labels,
+        labels,
+        mine,
+        field,
+    )
+    said = ""
+    if low_numbers != high_numbers or low_numbers != numeric:
+        said = CORNER_CITATIONS[CORNER_NUMERIC_SPELLINGS_SHORT]
+    if low_labels != high_labels or low_labels != labels:
+        label_said = CORNER_CITATIONS[CORNER_LABEL_VARIANTS_SHORT]
+        said = f"{said} and {label_said}" if said else label_said
+    return (low_numbers + low_labels, high_numbers + high_labels, said)
+
+
+def _half_distinct_is_listed(
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    published: int,
+    mine: "tuple[str, ...]",
+    field: str,
+) -> str:
+    """The corner that makes this half's count a LISTING, or "".
+
+    THE ONE PLACE THE DECISION IS MADE, read by the check side and by
+    the census side (review round 5 of this landing, item 2). V3.5: a
+    corner whose envelope licenses every count a file of this length
+    can hold settles nothing a CSV can evidence, so the fact is named
+    on the census rather than checked. `_distinctness_checks` makes
+    that call for the COLUMN's two counts and the half's copy of it
+    made only two of the three -- so a numeric half of a hundred plain
+    numbers, where G12.8 licenses every count from one to a hundred,
+    was given the exact bar and reported MISSED at 94 where a plain
+    numeric column of the same values is listed.
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if corner and _envelope_admits_every_count(view, facts, published):
+        return corner
+    return ""
+
+
+def _half_distinct_check(
+    column: contract.ColumnBlock,
+    view: contract.ColumnBlock,
+    facts: contract.ColumnFacts,
+    fact: str,
+    subcheck: str,
+    published: int,
+    measured: "int | None",
+    mine: "tuple[str, ...]",
+    field: str,
+) -> "Check | None":
+    """One count of different cells in one HALF, at its own bar.
+
+    THE SAME THREE-WAY `_distinctness_checks` MAKES, and writing it out
+    here rather than calling that one is deliberate: that function
+    answers for the COLUMN's two counts and reads them off the block,
+    while these are the halves' and are read off the typed facts.
+
+    None where the envelope licenses every count the file could hold:
+    that is a listing and not a check, and `_half_distinct_is_listed`
+    is the one place the two sides ask the question.
+
+    THE EXACT BAR WHERE THERE IS NO CORNER. A first writing handed
+    every one of these to `_lesser_or_held`, which is written for a
+    column that HAS a corner: with none it reached
+    `CORNER_CITATIONS[""]` and raised, so `synthtwin validate` crashed
+    on a real twin of a real column -- 278 readings, twenty markers and
+    two spellings of `Trace` (review round 4 of this landing, item 2).
+    """
+    corner = _distinct_corner(facts, mine, field)
+    if corner:
+        return _lesser_or_held(
+            column.name, fact, subcheck, published, measured, corner, view
+        )
+    return _exact(
+        column.name,
+        fact,
+        subcheck,
+        _shown_count(published),
+        None if measured is None else _shown_count(measured),
+    )
+
+
+def _compound_half_block(
+    block: "dict[str, object]", key: str
+) -> "dict[str, object]":
+    """One sub-block of a re-described compound column, or an empty one.
+
+    An empty mapping is not a shortcut: it is what every check below
+    reads when the twin was re-described as some OTHER role, and each
+    of them answers a missing key by reporting no measured value rather
+    than by holding. So a twin whose column stopped being compound at
+    all misses the facts of both halves, which is the truthful outcome.
+    """
+    if key not in block:
+        return {}
+    held = block[key]
+    if not isinstance(held, dict):
+        return {}
+    inner: "dict[str, object]" = {}
+    for name in held:
+        if isinstance(name, str):
+            inner[name] = held[name]
+    return inner
+
+
+def _compound_checks(
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+    mine: "tuple[str, ...]",
+) -> "list[Check]":
+    """A column holding a quantity and a vocabulary at once.
+
+    THE TWO COUNTS ARE THIS ROLE'S OWN, and everything else here is
+    another group's obligation read over one half of the column
+    (contract 9.4b, plan P4-D33). So the halves are handed to the same
+    two functions a whole column of each kind is handed to, and their
+    checks keep the names of the groups that dispose them: a reader who
+    is told `numeric.mean` was missed on a compound column looks the
+    fact up where the numeric role's facts are disposed, because that
+    is what it is.
+
+    THE HALVES ARE THE ONES THE GENERATOR BUILT, from the same two view
+    builders in `contract`. Splitting the cells here by a rule of this
+    file's own would let the checked population drift from the written
+    one, which is the shape of defect this repository keeps finding:
+    one fact written twice.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    # THE THREE POPULATIONS, each recounted from the twin's own text
+    # (residual R-P4-149). The two in the middle are the cells the
+    # number rules read as a numeral this format cannot hold: they are
+    # counted with the numeric half, and a file that writes a word
+    # where the description says a numeral misses them.
+    for field, published in (
+        ("n_numeric_cells", facts.n_numeric_cells),
+        ("n_numeric_out_of_range", facts.n_numeric_out_of_range),
+        ("n_numeric_contradictory", facts.n_numeric_contradictory),
+        ("n_label_cells", facts.n_label_cells),
+    ):
+        measured = _count_at(block, field)
+        checks = checks + [
+            _exact(
+                name,
+                f"compound.{field}",
+                f"counts.{field}",
+                _shown_count(published),
+                None if measured is None else _shown_count(measured),
+            )
+        ]
+    numbers = contract.compound_numbers_view(column)
+    labels = contract.compound_labels_view(column)
+    # THE HALF'S OWN TWO COUNTS OF DIFFERENT WRITTEN CELLS, under the
+    # SAME machinery the column's own two go through -- G12.8's
+    # envelope where the published spellings cannot settle the count,
+    # and the exact bar first, always. They are the budget the twin's
+    # numeric half was laid out from, so a file that misses them
+    # misses for exactly the reason the column's own counts miss, and
+    # holding one to a window while the other is pinned would report
+    # one shortfall twice under two different bars.
+    for field, published in (
+        ("n_numeric_distinct", facts.n_numeric_distinct),
+        ("n_numeric_distinct_folded", facts.n_numeric_distinct_folded),
+    ):
+        under = _RAW_DISTINCT
+        if field == "n_numeric_distinct_folded":
+            under = _FOLDED_DISTINCT
+        if _half_distinct_is_listed(numbers, facts, published, mine, under):
+            continue
+        found = _half_distinct_check(
+            column,
+            numbers,
+            facts,
+            f"compound.{field}",
+            f"distinct.{field}",
+            published,
+            _count_at(block, field),
+            mine,
+            under,
+        )
+        if found is not None:
+            checks = checks + [found]
+    # NAMED FOR WHAT IT HOLDS, and it was `mine` -- the name of this
+    # function's own corner parameter (review round 3 of this landing,
+    # item 1). The order of the lines kept it correct: the corner was
+    # read above, before this rebound the name to a list of cells. A
+    # correctness that rests on the order of two statements is one an
+    # edit removes without a word, and a strict type run named it.
+    numeric_cells: "list[str]" = []
+    for cell in cells:
+        if parsing.classify_number(cell) == parsing.NUMBER:
+            numeric_cells = numeric_cells + [cell]
+    settled = {subcheck for _fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS}
+    for check in _numeric_checks(
+        numbers,
+        facts.numbers,
+        _compound_half_block(block, "numbers"),
+        numeric_cells,
+        floor,
+        mine,
+    ):
+        # AND THE THREE THE SPLIT RULE SETTLES ARE LISTED, NOT CHECKED
+        # (V3.5). They are the numeric block's facts and the numeric
+        # checks build them, so they are taken out here rather than by
+        # a branch inside machinery every other role shares.
+        if check.subcheck not in settled:
+            checks = checks + [check]
+    # THE LABEL HALF'S OWN TWO COUNTS OF DIFFERENT CELLS. They are
+    # published facts of the label group read over this half, and no
+    # check reached them: the loader read the folded one for invariant
+    # B2 and discarded it, so a file could publish any pair (review
+    # round 3 of this landing, item 5). Held to the label group's own
+    # envelope, which is raw distinctness only -- folding is not a
+    # spelling question and the published levels settle it exactly.
+    label_block = _compound_half_block(block, "labels")
+    for field, published in (
+        (_RAW_DISTINCT, facts.n_label_distinct),
+        (_FOLDED_DISTINCT, facts.n_label_distinct_folded),
+    ):
+        if _half_distinct_is_listed(
+            labels, facts.labels, published, mine, field
+        ):
+            continue
+        found = _half_distinct_check(
+            column,
+            labels,
+            facts.labels,
+            f"label.{field}",
+            f"distinct.labels.{field}",
+            published,
+            _count_at(label_block, field),
+            mine,
+            field,
+        )
+        if found is not None:
+            checks = checks + [found]
+    checks = checks + _label_checks(
+        labels, facts.labels, label_block, floor
+    )
+    checks = checks + _form_checks(
+        name,
+        "label.shape_forms",
+        facts.labels.shape_forms,
+        label_block,
+        floor,
+    )
+    return checks
+
+
+def _joined_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """A column of two or more numbers written in one cell.
+
+    THIS ROLE HAD NO CHECKS AT ALL UNTIL NOW (residual R-P4-41, closed
+    by plan P4-D25). `_role_checks` dispatches on the facts type and
+    fell through to an empty list for this one, so a joined column's
+    separator, its part count, its widths, its per-position numbers and
+    its two pairing facts were PUBLISHED AND UNCHECKED: a twin of such
+    a column was measured on the universal obligations alone, and its
+    report neither confirmed nor denied anything the role adds. A
+    description carrying a fact no reader verifies is the shape of gap
+    this project's controls exist to prevent.
+
+    FOUR KINDS OF OBLIGATION, and each is checked the way its own kind
+    allows:
+
+    - the separator, the part count and the counts of split and unsplit
+      cells are EXACT, and both sides print;
+    - each position's smallest and largest written width is exact;
+    - each PAIR's above-count is exact -- it is a number of rows, and a
+      row out of it is one cell holding a reading that cannot happen;
+    - each pair's rank agreement is APPROXIMATED, so it is checked
+      inside a stated window rather than pinned. It is published
+      rounded and reached by a walk that stops when it is close enough.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    found = _text_at(block, "separator")
+    checks = checks + [
+        _exact(
+            name,
+            "joined.separator",
+            "shape.separator",
+            facts.separator,
+            found,
+        )
+    ]
+    for field, published in (
+        ("n_parts", facts.n_parts),
+        ("n_joined", facts.n_joined),
+        ("n_unparsed", facts.n_unparsed),
+    ):
+        measured = _count_at(block, field)
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.{field}",
+                f"counts.{field}",
+                _shown_count(published),
+                None if measured is None else _shown_count(measured),
+            )
+        ]
+    for place in range(len(facts.part_min_widths)):
+        held = _at_place(block, "part_min_widths", place)
+        seen = (
+            held
+            if isinstance(held, int) and not isinstance(held, bool)
+            else None
+        )
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.part_min_widths[{place}]",
+                f"widths.number {place + 1}",
+                _shown_count(facts.part_min_widths[place]),
+                None if seen is None else _shown_count(seen),
+            )
+        ]
+    # `part_above` IS EXACT ON EVERY PAIR, and a round of this review
+    # briefly made it otherwise (item P4-G3-R3-F2). It is a count of
+    # rows; the ratified plan, the contract and G12.9 itself all say a
+    # twin either holds it or has missed it. A twin of a three-position
+    # column DOES miss it, on every column measured -- and that is
+    # residual R-P4-51 showing in the report, which is where an open
+    # residual belongs. Excusing it here would let a file that is not a
+    # twin at all satisfy every verdict-bearing obligation: describe
+    # 120 cells `r/r/1000` and check `r/(121-r)/1000` against it, and
+    # every marginal fact still holds while the early pair is turned
+    # inside out.
+    for place in range(len(facts.part_above)):
+        held = _at_place(block, "part_above", place)
+        seen = (
+            held
+            if isinstance(held, int) and not isinstance(held, bool)
+            else None
+        )
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.part_above[{place}]",
+                f"together.rows one above the other, pair {place + 1}",
+                _shown_count(facts.part_above[place]),
+                None if seen is None else _shown_count(seen),
+            )
+        ]
+    # EVERY PAIR TAKES THE WINDOW, and it did not until landing L7
+    # (residual R-P4-51). The generator scored only the pairs the
+    # pairing walk moved -- those with the LAST position in them -- and
+    # this side was left windowing every pair, so on a three-position
+    # column the twin's own report called pair (1,2) an unscored
+    # deviation with no window while this report handed the same pair
+    # G12.9's range and G12.9's name, which was the section that
+    # excluded it. That disagreement was closed by narrowing this side;
+    # it is closed now by the walk moving every position but the first,
+    # so the two pages agree because the same thing is true of every
+    # pair rather than because both were taught the same exception.
+    for place in range(len(facts.part_agreements)):
+        agreed = facts.part_agreements[place]
+        found_agreement = _at_place(block, "part_agreements", place)
+        measured_agreement: "float | None" = None
+        if isinstance(found_agreement, (int, float)) and not isinstance(
+            found_agreement, bool
+        ):
+            # NEGATIVE ZERO IS ZERO, and the two paths must not
+            # disagree about that (review item P4-G3-R4-F2, and round 3
+            # of landing L7 for this path). An agreement a few
+            # ten-thousandths below zero rounds to `-0.0`, which EQUALS
+            # `0.0` as a number and differs from it as text. The exact
+            # check this pair used to take added zero for exactly this
+            # reason; when landing L7 gave every pair the WINDOW
+            # instead, the normalisation was left behind and a held
+            # pair printed `-0.0` against a published `0.0`.
+            measured_agreement = float(found_agreement) + 0.0
+        fact = f"joined.part_agreements[{place}]"
+        subcheck = f"together.how strongly they move, pair {place + 1}"
+        checks = checks + [
+            _within(
+                name,
+                fact,
+                subcheck,
+                f"{agreed}",
+                measured_agreement,
+                (
+                    # Inclusive by G12.9, and subtraction rounds: the
+                    # generator's copy of this bound takes the same
+                    # outward step (item P4-G6-R7-F1).
+                    _lowered(agreed - _AGREEMENT_SLACK),
+                    _raised(agreed + _AGREEMENT_SLACK),
+                ),
+                ENVELOPE_JOINED_AGREEMENT,
+                agreed,
+            )
+        ]
+    checks = checks + _joined_part_checks(
+        column, facts, block, cells, floor
+    )
+    checks = checks + _position_styles(
+        column, facts, block, cells, floor
+    )
+    # AND EVERYTHING BETWEEN THE TWO ENDS OF EACH POSITION'S LADDER
+    # (residual R-P4-58). The ends and the style census were measured
+    # and the ladder's interior, the four moments and the count of
+    # different numbers were not -- about thirty obligations on a
+    # two-position column, checked nowhere and listed nowhere.
+    checks = checks + _joined_number_checks(
+        column, facts, block, cells, floor
+    )
+    return checks
+
+
+def _position_cells(
+    cells: "list[str]", separator: str, parts: int, place: int
+) -> "list[str]":
+    """The numbers one POSITION of a joined column wrote.
+
+    A cell that is not a joined cell belongs to no position and is left
+    out rather than counted into one. THE TEST IS THE PROFILER'S OWN
+    and both halves of it matter (review item P4-G3-R1-F2): the cell
+    splits into exactly the published number of pieces AND every piece
+    reads as a number. Counting on the piece count alone let a stand-in
+    through whenever it happened to carry the right number of
+    separators -- `1.00/` splits into two pieces, so its `1.00` was
+    measured into the first position and its blank second piece into
+    the second.
+
+    That is not a cosmetic difference, because the cells this walks are
+    a REAL FILE's. A source of two thousand rows carrying twenty cells
+    written `1.00/` profiles soundly as a joined column at the parse
+    line, and its first position was then reported MISSED on three
+    style facts it had never broken. A check that reports real data as
+    missed is worse than no check, and R-P4-43 asks for a check whose
+    red case is a file that genuinely differs.
+    """
+    found: "list[str]" = []
+    for cell in cells:
+        pieces = _cut_at_separator(cell, separator)
+        if len(pieces) != parts:
+            continue
+        every = True
+        for piece in pieces:
+            if parsing.parse_number(piece) is None:
+                every = False
+        if not every:
+            continue
+        found = found + [pieces[place]]
+    return found
+
+
+def _cut_at_separator(cell: str, separator: str) -> "list[str]":
+    """One cell cut into the positions its separator makes.
+
+    The offline audit's type gate (plan D6.2) at the top of the
+    function that calls a method on the value, which is why this is a
+    function of its own rather than a line inside the walk above.
+    """
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a file's cell was not text")
+    if not isinstance(separator, str):
+        raise TypeError("internal check: a separator was not text")
+    return cell.split(separator)
+
+
+def _position_styles(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Each position's own style and width censuses (residual R-P4-43).
+
+    THE HOLE THIS CLOSES. A position of a joined column publishes the
+    whole quantitative block -- its styles map and both of its width
+    censuses among them -- and the validator checked its two endpoints,
+    its average and its whole-number test and nothing else. So a
+    checked file could rewrite every number of a position in another
+    form and keep every checked number, which is a published EXACT fact
+    nobody measured.
+
+    The identity is the one a plain numeric column is held to (contract
+    7.5.7), read over that position's numbers, so the rule is not
+    written twice. What the position adds is the NAME: a subcheck
+    called `numeric.numeric_styles` on a two-position column would be
+    two obligations under one identity, and a reader could not tell
+    which position missed.
+    """
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        held = _at_place(block, "parts", place)
+        inner: "dict[str, object]" = {}
+        if isinstance(held, dict):
+            for key in held:
+                if isinstance(key, str):
+                    inner[key] = held[key]
+        mine = _position_cells(
+            cells, facts.separator, facts.n_parts, place
+        )
+        for check in _style_checks(
+            column, facts.parts[place], inner, mine, floor
+        ):
+            fact = check.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            checks = checks + [
+                dataclasses.replace(
+                    check,
+                    fact=fact,
+                    subcheck=f"number {place + 1} {check.subcheck}",
+                )
+            ]
+    return checks
+
+
+# The two rungs `_joined_part_checks` measures under its own names.
+_LADDER_ENDS = ("ladder.min", "ladder.max")
+
+
+def _joined_number_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Each position's ladder and moments, position by position (R-P4-58).
+
+    A JOINED POSITION CARRIES A WHOLE QUANTITATIVE BLOCK AND NOTHING
+    MEASURED IT. `JoinedFacts.parts` holds a full `NumericFacts` for
+    each position -- its own hundred-and-one-rung ladder, its own mean,
+    spread, shape and tail weight, its own count of different numbers.
+    `_joined_part_checks` measured the two ENDS of each ladder and
+    whether the position is whole; `_joined_style_checks` measured its
+    style census. Everything between was checked nowhere and listed
+    nowhere, while `_quantitative_of`'s own docstring said a joined
+    column's parts "are checked in their own right".
+
+    On a blood-pressure column of 120 readings that is about thirty
+    obligations named nowhere: the systolic average, spread, shape and
+    tail weight, its nine interior rungs, its ninety finer rungs and
+    its count of different numbers, and the same again for the
+    diastolic. A person analysing those two numbers on the twin had no
+    assurance any of it matched.
+
+    THE SAME REWRITE THE STYLE CHECKS ALREADY TAKE. Each position's
+    block is handed to the code that measures a plain numeric column,
+    and every check that comes back is renamed: the registry fact from
+    `numeric.X` to `joined.parts[N].X`, and the subcheck with the
+    position in front of it. Two positions checked under one identity
+    would be two obligations a reader could not tell apart, which is
+    the reason `_joined_style_checks` gives for doing the same.
+    """
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        held = _at_place(block, "parts", place)
+        inner: "dict[str, object]" = {}
+        if isinstance(held, dict):
+            for key in held:
+                if isinstance(key, str):
+                    inner[key] = held[key]
+        numbers = facts.parts[place]
+        made = _ladder_checks(column, numbers, inner)
+        made = made + _moment_checks(column, numbers, inner)
+        for check in made:
+            # THE TWO ENDS ARE ALREADY MEASURED, by
+            # `_joined_part_checks`, under the names the entry table
+            # has carried since the role shipped. Letting the ladder
+            # walk file them again would name one obligation twice --
+            # `ends.number 1 min` and `number 1 ladder.min` for one
+            # published value -- which is the defect this residual is
+            # an instance of, made a second time by its own repair.
+            if check.subcheck in _LADDER_ENDS:
+                continue
+            fact = check.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            checks = checks + [
+                dataclasses.replace(
+                    check,
+                    fact=fact,
+                    subcheck=f"number {place + 1} {check.subcheck}",
+                )
+            ]
+    return checks
+
+
+def _joined_part_checks(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """Each position's own numbers, position by position.
+
+    The two ENDS of a position's ladder are exact -- they are values
+    the column really held -- and its average is approximated, so it is
+    checked inside the window every published average is checked
+    inside. Whether a position is whole is exact.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    for place in range(len(facts.parts)):
+        numbers = facts.parts[place]
+        held = _at_place(block, "parts", place)
+        seen = held if isinstance(held, dict) else None
+        inner: "dict[str, object]" = {}
+        if seen is not None:
+            for key in seen:
+                if isinstance(key, str):
+                    inner[key] = seen[key]
+        rungs = _inner_at(inner, "percentiles") if inner else None
+        for end in ("min", "max"):
+            published = numbers.percentiles.rungs[
+                0 if end == "min" else len(numbers.percentiles.rungs) - 1
+            ]
+            measured = None
+            if rungs is not None and end in rungs:
+                value = rungs[end]
+                if isinstance(value, (int, float)) and not isinstance(
+                    value, bool
+                ):
+                    measured = float(value)
+            checks = checks + [
+                _exact(
+                    name,
+                    f"joined.parts[{place}].{end}",
+                    f"ends.number {place + 1} {end}",
+                    "nothing" if published is None else f"{published}",
+                    None
+                    if measured is None
+                    else ("nothing" if published is None else f"{measured}"),
+                )
+            ]
+        truth = None
+        if inner and "integer_valued" in inner:
+            value = inner["integer_valued"]
+            if isinstance(value, bool):
+                truth = value
+        checks = checks + [
+            _exact(
+                name,
+                f"joined.parts[{place}].integer_valued",
+                f"type.number {place + 1} is whole",
+                "yes" if numbers.integer_valued else "no",
+                None if truth is None else ("yes" if truth else "no"),
+            )
+        ]
+    return checks
+
+
 # -- the numeric roles ------------------------------------------------
+
+
+def _affixed_checks(
+    column: contract.ColumnBlock,
+    facts: contract.AffixedFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+    mine: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """A column of numbers each wearing one shared piece of text.
+
+    TWO POPULATIONS, and the checks keep them apart exactly as the
+    producer does. The pair and how many cells wear it are read off the
+    CELLS. Everything quantitative is read off the CORES those cells
+    hold, which is why this re-describes the column's cores and hands
+    them to the numeric checks: the same window, the same envelope, the
+    same arithmetic that a plain numeric column is held to.
+
+    Written because the role shipped with none of this: `AffixedFacts`
+    fell through to the empty group and `_role_checks` returned nothing,
+    so a file could keep the role, the pair, the row count and the
+    distinctness while missing the ladder and every moment, and the
+    quality report said not a word (review item P4-AFX-F8).
+    """
+    name = column.name
+    checks: list[Check] = []
+    prefix = facts.affix_prefix
+    suffix = facts.affix_suffix
+    # The CELL population: which cells wear the pair, counted the way
+    # the producer counts them.
+    # EVERY WRAPPER THE DESCRIPTION PUBLISHES, not the commonest alone
+    # (plan P4-D36). A column may wear a small SET of them -- a
+    # laboratory column of `13.5`, `4.2 H` and `9.8 L` wears three --
+    # and a recount that stripped only the commonest treated every
+    # other cell as a straggler: the style census then recounted a
+    # third of the column and the twin missed an obligation it met.
+    #
+    # THE LONGEST WRAPPER WINS, as it does in the producer, so a cell
+    # of `4.2 H` is read with ` H` off it and not with nothing.
+    speaking: "list[tuple[str, str]]" = [(prefix, suffix)]
+    for one in facts.affix_variants:
+        speaking = speaking + [(one.prefix, one.suffix)]
+    cores: list[str] = []
+    worn: "list[tuple[str, str]]" = []
+    for cell in cells:
+        trimmed = parsing.trimmed(cell)
+        chosen: "tuple[str, str] | None" = None
+        reach = -1
+        for key in sorted(speaking):
+            ahead = key[0]
+            behind = key[1]
+            if not _wears_the_wrapper(cell, ahead, behind):
+                continue
+            # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING
+            # ELSE, the rule the producer proposes it under: it is a
+            # prefix and a suffix of every cell, so without this a
+            # cell of `9.9 CRITICAL` would wear it with the whole cell
+            # as its core.
+            if not ahead and not behind:
+                if parsing.classify_number(trimmed) != parsing.NUMBER:
+                    continue
+            if len(ahead) + len(behind) > reach:
+                chosen = key
+                reach = len(key[0]) + len(key[1])
+        if chosen is None:
+            continue
+        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+        if core:
+            cores = cores + [core]
+            # ...AND WHICH WRAPPER IT WORE (plan P4-D37). Every
+            # published wrapper carries its own block now, so the
+            # recount is read one wrapper at a time: a style census
+            # published over a hundred kilograms, checked against a
+            # recount over two hundred cores, missed by the hundred
+            # pounds beside them.
+            worn = worn + [chosen]
+    # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
+    # recount of its cells under the published pair. The difference is
+    # V5.1: this report may state about the measured file only what
+    # `synthtwin profile`, run on THAT FILE, would publish about it.
+    # Counting the file's cells against a pair the DESCRIPTION's author
+    # chose states something else -- and `n_affixed` is floor-bounded
+    # from below (AF2), so the recount printed exact counts BELOW the
+    # publication floor, live functions of a file whose own description
+    # publishes no affixed fact at all. A description of one pair
+    # checked against a file of another printed "found: 5" beside the
+    # pair, which is five cells of somebody's table counted for a
+    # reader who may not hold it.
+    checks = checks + [
+        _exact(
+            name,
+            "affixed.n_affixed",
+            "counts.n_affixed",
+            f"{facts.n_affixed}",
+            _shown_count_or_none(_count_at(block, "n_affixed")),
+        )
+    ]
+    # THE PAIR ITSELF, compared as the two SPELLINGS they are. Counting
+    # how many cells wear one side is not the same check and cannot be
+    # substituted for it: one side is permitted to be empty (AF1 forbids
+    # only both), every cell in the file wears an empty side, and a
+    # count-shaped check would then read the whole column and miss on a
+    # file that carried the pair exactly. So each side is settled
+    # against what the file's OWN description read off it, which is the
+    # producer's reading of the file and is empty-side-correct by
+    # construction. A file whose description reads no affix at all
+    # carries no such key, and the sentence below says that rather than
+    # comparing against a spelling nothing wrote.
+    # THE OTHER WRAPPERS, COMPARED IN FULL AND REPORTED AS A VERDICT
+    # (plan P4-D36; review round 1 of this landing, item 2). The first
+    # writing compared how MANY of them the file's own description
+    # reads and nothing else, while the sentence beside it claimed each
+    # wrapper's two sides were settled the way the commonest pair's
+    # are. They were not, and the obligation is stated EXACT: a
+    # description publishing a hundred bare cells, fifty `H` and fifty
+    # `L`, checked against a file holding a hundred bare, eighty `H`
+    # and twenty `L` -- same cores, same numbers, same count of other
+    # wrappers -- was reported HELD, and a person filtering the twin on
+    # its flag met a population the description does not describe.
+    #
+    # SO THE WHOLE SET IS COMPARED AND ONLY THE VERDICT IS PRINTED.
+    # V5.4 is unconditional that no text read out of a measured file
+    # reaches this report, and a wrapper is text, so the measured side
+    # is kept back exactly as the commonest pair's is; what a reader is
+    # shown is what the DESCRIPTION asks for, which is its own.
+    checks = checks + [
+        _silent(
+            name,
+            "affixed.affix_variants",
+            "counts.affix_variants",
+            _shown_variants(facts.affix_variants),
+            _variant_set(block) == _published_set(facts),
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+        if _variant_set(block) is not None
+        else _silent(
+            name,
+            "affixed.affix_variants",
+            "counts.affix_variants",
+            _shown_variants(facts.affix_variants),
+            None,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+    ]
+    # ...AND THE TWO COUNTS OF DIFFERENT CORES (plan P4-D36), UNDER
+    # THE SAME ENVELOPE AS THE COLUMN'S OWN TWO. They are the budget
+    # the twin's core stage was laid out from, and that stage IS the
+    # numeric one: a core column whose published spellings cannot
+    # supply the identities the description records falls short here
+    # for the reason G12.8 already authorizes there.
+    #
+    # ON A COLUMN WEARING ONE WRAPPER THE TWO PAIRS ARE ONE SHORTFALL
+    # MEASURED TWICE, which is what the exact bar written here first
+    # got wrong. A column of 240 record numbers, each five digits
+    # behind an `R`, publishes 240 different cells and 240 different
+    # cores; its published spellings supply ONE identity, so the
+    # column's own `n_distinct` is a listing nothing written in a CSV
+    # can settle, and a twin holding 235 of the 240 was reported
+    # AUTHORIZED there and MISSED here, on one column, in one run.
+    # THE BAR IS DRAWN OVER THE CORES, NOT OVER THE CELLS. `_core_column`
+    # is the view every other core rule is handed, and the supply and
+    # ceiling these two counts are bracketed by are core supplies.
+    cores_as_column = _core_column(column)
+    for field, stated, under in (
+        ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
+        (
+            "n_core_distinct_folded",
+            facts.n_core_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        counted = _count_at(block, field)
+        corner = _distinct_corner(facts, mine, under)
+        if corner and _envelope_admits_every_count(
+            cores_as_column, facts, stated
+        ):
+            # V3.4 FORBIDS A SUBCHECK THAT CANNOT FAIL, and this
+            # envelope's low end is one core: the bar would admit every
+            # count a file of this length can hold. `_corner_listings`
+            # names it in the census with the passage that authorizes
+            # the lesser outcome, exactly as it names the column's own
+            # count beside it.
+            continue
+        if corner:
+            checks = checks + [
+                _lesser_or_held(
+                    name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    stated,
+                    counted,
+                    corner,
+                    cores_as_column,
+                )
+            ]
+            continue
+        checks = checks + [
+            _exact(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(counted),
+            )
+        ]
+    for field, published in (
+        ("affix_prefix", prefix),
+        ("affix_suffix", suffix),
+    ):
+        found = _text_at(block, field)
+        front = field == "affix_prefix"
+        shown = _shown_affix(published, front)
+        if found is None:
+            # THE FILE'S OWN DESCRIPTION READS NO AFFIX AT ALL, which
+            # is the DISCLOSURE GATE closing and is reported in the
+            # gate's own words: describing this file on its own
+            # publishes no pair, so neither the measurement nor its
+            # outcome is shown, and the role axis of this same column
+            # reports the MISS that says why.
+            #
+            # Substituting the PUBLISHED spelling for the missing
+            # measured one made the comparison hold by construction: a
+            # description of `USD 1 mg` to `USD 100 mg` checked against
+            # a file of bare `1` to `100` reported both affix spellings
+            # HELD, which is a check stating something about a file it
+            # had not looked at.
+            checks = checks + [
+                Check(
+                    name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    WITHHELD,
+                    shown,
+                    "",
+                    _GATE_CLOSED,
+                )
+            ]
+            continue
+        # THE COMPARISON IS MADE IN FULL AND THE MEASURED SPELLING IS
+        # NEVER PRINTED. It is text read out of the file, and V5.4 is
+        # unconditional about that: no string from a measured file
+        # reaches this report under any verdict, which is what lets one
+        # report be handed to a person who does not hold the file. The
+        # affix pair looked like an exception because the DESCRIPTION
+        # may publish its own pair -- that is contract C6-9, a rule
+        # about the description's own block, and it says nothing about
+        # what a report may print about somebody else's file. A
+        # milligram description checked against a file of `SECRET-5.16`
+        # cells printed `SECRET` on the achieved line.
+        #
+        # Deciding the verdict on the DISPLAYED text was the other half
+        # of the same mistake: a file whose prefix is literally this
+        # report's phrase for an empty side compared equal to a
+        # description that publishes none. The spellings decide; the
+        # report says only which way it came out.
+        checks = checks + [
+            _silent(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                shown,
+                found == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    # THE FOUR CORE CLASSES, read off the file's own description for
+    # the same reason: they are counts of the cells that wear the pair,
+    # so a recount under a pair the file does not wear is a count of
+    # the file rather than a description of it.
+    for field, counted in (
+        ("n_core_numeric", facts.n_core_numeric),
+        ("n_core_out_of_range", facts.n_core_out_of_range),
+        ("n_core_contradictory", facts.n_core_contradictory),
+        ("n_core_not_numeric", facts.n_core_not_numeric),
+    ):
+        checks = checks + [
+            _exact(
+                name,
+                f"affixed.{field}",
+                f"counts.{field}",
+                f"{counted}",
+                _shown_count_or_none(_count_at(block, field)),
+            )
+        ]
+    # The CORE population, handed to the numeric checks as the column
+    # its cores make -- so every quantitative obligation is measured by
+    # the code that measures a plain numeric column.
+    #
+    # THE COMMONEST WRAPPER'S CORES, AND NOT EVERY CORE (plan P4-D37).
+    # The block this measures is that wrapper's, so the cells recounted
+    # against it are that wrapper's: a style census published over
+    # ninety-nine cores wearing `$`, recounted over the hundred cores
+    # the column holds, reported the spelling remainder MISSED on a
+    # twin that met it. On a column wearing ONE wrapper every core is
+    # the commonest wrapper's and this is the list it always was.
+    common_cores: "list[str]" = []
+    for step in range(len(cores)):
+        if worn[step] == (prefix, suffix):
+            common_cores = common_cores + [cores[step]]
+    # ...AND THROUGH THE CORE VIEW, NOT THE COLUMN (review round 2,
+    # item 2). Every window `_numeric_checks` draws is a function of the
+    # population it is given: the supply and the ceiling come off the
+    # column's counts of different cells and its present count, and the
+    # outer column's are the WHOLE column's. Measured: 100 different
+    # kilogram cores beside 100 identical pound cores give the column
+    # 200 cells and 101 folded spellings where the commonest wrapper's
+    # block has 100 and 100 -- a displacement of 1.01 where the true one
+    # is 0.03, so a checked mean of 0.14751 was accepted against a
+    # published 4.95 whose own window runs 4.65891 to 5.24109. Every
+    # interior rung was accepted across the whole numeric range with it.
+    # ...AND AGAINST THE MEASURED WRAPPER OF THE SAME SPELLING, which
+    # is not always the measured file's root (review round 7, item 1).
+    # A file whose dominance is flipped puts the description's
+    # commonest wrapper among its OWN variants, and reading the root
+    # regardless compared kilograms against pounds and called it HELD.
+    # ASKED ONLY OF A SET, because only a set can flip: a column
+    # wearing ONE wrapper has no other place for its numbers to be, and
+    # its block IS the measured root whatever spelling that root names.
+    # Resolving it by spelling regardless closed the gate on every
+    # ordinary affixed column whose checked file reads a different pair
+    # -- the numbers went silent rather than being compared, which is
+    # the shape `test_silence_is_never_free` refuses.
+    measured = block
+    used = common_cores
+    if facts.affix_variants:
+        common_entry = _worn_entry(
+            block, facts.affix_prefix, facts.affix_suffix
+        )
+        measured = (
+            {} if common_entry is None
+            else _mapping_at(common_entry, "numbers")
+        )
+        used = [] if common_entry is None else common_cores
+    checks = checks + _numeric_checks(
+        cores_as_column, facts.numbers, measured, used, floor, mine
+    )
+    # ...AND ONE WRAPPER AT A TIME FOR EVERY OTHER (review round 2,
+    # item 1). Each published wrapper carries a quantitative block of
+    # its own since plan P4-D37, and NOTHING measured any of them: a
+    # description publishing pounds from 132.3 to 153.8, checked
+    # against a file whose pounds run from 232.0 to 241.9, reported
+    # zero MISSED. The only wrapper-shaped check compared the set's
+    # spellings and counts, which that file met exactly.
+    place = 0
+    for one in facts.affix_variants:
+        checks = checks + _wrapper_checks(
+            column, one, place, block, cores, worn, floor, mine
+        )
+        place = place + 1
+    return checks
+
+
+def _wrapper_checks(
+    column: contract.ColumnBlock,
+    wrapper: "contract.AffixWrapper",
+    place: int,
+    block: "dict[str, object]",
+    cores: "list[str]",
+    worn: "list[tuple[str, str]]",
+    floor: int,
+    mine: "tuple[str, ...]",
+) -> "list[Check]":
+    """Every obligation ONE wrapper of a set carries (plan P4-D37).
+
+    ITS OWN BLOCK, MEASURED OVER ITS OWN CORES, AND NAMED FOR ITSELF.
+    The facts are the ones a numeric column carries, so they are
+    measured by the code that measures a numeric column -- as the
+    commonest wrapper's are -- over a view whose every count is this
+    wrapper's. What this function adds is the IDENTITY: a check coming
+    back bare would say `moments.mean` moved and leave a reader unable
+    to tell which wrapper's mean, and two wrappers moving the same fact
+    would produce two entries nothing tells apart.
+
+    THE WRAPPER IS FOUND IN THE FILE'S OWN DESCRIPTION BY ITS
+    SPELLINGS, never by position: a file wearing the same wrappers in
+    another order wears the same wrappers. Where the file's description
+    reads no such wrapper the gate closes and every one of this
+    wrapper's obligations is reported WITHHELD rather than compared
+    against a block nothing wrote.
+    """
+    named = f"affix_variants[{place}]"
+    mask = (wrapper.prefix, wrapper.suffix)
+    ours: "list[str]" = []
+    for step in range(len(cores)):
+        if worn[step] == mask:
+            ours = ours + [cores[step]]
+    inner = _worn_entry(block, wrapper.prefix, wrapper.suffix)
+    view = dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=wrapper.count,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
+        n_numeric=wrapper.n_core_numeric,
+        n_not_numeric=wrapper.n_core_not_numeric,
+        n_out_of_range=wrapper.n_core_out_of_range,
+        n_contradictory=wrapper.n_core_contradictory,
+        n_distinct=wrapper.n_core_distinct,
+        n_distinct_folded=wrapper.n_core_distinct_folded,
+        facts=wrapper.numbers,
+    )
+    checks: "list[Check]" = []
+    # THE WRAPPER'S TWO COUNTS OF DIFFERENT CORES TAKE THE SAME
+    # ENVELOPE THE COLUMN'S DO (review round 4, item 3). They are the
+    # budget this wrapper's own core stage was laid out from, so a
+    # shortfall its published spellings cannot avoid is the shortfall
+    # G12.8 authorizes -- and holding them exactly here while the
+    # generator reports an authorized interval of 236 to 240 made the
+    # twin's own report and the quality report disagree about one
+    # number, on one wrapper, in one run.
+    for field, stated, under in (
+        ("n_core_distinct", wrapper.n_core_distinct, _RAW_DISTINCT),
+        (
+            "n_core_distinct_folded",
+            wrapper.n_core_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        counted = None if inner is None else _count_at(inner, field)
+        corner = _distinct_corner(
+            wrapper.numbers, _wrapper_corners(view, wrapper.numbers), under
+        )
+        if corner and _envelope_admits_every_count(view, wrapper.numbers, stated):
+            # A BAR ADMITTING EVERY COUNT IS NO BAR, and the listing
+            # that names it is emitted beside the wrapper's other
+            # census entries -- see `_corner_listings`' wrapper walk.
+            continue
+        if corner:
+            checks = checks + [
+                _lesser_or_held(
+                    column.name,
+                    f"affixed.{field}",
+                    f"counts.{named}.{field}",
+                    stated,
+                    counted,
+                    corner,
+                    view,
+                )
+            ]
+            continue
+        checks = checks + [
+            _exact(
+                column.name,
+                f"affixed.{field}",
+                f"counts.{named}.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(counted),
+            )
+        ]
+    # ...AND THE COUNTS THAT ARE COUNTS, held exactly.
+    for field, stated in (
+        ("count", wrapper.count),
+        ("n_core_numeric", wrapper.n_core_numeric),
+        ("n_core_out_of_range", wrapper.n_core_out_of_range),
+        ("n_core_contradictory", wrapper.n_core_contradictory),
+        ("n_core_not_numeric", wrapper.n_core_not_numeric),
+    ):
+        checks = checks + [
+            _exact(
+                column.name,
+                f"affixed.{field}",
+                f"counts.{named}.{field}",
+                _shown_count(stated),
+                _shown_count_or_none(
+                    None if inner is None else _count_at(inner, field)
+                ),
+            )
+        ]
+    # THE FILE'S OWN DESCRIPTION MAY READ NO SUCH WRAPPER, and then
+    # every obligation below is WITHHELD rather than absent (review
+    # round 6, item 4). The early return that stood here dropped them:
+    # a kilogram-and-pound description checked against a file holding
+    # only kilograms kept the wrapper-set verdict and the seven count
+    # lines, and the pound block's ends, moments, value count, types
+    # and styles left the report altogether -- so the census stopped
+    # being an identity over what the description publishes, on exactly
+    # the file that most needs the account.
+    #
+    # An empty mapping is what carries that: every recount comes back
+    # None, and each check reports the closed gate in the gate's own
+    # words.
+    inside = _numeric_checks(
+        view,
+        wrapper.numbers,
+        {} if inner is None else _mapping_at(inner, "numbers"),
+        [] if inner is None else ours,
+        floor,
+        mine,
+    )
+    for step in range(len(inside)):
+        checks = checks + [
+            dataclasses.replace(
+                inside[step],
+                subcheck=f"{named}.{inside[step].subcheck}",
+            )
+        ]
+    return checks
+
+
+def _wrapper_corners(
+    view: contract.ColumnBlock, numbers: contract.NumericFacts
+) -> "tuple[str, ...]":
+    """G12.8's corner, asked of ONE wrapper rather than of the column.
+
+    REVIEW ROUND 8, ITEM 2. `corners_of` answers once per column, from
+    the commonest wrapper's numbers and the outer column, and every
+    other wrapper then borrowed that answer. Both directions were
+    wrong: on `1 kg` to `100 kg` beside `101 lb` to `200 lb` both
+    blocks have an exhaustive envelope, and the pound wrapper's two
+    core counts were dropped from the checks and named in no listing
+    either -- published obligations on neither page; and on 120 copies
+    of `$1` as the commonest wrapper beside 100 different kilogram
+    values, the commonest has no corner and the variant does, so the
+    variant was held to exact equality where its own supply cannot
+    reach the count.
+
+    A corner is a condition on published numbers, so asking it of the
+    wrapper's own view and the wrapper's own facts is the same question
+    the column asks of its own.
+    """
+    if _numeric_spellings_are_short(view, numbers):
+        return (CORNER_NUMERIC_SPELLINGS_SHORT,)
+    return ()
+
+
+def _worn_entry(
+    block: "dict[str, object]", prefix: str, suffix: str
+) -> "dict[str, object] | None":
+    """One wrapper of the measured file, WHEREVER its description put it.
+
+    THE FILE'S COMMONEST WRAPPER NEED NOT BE THE DESCRIPTION'S (review
+    round 7, item 1). Both sides publish their own commonest wrapper at
+    the block's root and every other beside it, so a file whose
+    dominance is flipped puts the same spelling in the other place: a
+    description of 120 `kg` cells and 80 `lb` reads a file of 120 `lb`
+    and 80 `kg`, and the kilogram facts were then compared against the
+    POUND block because that is what the root held, while the pound
+    facts were reported WITHHELD because nothing looked at the root for
+    them. Both answers were about the wrong population and neither said
+    so.
+
+    So a wrapper is found by its SPELLING across both shapes, and the
+    root's shape -- where the numeric keys sit at the top level and the
+    counts are the column's -- is normalised to an entry's, so one
+    caller reads one shape. The root wrapper's own counts are the
+    column's totals less every other wrapper's, which is the same
+    arithmetic AF12 and AF16 hold a description to.
+
+    Guarantees: accepts a re-described block and one wrapper's two
+    sides; returns an entry-shaped mapping for that wrapper, or None
+    where the file's own description names no such wrapper.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    if "affix_prefix" not in block or "affix_suffix" not in block:
+        return None
+    if block["affix_prefix"] == prefix and block["affix_suffix"] == suffix:
+        return _root_as_entry(block)
+    return _variant_entry(block, prefix, suffix)
+
+
+def _root_as_entry(block: "dict[str, object]") -> "dict[str, object]":
+    """The measured root, wearing the shape one variant entry wears."""
+    entry: "dict[str, object]" = {"numbers": block}
+    worn = 0
+    classes = {
+        "n_core_numeric": 0,
+        "n_core_out_of_range": 0,
+        "n_core_contradictory": 0,
+        "n_core_not_numeric": 0,
+    }
+    if "affix_variants" in block and isinstance(block["affix_variants"], list):
+        for one in block["affix_variants"]:
+            if not isinstance(one, dict):
+                continue
+            if "count" in one and isinstance(one["count"], int):
+                worn = worn + one["count"]
+            for field in classes:
+                if field in one and isinstance(one[field], int):
+                    classes[field] = classes[field] + one[field]
+    counted = _count_at(block, "n_affixed")
+    if counted is not None:
+        entry["count"] = counted - worn
+    for field in classes:
+        here = _count_at(block, field)
+        if here is not None:
+            entry[field] = here - classes[field]
+    for field in ("n_core_distinct", "n_core_distinct_folded"):
+        here = _count_at(block, field)
+        if here is not None:
+            entry[field] = here
+    return entry
+
+
+def _variant_entry(
+    block: "dict[str, object]", prefix: str, suffix: str
+) -> "dict[str, object] | None":
+    """The measured file's own entry for ONE wrapper beside its commonest."""
+    if "affix_variants" not in block:
+        return None
+    given = block["affix_variants"]
+    if not isinstance(given, list):
+        return None
+    for entry in given:
+        if not isinstance(entry, dict):
+            continue
+        if "prefix" not in entry or "suffix" not in entry:
+            continue
+        if entry["prefix"] == prefix and entry["suffix"] == suffix:
+            return entry
+    return None
+
+
+def _mapping_at(
+    block: "dict[str, object]", name: str
+) -> "dict[str, object]":
+    """One nested mapping of a re-described block, or an empty one."""
+    if name not in block:
+        return {}
+    found = block[name]
+    if not isinstance(found, dict):
+        return {}
+    return found
 
 
 def _numeric_checks(
@@ -6119,10 +8858,51 @@ def _numeric_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    mine: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of counts or of continuous values."""
     name = column.name
     checks: list[Check] = []
+    # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
+    # Recounted from the re-description, like every other fact of this
+    # block, and compared EXACTLY: the owner ruled the count an
+    # obligation rather than a report line, so a twin whose values
+    # merge misses a published fact and says so on both pages instead
+    # of on one.
+    if facts.n_distinct_values is not None:
+        # UNDER THE SAME ENVELOPE AS THE COUNT OF SPELLINGS BESIDE IT,
+        # because on a column written one way they are the same
+        # shortfall measured twice: a hundred whole numbers all written
+        # plain publishes a hundred spellings and a hundred values, and
+        # a twin that reaches ninety-eight reaches ninety-eight of
+        # both. Giving one an envelope and the other the exact bar
+        # reported one shortfall as authorized and the other as a miss,
+        # on one column, in one run.
+        corner = _distinct_corner(facts, mine, _RAW_DISTINCT)
+        published = facts.n_distinct_values
+        measured = _count_at(block, "n_distinct_values")
+        if corner and not _envelope_admits_every_count(column, facts, published):
+            checks = checks + [
+                _lesser_or_held(
+                    name,
+                    "numeric.n_distinct_values",
+                    "distinct.n_distinct_values",
+                    published,
+                    measured,
+                    corner,
+                    column,
+                )
+            ]
+        elif not corner:
+            checks = checks + [
+                _exact(
+                    name,
+                    "numeric.n_distinct_values",
+                    "distinct.n_distinct_values",
+                    _shown_count(published),
+                    None if measured is None else _shown_count(measured),
+                )
+            ]
     for field, published in (
         ("n_zero", facts.n_zero),
         ("n_negative", facts.n_negative),
@@ -6192,7 +8972,14 @@ def _ladder_checks(
         _rung_end(name, "min", published.minimum, measured),
         _rung_end(name, "max", published.maximum, measured),
     ]
-    points = _ladder_points(published.rungs)
+    # THROUGH EVERY PUBLISHED RUNG, not the eleven named ones (review
+    # item P4-G5-A1). The construction places a value on the
+    # hundred-and-one-rung ladder, so a window drawn through eleven
+    # invents a rise the column does not have and accuses a twin that
+    # sat exactly where the finer rungs said.
+    points = _fine_ladder_points(facts)
+    if not points:
+        points = _ladder_points(published.rungs)
     if not points:
         return checks
     reach = _displacement(facts, column.n_present, column.n_distinct_folded)
@@ -6254,7 +9041,19 @@ def _displacement(
     both ends widen by the half unit exactly two rules can spend.
     """
     numbers = _numeric_cells(facts)
-    widest = _largest_stratum(facts, present, distinct_folded)
+    # THE WIDER OF THE TWO READINGS, because this may only widen
+    # (review item P4-G5-A1). `_largest_stratum` works out what the
+    # even split of G5.2 would give; the allotment of G5.2a sizes a
+    # stratum by the ladder's own plateau instead, and on a column
+    # whose commonest value is held by thirty of sixty cells that is a
+    # stratum of thirty where the even split said two. Taking the
+    # larger keeps the promise the displacement is written under: a
+    # window too wide can fail to catch a twin that missed, and a
+    # window too narrow accuses one that did not.
+    widest = max(
+        _largest_stratum(facts, present, distinct_folded),
+        _longest_plateau(facts, _numeric_cells(facts)),
+    )
     return ((widest + 2) / numbers, _half_unit(facts))
 
 
@@ -6287,7 +9086,9 @@ def _windows_of(
       published cell counts and the half unit G12.2 grants.
     - Errors raised: none.
     """
-    points = _ladder_points(facts.percentiles.rungs)
+    points = _fine_ladder_points(facts)
+    if not points:
+        points = _ladder_points(facts.percentiles.rungs)
     if not points:
         return {}
     numbers = _numeric_cells(facts)
@@ -6356,7 +9157,7 @@ def _skew_admits_every_value(
     numbers = _numeric_cells(facts)
     if numbers < 3:
         return False
-    reach = (numbers - 2) / math.sqrt(numbers - 1)
+    reach = _raised((numbers - 2) / math.sqrt(numbers - 1))
     low, high = windows["skew"]
     return low <= -reach and high >= reach
 
@@ -6378,6 +9179,7 @@ def _moment_checks(
         ("mean", facts.mean),
         ("std", facts.std),
         ("skew", facts.skew),
+        ("kurtosis", facts.kurtosis),
     )
     checks: list[Check] = []
     windows = _windows_of(column, facts)
@@ -6395,6 +9197,23 @@ def _moment_checks(
         # cannot fail is the vacuity V3.4 refuses by name.
         if field == "skew" and _skew_admits_every_value(column, facts):
             continue
+        # AND THE SAME FOR THE TAIL WEIGHT, for the same reason: where
+        # its window is the whole range every sample of this size can
+        # take, a comparison against it admits every file there is.
+        if field == "kurtosis" and _tails_admit_every_value(column, facts):
+            continue
+        # AND A MOMENT WITH NO WINDOW IS A CENSUS LINE, NOT A WITHHELD
+        # CHECK (review item P4-G6-R3-F3). `_within` turns a missing
+        # window into WITHHELD under the sentence that says describing
+        # this file would not publish what the check measures -- which
+        # is false here: describing it publishes all four moments, and
+        # what is missing is the window, because the column reaches so
+        # far across the range that the window's own ends are not
+        # numbers. `_listings` files those with the reason that is
+        # true, so leaving the check out here is what stops the same
+        # obligation being counted twice under two different reasons.
+        if field not in windows:
+            continue
         found = _number_at(block, field)
         checks = checks + [
             _within(
@@ -6411,6 +9230,30 @@ def _moment_checks(
     return checks
 
 
+def _tails_admit_every_value(
+    column: "contract.ColumnBlock", facts: "contract.NumericFacts"
+) -> bool:
+    """Whether this description's kurtosis window is the whole range.
+
+    The counterpart of `_skew_admits_every_value`. Where G12.3a's finite
+    fallback stands, the window IS every value the statistic can take
+    -- 1 to `n - 2 + 1/(n - 1)` -- and a comparison against it admits
+    every file there is, which is the vacuity V3.4 refuses by name. It
+    becomes a listing entry on such a description and never a check.
+    """
+    if facts.kurtosis is None:
+        return False
+    windows = _windows_of(column, facts)
+    if "kurtosis" not in windows:
+        return False
+    used = facts.n_used_in_statistics
+    if used < 4:
+        return False
+    ceiling = _raised(used - 2 + 1 / (used - 1))
+    low, high = windows["kurtosis"]
+    return low <= 1.0 and high >= ceiling
+
+
 def _moment_windows(
     lows: "list[float]",
     highs: "list[float]",
@@ -6419,58 +9262,243 @@ def _moment_windows(
 ) -> "dict[str, tuple[float, float]]":
     """The three moment windows of method G12.3, from the rank form."""
     found: dict[str, tuple[float, float]] = {}
-    mean_low = math.fsum(lows) / numbers
-    mean_high = math.fsum(highs) / numbers
+    # THE MEAN IS THE PROFILER'S EXACT ONE AND NOT A RUNNING TOTAL
+    # (review item P4-G6-R2-F2). `math.fsum` is exact until its final
+    # rounding and STILL raises where the running total leaves the
+    # representable range, which sixty values near 1e308 do although
+    # their mean is an ordinary number. The first repair of this family
+    # put its guard below this line and the crash simply moved up to
+    # it: `synthtwin validate` went on dying, one line earlier, on a
+    # column nothing was wrong with.
+    mean_low = taxonomy.average_of(list(lows))
+    mean_high = taxonomy.average_of(list(highs))
+    if mean_low is None or mean_high is None:
+        return found
     found["mean"] = (mean_low, mean_high)
     if numbers < 2:
         return found
-    spread = 0.0
-    for rank in range(numbers):
-        reach = max(
-            ladder[rank] - lows[rank], highs[rank] - ladder[rank]
-        )
-        spread = spread + reach * reach
-    displacement = math.sqrt(spread / numbers)
+    # EACH REACH IS DIVIDED BY THE LARGEST BEFORE IT IS SQUARED, for
+    # the reason the tail weight below already states (item
+    # P4-K-R1-F1, and this is its sibling, item P4-G6-R1-F5): raising
+    # first is the same number in exact arithmetic and not the same
+    # computation in binary64. A column of values around 1e300 has
+    # reaches whose squares have nowhere to go, and this sum came out
+    # an infinity, which made the whole window `(0, inf)` -- a check
+    # that can never report a miss and never says it went quiet.
+    # AND EACH REACH IS A DIFFERENCE OF TWO PUBLISHED VALUES, so it
+    # overflows in its own right where a rank's window has ends at
+    # opposite extremes. A reach that is not finite is a rank this
+    # window cannot be drawn through, and the whole window is withheld
+    # rather than drawn around an infinity.
+    reaches = [
+        max(ladder[rank] - lows[rank], highs[rank] - ladder[rank])
+        for rank in range(numbers)
+    ]
+    for reach in reaches:
+        if not math.isfinite(reach):
+            return found
+    widest = max(reaches)
+    displacement = 0.0
+    if widest > 0.0:
+        parts = math.fsum([(reach / widest) ** 2 for reach in reaches])
+        displacement = widest * math.sqrt(parts / numbers)
     sample = _sample_deviation(ladder, numbers)
+    if not math.isfinite(sample) or not math.isfinite(displacement):
+        # A SPREAD THE FORMAT CANNOT HOLD IS NOT A WINDOW OF NO WIDTH.
+        # Returning the mean window alone withholds the three that
+        # cannot be drawn, which the census then names, rather than
+        # handing back a bound every twin satisfies.
+        return found
+    # A WINDOW IS FILED ONLY WHERE BOTH OF ITS ENDS ARE NUMBERS
+    # (review item P4-G6-R3-F1). Guarding the INPUTS to a window is not
+    # the same as guarding the window, and this is the ninth site of
+    # the family to prove it: the scaled displacement above comes out
+    # finite near 1.47e308 on the three cells `0`, `8.5e307` and
+    # `1.7e308`, and then the widening factor of `sqrt(n / (n - 1))`
+    # -- about 1.22 on three values -- carries it past the end of the
+    # range. The quality report printed "between 0.0 and inf", which is
+    # the vacuous pass this whole family keeps producing.
+    #
+    # So every window from here down goes through `_bounded`, which
+    # files it where both ends are numbers and withholds it where
+    # either is not. A guard on the products of an expression is a
+    # guard on one expression; a guard at the point of FILING covers
+    # every product, including the ones nobody has written yet.
+    def _bounded(name: str, low: float, high: float) -> bool:
+        if not math.isfinite(low) or not math.isfinite(high):
+            return False
+        found[name] = (low, high)
+        return True
+
     widen = displacement * math.sqrt(numbers / (numbers - 1))
-    found["std"] = (max(0.0, sample - widen), sample + widen)
+    if not _bounded("std", max(0.0, sample - widen), sample + widen):
+        return found
     if numbers < 3:
         return found
     population = _population_deviation(ladder, numbers)
     low_end = max(0.0, population - displacement)
     high_end = population + displacement
-    cubed_low = math.fsum(
-        [(lows[rank] - mean_high) ** 3 for rank in range(numbers)]
-    ) / numbers
-    cubed_high = math.fsum(
-        [(highs[rank] - mean_low) ** 3 for rank in range(numbers)]
-    ) / numbers
-    reach = (numbers - 2) / math.sqrt(numbers - 1)
+    if not math.isfinite(low_end) or not math.isfinite(high_end):
+        return found
+    # AND THE CUBES ARE DIVIDED BEFORE THEY ARE RAISED, the third
+    # member of the same family. `(lows[rank] - mean_high) ** 3` on a
+    # column around 1e300 is a number with nowhere to go, and the four
+    # ratios below are what the cubes were only ever wanted for.
+    def cubed(edges: "list[float]", centre: float, spread: float) -> float:
+        parts = [
+            ((edges[rank] - centre) / spread) ** 3
+            for rank in range(numbers)
+        ]
+        for part in parts:
+            if not math.isfinite(part):
+                return float("inf")
+        return math.fsum(parts) / numbers
+    reach = _raised((numbers - 2) / math.sqrt(numbers - 1))
+    ceiling = _raised(numbers - 2 + 1 / (numbers - 1))
     if low_end <= 0.0:
         found["skew"] = (-reach, reach)
+        # AND THE TAIL WEIGHT'S OWN FALLBACK IN THE SAME BREATH (item
+        # P4-K-R1-F2). Returning here without it left the validator
+        # calling the kurtosis WITHHELD -- telling a reader that
+        # re-describing the file would not publish it -- on a
+        # description that publishes it and a generator that draws its
+        # full window.
+        if numbers >= 4:
+            found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
     ends = [
-        cubed_low / (low_end**3),
-        cubed_low / (high_end**3),
-        cubed_high / (low_end**3),
-        cubed_high / (high_end**3),
+        cubed(lows, mean_high, low_end),
+        cubed(lows, mean_high, high_end),
+        cubed(highs, mean_low, low_end),
+        cubed(highs, mean_low, high_end),
     ]
-    found["skew"] = (max(-reach, min(ends)), min(reach, max(ends)))
+    if not all(math.isfinite(end) for end in ends):
+        # The same fallback the flat-spread branch above takes: the
+        # window is the whole range this many values can reach, and
+        # `_skew_admits_every_value` files it as a listing rather than
+        # counting a check that cannot fail.
+        found["skew"] = (-reach, reach)
+        if numbers >= 4:
+            found["kurtosis"] = (_lowered(1.0), ceiling)
+        return found
+    if not _bounded(
+        "skew",
+        _lowered(max(-reach, min(ends))),
+        _raised(min(reach, max(ends))),
+    ):
+        return found
+    if numbers < 4:
+        return found
+    # THE TAIL WEIGHT, on the same terms one moment along (G12.3a). Two
+    # things differ from the cube above and both are easy to miss.
+    #
+    # THE FOURTH POWER DOES NOT KEEP THE ORDER: a rank's window
+    # straddling the mean has its SMALLEST fourth power in the middle
+    # and not at either end, so the low end of its contribution is zero
+    # there rather than one of the two ends raised.
+    #
+    # AND THE SPREAD ENTERS TO THE FOURTH POWER, not the third, because
+    # that is what makes the ratio free of the column's units.
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, for
+    # the reason the generator's own window states: raising first is the
+    # same number in exact arithmetic and not the same computation in
+    # binary64, and a hundred ordinary values around 1e79 made this
+    # raise `OverflowError` where a report was owed (item P4-K-R1-F1).
+    low_fourths: "list[float]" = []
+    high_fourths: "list[float]" = []
+    for rank in range(numbers):
+        below = lows[rank] - mean_high
+        above = highs[rank] - mean_low
+        nearest = 0.0
+        if below > 0.0:
+            nearest = below
+        if above < 0.0:
+            nearest = -above
+        furthest = max(-below, above, 0.0)
+        near = nearest / high_end
+        far = furthest / low_end
+        low_fourths = low_fourths + [near**4]
+        high_fourths = high_fourths + [far**4]
+    tails_low = math.fsum(low_fourths) / numbers
+    tails_high = math.fsum(high_fourths) / numbers
+    if not math.isfinite(tails_low) or not math.isfinite(tails_high):
+        found["kurtosis"] = (_lowered(1.0), ceiling)
+        return found
+    # AND EVERY WINDOW THAT CLAMPS TO A UNIVERSAL LIMIT IS WIDENED
+    # OUTWARD AT THE POINT IT IS FILED (review item P4-G6-R6-F1). On
+    # the four-value extreme both ends of this window clamp to the same
+    # ceiling, so once that ceiling is stated correctly the two meet and
+    # the window admits nothing -- while the statistic it was drawn for
+    # sits on the ceiling. The generator's own copy of this window takes
+    # the same step, which is what keeps the two modules agreeing.
+    # THE SAME ONE STEP THE GENERATOR'S COPY TAKES (review item
+    # P4-G6-R8). Both limits are widened where they are formed and the
+    # clamped pair is not widened again: two steps is a bound two
+    # places looser than the method states.
+    lowest = max(_lowered(1.0), tails_low)
+    highest = min(ceiling, tails_high)
+    if lowest >= highest:
+        # Only a window whose ends have MET is widened further, and the
+        # generator's copy takes the same step for the same reason: a
+        # window of no width sits one place above the statistic it was
+        # drawn for (review item P4-G6-R8).
+        _bounded(
+            "kurtosis",
+            _lowered(min(lowest, highest)),
+            _raised(max(lowest, highest)),
+        )
+        return found
+    _bounded("kurtosis", lowest, highest)
     return found
 
 
 def _sample_deviation(values: "list[float]", count: int) -> float:
-    """The standard deviation the profiler's own formula computes."""
-    mean = math.fsum(values) / count
-    total = math.fsum([(value - mean) ** 2 for value in values])
-    return math.sqrt(total / (count - 1))
+    """The standard deviation the profiler's own formula computes.
+
+    THE PROFILER'S OWN FORMULA, AND NOT A SECOND ONE THAT AGREES ON
+    ORDINARY COLUMNS (review item P4-G6-R1-F5). This said what it says
+    above and then computed `sum((x - mean) ** 2)` in binary64, which
+    is not what the profiler computes at all: `taxonomy._moments`
+    works the exact variance out in whole numbers over a shared power
+    of two and rounds once, for the stated reason that the square of a
+    large value has nowhere to go. Sixty ordinary values around 1e300
+    made this raise `OverflowError` -- out of `synthtwin validate`, as
+    a Python traceback rather than one of this package's own messages,
+    on a table `synthtwin profile` and `synthtwin generate` had both
+    just handled without complaint.
+
+    So it calls that function. The validator may not import the
+    GENERATOR, which is the independence the charter names; the
+    profiler is the module whose published numbers this one is
+    checking, and computing the same statistic a second way is how the
+    two come to disagree.
+
+    A spread larger than the format can hold has no deviation to
+    return, and the caller withholds its windows rather than drawing
+    one around a number that does not exist.
+    """
+    if count < 2:
+        return 0.0
+    spread = taxonomy.spread_of(list(values))
+    if spread is None or not math.isfinite(spread):
+        return float("inf")
+    return spread
 
 
 def _population_deviation(values: "list[float]", count: int) -> float:
-    """The population deviation the skewness divides by."""
-    mean = math.fsum(values) / count
-    total = math.fsum([(value - mean) ** 2 for value in values])
-    return math.sqrt(total / count)
+    """The population deviation the skewness divides by.
+
+    The same exact variance one factor along: the population deviation
+    is the sample one times the square root of `(n - 1) / n`, which is
+    exact in the ratio and cannot overflow, since the sample deviation
+    is a number the format already holds.
+    """
+    if count < 2:
+        return 0.0
+    spread = _sample_deviation(values, count)
+    if not math.isfinite(spread):
+        return float("inf")
+    return spread * math.sqrt((count - 1) / count)
 
 
 # The two forms a value's canonical text can carry a decimal point in,
@@ -6506,9 +9534,21 @@ def _unread_cells(block: "dict[str, object]", cells: "list[str]") -> int:
     widens the room the window below leaves and never narrows it: a
     count the description does not carry may not be settled from it.
 
+    WHAT THIS IS NOW HANDED, AND IT IS NOT EVERY WRITTEN CELL (residual
+    R-P4-53). The caller filters the column's cells to the ones that
+    description READS as values before any of this runs, so the number
+    returned here is the disagreement that survives the filter rather
+    than the whole of it. That is deliberate: this was a WIDENING to
+    keep a mismatched population from settling a verdict, and a widening
+    is a poor substitute for counting the right cells -- it turned a
+    correct file's misses into withholdings and left one miss standing.
+    What is left for it is the corner the filter itself cannot settle:
+    a candidate the file's own description publishes no verdict for.
+
     Guarantees:
 
-    - Inputs: one re-described block and the column's written cells.
+    - Inputs: one re-described block and the cells that description
+      reads as values, in the caller's order.
     - Determinism: a fixed function of the two.
     - Errors raised: none.
     """
@@ -6630,6 +9670,17 @@ def _style_checks(
     own `parsing.numeric_style`, so it is the same classification the
     description was made with.
 
+    AND OVER THE SAME POPULATION, which is the other half of that
+    sentence and was missing (residual R-P4-53). A description publishes
+    this census over the cells IT counts as values; ``cells`` here is
+    that same set, filtered by `_cells_that_description_reads` before it
+    arrives. Recounting every written cell instead made the two sides
+    answer about different sets, and a column whose declared "no value"
+    word reads as a number -- `-9.99` among readings -- had its census
+    published over 180 cells and recounted over 200, so the file the
+    description was written from was told it MISSED
+    `numeric.numeric_styles`.
+
     AND EVERY CLAUSE IS READ THROUGH THE FILE'S OWN DESCRIPTION (review
     item P3-V2-D-F2; V5.1, V5.3 and V5.4). The counts were never printed
     -- that much was already true -- but nine of the ten clauses
@@ -6675,10 +9726,18 @@ def _style_checks(
         # every obligation there was.
         withheld: list[Check] = []
         for subcheck in _style_subchecks(column, facts):
+            # The census of widths is its own published fact, so its
+            # withheld identities carry its own name. Filing them under
+            # the forms map would make the two sides of `_governed`
+            # disagree about which fact a subcheck binds, and one of the
+            # two would then be reported under a fact it is not about.
+            fact = "numeric.numeric_styles"
+            if subcheck[:17] == "widths.published.":
+                fact = "numeric.fraction_widths"
+            if subcheck[:15] == "pads.published.":
+                fact = "numeric.pad_widths"
             withheld = withheld + [
-                _withheld(
-                    name, "numeric.numeric_styles", subcheck, _GATE_CLOSED
-                )
+                _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
         return withheld
     recount, no_point_free = _recounted_styles(cells)
@@ -6792,7 +9851,10 @@ def _style_checks(
                 "every cell written as a number spelled in one of the "
                 "six published forms of its own value"
             ),
-            _cells_outside_the_styles(cells, facts.integer_valued) == 0,
+            _cells_outside_the_styles(
+                cells, facts.integer_valued, _published_widths(facts)
+            )
+            == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
     ]
@@ -6903,6 +9965,59 @@ def _style_checks(
                 style,
                 floor,
                 pooled,
+            )
+        ]
+    # THE CENSUS OF WIDTHS, ON THE SAME TERMS AS THE FORMS MAP. Each
+    # named width is a count of cells the file evidences by holding
+    # them, and the pooled remainder names no width so it is checked as
+    # the pool it is. Without this the twin owed the widths nothing: a
+    # column of eleven `1.00` cells and eleven `2.000` cells would have
+    # been carried by a twin writing every cell at one place, and the
+    # quality report would have called it held.
+    widths = _map_at(block, "fraction_widths")
+    census = facts.fraction_widths
+    held_back = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        held_back = census[taxonomy.SUPPRESSED_LABEL]
+    for width in sorted(census):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                "numeric.fraction_widths",
+                f"widths.published.{width}",
+                census[width],
+                widths,
+                width,
+                floor,
+                held_back,
+            )
+        ]
+    # THE CENSUS OF FIELD WIDTHS, ON THOSE SAME TERMS (P4-D14). Without
+    # this the twin owed the widths nothing: a column of two hundred
+    # and forty six-figure codes would have been carried by a twin
+    # writing fields two to five figures wide, and the quality report
+    # would have called it held -- which is exactly what it did before
+    # this census existed.
+    pads = _map_at(block, "pad_widths")
+    padding = facts.pad_widths
+    pooled_pads = 0
+    if taxonomy.SUPPRESSED_LABEL in padding:
+        pooled_pads = padding[taxonomy.SUPPRESSED_LABEL]
+    for width in sorted(padding):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                "numeric.pad_widths",
+                f"pads.published.{width}",
+                padding[width],
+                pads,
+                width,
+                floor,
+                pooled_pads,
             )
         ]
     return checks
@@ -7036,6 +10151,14 @@ def _style_subchecks(
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
         named = named + [f"styles.published.{style}"]
+    for width in sorted(facts.fraction_widths):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [f"widths.published.{width}"]
+    for width in sorted(facts.pad_widths):
+        if width == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [f"pads.published.{width}"]
     return named
 
 
@@ -7224,7 +10347,7 @@ def _point_free_text(value: float, canonical: str) -> "str | None":
 
 
 def _permitted_spellings(
-    value: float, whole_column: bool
+    value: float, whole_column: bool, widths: "tuple[int, ...]" = ()
 ) -> "tuple[str, ...]":
     """Every base text the six styles of G6.1 can write for one value.
 
@@ -7270,11 +10393,56 @@ def _permitted_spellings(
     plain = _point_free_text(value, canonical)
     if plain is not None:
         spellings = spellings + [plain]
+    # ...AND THE FIXED-POINT FORM AT EVERY WIDTH THIS COLUMN'S OWN
+    # CENSUS NAMES, and at no other. A trailing zero is not free: the
+    # whole point of this subcheck is the twin whose every decimal cell
+    # carried one, which met every count and validated with exit 0. What
+    # the census changes is that a width is now a PUBLISHED fact, so a
+    # cell wearing a named width wears something the description asked
+    # for, and its count is checked on its own line. A width the census
+    # does not name authorizes nothing here.
+    #
+    # Only the PADDING direction is offered, and that is not a
+    # narrowing: the text is read off the file, the value is what that
+    # text reads back as, and a text already written to a width needs
+    # no rounding to be written to that same width again.
+    for width in widths:
+        padded = _text_at_width(sign, figures, place, width)
+        if padded is not None:
+            spellings = spellings + [padded]
     plussed: list[str] = []
     for spelling in spellings:
         if spelling[:1] != "-":
             plussed = plussed + [f"+{spelling}"]
     return tuple(spellings + plussed)
+
+
+def _text_at_width(
+    sign: str, figures: str, place: int, width: int
+) -> "str | None":
+    """The fixed-point spelling padded to one width, or None.
+
+    None where the value needs MORE figures after the point than the
+    width holds: such a cell is not this value written at this width,
+    and offering the rounded text instead would admit a spelling of a
+    value the file does not hold.
+    """
+    text = _fixed_text(sign, figures, place)
+    point = -1
+    for index in range(len(text)):
+        if text[index] == ".":
+            point = index
+    if point < 0:
+        return None
+    held = len(text) - point - 1
+    if width == 0:
+        for character in text[point + 1 :]:
+            if character != "0":
+                return None
+        return text[: point + 1]
+    if held > width:
+        return None
+    return text + ("0" * (width - held))
 
 
 def _wears(text: str, spelling: str) -> bool:
@@ -7307,8 +10475,39 @@ def _wears(text: str, spelling: str) -> bool:
     return True
 
 
+def _shown_count_or_none(found: "int | None") -> "str | None":
+    """One measured count as the report shows it, or nothing at all.
+
+    None where the file's own description does not carry the key,
+    which is the disclosure gate closing: `_exact` then reports
+    WITHHELD in the gate's own words, and the role axis of the same
+    column carries the MISS that says why.
+    """
+    if found is None:
+        return None
+    return _shown_count(found)
+
+
+def _published_widths(
+    facts: contract.NumericFacts,
+) -> "tuple[int, ...]":
+    """The fraction widths this column's own census names, ascending.
+
+    The pooled remainder is not one of them: it names no width, so it
+    authorizes no spelling, and its cells are held to the spelling of
+    their own value exactly as every cell was before the census
+    existed.
+    """
+    named: list[int] = []
+    for key in sorted(facts.fraction_widths):
+        if key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        named = named + [int(key)]
+    return tuple(sorted(named))
+
+
 def _cells_outside_the_styles(
-    cells: "list[str]", whole_column: bool
+    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]"
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -7336,7 +10535,7 @@ def _cells_outside_the_styles(
         if value is None:
             continue
         worn = False
-        for spelling in _permitted_spellings(value, whole_column):
+        for spelling in _permitted_spellings(value, whole_column, widths):
             if _wears(body, spelling):
                 worn = True
         if not worn:
@@ -7428,6 +10627,7 @@ def _label_checks(
             _level_count(name, level, entry, measured, floor),
             _variant_map(name, level, entry, measured, "variants"),
             _variant_map(name, level, entry, measured, "variants_withheld"),
+            _level_form_cells(name, level, entry, measured, floor),
         ]
     checks = checks + [_level_set(name, published_keys, measured)]
     for field, published in (
@@ -7588,6 +10788,47 @@ def _level_count(
     )
 
 
+def _level_form_cells(
+    name: str,
+    level: contract.LevelEntry,
+    entry: "dict[str, object] | None",
+    measured: "dict[str, dict[str, object]] | None",
+    floor: int,
+) -> Check:
+    """How many rows wrote one label in that label's own shape.
+
+    EXACT-OBSERVABLE, AND BOTH SIDES PRINT. The number is a count of
+    cells and no spelling of the file reaches it, exactly as
+    `levels.<label>.count` beside it is -- so this prints the
+    published number and the achieved one rather than a bare verdict.
+    The FORM it counts is the shape of the description's own published
+    label, which the reader already holds, so naming the number names
+    no key and no value (plan amendment A-P4-47).
+
+    A LEVEL THE FILE DOES NOT CARRY MISSES THIS, it does not withhold
+    it, on the same reasoning `_variant_map` sets out: the file holds
+    fewer rows of that label than the floor and possibly none, so it
+    cannot be holding this many of them in any shape.
+    """
+    fact = "label.shape_form_cells"
+    subcheck = f"levels.{level.label}.shape_form_cells"
+    published = _shown_count(level.shape_form_cells)
+    if measured is None:
+        return Check(name, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
+    if entry is None:
+        return Check(
+            name, fact, subcheck, MISSED, published, _below_the_floor(floor)
+        )
+    found = _count_at(entry, "shape_form_cells")
+    return _exact(
+        name,
+        fact,
+        subcheck,
+        published,
+        None if found is None else _shown_count(found),
+    )
+
+
 def _variant_map(
     name: str,
     level: contract.LevelEntry,
@@ -7655,6 +10896,330 @@ def _variant_map(
 
 
 # -- the datetime role ------------------------------------------------
+
+
+def _clock_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """A column of clock times.
+
+    THE THREE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the
+    unparsed count are exact and are COUNTS or words of this package's
+    own, so both sides print. The two endpoints and the ladder's two
+    ends are exact too, but their measured side is TEXT READ OUT OF THE
+    FILE, so the comparison is made in full and only the verdict is
+    shown -- the same treatment the datetime role's endpoints get, and
+    for the same rule. The nine interior rungs are approximated inside
+    the window this role's own construction leaves them.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    found = _text_at(block, "clock_form")
+    checks = checks + [
+        _exact(
+            name,
+            "clock.clock_form",
+            "form.clock_form",
+            facts.clock_form,
+            found,
+        )
+    ]
+    for field, published in (
+        ("earliest", facts.earliest),
+        ("latest", facts.latest),
+    ):
+        seen = _text_at(block, field)
+        checks = checks + [
+            _silent(
+                name,
+                f"clock.{field}",
+                f"ends.{field}",
+                published,
+                None if seen is None else seen == published,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    counted = _count_at(block, "n_unparsed")
+    checks = checks + [
+        _exact(
+            name,
+            "clock.n_unparsed",
+            "counts.n_unparsed",
+            _shown_count(facts.n_unparsed),
+            None if counted is None else _shown_count(counted),
+        )
+    ]
+    checks = checks + _clock_ladder_checks(column, facts, block)
+    return checks
+
+
+def _clock_ladder_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """The clock ladder: the two ends exact, the nine interior windowed.
+
+    The window is this role's own construction written out here rather
+    than imported: the validator may not read the generator, so the
+    arithmetic is taken from the method's clause and the suite holds the
+    two writings to agreeing.
+
+    Rank `k` is its own stratum -- its share of the day runs from `k/P`
+    to `(k+1)/P` and no word can carry it outside that band -- so the
+    rank sits between the ladder read at those two shares, less one unit
+    of the form at the low end for the flooring. The two ends are PINNED
+    and have no room at all: the construction writes rank 0 at the
+    published earliest and rank `P-1` at the published latest, and T2
+    makes those the ladder's own two ends.
+    """
+    name = column.name
+    measured = _inner_at(block, "clock_percentiles")
+    checks: "list[Check]" = []
+    for key, expected in (
+        ("min", facts.earliest),
+        ("max", facts.latest),
+    ):
+        seen = None if measured is None else _text_at(measured, key)
+        checks = checks + [
+            _silent(
+                name,
+                f"clock.clock_percentiles.{key}",
+                f"clock-ladder.{key}",
+                expected,
+                None if seen is None else seen == expected,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+    parsed = max(1, column.n_present - facts.n_unparsed)
+    lows, highs = _clock_rank_windows(facts, parsed)
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        key = _LADDER_KEYS[index]
+        seen = None if measured is None else _text_at(measured, key)
+        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT. A file
+        # whose cells wear the other shape publishes a ladder in that
+        # shape, and reading it under the DESCRIPTION's form finds
+        # nothing -- so every rung went silent, on a file whose own
+        # description publishes exactly the measurement being asked
+        # for. That is not the disclosure gate closing; it is the
+        # validator unable to read, which V5.3 does not permit as a
+        # reason for silence. Both sides are read in their own form and
+        # compared in seconds of day, where a minute is sixty and the
+        # two spaces are one.
+        held = None if seen is None else _clock_seconds(seen, block)
+        rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
+        checks = checks + [
+            _within_clock(
+                name,
+                f"clock-ladder.{key}",
+                facts,
+                facts.clock_percentiles[key],
+                held,
+                (lows[rank], highs[rank]),
+            )
+        ]
+    return checks
+
+
+def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
+    """One measured clock value in SECONDS of day, read in its own form.
+
+    The file's own description says which form its cells wore, and that
+    is the form its ladder is written in. Reading it under somebody
+    else's form is reading it wrongly, and answering "cannot tell" is
+    worse than answering wrongly: it makes the check silent on a file
+    whose own description publishes the very value being compared.
+    """
+    found = _text_at(block, "clock_form")
+    if found is None:
+        return None
+    ordinal = parsing.clock_ordinal(text, found)
+    if ordinal is None:
+        return None
+    if found == contract.CLOCK_FORMS[0]:
+        return ordinal * 60
+    return ordinal
+
+
+def _clock_units(form: str) -> str:
+    """The word for one step of this form's own ordinal space."""
+    if form == contract.CLOCK_FORMS[0]:
+        return "minute"
+    return "second"
+
+
+def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
+    """One clock ordinal said as its distance from the published rung.
+
+    A DISTANCE AND NOT A TIME, for the reason the datetime rungs are
+    said that way: the measured side is a value read out of the file,
+    and no text of a measured file is printed in this report. A
+    distance is arithmetic on two numbers the reader already has -- the
+    published rung is on the line above -- and carries no spelling of
+    anybody's table.
+    """
+    # The two numbers arrive in seconds; a column of minutes says its
+    # distance in minutes, which is what its reader has in front of
+    # them. An odd number of seconds on such a column is a file that
+    # wore the other form, and it is said in seconds rather than
+    # rounded into a lie.
+    away = ordinal - rung
+    word = _clock_units(form)
+    if form == contract.CLOCK_FORMS[0]:
+        if away % 60 == 0:
+            away = away // 60
+        else:
+            word = "second"
+    if away == 0:
+        return "that same time"
+    if away < 0:
+        return f"{-away} {word}(s) before that"
+    return f"{away} {word}(s) after that"
+
+
+def _within_clock(
+    column: str,
+    subcheck: str,
+    facts: contract.ClockFacts,
+    published: str,
+    measured: "int | None",
+    window: "tuple[int, int]",
+) -> Check:
+    """One interior rung of a clock ladder, against its own window.
+
+    The same shape the datetime rungs take: the exact reading is tried
+    first, so a file holding the published rung is HELD whatever the
+    window says; the three numbers are said as distances from that
+    rung; and a window that does not reach the published value says so
+    rather than leaving a reader to think the page is wrong.
+    """
+    # IN SECONDS OF DAY, the one unit the two forms share, because the
+    # measured side was read in the FILE's own form and this one is
+    # read in the description's.
+    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
+    low, high = window
+    form = facts.clock_form
+    allowed = (
+        f"      this rung of the file is allowed from "
+        f"{_shown_clock_distance(low, rung, form)}"
+    )
+    note: "tuple[str, ...]" = (
+        allowed,
+        (
+            f"        to {_shown_clock_distance(high, rung, form)}, and "
+            f"it covers the value above"
+        ),
+    )
+    reaches = low <= rung <= high
+    if not reaches:
+        note = (
+            allowed,
+            (
+                f"        to {_shown_clock_distance(high, rung, form)}, "
+                f"and it does NOT reach the"
+            ),
+            "        value above. This window is what the method allows",
+            "        the file's own rung, worked out from the description",
+            "        and the size of this column; it is not a margin",
+            "        around the description's value.",
+        )
+    if measured is None:
+        return Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            WITHHELD,
+            published,
+            "",
+            _GATE_CLOSED,
+        )
+    if measured == rung:
+        return Check(
+            column,
+            "clock.clock_percentiles",
+            subcheck,
+            HELD,
+            published,
+            _shown_clock_distance(measured, rung, form),
+            "",
+            () if reaches else _MET_OUTSIDE_ITS_WINDOW,
+        )
+    verdict = WITHIN_BOUND if low <= measured <= high else MISSED
+    return Check(
+        column,
+        "clock.clock_percentiles",
+        subcheck,
+        verdict,
+        published,
+        _shown_clock_distance(measured, rung, form),
+        ENVELOPE_CLOCK_RUNG,
+        note,
+    )
+
+
+def _clock_rank_windows(
+    facts: contract.ClockFacts, parsed: int
+) -> "tuple[list[int], list[int]]":
+    """The window every rank of a column of clock times sits in.
+
+    Whole-number arithmetic throughout, in the ordinal unit the
+    published FORM sets -- minutes of day, or seconds of day -- because
+    that is the unit the construction interpolates in and a window drawn
+    in another one would floor to a different place.
+
+    Guarantees: accepts one column's published clock facts and how many
+    of its cells read back as clock times; returns the two ends of every
+    rank's window. Nothing measured is consulted -- this is what the
+    DESCRIPTION obliges. Determinism: a fixed function of those two.
+    Errors raised: none.
+    """
+    ladder = [
+        _clock_ordinal_or_zero(facts.clock_percentiles[name], facts.clock_form)
+        for name in _LADDER_KEYS
+    ]
+    last = len(_LADDER_KEYS) - 1
+    # THE WINDOWS ARE DRAWN IN THE FORM'S OWN UNIT AND HANDED BACK IN
+    # SECONDS, because the measured side is read in the FILE's form and
+    # the two have to meet in one space. The interpolation itself must
+    # happen in the column's own unit -- it floors, and flooring in
+    # seconds lands part way through a minute the construction cannot
+    # write -- so the conversion is the last step and never the first.
+    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for rank in range(parsed):
+        if rank == 0:
+            lows = lows + [step * ladder[0]]
+            highs = highs + [step * ladder[0]]
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            lows = lows + [step * ladder[last]]
+            highs = highs + [step * ladder[last]]
+            continue
+        lows = lows + [
+            step * _ladder_ordinal_at(ladder, rank, parsed) - step
+        ]
+        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
+    return (lows, highs)
+
+
+def _clock_ordinal_or_zero(text: str, form: str) -> int:
+    """One published clock value as its ordinal, or zero.
+
+    The loader has held every published clock value to the column's own
+    form (T1), so the reader answers for every value that reaches here.
+    Zero is what a value it cannot read would give, and it is a value
+    inside the space rather than an exception, because a window is a
+    statement about the description and a description that got this far
+    has already been refused if it could not be read.
+    """
+    found = parsing.clock_ordinal(text, form)
+    if found is None:
+        return 0
+    return found
 
 
 def _datetime_checks(
@@ -7854,6 +11419,7 @@ def _date_ladder_checks(
 
 _INSTANT_UNITS = {
     taxonomy.RESOLUTION_QUARTER: "quarter",
+    taxonomy.RESOLUTION_MONTH: "month",
     taxonomy.RESOLUTION_DATE: "day",
     taxonomy.RESOLUTION_DATETIME: "second",
 }
@@ -7992,6 +11558,37 @@ def _within_instant(
         ENVELOPE_DATETIME_RUNGS,
         note,
     )
+
+
+def _clock_distinct_window(
+    column: contract.ColumnBlock, facts: contract.ClockFacts
+) -> "tuple[float, float]":
+    """How many different values a column of clock times may hold.
+
+    The same two ends the date role's envelope has, in this role's own
+    ordinal space. The LOWER end counts ranks whose windows do not
+    overlap -- two ranks that cannot hold the same time are two
+    identities the twin must carry -- plus every stand-in, each spelled
+    differently from every other cell. The UPPER end is how many times
+    the published range holds at all, plus those stand-ins, and never
+    more cells than the column has.
+
+    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column
+    it does not: a column of two hundred and forty rows over a hundred
+    and twenty different times publishes a hundred and twenty while the
+    construction writes a value per rank. That is what an explicit
+    cardinality bound is for, and it is why this role's two distinctness
+    counts are approximated rather than exact.
+    """
+    parsed = max(1, column.n_present - facts.n_unparsed)
+    lows, highs = _clock_rank_windows(facts, parsed)
+    separate = _ranks_forced_apart(lows, highs)
+    earliest = _clock_ordinal_or_zero(facts.earliest, facts.clock_form)
+    latest = _clock_ordinal_or_zero(facts.latest, facts.clock_form)
+    room = latest - earliest + 1
+    upper = min(column.n_present, room + facts.n_unparsed)
+    lower = min(separate + facts.n_unparsed, upper)
+    return (float(lower), float(upper))
 
 
 def _datetime_distinct_window(
@@ -8263,6 +11860,8 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
     """
     if facts.resolution == taxonomy.RESOLUTION_QUARTER:
         return 1
+    if facts.resolution == taxonomy.RESOLUTION_MONTH:
+        return 1
     if facts.resolution == taxonomy.RESOLUTION_DATE:
         return 86400
     if facts.time_precision == parsing.PRECISION_MINUTE:
@@ -8355,7 +11954,34 @@ def _instant_of(moment: str, resolution: str) -> "int | None":
     """
     if resolution == taxonomy.RESOLUTION_QUARTER:
         return _quarter_ordinal(moment)
+    if resolution == taxonomy.RESOLUTION_MONTH:
+        return _month_ordinal(moment)
     return parsing.instant_key(moment, "")
+
+
+def _month_ordinal(moment: str) -> "int | None":
+    """`YYYY-MM` as `12 * (year - 1970) + (month - 1)`, or None (G7.1).
+
+    Whole-number arithmetic on six digits, so the answer is the same on
+    every machine and no calendar is consulted: a month names a span
+    rather than an instant, which is exactly why it has a space of its
+    own, as a quarter does below.
+    """
+    if len(moment) != 7:
+        return None
+    if moment[4] != "-":
+        return None
+    if not parsing.is_digit_text(moment[0:4]):
+        return None
+    if not parsing.is_digit_text(moment[5:7]):
+        return None
+    month = int(moment[5:7])
+    if month < 1 or month > 12:
+        return None
+    year = int(moment[0:4])
+    if year < 1:
+        return None
+    return 12 * (year - 1970) + month - 1
 
 
 def _quarter_ordinal(moment: str) -> "int | None":
@@ -8375,6 +12001,8 @@ def _quarter_ordinal(moment: str) -> "int | None":
     if year is None or quarter is None:
         return None
     if quarter < 1 or quarter > 4:
+        return None
+    if year < 1:
         return None
     return 4 * (year - 1970) + (quarter - 1)
 
@@ -8396,6 +12024,7 @@ def _text_checks(
     column: contract.ColumnBlock,
     facts: contract.TextFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """A column no rule claimed, which publishes none of its values."""
     name = column.name
@@ -8453,6 +12082,49 @@ def _text_checks(
             block,
         )
     ]
+    checks = checks + _form_checks(
+        name, "free_text.shape_forms", facts.shape_forms, block, floor
+    )
+    return checks
+
+
+def _form_checks(
+    name: str,
+    fact: str,
+    census: "dict[str, int]",
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """The census of written forms, recounted on the measured file.
+
+    ON THE SAME TERMS AS THE TWO WIDTH CENSUSES. Each named form is a
+    count of cells the file evidences by holding them, and the pooled
+    remainder names no form, so it is checked as the pool it is: a
+    recounted form numbers at least its published count and at most
+    that count plus the pool. Without this the twin owed the forms
+    nothing, and the fact that lets a held-back value have a stand-in
+    shaped like one would be published and never checked.
+    """
+    measured = _map_at(block, "shape_forms")
+    held_back = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        held_back = census[taxonomy.SUPPRESSED_LABEL]
+    checks: "list[Check]" = []
+    for form in sorted(census):
+        if form == taxonomy.SUPPRESSED_LABEL:
+            continue
+        checks = checks + [
+            _floor_governed(
+                name,
+                fact,
+                f"forms.published.{form}",
+                census[form],
+                measured,
+                form,
+                floor,
+                held_back,
+            )
+        ]
     return checks
 
 
@@ -8726,10 +12398,33 @@ def _unrepresentable_checks(
     facts: contract.UnrepresentableFacts,
     block: "dict[str, object]",
 ) -> "list[Check]":
-    """A column of numbers too large or too small to hold."""
+    """A column of numbers too large or too small to hold.
+
+    THE TWO WIDTHS ARE OBLIGATIONS AND WERE MEASURED BY NOTHING
+    (residual R-P4-59). `min_length` and `max_length` say how long the
+    shortest and the longest of these numbers are, in characters. They
+    are published on every column of this role, they are exactly
+    evidencible -- count the characters of the written cells -- and no
+    check named them and no census line did either.
+
+    Reproduced: twelve whole numerals too large for this format, half
+    399 characters wide and half 401, publish `min_length` 399 and
+    `max_length` 401. A file of twelve 400-character numerals agrees on
+    the role, on every sign and whole count, on distinctness and on the
+    repetition pattern, violates BOTH published widths, and was
+    reported with no miss at all.
+
+    A column of numbers this long is rare in the tables this tool is
+    for -- an identifier from a sequencing pipeline, at most -- which is
+    why it stayed open while the width defect of a code column did not.
+    Rare is not the same as never, and an obligation nothing measures
+    is the shape this phase has spent itself closing.
+    """
     name = column.name
     checks: list[Check] = []
     for field, published in (
+        ("min_length", facts.min_length),
+        ("max_length", facts.max_length),
         ("n_whole", facts.n_whole),
         ("n_fraction", facts.n_fraction),
         ("n_whole_unknown", facts.n_whole_unknown),
@@ -8835,9 +12530,28 @@ def _listings(
         ]
     corners = corners_of(description)
     for column in description.columns:
+        # AND THE KEYS A JUDGED PASS PUT THERE, one line each. The
+        # field as a whole is an obligation now; these single keys are
+        # not, and naming them here is what keeps the census's own
+        # claim true -- that every fact no file can evidence is on it.
+        for spelling in _judged_hole_spellings(column, description):
+            listings = listings + [
+                Listing(
+                    column.name,
+                    "universal.missing_by_source",
+                    f"holes.by_source.{spelling}",
+                    _NOT_CHECKABLE_JUDGED_HOLE,
+                )
+            ]
+        # `missing_by_source` IS NOT ON THIS LIST ANY MORE (R-P4-60).
+        # It stopped being report-only at contract version 6, which
+        # writes each spelling at its published count; the disposition
+        # registry has said EXACT-OBSERVABLE since, and
+        # `_hole_spelling_checks` builds one check per spelling. Listing
+        # it here as well would name one obligation twice, under two
+        # answers that contradict each other.
         for field in (
             "missing_by_class",
-            "missing_by_source",
             # The two counts contract version 5 moved out of the map
             # above (its section 5). They are REPORT-ONLY for the map's
             # own reason -- the twin writes every absent cell empty --
@@ -8889,23 +12603,189 @@ def _listings(
                     "datetime.format",
                     "",
                     _NOT_CHECKABLE_REPORT_ONLY,
-                )
-            ]
-            listings = listings + _endpoint_listings(column, facts, corners)
-        if isinstance(facts, contract.NumericFacts) and not _ladder_points(
-            facts.percentiles.rungs
-        ):
-            listings = listings + [
+                ),
                 Listing(
                     column.name,
-                    f"numeric.{field}",
-                    f"moments.{field}",
-                    _NOT_CHECKABLE_NO_LADDER,
-                )
-                for field in ("mean", "std", "skew")
+                    "datetime.resolution_mix",
+                    "",
+                    _NOT_CHECKABLE_RESOLUTION_MIX,
+                ),
             ]
-        if isinstance(facts, contract.NumericFacts):
-            listings = listings + _unbounded_style_listings(column, facts)
+            listings = listings + _endpoint_listings(column, facts, corners)
+        # EVERY ROLE THAT CARRIES A QUANTITATIVE BLOCK, AND NOT ONLY
+        # THE TWO THAT ARE ONE (review item P4-G6-R4-F1). These
+        # branches each tested the OUTER facts for `NumericFacts`,
+        # while `_affixed_checks` hands `facts.numbers` to the same
+        # numeric machinery the checks use. So an affixed column --
+        # any column whose cells wear one fixed piece of text around a
+        # number -- had every numeric obligation CHECKED and none
+        # listed,
+        # and on a description whose windows cannot be drawn they were
+        # named nowhere at all. `_quantitative_of` is the unwrapping
+        # the rest of this module already uses; the census uses it now
+        # too, so a role added later cannot be forgotten here.
+        numbers = _quantitative_of(facts)
+        if numbers is not None:
+            # THROUGH THE CORE VIEW, for the reason the checks beside
+            # these go through it (review round 2, item 2): a listing
+            # says a window admits every count a file can hold, and
+            # that window is drawn from the population it is given.
+            # Given the whole column's, a listing could stand where a
+            # check belongs and the other way about.
+            listings = listings + _numeric_listings(
+                _core_column(column), numbers
+            )
+            # AND THE COUNT OF DIFFERENT NUMBERS WHERE ITS ENVELOPE
+            # LICENSES EVERY COUNT THE FILE COULD HOLD (V3.5). It is a
+            # CHECK since amendment A-P4-55, and a check that cannot
+            # fail is a listing -- but a first writing of that branch
+            # emitted NEITHER, so on a column whose supply is one
+            # spelling the fact left both pages at once.
+            published = numbers.n_distinct_values
+            corner = _distinct_corner(
+                numbers, _corner_names(corners, column.name), _RAW_DISTINCT
+            )
+            # THE CORE VIEW HERE TOO, because `_numeric_checks` decides
+            # the same question over it (review round 7, item 2). Given
+            # the outer column, the two halves of one decision were
+            # taken over two different populations: on 100 cells `$1`
+            # to `$100` beside 100 cells `1 lb` to `100 lb`, the CHECK
+            # side found the commonest wrapper's 100-cell envelope
+            # admits every count and emitted nothing, while this side
+            # read the outer 200-cell column, decided the envelope was
+            # not exhaustive and emitted nothing either -- so a
+            # published fact was on NEITHER page and the census stopped
+            # being an identity.
+            if (
+                published is not None
+                and corner
+                and _envelope_admits_every_count(
+                    _core_column(column), numbers, published
+                )
+            ):
+                listings = listings + [
+                    Listing(
+                        column.name,
+                        "numeric.n_distinct_values",
+                        "distinct.n_distinct_values",
+                        _NOT_CHECKABLE_SPELLING_ENVELOPE
+                        + CORNER_CITATIONS[corner],
+                    )
+                ]
+        # AND THE JOINED ROLE, whose positions each carry a block the
+        # census never reached: `_quantitative_of` returns None for it
+        # on purpose, because its parts are checked one at a time, and
+        # nothing then LISTED what those checks cannot measure (review
+        # item P4-A1-R2-F2). Its own two distinctness counts are listed
+        # here too. Its own two distinctness counts are CHECKED, not
+        # listed -- they were report-only for one landing and adversarial
+        # round P4-A2-R1 showed a re-paired file passing clean without
+        # them (plan P4-D29).
+        if isinstance(facts, contract.JoinedFacts):
+            listings = listings + _joined_listings(column, facts)
+        # AND THE COMPOUND ROLE, whose numeric half is a block of the
+        # same kind: `_quantitative_of` returns None for it too, so
+        # without this line a compound column's histogram, its field
+        # widths and its count of different values were published,
+        # checked by nothing and named on no census -- the defect
+        # review item P4-A1-R2-F2 opened one role earlier, which is
+        # why the line is written with the role rather than after it.
+        if isinstance(facts, contract.CompoundFacts):
+            listings = listings + _compound_listings(
+                column, facts, _corner_names(corners, column.name)
+            )
+        # ...AND EVERY WRAPPER OF A SET, whose block is a block of the
+        # same kind (plan P4-D37; review round 3, item 4). The line
+        # above unwraps an affixed column to its COMMONEST wrapper's
+        # numbers and stops there, so on a column of kilograms beside
+        # pounds the commonest block took eight listings and the pound
+        # block none: its histogram, its empty-bin pair, its field-width
+        # census, its finer percentiles, its mode pair and its unbounded
+        # style obligation were on neither page. The census calls itself
+        # an identity over every published obligation, and those were
+        # published.
+        if isinstance(facts, contract.AffixedFacts):
+            place = 0
+            for one in facts.affix_variants:
+                inner = dataclasses.replace(
+                    column,
+                    statistical_type="continuous",
+                    n_present=one.count,
+                    # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item 3).
+                    # The blanks belong to the COLUMN, not to a wrapper.
+                    n_missing=0,
+                    n_missing_blank=0,
+                    n_missing_withheld=0,
+                    n_numeric=one.n_core_numeric,
+                    n_not_numeric=one.n_core_not_numeric,
+                    n_out_of_range=one.n_core_out_of_range,
+                    n_contradictory=one.n_core_contradictory,
+                    n_distinct=one.n_core_distinct,
+                    n_distinct_folded=one.n_core_distinct_folded,
+                    facts=one.numbers,
+                )
+                # ...AND THE TWO CORE COUNTS THIS WRAPPER'S OWN CORNER
+                # DROPS FROM THE CHECKS (review round 8, item 2). The
+                # check side skips them where the wrapper's envelope
+                # admits every count a file can hold; the census counts
+                # every obligation nothing in a CSV settles, so the two
+                # halves of that one decision are written from one rule
+                # here as they are for the column's own pair.
+                for field, stated, under in (
+                    ("n_core_distinct", one.n_core_distinct, _RAW_DISTINCT),
+                    (
+                        "n_core_distinct_folded",
+                        one.n_core_distinct_folded,
+                        _FOLDED_DISTINCT,
+                    ),
+                ):
+                    corner = _distinct_corner(
+                        one.numbers, _wrapper_corners(inner, one.numbers), under
+                    )
+                    if not corner or corner == CORNER_IDENTIFIER_INFEASIBLE:
+                        continue
+                    if not _envelope_admits_every_count(
+                        inner, one.numbers, stated
+                    ):
+                        continue
+                    listings = listings + [
+                        Listing(
+                            column.name,
+                            f"affix_variants[{place}].{field}",
+                            f"counts.affix_variants[{place}].{field}",
+                            _NOT_CHECKABLE_SPELLING_ENVELOPE
+                            + CORNER_CITATIONS[corner],
+                        )
+                    ]
+                for entry in _numeric_listings(inner, one.numbers):
+                    # THE IDENTITY GOES ON THE FACT, because a numeric
+                    # listing carries its key there and leaves the
+                    # subcheck empty; qualifying the empty one produced
+                    # `affix_variants[0].` and named nothing.
+                    # THE GROUP IS DROPPED, as `_joined_listings` drops
+                    # it (review round 6, item 5). A numeric listing's
+                    # fact is `numeric.field_widths` -- group and
+                    # field -- and prefixing the path to the whole of
+                    # it named `affix_variants[0].numbers.numeric
+                    # .field_widths`, a path no description carries, so
+                    # the obligation it stands for was named nowhere.
+                    # SLICED, NOT SEARCHED. The offline audit accepts
+                    # no method call on a value it cannot trace, and a
+                    # listing's fact is one; `_joined_listings` drops
+                    # its own group with the same comparison and this
+                    # is that comparison.
+                    leaf = entry.fact
+                    head = "numeric."
+                    if leaf[: len(head)] == head:
+                        leaf = leaf[len(head) :]
+                    listings = listings + [
+                        dataclasses.replace(
+                            entry,
+                            fact=f"affix_variants[{place}].numbers.{leaf}",
+                        )
+                    ]
+                place = place + 1
+
         listings = listings + _corner_listings(
             column, _corner_names(corners, column.name)
         )
@@ -8952,19 +12832,297 @@ def _endpoint_listings(
     return listings
 
 
+def _compound_listings(
+    column: contract.ColumnBlock,
+    facts: contract.CompoundFacts,
+    mine: "tuple[str, ...]",
+) -> "list[Listing]":
+    """What a compound column publishes and no check can measure.
+
+    TWO KINDS. Its numeric half carries a whole quantitative block, so
+    that block's not-checkable census is taken over the half exactly as
+    it is over a plain numeric column -- through the same view builder
+    the checks and the generator use, so a fact cannot be listed
+    against one population and checked against another.
+
+    And THREE facts of that half are settled by the split rule itself:
+    a cell joins the half only by reading as a plain number, so the
+    half's share of numbers is one and its two counts of cells left out
+    of the statistics are zero on every file that carries the role.
+    They were CHECKS for the length of one landing, and the coverage
+    identity is what found them: ninety-odd perturbations of a compound
+    twin, and not one of the three could be made to report MISSED.
+    """
+    numbers = contract.compound_numbers_view(column)
+    listings = _numeric_listings(numbers, facts.numbers)
+    # AND EVERY HALF COUNT THE ENVELOPE SETTLES, named here with the
+    # passage that authorizes it. The check side asks the same
+    # question through the same function, so a count cannot be checked
+    # on one page and listed on the other.
+    labels = contract.compound_labels_view(column)
+    for view, half_facts, fact, subcheck, published, field in (
+        (
+            numbers,
+            facts,
+            "compound.n_numeric_distinct",
+            "distinct.n_numeric_distinct",
+            facts.n_numeric_distinct,
+            _RAW_DISTINCT,
+        ),
+        (
+            numbers,
+            facts,
+            "compound.n_numeric_distinct_folded",
+            "distinct.n_numeric_distinct_folded",
+            facts.n_numeric_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+        (
+            labels,
+            facts.labels,
+            "label.n_distinct",
+            "distinct.labels.n_distinct",
+            facts.n_label_distinct,
+            _RAW_DISTINCT,
+        ),
+        (
+            labels,
+            facts.labels,
+            "label.n_distinct_folded",
+            "distinct.labels.n_distinct_folded",
+            facts.n_label_distinct_folded,
+            _FOLDED_DISTINCT,
+        ),
+    ):
+        corner = _half_distinct_is_listed(
+            view, half_facts, published, mine, field
+        )
+        if not corner:
+            continue
+        listings = listings + [
+            Listing(
+                column.name,
+                fact,
+                subcheck,
+                _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner],
+            )
+        ]
+    for fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS:
+        listings = listings + [
+            Listing(
+                column.name, fact, subcheck, _NOT_CHECKABLE_SPLIT_CONSTANT
+            )
+        ]
+    return listings
+
+
+def _joined_listings(
+    column: contract.ColumnBlock, facts: contract.JoinedFacts
+) -> "list[Listing]":
+    """What a joined column publishes and no check can measure.
+
+    TWO KINDS, and both were missing.
+
+    Its own `n_distinct` and `n_distinct_folded` are REPORT-ONLY (plan
+    P4-D29): the count of different CELLS is a consequence of the
+    pairing rather than a target, so no file is held to it and the
+    census names it instead.
+
+    And EACH POSITION carries a whole quantitative block. Residual
+    R-P4-58 gave those blocks their checks and stopped there, so a
+    two-number column published per-position `n_distinct_values` and
+    `percentiles_between` -- and a moment whose window could not be
+    drawn -- with neither a check nor a census line anywhere (review
+    item P4-A1-R2-F2). Each position's listings are renamed with its
+    own number, exactly as its checks are, so two positions cannot
+    hide behind one identity.
+    """
+    listings: "list[Listing]" = []
+    for place, numbers in enumerate(facts.parts):
+        for entry in _numeric_listings(column, numbers):
+            fact = entry.fact
+            head = "numeric."
+            if fact[: len(head)] == head:
+                fact = f"joined.parts[{place}].{fact[len(head):]}"
+            listings = listings + [
+                dataclasses.replace(
+                    entry,
+                    fact=fact,
+                    subcheck=(
+                        f"number {place + 1} {entry.subcheck}"
+                        if entry.subcheck
+                        else ""
+                    ),
+                )
+            ]
+    return listings
+
+
+def _numeric_listings(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[Listing]":
+    """The not-checkable census of one quantitative block.
+
+    Reached for EVERY role that carries one -- the two numeric roles
+    directly and the affixed role over its cores -- through the same
+    unwrapping the checks take, so a fact cannot be checked by one path
+    and listed by another (review item P4-G6-R4-F1).
+    """
+    listings: list[Listing] = []
+    if facts.value_histogram:
+        # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
+        # published fact that appears in no check and no listing is
+        # one a reader cannot tell was never measured, which is the
+        # defect review item P3-V1-F3 opened.
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.value_histogram",
+                "",
+                _NOT_CHECKABLE_HISTOGRAM,
+            )
+        ]
+    # AND THE COUNT OF DIFFERENT NUMBERS DOES NOT HANG OFF THE
+    # HISTOGRAM BESIDE IT (review item P4-G6-R4-F4). It is published on
+    # its own terms, and a description at a raised floor can carry the
+    # count with an empty histogram -- on which this fact was named
+    # nowhere while the report claimed the census accounts for every
+    # obligation.
+    if facts.empty_bins:
+        # THE STRETCHES THAT HOLD NOTHING, LISTED and never silent
+        # (plan P4-D32). REPORT-ONLY, measured rather than assumed:
+        # over forty described columns at forty seeds each, 119 of
+        # 1600 runs still wrote one cell into a stretch the
+        # description names empty, and every one of them is a column
+        # whose OTHER published facts leave the twin no room beside
+        # the stretch -- a whole-number column whose bins are barely
+        # wider than a unit, or a stratum whose sign band ends at the
+        # edge it would have to cross. A check here would call the
+        # shipped generator's own twin broken on one run in fourteen.
+        #
+        # LISTED ONLY WHERE THE DESCRIPTION NAMES A STRETCH, like the
+        # census above it and unlike the two facts below: a column
+        # with no empty bin makes no claim here and a listing would be
+        # a line about nothing.
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.empty_bins",
+                "",
+                _NOT_CHECKABLE_EMPTY_BINS,
+            ),
+            # AND THE EDGES OF THOSE STRETCHES, LISTED BESIDE THEM
+            # (plan P4-D35, residual R-P4-138). They are one fact in
+            # two keys and they are listed together: the bins say
+            # WHICH stretches there are, the edges say where each one
+            # really begins and ends, and a reader told about one and
+            # not the other would not know which of the two the twin
+            # was walking from. REPORT-ONLY for the reason the bins
+            # are, and measured: over three two-cluster columns at
+            # forty seeds each, NO cell of the twin sits inside a
+            # source's own gap -- 0 of 12,000 on each. What keeps this
+            # REPORT-ONLY is the shape residual R-P4-140 records: a
+            # column whose other published facts leave no free value
+            # beside a stretch cannot always be moved out of it, and
+            # where it cannot the value stays and the report says so.
+            Listing(
+                column.name,
+                "numeric.empty_edges",
+                "",
+                _NOT_CHECKABLE_EMPTY_EDGES,
+            ),
+        ]
+    listings = listings + [
+        # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never
+        # silent (plan P4-D30). It is published on every column of this
+        # role, so like the value count beside it, its listing hangs
+        # off nothing else. REPORT-ONLY because an unpadded cell's
+        # width IS its value's magnitude and magnitudes are placed by
+        # the ladder: measured over eighty runs of forty described
+        # columns at the default floor, thirty-six missed at least one
+        # named width and the widest gap was seventy-one cells, so a
+        # check here would call the shipped generator's own twin
+        # broken on nearly half the columns it is handed.
+        Listing(
+            column.name,
+            "numeric.field_widths",
+            "",
+            _NOT_CHECKABLE_FIELD_WIDTHS,
+        ),
+        Listing(
+            column.name,
+            "numeric.percentiles_between",
+            "",
+            _NOT_CHECKABLE_FINER_LADDER,
+        ),
+    ]
+    # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
+    # published on every column of this role that has one, so its
+    # listing does not hang off the histogram beside it; a column with
+    # no dominant value publishes no pair and gets no listing.
+    if facts.mode is not None:
+        listings = listings + [
+            Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
+            Listing(
+                column.name,
+                "numeric.mode_count",
+                "",
+                _NOT_CHECKABLE_MODE,
+            ),
+        ]
+    # EVERY MOMENT THE DESCRIPTION PUBLISHES AND NO WINDOW REACHES,
+    # under the reason that applies to it (review items P4-G6-R3-F2,
+    # P4-G6-R3-F3 and P4-G6-R4-F3).
+    #
+    # Naming the fields in a written-out list is what let the tail
+    # weight be forgotten when it arrived a phase later, so they are
+    # read off what the description PUBLISHES.
+    #
+    # AND WHETHER A LADDER EXISTS IS ASKED OF THE RUNGS THE WINDOW IS
+    # ACTUALLY DRAWN FROM. This asked the ELEVEN named rungs while
+    # `_windows_of` reads all hundred and one, and the contract admits
+    # a description whose named rungs are null beside finer rungs that
+    # are not: its mean and spread were then CHECKED against real
+    # windows and listed here as having no ladder at the same time,
+    # each obligation counted twice under contradictory reasons.
+    has_ladder = bool(_fine_ladder_points(facts))
+    drawn = _windows_of(column, facts) if has_ladder else {}
+    reason = (
+        _NOT_CHECKABLE_NO_WINDOW if has_ladder else _NOT_CHECKABLE_NO_LADDER
+    )
+    for field, value in (
+        ("mean", facts.mean),
+        ("std", facts.std),
+        ("skew", facts.skew),
+        ("kurtosis", facts.kurtosis),
+    ):
+        if value is None or field in drawn:
+            continue
+        listings = listings + [
+            Listing(column.name, f"numeric.{field}", f"moments.{field}", reason)
+        ]
+    return listings + _unbounded_style_listings(column, facts)
+
+
 def _unbounded_style_listings(
     column: contract.ColumnBlock, facts: contract.NumericFacts
 ) -> "list[Listing]":
     """The numeric obligations this description leaves nothing to check.
 
-    Two of them, both review items of round 2 and both recorded in plan
-    amendment A-P3-2: the canonical-form ceiling a description licenses
-    every cell against (`_ceilinged_styles`), and the skew whose G12.3
-    window is the statistic's whole attainable range
-    (`_skew_admits_every_value`). Each is an obligation the description
-    states and no file of the length it publishes can be found to miss,
-    so each is a line in the NOT-CHECKABLE census with the sentence that
-    says why, and neither is counted toward a pass.
+    THREE of them now. Two were review items of round 2 and are
+    recorded in plan amendment A-P3-2: the canonical-form ceiling a
+    description licenses every cell against (`_ceilinged_styles`), and
+    the skew whose G12.3 window is the statistic's whole attainable
+    range (`_skew_admits_every_value`). The third is the TAIL WEIGHT on
+    the same grounds (`_tails_admit_every_value`), which arrived a
+    phase later with G12.3a and was skipped as a check without ever
+    being filed as a listing.
+
+    Each is an obligation the description states and no file of the
+    length it publishes can be found to miss, so each is a line in the
+    NOT-CHECKABLE census with the sentence that says why, and none is
+    counted toward a pass. A fact that is neither checked nor listed is
+    a fact the report has lost, which is worse than either.
     """
     listings: list[Listing] = []
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
@@ -8985,6 +13143,25 @@ def _unbounded_style_listings(
                 "numeric.skew",
                 "moments.skew",
                 _NOT_CHECKABLE_SKEW_UNBOUNDED,
+            )
+        ]
+    # AND THE TAIL WEIGHT BESIDE IT (review item P4-G6-R2-F1). The
+    # kurtosis arrived a phase after the skew, and `_moment_checks`
+    # learned to SKIP it on the same grounds -- `_tails_admit_every_value`
+    # at the line above its sibling -- while this function was left
+    # filing only the skew. So a column publishing a kurtosis whose
+    # window is the whole attainable range had that obligation appear
+    # in neither the checks nor the census, and the report claims the
+    # census accounts for every one. Reproduced on 98 zeros beside
+    # `5e-324` and `1e-323`, which publishes a kurtosis of 66.1 and
+    # named it nowhere.
+    if _tails_admit_every_value(column, facts):
+        listings = listings + [
+            Listing(
+                column.name,
+                "numeric.kurtosis",
+                "moments.kurtosis",
+                _NOT_CHECKABLE_TAILS_UNBOUNDED,
             )
         ]
     return listings
@@ -9067,6 +13244,39 @@ def _corner_listings(
                     f"{group}.{field}",
                     f"distinct.{field}",
                     why,
+                )
+            ]
+    if isinstance(facts, contract.AffixedFacts):
+        # THE TWO COUNTS OF DIFFERENT CORES, DROPPED BY THE SAME RULE
+        # AND LISTED IN THE SAME BREATH (plan P4-D36). `_affixed_checks`
+        # drops a core count whose envelope admits every count a file
+        # can hold, and the census counts every obligation nothing in a
+        # CSV settles -- so the two halves of that one decision are
+        # written from one rule, and a dropped core count cannot go
+        # uncounted.
+        cores_as_column = _core_column(column)
+        for field, published, under in (
+            ("n_core_distinct", facts.n_core_distinct, _RAW_DISTINCT),
+            (
+                "n_core_distinct_folded",
+                facts.n_core_distinct_folded,
+                _FOLDED_DISTINCT,
+            ),
+        ):
+            corner = _distinct_corner(facts, mine, under)
+            if not corner or corner == CORNER_IDENTIFIER_INFEASIBLE:
+                continue
+            if not _envelope_admits_every_count(
+                cores_as_column, facts, published
+            ):
+                continue
+            listings = listings + [
+                Listing(
+                    column.name,
+                    f"affixed.{field}",
+                    f"counts.{field}",
+                    _NOT_CHECKABLE_SPELLING_ENVELOPE
+                    + CORNER_CITATIONS[corner],
                 )
             ]
     return listings

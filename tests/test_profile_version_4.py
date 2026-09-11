@@ -26,7 +26,14 @@ import pathlib
 import fixtures
 from synthtwin import canonical, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR IS DECLARED RATHER THAN INHERITED. Every assertion below
+# about what a description holds back -- the pooled spellings, the
+# withheld variants, the suppressed levels -- was written against a
+# floor of eleven, which used to be the default. Plan amendment A-P4-37
+# moved `small_cell_floor`'s default to one, at which nothing is held
+# back at all (contract invariant C5-S13), so this file now says at what
+# floor it is asking. What it asks is unchanged.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 FLOOR = SETTINGS.small_cell_floor
 
 
@@ -148,12 +155,19 @@ def test_free_text_now_records_the_shape_of_its_repetition() -> None:
     """Two free-text columns that used to serialize identically.
 
     Both hold sixty rows and thirty different values; one holds each
-    value twice, the other holds twenty-nine once and one value
-    thirty-one times. Nothing else in either block can tell them apart.
+    value twice, the other holds twenty-five once and five of them
+    seven times. Nothing else in either block can tell them apart.
+
+    THE LOPSIDED SHAPE IS UNDER THE LONG-TAIL LINE ON PURPOSE. It used
+    to be twenty-nine values once and one thirty-one times, and since
+    plan P4-D5 a spelling thirty-one rows share makes the column a long
+    tail of labels rather than free text -- so the two columns would no
+    longer be two free-text columns at all, and the thing this test
+    tells apart would not be under test.
     """
-    words = [f"a note number {index} written out in words" for index in range(30)]
+    words = fixtures.prose(30)
     twice = describe(words * 2)
-    lopsided = describe(words + [words[0]] * 30)
+    lopsided = describe(words[:25] + words[25:30] * 7)
     assert twice.role == taxonomy.ROLE_TEXT
     assert lopsided.role == taxonomy.ROLE_TEXT
     assert twice.n_present == lopsided.n_present == 60
@@ -163,8 +177,8 @@ def test_free_text_now_records_the_shape_of_its_repetition() -> None:
     # numeric one: written bare, "31" would sort before "01".
     assert twice.details["n_distinct_by_occurrences"] == {"2": 30}
     assert lopsided.details["n_distinct_by_occurrences"] == {
-        "01": 29,
-        "31": 1,
+        "1": 25,
+        "7": 5,
     }
 
 
@@ -348,13 +362,13 @@ def test_the_version_number_moved_with_the_additions(
     tmp_path: pathlib.Path,
 ) -> None:
     document = document_for(tmp_path, [str(index) for index in range(40)])
-    # The number moved AGAIN with version 5's three additions, and it is
+    # The number moved AGAIN with version 6's additions, and it is
     # asserted exactly rather than as "at least four": a version number
     # that could drift upward without a test moving is a version number
     # nothing pins. What this test is about is that the five additions
     # above arrived with a number of their own, and they did.
-    assert profile.PROFILE_VERSION == 5
-    assert document["profile_version"] == 5
+    assert profile.PROFILE_VERSION == 6
+    assert document["profile_version"] == 6
 
 
 def test_the_document_still_serializes_to_the_same_bytes_twice(

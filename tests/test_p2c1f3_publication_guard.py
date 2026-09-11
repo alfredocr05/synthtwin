@@ -29,7 +29,13 @@ import pytest
 import fixtures
 from synthtwin import cli, errors, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# The floor this file describes at, stated rather than inherited. The
+# mutations below all turn on something being WITHHELD -- the pooled
+# label of `WITHHELD_LABEL`, and a variant count that never cleared the
+# floor -- and the default floor is now 1 (owner ruling A-P4-37), at
+# which nothing is held back at all. 11 is the floor these scenarios
+# were built for, and the one at which a pooled note exists to leak.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 # A spelling that stands for a value of somebody's table. Nothing in
 # this package writes it, so finding it in a document means it came
@@ -43,12 +49,17 @@ WITHHELD_LABEL = "outlying"
 
 
 def _document(
-    tmp_path: pathlib.Path, text: str = "", forced: "list[str] | None" = None
+    tmp_path: pathlib.Path,
+    text: str = "",
+    forced: "list[str] | None" = None,
+    measured: "list[str] | None" = None,
 ) -> dict:
     table = reading.read_table(
         str(fixtures.write(tmp_path, "t.csv", text or fixtures.every_role_table()))
     )
-    return profile.build_document(table, SETTINGS, forced or [])
+    return profile.build_document(
+        table, SETTINGS, forced or [], [], measured or []
+    )
 
 
 def _note_places(document: dict) -> list[dict]:
@@ -85,6 +96,34 @@ def test_the_guard_passes_on_every_shape_the_producer_writes(
     # And again with a declared record-number column, which publishes
     # nothing and takes a different note.
     profile.check_publication(_document(tmp_path, text, ["a"]))
+
+
+def test_the_guard_passes_on_a_column_of_two_numbers_in_one_cell(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE SHAPE THIS BATTERY COULD NOT WRITE (review item P4-A2-R5-F3).
+
+    The test above says it passes on every shape the producer writes,
+    and its helper could not pass a measurement declaration -- so it
+    never built a `JoinedFacts` block at all. A publication rule that
+    stopped admitting a joined path would leave this guard green while
+    `synthtwin profile --measurement pressure` stopped before writing
+    anything, which is the one thing this guard exists to prevent.
+
+    The role needs the declaration: an undeclared column of two numbers
+    in one cell is not this role, by design (plan P4-D23).
+    """
+    # The single-column fixture names its column `reading`;
+    # `JOINED_COLUMN` is the name the COMBINED table gives it, and
+    # declaring a name the table does not hold is a different refusal.
+    document = _document(
+        tmp_path,
+        fixtures.joined_numbers_table(),
+        measured=["reading"],
+    )
+    roles = {column["role"] for column in document["columns"]}
+    assert "joined_numbers" in roles, sorted(roles)
+    profile.check_publication(document)
 
 
 def test_the_guard_passes_where_a_block_withholds_its_own_candidate(
@@ -195,7 +234,10 @@ def test_the_same_mutation_stops_the_command_before_it_writes(
     # file behind.
     _seam_that_names_a_withheld_label(monkeypatch)
     table = fixtures.write(tmp_path, "clinic.csv", fixtures.every_role_table())
-    assert cli.main(["profile", str(table)]) == 1
+    # The same floor `SETTINGS` names, said in the command's own words:
+    # at the default of 1 nothing is withheld, so no pooled note exists
+    # for the mutated seam to leak into.
+    assert cli.main(["profile", str(table), "--smallest-group", "11"]) == 1
     spoken = capsys.readouterr().err
     assert "synthtwin stopped before writing anything" in spoken
     assert "report it to the synthtwin maintainers" in spoken
@@ -564,9 +606,38 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
     if form == taxonomy.EVIDENCE_NO_READING_FITS:
         return (fragment, dates, 4, 5, 60)
     if form == taxonomy.REMARK_NO_READING_FITS:
-        return (fragment, dates, 9, 4, 5)
+        # Seven since the affixed role shipped: how far the affix
+        # reading got, and how many cells stand-in judging removed.
+        # NINE since the advisory remarks landed (residual R-P4-24):
+        # how far a clock reading got, and how many rows one
+        # `--missing-value` would recover a distribution from. Both
+        # are given NONZERO here on purpose -- the arguments that
+        # write a clause are the ones that exercise the composition,
+        # and a zero would leave two branches of this form unwritten
+        # by the walk over every enumerated sentence.
+        return (fragment, dates, 9, 4, 5, 6, 7, 8, 9)
+    if form == taxonomy.EVIDENCE_CLOCK:
+        # Its middle argument is a clock FORM word, not a date format:
+        # the two vocabularies are both this package's own and the
+        # grammar admits either at a word position, so a form built
+        # from the wrong one renders nothing a reader could use.
+        return (9, taxonomy.NOTE_CLOCK_WORDS[0], 2)
     if form == taxonomy.EVIDENCE_DATES:
         return (9, 10, taxonomy.NOTE_ARGUMENT_WORDS[0])
+    if form == taxonomy.REMARK_SLASHED_EVIDENCE:
+        # Contract NF36: four counts, then the READING used, which is a
+        # package word of its own rather than a format member.
+        return (10, 9, 2, 1, taxonomy.READING_DAY_FIRST)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
-    return tuple(1 + place for place in range(taxonomy.NOTE_ARITY[form]))
+    # The two affixed forms take the fourth argument class at two of
+    # their positions: an affix spelling, which the grammar admits only
+    # there and only under the binding the guard checks. Every other
+    # position of every form is a whole number.
+    built: list[object] = []
+    for place in range(taxonomy.NOTE_ARITY[form]):
+        if taxonomy.takes_a_bound_affix(form, place):
+            built = built + ["mg"]
+        else:
+            built = built + [1 + place]
+    return tuple(built)

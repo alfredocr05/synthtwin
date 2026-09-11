@@ -75,10 +75,17 @@ from synthtwin import (
 # special and no rule depends on it; it is written here in full so a
 # reader can reproduce the run by hand:
 #
-#   synthtwin profile table.csv --identifier record_code
+#   synthtwin profile table.csv --identifier record_code \
+#       --measurement pressure --smallest-group 11
 #   synthtwin generate table-profile.json --seed 20260811
 #
-# on a table.csv holding exactly `fixtures.every_role_table()`.
+# on a table.csv holding exactly
+# `fixtures.every_role_and_joined_table()`.
+#
+# The smallest group is asked for rather than left to the default, for
+# the reason the description fixture below gives at length: the shipped
+# default is now one, and at one this run would hold nothing back at
+# all.
 GOLDEN_SEED = 20260811
 
 # The version string is normalized out of the description before the
@@ -88,6 +95,321 @@ GOLDEN_SEED = 20260811
 # divergence. It is normalized rather than deleted because the loader
 # requires the field to be there and to hold text.
 NORMALIZED_VERSION = "(version normalized for the golden test)"
+
+
+# THE PRE-WIDEN RUN, FROZEN AS DATA. These are what the demonstration
+# carried BEFORE the joined column joined it, recorded once and never
+# recomputed. Comparing the narrow run against the wide one at runtime
+# proved only that appending a column does not perturb TODAY's
+# implementation: a landing that removed a check from both runs, or
+# changed an original column in both, left every subset assertion equal
+# and the fresh digest blessing the regression (review item
+# P4-A2-R5-F2). A frozen baseline cannot move with the code.
+NARROW_CHECK_COUNT = 407
+NARROW_CHECK_DIGEST = (
+    "092371c4fead2ac71a787d56f71b070d5e65b4ce8dfb2c0cda84883448bc2a63"
+)
+# THE KEY THAT ARRIVED AFTER THAT BASELINE WAS FROZEN, and it is
+# subtracted rather than folded in (plan amendment A-P4-47). Every
+# published level of a label role now carries `shape_form_cells`, so
+# the narrow demonstration files nine checks it did not file before:
+# two on `answer`, one on `batch`, two on `note` and four on `region`.
+#
+# THE FROZEN 407 ARE STILL ASSERTED WHOLE. Re-recording the digest
+# against 416 would have retired the only thing this test buys -- a
+# baseline that cannot move with the code -- and blessed whatever else
+# moved in the same commit. Setting the new key's checks aside instead
+# reproduces the 2026-08-31 digest character for character, which is
+# what says nothing was lost by IDENTITY rather than by count. That is
+# review item P4-A2-R5-F2's own lesson, applied to the landing that
+# came after it.
+LEVEL_FORM_SUBCHECK = "shape_form_cells"
+# ...and the LISTING that arrived after the listing baseline was
+# frozen, subtracted from that baseline for the same reason (plan
+# P4-D30). `field_widths` is REPORT-ONLY, so it is listed whole on
+# every numeric-family column rather than checked width by width.
+FIELD_WIDTH_FACT = "numeric.field_widths"
+# ...and the SECOND listing to arrive after that baseline was frozen
+# (plan P4-D32). `empty_bins` is REPORT-ONLY, listed whole, and listed
+# ONLY where the description names a stretch -- so unlike the census
+# above it does not appear once per numeric column, and the four it
+# adds cannot be predicted from the column list alone. The two are
+# subtracted together and each is then named, so a listing that moved
+# for any other reason still has nowhere to hide.
+EMPTY_BIN_FACT = "numeric.empty_bins"
+# ...and the THIRD listing to arrive after that baseline was frozen
+# (plan P4-D35, 2026-09-04). `empty_edges` stands beside `empty_bins`
+# and is listed under exactly the same condition, so it appears on the
+# same columns and nowhere else. Subtracted the same way, and named
+# the same way just below.
+EMPTY_EDGE_FACT = "numeric.empty_edges"
+LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT, EMPTY_EDGE_FACT)
+# ...and the CHECK that arrived after the 416 baseline was frozen
+# (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
+# REPORT-ONLY and listed whole; the owner ruled it an obligation
+# because analysis code groups by and counts distinct on numeric
+# columns, so it is a subcheck now on every column carrying a
+# quantitative block -- four of them here.
+#
+# SUBTRACTED RATHER THAN FOLDED IN, on the doctrine two keys above
+# already follow: re-recording 416 as 420 would retire the only thing
+# this baseline buys. With the new subcheck set aside the frozen 416
+# must come back character for character, which is what says nothing
+# ELSE moved in the landing that added it.
+VALUE_COUNT_SUBCHECK = "distinct.n_distinct_values"
+# ...and the THREE checks plan P4-D36 added, set aside on the same
+# doctrine (2026-09-05). A column may wear a SET of wrappers now, so
+# the affixed role carries a count of them and two counts of different
+# CORES; the demonstration's `dose` column wears one wrapper, so all
+# three are held and none of them is a shortfall. Re-recording 416 as
+# 419 would retire the only thing this baseline buys.
+AFFIX_SET_SUBCHECKS = (
+    "counts.affix_variants",
+    "counts.n_core_distinct",
+    "counts.n_core_distinct_folded",
+)
+WIDE_CHECK_COUNT = 416
+WIDE_CHECK_DIGEST = (
+    "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
+)
+# Which columns of the demonstration leave a stretch of their range
+# empty, written out rather than counted (plan P4-D32). Only these
+# carry the listing; the other numeric-family columns make no claim
+# here and get no line.
+EMPTY_BIN_LISTINGS = ["visits|numeric.empty_bins|"]
+EMPTY_EDGE_LISTINGS = ["visits|numeric.empty_edges|"]
+# A HUNDRED AND TWENTY-SIX UNTIL 2026-09-04, and the four that left are
+# named where the assertion is made: `numeric.n_distinct_values` was
+# listed whole on every column carrying a quantitative block, and
+# amendment A-P4-55 made the count of different numbers an obligation,
+# so those four are subchecks now. This is the one baseline in this
+# file that a landing may lower, and only this way: an obligation that
+# MOVED to the checks, with the check baseline showing it arrive.
+NARROW_LISTING_COUNT = 126
+NARROW_LISTING_DIGEST = (
+    "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
+)
+NARROW_COLUMN_DIGESTS = {
+    "record_code": "f6d74ac3a099e5713338c9baff476924",
+    "region": "48583e2c694ee365c884cd8b99719dd1",
+    "visits": "fac456b2607b807ffa636be2068ed181",
+    # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
+    # (amendment A-P4-55). `reading` is whole-valued, so G6.5a's pass
+    # declined it until the first of those and two of its strata could
+    # be written as one cell; the second widened the pass again and the
+    # column now holds ALL 178 of its published different numbers,
+    # where it held 177 at some seeds before. MEASURED before
+    # re-recording, which is what the sentence beside the twin digest
+    # asks for.
+    "reading": "01d11476294ade427eb6806b3155e7b6",
+    "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
+    "recorded_on": "275356366d05346ada86307a49d4467c",
+    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
+    "comment": "8ec45aed18839baa03592651323aa6f6",
+    "unused": "73be54e263565328cf0122ffc4c15570",
+    "batch": "3a209af377e49829fb4ef147725677ca",
+    "dose": "2ae37c8ee2b559405bcf24a3fe6ab5e0",
+    "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
+    "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
+}
+
+
+def test_widening_the_demonstration_lost_no_obligation(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every obligation the NARROW demonstration carried is still carried.
+
+    When the joined column joined this demonstration the four digests
+    moved, and what justified re-recording them was a COUNT: 407 checks
+    became 479. A count is cardinality and not identity -- an
+    obligation of the original thirteen columns could have gone while a
+    pressure one arrived, the total still rise, the run still show no
+    miss because an absent check files none, and the new digest bless
+    the exchange.
+
+    The first repair compared the narrow run against the wide one at
+    RUNTIME, and that proves less than it looks: both runs come from
+    the same implementation, so a landing that dropped a check from
+    both left the comparison equal (review item P4-A2-R5-F2). The
+    baseline above is FROZEN, so it cannot move with the code.
+    """
+    described = _described_narrow(tmp_path)
+    twin = generation.generate(described, GOLDEN_SEED)
+    twin_path = fixtures.write(
+        tmp_path, "narrow-twin.csv", rendering.twin_csv(twin)
+    )
+    outcome = validation.measure(described, str(twin_path))
+    checks = sorted(
+        f"{c.column}|{c.fact}|{c.subcheck}" for c in outcome.checks
+    )
+    listings = sorted(
+        f"{entry.column}|{entry.fact}|{entry.subcheck}"
+        for entry in outcome.listings
+    )
+    # THE WHOLE RUN, frozen as it stands, so an obligation cannot be
+    # added or dropped without this moving.
+    # The new subcheck's own lines set aside, so the frozen baseline
+    # below is the run it was frozen against (amendment A-P4-55).
+    def _since(entry: str) -> bool:
+        """Whether this line belongs to a check added since the freeze."""
+        if VALUE_COUNT_SUBCHECK in entry:
+            return True
+        for one in AFFIX_SET_SUBCHECKS:
+            if one in entry:
+                return True
+        return False
+
+    counted = [entry for entry in checks if not _since(entry)]
+    added = [entry for entry in checks if VALUE_COUNT_SUBCHECK in entry]
+    # ...and the wrapper set's own three, named rather than counted:
+    # the demonstration has ONE affixed column and it wears one
+    # wrapper, so all three are on that column and nowhere else.
+    wrapped = [
+        entry
+        for entry in checks
+        if any(one in entry for one in AFFIX_SET_SUBCHECKS)
+    ]
+    assert sorted(entry.split("|")[0] for entry in wrapped) == [
+        "dose", "dose", "dose",
+    ], wrapped
+    assert len(counted) == WIDE_CHECK_COUNT, len(counted)
+    # ...and the four the new obligation adds are the four it should,
+    # named rather than counted: every column of this table that
+    # carries a quantitative block and no other.
+    assert sorted(entry.split("|")[0] for entry in added) == [
+        "amount",
+        "dose",
+        "reading",
+        "visits",
+    ], added
+    assert (
+        hashlib.sha256("\n".join(counted).encode("utf-8")).hexdigest()
+        == WIDE_CHECK_DIGEST
+    ), (
+        "the demonstration's own obligations changed. That is not a "
+        "widening -- the narrow table is untouched -- so a check was "
+        "added, removed or renamed. Read which before moving this."
+    )
+    # ...and the 407 that stood BEFORE `shape_form_cells` existed, whole
+    # and by identity. This is the assertion that cannot be satisfied by
+    # re-recording: set the new key's checks aside and the older digest
+    # must come back character for character.
+    before = [
+        entry
+        for entry in checks
+        if LEVEL_FORM_SUBCHECK not in entry
+        # ...and the count of different numbers, which arrived after
+        # this baseline too (amendment A-P4-55). Two keys set aside,
+        # each named, and the 2026-08-31 digest still has to come back
+        # character for character.
+        and not _since(entry)
+    ]
+    assert len(before) == NARROW_CHECK_COUNT, len(before)
+    assert (
+        hashlib.sha256("\n".join(before).encode("utf-8")).hexdigest()
+        == NARROW_CHECK_DIGEST
+    ), (
+        "an obligation the demonstration carried before amendment "
+        "A-P4-47 is gone or renamed. A key added since then cannot "
+        "excuse that: this list is the run with the new key's own "
+        "checks taken out, so it must reproduce the frozen baseline."
+    )
+    # ...and the nine the new key adds are the nine it should, named
+    # rather than counted.
+    added = sorted(
+        entry for entry in checks if LEVEL_FORM_SUBCHECK in entry
+    )
+    assert added == [
+        "answer|label.shape_form_cells|levels.no.shape_form_cells",
+        "answer|label.shape_form_cells|levels.yes.shape_form_cells",
+        "batch|label.shape_form_cells|levels.one.shape_form_cells",
+        "note|label.shape_form_cells|levels.clinic.shape_form_cells",
+        "note|label.shape_form_cells|levels.referral.shape_form_cells",
+        "region|label.shape_form_cells|levels.east.shape_form_cells",
+        "region|label.shape_form_cells|levels.north.shape_form_cells",
+        "region|label.shape_form_cells|levels.south.shape_form_cells",
+        "region|label.shape_form_cells|levels.west.shape_form_cells",
+    ], added
+    # THE LISTINGS ARE HELD THE SAME WAY, and the same argument
+    # applies to the key that arrived after THIS baseline was frozen.
+    # `field_widths` is REPORT-ONLY (plan P4-D30), so every numeric
+    # column of the demonstration lists it once and the count rises by
+    # exactly those columns. Setting them aside must reproduce the
+    # frozen 126 character for character; re-recording the digest
+    # against 130 would bless whatever else moved beside them.
+    kept = [
+        entry
+        for entry in listings
+        if not any(fact in entry for fact in LISTINGS_ADDED_SINCE)
+    ]
+    # FOUR LEFT THIS CENSUS ON 2026-09-04 and they are named rather
+    # than absorbed: `numeric.n_distinct_values` was listed whole on
+    # every column carrying a quantitative block, and amendment
+    # A-P4-55 made the count of different numbers an OBLIGATION, so
+    # those four are subchecks now. A census that carries fewer
+    # obligations than it did is a defect -- unless the obligations
+    # MOVED to the checks, which is what happened and which the check
+    # baseline above shows arriving there.
+    assert len(kept) == NARROW_LISTING_COUNT - 4, len(kept)
+    assert (
+        hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
+        == NARROW_LISTING_DIGEST
+    ), (
+        "a listing the demonstration carried before plan P4-D30 is "
+        "gone or renamed. A key added since then cannot excuse that: "
+        "this list is the run with the new key's own listings taken "
+        "out, so it must reproduce the frozen baseline."
+    )
+    # ...and the four the new key adds are the four it should, named
+    # rather than counted: one per numeric-family column.
+    assert sorted(
+        entry for entry in listings if FIELD_WIDTH_FACT in entry
+    ) == [
+        "amount|numeric.field_widths|",
+        "dose|numeric.field_widths|",
+        "reading|numeric.field_widths|",
+        "visits|numeric.field_widths|",
+    ]
+    # ...and the empty-bin listings are named the same way, and the
+    # list is SHORTER than the four above rather than equal to it,
+    # which is the whole of what "listed only where the description
+    # names a stretch" means. A run that listed it on every numeric
+    # column would pass a count and fail here.
+    assert sorted(
+        entry for entry in listings if EMPTY_BIN_FACT in entry
+    ) == EMPTY_BIN_LISTINGS
+    # ...and the edges beside them, on the SAME columns and no others:
+    # the two are one fact in two keys and a run that listed one
+    # without the other would leave a reader told about the stretches
+    # and not about where they really lie.
+    assert sorted(
+        entry for entry in listings if EMPTY_EDGE_FACT in entry
+    ) == EMPTY_EDGE_LISTINGS
+    for name, digest in NARROW_COLUMN_DIGESTS.items():
+        cells = twin.columns[twin.names.index(name)]
+        found = hashlib.sha256(
+            "\n".join(cells).encode("utf-8")
+        ).hexdigest()[:32]
+        assert found == digest, (
+            f"the twin's {name!r} column changed against the frozen "
+            "baseline, so the demonstration's cells moved for a reason "
+            "that has nothing to do with the column added beside them. "
+            "Satisfy yourself the new cells are the ones the method "
+            "requires before re-recording, exactly as the twin digest "
+            f"below asks. New digest: {found}"
+        )
+
+
+def _described_narrow(folder: pathlib.Path) -> contract.Profile:
+    """The demonstration as it stood BEFORE the joined column joined."""
+    path = fixtures.write(folder, "narrow.csv", fixtures.every_role_table())
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
+    )
+    document["created_with"] = NORMALIZED_VERSION
+    written = fixtures.write_profile(folder, "narrow-profile.json", document)
+    return contract.load_profile(str(written))
 
 
 @pytest.fixture(scope="module")
@@ -103,14 +425,42 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     the identifier role since Phase 1 review round 6 withdrew inference,
     and a golden that never reached that role would leave the whole
     made-up-value path of the generator unpinned.
+
+    THE SMALLEST GROUP IS DECLARED, AND ELEVEN IS THE RUN THIS FILE
+    PINS. The owner lowered the shipped `small_cell_floor` to one (plan
+    amendment A-P4-37), and at a floor of one nothing is ever held back:
+    no level is pooled, no spelling is withheld, no group is suppressed
+    (contract invariant C5-S13). This golden is the only place where one
+    whole run over a table of every role -- description in, twin, report
+    and quality report out -- is pinned byte for byte, and a run that
+    holds nothing back would leave the pooled and withheld paths of the
+    generator, the report and the census unpinned in every cell of the
+    CI matrix. So the floor these bytes were recorded at is asked for by
+    name: at eleven this description still suppresses levels on two
+    columns and withholds spellings, and the twin, the report and the
+    quality report below are the same bytes they have always been. The
+    floor of one is not left untested by that choice -- it is the
+    subject of `tests/test_p3v5f1_floor_one.py`, which is where it
+    belongs.
     """
     folder = tmp_path_factory.mktemp("twin-golden")
+    # THE JOINED COLUMN IS IN THIS GOLDEN, and it was not until
+    # residual R-P4-62's landing. The shared table excludes the one
+    # role that carries a blood pressure, so a joined-only change in
+    # the twin's BYTES -- the thing this golden exists to catch -- was
+    # outside it (review item P4-A2-R3-F4). The role needs a
+    # declaration, so the combined table is used and the declaration is
+    # passed; the documented command above carries it too.
     table_path = fixtures.write(
-        folder, "table.csv", fixtures.every_role_table()
+        folder, "table.csv", fixtures.every_role_and_joined_table()
     )
     table = reading.read_table(str(table_path))
     document = profile.build_document(
-        table, taxonomy.Settings(), ["record_code"]
+        table,
+        taxonomy.Settings(small_cell_floor=11),
+        ["record_code"],
+        [],
+        [fixtures.JOINED_COLUMN],
     )
     document["created_with"] = NORMALIZED_VERSION
     target = fixtures.write_profile(folder, "table-profile.json", document)
@@ -148,7 +498,11 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     words.
     """
     assert built.n_rows == 240
-    assert len(built.names) == 10
+    # FOURTEEN since the joined column joined this demonstration
+    # (review item P4-A2-R3-F4): the shared table excludes the one role
+    # that carries a blood pressure, so a joined-only change in these
+    # bytes was outside the golden that exists to catch one.
+    assert len(built.names) == 14
     assert built.write_header is True
     assert built.seed == GOLDEN_SEED
     # The word budget is a fixed function of the published facts (method
@@ -156,7 +510,14 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
     # Pinned beside the bytes because "the run spends a different number
     # of words" is a different failure from "the run writes different
     # cells", and a reader is owed the difference.
-    assert built.words_drawn == 3048
+    # FOUR THOUSAND EIGHT HUNDRED AND SEVENTY-THREE since landing L7,
+    # and 5,133 before it: one stream feeds every column in order, so
+    # this count moves by exactly what a column's own plan draws.
+    # G5.2's grain rule divides each position of the joined column by
+    # that position's own count of different NUMBERS rather than by the
+    # whole cell's count of different CELLS -- 120 and 100 here against
+    # 240 -- so the two positions between them draw 260 words fewer.
+    assert built.words_drawn == 4873
     assert [column.name for column in loaded.columns] == [
         "record_code",
         "region",
@@ -168,6 +529,10 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
         "comment",
         "unused",
         "batch",
+        "dose",
+        "seen_at",
+        "note",
+        "pressure",
     ]
 
 
@@ -187,11 +552,151 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # reading as one fact (plan amendment A-P3-28): the description gained
 # `profile_version: 5`, two counts on every column block and two
 # vocabulary lists in each declaration record, and no generation rule
+# THE THREE DIGESTS MOVED ON 2026-09-04 (amendment A-P4-55), and what
+# moved is recorded here rather than left to the diff. The count of
+# different NUMBERS became an obligation and the separation pass was
+# widened to meet it, so the generator places this description's values
+# differently. MEASURED on the new run before re-recording, which is
+# what the sentences below ask for:
+#
+#   * the twin: 240 rows, 492 checks, **417 held and 75 inside their
+#     bounds, nothing missed**;
+#   * every numeric column now meets its published count of different
+#     numbers exactly -- `visits` 10 of 10, `reading` 178 of 178,
+#     `amount` 238 of 238;
+#   * the report and the quality report say MORE than they did, not
+#     less: four obligations moved from the census to the checks and
+#     none was dropped, which the two baselines above assert by
+#     identity.
 # reads any of them, so `GOLDEN_TWIN_SHA256` below is untouched. The
 # report and the quality report moved with the description, because
 # both are about what the description says.
+#
+# RE-RECORDED 2026-08-21, and the cause is one change with one reach:
+# the demonstration table's free-text column stopped being a template.
+# It held `observation 0 written out in several plain words`,
+# `observation 1 ...` and so on -- which the affixed-number rule of
+# this phase reads as a number wearing shared text, because that is
+# what those strings are. A fixture meant to stand for text NO rule
+# reads had to become text no rule reads, so it is prose that varies
+# at both ends and holds no digit.
+#
+# RE-RECORDED AGAIN THROUGH CODEX ROUNDS 2 AND 3 (2026-08-21), and the
+# cause is NOT the one above: that free-text change is a round-1 record
+# and the column has not moved since. What moved these digests is the
+# `dose` column and the census beside it. `dose` was added to the
+# shared table so the affixed role is walked by every battery, its
+# spread was widened so a twin can carry its distinctness, and its
+# cores were given a decimal point so the fraction-width census is
+# exercised on THIS role rather than only on the plain numeric ones.
+# The census itself is new in that range and publishes two more
+# obligations on `dose` -- `widths.published.1` and
+# `widths.published.2` -- so the quality report carries MORE than it
+# did, which is the direction a re-recording must move in.
+#
+# All four digests moved together, which is what a change to the
+# TABLE looks like: a different column of values makes a different
+# description, a different twin, a different report and a different
+# quality report. A change to the generator alone would have moved the
+# last three and left the first.
+# RE-RECORDED AGAIN FOR THE CLOCK ROLE (2026-08-22). The shared table
+# gained a `seen_at` column of clock times -- the second of Phase 4's
+# three new column types built end to end -- so the description, the
+# twin, its report and the quality report moved together, which is what
+# a change to the TABLE looks like. The quality report carries
+# twenty-seven more obligations than it did, which is the direction a
+# re-recording must move in.
+#
+# RE-RECORDED FOR THE SECOND DECLARATION (2026-08-24, plan P4-D19), and
+# THIS ONE MOVED ALONE: the twin, the report and the quality report
+# below all held, byte for byte, which is what a change to what the
+# description RECORDS looks like as opposed to a change to what it says
+# about the data. The settings block gained one key -- `forced_codes`,
+# the list of columns declared with `--code`, empty in this run -- and
+# nothing else in the document moved. HOW IT WAS CHECKED: the new
+# document was written out again with that one key deleted from its
+# settings block, and hashed; the result is the digest this one
+# replaces --
+# c527236bac66d2b312529a829dc157e753b71ed6bd6a878e4f8424f281819adf
+# -- so the single added key is the whole of the difference.
+#
+# The floor is a separate matter and did NOT move these bytes: the
+# fixture now ASKS for the eleven that used to be the default (plan
+# amendment A-P4-37 lowered it to one), so the description this file
+# pins describes the same table under the same rules it always did.
+#
+# RE-RECORDED FOR THE FOURTH DECLARATION (2026-08-27, plan P4-D26), and
+# THIS ONE MOVED WITH THE TWO REPORTS AND NOT WITH THE TWIN. The
+# settings block gained one key -- `forced_decimal_commas`, the columns
+# declared with `--decimal-comma`, empty in this run -- and nothing
+# else in the document moved. HOW IT WAS CHECKED, by this file's own
+# procedure: the new document was written out again with that one key
+# deleted from its settings block, and hashed; the result is the digest
+# this one replaces --
+# 21b0cf0a92fbf0d5911a288e47eff11e0c2048b2eac77015ce3cbeb3165dee0a
+# -- so the single added key is the whole of the difference.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and that is the load-bearing
+# observation of this re-recording. The same landing changed the
+# numeric-spelling censuses, the rank-agreement helper and the joined
+# approximations; if any of them had reached a cell of an UNDECLARED
+# column, the twin's own bytes would have moved. They did not.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47, and the counted
+# difference was read first: the description gains NINE lines and loses
+# none, every one of them `"shape_form_cells": 0` on a published level
+# of `region`, `answer`, `batch` and `note`. Nought on all nine because
+# every label of this demonstration is letters alone, and letters are
+# one kind where a written form carries two -- so the new key adds a
+# fact here and moves no number that was already on the page.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, again, and that is what says
+# the change is to what a description RECORDS rather than to what the
+# twin holds: the demonstration's twin is byte-identical, measured
+# against the tree at the commit before this landing.
+# RE-RECORDED 2026-09-04 for residual R-P4-138, and the counted
+# difference was read first: every numeric block gains `empty_edges`,
+# and SIX blocks of this description carry the key while ONE carries
+# anything -- the count column, whose nine empty bins lie between
+# consecutive whole numbers, so its pairs are [0,1] ... [8,9]. The
+# same procedure as before: building these bytes, deleting that one
+# key from every block and writing again reproduces the digest this
+# one replaces --
+# 050bc4c6f684af271f9a46a8c583c2151094311ee04e95500f9d0e05e97a1f16
+# -- character for character, so the single added key is the whole of
+# the difference.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and on this landing that is
+# the load-bearing observation twice over. The value stage now walks
+# from the published EDGES instead of from the bin edges, and on this
+# description it reaches the same cells: the one block with a stretch
+# is whole-numbered with its gaps between consecutive integers, where
+# the edge and the bin edge ask for the same value. A description whose
+# clusters sit further apart is where the two differ, and
+# tests/test_p4d32_empty_bins.py is where that is measured.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-72, and ONE
+# STRING OF ONE COLUMN moved. `dose`'s affixed remark (contract NF35)
+# told its reader "if these are codes rather than measurements, run the
+# command again with --identifier and no value of this column will be
+# published at all" -- which is the OPPOSITE declaration: `--code`
+# keeps every code with the rows that carried it, `--identifier`
+# publishes none of them, so a person doing exactly as the sentence
+# said threw away the distribution they were trying to keep. NF43 shed
+# the same flaw at landing L16; this one was pinned by a frozen
+# reference vector and had to move with the oracle, which is what this
+# landing did. No count, statistic, label, role, spelling or cell
+# changed on `dose` or on any other column.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "52509e1683d353d0bcf4c2326b6ecbe707cfb66cc703c1c464e3099ae1a605f9"
+    "0f054c7189ba838402ec78a021c617e10abe6029823b2268f26a1d2893164e81"
 )
 
 
@@ -238,8 +743,62 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # decision, every made-up spelling and the writer's own byte rules, all
 # in one number. Any of them differing between two cells of the matrix
 # turns red here rather than shipping as a quietly different twin.
+# RE-RECORDED TWICE ON 2026-09-01: once for landing L7 (plan decision
+# P4-D31) and again for that landing's first review round (amendment
+# A-P4-49). The SECOND re-recording was read column by column against
+# the first: the word count is unchanged at 4,873, THIRTEEN OF THE
+# FOURTEEN columns are byte-identical, and the fourteenth is `pressure`
+# again. Its 240 readings are all different on both sides, which is the
+# obligation contract 9.8 puts on it, and its positions hold 101 and 83
+# different numbers on both. What moved inside it is the pairing: the
+# walk no longer scores an agreement inside the window the validator
+# accepts, refuses a swap that takes a pair out of that window unless
+# an exact fact gains, and stops on the obligations by name rather than
+# on a fixed distance.
+#
+# The account of the FIRST re-recording, which still holds:
+# GOLDEN_DESCRIPTION_SHA256 ABOVE DID NOT MOVE, so the producer is
+# untouched and what changed is what the generator makes of the same
+# bytes. THIRTEEN OF THE FOURTEEN COLUMNS ARE BYTE-IDENTICAL and the
+# fourteenth is `pressure`, the joined one -- which is also the LAST, so
+# the 260-word drop in its budget shifts no other column's share of the
+# stream. Its 240 readings are all different before and after, which is
+# the obligation contract 9.8 puts on it; what moved inside it is that
+# each position is now laid out by its own count of different numbers,
+# so the first holds 101 different numbers where it held 120 and the
+# second 83 where it held 100, against 120 and 100 published. That fall
+# is residual R-P4-120 becoming visible rather than arriving: the count
+# this rule replaces equals the number of CELLS on an all-different
+# column, so a position used to get one stratum per cell and could not
+# collide. The count of different CELLS -- the fact `synthtwin validate`
+# checks exactly -- is 240 of 240 on both sides.
+# RE-RECORDED at the integer-grid landing (method G6.5a). The pass that
+# keeps two strata from being written as one cell asked the
+# fraction-width census for the column's grid, and a whole-number
+# column's census is EMPTY -- so the pass declined every such column.
+# WHAT THE REPORT SAYS ABOUT THE MOVE, read before re-recording: the
+# twin now holds 177 different values of a published 178 where it held
+# 162, and the approximation envelope closes from `162 to 178` to
+# `177 to 178`. Three of the four moments named beside it move CLOSER
+# to their published value and the fourth by a ten-thousandth. No
+# sentence, obligation or verdict leaves the report, and the check
+# census is unchanged at 416 wide and 407 narrow -- so the report says
+# more than it did, which is the direction the assertion below asks
+# about. The independent oracle carries G6.5a too and its frozen
+# vectors agree, which is what makes these bytes the METHOD's answer
+# rather than the implementation's.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
 GOLDEN_TWIN_SHA256 = (
-    "b4e59d547c49d425c7b9c9d673bce64d365fecd12640d27bfba6d6959fe32803"
+    "604642cadeb2c5094500752b8a618e57d894618d1dcfa7c91ba5d17a89acbca3"
 )
 
 
@@ -477,8 +1036,142 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # counts, same order, same totals, same sentences everywhere else. The
 # description, twin and quality digests all held, which is what says
 # this is the page and not the run.
+#
+# AND IT MOVED AT PHASE 4 STAGE 2, in four places, and again the report
+# says strictly more than it did (plan P4-D2, the loud decline). Until
+# now the only place this page called a cell invented was inside the
+# spreadsheet warning, and only when such a cell began with a formula
+# character -- so a reader of an ordinary free-text column met a twin
+# full of made-up text with no sentence anywhere saying so. Three
+# column blocks gained the sentence their CLASS owes them: `record_code`
+# (DECLARED, so it carries the record-number role -- declaring it is the
+# only route there) and `comment` (free text), each with every one of
+# its present values made up, 240 and 80 of them; and `region` (a set of
+# categories -- 7 of 240 cells are neutral stand-ins for the label the
+# floor held back). A fourth block is new at
+# the foot of the page: the count of columns invented outright and in
+# part, printed whatever the count is, for the reason the spreadsheet
+# count is printed whatever it is.
+#
+# AND THOSE SENTENCES WERE REWORDED AT ROUND 1 OF THE STAGE'S OWN CODE
+# REVIEW, before anything shipped (items P4-C1-F1 and P4-C1-F2). The
+# first wording said the invented cells "meet its counts, lengths and
+# shapes" -- an achievement claim, which this same page can contradict
+# two sections higher, because a twin does not always meet every
+# published fact and the deviation list is where it says so. It now
+# says what the cells were built to meet and sends the reader there.
+# The column-section preamble moved with it: it said flatly that the
+# twin reproduces the values, which is true where the description
+# publishes values and false where it publishes none.
+#
+# NOTHING ELSE MOVED, diffed line by line before this was re-recorded:
+# outside the four blocks named above -- the three column sentences,
+# the page-foot count, and the column-section preamble those two
+# paragraphs record as reworded -- every block, count, order, verdict
+# and sentence of this page is unchanged. (An earlier draft of this
+# comment closed with "no line was reworded or removed", which
+# contradicted the paragraph above it and was wrong about the preamble:
+# review item P4-C2-F5.) The description and twin digests both held,
+# which is what says this is the page and not the run: stage 2 changes
+# no wire, no generation rule and no twin byte.
+#
+# RE-RECORDED 2026-08-27 (review item P4-G3-R1-F7). ONE PARAGRAPH of
+# the preamble was reworded and nothing else: the page used to open the
+# approximation section with "THE RANGE IS NOT A MARGIN AROUND THE
+# DESCRIPTION'S VALUE", which stopped being true when method G12.9 gave
+# the joined rank agreement a window of two hundredths either side of
+# the published value -- a margin, exactly. The sentence now says a
+# range is not ALWAYS a margin and keeps the warning the paragraph
+# exists for: "inside the range" means the method kept its promise and
+# never that the two numbers are close.
+#
+# CHECKED rather than assumed: the report was rendered before and after
+# and the two diffed. Nineteen lines differ and every one of them is
+# inside that paragraph. No count, no verdict, no fact and no order
+# moved, and the description and twin digests were both untouched by
+# this edit.
+# RE-RECORDED 2026-09-01 with the twin above, and it follows from it:
+# the twin's own cells moved, so every figure this report prints about
+# the joined column moved with them. The report was read before it was
+# recorded and it says no less than it did -- the same facts, the same
+# order, with the joined column's achieved numbers restated.
+# RE-RECORDED at the integer-grid landing, and the page moved only
+# where the twin did. Diffed line by line against the run before it:
+# three lines carrying "the twin holds" go 162 to 177 against a
+# published 178, two envelope lines close from "162 to 178" to
+# "177 to 178", and four moment lines move by less than a twentieth.
+# Nothing else differs -- no sentence added, none removed, no verdict
+# changed -- so the page says the same things about a better twin.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
+# RE-RECORDED 2026-09-09 for review round 4 of landing L14, item 4, and
+# the report SAYS MORE than it did rather than less. Two records about
+# the `dose` column named `n_distinct` and `n_distinct_folded` -- keys
+# an affixed column does not publish. What it publishes is
+# `n_core_distinct` and `n_core_distinct_folded`, which is AF7's
+# substitution, and a person following the old names into the
+# description found nothing under them. No record was added or removed
+# and no measured value moved; two identifiers now name real fields.
+# RE-RECORDED 2026-09-10 for landing L17b, plan amendment A-P4-58, and
+# the report SAYS MORE than it did. `synthtwin profile` now writes a
+# sixth file -- the questions file -- on every run, so the handling
+# paragraph names six files where it named five, and the questions file
+# is named among them. ONE PARAGRAPH moved and it is that one: no
+# record, count, statistic, label, role, spelling or verdict changed,
+# and the twin's own digest above held.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-70, and the
+# report SAYS MORE than it did -- one sentence of it was FALSE and is
+# now true. The section heading named "how your table wrote the cells
+# it left empty" among the things no twin can carry, and every column
+# block said the twin writes every absent cell empty. Both were true of
+# contract version 5; P4-D6.1 made the twin write each published
+# `missing_by_source` spelling at its count and neither sentence moved
+# with it. The heading now excludes them and, where some spelling of
+# THIS description travels, says so; every published spelling line says
+# which way it goes. On the demonstration table every hole is a blank
+# or a judged `-999`, so no spelling travels and the per-column
+# sentence is unchanged in substance -- what moved is the heading, the
+# per-spelling marking, and the wrapping of one paragraph. No count,
+# statistic, label, role, spelling or verdict changed, and the twin's
+# own digest above held.
+# RE-RECORDED AGAIN 2026-09-10, same landing, for residual R-P4-152,
+# and this one makes the report say LESS in two places. Both removals
+# were the CONTRADICTORY telling of a fact the page states twice.
+# `seen_at` printed `n_distinct 121 -> 122` among the facts the twin
+# could not meet, and four lines later printed the same fact as
+# "allowed anywhere from 62 to 122: inside the range". For an
+# approximated fact the publication IS the range, so a measurement
+# inside a range that CONTAINS the published value is the fact held.
+# It is still printed, with the published value, the achieved value and
+# both ends of the bound; what is gone is the second, opposite reading
+# of it.
+#
+# AND `recorded_on` KEPT ITS TWO, which is what makes this a repair
+# rather than a silencing: it publishes 84, the twin holds 224, and its
+# bound runs 106 to 240 -- the twin landed inside what the method
+# promises and nowhere near what the description says, so a reader
+# grouping rows by that column still meets the fact that they will see
+# 224 groups where the real table has 84.
+#
+# The R-P4-70 paragraph added above also leaves this page: nothing in
+# the demonstration description travels into its twin -- every hole is
+# a blank or a judged `-999` -- so the sentence saying spellings are
+# carried is not printed here. No count, statistic, label, role,
+# spelling or verdict changed, and the twin's own digest above held.
+# RE-RECORDED A THIRD TIME 2026-09-10, same landing, for residual
+# R-P4-72: the report quotes `dose`'s remark back as "Note from the
+# description", so the corrected NF35 sentence moves this digest with
+# the description's. Nothing else on the page changed.
 GOLDEN_REPORT_SHA256 = (
-    "4962fd8eb73a9b2289dd16bd1fba91cfa8173831b034d9d6e62d57cd40e0f04f"
+    "0e15720a05f16d7c44bcd47d42fed9201a5e0f0a4b2332a14ff86014d12aa3da"
 )
 
 
@@ -831,8 +1524,12 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # ENVELOPE (review item P3-V10-F5; plan amendment A-P3-40, validation
 # method clause V6.1-A1). THIRTEEN checks moved from WITHIN-BOUND to
 # HELD and nothing else moved at all: the same 300 checkable
-# obligations, the same 97 not checkable, the same 2 authorized
-# deviations, 0 withheld and 0 missed, with 249/49 becoming 262/36. Each
+# obligations AS AT THAT DATE, the same 97 not checkable, the same 2
+# authorized deviations, 0 withheld and 0 missed, with 249/49 becoming
+# 262/36. Those counts are a record of what that amendment did and are
+# not this file's current census: Phase 4 added the affixed column and
+# the fraction-width census, and the report carries more obligations
+# now than it did then. Each
 # of the thirteen is a line whose "asks for" and "found" were already
 # the same number -- eight numeric rungs on `visits`, one on `amount`,
 # one date rung on `recorded_on`, and the three text-shape facts of
@@ -840,8 +1537,107 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # window, because the window is no longer what decided it. Read the diff
 # that way: a line where the two values DIFFER may not have moved, and
 # one that did would be this repair reaching further than its own rule.
+# THE CENSUS LOST TWO OBLIGATIONS HERE, DELIBERATELY (plan P4-D18,
+# adversarial round 1). The `note` column published the forms `AAAAAA`
+# and `AAAAAAAA`, and a form carrying only ONE kind of symbol says
+# nothing `length` and the two alphabet counts do not already say: the
+# six and the eight are `length`'s own, and which alphabet is
+# `n_code_alphabet`'s. A form is now published only where at least two
+# of the three kinds -- figure, letter, mark -- appear, so `A9999`
+# stands and `AAAAAA` does not. Fewer obligations here is the point of
+# that rule and not a census that quietly shrank.
+#
+# RE-RECORDED 2026-08-27 (review item P4-G3-R1-F5). TEN LINES moved and
+# all ten are the same line: a clock column's rung and distinctness
+# verdicts print where their window comes from, and both cited
+# `generation-method-v1.md G12.9` -- a section that did not exist when
+# the clock role landed, and that, once it was written, turned out to
+# be about rank agreement between the positions of a JOINED column,
+# with a window of 0.02 that means nothing for a time of day. A reader
+# following either citation from this very page first found nothing and
+# then found the wrong rule. G12.10 and G12.11 now state the two clock
+# envelopes and the citations point at them.
+#
+# CHECKED rather than assumed: the page was rendered before and after
+# and the two diffed. Twenty lines differ, which is the ten citations
+# in their before and after form, and NOTHING ELSE -- no verdict moved,
+# no obligation was gained or lost, and the census carries what it
+# carried. `tests/test_method_citations_resolve.py` now refuses any
+# citation that names a section the method does not define, so this
+# cannot happen again silently.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47, under a counted
+# difference read against the tree at the commit before this landing:
+# THIRTY lines added, THREE removed, and the three removed are the same
+# three restated -- 479 obligations become 488, 402 HELD become 411, and
+# the sentence that adds the five numbers up. The twenty-seven that
+# remain are nine new `levels.<label>.shape_form_cells` records, three
+# lines each, every one HELD. NOTHING was lost and no verdict moved:
+# the census carries nine obligations more than it did and not one
+# fewer, which is the thing this digest exists to make somebody check.
+# RE-RECORDED 2026-09-01 with the twin above. Two things moved and
+# both were read: the joined column's own achieved figures, which
+# follow its cells; and the census, because landing L7 gives EVERY pair
+# of positions method G12.9's window where a pair between two earlier
+# positions used to be checked exactly with no citation. This
+# demonstration has two positions and therefore one pair, so its own
+# verdicts are unchanged in kind -- no obligation left the census and
+# none was lowered.
+# RE-RECORDED at the integer-grid landing. The census carries the SAME
+# obligations -- 416 checks wide and 407 narrow, both asserted whole
+# and by digest above and neither moved -- so what changed here is
+# what the checks SAY about a twin whose distinct count rose, and not
+# which checks were taken. A census carrying fewer obligations would
+# have turned those two counts red first.
+# RE-RECORDED 2026-09-04 for plan P4-D35. The census carries ONE MORE
+# obligation and none fewer: `numeric.empty_edges` is LISTED beside
+# `numeric.empty_bins`, on the same one column of this demonstration
+# and no other, which the two assertions above name by identity rather
+# than by count. The check counts held whole -- 416 wide and 407 narrow
+# by digest -- and the twin's own digest did not move, so what changed
+# here is one line the report SAYS.
+# RE-RECORDED AGAIN 2026-09-04 for review round 2 item 3. The census
+# carries the SAME obligations -- both check counts held by digest and
+# both listing sets are asserted by identity above -- and what moved is
+# ONE SENTENCE: the `numeric.empty_edges` listing used to say a cell
+# that could not reach an edge takes the nearest free place inside the
+# stretch, which the pass no longer does. It says the cell STAYS where
+# it was and the report names it, which is what the pass does.
+# RE-RECORDED 2026-09-04 for review round 8 item 5. The census carries
+# the SAME obligations -- both check counts held by digest and both
+# listing sets are asserted by identity above -- and what moved is ONE
+# SENTENCE again: the `numeric.empty_edges` listing described a walk
+# that tries the nearer edge alone, and the walk tries four routes.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
+# RE-RECORDED 2026-09-08 for review round 1 of that same landing, item
+# 2, and the census was COUNTED on both sides before this moved: 1371
+# obligations, 1309 HELD, 62 WITHIN-BOUND, 0 MISSED and 145 NOT
+# CHECKABLE, identical before and after. What moved is TWO LINES, both
+# of them `counts.affix_variants` on a column wearing ONE wrapper. That
+# check compared how MANY other wrappers the file wears, which is a
+# check a file wearing the same number of DIFFERENT ones passes; it
+# compares the whole set now -- each wrapper's two spellings and its
+# count -- and reports the outcome alone, because a wrapper is text of
+# the measured file and V5.4 keeps that back. So the line's published
+# side reads `no other wrapper` where it read `0`, and its measured
+# side is no longer printed.
+# RE-RECORDED 2026-09-10 for landing L17b, plan amendment A-P4-58, for
+# the same reason as the report above and with the same one-paragraph
+# reach. The census was COUNTED on both sides: the obligations, the
+# HELD, WITHIN-BOUND, MISSED and NOT CHECKABLE totals and the verdict
+# are identical before and after. What moved is the handling paragraph,
+# which names six files where it named five and names the questions
+# file among them.
 GOLDEN_QUALITY_SHA256 = (
-    "9c7afaaa7222611ca607dc3fef5f167a69f3f160eb4944bee700f92ab6fa4976"
+    "5170e48698ddc270e70f97403dcf75a1e3ba0b0b20d5c916f6bb3a2d4f294e1d"
 )
 
 

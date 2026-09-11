@@ -180,6 +180,32 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # errors.py beside `QUALITY_WORDS`, never a value out of a file: on
     # this path the measured file may not be the reader's own table and
     # a refusal travels as freely as a report does.
+    # THE ONE FILE A PERSON IS MEANT TO EDIT (amendment A-P4-58). Every
+    # other refusal about a synthtwin file says "make it again",
+    # because a hand-edited description is a corrupted one. These four
+    # are the opposite: the questions file is written blank and handed
+    # over precisely so somebody types in it, so each of them says what
+    # to type and where, and none of them suggests that editing it was
+    # the mistake.
+    "answers_file_is_not_one": ("/data/clinic-profile.json",),
+    "answers_entry_is_not_a_question": ("asked[3]",),
+    "answers_entry_names_no_column": ("checklist[7]",),
+    "answers_entry_offers_nothing": ("asked[2]", "dose"),
+    "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # Said BEFORE anything is written, where a link or a name of the
+    # person's own stands where the questions file goes (review item
+    # L17b-R1-1). The noun is one of the three written out in errors.py
+    # beside `INPUT_DESCRIPTION`, never a value out of a file.
+    "questions_would_replace_a_file": (
+        "/data/clinic-questions.json",
+        errors.INPUT_TABLE,
+    ),
+    "answers_answer_is_not_offered": (
+        "/data/clinic-questions.json",
+        "dose",
+        "codes",
+        ["measurement", "code", "identifier"],
+    ),
     "quality_target_already_there": ("/data/clinic-twin-quality.txt",),
     "output_would_replace_an_input": (
         "/data/clinic-profile.json",
@@ -205,6 +231,41 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # precisely because synthtwin cannot account for the text that
     # stood there.
     "publication_guard_stopped": ("publication_notes[].note",),
+    # The two refusals of the column declarations plan P4-D19 added.
+    # The first takes the COLUMN NAME the person typed on the command
+    # line -- theirs already, and the whole subject of the sentence,
+    # since the trouble is that they named it twice. The second takes
+    # nothing at all: a run ended at a question has no particulars, and
+    # the same words are owed to everybody who ends one.
+    "column_declared_twice": ("record_code",),
+    # The refusal of the FOURTH declaration beside a declaration that
+    # would silence it (plan P4-D26). It takes the column name the
+    # person typed and the OTHER option they typed it with -- both
+    # already theirs, and both needed, because the sentence has to say
+    # which pair it is refusing and there are two such pairs.
+    "comma_declaration_would_be_ignored": ("weight", "--code"),
+    # NOT a refusal: the loud remark for a declaration that was
+    # accepted and then could not be honoured, because the column's
+    # role was not known until the table had been read (R-P4-52). It
+    # takes the column name the person typed and the role synthtwin
+    # read it as -- the second is synthtwin's own word and is the
+    # whole reason the sentence is worth printing.
+    "the_comma_declaration_did_not_reach": ("price", "free_text"),
+    # Also not a refusal: an ANSWER to a question can create the pair
+    # the flags refuse, and the answer is the newer statement, so the
+    # comma declaration is dropped rather than the run stopped. It
+    # takes the column name alone: which of the two other declarations
+    # the answer made is not what the person needs to be told, and the
+    # sentence says what was done and how to undo it.
+    "the_comma_declaration_was_answered_away": ("account",),
+    # The refusal of a declared VALUE whose number depends on which
+    # grammar reads it, beside `--decimal-comma` (R-P4-54). It takes
+    # the spelling the person typed and the option they typed it with:
+    # both are already theirs, and the sentence has to name which of
+    # the two value options it is refusing, because they mean opposite
+    # things and the advice differs by neither.
+    "a_declared_value_reads_two_ways": ("1,234", "--missing-value"),
+    "the_questions_were_not_finished": (),
 }
 
 
@@ -295,6 +356,11 @@ def test_every_message_says_what_happened_and_what_to_do(name: str) -> None:
         "open it",
         "Give a",
         "run the command again",
+        # The same instruction opening a sentence, as "Check"/"check"
+        # and "Make sure"/"make sure" are already paired above. A
+        # message carrying no instruction at all still falls through
+        # every entry here and fails.
+        "Run the command again",
         "try again",
         "use that path",
         # The instruction a refusal about the DESCRIPTION gives, which

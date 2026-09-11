@@ -80,7 +80,6 @@ entry can excuse a sentence that was not already in the seal.
 
 import hashlib
 import pathlib
-import re
 import typing
 
 # -- the governing documents, and how a passage of one is named --
@@ -97,11 +96,43 @@ import typing
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+# THE SEAL IS PAUSED UNTIL PHASE 4 CLOSES (owner ruling 2026-08-26,
+# plan amendment A-P4-46.2), then re-sealed once over the whole tree.
+#
+# WHAT PAUSING MEANS, exactly: the seal is still WRITTEN and the two
+# passage checks still run, so a landing that edits a governing
+# document and forgets to re-seal is still told. What stops is the
+# obligation to treat every such edit as a counted, reviewed act -- the
+# re-seal becomes a mechanical step at the end of a landing rather than
+# a gate in the middle of one.
+#
+# WHAT IT COSTS, and it is real: four lowerings in this project's
+# history reached a document unnoticed, which is why the seal was built.
+# The trade holds only while nothing is released and every change
+# passes the owner. `PAUSED_UNTIL_PHASE_CLOSE` is read by the close
+# audit, which refuses to close the phase while it is True.
+PAUSED_UNTIL_PHASE_CLOSE = True
+
 GOVERNING = (
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
+    # The Phase 4 plan joined at its ratification (2026-08-19, plan
+    # review round 5): it fixes the column-handling obligations of the
+    # next phase — new roles, the reproduction rule, the version 6
+    # delta — and a quieter sentence written into it would be the same
+    # defect this seal exists to catch.
+    "docs/plans/phase-4-columns.md",
     "docs/spec/profile-contract-v4.md",
     "docs/spec/profile-contract-v5.md",
+    # VERSION 6 JOINS AT ITS FIRST SHIPPED LANDING, not at a
+    # ratification that never came. It was carried as a draft "under
+    # adversarial review" while `PROFILE_VERSION` was already 6 in both
+    # the producer and the loader -- so the document that governs every
+    # description this tree writes was the one document outside the
+    # seal, and a disposition quietly lowered in it moved nothing red.
+    # Found at the third adversarial read of the obligations landing,
+    # 2026-08-26.
+    "docs/spec/profile-contract-v6.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
 )
@@ -272,6 +303,155 @@ PLAN3_REGIONS = {
     "A-P3-28": "**Amendment A-P3-28 —",
 }
 
+# ...and the Phase 4 plan's own sections, for the roles Phase 4 adds.
+# The Phase 2 matrix is the record of what Phase 2 ruled and is not
+# edited to carry a role Phase 2 never had, so a role a later phase
+# adds is disposed in that phase's plan and looked for there.
+PLAN4_REGIONS = {
+    "affixed": "### P4-D4.1 The affixed-number role",
+    "clock": "### P4-D4.2 The time-of-day role",
+    "clock-cardinality": (
+        "## Amendment A-P4-20 — the clock role's distinctness is "
+        "approximated, under its own envelope"
+    ),
+    "date-readings": "### P4-D4.3 The widened date readings",
+    "holes": (
+        "### P4-D6.1 The twin reproduces recorded hole spellings "
+        "(decision 2)"
+    ),
+    "fraction": (
+        "### P4-D4.5 The fixed-fraction spelling fact "
+        "(closes R-P3-12's route)"
+    ),
+    "padding": "### P4-D14 The padded-field width fact",
+    # The THIRD width census, over every whole-written cell rather than
+    # over one style of them. The owner ruled it in on 2026-08-26
+    # (close-plan decision 2) and the plan states it at P4-D30.
+    "whole-widths": (
+        "### P4-D30 The whole-number field width fact "
+        "(owner ruling 2026-08-26)"
+    ),
+    # The two widths of the unrepresentable role. Version 4's matrix has
+    # no row for them -- version 4 had no such key, and they were what
+    # settled R-P2-1 -- so they are held to the Phase 4 decision that
+    # introduced them, exactly as the fraction census is.
+    "unrepresentable-widths": (
+        "### P4-D4.4 Width facts for unrepresentable numbers "
+        "(settles R-P2-1)"
+    ),
+    "histogram": "### P4-D4.7 The value histogram (owner instruction 2026-08-26)",
+    # The bins that hold NOBODY, ruled in by the owner on 2026-08-31.
+    # It is the sibling of the histogram above and NOT part of it: the
+    # census is governed by the floor and this list is not, so a
+    # region that covered both would let one class stand for two
+    # different disclosure prices.
+    "empty-bins": (
+        "### P4-D32 The empty-bin fact (owner ruling 2026-08-31)"
+    ),
+    # The two values each of those stretches really lies between, ruled
+    # in by the owner on 2026-09-04. It is the sibling of the bins
+    # above and NOT part of them, for the same reason the bins are not
+    # part of the census: the bins name no value and these pairs name
+    # two, so a region covering both would let one class stand for two
+    # different disclosure prices.
+    "empty-edges": (
+        "### P4-D35 The stretch edges (owner ruling 2026-09-04)"
+    ),
+    "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    "mode": (
+        "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
+    ),
+    "finer-ladder": (
+        "### P4-D4.10 The finer percentile ladder"
+    ),
+    "value-count": (
+        "### P4-D4.9 The count of different numbers (closes R-P4-20)"
+    ),
+    # ...and the amendment that made it an obligation, which is where
+    # the class this registry now carries is stated.
+    "value-count-obligation": (
+        "## Amendment A-P4-55 — the count of different values is an "
+        "OBLIGATION, not a report line (owner ruling 2026-09-04)"
+    ),
+    "forms": "### P4-D18 A held-back value gets a stand-in that looks like one",
+    # The per-level half of the form census, ruled in by the owner on
+    # 2026-08-31 after the landing that measured R-P4-34 recommended
+    # against it. It is NOT one of the post-freeze exemptions: the
+    # contract's own 9.5 carries a row for it, so the matrix reader
+    # binds it there, and this region binds the AMENDMENT's words
+    # beside that -- the ruling, and the class it names. Both hold, and
+    # a lowering in either turns the registry red.
+    "per-level-forms": (
+        "## Amendment A-P4-47 — the per-level form census is RULED IN "
+        "(owner ruling 2026-08-31)"
+    ),
+    # The joined role's own eight facts, disposed when the role was
+    # found to have no table at all.
+    "joined": (
+        "## Decision P4-D25 — the joined role is checked like every other "
+        "(2026-08-26)"
+    ),
+    # ...and the two distinctness counts, which NOTHING disposed until
+    # residual R-P4-62's landing: 9.2 sets them per role group and this
+    # role's table set neither, so the validator filed them under the
+    # group its dispatch fell through to.
+    "joined-distinct": (
+        "## Decision P4-D29 — a joined column's distinctness is EXACT "
+        "(closes part of R-P4-62, 2026-08-31)"
+    ),
+    # The affixed role's wrapper SET and its two counts of different
+    # cores (plan P4-D36). The commonest wrapper is disposed by the
+    # affixed group already; these are the keys that landing added.
+    "affix-set": (
+        "### P4-D36 A column may wear a SET of wrappers "
+        "(owner ruling 2026-09-04)"
+    ),
+    # The compound role's own two counts and its two containers. Every
+    # other fact such a column publishes lives inside a sub-block and
+    # is held by the group whose block it is, so this region binds four
+    # facts and no more.
+    "compound": (
+        "## Decision P4-D33 — the compound role's two halves are checked "
+        "by the groups that already check them (landing L8, 2026-09-03)"
+    ),
+}
+
+# THE ROLE SUB-TABLES OF THE CONTRACT MATRIX. Version 6's section 9
+# has a table for every role this tree ships, so the two groups that
+# used to stand outside a matrix -- `affixed` and `clock` -- are read
+# out of their own sub-tables now (9.4's `affixed_number` block and
+# 9.6's `time_of_day` block). Residual R-P4-25 is what this closes:
+# the machinery read version 4's tables, which govern nothing this
+# tree writes, so its agreement was luck rather than design.
+#
+# The affixed sub-table RESTATES the numeric dispositions read over
+# the cores, and those keys stay registered under `numeric` where the
+# distribution machinery checks them. So the sub-table names more than
+# the `affixed` group owns, and the extra names are required to be
+# keys of the numeric group rather than being ignored -- a restatement
+# that drifted from what it restates would otherwise pass unseen.
+AFFIXED_RESTATES_THE_NUMERIC_GROUP = "numeric"
+
+# Facts registered under a group the contract matrix HAS, about
+# something the matrix does not publish. Every one of these landed
+# after amendment A-P4-46 froze the contract, so its disposition is
+# decided in the Phase 4 plan and checked against it by `PLAN4_REGIONS`
+# above -- held to a document, just not to that one.
+#
+# It was thirteen rows against version 4 and is six against version 6:
+# `fraction_widths`, `pad_widths`, `resolution_mix`, both `shape_forms`
+# and the unrepresentable role's two widths are all disposed in version
+# 6's own tables, so they are checked there rather than excused here.
+# What remains is exactly the post-freeze numeric family.
+FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
+    ("numeric", "value_histogram"),
+    ("numeric", "kurtosis"),
+    ("numeric", "n_distinct_values"),
+    ("numeric", "mode"),
+    ("numeric", "mode_count"),
+    ("numeric", "percentiles_between"),
+)
+
 
 # -- the registry ------------------------------------------------------
 #
@@ -343,9 +523,46 @@ REGISTRY += [
         ("universal", "structural_role"),
     ]
 ]
-REGISTRY += _facts(
-    "universal", REPORT_ONLY, "missing_by_class", "missing_by_source"
+# The version 6 write rule's one authorization, quoted from the plan
+# region that states it so a softened sentence stops being found.
+_BEYOND_STEPS = "beyond-whole-steps"
+_BEYOND_STEPS_SAID = (
+    "falling back to REPORT-ONLY only where no stratum that may take a "
+    "value has a share holding a number a double can represent with "
+    "anything after the point"
 )
+
+_JUDGED_PASS_SAID = (
+    "**A spelling a JUDGED PASS put there** (P4-D6.1, contract C6-116) "
+    "is REPORT-ONLY for that key"
+)
+
+REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
+# `missing_by_source` STOPPED BEING REPORT-ONLY at version 6 (plan
+# P4-D6.1, contract C6-115 and its 9.2 row). Version 5 wrote every
+# absent cell empty, so the field owed the twin nothing; a version 6
+# twin writes each spelling at its published count and the field is
+# recounted from the written cells like any other exact fact.
+#
+# The exception is the judged passes'. A key a stand-in number or a
+# calendar placeholder put there stays blank in the twin, for the
+# reason C6-116 gives -- reproducing it would make the twin's own
+# measurement contingent on a re-judgement -- and for THAT key the
+# field is report-only, with the achieved zero named beside the
+# published count.
+REGISTRY += [
+    Fact(
+        "universal",
+        "missing_by_source",
+        EXACT_OBSERVABLE,
+        plan_region="holes",
+        plan_words="each `missing_by_source` spelling at exactly its "
+        "count",
+        authorized=(
+            ("judged", _JUDGED_PASS_SAID),
+        ),
+    )
+]
 # The two counts contract version 5 moved out of `missing_by_source`
 # (its section 5). The Phase 2 plan's matrix predates them, so they
 # bind to the Phase 3 amendment that landed them, which writes their
@@ -427,9 +644,386 @@ REGISTRY += _facts(
     "n_used_in_statistics",
     "n_left_out_of_statistics",
     "numeric_share",
-    "integer_valued",
 )
+# `integer_valued` IS EXACT EVERYWHERE A DOUBLE CAN CARRY A POINT, and
+# the one place it cannot is arithmetic rather than a choice (owner
+# ruling, amendment A-P4-48; residual R-P4-117). The gap between one
+# number a double can represent and the next reaches a WHOLE UNIT at two
+# to the fifty-SECOND -- measured: 0.5 at the fifty-first, 1 at the
+# fifty-second, 2 at the fifty-third, 8 at the fifty-fifth -- so a share
+# lying wholly above that holds no value with anything after the point.
+#
+# THE CONDITION IS OVER THE STRATA, NOT THE PUBLISHED ENDS (adversarial
+# round 5, item 2). A column may run from 1 to two to the fifty-fifth
+# and hold plenty of fractions between those ends while every stratum
+# that MAY take a value sits high: the ends bound the ladder, the shares
+# bound what a value may be. Round 5 built exactly that column and it is
+# NOT this corner -- the search reaches its middle stratum now and the
+# twin keeps its type there with nothing named. What remains is a column
+# whose every eligible share is high, and whose only low stratum is the
+# ZERO band, which must hold its published zeros.
+REGISTRY += [
+    Fact(
+        "numeric",
+        "integer_valued",
+        EXACT_OBSERVABLE,
+        authorized=((_BEYOND_STEPS, _BEYOND_STEPS_SAID),),
+    )
+]
 REGISTRY += _facts("numeric", APPROXIMATED, "mean", "std", "skew")
+# Plan P4-D4.8. APPROXIMATED as the skewness beside it is, under the
+# window method G12.3a states. Version 4's matrix has no row for it,
+# because version 4 published no such key, so it is registered here
+# against the Phase 4 plan the way the other later keys are.
+REGISTRY += (
+    # Plan P4-D4.9. REPORT-ONLY, and the reason is the one residual
+    # R-P4-20 itself gave: what was missing was a PUBLISHED count of
+    # different numbers, and the twin's ability to hold it is the
+    # snap's business rather than this fact's. The generator recounts
+    # the twin's own cells and NAMES the shortfall, so nothing is
+    # silent; what the description does not do is hold the twin to a
+    # count its own value-merging can make unreachable.
+    Fact(
+        "numeric",
+        "n_distinct_values",
+        # EXACT-OBSERVABLE SINCE 2026-09-04 (amendment A-P4-55). It was
+        # REPORT-ONLY on a measurement -- the twin met the published
+        # count in 83 of 160 runs -- and the owner overrode that on the
+        # ground the measurement could not see: analysis code groups by
+        # and counts distinct on numeric columns, so a twin holding
+        # fewer different numbers than the description records is one
+        # that column cannot be developed against. The build that came
+        # with the ruling took a 200-row column of two fraction widths
+        # from 185-195 of 200 to 197-200, and a 300-row column of ages
+        # from 69-71 of 71 to 71 at every seed.
+        EXACT_OBSERVABLE,
+        plan_words="so the count is an obligation",
+        plan_region="value-count-obligation",
+        aliases=("value count", "different numbers"),
+        # UNDER THE SAME ENVELOPE AS THE COUNT OF SPELLINGS BESIDE IT.
+        # On a column written one way the two are the same shortfall
+        # measured twice -- a hundred whole numbers all written plain
+        # publishes a hundred spellings and a hundred values, and a
+        # twin reaching ninety-eight reaches ninety-eight of both. A
+        # first writing gave this one the exact bar and the other the
+        # envelope, and one column then reported one shortfall as
+        # authorized and the other as a miss in the same run.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
+    ),
+    # THE FINER LADDER (plan P4-D4.10). REPORT-ONLY, and for a reason
+    # unlike every other REPORT-ONLY fact here: not because a twin
+    # cannot meet it, but because it is ONE FACT and holding a file to
+    # it would mean ninety subchecks, each owing a registered red case
+    # that makes THAT subcheck report missed. The entry table carries
+    # ninety-nine such cases for eleven rungs; a hundred and one rungs
+    # would need about nine hundred, and registering cases that do not
+    # fire is exactly what that guard exists to prevent.
+    #
+    # The fidelity it buys is REAL and is not bought by checking. The
+    # generator interpolates over all hundred and one rungs, and the
+    # eleven NAMED rungs keep their own exact obligations and are met
+    # more closely because the line between them now bends where the
+    # real column bends. Measured on a 400-row column with a threshold
+    # at 1000: the eleven-rung twin was thirty-nine cells out where the
+    # threshold fell mid-gap, and the finer twin exact.
+    Fact(
+        "numeric",
+        "percentiles_between",
+        REPORT_ONLY,
+        plan_words="the ninety rungs the named ladder does not carry",
+        plan_region="finer-ladder",
+        aliases=("finer ladder", "the other ninety rungs"),
+    ),
+    # THE MODE PAIR (plan P4-D4.11). REPORT-ONLY, and it was written
+    # APPROXIMATED first, which was wrong and was caught by the golden
+    # twin the way three facts before it were.
+    #
+    # The reasoning that failed: both halves are readable off a file,
+    # so they looked checkable. They are -- but a CHECK is an
+    # obligation, and the generator does not carve a stratum for the
+    # mode, so a twin cannot meet the count. Sixty-three tests went red
+    # on that, "a twin of its own description misses nothing" among
+    # them, which is the product's headline claim.
+    #
+    # So the rule this repository already learned holds here too: a
+    # fact whose exactness needs a change to how cells are ALLOTTED is
+    # REPORT-ONLY until that change lands, and the quality report LISTS
+    # it rather than holding a file to it. Measured on a 300-row dose
+    # column publishing a count of 179, the twin holds 180 with the
+    # value itself exactly right. The stratum that would make the pair
+    # EXACT is designed in P4-D4.11 on the model of the zero stratum,
+    # whose published count the twin already meets to the cell.
+    Fact(
+        "numeric",
+        "mode",
+        REPORT_ONLY,
+        plan_words="the number the column held most often",
+        plan_region="mode",
+        aliases=("mode", "commonest number"),
+    ),
+    Fact(
+        "numeric",
+        "mode_count",
+        REPORT_ONLY,
+        plan_words="how many cells held the commonest number",
+        plan_region="mode",
+        aliases=("mode count",),
+    ),
+    Fact(
+        "numeric",
+        "kurtosis",
+        APPROXIMATED,
+        plan_words="how heavy this column's tails are",
+        plan_region="kurtosis",
+        aliases=("tail weight", "moment ratio"),
+    ),
+)
+# THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
+# block read over the cores and is registered above under `numeric`;
+# these are the five it adds, and every one is a count or a spelling a
+# written twin carries in plain sight.
+# THE CLOCK ROLE'S FIVE. Four are exactly observable off a written
+# twin -- the form its cells wear, its two ends, and how many cells no
+# clock reading accepted -- and the ladder is the one approximated
+# fact, for the reason the date ladder is: the construction writes a
+# value per rank, so an interior rung lands inside a window rather than
+# on the published value.
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    )
+    for field in ("clock_form", "earliest", "latest", "n_unparsed")
+]
+# The ladder's two ENDS are exact, and its interior is not: T2 makes
+# the ends the column's own two endpoints, which a written twin carries
+# character for character, while every rank between them is
+# interpolated into a window.
+REGISTRY += [
+    Fact(
+        "clock",
+        f"clock_percentiles.{end}",
+        EXACT_OBSERVABLE,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    )
+    for end in ("min", "max")
+]
+REGISTRY += [
+    Fact(
+        "clock",
+        "clock_percentiles",
+        APPROXIMATED,
+        plan_words="an eleven-rung ordinal ladder",
+        plan_region="clock",
+    ),
+]
+# ...and its two distinctness counts, lowered to the envelope by
+# amendment A-P4-20 for the reason the date role's are: the
+# construction writes a value per RANK, so a conforming twin of an
+# ordinary column cannot meet the exact bar.
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        APPROXIMATED,
+        plan_words="Both distinctness counts on a `time_of_day` column",
+        plan_region="clock-cardinality",
+    )
+    for field in ("n_distinct", "n_distinct_folded")
+]
+# THE JOINED ROLE (plan P4-D25, contract 9.4a). It had no group here at
+# all until residual R-P4-62's landing: `part_agreements`, `part_above`
+# and `part_min_widths` occurred zero times in this file, so the eight
+# facts contract 9.4a disposes were held to nothing. The role that
+# carries a blood pressure was the one role no completeness surface
+# reached.
+REGISTRY += [
+    Fact(
+        "joined",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="joined",
+    )
+    for field in (
+        "separator",
+        "n_parts",
+        "n_joined",
+        "n_unparsed",
+        "part_min_widths",
+        "part_above",
+    )
+]
+# The container itself, on the precedent of `length` and `words` on
+# `free_text`: the key carries no VALUE obligation of its own, and each
+# position inside it takes 9.4's dispositions read over that position.
+REGISTRY += [
+    Fact(
+        "joined",
+        "parts",
+        STRUCTURAL,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="joined",
+    ),
+]
+REGISTRY += [
+    Fact(
+        "joined",
+        "part_agreements",
+        APPROXIMATED,
+        plan_words="rank agreement is APPROXIMATED",
+        plan_region="joined",
+    ),
+]
+# ...and the two counts NOTHING disposed until 2026-08-31. Contract 9.2
+# sets both "per role group, in 9.3 to 9.7" and 9.4a set neither, so the
+# validator filed them under the group its own dispatch fell through to
+# -- `empty`, whose registry says both are 0 and exactly observable. A
+# blood-pressure column's distinctness was reported as
+# `empty.n_distinct` on a shipped surface. REPORT-ONLY on the measured
+# ground plan P4-D29 states.
+REGISTRY += [
+    Fact(
+        "joined",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="THE DECISION: EXACT-OBSERVABLE",
+        plan_region="joined-distinct",
+    )
+    for field in ("n_distinct", "n_distinct_folded")
+]
+# THE COMPOUND ROLE (plan P4-D33, contract 9.4b). Four facts, and four
+# is the whole of it: the two counts of the split are this role's own,
+# and each sub-block is a container that carries the block another
+# group already disposes. A fact inside `numbers` is a numeric fact and
+# is registered under `numeric`; a fact inside `labels` is a label fact
+# and is registered under `label`.
+REGISTRY += [
+    Fact(
+        "affixed",
+        "affix_variants",
+        EXACT_OBSERVABLE,
+        plan_words="each with the count of cells wearing it",
+        plan_region="affix-set",
+        aliases=("wrapper set", "affix variant"),
+    ),
+    Fact(
+        "affixed",
+        "n_core_distinct",
+        EXACT_OBSERVABLE,
+        plan_words="TWO COUNTS OF DIFFERENT CORES",
+        plan_region="affix-set",
+        aliases=("different cores",),
+        # UNDER THE ENVELOPE THE COLUMN'S OWN COUNTS FALL TO. The core
+        # stage IS the numeric one, so a shortfall the published
+        # spellings cannot avoid is authorized here exactly where it is
+        # authorized there -- and on a column wearing ONE wrapper the
+        # two are one shortfall measured twice. A first writing gave
+        # the cores the exact bar and the cells the envelope, and 235
+        # of 240 record numbers was reported AUTHORIZED on one line and
+        # MISSED on the next.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
+    ),
+    Fact(
+        "affixed",
+        "n_core_distinct_folded",
+        EXACT_OBSERVABLE,
+        plan_words="TWO COUNTS OF DIFFERENT CORES",
+        plan_region="affix-set",
+        aliases=("different cores folded",),
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
+    ),
+]
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="compound",
+    )
+    # ...and the THIRD population's two counts (residual R-P4-149,
+    # closed by the owner's ruling of 2026-09-04). Cells the number
+    # rules read as a numeral this format cannot hold. They are counts
+    # of CELLS in a published population, checked the way the other
+    # two are: recounted from the twin's own text.
+    for field in (
+        "n_numeric_cells",
+        "n_numeric_out_of_range",
+        "n_numeric_contradictory",
+        "n_label_cells",
+    )
+]
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        STRUCTURAL,
+        plan_words="FOUR KINDS OF OBLIGATION, each checked as its kind",
+        plan_region="compound",
+    )
+    for field in ("numbers", "labels")
+]
+# ...and the two counts 9.2 sets "per role group", stated in this
+# role's own table so they are not filed under whatever group a
+# dispatch falls through to. That is what happened one role above
+# (P4-D29), and it is why they are written out here.
+REGISTRY += [
+    Fact(
+        "compound",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "THE FOUR DISTINCTNESS COUNTS ARE EXACT-OBSERVABLE"
+        ),
+        plan_region="compound",
+        # UNDER G12.8's ENVELOPE, exactly as the numeric group's two
+        # are. The half IS a numeric block, so a shortfall its own
+        # published spellings cannot avoid is authorized here for the
+        # same reason it is there -- and holding this role to the
+        # exact bar where the role its half is borrowed from has a
+        # window was measured: 108 of 120 authorized on a plain
+        # column, 100 of 113 MISSED on a compound one, the same
+        # machinery and the same shortfall.
+        authorized=((_ENVELOPE_SAID, _ENVELOPE),),
+    )
+    for field in (
+        "n_distinct",
+        "n_distinct_folded",
+        # ...AND THE NUMERIC HALF'S OWN TWO, which the generator spends
+        # as its budget of different SPELLINGS. They are published
+        # because a count of different NUMBERS cannot buy a second
+        # spelling of a number, and the twin could not reach the
+        # column's own count without them.
+        "n_numeric_distinct",
+        "n_numeric_distinct_folded",
+    )
+]
+REGISTRY += [
+    Fact(
+        "affixed",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "Re-profiling the twin re-detects the role with the same "
+            "facts"
+        ),
+        plan_region="affixed",
+    )
+    for field in (
+        "n_affixed",
+        "affix_prefix",
+        "affix_suffix",
+        "n_core_numeric",
+        "n_core_out_of_range",
+        "n_core_contradictory",
+        "n_core_not_numeric",
+    )
+]
 REGISTRY += [
     Fact(
         "numeric",
@@ -449,6 +1043,105 @@ REGISTRY += [
         plan_words="The twin writes each style in its published count",
         plan_region=DECISIONS,
         aliases=("style map", "quota"),
+    ),
+    # Plan P4-D4.5. The census of widths is the styles map's sibling and
+    # takes its disposition: a written file carries every one of its
+    # counts in plain sight, so a reader of the twin can recount them.
+    Fact(
+        "numeric",
+        "fraction_widths",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each fraction width",
+        plan_region="fraction",
+        aliases=("width census", "fraction census"),
+    ),
+    # Plan P4-D14. The census of field widths is the other sibling of the
+    # styles map and takes the same disposition for the same reason: a
+    # person opens the twin, counts the figures each padded cell writes,
+    # and gets the published census back.
+    Fact(
+        "numeric",
+        "pad_widths",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each field width",
+        plan_region="padding",
+        aliases=("padding census", "field-width census"),
+    ),
+    # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
+    # sibling of the styles map and is the ONE of the three that is not
+    # exact. Its two siblings are facts about SPELLING and are bought
+    # at the writing stage; an unpadded cell is exactly as wide as its
+    # VALUE, so this one is a magnitude fact and magnitudes are placed
+    # by the ladder. Measured before the class was chosen: eighty runs
+    # over forty described columns at the default floor, thirty-six
+    # missing at least one named width and the widest gap seventy-one
+    # cells. The twin FOLLOWS the census -- a dental-code column went
+    # from fourteen seeds in forty writing a cell at a width the source
+    # never used to none -- and the report names every shortfall, which
+    # is what REPORT-ONLY means here. Upgrading it is residual
+    # R-P4-114.
+    Fact(
+        "numeric",
+        "field_widths",
+        REPORT_ONLY,
+        plan_words="the count sharing each whole-number field width",
+        plan_region="whole-widths",
+        aliases=("whole-number field width", "whole-width census"),
+    ),
+    # Plan P4-D4.7. REPORT-ONLY, and the reason is worth stating where
+    # a reader meets it. The twin's shape FOLLOWS this census -- on a
+    # 300-row column of two populations the empty stretch went from
+    # about a hundred twin values to sixteen -- but it is not held to
+    # it exactly, because meeting a bin count exactly means the CELL
+    # ALLOCATION following the histogram, and that allocation is
+    # G5.2's even share over the distinctness budget. Upgrading this to
+    # EXACT-OBSERVABLE is residual R-P4-49 and its own landing.
+    Fact(
+        "numeric",
+        "value_histogram",
+        REPORT_ONLY,
+        plan_words="the count falling in each bin",
+        plan_region="histogram",
+        aliases=("value histogram", "binned counts"),
+    ),
+    # Plan P4-D32. The bins that hold NOTHING, published whatever the
+    # smallest group size is, because there is no group smaller than
+    # nobody. REPORT-ONLY, and the class was measured rather than
+    # chosen: over forty described columns at forty seeds each the
+    # runs writing a cell into a named stretch went from 1049 of 1600
+    # to 119, and each of the 119 is a column whose OTHER published
+    # facts leave the twin no room beside the stretch. The twin
+    # FOLLOWS it -- on the three two-cluster columns the fact was
+    # built against, cells in a named stretch went from 4-6, 2-3 and
+    # 3-6 of 300 to none at forty seeds of forty -- and the report
+    # names every cell that had to stay. Upgrading it is residual
+    # R-P4-140.
+    Fact(
+        "numeric",
+        "empty_bins",
+        REPORT_ONLY,
+        plan_words="the stretches that hold no value",
+        plan_region="empty-bins",
+        aliases=("empty bin", "empty-bin fact", "empty stretch"),
+    ),
+    # Plan P4-D35. The two values each run of empty bins really lies
+    # between. REPORT-ONLY beside the bins it stands with, and the
+    # class was measured: over the three two-cluster columns the fact
+    # was built against, at forty seeds each, the furthest cell inside
+    # the SOURCE's own gap went from 15.7-23.0 units from a real value
+    # to 1.3, and then to nothing: 0 of 12,000 on each of the three
+    # once the pass asked the published pairs which stretch a stratum
+    # stands in. The twin FOLLOWS it and is not held to
+    # it, for the reason `empty_bins` is not: a block whose other
+    # published facts leave no free value beside a stretch cannot
+    # always be moved out of it. What remains is residual R-P4-155.
+    Fact(
+        "numeric",
+        "empty_edges",
+        REPORT_ONLY,
+        plan_words="the two values the run really lies between",
+        plan_region="empty-edges",
+        aliases=("stretch edge", "gap edge", "empty-stretch edge"),
     ),
     Fact(
         "numeric",
@@ -606,6 +1299,17 @@ REGISTRY += [
 REGISTRY += [
     Fact(
         "datetime",
+        "resolution_mix",
+        REPORT_ONLY,
+        plan_region="date-readings",
+        plan_words="And it is REPORT-ONLY, deliberately, on the exact "
+        "precedent of the `format` fact itself",
+        aliases=("form census", "how many wore each form"),
+    ),
+]
+REGISTRY += [
+    Fact(
+        "datetime",
         field,
         APPROXIMATED,
         plan_words="`n_distinct` and `n_distinct_folded` on datetime columns "
@@ -633,6 +1337,45 @@ REGISTRY += [
         plan_region="document",
     )
     for field in ("length", "words")
+]
+REGISTRY += [
+    # Plan P4-D18. The census of written forms is the fact that lets a
+    # held-back value have a stand-in that looks like one, and it is
+    # EXACT-OBSERVABLE for the reason the width censuses are: a person
+    # opens the twin, reads the form off each cell, and gets the
+    # published census back.
+    Fact(
+        "free_text",
+        "shape_forms",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each written form",
+        plan_region="forms",
+        aliases=("form census", "shape census"),
+    ),
+    Fact(
+        "label",
+        "shape_forms",
+        EXACT_OBSERVABLE,
+        plan_words="the count sharing each written form",
+        plan_region="forms",
+        aliases=("form census", "shape census"),
+    ),
+    # Plan amendment A-P4-47, ruled in by the owner on 2026-08-31 after
+    # the landing that measured R-P4-34 recommended against it. It is
+    # EXACT-OBSERVABLE on exactly the terms the column census is: a
+    # person opens the twin, reads the shape off each cell of one
+    # published label, and gets the published number back. It is a
+    # SEPARATE fact from `shape_forms` beside it and not a part of it --
+    # residual R-P4-80 states the three reasons no sum holds -- which is
+    # why it is registered on its own rather than as a sub-key.
+    Fact(
+        "label",
+        "shape_form_cells",
+        EXACT_OBSERVABLE,
+        plan_words="a code's SHAPE identifies nobody",
+        plan_region="per-level-forms",
+        aliases=("per-level form census", "level form count"),
+    ),
 ]
 REGISTRY += _facts(
     "free_text",
@@ -690,6 +1433,27 @@ REGISTRY += [
 ]
 
 # `numeric_unrepresentable`.
+#
+# THE TWO WIDTHS WERE MISSING FROM THIS GROUP (residual R-P4-59). The
+# contract's own matrix disposes them EXACT-OBSERVABLE -- "the twin's
+# numerals are written inside the published range with both ends
+# carried" -- and this registry, which is what holds the validator to
+# that matrix, did not carry them. So nothing named them: no check
+# measured them, no census line said they could not be measured, and
+# the entry table had no row to bind. A file of twelve 400-character
+# numerals against a description publishing 399 and 401 was reported
+# with no miss at all.
+REGISTRY += [
+    Fact(
+        "numeric_unrepresentable",
+        field,
+        EXACT_OBSERVABLE,
+        plan_region="unrepresentable-widths",
+        plan_words="writes within the published range, end carriers "
+        "pinned",
+    )
+    for field in ("min_length", "max_length")
+]
 REGISTRY += _facts(
     "numeric_unrepresentable",
     EXACT_OBSERVABLE,
@@ -729,11 +1493,60 @@ BY_KEY = {(fact.group, fact.field): fact for fact in REGISTRY}
 # so writing one takes two edits, in two places, both of them sealed.
 
 AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
+    # The arithmetic corner of A-P4-48: no double between the published
+    # ends carries anything after the point, so the type cannot be held
+    # however the values are chosen. It reaches nothing else.
+    ("numeric", "integer_valued", _BEYOND_STEPS): ("numeric", REPORT_ONLY),
     # Owner decision 7's spellings reach the published count; the
     # envelope is what P2-D6's own numeric paragraph falls back to.
+    # Amendment A-P4-55: the count of different NUMBERS takes the same
+    # envelope as the count of spellings beside it, because on a column
+    # written one way they are one shortfall measured twice.
+    ("numeric", "n_distinct_values", _ENVELOPE_SAID): (
+        "numeric",
+        APPROXIMATED,
+    ),
     ("numeric", "n_distinct", _ENVELOPE_SAID): ("numeric", APPROXIMATED),
     ("numeric", "n_distinct_folded", _ENVELOPE_SAID): (
         "numeric",
+        APPROXIMATED,
+    ),
+    # ...and the same fallback on all four of a compound column's
+    # counts of different cells, for the reason the role's whole
+    # settlement rests on: its numeric half IS a numeric block, so a
+    # shortfall the published spellings cannot avoid is authorized here
+    # exactly where it is authorized there. Measured before it was
+    # written -- 108 of 120 authorized on a plain column, 100 of 113
+    # reported MISSED on a compound one, same machinery, same
+    # shortfall.
+    ("compound", "n_distinct", _ENVELOPE_SAID): ("compound", APPROXIMATED),
+    ("compound", "n_distinct_folded", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
+    ("compound", "n_numeric_distinct", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
+    ("compound", "n_numeric_distinct_folded", _ENVELOPE_SAID): (
+        "compound",
+        APPROXIMATED,
+    ),
+    # ...and the same fallback on the affixed role's two counts of
+    # different CORES, for the reason the compound role's four have it:
+    # the block those cores are handed to IS a numeric block, so the
+    # shortfall its own published spellings cannot avoid is authorized
+    # here exactly where it is authorized there. On a column wearing
+    # one wrapper the core counts and the cell counts are one shortfall
+    # measured twice, and giving one the envelope and the other the
+    # exact bar reported 235 of 240 as authorized and as a miss in the
+    # same run.
+    ("affixed", "n_core_distinct", _ENVELOPE_SAID): (
+        "affix-set",
+        APPROXIMATED,
+    ),
+    ("affixed", "n_core_distinct_folded", _ENVELOPE_SAID): (
+        "affix-set",
         APPROXIMATED,
     ),
     # ...and the same fallback on a column of labels, in the paragraph
@@ -742,6 +1555,11 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "raw-versus-folded",
         APPROXIMATED,
     ),
+    # The one authorization the version 6 write rule carries: a
+    # spelling a JUDGED PASS put there stays blank in the twin, so for
+    # THAT key the field is report-only with the achieved zero named
+    # beside the published count (plan P4-D6.1, contract C6-116).
+    ("universal", "missing_by_source", "judged"): ("holes", REPORT_ONLY),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.
@@ -765,55 +1583,86 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ),
 }
 
-# The rows contract version 5's section 11 adds to the version 4 matrix,
-# and which of that matrix's tables each one belongs to. Version 5
-# carries version 4 by reference and states only its delta, so the two
-# documents are read TOGETHER wherever the matrix is read at all
-# (contract 5 C5-30). A field appearing in that delta with no entry here
-# stops the guard rather than being filed by guesswork.
-CONTRACT5_SECTIONS = {
-    "n_missing_blank": "9.2 Universal per-column fields",
-    "n_missing_withheld": "9.2 Universal per-column fields",
-}
+# VERSION 5'S DELTA READER IS GONE, with residual R-P4-25. Version 5
+# carried version 4 by reference and stated only the rows it changed,
+# so anything reading the matrix had to read the two together. Version
+# 6 states the whole matrix itself and is the version that GOVERNS, so
+# both readers take it alone and neither older document is read by
+# anything that governs. Both stay in the tree, and in the seal, as the
+# record of what they required.
 
 
-def contract5_delta(path: pathlib.Path) -> "list[tuple[tuple[str, ...], str]]":
-    """Section 11 of contract version 5, as rows of names and a class.
-
-    Returns one entry per table row: the backticked names in its first
-    cell, and its second cell's text. The caller decides which of the
-    version 4 tables each row belongs to, using CONTRACT5_SECTIONS
-    above, because the delta table does not repeat the version 4
-    headings.
-    """
-    text = path.read_text(encoding="utf-8")
-    start = text.index("## 11. The disposition matrix")
-    body = text[start : text.index("\n## ", start + 10)]
-    rows: list[tuple[tuple[str, ...], str]] = []
-    for line in body.split("\n"):
-        if not line.startswith("|"):
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 2 or set(cells[0]) <= set("-: "):
-            continue
-        names = tuple(re.findall(r"`([^`]+)`", cells[0]))
-        if names:
-            rows.append((names, cells[1]))
-    return rows
-
-
-# Which contract table states which group.
+# Which contract table states which group. These are version 6's own
+# headings: it is the contract `PROFILE_VERSION` names and the one that
+# governs every description this tree writes, and reading any earlier
+# version here is what residual R-P4-25 opened.
+#
+# `affixed` and `clock` are in this map for the first time. Version 4
+# had neither role, so both used to stand outside the matrix entirely
+# and were held to the Phase 4 plan alone; version 6 gives each a
+# sub-table of its own and they are read out of it.
 CONTRACT_SECTIONS = {
     "document": "9.1 Top level",
     "universal": "9.2 Universal per-column fields",
     "empty": "9.3 `empty`",
-    "numeric": "9.4 The numeric roles: `count`, `continuous`",
-    "label": "9.5 The label roles: `constant`, `binary`, `categorical`",
-    "datetime": "9.6 `datetime`",
+    "numeric": (
+        "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
+    ),
+    "affixed": "9.4 affixed_number",
+    "joined": "9.4a The joined role: `joined_numbers`",
+    # THE COMPOUND ROLE PUBLISHES TWO SUB-BLOCKS AND TWO COUNTS
+    # (residual R-P4-13, landing L8). Its numeric half carries the
+    # numeric group's facts and its label half the label group's, each
+    # read over its own cells -- so a report line naming a fact of
+    # either half looks the fact up in the group that already disposes
+    # it, and only the two COUNTS are this role's own.
+    "compound": "9.4b The compound role: `numbers_with_labels`",
+    "label": (
+        "9.5 The label roles: `constant`, `binary`, `categorical`, "
+        "`long_tail_labels`"
+    ),
+    "datetime": "9.6 datetime",
+    "clock": "9.6 time_of_day",
     "free_text": "9.7 free_text",
     "identifier": "9.7 identifier",
     "numeric_unrepresentable": "9.7 numeric_unrepresentable",
 }
+
+# A MATRIX TABLE NO REGISTRY GROUP CLAIMS, and the residual that owes
+# it. Version 6 carries a table for the joined role -- section 9.4a,
+# eight published facts -- and this file registers no `joined` group,
+# so those rows are parsed and then visited by nothing. Before the
+# readers moved to version 6 the section was not read at all; now it is
+# read and unclaimed, which LOOKS like coverage. That is worse, so it
+# is named and asserted rather than left to be noticed (review item
+# P4-A1-R1-F1).
+#
+# It is residual R-P4-62, and closing it is the next landing's whole
+# subject. When the joined group is registered this goes to empty.
+SECTIONS_NO_GROUP_CLAIMS: "dict[str, str]" = {}
+
+# Every role of the taxonomy, used to decide whether a bold line in
+# the contract opens a role's SUB-TABLE. It is deliberately not used to
+# filter field names: `count` is a role AND a real sub-key of 9.5's
+# `levels` row, so filtering by this list drops a fact the matrix does
+# dispose. A qualifier is stripped by its shape instead.
+ROLES = (
+    "constant",
+    "binary",
+    "categorical",
+    "long_tail_labels",
+    "count",
+    "continuous",
+    "affixed_number",
+    "joined_numbers",
+    "numbers_with_labels",
+    "datetime",
+    "time_of_day",
+    "free_text",
+    "identifier",
+    "numeric_unrepresentable",
+    "empty",
+)
 
 # The rung names of a ladder, which the matrix disposes by naming the
 # ladder itself, and which are therefore not fields of their own.
@@ -824,11 +1673,29 @@ RUNGS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 # of this file. A fact a role does not carry falls back to the universal
 # and top-level groups, which every role shares.
 ROLE_GROUPS = {
+    "joined_numbers": "joined",
+    "numbers_with_labels": "compound",
+    "time_of_day": "clock",
     "count": "numeric",
     "continuous": "numeric",
+    # The affixed role's quantitative block IS the numeric block, read
+    # over the CORES its cells carry rather than over the cells: the
+    # same ladder, the same styles, the same statistics, built by the
+    # same code. So it takes the numeric group's dispositions entire,
+    # including the distinctness envelope -- a twin of an affixed
+    # column reaches its distinct count exactly as closely as a twin
+    # of the numeric column its cores make, because it IS that twin
+    # with a pair written round each cell. Its own seven keys are
+    # registered separately below.
+    "affixed_number": "numeric",
     "constant": "label",
     "binary": "label",
     "categorical": "label",
+    # A long tail publishes the label group's four keys and no key of
+    # its own, so it takes that group's dispositions entire -- the
+    # invented labels behind withheld levels included, which is the one
+    # authorization these roles carry (plan P4-D5).
+    "long_tail_labels": "label",
     "datetime": "datetime",
     "identifier": "identifier",
     "free_text": "free_text",
@@ -946,6 +1813,30 @@ OPEN: "dict[tuple[str, str], str]" = {
     # descriptions it leaves with no answer meet the FIFTH refusal of
     # method G12 by name rather than being written with a leading `-`.
     #
+}
+
+# A LESSER OUTCOME AN OLDER DOCUMENT STATES ABOUT ITS OWN VERSION, and
+# it is not the same thing as an open lowering. `OPEN` above is for a
+# bar this project has not yet met and a review leaves standing; every
+# entry there names that review's own item. This is the other case:
+# the bar IS met, and the sentence the scan finds is an older
+# contract's account of what IT required.
+#
+# Version 4 and version 5 both say `missing_by_source` is REPORT-ONLY,
+# and both were right: their twins wrote every absent cell empty, so
+# the field owed the twin nothing. A version 6 twin writes each
+# recorded spelling at its published count (plan P4-D6.1, contract
+# C6-115), so the field is EXACT-OBSERVABLE from that version, with
+# the judged passes' keys as its one authorized exception. The older
+# sentences are the record of what those versions required and are
+# never edited to carry a later version's rule -- so the scan meets
+# them for as long as those documents stand, and this is where it is
+# told why.
+HISTORICAL: "dict[tuple[str, str], str]" = {
+    ("universal", "missing_by_source"): (
+        "version 4 and version 5 wrote every absent cell empty; "
+        "version 6 reproduces the recorded spellings (P4-D6.1)"
+    ),
 }
 
 

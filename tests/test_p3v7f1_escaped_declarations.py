@@ -94,6 +94,15 @@ SHOWN = "X\\x01Y"
 
 # The seven obligations the class costs, named rather than counted, so
 # that a change to which ones move is a change somebody chose.
+# SEVEN, AND AN EIGHTH THAT IS NOT ON THIS LIST because its name
+# carries the hole SPELLING, and the two worlds below are the same
+# table under two spellings. `missing_by_source` stopped being
+# report-only at contract version 6 and the validator checks each named
+# spelling at its published count (residual R-P4-60), so the subcheck
+# is `holes.by_source.<spelling>` -- one identity per spelling, the way
+# `levels.<label>.count` is one per label. A file read under the WRONG
+# declaration misses that obligation too; the test below adds the
+# world's own spelling rather than naming one here for both.
 _SEVEN = (
     "presence.n_present",
     "presence.n_missing",
@@ -350,6 +359,33 @@ def test_each_world_is_measured_under_its_own_reading_rule(
     raw, shown, _folder = worlds
     first = _verdicts(validation.measure(raw.described, raw.path))
     second = _verdicts(validation.measure(shown.described, shown.path))
+
+    def _without_the_spelling(
+        verdicts: "dict[str, str]", described: contract.Profile
+    ) -> "dict[str, str]":
+        """The same map with the hole spelling's own name generalised.
+
+        `missing_by_source` became an obligation at contract version 6
+        (residual R-P4-60) and its subcheck carries the SPELLING, one
+        identity per spelling, the way `levels.<label>.count` carries a
+        label. These two worlds are one table under two spellings, so
+        that one name differs between them BY CONSTRUCTION -- and this
+        test is about the reading rule each was measured under, not
+        about the spelling the rule reads. Both hold it; only the key
+        differs, so the key is the thing to generalise.
+        """
+        named = dict(verdicts)
+        for block in described.columns:
+            for spelling in block.missing_by_source:
+                key = f"holes.by_source.{spelling}"
+                if key in named:
+                    named["holes.by_source.(this world's spelling)"] = (
+                        named.pop(key)
+                    )
+        return named
+
+    first = _without_the_spelling(first, raw.described)
+    second = _without_the_spelling(second, shown.described)
     assert first == second, (
         "the two runs reach the same verdicts because the two tables are "
         "the same table under two spellings; what differs is the reading "
@@ -401,14 +437,33 @@ def test_a_file_the_declaration_rejects_is_reported_on_again(
         table, taxonomy.Settings(declared_missing_values=(RAW,)), []
     )
     column = truth["columns"][1]
-    assert column["role"] == "free_text"
+    # NOT free text since plan P4-D5: the spelling this declaration
+    # does NOT name is worn by enough cells to clear the publication
+    # floor, so the column that declaration describes publishes labels.
+    #
+    # AND IT IS THE COMPOUND ROLE SINCE LANDING L8, because the cells
+    # that are not that spelling are NUMBERS and there are enough of
+    # them: the column holds a numeric population beside a repeated
+    # word, which is what rule 7b claims. It read `long_tail_labels`
+    # before, which described the word and nothing about the numbers.
+    #
+    # What this test is about is untouched either way -- the file the
+    # declaration rejects is described with no holes at all, and the
+    # seven obligations below are still missed.
+    assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
     assert column["n_missing"] == 0
     assert raw.described.columns[1].role == "continuous"
     outcome = validation.measure(raw.described, shown.path)
-    # THE ALARM IS REAL NOW, AND IT IS EXACTLY THE SEVEN.
-    assert _missed(outcome) == sorted(_SEVEN)
-    assert outcome.census.missed == len(_SEVEN)
+    # THE ALARM IS REAL NOW, AND IT IS EXACTLY THE SEVEN -- plus the
+    # hole spelling this file's own description names, which became a
+    # checked obligation with R-P4-60 and which a file read under the
+    # wrong declaration does not hold either.
+    owed = set(_SEVEN)
+    for spelling in raw.described.columns[1].missing_by_source:
+        owed.add(f"holes.by_source.{spelling}")
+    assert _missed(outcome) == sorted(owed)
+    assert outcome.census.missed == len(owed)
     assert _unsupported(outcome) == []
     # ...and the file that DOES conform is not told any of it.
     conforming = validation.measure(raw.described, raw.path)

@@ -76,10 +76,17 @@ def test_both_cardinalities_are_measured_and_bounded_on_the_named_column(
     """Points 1 and 2, on the genuine input the item names.
 
     Nought through four, every cell plain. The published counts are five
-    and five; the whole-number rule rounds two strata onto one value and
-    `plain` has no second spelling of it, so the twin holds four. Both
-    facts now carry the achieved value and both ends of the envelope,
-    and the achieved value sits inside them.
+    and five. Both facts carry the achieved value and both ends of the
+    envelope, and the achieved value sits inside them.
+
+    **THE TWIN HELD FOUR UNTIL THE INTEGER-GRID LANDING** -- the
+    whole-number rule rounded two strata onto one value and `plain` has
+    no second spelling of it -- so this case read `achieved 4` inside a
+    `[4, 5]` envelope. G6.5a's pass now separates the two strata on the
+    integer grid, the supply is five, and the envelope closes to
+    `[5, 5]`. The envelope is `min` and `max` of the supply against the
+    published count and is not read off the achieved value, so this is
+    the supply improving and not the bound following the outcome.
     """
     loaded = _described(tmp_path, [str(n) for n in range(5)])
     block = loaded.columns[0]
@@ -90,8 +97,8 @@ def test_both_cardinalities_are_measured_and_bounded_on_the_named_column(
     for fact in ("n_distinct", "n_distinct_folded"):
         record = _found(twin, fact)
         assert record.published == "5"
-        assert record.achieved == "4"
-        assert record.lowest == "4"
+        assert record.achieved == "5"
+        assert record.lowest == "5"
         assert record.highest == "5"
         assert record.inside is True
 
@@ -131,7 +138,7 @@ def test_both_reach_the_rendered_report(tmp_path: pathlib.Path) -> None:
     twin = generation.generate(loaded, 0)
     text = rendering.report(loaded, twin)
     assert "how many different spellings this column holds" in text
-    assert "allowed anywhere from 4 to 5" in text
+    assert "allowed anywhere from 5 to 5" in text
 
 
 # -- 4. the bound can fail --------------------------------------------
@@ -182,5 +189,18 @@ def test_the_supply_counts_cells_a_style_could_have_told_apart() -> None:
         sizes=(3,), starts=(0,), bands=("zero",),
         raw_budgets=(3, 0, 0, 0), folded_budgets=(3, 0, 0, 0),
     )
-    assert generation._numeric_supply(layout, ["0", "0", "0"]) == (1, 1)
-    assert generation._numeric_supply(layout, ["0.0", "0.0", "0.0"]) == (3, 3)
+    assert generation._numeric_supply(layout, ["0", "0", "0"], {}) == (1, 1)
+    assert generation._numeric_supply(
+        layout, ["0.0", "0.0", "0.0"], {}
+    ) == (3, 3)
+    # ...AND A PADDED CELL AT A NAMED FIELD WIDTH SUPPLIES ONE, because
+    # the census spends the family: every further spelling of that
+    # value is one figure wider and would leave the published width
+    # (method G12.8, plan P4-D14). Without the census the same three
+    # cells supply three, which is what they did before it existed.
+    assert generation._numeric_supply(
+        layout, ["00", "00", "00"], {}
+    ) == (3, 3)
+    assert generation._numeric_supply(
+        layout, ["00", "00", "00"], {"2": 3}
+    ) == (1, 1)

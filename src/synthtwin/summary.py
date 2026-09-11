@@ -20,7 +20,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import parsing, taxonomy
+from synthtwin import contract, parsing, taxonomy
 
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
@@ -48,16 +48,50 @@ _ROLES_WITH_LABELS = (
     taxonomy.ROLE_CONSTANT,
     taxonomy.ROLE_BINARY,
     taxonomy.ROLE_CATEGORICAL,
+    # THE LONG TAIL BELONGS HERE OR THIS PAGE UNDERSTATES ITSELF (plan
+    # P4-D5, which requires the summary to list every column whose
+    # labels will be visible BEFORE anything is written). It is the one
+    # role that CHANGED what a column publishes: such a column was free
+    # text and published no value at all, and now names its
+    # floor-clearing spellings. A page that left it out would tell a
+    # person the fewest columns are the ones that disclose.
+    taxonomy.ROLE_LONG_TAIL,
 )
 _ROLES_WITHOUT_VALUES = (
     taxonomy.ROLE_IDENTIFIER,
     taxonomy.ROLE_TEXT,
     taxonomy.ROLE_UNREPRESENTABLE,
 )
+# THE ONE ROLE IN TWO LISTS, and it is in both because it publishes
+# both (residual R-P4-13, landing L8). A compound column carries a
+# quantitative block over its numbers AND a label block over its
+# words, so a page that named it under one heading would tell a person
+# half of what leaves their machine. The sentences it draws are read
+# out of its two sub-blocks rather than off the column, which is why
+# it needs its own lines rather than a place in either walk above.
+_ROLES_WITH_BOTH = (taxonomy.ROLE_COMPOUND,)
+
 _ROLES_WITH_RANGES = (
     taxonomy.ROLE_COUNT,
     taxonomy.ROLE_CONTINUOUS,
     taxonomy.ROLE_DATETIME,
+    # THE TWO PHASE 4 RANGE ROLES, and they were in NO list at all
+    # until 2026-08-22, so a person reading this page was told nothing
+    # about a column of clock times, or about one whose numbers each
+    # wear a unit -- two of the kinds of column this phase taught
+    # synthtwin to read. Both publish
+    # a smallest and a largest value and a ladder between them, which
+    # is exactly what this list is for. The affixed role's shared text
+    # is disclosed separately below, because it is a spelling and this
+    # list is about ranges.
+    taxonomy.ROLE_CLOCK,
+    taxonomy.ROLE_AFFIXED,
+    # AND THE FOURTEENTH ROLE (plan P4-D21). A column of two numbers in
+    # one cell publishes a smallest, a largest and a ladder between them
+    # FOR EACH POSITION, which is what this list is about; its separator
+    # is a spelling and is disclosed with the affixed role's shared text
+    # rather than here.
+    taxonomy.ROLE_JOINED,
 )
 
 # What was decided about a number synthtwin uses as a stand-in for "no
@@ -229,7 +263,7 @@ def _repetition_lines(column: dict[str, object]) -> list[str]:
 
 
 def _sentinel_lines(column: dict[str, object]) -> list[str]:
-    """What the column decided about numbers that can mean "no value".
+    """What the column decided about values that can mean "no value".
 
     Written from the column block and nothing else, so the words and
     the machine-readable record cannot disagree -- including about the
@@ -254,14 +288,32 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     verdicts = _list_of(column["sentinel_verdicts"])
     if not verdicts:
         return []
-    lines = [
-        "    numbers synthtwin checks as stand-ins for 'no value':",
-    ]
+    # TWO KINDS OF CANDIDATE, AND THE HEADING SAYS WHICH (review item
+    # P4-HOLE-F5). This page introduced a placeholder day under a
+    # heading promising numbers, which tells a reader the wrong thing
+    # about what their own column held.
+    days = 0
+    numbers = 0
+    for item in verdicts:
+        found = _text_of(_map_of(item)["candidate"])
+        if found in parsing.calendar_placeholders():
+            days = days + 1
+        elif found != parsing.MISSING_WITHHELD:
+            numbers = numbers + 1
+    heading = "    numbers synthtwin checks as stand-ins for 'no value':"
+    if days and not numbers:
+        heading = "    dates synthtwin checks as stand-ins for 'no value':"
+    elif days:
+        heading = (
+            "    numbers and dates synthtwin checks as stand-ins for "
+            "'no value':"
+        )
+    lines = [heading]
     for item in verdicts:
         entry = _map_of(item)
         candidate = _text_of(entry["candidate"])
         if candidate == parsing.MISSING_WITHHELD:
-            candidate = "a number not named here"
+            candidate = "a value not named here"
         lines = lines + [
             (
                 f"      {candidate}, in "
@@ -319,6 +371,187 @@ def _missing_spelling_words(
     return spellings
 
 
+def _width_lines(column: "dict[str, object]") -> "list[str]":
+    """How wide this column was read to be, in words (residual R-P4-26).
+
+    THE PROFILE PUBLISHES THREE WIDTH CENSUSES AND SAID NONE OF THEM
+    OUT LOUD. `field_widths` records how many figures every cell
+    written as a whole number wrote, `pad_widths` how many characters
+    the cells written with a leading zero were written in, and
+    `fraction_widths` how many figures came after the point. The twin honours both, and
+    the twin's report names either one the twin could not reach -- but
+    where they are HONOURED, no surface said in words that a column of
+    five-figure codes was read as five figures wide and that the twin
+    keeps it. A person reading this page found out only by opening the
+    JSON, or by not finding out.
+
+    A width is a fact about the WRITING and never a value: it is a
+    count of characters, and this line names counts and nothing else.
+    """
+    said: "list[str]" = []
+    for key, words in (
+        ("field_widths", "written as a whole number"),
+        ("pad_widths", "written with a leading zero"),
+        ("fraction_widths", "written after the point"),
+    ):
+        if key not in column:
+            continue
+        census = _map_of(column[key])
+        if not census:
+            continue
+        parts: "list[str]" = []
+        for width in sorted(census):
+            if width == taxonomy.SUPPRESSED_LABEL:
+                continue
+            parts = parts + [
+                f"{width} character(s) in {_count_of(census[width])} cell(s)"
+            ]
+        if parts:
+            said = said + [
+                f"    figures {words}: {_listed(parts)}"
+            ]
+    return said
+
+
+def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
+    """The stretches this column held nothing in, in words (P4-D32).
+
+    THE DESCRIPTION PUBLISHES A FACT NO OTHER LINE OF THIS PAGE SAYS.
+    Every other numeric line here names where the values ARE -- the
+    smallest, the middle, the largest, the average, the spread -- and
+    a column with two clusters and nothing between them looks, in all
+    of them, exactly like one smooth column. A person reading that
+    their readings run from 15 to 90 with a middle of 50 has every
+    reason to take it that some cell held about 50, and none did.
+
+    AND THE DESCRIPTION NAMES TWO VALUES FOR EACH STRETCH, which this
+    page says out loud because it is the one line here that puts a real
+    cell's value in front of a reader (review round 1 item 3). The bins
+    themselves name no value and no cell -- they are a division of a
+    range the line above already prints -- but `empty_edges` names, for
+    each stretch, the largest value the column holds below it and the
+    smallest above it, and those two are values of real cells. The
+    person who is deciding whether they may share the description has
+    to be told that in the plain-language page and not only in the
+    contract.
+
+    THE COUNT IS SAID AND THE EDGES ARE NOT LISTED. A list of them
+    would be arithmetic rather than words on a page written for a
+    reader; what this line owes is the SENTENCE that they are there
+    and what kind of fact they are. A person who wants the numbers has
+    the description.
+    """
+    return _empty_bin_lines_of(_quantitative_blocks(column, ""))
+
+
+def _quantitative_blocks(
+    column: "dict[str, object]", where: str
+) -> "list[tuple[str, dict[str, object]]]":
+    """Every block of this column that carries a numeric shape.
+
+    THE KEY IS NOT ALWAYS ON THE COLUMN. A `joined_numbers` column
+    carries one block per POSITION under `parts`, and a
+    `numbers_with_labels` column carries its numeric half under
+    `numbers`; both publish `empty_bins` and `empty_edges` at that
+    depth and neither carries them at the top. A page that read the
+    column alone therefore told the holder of a joined or compound
+    description nothing about the exact values in it (review round 2
+    item 1).
+
+    Guarantees: accepts one column block; returns the column itself
+    where it carries the key, and otherwise every nested block that
+    does, in the order the description writes them. Determinism: a
+    function of the mapping. Raises nothing. No I/O of any kind.
+    """
+    found: "list[tuple[str, dict[str, object]]]" = []
+    if "empty_bins" in column:
+        found = found + [(where, column)]
+    for key in ("numbers", "labels"):
+        if key in column:
+            half = column[key]
+            if isinstance(half, dict):
+                found = found + _quantitative_blocks(
+                    half, f"its {key}"
+                )
+    if "parts" in column:
+        parts = column["parts"]
+        if isinstance(parts, list):
+            for place in range(len(parts)):
+                part = parts[place]
+                if isinstance(part, dict):
+                    found = found + _quantitative_blocks(
+                        part, f"part {place + 1} of each cell"
+                    )
+    return found
+
+
+def _empty_bin_lines_of(
+    blocks: "list[tuple[str, dict[str, object]]]",
+) -> "list[str]":
+    """The stretch lines for every block that carries the fact.
+
+    Guarantees: accepts the blocks `_quantitative_blocks` found;
+    returns the lines they earn, joined in order. Determinism: a
+    function of those mappings. Raises nothing. No I/O of any kind.
+    """
+    lines: "list[str]" = []
+    for where, block in blocks:
+        lines = lines + _one_blocks_empty_bin_lines(block, where)
+    return lines
+
+
+def _one_blocks_empty_bin_lines(
+    column: "dict[str, object]", where: str
+) -> "list[str]":
+    """The stretch lines for ONE block that carries the fact.
+
+    Guarantees: accepts a block carrying `empty_bins`; returns its
+    lines, or none where it names no stretch. Determinism: a function
+    of the mapping. Raises nothing. No I/O of any kind.
+    """
+    if "empty_bins" not in column:
+        return []
+    bins = column["empty_bins"]
+    if not isinstance(bins, list) or not bins:
+        return []
+    stretches = 0
+    last = -2
+    for place in bins:
+        if not isinstance(place, int):
+            return []
+        if place != last + 1:
+            stretches = stretches + 1
+        last = place
+    named = f"{where}: " if where else ""
+    lines = [
+        f"    {named}held no value at all in {stretches} stretch(es) "
+        f"of its range, covering {len(bins)} of the "
+        f"{parsing.HISTOGRAM_BINS} equal steps between its smallest "
+        f"value and its largest"
+    ]
+    edges = column["empty_edges"] if "empty_edges" in column else []
+    if isinstance(edges, list) and edges:
+        # HOW MANY DIFFERENT VALUES, counted and not doubled (review
+        # round 8 item 7). Two stretches with one value between them
+        # name that value twice, so twice the number of pairs is not
+        # the number of values a reader is being told about.
+        apart: "list[float]" = []
+        for entry in edges:
+            if not isinstance(entry, list):
+                continue
+            for one in entry:
+                if isinstance(one, (int, float)) and one not in apart:
+                    apart = apart + [one]
+        lines = lines + [
+            f"      and for each of those stretches the description "
+            f"names the two values your column really holds either "
+            f"side of it -- {len(apart)} different value(s) of real "
+            f"cells, the same kind of fact as the smallest and the "
+            f"largest values of this column"
+        ]
+    return lines
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -335,6 +568,8 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     if spellings:
         lines = lines + [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
+    lines = lines + _width_lines(column)
+    lines = lines + _empty_bin_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
         shown = [
@@ -443,13 +678,13 @@ def words_of_your_own(
     WHAT THIS IS FOR, AND IT IS THE WHOLE OF REVIEW ITEM P3-V9-F1.
     Contract 5 section 3.3.1 fixes the derivation: every key of a
     published `missing_by_source` that is not blank and is not a member
-    of synthtwin's own thirteen published words is a spelling somebody
+    of synthtwin's own twenty-three published words is a spelling somebody
     typed after `--missing-value`. So a version 5 description CARRIES
     the person's own declared word, character for character, wherever
     the floor permits the group to be named and the column publishes
     values at all -- and until this function existed, no page said so.
     The summary told the reader the opposite: that synthtwin would not
-    keep a record of any word outside those thirteen, printed four
+    keep a record of any word outside those twenty-three, printed four
     screens under `counted as missing: <their word> (12)`.
 
     A FALSE ASSURANCE ABOUT WITHHOLDING IS WORSE THAN NO ASSURANCE.
@@ -639,7 +874,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     - Boundary: no spelling of the PERSON'S reaches the lines rendered
       from the SETTINGS BLOCK, because none reaches that block (review
       item P1-R7-F2). From contract version 5 the block also names
-      which members of synthtwin's own thirteen published words were
+      which members of synthtwin's own twenty-three published words were
       typed; these lines say that it does and print how many, and they
       do not repeat the members -- saying the fact is what the contract
       asks of this page (its section 6.6), and a page that travels says
@@ -695,7 +930,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     was it retired for the right reason. It began by telling the person
     to keep a note of their own command line because synthtwin would
     keep no record of which values they had named. Contract version 5
-    made that false of synthtwin's own thirteen words, since the
+    made that false of synthtwin's own twenty-three words, since the
     settings now name which of them were typed -- so the sentence was
     narrowed to the words that are NOT synthtwin's, which carried the
     defect forward whole rather than repairing it.
@@ -726,7 +961,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     lower, told the person who typed `n/a` that the description records
     which of synthtwin's own words they named. Both halves were true and
     the pair was not readable: the reader who has to act on this page is
-    exactly the reader who typed one of the thirteen. The opening now
+    exactly the reader who typed one of the twenty-three. The opening now
     names the exception where it makes the claim.
 
     Nothing is said on a run where nothing was declared. A sentence
@@ -799,12 +1034,12 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     )
 
 
-# The thirteen words of the published vocabulary, counted rather than
+# The twenty-three words of the published vocabulary, counted rather than
 # repeated. The contract fixes the list in its own appendix; this page
 # says that the description records WHICH of them were typed, and how
 # many, because a person deciding whether to move this file has to know
 # what it carries about what they typed (contract 5 section 6.6).
-_OWN_WORD_KEYS = ("built_in_texts", "built_in_numbers")
+_OWN_WORD_KEYS = ("built_in_texts", "built_in_numbers", "built_in_dates")
 
 
 def _own_words_named(settings: dict[str, object], key: str) -> int:
@@ -828,7 +1063,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
     THE SCOPE OF EVERY SENTENCE HERE IS THE SETTINGS BLOCK, and saying
     so is the repair of review item P3-V9-F1. These lines used to close
     by sending the person away to their own shell history for a record
-    of any word outside the thirteen, on the ground that synthtwin
+    of any word outside the twenty-three, on the ground that synthtwin
     would keep none. Read as it stood, that spoke for the whole
     document, and it was false of one from the moment contract version
     5 landed: a word of the person's own reaches its column's
@@ -849,9 +1084,10 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
     # is published in its description contract; what this page owes is
     # the FACT that the description records which of them were typed.
     lines = [
-        "    synthtwin has thirteen words of its own that it already",
-        "    reads as 'no value' -- an empty cell, NA, n/a, none, null",
-        "    and a few more, and three numbers often used as stand-ins.",
+        "    synthtwin has twenty-three words of its own that it",
+        "    already reads as 'no value' -- an empty cell, NA, n/a, none,",
+        "    null, the spreadsheet error cells like #N/A, and a few more,",
+        "    with three numbers and two dates often used as stand-ins.",
         "    They are listed in synthtwin's description contract, and",
         "    the description records which of them you named.",
     ]
@@ -904,18 +1140,20 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     - Errors raised: none.
     - Boundary: no value of the table reaches it.
     """
-    if floor >= taxonomy.Settings().small_cell_floor:
+    if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
-    usual = taxonomy.Settings().small_cell_floor
+    usual = contract.SMALL_GROUP_NOTICE_LINE
     lines = [
         (
-            "  THE SMALLEST GROUP SIZE WAS LOWERED FOR THIS PROFILE, TO "
-            f"{floor}."
+            "  THIS PROFILE NAMES GROUPS AS SMALL AS "
+            f"{floor} ROW(S)."
         ),
         "",
-        f"  synthtwin normally leaves a value out unless at least {usual}",
-        "  rows share it. This profile names values that as few as",
-        f"  {floor} row(s) share, and says how many rows that is.",
+        "  A profile leaves nothing out for being a small group unless it",
+        f"  is asked to. Leaving out a value unless {usual} rows share it",
+        f"  is what --smallest-group {usual} does, and this profile was not",
+        f"  made that way: it names values that as few as {floor} row(s)",
+        "  share, and says how many rows that is.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the
@@ -946,11 +1184,45 @@ def _lowered_floor_lines(floor: int) -> list[str]:
         "  profile does not.",
         "",
         "  It does not stop with this file. The twin is built to hold",
-        "  these counts exactly, and the twin's report and the quality",
-        "  report quote them back, so all five files of a full run carry",
-        "  them.",
+        "  these counts exactly, and the questions file, the twin's",
+        "  report and the quality report quote them back, so all six",
+        "  files of a full run carry them.",
         "",
     ]
+
+
+def _all_labels_held_back(column: dict[str, object]) -> bool:
+    """Whether a twin of this label column would invent its every cell.
+
+    Two shapes reach it. The floor held every one of this column's
+    levels back; or the floor held back every spelling of the levels it
+    did publish, which is reachable with no suppressed level at all. In
+    both the generator writes neutral stand-ins for every present cell,
+    so plan amendment A-P4-2 calls such a column fully invented however
+    its role publishes.
+
+    THIS ARITHMETIC IS WRITTEN TWICE, HERE AND IN `rendering`, and the
+    duplication is deliberate rather than tidy: this side reads the
+    document the producer is about to write, that side reads the typed
+    profile a loader handed back, and neither representation is
+    available where the other is. `test_p4d2_loud_decline` holds the
+    two to the same answer on one table, so a change to one that is not
+    a change to the other turns the suite red.
+    """
+    present = _count_of(column["n_present"])
+    if not present:
+        return False
+    invented = _count_of(column["suppressed_rows"])
+    for entry in _list_of(column["levels"]):
+        level = _map_of(entry)
+        withheld = _map_of(level["variants_withheld"])
+        for key in sorted(withheld):
+            rows = _count_of(withheld[key])
+            # The keys are row counts written as text, zero-padded so
+            # they sort as text; `int` reads one because this side of
+            # the format has no loader to ask.
+            invented = invented + int(key) * rows
+    return invented >= present
 
 
 def _disclosure_lines(document: dict[str, object]) -> list[str]:
@@ -958,6 +1230,8 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     with_labels: list[str] = []
     without_values: list[str] = []
     with_ranges: list[str] = []
+    with_shared_text: list[str] = []
+    all_invented: list[str] = []
     for entry in _list_of(document["columns"]):
         column = _map_of(entry)
         name = _text_of(column["name"])
@@ -966,8 +1240,40 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             with_labels = with_labels + [name]
         if role in _ROLES_WITHOUT_VALUES:
             without_values = without_values + [name]
+            all_invented = all_invented + [name]
         if role in _ROLES_WITH_RANGES:
             with_ranges = with_ranges + [name]
+        # A COMPOUND COLUMN IS IN BOTH LISTS, because it publishes
+        # both: a range over its numbers and levels over its words
+        # (residual R-P4-13, landing L8). Its facts sit one step deeper
+        # than every other role's -- inside `numbers` and `labels` --
+        # so they are read from there, and a page that walked only the
+        # column would have said NOTHING about such a column at all.
+        # It said exactly that until this branch: "No column has labels
+        # visible in the profile", on a table holding one.
+        if role in _ROLES_WITH_BOTH:
+            with_ranges = with_ranges + [name]
+            half = _map_of(column["labels"])
+            if _list_of(half["levels"]):
+                with_labels = with_labels + [name]
+        # THE ONE SPELLING A RANGES ROLE PUBLISHES. An affixed column
+        # names the piece of text its cells share -- `mg`, `$`, `%` --
+        # where enough rows wrote it, and that is text of the table
+        # however short it is. It has its own sentence because it is
+        # not a label and not a range, and a person deciding what may
+        # leave their machine is owed it in the place they read about
+        # everything else (plan P4-D4.1).
+        if role == taxonomy.ROLE_AFFIXED:
+            with_shared_text = with_shared_text + [name]
+        # A LABEL COLUMN CAN BE FULLY INVENTED WITHOUT PUBLISHING
+        # NOTHING (plan amendment A-P4-2, review item P4-C2-F1). It
+        # keeps its place in the disclosure lists above -- a published
+        # folded label IS something of the table's, and moving it out
+        # of them would misstate what this profile carries -- but the
+        # forward sentence below is about what a TWIN of it would hold,
+        # which is a different question with a different answer.
+        if role in _ROLES_WITH_LABELS and _all_labels_held_back(column):
+            all_invented = all_invented + [name]
     floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     lines = [
         "WHAT THIS PROFILE CARRIES FROM YOUR TABLE",
@@ -985,15 +1291,16 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # measurements taken from the file it checked, and THIS FILE --
         # the one being read right now -- repeats the published labels
         # in words. The person deciding what may leave their machine has
-        # to be told about all five in the one place they are reading
-        # about it, and the file they are holding is one of the five.
-        "  The same is true of the other four files a full run makes,",
+        # to be told about all six in the one place they are reading
+        # about it, and the file they are holding is one of the six.
+        "  The same is true of the other five files a full run makes,",
         "  this page among them: it repeats in words what the profile",
         "  carries, the real labels listed below included.",
-        "  The profile, the plain-language summary beside it, the twin,",
-        "  the twin's report and the quality report all carry facts",
-        "  computed from your real data, so those rules apply to all",
-        "  five of them, not to the profile alone.",
+        "  The profile, the plain-language summary beside it, the",
+        "  questions file, the twin, the twin's report and the quality",
+        "  report all carry facts computed from your real data, so",
+        "  those rules apply to all six of them, not to the profile",
+        "  alone.",
         "",
     ]
     lines = lines + _lowered_floor_lines(floor)
@@ -1027,6 +1334,15 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             f"    {_listed(with_ranges)}",
             "",
         ]
+    if with_shared_text:
+        lines = lines + [
+            "  A piece of text your cells share -- the unit or the sign",
+            "  written around each number, like mg or $ -- named exactly",
+            f"  as your file writes it, and only where at least {floor} rows",
+            "  wrote it that way:",
+            f"    {_listed(with_shared_text)}",
+            "",
+        ]
     if without_values:
         # The claim is exact, and it is worth saying why it is worded
         # this way. These columns still carry counts -- how many values
@@ -1052,9 +1368,39 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # column's own block above says it in words for the person who
         # wants to know what shape of repetition was recorded.
         lines = lines + [
-            "  No value at all, in any form -- only counts, lengths, and what",
-            "  synthtwin decided about the column:",
+            "  No value at all -- only counts, lengths, the SHAPE its values",
+            "  were written in where enough shared one, and what synthtwin",
+            "  decided about the column:",
             f"    {_listed(without_values)}",
+            "",
+        ]
+    # WHAT THIS MEANS FOR THE TWIN, said where a person meets the
+    # withholding rather than only in the twin's own report (plan P4-D2
+    # item 4). It is true of the generator this version ships: a column
+    # this description carries no writable value of gives the generator
+    # nothing but counts and shapes, so every present cell of that
+    # column's twin is synthtwin's own. The list is NOT the one above:
+    # a label column whose every level or every spelling the floor held
+    # back is fully invented too, and saying so only for the three
+    # publishing-nothing roles left the person unwarned about it
+    # (amendment A-P4-2, review item P4-C2-F1).
+    if all_invented:
+        # THE REASON HAS TO BE TRUE OF BOTH ROUTES INTO THIS LIST
+        # (review item P4-C3-F1). "There is nothing of yours in this
+        # description for it to write" is true of a column that
+        # publishes no value at all -- and false of a label column
+        # whose folded label IS published while every spelling of it
+        # sits below the floor. Both end with a twin whose every cell
+        # is invented, for two different reasons, so the sentence
+        # names both rather than the first one twice.
+        lines = lines + [
+            "  If you build a twin from this description, every value in",
+            "  these columns will be one synthtwin made up. Either the",
+            "  column publishes no value at all, or its spellings were",
+            "  each worn by too few rows to publish, and either way the",
+            "  twin has to invent what it writes --",
+            f"    {_listed(all_invented)}",
+            "  The twin's own report says so again, column by column.",
             "",
         ]
     lines = lines + _declaration_lines(document)

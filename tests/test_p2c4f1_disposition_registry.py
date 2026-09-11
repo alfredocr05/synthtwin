@@ -87,6 +87,7 @@ time a review stops rejecting the phase.
 """
 
 import functools
+import hashlib
 import pathlib
 import re
 import typing
@@ -117,15 +118,35 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # registry's obligation-parsing walks the three Phase 2 documents
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
+PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
+CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
+
+# THE CONTRACT THE MATRIX IS READ FROM, and it is the one that GOVERNS.
+# DERIVED FROM `contract.PROFILE_VERSION` rather than named, because a
+# reader pinned to a number is how residual R-P4-25 happened in the
+# first place: the producer and the loader moved to 6 and these
+# governance checks went on reading 4, agreeing by luck. Deriving it
+# means the next version bump moves this reader with the code, or
+# fails loudly because the document is not there (review item
+# P4-A1-R2-F6).
+#
+# `CONTRACT` above stays version 4 on purpose: the mutation attacks
+# below use it as a VEHICLE for the seal and the phrase scan, and it is
+# still a sealed governing document, so attacking it exercises exactly
+# what those tests exist to exercise.
+MATRIX_CONTRACT = fixtures.GOVERNING_CONTRACT
 RELATIVE = {
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
+    "docs/spec/profile-contract-v6.md": CONTRACT6,
     "docs/spec/generation-method-v1.md": METHOD,
     "docs/spec/validation-method-v1.md": VALIDATION,
     "docs/plans/phase-2-generator.md": PLAN,
     "docs/plans/phase-3-product.md": PLAN3,
+    "docs/plans/phase-4-columns.md": PLAN4,
 }
 
 
@@ -197,6 +218,11 @@ def _plan_regions() -> "dict[str, str]":
         at = later.index(mark)
         rest = later.find("## ", at + len(mark))
         regions[name] = later[at : rest if rest > 0 else len(later)]
+    fourth = _flat(PLAN4)
+    for name, mark in dispositions.PLAN4_REGIONS.items():
+        at = fourth.index(mark)
+        rest = fourth.find("### P4-D", at + len(mark))
+        regions[name] = fourth[at : rest if rest > 0 else len(fourth)]
     return regions
 
 
@@ -319,6 +345,67 @@ def test_no_passage_of_a_governing_document_is_unsealed() -> None:
     )
 
 
+def test_no_sealed_passage_has_been_deleted_from_its_document() -> None:
+    """The seal is checked in BOTH directions, and one was missing.
+
+    ROUND 4 ITEM 1. `_unsealed` asks whether every passage of a
+    document is in the seal. That catches a passage WRITTEN or CHANGED
+    -- an edit changes the digest, so the new text is unsealed -- and
+    it does not catch a passage DELETED. A deleted obligation simply
+    orphans its digest, the remaining passages are all still known, and
+    nothing turns red.
+
+    So a governing obligation could be removed inside a large repair
+    without anybody deciding to remove it, which is precisely what this
+    seal exists to prevent and what its own docstring claims it does.
+    Measured before the repair: deleting the `part_above` disposition
+    row left zero unsealed passages.
+
+    THE CURE IS RE-SEALING, exactly as it is for a written passage: a
+    counted edit whose diff shows one line per passage, so a reviewer
+    reads "one obligation removed" off it.
+    """
+    orphaned: dict[str, str] = {}
+    for name, path in sorted(RELATIVE.items()):
+        # COUNTED, NOT SET-COMPARED, and round 5 is why. Both the seal
+        # generator and the first draft of this check reduced passages
+        # to a SET, so a document carrying the same sentence twice --
+        # and the contract carries many, an exactness row repeated
+        # under two roles being the plain case -- could lose one copy
+        # with nothing to notice. The forward check saw no unknown
+        # passage and this one saw no orphaned digest.
+        #
+        # The seal cannot hold multiplicity: it is a set of digests by
+        # construction. So the COUNT of passages is held beside it, and
+        # a document that loses a repeated sentence changes its count
+        # while its set stands still.
+        held = [
+            dispositions.digest(passage)
+            for passage in dispositions.passages(path)
+        ]
+        gone = [
+            sealed
+            for sealed in disposition_seal.SEALED[name]
+            if sealed not in set(held)
+        ]
+        if gone:
+            orphaned[name] = f"{len(gone)} sealed passage(s) no longer present"
+            continue
+        counted = disposition_seal.COUNTED.get(name)
+        if counted is not None and counted != len(held):
+            orphaned[name] = (
+                f"{counted} passages were sealed and the document now "
+                f"holds {len(held)}, so a REPEATED sentence was added "
+                "or removed while the set of distinct ones stood still"
+            )
+    assert not orphaned, (
+        "these documents no longer contain passages the seal holds, so "
+        "an obligation was removed without being re-sealed -- run "
+        "`.venv/bin/python tools/dispositions/seal.py --write` and read "
+        f"the counted diff before believing it: {orphaned}"
+    )
+
+
 def test_the_seal_covers_every_governing_document_and_is_not_empty() -> None:
     """The vacuity floor for the seal.
 
@@ -365,6 +452,12 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "generation-method-v1.md",
         "profile-contract-v4.md",
         "profile-contract-v5.md",
+        # The version 6 contract, which GOVERNS: `PROFILE_VERSION` is 6
+        # in the producer and the loader, and every description this
+        # tree writes is a version 6 one. It was carried here as a
+        # draft for longer than that was true, and joined GOVERNING and
+        # the seal on 2026-08-26.
+        "profile-contract-v6.md",
         "validation-method-v1.md",
     ], specifications
     plans = sorted(
@@ -375,6 +468,13 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         "phase-1-profiler.md",
         "phase-2-generator.md",
         "phase-3-product.md",
+        # The Phase 4 plan, DRAFT under adversarial review: listed here
+        # so the tree stays green while the rounds run, on the phase-0/1
+        # precedent of listed-but-not-governing plans. It joins
+        # dispositions.GOVERNING (and the seal, and the claim
+        # inventory's surfaces) at its ratification, per its own
+        # sequencing item 1.
+        "phase-4-columns.md",
     ], plans
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative
@@ -571,13 +671,55 @@ def test_every_authorization_quotes_the_plan() -> None:
     the authorization list itself is sealed, so a genuine sentence
     quoted beside a fact it says nothing about no longer buys anything.
     """
-    plan = _flat(PLAN)
+    # EVERY PLAN THAT AUTHORIZES ANYTHING, not the Phase 2 plan alone.
+    # Phase 4 authorizes one lesser outcome of its own -- the judged
+    # pass's keys under the version 6 write rule -- and the older plans
+    # are not edited to carry a later phase's sentence, so a check that
+    # read only the first of them would have made the newer
+    # authorization unquotable rather than unauthorized.
+    plans = _flat(PLAN) + " " + _flat(PLAN3) + " " + _flat(PLAN4)
     seen = 0
     for fact in dispositions.REGISTRY:
         for _phrase, words in fact.authorized:
-            assert words in plan, f"{fact.group}/{fact.field}: {words[:60]}"
+            assert words in plans, f"{fact.group}/{fact.field}: {words[:60]}"
             seen = seen + 1
     assert seen >= 4, seen
+
+
+def test_no_two_decisions_of_the_plan_share_an_identifier() -> None:
+    """One number, one decision, in the document that governs.
+
+    REVIEW ROUND 4 OF LANDING L8, item 5. Two decisions were numbered
+    P4-D32 -- the empty-bin ruling and the compound role's disposition
+    settlement -- so a citation of "plan P4-D32" in a comment, a
+    contract row or a registry region had TWO targets, and a reader
+    following one could land on the other. The registry's own region
+    table matched on the whole heading and so stayed green.
+
+    Every decision and every amendment heading of the ratified plan is
+    read here and its identifier must occur once.
+    """
+    text = PLAN4.read_text(encoding="utf-8")
+    seen: "dict[str, list[str]]" = {}
+    for line in text.split("\n"):
+        found = re.match(
+            r"^#{2,3} (Decision|Amendment) ((?:A-)?P4-[A-Z]?\d+(?:\.\d+)?)",
+            line,
+        )
+        if found is None:
+            continue
+        name = found.group(2)
+        seen.setdefault(name, [])
+        seen[name] = seen[name] + [line[:90]]
+    twice = sorted(name for name in seen if len(seen[name]) > 1)
+    assert not twice, (
+        "these identifiers head more than one passage of the ratified "
+        "plan, so a citation of one of them names two things:\n  "
+        + "\n  ".join(
+            f"{name}: " + " | ".join(seen[name]) for name in twice
+        )
+    )
+    assert len(seen) >= 20, len(seen)
 
 
 def test_every_authorization_binds_a_fact_a_region_and_a_class() -> None:
@@ -688,17 +830,28 @@ def test_the_raising_sentences_are_a_real_inventory() -> None:
 
 
 def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
-    """The disposition matrix, read from both versions together.
+    """The disposition matrix, read from the contract that GOVERNS.
 
-    Version 4's section 9 is the whole matrix; version 5 carries it by
-    reference and states only the rows it changes or adds, in its
-    section 11 (its C5-30). Reading version 4 alone would leave every
-    version 5 field undisposed, and reading version 5 alone would leave
-    the other nine tables empty. `dispositions.CONTRACT5_SECTIONS` says
-    which version 4 table each delta row belongs to, and a delta row it
-    does not name stops this reader rather than being filed by guess.
+    That is version 6: `PROFILE_VERSION` is 6, every description this
+    tree writes is a version 6 one, and its section 9 carries the whole
+    matrix rather than a delta. Residual R-P4-25 is what this closes.
+    Until it did, this read version 4's section 9 -- the record of what
+    version 4 disposed, governing nothing shipped -- merged with
+    version 5's delta table, so the agreement it asserted was luck
+    rather than design, and the next fact a version re-disposed would
+    have met it again. Version 4 and version 5 stay in the tree as
+    history, sealed, and are read by nothing that governs.
+
+    Two headings are not `###` lines. A role that shares a numbered
+    section with another states its keys under a bold line naming it
+    alone -- `**``affixed_number``.**` under 9.4, `**``datetime``**`
+    and `**``time_of_day``**` under 9.6, and the three invention roles
+    under 9.7. A bold line naming SEVERAL roles (9.4's
+    "`count` and `continuous`") opens no sub-table, so those rows stay
+    under the numbered heading, which is where `CONTRACT_SECTIONS`
+    looks for them.
     """
-    text = CONTRACT.read_text(encoding="utf-8")
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
     start = text.index("## 9. The disposition matrix")
     body = text[start : text.index("\n## ", start + 10)]
     sections: dict[str, list[tuple[tuple[str, ...], str]]] = {}
@@ -706,11 +859,12 @@ def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
     for line in body.split("\n"):
         if line.startswith("### "):
             heading = line[4:].strip()
-            sections[heading] = []
+            sections.setdefault(heading, [])
             continue
-        if line.startswith("**`") and heading.startswith("9.7"):
-            heading = f"9.7 {line.strip().strip('*').strip('`')}"
-            sections[heading] = []
+        opened = _sub_table(line, heading)
+        if opened is not None:
+            heading = opened
+            sections.setdefault(heading, [])
             continue
         if not line.startswith("|") or not heading:
             continue
@@ -719,21 +873,60 @@ def _matrix() -> "dict[str, list[tuple[tuple[str, ...], str]]]":
             continue
         names = tuple(
             name
-            for name in re.findall(r"`([^`]+)`", cells[0])
+            for name in re.findall(r"`([^`]+)`", _unqualified(cells[0]))
             if name not in dispositions.RUNGS
         )
         if names:
             sections[heading].append((names, cells[1]))
-    for names, said in dispositions.contract5_delta(CONTRACT5):
-        for name in names:
-            where = dispositions.CONTRACT5_SECTIONS.get(name)
-            if where is None:
-                continue
-            rows = sections[where]
-            sections[where] = [
-                (kept, text) for kept, text in rows if name not in kept
-            ] + [((name,), said)]
     return sections
+
+
+# A role named in a parenthetical qualifier is not a field. Version 6's
+# 9.5 reads "`level_ceiling` (`categorical` only)", and reading that
+# cell for backticks names a ROLE as a key of the label group. Only the
+# qualifier is stripped, and it is matched on its own shape rather than
+# on a list of role names -- `count` is both a role and a real sub-key
+# of the `levels` row, so a name-based filter drops a fact the matrix
+# does dispose. That is measured: it did.
+_QUALIFIER = re.compile(r"\(`[a-z_]+` only\)")
+
+
+def _unqualified(cell: str) -> str:
+    """The first cell of a row, as KEY NAMES.
+
+    Two things are stripped, and neither is part of a key. A role
+    named in a parenthetical qualifier -- "`level_ceiling`
+    (`categorical` only)" -- is a scope note. And a trailing `[]`
+    is ARRAY NOTATION: 9.4a writes `parts[]` for the key the
+    producer emits as `parts`, one block per position.
+    """
+    return _QUALIFIER.sub("", cell).replace("[]`", "`")
+
+
+# A bold line that names ONE role and nothing else, which is how the
+# contract opens a role's sub-table inside a shared numbered section.
+# The bold may LEAD a paragraph rather than stand alone -- 9.4's
+# affixed block is `**`affixed_number`.**` followed by its own prose
+# on the same line -- so this matches a prefix. A bold naming two
+# roles does not match it, because the second backtick is not
+# followed by the closing stars.
+_SUB_TABLE = re.compile(r"^\*\*`([a-z_]+)`\.?\*\*")
+
+
+def _sub_table(line: str, heading: str) -> "str | None":
+    """The heading a bold role line opens, or None if it opens nothing.
+
+    The name has to be a role this taxonomy actually has. A bold line
+    naming two roles, or naming something that is not a role, leaves
+    the rows where they are rather than opening a table under a
+    heading no `CONTRACT_SECTIONS` entry could match.
+    """
+    if not heading:
+        return None
+    found = _SUB_TABLE.match(line.strip())
+    if found is None or found.group(1) not in dispositions.ROLES:
+        return None
+    return f"{heading.split()[0]} {found.group(1)}"
 
 
 def _matrix_violations(
@@ -751,7 +944,31 @@ def _matrix_violations(
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         rows = matrix[section]
         stated = {name for names, _text in rows for name in names}
-        owed = {fact.field for fact in registry if fact.group == group}
+        owed = {
+            fact.field
+            for fact in registry
+            if fact.group == group
+            and (fact.group, fact.field)
+            not in dispositions.FACTS_OUTSIDE_THE_CONTRACT_MATRIX
+        }
+        # THE AFFIXED SUB-TABLE RESTATES THE NUMERIC DISPOSITIONS read
+        # over the cores, and those keys stay registered under `numeric`
+        # where the distribution machinery checks them. A first version
+        # of this checked only that each extra NAME was a numeric key,
+        # and review item P4-A1-R1-F2 showed what that misses: lowering
+        # the restated `mean`, `std`, `skew` row to REPORT-ONLY left
+        # both readers green, because the class comparison below looks
+        # up `("affixed", "mean")`, finds nothing and skips the row.
+        # Only the SEAL went red -- and a seal is re-written whenever an
+        # edit is intended, so it is not the net for a LOWERING.
+        #
+        # So the restatement is held to the thing it restates, in both
+        # directions: it must state EVERY numeric key the contract
+        # states, and each restated row must carry the class of the
+        # numeric row it echoes.
+        if group == "affixed":
+            broken = broken + _restatement_violations(matrix, registry)
+            stated = stated - set(_numeric_classes(matrix))
         if stated != owed:
             broken.append(
                 f"{group}: the contract states {sorted(stated - owed)} that "
@@ -787,6 +1004,182 @@ def _matrix_violations(
                             f"{other}, which is not the class the plan's "
                             f"own authorization names"
                         )
+    return broken
+
+
+# The affixed sub-table's cross-reference rows. Two of them carry no
+# disposition word at all and DELEGATE -- "as on `count` and
+# `continuous` above" -- which is the contract keeping ONE source for a
+# class rather than writing it twice. The delegation is resolved
+# mechanically, and losing the phrase is itself a violation, so it
+# cannot quietly become a row that states nothing.
+_DELEGATES = "as on `count` and `continuous` above"
+
+
+def _classes_said(text: str) -> "tuple[str, ...]":
+    """Every disposition class a row states, IN THE ORDER IT STATES THEM.
+
+    The whole sequence, not the head. A row reading "EXACT-OBSERVABLE
+    ... ordinarily; REPORT-ONLY in this corner" states two classes and
+    the second is a lowering; comparing heads alone calls that row
+    equal to a plain EXACT-OBSERVABLE one, which is how review item
+    P4-A1-R2-F1 got a conditional lowering past the first repair.
+    """
+    found: list[tuple[int, str]] = []
+    for word in dispositions.DISPOSITIONS:
+        start = text.find(word)
+        while start != -1:
+            found.append((start, word))
+            start = text.find(word, start + 1)
+    return tuple(word for _where, word in sorted(found))
+
+
+def _numeric_classes(
+    matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
+) -> "dict[str, tuple[str, ...]]":
+    """Every numeric key the contract states, against its class sequence."""
+    found: dict[str, tuple[str, ...]] = {}
+    for names, text in matrix[dispositions.CONTRACT_SECTIONS["numeric"]]:
+        said = _classes_said(text)
+        for name in names:
+            if said:
+                found[name] = said
+    return found
+
+
+# The affixed delegation region's digest, moved deliberately and only
+# after reading what changed. It covers the head prose as well as the
+# table, because the prose governs every row below it and four rounds
+# showed that no vocabulary check can see a lowering written in
+# ordinary words (review item P4-A1-R5-F1).
+#
+# MOVED 2026-09-01 BY LANDING L8 (plan P4-D32). What changed in the
+# region is ONE ROW added to the delegation table --
+# `| `empty_bins` | as on `count` and `continuous` above |` -- carrying
+# the delegation phrase character for character, with no second class
+# word, no conditional clause and no prose beside it. The head prose is
+# untouched. It states no less than the numeric table it delegates to,
+# because it states nothing of its own at all, which is the shape this
+# region requires of every shared key.
+#
+# MOVED 2026-09-04 BY LANDING L9 (plan P4-D35). What changed is that
+# ONE ROW of the delegation table gained a second name --
+# `| `empty_bins`, `empty_edges` | as on `count` and `continuous`
+# above |` -- carrying the same delegation phrase character for
+# character, with no second class word, no conditional clause and no
+# prose beside it. The head prose is untouched. It states no less than
+# the numeric table it delegates to, because it states nothing of its
+# own at all.
+#
+# MOVED 2026-09-04 BY PLAN P4-D36. What changed is THREE ROWS added to
+# the delegation table for the keys that landing added -- the wrapper
+# SET a column may wear, and the two counts of different CORES -- each
+# carrying its own class and its own reason, with no conditional
+# clause and no prose that reaches any other row. The head prose is
+# untouched.
+#
+# MOVED AGAIN 2026-09-08, IN THE SAME LANDING, and this move LOWERS
+# nothing: the row for the two counts of different CORES now names the
+# envelope its own first clause already gave it. It read
+# "EXACT-OBSERVABLE, on the same terms as the column's own two counts
+# of different cells", the column's own counts fall to G12.8's
+# two-sided envelope, and the code held the cores to the exact bar
+# instead -- so one column reported one shortfall as an authorized
+# deviation on the cells and a MISS on the cores. The row now says
+# which terms those are, in the words the registry's authorization
+# rests on. No other row is touched and the head prose is untouched.
+AFFIXED_REGION_DIGEST = (
+    "cfd7462595d96e5b9d112a896288e017ece0805999dfd8f922524cf20398c5de"
+)
+
+
+def _affixed_region() -> str:
+    """The affixed sub-table's whole region: its prose AND its table.
+
+    Review item P4-A1-R5-F1. Closing the CELLS left the head prose
+    open, and a sentence there reaches every cell below it: "For
+    affixed cores, `mean` need only be mentioned in the report" names
+    no disposition and matches no lowering phrase, so both guards
+    stayed green one paragraph above the rows they govern. That is
+    round 4's free-prose attack moved up a level.
+
+    So the region is pinned WHOLE, from the bold that opens it to the
+    next heading. Any edit to it -- prose or table -- has to be made
+    deliberately here, where a reviewer reads the counted difference.
+    """
+    text = MATRIX_CONTRACT.read_text(encoding="utf-8")
+    start = text.index("**`affixed_number`.**")
+    return text[start : text.index("### 9.4a", start)].strip()
+
+
+def _restatement_violations(
+    matrix: "dict[str, list[tuple[tuple[str, ...], str]]]",
+    registry: "typing.Sequence[dispositions.Fact]",
+) -> "list[str]":
+    """The affixed sub-table's shared keys must DELEGATE, not restate.
+
+    THREE CHECKS DIED HERE BEFORE THIS ONE, each beaten by a subtler
+    lowering, and the lesson is the one this project keeps relearning:
+    a fact written in two places will drift, and the fix is to stop
+    writing it twice rather than to compare the copies harder.
+
+    * Round 1 checked the extra NAMES were numeric keys. Lowering the
+      restated `mean`, `std`, `skew` row to REPORT-ONLY passed.
+    * Round 2 compared the class each row HEADS with. Appending
+      "REPORT-ONLY in this corner" passed.
+    * Round 3 compared the whole ordered SEQUENCE of classes. Writing
+      "EXACT-OBSERVABLE (the class named by the numeric citation);
+      APPROXIMATED for every affixed column" passed -- the same
+      sequence as the numeric row, with the condition inverted from
+      "only where spellings cannot supply the count" to "always".
+
+    So a shared key's row now states NO class at all and carries the
+    delegation phrase instead. There is one statement, in the numeric
+    table, and nothing here to disagree with it. What is checked is
+    that the delegation is total: every numeric key the contract states
+    is delegated, and no delegated row smuggles a class word back in.
+    """
+    numeric = set(_numeric_classes(matrix))
+    rows = matrix[dispositions.CONTRACT_SECTIONS["affixed"]]
+    own = {fact.field for fact in registry if fact.group == "affixed"}
+    broken: list[str] = []
+    seen: set[str] = set()
+    for names, text in rows:
+        shared = [name for name in names if name not in own]
+        if not shared:
+            continue
+        seen.update(shared)
+        unknown = sorted(name for name in shared if name not in numeric)
+        if unknown:
+            broken.append(
+                f"affixed: the sub-table states {unknown}, which is neither "
+                f"a key of this role nor a numeric key it delegates"
+            )
+        # A CLOSED SYNTAX, and nothing weaker survived. Checking that
+        # the cell CONTAINS the phrase and no class WORD was beaten by
+        # free prose carrying no class at all -- "as on `count` and
+        # `continuous` above; for affixed cores this value need only be
+        # mentioned in the report" (review item P4-A1-R4-F1). Hunting
+        # the vocabulary instead restarts the contest one synonym, one
+        # lower-case spelling or one Markdown split at a time.
+        #
+        # So the cell must EQUAL the delegation. There is then no room
+        # in it for a second statement of any kind, whatever words it
+        # would have used.
+        if text.strip() != _DELEGATES:
+            broken.append(
+                f"affixed/{sorted(shared)}: the disposition cell of a "
+                f"delegated row must be exactly {_DELEGATES!r} and this "
+                f"one is {text.strip()!r}. Anything beside the delegation "
+                f"is a second statement about a class written in one "
+                f"place, and it can qualify or contradict it"
+            )
+    absent = sorted(numeric - seen)
+    if absent:
+        broken.append(
+            f"affixed: the sub-table no longer delegates {absent}, so those "
+            f"dispositions reach the cores nowhere"
+        )
     return broken
 
 
@@ -1006,6 +1399,7 @@ def test_no_document_states_a_lesser_outcome_for_an_exact_fact() -> None:
         key: statements
         for key, statements in caught.items()
         if key not in dispositions.OPEN
+        and key not in dispositions.HISTORICAL
     }
     assert not undecided, {
         key: [one[:200] for one in statements]
@@ -1203,13 +1597,26 @@ def test_the_ratification_gate_is_not_vacuous() -> None:
 
 
 def _described(
-    folder: pathlib.Path, text: str, declared: "list[str] | None" = None
+    folder: pathlib.Path,
+    text: str,
+    declared: "list[str] | None" = None,
+    measured: "list[str] | None" = None,
 ) -> contract.Profile:
-    """Write a table, describe it with the REAL producer, load it back."""
+    """Write a table, describe it with the REAL producer, load it back.
+
+    `measured` carries `--measurement`, which the JOINED role requires:
+    an undeclared column of two numbers in one cell is not that role,
+    by design (plan P4-D23), so it cannot reach this battery without
+    one (review item P4-A2-R2-F1).
+    """
     path = fixtures.write(folder, "table.csv", text)
     table = reading.read_table(str(path))
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table,
+        taxonomy.Settings(),
+        declared if declared else [],
+        [],
+        measured if measured else [],
     )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
@@ -1231,10 +1638,66 @@ def battery(
     huge.mkdir()
     code = folder / "code"
     code.mkdir()
+    joined = folder / "joined"
+    joined.mkdir()
+    vast = folder / "vast"
+    vast.mkdir()
+    both = folder / "both"
+    both.mkdir()
     return [
         (
             "every role",
             _described(wide, fixtures.every_role_table(), ["record_code"]),
+        ),
+        (
+            # THE FOURTH SURFACE THAT COULD NOT SEE THIS ROLE. Residual
+            # R-P4-62 named three; this battery was the fourth, found by
+            # review item P4-A2-R2-F1 after the other three closed. Its
+            # reach check asked for eight roles and a SUBSET of
+            # `ROLE_GROUPS`, so registering the joined group left it
+            # green while no description it builds carried the role --
+            # and it is the battery that promises every exact fact a
+            # generator misses is reviewed against the registry.
+            "two numbers in one cell",
+            _described(
+                joined,
+                fixtures.joined_numbers_table(),
+                measured=["reading"],
+            ),
+        ),
+        (
+            # THE FIFTEENTH ROLE, brought here by landing L8 for the
+            # same reason the joined one was brought by P4-A2-R2-F1:
+            # this battery promises that every exact fact a generator
+            # misses is reviewed against the registry, and a role no
+            # description here carries is a role whose misses nothing
+            # reviews. The reach check asks for a SUBSET of
+            # `ROLE_GROUPS`, so registering the compound group alone
+            # would have left it green while unexercised.
+            "numbers beside labels",
+            _described(
+                both,
+                fixtures.numbers_with_labels_table(),
+                measured=["reading"],
+            ),
+        ),
+        (
+            # THE SHAPE THIS BATTERY COULD NOT SEE (adversarial round
+            # P4-C1-R4, item 1). This file promises every exact fact the
+            # generator misses is reviewed against the registry, and no
+            # description it built reached a column whose values sit
+            # where a double cannot carry a point -- so `integer_valued`
+            # was missed, named in the twin's report, and never brought
+            # to this check at all. Amendment A-P4-48 is what allows the
+            # line; this entry is what makes the allowance do any work.
+            "numbers past the reach of a fraction",
+            _described(
+                vast,
+                fixtures.single_column_table(
+                    "reading",
+                    ["0"] * 5 + ["0.5"] + ["36028797018963968"] * 995,
+                ),
+            ),
         ),
         (
             "numbers too large to hold",
@@ -1349,8 +1812,38 @@ def test_the_producer_battery_really_exercises_the_report(
     roles = {
         column.role for _case, loaded in battery for column in loaded.columns
     }
-    assert len(roles) >= 8, sorted(roles)
-    assert roles <= set(dispositions.ROLE_GROUPS), sorted(roles)
+    # EXACT EQUALITY AGAINST THE AUTHORITATIVE SET, not a floor and a
+    # named member. A count with a subset test is satisfied by any
+    # battery at all -- that is how registering the joined group left
+    # this green while nothing here built the role -- and naming that
+    # one role fixed the case in front of us while leaving the NEXT
+    # role free to be registered with no fixture behind it (review
+    # items P4-A2-R2-F1 and P4-A2-R3-F5).
+    #
+    # `identifier` is reached through a declaration rather than by any
+    # rule, and `empty` needs a column of nothing; both are in the
+    # every-role table, so the equality below is over the whole
+    # taxonomy and not a chosen subset of it.
+    # THE AUTHORITATIVE SET IS THE TAXONOMY'S OWN, not a list beside it.
+    # Deriving `owed` from `dispositions.ROLES` filtered by
+    # `ROLE_GROUPS` compared two hand-maintained structures against a
+    # third: a role added to the taxonomy and left out of all three
+    # kept every side equal and the check green (review item
+    # P4-A2-R4-F2). `taxonomy.ROLES` is what the product decides roles
+    # from, so it is what this is held to.
+    owed = set(taxonomy.ROLES)
+    assert roles == owed, (
+        "this battery says it covers every role the taxonomy has, and "
+        f"it does not: missing {sorted(owed - roles)}, unexpected "
+        f"{sorted(roles - owed)}"
+    )
+    # ...and the map this file reads is TOTAL over that same set, so a
+    # role cannot be added to the taxonomy and left undisposed here.
+    assert set(dispositions.ROLE_GROUPS) == owed, (
+        "`ROLE_GROUPS` is not total over the taxonomy: missing "
+        f"{sorted(owed - set(dispositions.ROLE_GROUPS))}, unexpected "
+        f"{sorted(set(dispositions.ROLE_GROUPS) - owed)}"
+    )
     lines = _reported(battery)
     assert len(lines) >= 8, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}
@@ -1900,7 +2393,21 @@ def test_the_scan_reaches_every_exact_fact_and_all_three_documents(
         if fact.disposition in dispositions.EXACT
     ]
     assert len(exact) >= 70, len(exact)
-    assert len({fact.group for fact in exact}) == 9
+    # Ten groups: Phase 2's nine, plus `affixed`, whose own facts the
+    # Phase 4 plan disposes because the role did not exist when the
+    # Phase 2 matrix was written.
+    # Eleven since the clock role joined: its four exactly observable
+    # facts are a group of their own, disposed by the Phase 4 plan
+    # rather than by the version 4 matrix, which predates the role.
+    # TWELVE since the JOINED role got a group at all (residual
+    # R-P4-62): seven of its facts are exactly observable, and until
+    # that landing this file registered none of them, so the role that
+    # carries a blood pressure was bound by nothing here.
+    # THIRTEEN since the COMPOUND role landed (residual R-P4-13): the
+    # two counts of its split are exactly observable and are its own,
+    # every other fact such a column publishes being a numeric or label
+    # fact registered under the group whose block carries it.
+    assert len({fact.group for fact in exact}) == 13
     for _name, path in DOCUMENTS:
         assert len(_statements(path)) > 150, path.name
     # ...and every document is really opened by the scan, which a
@@ -1925,6 +2432,249 @@ def test_the_registry_reaches_every_key_the_producer_emits() -> None:
     matrix = _matrix()
     for group, section in dispositions.CONTRACT_SECTIONS.items():
         assert matrix[section], f"{group}: {section} has no rows"
+    # EVERY registered group, with no group standing outside a matrix.
+    # Until residual R-P4-25 closed, `affixed` and `clock` did: version
+    # 4 had neither role, so both were excused here and held to the
+    # Phase 4 plan alone. Version 6 gives each a sub-table and this set
+    # is now the whole registry.
     assert set(dispositions.CONTRACT_SECTIONS) == {
         fact.group for fact in dispositions.REGISTRY
     }
+
+
+# The words this register settles an entry with. A heading carrying any
+# of them is not an open residual, whatever else it says. Checking for
+# CLOSED alone was defeated by "RESOLVED" in review (P4-A1-R3-F3), so
+# the vocabulary is written out and a heading is matched against all of
+# it rather than against one word somebody happened to use.
+_CLOSURE_WORDS = ("CLOSED", "RESOLVED", "SETTLED", "WITHDRAWN", "SUPERSEDED")
+
+
+def test_the_phase_cannot_close_while_the_seal_is_paused() -> None:
+    """A paused control may not outlive the phase that paused it.
+
+    Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the
+    counted re-seal for the rest of Phase 4 and required it re-sealed
+    once at the close. `dispositions.PAUSED_UNTIL_PHASE_CLOSE` says so
+    in a comment, and a comment is not a control -- which is the defect
+    this repository has now met often enough to stop writing.
+
+    So the flag is READ. While it is True, no surface may describe
+    Phase 4 as complete: the close is the act that lifts the pause, and
+    a phase that closed with the pause still standing would leave a
+    governing document unsealed with nothing recording it.
+    """
+    if not dispositions.PAUSED_UNTIL_PHASE_CLOSE:
+        return
+    charter = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    claimed = [
+        line
+        for line in charter.splitlines()
+        if "Phase 4" in line and ("*Complete*" in line or "*Closed*" in line)
+    ]
+    assert not claimed, (
+        "Phase 4 is described as finished while the disposition seal is "
+        "still paused. Re-seal the whole tree and set "
+        "PAUSED_UNTIL_PHASE_CLOSE to False before closing the phase: "
+        + repr(claimed)
+    )
+
+
+# The identifier grammar, declared rather than guessed at. A residual
+# name ends where a character outside this set begins; `.`, `-` and `_`
+# are INSIDE it, so `R-P4-62.1`, `R-P4-62-a` and `R-P4-62_extra` are
+# different names from `R-P4-62` and cannot answer for it. A one
+# character `isalnum()` test admitted all three (review item
+# P4-A1-R5-F3).
+_NAME_CONTINUES = "-_."
+
+# The state a register entry must SAY it is in. Inferring openness from
+# the absence of enumerated closure synonyms was beaten by "FIXED",
+# which is not a synonym anybody had listed -- and the next word would
+# have beaten the list again (review item P4-A1-R5-F2). A positive
+# token cannot be defeated by reaching for another word.
+_OPEN_TOKEN = "— OPEN"
+
+
+def _residual_register() -> str:
+    """The Phase 4 plan's residual register, and nothing else.
+
+    Scanning the whole plan let a bullet written anywhere in it answer
+    for a register entry (review item P4-A1-R4-F4). The register is the
+    P4-D13 section; it ends at the next top-level heading.
+
+    EXACTLY ONE such heading may exist. An earlier duplicate section
+    would shadow the real register, since this stops at the first one
+    (review item P4-A1-R5-F3).
+    """
+    plan = PLAN4.read_text(encoding="utf-8")
+    heading = "## P4-D13. Residuals"
+    found = [
+        line for line in plan.splitlines() if line.strip() == heading
+    ]
+    assert len(found) == 1, (
+        f"the plan carries {len(found)} '{heading}' headings; the residual "
+        "register has to be one anchored section, or an earlier duplicate "
+        "shadows the real one"
+    )
+    start = plan.index(heading)
+    return plan[start : plan.index("\n## ", start + 10)]
+
+
+def _register_entries(register: str, residual: str) -> "list[str]":
+    """Every WHOLE entry of the register opening with this exact name.
+
+    What comes back is each entry's HEADING -- the bold run the entry
+    opens with, read across line breaks, which is where this register
+    puts an entry's state. Reading the whole block instead is wrong in
+    the other direction: an entry's body legitimately says that OTHER
+    residuals are closed, and that is not this entry's state.
+
+    A heading split over two lines is still read whole, which is the
+    bypass a line-anchored capture had (review item P4-A1-R4-F4). The
+    name boundary is exact, so `R-P4-62a` cannot answer for
+    `R-P4-62`.
+    """
+    found: list[str] = []
+    opening = f"- **{residual}"
+    for piece in register.split("\n- **")[1:]:
+        whole = "- **" + piece
+        if not whole.startswith(opening):
+            continue
+        rest = whole[len(opening) :]
+        if rest[:1].isalnum() or rest[:1] in _NAME_CONTINUES:
+            # `R-P4-62a`, `R-P4-62-a`, `R-P4-62_extra` and `R-P4-62.1`
+            # are all different names from `R-P4-62`.
+            continue
+        close = whole.find("**", len("- **"))
+        heading = whole if close == -1 else whole[: close + 2]
+        found.append(" ".join(heading.split()))
+    return found
+
+
+def test_the_affixed_delegation_region_is_pinned_whole() -> None:
+    """The delegation's PROSE is as normative as its cells, so it is pinned.
+
+    Four rounds beat four checks on the cells (names, head class word,
+    ordered class sequence, free prose beside the delegation), and the
+    cells were closed to exactly the delegation phrase. Round 5 then
+    put the same attack one paragraph up: a sentence in the head prose
+    that lowers every row below it while naming no class at all.
+
+    A vocabulary check cannot see that sentence -- that is what the
+    previous four rounds demonstrated -- so the region is pinned by its
+    own digest instead. Changing it is a deliberate act with a counted
+    difference, which is exactly what the disposition seal asks of
+    every governing passage; this is the same discipline applied to one
+    region that has repeatedly been the target.
+    """
+    digest = hashlib.sha256(
+        _affixed_region().encode("utf-8")
+    ).hexdigest()
+    assert digest == AFFIXED_REGION_DIGEST, (
+        "the affixed delegation region changed. Its CELLS are checked "
+        "mechanically, but its prose governs every row below it and no "
+        "vocabulary check can see a lowering written in ordinary words "
+        "(review item P4-A1-R5-F1). Read the difference, satisfy "
+        "yourself it states no less than the numeric table it delegates "
+        f"to, then move this digest in the same commit: {digest}"
+    )
+
+
+def test_every_matrix_table_is_claimed_by_a_registry_group() -> None:
+    """A table the readers parse and nothing visits is not coverage.
+
+    Review item P4-A1-R1-F1. Pointing the readers at version 6 made
+    them parse section 9.4a, the joined role's own table -- and no
+    group maps to it, so its eight rows are read and then checked by
+    nothing. Deleting its `part_agreements` row, or lowering it from
+    APPROXIMATED, moves no guard. The completeness walk cannot expose
+    it either, because `reached == set(ROLE_SECTIONS)` compares the
+    fixture against the map rather than against the contract.
+
+    Before the migration the section was not parsed at all and the hole
+    was equally open; what changed is that it now LOOKS covered. So the
+    gap is named, with the residual that owes it, and this test is what
+    stops a second one being added in silence.
+    """
+    claimed = set(dispositions.CONTRACT_SECTIONS.values())
+    named = set(dispositions.SECTIONS_NO_GROUP_CLAIMS)
+    orphaned = {
+        heading
+        for heading, rows in _matrix().items()
+        if rows and heading not in claimed
+    }
+    assert orphaned == named, (
+        "a matrix table is parsed and visited by no registry group: "
+        f"{sorted(orphaned - named)}; and these are named as unclaimed "
+        f"but are not: {sorted(named - orphaned)}"
+    )
+    # Every excuse cites a residual that is still OPEN, and this is
+    # STRICT about the region, the identity and the state. Four
+    # versions were beaten first (review items P4-A1-R2-F5,
+    # P4-A1-R3-F3, P4-A1-R4-F4):
+    #
+    #   * checking the number appears anywhere stayed green forever,
+    #     because a closure rewrites the heading and leaves the
+    #     original text underneath;
+    #   * checking the heading for "CLOSED" was beaten by "RESOLVED";
+    #   * scanning the WHOLE PLAN let an open-looking bullet anywhere
+    #     answer for a register entry that had been closed, and
+    #     capturing one physical line let a heading split across two
+    #     lines hide its own closure word;
+    #   * a bare name boundary let `R-P4-62a` answer for `R-P4-62`.
+    #
+    # So: the P4-D13 register REGION only, the WHOLE bullet block, an
+    # exact identifier boundary, and exactly one canonical entry whose
+    # state must be OPEN.
+    register = _residual_register()
+    for heading, residual in dispositions.SECTIONS_NO_GROUP_CLAIMS.items():
+        entries = _register_entries(register, residual)
+        assert len(entries) == 1, (
+            f"{heading} is excused by {residual}, and the P4-D13 register "
+            f"carries {len(entries)} entries for that exact name. An excuse "
+            "has to point at one canonical entry, or a closed one can "
+            "answer for an open one"
+        )
+        assert _OPEN_TOKEN in entries[0], (
+            f"{heading} is excused by {residual}, whose register entry "
+            f"does not SAY it is open. Its heading is {entries[0][:90]!r} "
+            f"and it has to carry {_OPEN_TOKEN!r}. Openness is asserted "
+            "rather than inferred: reading the absence of closure words "
+            "was beaten by a word nobody had listed"
+        )
+        settled = [
+            word for word in _CLOSURE_WORDS if word in entries[0].upper()
+        ]
+        assert not settled, (
+            f"{heading} is excused by {residual}, whose register entry is "
+            f"marked {settled} while also claiming to be open -- the "
+            "heading contradicts itself"
+        )
+    """A paused control may not outlive the phase that paused it.
+
+    Owner ruling 2026-08-26 (plan amendment A-P4-46.2) paused the
+    counted re-seal for the rest of Phase 4 and required it re-sealed
+    once at the close. `dispositions.PAUSED_UNTIL_PHASE_CLOSE` says so
+    in a comment, and a comment is not a control -- which is the defect
+    this repository has now met often enough to stop writing.
+
+    So the flag is READ. While it is True, no surface may describe
+    Phase 4 as complete: the close is the act that lifts the pause, and
+    a phase that closed with the pause still standing would leave a
+    governing document unsealed with nothing recording it.
+    """
+    if not dispositions.PAUSED_UNTIL_PHASE_CLOSE:
+        return
+    charter = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    claimed = [
+        line
+        for line in charter.splitlines()
+        if "Phase 4" in line and ("*Complete*" in line or "*Closed*" in line)
+    ]
+    assert not claimed, (
+        "Phase 4 is described as finished while the disposition seal is "
+        "still paused. Re-seal the whole tree and set "
+        "PAUSED_UNTIL_PHASE_CLOSE to False before closing the phase: "
+        + repr(claimed)
+    )

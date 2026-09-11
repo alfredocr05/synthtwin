@@ -4,8 +4,8 @@ This document states what synthtwin defends against, how each defense is
 built, what it deliberately does not defend against, and how an outside
 auditor can check every claim. It commits only to what the built phases
 can demonstrate - Phase 0's security baseline, Phase 1's profiler,
-Phase 2's generator and Phase 3's validator; anything that arrives in a
-later phase is tagged **[planned]**.
+Phase 2's generator, Phase 3's validator, and what Phase 4 has built so
+far; anything that arrives in a later phase is tagged **[planned]**.
 
 ## Threat model, in plain language
 
@@ -116,6 +116,123 @@ The layers:
 
 Stated here so that no reader has to discover them independently:
 
+- **THE SMALL-CELL FLOOR DEFAULTS TO ONE, and that is a decision
+  rather than an oversight** (owner ruling 2026-09-03). At a floor of
+  one every distinct value of a label-published column is published as
+  its own level, with its count. On a 300-row column of readings that
+  is 177 of them. The owner's reasoning, recorded in their words:
+  knowing that a piece of information is present is not the privacy
+  question; the privacy question is knowing that EVERYTHING is present,
+  and whose row it is.
+
+  **The structure that carries that reasoning** is worth stating,
+  because it is what makes the floor defensible and it is not a claim
+  about how much is published. A description is a set of PER-COLUMN
+  facts. It records that a column holds `20.4` and how many rows do.
+  It does not record WHICH row, and it does not record what that row
+  holds in any other column. So a description shows a reader the shape
+  of each column on its own, and no person can be assembled out of
+  them: the
+  thing that identifies is the joining of one row's values across
+  columns, and no description carries it.
+
+  **The two qualifications, so nobody has to find them.** First, the
+  joined role publishes facts about how the positions INSIDE one cell
+  move together -- `part_above` and `part_agreements` -- so within a
+  single cell the parts are related to each other. That is a joint fact
+  and it is the only one; it does not reach across columns. Second, a
+  value that is unique in the world identifies a person by itself
+  wherever a reader already knows who holds it, and the floor is what
+  a person raises when their table has such values. The owner's ruling
+  of 2026-08-31 that a rare finding must reach the twin is the other
+  half of that trade and is recorded with it.
+
+  Raising the floor is one setting, `--smallest-group`, and it changes
+  what is published rather than what the twin is for. A person whose
+  table needs it should raise it.
+
+  **THE SAME RULING COVERS A PERCENTILE LADDER** (owner, 2026-09-03,
+  extending the above). Describing a column's numbers puts some of
+  those numbers into the description verbatim, and that is true of
+  every numeric column this tool has ever described. It became visible
+  on a new one: a column of readings beside a repeated marker used to
+  be described as labels and published none of its readings, and the
+  compound role now describes its numeric half. The reasoning is the
+  reasoning above — the description records that the column holds
+  `1.7` and where in its order it sits, not which row holds it and not
+  what that row holds anywhere else.
+
+  **HOW MANY OF THOSE NUMBERS THERE REALLY ARE, corrected here
+  (2026-09-04).** This paragraph used to say a ladder is made of order
+  statistics and its rungs are values the column really holds. That is
+  true of `min` and `max` and NOT of the nine rungs between them: the
+  interior rungs of a NUMERIC ladder are INTERPOLATED between the two
+  order statistics on either side, and on most columns most of them
+  are numbers no cell of the column holds. Measured on six columns of
+  17 to 250 drawn values, between three and nine of the nine interior
+  rungs were held by no cell. So a numeric ladder puts TWO exact
+  values into a description, not eleven, and a sentence resting on
+  eleven was resting on the wrong number. A DATE ladder and a CLOCK
+  ladder are different and were measured the same way: every rung of
+  either lands on a real value, so those roles do publish eleven.
+
+  **AND `empty_edges` PUTS MORE THERE, which is stated with its real
+  ceiling rather than by comparison** (owner ruling 2026-09-04, plan
+  P4-D35). For each run of bins a column leaves empty, the description
+  names the largest value the column holds below the run and the
+  smallest above it, and both are values of real cells. The ceiling
+  was computed and then reached on purpose. A reach is divided into
+  thirty-two bins; the first and the last always hold the two
+  endpoints, so at most fifteen of the thirty between them can be
+  empty runs — runs are separated by at least one occupied bin. So a
+  numeric block carries **at most fifteen pairs and thirty exact
+  values**, and they can all be different: a 32-row column occupying
+  bins 0, 2, 4 … 28 with TWO values each and bins 30 and 31 with one
+  each publishes fifteen pairs naming thirty distinct values, and with
+  the two endpoints the ladder publishes beside them **the description
+  then names every value that column holds**.
+
+  **AND THE BLOCK-WIDE COUNT IS LARGER THAN EITHER OF THEM.** Three
+  keys of a numeric block name values of real cells: the ladder's two
+  ENDPOINTS, this key's thirty, and `mode` — the number the column
+  holds most often, which is a real value too. So the ceiling for one
+  numeric block is **thirty-three distinct values**, and the sparse
+  construction reaches it: add a value held twice to the 32-row column
+  above and the description names every value it holds plus the
+  commonest one.
+
+  On a dense column there is usually no run at all and so no value
+  here, and that is the ordinary case. `--smallest-group` does not
+  reduce this key: like the empty bins it stands with, it is published
+  at every floor. (`mode` is floor-governed and is withheld where the
+  commonest value is held by fewer cells than the smallest group
+  size.)
+
+  **THE OWNER WAS SHOWN THAT CEILING AND KEPT THE KEY** (2026-09-04,
+  reaffirming their rulings of 2026-08-31 and 2026-09-03). Their
+  ground, in their own terms: a value with no row attached, no date
+  beside it and nothing else from that row is a fact about a
+  DISTRIBUTION and not about a person. A haemoglobin of 13 in a
+  description says some row of that column held 13 — not who, not
+  when, not what their other columns held, and not whether they are
+  one of this reader's patients. **That is true of the sparse case
+  too**, which is the case worth stating plainly: naming every value a
+  small column holds names the column's whole SET of values, and
+  still names no row, no order, no pairing with any other column and
+  no time. This document's threat model already says statistical
+  disclosure is out of scope and that synthtwin offers no formal
+  privacy guarantee; the ruling is inside that model rather than an
+  exception to it.
+
+  **WHAT WOULD CHANGE THE ANSWER, stated so a later reader knows what
+  the ruling does not cover.** It is a ruling about values standing
+  ALONE. A key that tied two of them together — the same row's
+  haemoglobin and creatinine, a value and its date, a value and its
+  rank among named rows — is a different fact and is not covered by
+  it. The joined role's `part_above` and `part_agreements` are the
+  only joint facts this format carries and they live inside ONE cell,
+  which is why they are named separately in section 12.3.
+
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is
   handed the profile and a seed and nothing else: it reads no source
@@ -133,11 +250,12 @@ Stated here so that no reader has to discover them independently:
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,
-  as the threat model above says. And all five files a full run
+  as the threat model above says. And all six files a full run
   produces - the profile, the plain-language summary beside it, the
-  twin, the twin's report and the quality report - carry facts computed
-  from real data, so the institution's rules for real-derived material
-  apply to all five, never to the profile alone. Two of the five are
+  questions file, the twin, the twin's report and the quality report -
+  carry facts computed from real data, so the institution's rules for
+  real-derived material apply to all six, never to the profile alone.
+  Two of the six are
   easy to overlook, and they are named rather than left to be worked
   out. The quality report states counts and measurements taken from the
   file it checked, so a verdict travels under the same rules as the
@@ -162,14 +280,56 @@ Stated here so that no reader has to discover them independently:
   surface of this project may describe it as present before it is.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
-  `small_cell_floor` rows share (11 by default), the smallest and
-  largest values of numeric columns and the points between them, and
-  counts about groups nobody is named in. Handle it under your
+  `small_cell_floor` rows share, the smallest and largest values of
+  numeric columns and the points between them, and counts about groups
+  nobody is named in. **`small_cell_floor` is 1 by default** (owner
+  ruling 2026-08-25), so by default it publishes every label the table
+  holds together with how many rows shared it - including a label one
+  row held. What that discloses is that somebody in the table had that
+  value: this version publishes nothing that crosses two columns, so it
+  says nothing about who, or about anything else in that person's row.
+  Where your review board or a data-use agreement requires that no
+  published group can point at one person, `--smallest-group 11` pools
+  everything below eleven rows and the whole workflow runs on the
+  result. Handle it under your
   institution's rules for real-derived material - together with the
   plain-language summary beside it, the twin, the twin's report and the
   quality report, per the entry above. Profile version 4 widened what it
   carries in exactly two ways, and each gets its own entry below rather
   than a clause here.
+- **A column of writing can now publish a sentence it repeats** (plan
+  P4-D5, owner decision 1). Until the `long_tail_labels` rule, a column
+  holding mostly one-off text published no value of itself at all. Now
+  a column past the categorical ceiling that still shares one of its
+  values with at least eleven rows publishes THAT value, spelled as the
+  file wrote it, with its count -- so a free-text column of clinical
+  notes in which eleven rows hold the same sentence names that sentence
+  in the profile and in the summary beside it.
+
+  **Eleven ROWS is not eleven people, and this is where that is said.**
+  The floor counts rows, and the grain of the table is undescribed:
+  eleven repeated cells can be eleven records of one person. The
+  charter states that caveat for every floor-guarded fact; it now
+  guards sentences, which can carry more of a person than a label does.
+  Judge a column of writing on what its repeated sentences say, not on
+  the count alone.
+
+  What the rule does NOT do: it cannot be reached by lowering the
+  floor. The detection line is the floor or eleven, whichever is
+  larger, so a column with no eleven-row value stays free text at every
+  floor, and no VALUE of it is published at any floor. What such a
+  column does publish, since synthtwin gained the written-form census,
+  is the SHAPE its cells were written in where enough of them shared
+  one -- an all-different column of laboratory codes says that four
+  hundred of its cells were four figures, a hyphen and a figure. A
+  shape carries no letter and no figure of any cell: it is spelled from
+  two placeholder characters and a closed list of marks, none of which
+  a cell that has a shape may contain, so a shape is never a spelling
+  any value of yours could wear. It is governed by the same small-cell
+  floor as every other count. Raising the floor can only take
+  columns OUT of the class. And the summary printed before anything is
+  written lists every column whose labels will be visible, long-tail
+  columns included -- read it there, before the files exist.
 - **The quality report withholds numbers from its reader; it does not
   hide them from whoever holds the file** (owner ruling 2026-08-14;
   Phase 3 plan amendment A-P3-13, carried into the validation method as
@@ -277,14 +437,43 @@ Stated here so that no reader has to discover them independently:
   version 4 the settings block carried a declaration as a COUNT and
   never as text, because a declared value is compared against every cell
   of every column and could be data. **From version 5 it also names
-  which members of a thirteen-member list synthtwin publishes in its own
-  contract were among the values you typed** - ten spellings it reads as
-  "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`, `na`,
-  `nan`, `none`, `null`) and three stand-in numbers (`-9999`, `-999`,
-  `9999`).
+  which members of a twenty-three-member list synthtwin publishes in its
+  own contract were among the values you typed** - eighteen spellings it
+  reads as "no value" (the empty spelling, `-`, `--`, `.`, `?`, `n/a`,
+  `na`, `nan`, `none`, `null`, the seven spreadsheet error literals
+  `#DIV/0!`, `#N/A`, `#NAME?`, `#NULL!`, `#NUM!`, `#REF!` and `#VALUE!`,
+  and `NaT`), three stand-in numbers (`-9999`, `-999`, `9999`) and two
+  placeholder days (`1900-01-01`, `9999-12-31`).
+
+  **The list grew from thirteen to twenty-one at Phase 4** (plan
+  P4-D6.2, owner ruling 2026-08-19), and the eight it grew by are
+  machine artifacts: seven spreadsheet error literals and the
+  absent-time literal a common data library writes. Every one of the
+  seven has a folded form no human word collides with, which is the
+  criterion that keeps words like `unknown` out. `NaT` does NOT meet
+  that criterion - its folded form is a person's name - so it is the
+  list's one EXACT-SPELLING member: it reads as "no value" only on a
+  cell that is exactly those three characters, with no spaces around it
+  and the capitals as written, so a column of names cannot be hollowed
+  by it. What the eight buy: a column of numbers with a few artifact
+  cells stops losing its whole distribution, so the twin of it is a
+  column of numbers rather than text. The route for a table where an
+  artifact really is data is unchanged: `--keep-value`.
+
+  **AND `--keep-value` NOW COSTS SOMETHING IT DID NOT COST BEFORE, said
+  here rather than left to be discovered** (residual R-P4-148, closed
+  by the owner's ruling of 2026-09-03). A column of readings beside a
+  word you kept as real data used to be described as LABELS: the word
+  was published with its count and not one reading appeared anywhere.
+  The compound role describes such a column as what it is, so its
+  numeric half now carries a mean, a spread and a percentile ladder --
+  and a ladder's rungs are values the column really holds. Nothing
+  about which ROW holds a reading is published, and the ruling above
+  covers the rest; what changed is that this option's page now has a
+  distribution behind it where it used to have none.
 
   **What that gives up, at its size.** A reader of the settings block
-  is told which of those thirteen fixed words were typed, and nothing
+  is told which of those twenty-three fixed words were typed, and nothing
   else. The field carries no count of cells, no column and no row; the
   MEMBER's spelling is written and never yours, so if you typed `" N/A "`
   the settings hold `n/a` and your spacing and capitals do not travel;
@@ -294,7 +483,7 @@ Stated here so that no reader has to discover them independently:
   people usually type a word because it is in their table, so a version 5
   settings block makes available a guess a version 4 settings block made
   only coarsely - not "one value was rescued" but "the value rescued was
-  one of these thirteen". **The word guessed at THERE can never be a
+  one of these twenty-three". **The word guessed at THERE can never be a
   name, a code, a diagnosis or a free-text answer, because a value
   outside that list is written nowhere in the settings.** That is a
   statement about the settings block and about nothing else in the
@@ -302,7 +491,7 @@ Stated here so that no reader has to discover them independently:
   it is not a corner case.
 
   **What is not relaxed.** A declared value that is not one of the
-  thirteen is still recorded nowhere IN THE SETTINGS. Every publication
+  twenty-three is still recorded nowhere IN THE SETTINGS. Every publication
   class is unchanged: a column of record numbers, free text or
   unrepresentable numbers still publishes no value of the table. Every
   floor rule is unchanged. No column block publishes a fact version 4 did
@@ -323,7 +512,7 @@ Stated here so that no reader has to discover them independently:
   (review item P3-V9-F1; Phase 3 plan amendment A-P3-31). This is the
   one bullet in this section that corrects a false assurance rather than
   disclosing a new one, so it says the correction first: **a value
-  outside synthtwin's thirteen published words is written nowhere in the
+  outside synthtwin's twenty-three published words is written nowhere in the
   SETTINGS BLOCK, and that was never a statement about the whole
   document.** Two bullets above said it as though it were, and the
   profile's own summary page told the reader the same thing while
@@ -383,6 +572,79 @@ Stated here so that no reader has to discover them independently:
   although neither alone did; version 5 counts each on its own, so it
   names fewer groups there. Every page a person reads prints the same
   characters it printed before.
+- **Version 6 describes HOW each column is written, not only what it
+  holds** (Phase 4; contract 6 section 12.2, which is the authority
+  this entry summarizes). Version 5's entries above stop at the reading
+  of a cell. Version 6 adds shape. Each family is priced separately
+  because they are not alike:
+
+  * **Censuses of WRITTEN FORM** — `shape_forms` on the label roles and
+    on `free_text`, the style census, the fraction-width census, the
+    padded-field-width census and the whole-number field-width census
+    on the ranges roles. **What they add:** how many cells were written
+    each way — five characters wide, two decimal places, a leading
+    zero. Every key of a form census is built only from `%`, `@` and
+    the fixed mark list `parsing.SHAPE_MARKS`, whose members are
+    characters no cell that HAS a form may contain, so **a key can
+    carry no letter and no figure of any cell**. The list is named
+    rather than counted here, because a count restated on a second
+    surface is a count that goes stale there. All of them are
+    floor-governed with a `(withheld)` pool.
+  * **`shape_form_cells`** — for a PUBLISHED label, how many of its
+    rows wrote it in that label's own shape. It names no spelling and
+    no form key, and it is **not** floor-governed, because it counts
+    the rows of a label the floor has already admitted. What a reader
+    can take from it is which held-back group of that level was written
+    in the label's shape: presence and shape attached to an unnamed
+    group. That is a widening of the three held-back facts beside it,
+    and it is the owner's ruling of 2026-08-31 (plan amendment
+    A-P4-47), on the ground that a code's shape identifies nobody while
+    category columns are what analysis code is written against.
+  * **The empty stretches of a numeric range** — `empty_bins` and
+    `empty_edges`. **What they add:** where the column has NO value.
+    `empty_bins` is the one published fact of this format that names
+    only where nobody is; `empty_edges` names the two values a stretch
+    lies between and no group at all. Neither is under any floor, and
+    the contract prices both in its own rows 20 and 21.
+  * **More of the distribution** — `value_histogram`, `mode` and
+    `mode_count`, `percentiles_between`, `n_distinct_values`, and on
+    `numeric_unrepresentable` the two length bounds. **What they add:**
+    a mode is an exact value of real cells, as the endpoints already
+    were; the rest are counts and interpolated positions. A NUMERIC
+    ladder's nine interior rungs are interpolated between the order
+    statistics either side and are usually numbers no cell holds; the
+    two ENDPOINTS are exact values of real cells, as they were in every
+    earlier version.
+  * **The roles Phase 4 added carry their own shape** — the affix pair
+    on `affixed_number` (floor-governed by its own detection rule), and
+    on `joined_numbers` the separator, the part and split counts, each
+    position's written-width bounds and the two pairing aggregates. The
+    aggregates are floor-free: they are computed over every row and
+    name no cell. The affix pair and the separator are TEXT OF THE
+    TABLE and are governed by their roles' detection rules, which is
+    stated here rather than left in the contract because they are the
+    two places version 6 publishes a spelling version 5 did not.
+
+  **What none of it changes:** no cell of a nothing-publishing column
+  is published, the floor still governs every named spelling except
+  where this entry says otherwise, and the description still carries no
+  fact that crosses two columns. The authority is contract 6 section
+  12, which prices every row of the inventory; this entry exists so
+  that an institution reading THIS document is not told less than the
+  contract says.
+
+- **A sixth file: the questions file** (plan amendment A-P4-58). Every
+  `synthtwin profile` run writes `<table>-questions.json` beside the
+  description. **What it carries:** the names of columns whose reading
+  the values cannot settle, a count of their cells, and a description
+  of the SHAPE of what they hold — how many figures, how many padded,
+  what separates two numbers. **It carries no value of the table**,
+  which is a narrower promise than being anonymous and is stated at
+  that width. It is written on every run rather than only where a
+  column was ambiguous, so the handling rule that names the files a run
+  leaves behind needs no conditional form. Like the other five, it is
+  real-derived material and travels under the same rules.
+
 - **OS-transparent network mounts.** If the operating system presents a
   network share as an ordinary local path, no portable program can
   detect that. Mount configuration is part of your environment, not

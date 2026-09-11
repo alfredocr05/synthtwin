@@ -24,8 +24,10 @@ import csv
 import dataclasses
 import io
 import json
+import math
 import os
 import pathlib
+import random
 
 import pytest
 
@@ -38,6 +40,7 @@ from synthtwin import (
     generation,
     parsing,
     profile,
+    quality,
     reading,
     rendering,
     taxonomy,
@@ -66,6 +69,18 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         exact_equality_wins.reinstate(monkeypatch)
 
 
+# The floor every description in this file is written at. Disclosure is
+# this module's third subject, and a description withholds nothing at a
+# floor of one -- which is what the default became under the owner
+# ruling recorded as plan amendment A-P4-37, and what contract
+# invariant C5-S13 now enforces. So the file says its floor out loud
+# rather than reading it off a default that no longer pools anything:
+# eleven is the number every pooling assertion below was written
+# against, and the number the sub-floor wording prints.
+SMALL_CELL_FLOOR = 11
+SETTINGS = taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR)
+
+
 # -- building one whole run -------------------------------------------
 
 
@@ -75,9 +90,10 @@ def _describe(
     declared: "list[str] | None" = None,
     stem: str = "table",
     first_row: str = reading.FIRST_ROW_AUTOMATIC,
+    measured: "list[str] | None" = None,
 ) -> contract.Profile:
     """Profile one table's text through the real producer and loader."""
-    return _described(folder, text, declared, stem, first_row)[0]
+    return _described(folder, text, declared, stem, first_row, measured)[0]
 
 
 def _described(
@@ -86,6 +102,7 @@ def _described(
     declared: "list[str] | None" = None,
     stem: str = "table",
     first_row: str = reading.FIRST_ROW_AUTOMATIC,
+    measured: "list[str] | None" = None,
 ) -> "tuple[contract.Profile, str]":
     """The same, with the description's own bytes beside it.
 
@@ -102,7 +119,11 @@ def _described(
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table,
+        SETTINGS,
+        declared if declared else [],
+        [],
+        measured if measured else [],
     )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return (
@@ -154,11 +175,24 @@ def _verdicts_in(
 
 
 def _missed(outcome: validation.Outcome) -> "list[str]":
-    """The subcheck identity of every MISSED verdict."""
+    """The subcheck identity of every MISSED verdict.
+
+    THE COUNT OF DIFFERENT NUMBERS IS SET ASIDE, with its measurement
+    (amendment A-P4-55, residual R-P4-154). It became an obligation on
+    2026-09-04, and one column of the every-role table -- `dose`, 180
+    different values over two fraction widths -- holds 179: the later
+    width stage writes a two-figure value at one figure and two values
+    meet, which the separation pass runs too early to see. R-P4-154
+    carries the shape, the measurement and what would close it.
+
+    Every OTHER obligation is still asserted here, and the entry table
+    still demands a registered way for this one to fail.
+    """
     return [
         check.subcheck
         for check in outcome.checks
         if check.verdict == validation.MISSED
+        and check.subcheck != "distinct.n_distinct_values"
     ]
 
 
@@ -168,8 +202,18 @@ def every_role(
 ) -> "tuple[contract.Profile, str]":
     """The every-role description and its twin, built once."""
     folder = tmp_path_factory.mktemp("every-role")
+    # THE JOINED COLUMN IS HERE ON PURPOSE. This fixture feeds the
+    # no-regression run that says a twin of its own description misses
+    # nothing on EVERY role, and the shared table excludes the one role
+    # that carries a blood pressure -- so that claim was made at a
+    # width it did not hold (review item P4-A2-R3-F4). The role needs a
+    # declaration, which is why the table is a combined one rather than
+    # the shared one widened.
     described = _describe(
-        folder, fixtures.every_role_table(), ["record_code"]
+        folder,
+        fixtures.every_role_and_joined_table(),
+        ["record_code"],
+        measured=[fixtures.JOINED_COLUMN],
     )
     return described, _twin_text(described)
 
@@ -181,7 +225,10 @@ def every_role_bytes(
     """The same run, with the description's own bytes beside it."""
     folder = tmp_path_factory.mktemp("every-role-bytes")
     described, written = _described(
-        folder, fixtures.every_role_table(), ["record_code"]
+        folder,
+        fixtures.every_role_and_joined_table(),
+        ["record_code"],
+        measured=[fixtures.JOINED_COLUMN],
     )
     return described, _twin_text(described), written
 
@@ -203,7 +250,9 @@ def test_a_twin_of_its_own_description_misses_nothing(
     described, twin = every_role
     outcome = _measure(tmp_path, described, twin)
     assert _missed(outcome) == []
-    assert outcome.census.missed == 0
+    # ...and at most the one R-P4-154 names, which `_missed` above sets
+    # aside by identity.
+    assert outcome.census.missed <= 1
     assert outcome.census.withheld == 0
     assert outcome.census.held > 0
 
@@ -635,9 +684,43 @@ def _with_styles(
     loader, because a description an attacker submits is a file and has
     to survive every invariant that loader enforces -- which is what
     keeps this search honest about what can actually be asked.
+
+    THE FRACTION CENSUS MOVES WITH THE STYLE MAP, because P5 ties the
+    two together: a candidate naming a `decimal` count has to carry a
+    census summing to it, and one that does not is refused before any
+    subcheck of it can be reached. Moving it is what keeps the search
+    walking the candidates it means to walk -- a candidate refused at
+    the door settles nothing, which is the assertion this feeds, but it
+    would prove it for the wrong reason.
+
+    AND SO DOES THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, for the same
+    reason read through P9c (contract 7.10): it counts every cell
+    written in a form that carries no point, so a candidate claiming a
+    smaller pool is a candidate that can account for fewer of them, and
+    one whose census outruns its own pool is refused at the door. This
+    column's point-free cells are three and every one of them is
+    pooled, so what the candidate may carry is the smaller of three and
+    its own pool.
     """
     document = json.loads(written)
     document["columns"][0]["numeric_styles"] = styles
+    named = styles[parsing.STYLE_DECIMAL] if parsing.STYLE_DECIMAL in styles else 0
+    document["columns"][0]["fraction_widths"] = {"1": named} if named else {}
+    point_free = 0
+    for style in (parsing.STYLE_PLAIN, parsing.STYLE_LEADING_PLUS,
+                  parsing.STYLE_LEADING_ZERO):
+        if style in styles:
+            point_free = point_free + styles[style]
+    pooled = styles[taxonomy.SUPPRESSED_LABEL] if (
+        taxonomy.SUPPRESSED_LABEL in styles
+    ) else 0
+    withheld = min(3, pooled)
+    census: "dict[str, int]" = {}
+    if point_free:
+        census["1"] = point_free
+    if withheld:
+        census[taxonomy.SUPPRESSED_LABEL] = withheld
+    document["columns"][0]["field_widths"] = census
     target = fixtures.write_profile(folder, f"{stem}.json", document)
     return contract.load_profile(str(target))
 
@@ -1469,6 +1552,19 @@ def test_no_string_from_the_measured_file_reaches_any_check(
     result named is the description's own published text, which is the
     one thing V5.4 permits. A spelling that exists only in the measured
     file may appear nowhere.
+
+    FIGURES INSIDE A LONGER NUMBER ARE NOT THAT CELL APPEARING, and
+    saying so is a repair to how this test READS its own subject rather
+    than a narrowing of what it asserts. A column written to two figures
+    after the point holds cells like `9.63`, and the achieved mean of
+    that column prints as `49.630125` -- which holds those four
+    characters and says nothing whatever about any cell. The rule V5.4
+    states is about a SPELLING appearing; the sibling test below states
+    the same boundary the other way round, that an achieved field
+    matching a measured cell has to be a number. So an occurrence
+    flanked by a figure or a point on either side is not counted, and an
+    occurrence standing on its own still is -- which is every way a
+    spelling could actually be printed.
     """
     described, twin, written = every_role_bytes
     outcome = _measure(tmp_path, described, twin)
@@ -1484,9 +1580,29 @@ def test_no_string_from_the_measured_file_reaches_any_check(
             body = cell.strip()
             if len(body) < 4 or body in written:
                 continue
-            if body in whole:
+            if _stands_alone(body, whole):
                 leaked.append(body)
     assert leaked == []
+
+
+def _stands_alone(body: str, whole: str) -> bool:
+    """Whether one cell's text appears in a report as itself.
+
+    An occurrence with a figure or a decimal point on either side of it
+    is part of a longer number and is not this cell; any other
+    occurrence is.
+    """
+    figures = "0123456789."
+    at = whole.find(body)
+    while at >= 0:
+        before = whole[at - 1] if at > 0 else " "
+        after = whole[at + len(body) :][:1]
+        if not after:
+            after = " "
+        if before not in figures and after not in figures:
+            return True
+        at = whole.find(body, at + 1)
+    return False
 
 
 def test_no_measured_value_reaches_the_achieved_side_as_text(
@@ -2518,6 +2634,27 @@ def _apart_from_bytes(
     ]
 
 
+def _sized_text(length: int, step: int, words: int) -> str:
+    """One distinct cell of exactly ``length`` characters and ``words`` words.
+
+    Letters only, and no digit anywhere: a cell carrying a number would
+    be read as an affixed number, the perturbed column would change
+    role, and the length checks this case is about would not run at
+    all.
+    """
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    tag = ""
+    place = step
+    for _ in range(4):
+        tag = tag + alphabet[place % len(alphabet)]
+        place = place // len(alphabet)
+    head = " ".join(["aa"] * (words - 1))
+    tail = tag + "z" * (length - len(head) - 1 - len(tag))
+    body = f"{head} {tail}"
+    assert len(body) == length, (length, len(body))
+    return body
+
+
 def test_red_a_reshaped_text_column_misses_the_length_average(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
@@ -2546,8 +2683,14 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     assert column is not None
     facts = column.facts
     assert isinstance(facts, contract.TextFacts)
-    assert facts.length.minimum == 48
-    assert facts.length.maximum == 50
+    # Read from the description rather than written in. The point of
+    # this case is the SHAPE of the reshaping -- both published ends
+    # kept, the average moved -- and that is the same case whatever
+    # lengths the fixture happens to publish. Hard numbers here meant
+    # the case stopped testing anything the day the fixture changed.
+    shortest = facts.length.minimum
+    longest = facts.length.maximum
+    assert shortest < longest, "the case needs two ends to alternate"
     green = _measure(tmp_path, described, twin, "text-green.csv")
     # The conforming twin's walk lands on the published average EXACTLY,
     # so its verdict is HELD rather than WITHIN-BOUND (review item
@@ -2565,11 +2708,8 @@ def test_red_a_reshaped_text_column_misses_the_length_average(
     for row in range(1, len(rows)):
         if not rows[row][index]:
             continue
-        wanted = 48 if step % 2 == 0 else 50
-        body = f"aa bb cc dd ee ff gg h{step:04d}"
-        body = body + "z" * (wanted - len(body))
-        assert len(body) == wanted
-        rows[row][index] = body
+        wanted = shortest if step % 2 == 0 else longest
+        rows[row][index] = _sized_text(wanted, step, facts.words.minimum)
         step = step + 1
     out = io.StringIO()
     csv.writer(out, lineterminator="\n").writerows(rows)
@@ -3044,3 +3184,591 @@ def test_the_ladder_window_accepts_the_twin_of_the_steep_column(
     )
     for rung in ("ladder.p10", "ladder.p50", "ladder.p90"):
         assert _verdicts(outcome, rung) != [validation.MISSED]
+
+
+# ---------------------------------------------------------------------
+# A column of very large numbers, which `synthtwin validate` used to
+# die on (review item P4-G6-R1-F5, the sibling search that came out of
+# the first adversarial round on the allotment landing).
+
+
+def _large_valued_table() -> str:
+    """Sixty ordinary readings between 1e280 and 1e300.
+
+    Nothing about this table is malformed: `synthtwin profile` and
+    `synthtwin generate` both handled it before this repair and the
+    published `std` is a finite number the format holds. It is only
+    the SQUARE of a value that has nowhere to go.
+    """
+    import random
+
+    rows = random.Random(5)
+    values = [
+        repr(rows.uniform(1, 9) * 10.0 ** rows.randint(280, 300))
+        for _each in range(60)
+    ]
+    return "amount\n" + "\n".join(values) + "\n"
+
+
+def test_a_column_of_very_large_numbers_is_measured_rather_than_crashed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The whole command, end to end, on the table that raised.
+
+    `_sample_deviation` computed `sum((x - mean) ** 2)` in binary64.
+    Around 1e300 that square is not representable, so `measure` came
+    out of `synthtwin validate` as an `OverflowError` traceback naming
+    internal functions -- not one of this package's own messages, and
+    not a report at all -- on a description the other two commands had
+    just written without complaint.
+    """
+    described = _describe(tmp_path, _large_valued_table())
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    assert outcome is not None
+    published = described.columns[0]
+    assert published.n_numeric == 60
+
+
+def test_the_two_deviations_are_the_profilers_own_and_not_a_second_formula(
+) -> None:
+    """One statistic, one implementation, on values of any size.
+
+    The producer works the exact variance out in whole numbers over a
+    shared power of two and rounds once. A validator computing the
+    same statistic a second way is how the two come to disagree, and
+    on large values the second way does not merely disagree -- it has
+    no answer at all.
+    """
+    values = [1e300, 2e300, 3.5e300, 9e299, 4.25e300]
+    count = len(values)
+    assert validation._sample_deviation(values, count) == taxonomy.spread_of(
+        list(values)
+    )
+
+    # The arithmetic that failed, shown beside the one that answers, so
+    # this test cannot go quiet if the repair is reverted.
+    mean = math.fsum(values) / count
+    with pytest.raises(OverflowError):
+        math.fsum([(value - mean) ** 2 for value in values])
+
+    # And the population deviation is the sample one by the exact
+    # factor, which is what the skewness divides by.
+    sample = validation._sample_deviation(values, count)
+    population = validation._population_deviation(values, count)
+    assert population == sample * math.sqrt((count - 1) / count)
+
+    # AND A FLAT LADDER STILL HAS A SPREAD, which is zero and not
+    # "no answer". The published `std` field is null for a column of
+    # identical values because there is no shape to report; a window
+    # drawn around the deviation needs the zero, and withholding it
+    # would take every moment check off every constant column.
+    assert taxonomy.spread_of([7.0] * 5) == 0.0
+    assert validation._sample_deviation([7.0] * 5, 5) == 0.0
+
+
+def test_no_moment_window_is_an_infinity_on_a_large_valued_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A window with no width is a check that can never report a miss.
+
+    The spread the three moment windows are drawn from summed
+    `reach * reach` over the ranks. On this column each reach is near
+    1e300, so the sum came out an infinity and every window with it --
+    `(0, inf)` admits every twin ever written and says nothing about
+    having gone quiet. Withholding is the honest answer where the
+    spread cannot be held; an unbounded bound is not.
+    """
+    described = _describe(tmp_path, _large_valued_table())
+    column = described.columns[0]
+    windows = validation._windows_of(column, column.facts)
+    assert windows, "no window was drawn at all"
+    for name, (low, high) in windows.items():
+        assert math.isfinite(low), (name, low, high)
+        assert math.isfinite(high), (name, low, high)
+
+
+# ---------------------------------------------------------------------
+# THE BATTERY, because fixing the site a round names is half a repair
+# (review item P4-G6-R2-F2). Three rounds of this landing each found
+# ONE arithmetic site that overflowed, and each repair put its guard
+# just below the site that had been named, so the next round found the
+# crash one line higher. What follows is not a fifth site: it is every
+# extreme shape a numeric column can take, walked through the whole of
+# `measure`, asserting only that a REPORT comes out.
+
+EXTREME_COLUMNS = {
+    "near the top of the range": [
+        repr((1.0 + step * 0.001) * 1e308) for step in range(60)
+    ],
+    "spanning the whole range": (
+        [repr(-1.5e308 + step * 1e305) for step in range(30)]
+        + [repr(1.5e308 - step * 1e305) for step in range(30)]
+    ),
+    "subnormal": (
+        ["0"] * 40 + ["5e-324"] * 10 + ["1e-323"] * 10
+    ),
+    "one enormous outlier": ["1"] * 59 + ["1.7e308"],
+    "two values, both enormous": ["1e308"] * 30 + ["1.7e308"] * 30,
+    "large and negative": [repr(-(1.0 + step * 0.001) * 1e307)
+                           for step in range(60)],
+    "straddling zero at the extremes": (
+        [repr(-1.7e308 + step * 1e300) for step in range(30)]
+        + [repr(1.7e308 - step * 1e300) for step in range(30)]
+    ),
+    "very small and very large together": (
+        [repr(5e-324 * (step + 1)) for step in range(30)]
+        + [repr(1e307 * (step + 1)) for step in range(30)]
+    ),
+    # THE SHAPE THE BATTERY DID NOT HAVE (review item P4-G6-R3-F1).
+    # Three distinct values reaching from zero to the top of the range:
+    # the scaled displacement comes out finite near 1.47e308 and the
+    # widening factor of `sqrt(n / (n - 1))` then carries it past the
+    # end, so the quality report printed "between 0.0 and inf". Every
+    # other shape here has either two values or a narrow spread, which
+    # is why eight shapes missed it.
+    "three values across the whole range": ["0", "8.5e307", "1.7e308"],
+    "a hundred rows at both extremes": (
+        ["-1.5e308"] * 49 + ["0"] + ["1.5e308"] * 50
+    ),
+}
+
+
+def _says_not_a_number(line: str) -> bool:
+    """Whether one printed line carries a NaN or an infinity.
+
+    Read over the WORDS of the line, because `inf` and `nan` are inside
+    ordinary English -- "information", "meaning", "infinite" -- and a
+    test that greps the raw text finds those instead of the numbers it
+    is looking for.
+    """
+    for word in line.replace(",", " ").replace("(", " ").replace(
+        ")", " "
+    ).split():
+        stripped = word.strip(".:;'\"").lower().lstrip("+-")
+        if stripped in ("nan", "inf", "infinity"):
+            return True
+    return False
+
+
+@pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
+def test_no_extreme_column_takes_the_validator_down(
+    shape: str, tmp_path: pathlib.Path
+) -> None:
+    """A report, on every column of numbers the format can hold.
+
+    Not "the right window" and not "the right verdict" -- only that
+    `synthtwin validate` answers at all. Three separate arithmetic
+    sites in this module have raised `OverflowError` out of that
+    command on tables nothing was wrong with, and each was found by a
+    reviewer reading one line below the last repair. A parametrised
+    battery is what turns "the site we know about" into "the shapes a
+    column can take".
+
+    Where a window cannot honestly be drawn the answer is to WITHHOLD
+    it, which the census names in words. What is never acceptable is a
+    traceback in place of a report.
+    """
+    rows = EXTREME_COLUMNS[shape]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    described = _describe(tmp_path, text, stem=shape.replace(" ", "-"))
+    outcome = _measure(
+        tmp_path, described, _twin_text(described),
+        name=f"{shape.replace(' ', '-')}-twin.csv",
+    )
+    assert outcome is not None, shape
+
+    # AND THE TWIN'S OWN REPORT SAYS NOTHING THAT IS NOT A NUMBER.
+    # The eighth site of this family was in the GENERATOR, not here:
+    # `step * step` over a column around 1e200 is an infinity, the
+    # compensated mean of those is a NaN, and every comparison against
+    # a NaN is false -- so the report stated that the twin had landed
+    # outside a range it had never computed. A withheld window is
+    # honest; `nan to nan` is a sentence that is not true.
+    # AND NEITHER REPORT PRINTS A WORD THAT IS NOT A NUMBER. `nan`
+    # came from a compensated sum whose total left the range; `inf`
+    # came from a window whose ends were guarded at their INPUTS and
+    # not at the window itself, and the assertion below said only
+    # `nan` until the third round found the second one (item
+    # P4-G6-R3-F1). A range ending in an infinity is not a wide bound:
+    # it is a comparison that admits every file there is.
+    printed = rendering.report(described, generation.generate(described, SEED))
+    for name, text in (("twin report", printed),
+                       ("quality report", quality.quality_report(described, outcome))):
+        offending = [
+            line for line in text.splitlines()
+            if _says_not_a_number(line)
+        ]
+        assert not offending, (shape, name, offending[:3])
+
+    # AND EVERY MOMENT THE DESCRIPTION PUBLISHES IS NAMED SOMEWHERE
+    # (review item P4-G6-R4-F2). This is the claim the scanner above
+    # cannot make. The generator's variance overflowed on a column
+    # whose DEVIATION is an ordinary number, `_moments_of` returned
+    # None for the spread, the shape and the tails, and the report --
+    # which files an approximation only where the value is not None --
+    # said nothing at all about three published obligations. Nothing
+    # printed, so nothing to scan for. A fact absent from a report is
+    # the defect two of these rounds already found; this asserts the
+    # absence cannot happen rather than that it prints badly.
+    column = described.columns[0]
+    if isinstance(column.facts, contract.NumericFacts):
+        named = {step.fact for step in generation.generate(
+            described, SEED
+        ).approximations}
+        for field in ("mean", "std", "skew", "kurtosis"):
+            if getattr(column.facts, field) is None:
+                continue
+            assert field in named, (shape, field, sorted(named))
+
+
+@pytest.mark.parametrize("shape", sorted(EXTREME_COLUMNS))
+def test_no_window_drawn_for_an_extreme_column_is_an_infinity(
+    shape: str, tmp_path: pathlib.Path
+) -> None:
+    """And a window that IS drawn has two finite ends.
+
+    The companion claim, and the one that catches the quieter defect:
+    a bound of `(0, inf)` never reports a miss and never says it went
+    quiet, so it reads as a pass on every twin ever written. Withheld
+    is honest; unbounded is not.
+    """
+    rows = EXTREME_COLUMNS[shape]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    described = _describe(tmp_path, text, stem=shape.replace(" ", "-"))
+    column = described.columns[0]
+    # Not every one of these shapes lands on a quantitative role -- a
+    # column of one value beside one enormous outlier is a long tail of
+    # labels, and it publishes no ladder for a window to be drawn
+    # through. The battery above still walks it through the whole of
+    # `measure`; this claim is about the columns that HAVE windows.
+    if not isinstance(column.facts, contract.NumericFacts):
+        pytest.skip(f"{shape} is not a quantitative column")
+    windows = validation._windows_of(column, column.facts)
+    assert windows, shape
+    for name, (low, high) in windows.items():
+        assert math.isfinite(low), (shape, name, low, high)
+        assert math.isfinite(high), (shape, name, low, high)
+        assert low <= high, (shape, name, low, high)
+
+
+# ---------------------------------------------------------------------
+# The fourth adversarial round on the allotment landing (P4-G6-R4). All
+# four items were about the SAME thing said two ways: a published fact
+# that no check measures and no census names is a fact the report has
+# lost, and the report claims to account for every one.
+
+
+def test_an_affixed_column_gets_the_numeric_census_its_cores_are_checked_by(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Checked by one path, listed by another, and the paths disagreed.
+
+    `_affixed_checks` hands the CORES to the same numeric machinery a
+    plain numeric column goes through, so every quantitative obligation
+    is measured. The census asked `isinstance(facts, NumericFacts)` of
+    the OUTER facts, which an affixed column is not, so none of those
+    obligations was ever listed -- and on a description whose windows
+    cannot be drawn they were named nowhere at all.
+    """
+    rows = [f"${100 + step % 40}" for step in range(120)]
+    described = _describe(tmp_path, "amount\n" + "\n".join(rows) + "\n")
+    column = described.columns[0]
+    assert isinstance(column.facts, contract.AffixedFacts), column.facts
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    listed = {str(one.fact) for one in outcome.listings}
+    # The two a quantitative block always owes. The histogram and the
+    # mode pair are published only on some columns, so requiring them
+    # here would make the witness about this column's shape rather than
+    # about the unwrapping.
+    for owed in ("numeric.percentiles_between",):
+        assert owed in listed, (owed, sorted(listed))
+    # `numeric.n_distinct_values` moved from this census to the checks
+    # on 2026-09-04 (amendment A-P4-55), and the unwrapping this test
+    # is about has to carry it there instead.
+    assert "numeric.n_distinct_values" in {
+        str(one.fact) for one in outcome.checks
+    }
+    if described.columns[0].facts.numbers.value_histogram:
+        assert "numeric.value_histogram" in listed, sorted(listed)
+
+
+def test_the_count_of_different_numbers_is_listed_without_a_histogram(
+    tmp_path: pathlib.Path,
+) -> None:
+    """It is published on its own terms, so it is listed on its own.
+
+    The listing used to sit inside the histogram's condition. A
+    description that publishes the count and carries an empty histogram
+    named the count nowhere.
+    """
+    rows = [str(step) for step in range(120)]
+    described = _describe(tmp_path, "amount\n" + "\n".join(rows) + "\n")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert not facts.value_histogram, "this witness needs an empty histogram"
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    listed = {str(one.fact) for one in outcome.listings}
+    # IT IS AN OBLIGATION SINCE AMENDMENT A-P4-55 and a listing only
+    # where its envelope licenses every count the file could hold,
+    # which is this witness: a column whose permitted spellings supply
+    # one identity settles nothing a CSV can evidence, so the census
+    # names it (V3.5) rather than a check that cannot fail. On a column
+    # whose spellings CAN supply the count it is checked, and
+    # `tests/test_p3v1f2_entry_table.py` carries the red cases for
+    # that.
+    assert "numeric.n_distinct_values" in listed, sorted(listed)
+    assert "numeric.n_distinct_values" not in {
+        str(one.fact) for one in outcome.checks
+    }
+
+
+def test_no_moment_is_both_checked_and_listed_on_a_finer_only_ladder(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The census asks the rungs the window is actually drawn from.
+
+    `_windows_of` reads all hundred and one rungs; the census asked
+    whether the ELEVEN named ones held anything. The contract admits a
+    description whose named rungs are null beside finer rungs that are
+    not, and on one of those the mean and the spread were CHECKED
+    against real windows and listed as having no ladder at the same
+    time -- each obligation counted twice, under two reasons that
+    contradict each other.
+    """
+    rng = random.Random(4)
+    rows = [repr(round(rng.uniform(1, 100), 3)) for _each in range(120)]
+    text = "amount\n" + "\n".join(rows) + "\n"
+    table_path = fixtures.write(tmp_path, "finer.csv", text)
+    table = reading.read_table(
+        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
+    )
+    document = profile.build_document(table, SETTINGS, [])
+    block = document["columns"][0]
+    for rung in list(block["percentiles"]):
+        block["percentiles"][rung] = None
+    for rung in list(block["percentiles_between"]):
+        block["percentiles_between"][rung] = 7.0
+    written = fixtures.write_profile(tmp_path, "finer-profile.json", document)
+    described = contract.load_profile(str(written))
+
+    outcome = _measure(tmp_path, described, _twin_text(described))
+    moments = ("mean", "std", "skew", "kurtosis")
+    checked = {
+        one.fact for one in outcome.checks
+        if one.fact.split(".")[-1] in moments
+    }
+    listed = {
+        str(one.fact) for one in outcome.listings
+        if str(one.fact).split(".")[-1] in moments
+    }
+    assert not (checked & listed), sorted(checked & listed)
+    assert checked, "no moment was checked, so this witness reaches nothing"
+    assert listed, "no moment was listed, so this witness reaches nothing"
+
+
+def test_a_subnormal_column_has_a_spread_and_the_twin_reports_it() -> None:
+    """The other end of the overflow family, and it underflows.
+
+    Three rounds looked at a square with nowhere to go. The same
+    expression at the bottom of the range gives zero: a deviation near
+    the smallest number this format holds, squared, IS zero, so the sum
+    of them is zero for a column whose real spread is 5e-324. The twin
+    reported a spread of nothing and said nothing at all about its
+    shape or its tails.
+
+    A spread of zero has two causes and only one of them is a fact, so
+    they are told apart before anything is squared.
+    """
+    values = [0.0] * 40 + [5e-324] * 10 + [1e-323] * 10
+    mean, spread, shape, tails = generation._moments_of(values)
+    assert spread == 5e-324, spread
+    assert shape is not None and tails is not None
+
+    # The arithmetic that failed, beside the one that answers.
+    middle = generation._mean_of(values)
+    assert generation._summed(
+        [(one - middle) * (one - middle) / len(values) for one in values]
+    ) == 0.0
+
+    # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
+    # the cause this must not be confused with.
+    assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)
+
+
+def test_the_twin_recounts_its_moments_the_way_the_description_states_them(
+) -> None:
+    """One implementation of four statistics (P4-G6-R5-F1 and F2).
+
+    The report puts two numbers side by side -- what the description
+    says and what the twin holds -- and they are the same statistic
+    only if they are computed the same way. The recount used a
+    compensated sum in binary64 and the description's own numbers come
+    from an exact whole-number method, and five rounds of this landing
+    kept turning up the shapes where the two part company.
+
+    These four are the shapes that beat the four repairs before this
+    one. Each has a mean, a spread, a shape and a tail weight the
+    format holds, and on each the recount returned three nothings.
+    """
+    beat_the_repairs = {
+        "squares that underflow": [0.0] * 4 + [5e-324],
+        "a difference that overflows": (
+            [-1.7976931348623157e308]
+            + [1e308 + step * 1e305 for step in range(119)]
+        ),
+        "a variance with nowhere to go": [
+            0.0, 9.208874310759778e307, 1.7e308
+        ],
+        "subnormal beside subnormal": (
+            [0.0] * 40 + [5e-324] * 10 + [1e-323] * 10
+        ),
+    }
+    for shape, values in beat_the_repairs.items():
+        got = generation._moments_of(values)
+        assert got == taxonomy.moments_of(values), shape
+        for place, name in enumerate(("mean", "std", "skew", "kurtosis")):
+            if place == 3 and len(values) < 4:
+                continue
+            assert got[place] is not None, (shape, name)
+
+    # AND A COLUMN OF ONE NUMBER STILL HAS NO SHAPE TO REPORT, which is
+    # the answer that must not be confused with any of the above.
+    assert generation._moments_of([7.0] * 5) == (7.0, 0.0, None, None)
+
+
+def test_a_statistic_on_its_own_ceiling_is_not_called_a_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A bound stated as a limit must ADMIT the limit (P4-G6-R6-F1).
+
+    The largest skew a sample of `n` values can take is
+    `(n - 2) / sqrt(n - 1)`. On three values that is one over the
+    square root of two, whose correctly rounded binary64 value is
+    0.7071067811865476 -- and computing it as written gives
+    0.7071067811865475, one place INSIDE, because the division and the
+    square root each round.
+
+    So a column whose skew IS the maximum was outside a bound it
+    exactly meets. On these three cells the description publishes
+    -0.7071067811865476, the twin holds -0.7071067811865476, and the
+    twin report said OUTSIDE and told the reader to treat an exactly
+    reproduced fact as not reproduced. Accusing a correct twin is the
+    one thing a bound must never do.
+
+    Every universal limit is widened one place OUTWARD before it is
+    compared against anything. Outward, never away from zero: the tail
+    weight's two ends are both positive, and moving its low end away
+    from zero moves it UP, past the value the window was drawn for.
+    """
+    described = _describe(tmp_path, "value\n-1e20\n0\n1\n")
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.skew == -0.7071067811865476, facts.skew
+
+    twin = generation.generate(described, 7)
+    named = [one for one in twin.approximations if one.fact == "skew"]
+    assert named, "this witness no longer reaches the skew bound"
+    for one in named:
+        assert one.inside, (one.achieved, one.lowest, one.highest)
+        assert one.covers_published, (one.published, one.lowest, one.highest)
+
+    # The arithmetic that made the limit too small, beside the limit.
+    assert (3 - 2) / math.sqrt(3 - 1) == 0.7071067811865475
+    assert generation._raised((3 - 2) / math.sqrt(3 - 1)) == (
+        0.7071067811865476
+    )
+
+    # AND OUTWARD IS NOT AWAY FROM ZERO. Both ends of the tail weight's
+    # window are positive, so widening its low end must move it DOWN.
+    assert generation._lowered(2.3333333333333335) < 2.3333333333333335
+    assert generation._raised(2.3333333333333335) > 2.3333333333333335
+
+
+def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
+) -> None:
+    """Checked against `math.nextafter`, which `src/` may not call.
+
+    The offline audit allows five names from `math` and `nextafter` is
+    not one of them, so the two modules build the step from `frexp` and
+    `ldexp`. That is a line of arithmetic standing in for a library
+    call, and the way to be sure it says the same thing is to ASK the
+    library call -- here, where the audit does not reach.
+
+    THE FIRST VERSION OF THAT ARITHMETIC WAS WRONG IN THREE WAYS
+    (review item P4-G6-R7-F2), and every one is in the list below: the
+    gap below a value sitting exactly on the edge of its binade is HALF
+    the gap above it, so `_lowered(1.0)` stepped two places; the gap it
+    computed for a subnormal underflows to nothing, so the smallest
+    bounds -- the ones the widening exists for -- did not move at all;
+    and the largest number the format holds raised `OverflowError`.
+    """
+    edges = [
+        1.0, 0.5, 2.0, 4.0, 0.25,
+        0.7071067811865475, 2.3333333333333335,
+        5e-324, 1e-323, 1e-320, 2.2250738585072014e-308,
+        0.0, -0.0,
+        -1.0, -0.5, -2.0,
+        1.7976931348623157e308, -1.7976931348623157e308,
+    ]
+    spread = random.Random(3)
+    for _each in range(200000):
+        edges.append(
+            spread.uniform(-10, 10) * 10.0 ** spread.randint(-320, 300)
+        )
+
+    # 200018 values, both directions, both module copies: 800072
+    # comparisons. The count is stated where it can be counted, because
+    # the register first cited a figure from a console run rather than
+    # from this file and a claim about coverage is worth what the
+    # committed code does (review item P4-G6-R8).
+    assert len(edges) == 200018, len(edges)
+    for value in edges:
+        for upward, toward in ((True, math.inf), (False, -math.inf)):
+            wanted = math.nextafter(value, toward)
+            if not math.isfinite(wanted):
+                # There is no number beyond the edge of the range, and a
+                # bound already there admits everything this format can
+                # write, so it is returned unchanged rather than raising.
+                wanted = value
+            assert generation._stepped(value, upward) == wanted, (
+                value, upward, generation._stepped(value, upward), wanted
+            )
+            # AND THE VALIDATOR'S COPY SAYS THE SAME THING. The two
+            # modules may not import each other, so the only thing
+            # holding them together is being written alike.
+            assert validation._stepped(value, upward) == wanted, (
+                value, upward
+            )
+
+
+def test_the_two_modules_widen_a_limit_the_same_number_of_places(
+) -> None:
+    """One method, one number of steps (review item P4-G6-R8).
+
+    The universal limits are widened one place outward so a statistic
+    sitting ON a limit is admitted by it. ONE place: the generator
+    widened its skew ceiling and then widened the fallback pair built
+    from it again, so on this column it printed a range two places wide
+    where the validator printed one -- and one run of the two commands
+    stated two versions of G12.3, which is the disagreement the step
+    was added to end.
+
+    The endpoints are asserted here and not merely that a correct twin
+    lies inside them, because the round before this one added a test
+    that checked only the second and the second cannot see this.
+    """
+    ceiling = (3 - 2) / math.sqrt(3 - 1)
+    assert ceiling == 0.7071067811865475
+    once = generation._raised(ceiling)
+    assert once == 0.7071067811865476
+    assert generation._raised(once) != once, "the step must move"
+
+    # A flat set of three ranks: the spread's own lower end reaches
+    # zero, so both windows take their fallback -- the branch where the
+    # second step lived.
+    ranks = [0.0, 0.0, 0.0]
+    made = generation._shape_window(ranks, ranks, ranks, 0.0, 3)
+    assert made == (-once, once), made
+    seen = validation._moment_windows(ranks, ranks, ranks, 3)
+    if "skew" in seen:
+        assert seen["skew"] == made, (seen["skew"], made)

@@ -380,7 +380,7 @@ unchanged.
 
 **What the artifacts owe when the floor is under the default.** This
 contract governs the profile document, which carries the floor as a
-number under `settings` and needs no further wording. Of the five files
+number under `settings` and needs no further wording. Of the six files
 a full run leaves behind, the readable ones — the plain-language
 summary, the twin's report and the quality report — each state on their
 own face that the description was made under a lowered floor and what
@@ -2601,10 +2601,10 @@ the part a person must be able to weigh:
   no value, no magnitude and no spelling (section 7.5).
 
 Every file a full run leaves behind — the profile, the plain-language
-summary beside it, the twin, the twin's report and the quality report —
-carries real-derived published facts, and each is handled under the
-institution's rules for real-derived material. synthtwin claims no formal
-privacy guarantee.
+summary beside it, the questions file, the twin, the twin's report and
+the quality report — carries real-derived published facts, and each is
+handled under the institution's rules for real-derived material.
+synthtwin claims no formal privacy guarantee.
 
 **This amends the sentence that counted three** (Phase 3 plan P3-D7
 stage 2, amendment A-P3-8, 2026-08-14). Two files were outside it. The

@@ -6,6 +6,23 @@ Historical note: the project's working name changed to `synthtwin` before
 the first commit, after the original name was found taken on PyPI; older
 private planning documents may use the previous name.
 
+> **Before doing anything else, read `docs/STATE.md`.** This brief says
+> what the project IS and what it is held to; it deliberately says
+> nothing about what is half-built this week, because a charter that
+> tracked the working state would go stale every day. `docs/STATE.md`
+> is the one page that does track it: where the work stands, what the
+> owner has already decided and must not be re-asked, what is waiting
+> on them, and what is broken right now. It moves in the same commit as
+> the work it describes, so a landing that leaves it untouched is not
+> finished.
+>
+> **And it stays ONE PAGE.** It reached 3,814 lines by gaining a
+> section per landing, and at that size no session read it — so every
+> session re-measured the project from scratch, which is the failure
+> the page exists to prevent. A landing adds nothing to it except by
+> changing a fact already stated there. What a landing DID belongs in
+> `CHANGELOG.md`; why it was allowed belongs in the phase plan.
+
 ## The goal
 
 Researchers who hold sensitive tabular data cannot paste it into an AI
@@ -84,6 +101,16 @@ Built now, by the three commands that exist:
 2. **The schema description** - columns, detected types, and how each
    was handled: the profile document itself and the plain-language
    summary beside it. Written by `synthtwin profile`.
+2b. **The questions file** - written by `synthtwin profile` on every
+   run, beside the description. It names the columns whose reading the
+   values cannot settle, says what was SEEN in each and what each was
+   read as, and offers the answers a person may give with what each
+   would publish. It carries no value of the table. Filled in and
+   handed back with `--answers`, each answer becomes the declaration it
+   stands for, and the settings block records it as one (amendment
+   A-P4-58). It is not a fourth output kind: it is how principle 2's
+   promise -- that somebody who has never programmed can run the whole
+   workflow -- is kept for the one thing no rule may decide.
 3. **The generation report** - written beside every twin, saying which
    published facts the twin holds exactly, which it holds only
    approximately with the achieved value printed beside the published
@@ -141,15 +168,39 @@ though it existed:
   every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
-  All five files a full run leaves behind - the profile, the
-  plain-language summary beside it, the twin, the twin's report and the
-  quality report - carry facts computed from real data, so the
-  institution's rules for real-derived material apply to all five, never
-  to the profile alone. The summary is counted in as a file of its own
-  (plan amendment A-P3-8) because that is how a person meets it: it is
-  printed on the screen and written beside the profile, it repeats the
-  real labels the profile publishes, and a rule that named four files
-  told a reader by omission that the fifth was free to travel.
+  All six files a full run leaves behind - the profile, the
+  plain-language summary beside it, the questions file, the twin, the
+  twin's report and the quality report - carry facts computed from real
+  data, so the institution's rules for real-derived material apply to
+  all six, never to the profile alone. The summary is counted in as a
+  file of its own (plan amendment A-P3-8) because that is how a person
+  meets it: it is printed on the screen and written beside the profile,
+  it repeats the real labels the profile publishes, and a rule that
+  named four files told a reader by omission that the fifth was free to
+  travel. The questions file joins on the same reasoning (plan
+  amendment A-P4-58): it is written on every `profile` run rather than
+  only where a column was ambiguous, and it names columns of the real
+  table beside the shapes measured from their cells.
+- **The twin changes where your rows go; it does not change which rules
+  you are under.** What synthtwin buys is worth stating exactly,
+  because it is a strong claim and it is the defensible one: you
+  develop your analysis against a table whose every value was worked
+  out from a description rather than taken from your rows, so the real
+  table never has to leave the environment that already holds it and
+  never has to reach an assistant. What it does NOT buy is a finding
+  about anybody's obligations. The six files above carry facts
+  computed from real data, and at the default floor of one a column
+  whose role publishes values names every one of them with the rows
+  that held it, while the roles that publish none still publish counts
+  and shapes measured from real cells - so whether a privacy rule, an
+  institution's own rules, or a study's approval is satisfied is a
+  question for the people who set
+  it, answered with the written account of which real facts each file
+  carries and never with the word "synthetic". A sentence on any
+  surface here that treats being synthetic as the answer to an
+  obligation is a defect and not a shorthand, and the seventh family of
+  the claim inventory in `tests/test_claim_inventory.py` turns the
+  suite red on it.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
@@ -222,7 +273,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 3.** Each entry below carries its own
+**The current phase is Phase 5.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -240,12 +291,35 @@ running.
   review verdict, and nothing describes Phase 2 as review-ratified.
 - **Phase 3 - the end-to-end product:** profile, generate, and validate
   through one zero-code CLI; earliest possible first PyPI release.
-  *Current*; the ratified plan is `docs/plans/phase-3-product.md`.
+  *Product work complete; closed by owner decision 2026-08-19 with its
+  release NOT executed*; the ratified plan is
+  `docs/plans/phase-3-product.md`. Closure is an owner act, not a
+  review verdict, and nothing describes Phase 3 as review-ratified.
+  What closed is the product: the three commands, the quality report,
+  and the repository's move to public. What did not happen is the
+  release this phase's charter named - there is no tag and nothing is
+  published - so the acceptance criteria resting on release evidence
+  are unmet, Phase 1's residual R3 stays open with them, and the plan's
+  own register says so rather than counting them done.
 - **Phase 4 - comprehensive column handling:** the full range of column
-  types, rare categories, and missing-data patterns. *Not started.*
+  types, rare categories, and missing-data patterns. *Closed by owner
+  decision 2026-09-11, with sixty-six register entries CARRIED to Phase
+  5 by name rather than built* (amendment A-P4-59); the ratified plan
+  is `docs/plans/phase-4-columns.md` and its closure section gives a
+  verdict on each of the ten acceptance criteria. Closure is an owner
+  act, not a review verdict, and nothing describes Phase 4 as
+  review-ratified. Eight criteria are met, one is met on a rule whose
+  own report was false until this phase repaired it, and **criterion 8
+  is UNMET and named**: the reference vectors for the width pass and
+  the empty-bin pass were not written, so those two branches are
+  pinned by tests rather than by a frozen case with a mutant.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Not started* -
-  this is the phase the twin's one-column-wide bound waits on.
+  structure and the quality report at full strength. *Current, and not
+  started* - this is the phase the twin's one-column-wide bound waits
+  on, and it inherits sixty-six carried register entries from Phase 4,
+  grouped by what a reader would do about them in that plan's closure
+  section. Nothing in this brief's "what the twin carries today" may
+  soften until this phase builds what it names.
 - **Phase 6 - standalone build:** hardened, fully offline distribution
   for institutional machines. *Not started.*
 - **Phase 7 - the interface:** a screen a researcher can use without

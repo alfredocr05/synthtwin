@@ -209,6 +209,6 @@ def test_every_role_fixture_reads_with_the_expected_shape(
 ) -> None:
     table = _read(tmp_path, fixtures.every_role_table())
     assert table.n_rows == 240
-    assert len(table.column_names) == 10
+    assert len(table.column_names) == 13
     assert all(len(column) == 240 for column in table.columns)
     assert not table.used_fallback_encoding

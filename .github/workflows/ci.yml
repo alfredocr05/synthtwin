@@ -616,6 +616,7 @@ jobs:
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
           wheel required synthtwin/errors.py
+          wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
@@ -644,6 +645,7 @@ jobs:
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/errors.py
+          sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
@@ -850,7 +852,7 @@ jobs:
           )
           summary = (demo / "table-profile.txt").read_text(encoding="utf-8")
           problems = []
-          if document["n_rows"] != 240 or document["n_columns"] != 10:
+          if document["n_rows"] != 240 or document["n_columns"] != 13:
               problems.append(f"unexpected shape: {document['n_rows']}x{document['n_columns']}")
           roles = {column["name"]: column["role"] for column in document["columns"]}
           expected = {
@@ -861,16 +863,42 @@ jobs:
               "comment": "free_text",
               "unused": "empty",
               "batch": "constant",
+              # The three roles Phase 4 added to this fixture. They
+              # were in the table and NOT in this map, so the one
+              # end-to-end check that runs the real command exercised
+              # ten roles and asserted nothing about the four the phase
+              # was for.
+              "dose": "affixed_number",
+              "seen_at": "time_of_day",
+              "note": "long_tail_labels",
           }
           for name, role in expected.items():
               if roles.get(name) != role:
                   problems.append(f"{name} was read as {roles.get(name)}, expected {role}")
+          # NOTHING IS WITHHELD AT THE DEFAULT FLOOR, and this step
+          # asserts that rather than the opposite. The small-cell floor
+          # defaulted to 11 when this check was written and defaults to
+          # ONE since plan amendment A-P4-37, so every value a table
+          # holds is now named with the rows that shared it. The check
+          # went on asserting a rare label was pooled away for as long
+          # as ci.yml did not run -- which is the same way it came to
+          # assert a ten-column shape for a thirteen-column table.
           region = [c for c in document["columns"] if c["name"] == "region"][0]
-          if region["suppressed_levels"] != 1:
-              problems.append("the rare label was not withheld")
-          notes = " ".join(note["note"] for note in document["publication_notes"])
-          if "shared by fewer than" not in notes:
-              problems.append("the publication notes do not record the suppression")
+          if region["suppressed_levels"] != 0:
+              problems.append(
+                  "a label was withheld at the default floor of one, "
+                  f"where nothing should be: {region['suppressed_levels']}"
+              )
+          if region["suppressed_rows"] != 0:
+              problems.append("rows were pooled away at the default floor")
+          # And the rare label itself is PUBLISHED, which is the point
+          # of the ruling: a twin of a rare finding holds the finding.
+          published = {level["label"] for level in region["levels"]}
+          if len(published) != region["n_distinct_folded"]:
+              problems.append(
+                  "the published levels do not account for every folded "
+                  "value at the default floor"
+              )
           # The declared identifier column publishes the SHAPE of its
           # repetition and never a value (review item P1-R8-F4, owner
           # decision 2026-08-10). Check both halves on a clean machine:
@@ -926,9 +954,29 @@ jobs:
               problems.append(f"unexpected relationship manifest: {related}")
           elif any(value is not None for value in related.values()):
               problems.append("the relationship manifest claims structure it has none of")
+          # AT THE DEFAULT FLOOR OF ONE, THE RARE LABEL IS PUBLISHED,
+          # and this step asserts that rather than its opposite. It
+          # used to refuse the string `outlying` anywhere in an output
+          # file, which was right while the floor defaulted to eleven
+          # and that label was pooled away. Plan amendment A-P4-37
+          # dropped the default to ONE on the owner's ruling -- every
+          # value a table holds is named with the rows that shared it,
+          # so a rare finding reaches the twin -- and this check went on
+          # asserting the old rule for as long as ci.yml did not run.
+          #
+          # THE SUPPRESSION GUARANTEE IS NOT LOST BY INVERTING THIS. It
+          # is carried by 52 tests at a RAISED floor
+          # (tests/test_p1r7f2_disclosure_is_true.py and
+          # tests/test_p2c1f3_publication_guard.py), which is where a
+          # floor-dependent rule belongs: this step runs one command at
+          # one floor and can only ever check that one.
           for text in (json.dumps(document), summary):
-              if "outlying" in text:
-                  problems.append("a below-floor label reached an output file")
+              if "outlying" not in text:
+                  problems.append(
+                      "the rare label is missing from an output file: at "
+                      "the default floor of one nothing is pooled away, "
+                      "so every label a table holds should be named"
+                  )
               if "R00007" in text:
                   problems.append("an identifier value reached an output file")
           if problems:
@@ -991,14 +1039,14 @@ jobs:
               if rows[0] != names:
                   problems.append(f"the twin's header is {rows[0]}, expected {names}")
               body = rows[1:]
-              # 240 by 10 is this fixture's shape, checked against the
+              # 240 by 13 is this fixture's shape, checked against the
               # description AND written out, so a description that came
               # out the wrong shape cannot make the twin look right by
               # agreeing with it.
               if len(body) != document["n_rows"] or len(body) != 240:
                   problems.append(f"the twin has {len(body)} row(s), expected 240")
               widths = sorted({len(row) for row in body})
-              if widths != [document["n_columns"]] or widths != [10]:
+              if widths != [document["n_columns"]] or widths != [13]:
                   problems.append(f"the twin's rows hold {widths} cell(s), expected [10]")
           report = report_path.read_text(encoding="utf-8")
           if "Seed: 7." not in report:

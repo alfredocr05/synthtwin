@@ -148,7 +148,7 @@ CLAIM_REACHED = writing.CLAIM_REACHED
 #    the map holds one key space, the table's own (contract 5 C5-11);
 # 3. each of the two declaration records gains `built_in_texts` and
 #    `built_in_numbers`, naming which members of synthtwin's own
-#    thirteen published words were typed -- and never the person's text
+#    twenty-three published words were typed -- and never the person's text
 #    (contract 5 section 6).
 #
 # WHAT THAT COSTS AND WHAT IT BUYS. It buys a description a reader can
@@ -164,11 +164,29 @@ CLAIM_REACHED = writing.CLAIM_REACHED
 # one printable form it was; it is empty for every ordinary word, and in
 # one corner it publishes strictly LESS, because the floor now falls on
 # the exact spelling rather than on the escaped one.
-PROFILE_VERSION = 5
+PROFILE_VERSION = 6
 
 # The two files a run writes, as suffixes added to the table's name.
 PROFILE_SUFFIX = "-profile.json"
 SUMMARY_SUFFIX = "-profile.txt"
+# THE QUESTIONS FILE (amendment A-P4-58), and it is written on
+# EVERY run of this command.
+#
+# WHY UNCONDITIONALLY, which is a decision and not an oversight.
+# A file this command leaves in a person's folder must be named on
+# every surface that states the institution's handling rules, and
+# a file that exists only sometimes makes every one of those
+# sentences conditional -- "a full run leaves five files, and a
+# sixth where synthtwin had a question" -- on eight surfaces at
+# once. A file that always exists needs one true sentence instead.
+# It is also the honest record of the check: a table with nothing
+# ambiguous in it gets a file saying so, which is how a person
+# knows the tool looked rather than assuming it did.
+#
+# It is written OUTSIDE the profile transaction: the description
+# and its summary are one outcome because either alone is a
+# failure state, and nothing is built from this one.
+QUESTIONS_SUFFIX = "-questions.json"
 
 # THE RESERVED CROSS-COLUMN MANIFEST (plan P2-D5, owner decision 3).
 #
@@ -230,7 +248,7 @@ RELATIONSHIP_SLOTS = (
 # FROM CONTRACT VERSION 5 THE RULE HAS ONE EXCEPTION, AND THIS LOWERS
 # THE PHASE 1 BAR BY EXACTLY THAT MUCH (owner ruling 2026-08-17, plan
 # amendment A-P3-27, contract 5 section 6.6). The two declaration
-# records also name WHICH MEMBERS of synthtwin's own thirteen published
+# records also name WHICH MEMBERS of synthtwin's own twenty-three published
 # words were typed: the ten spellings this package reads as "no value"
 # and the three stand-in numbers it judges, listed in the contract's own
 # appendix and identical in every installation.
@@ -245,7 +263,7 @@ RELATIONSHIP_SLOTS = (
 # is not evidence that any cell wore the word. What a reader can still
 # infer is that somebody usually types a word because it is in their
 # table -- so the guess a version 4 description made coarsely ("one
-# value was rescued") is made at thirteen words. The word guessed at
+# value was rescued") is made at twenty-three words. The word guessed at
 # HERE can never be a name, a code, a diagnosis or a free-text answer,
 # because a value outside the list is written nowhere in this block.
 # That is a sentence about this block, and the paragraph below says why
@@ -284,7 +302,7 @@ RELATIONSHIP_SLOTS = (
 # Phase 1 and the settings rule has never been wider than this block --
 # and the profiler's own summary page, `SECURITY.md` and contract 5
 # section 6 all went on denying, with no scope attached, that a word
-# outside the thirteen was written anywhere at all. The one that
+# outside the twenty-three was written anywhere at all. The one that
 # mattered was the summary: it printed `counted as missing: <the
 # person's word> (12)` and, four screens below, that synthtwin would
 # not keep any other word they typed. Both are now scoped where they
@@ -354,8 +372,9 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     beside the two new lists rather than being retired (contract 5
     C5-S7, decision 13.9).
     """
-    texts, numbers = taxonomy.built_in_values_named(spellings)
+    texts, numbers, days = taxonomy.built_in_values_named(spellings)
     return {
+        "built_in_dates": list(days),
         "built_in_numbers": list(numbers),
         "built_in_texts": list(texts),
         "n_declared": taxonomy.declarations_named(spellings),
@@ -363,8 +382,45 @@ def _declaration_record(spellings: "tuple[str, ...]") -> dict[str, object]:
     }
 
 
+def _named_once(names: "list[str]") -> "list[str]":
+    """One declaration's column names, in rising order, each of them once.
+
+    THE TOOL WROTE A DESCRIPTION IT COULD NOT READ (review item
+    P4-G3-R2-F7). Every declaration takes `--option NAME` and may be
+    given more than once, so a person who types `--code dose --code
+    dose` -- by repeating a line, or by pasting a command twice -- got
+    a settings array holding `dose` twice. The contract requires these
+    names to rise and to be distinct, so the loader then REFUSED the
+    file, with a message telling the person to make the description
+    again by running the same command, which reproduces the same file.
+    They had done nothing wrong and had no way out of the loop.
+
+    It is fixed HERE, in the producer, rather than in the command-line
+    layer, because every path that builds a description passes through
+    this block and the fault is in what gets WRITTEN. Saying a thing
+    twice is not an error a person needs to be told about: they asked
+    for the column to be read one way, and it is.
+
+    This predates the fourth declaration and reached all four.
+
+    Guarantees: accepts the names as given; returns them sorted with
+    repeats removed. Determinism: a fixed function of the input.
+    Raises nothing. No I/O of any kind.
+    """
+    once: "list[str]" = []
+    for name in sorted(names):
+        if once and once[len(once) - 1] == name:
+            continue
+        once = once + [name]
+    return once
+
+
 def _settings_block(
-    settings: taxonomy.Settings, forced_identifiers: list[str]
+    settings: taxonomy.Settings,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -402,7 +458,33 @@ def _settings_block(
         "declaration_matching": settings.declaration_matching,
         "declaration_publication": DECLARATION_PUBLICATION,
         "near_threshold_slack": settings.near_threshold_slack,
-        "forced_identifiers": sorted(forced_identifiers),
+        "day_first": settings.day_first,
+        "long_tail_minimum_level": settings.long_tail_minimum_level,
+        "forced_identifiers": _named_once(forced_identifiers),
+        # THE SECOND DECLARATION (plan P4-D19). Named columns are read
+        # as labels and never as numbers, dates, clock times or
+        # numbers wearing an affix, so a coding system written in
+        # digits keeps its exact spellings -- padding included -- and
+        # publishes which codes are common instead of a mean nobody
+        # can use. Unlike `forced_identifiers` it does NOT silence the
+        # column: the distribution is the point of declaring it.
+        "forced_codes": _named_once(forced_codes),
+        # THE THIRD DECLARATION (plan P4-D21). Named columns hold
+        # quantities, including ones written as two or more whole
+        # numbers in one cell -- a blood pressure. Where the column is
+        # written that way it takes the `joined_numbers` role; where it
+        # is not, this decides nothing.
+        "forced_measurements": _named_once(forced_measurements),
+        # THE FOURTH DECLARATION (plan P4-D26). The columns a person
+        # said write their numbers with a comma for the point. It is
+        # recorded because two readers downstream need it and neither
+        # can work it out: the generator has to SPELL those numbers the
+        # same way, or a twin hands a person cells their own tools read
+        # as thousands separators; and the validator has to re-describe
+        # a checked file under the declaration it was described under,
+        # or every number of the column reads differently and the whole
+        # column comes back missed.
+        "forced_decimal_commas": _named_once(forced_decimal_commas),
     }
 
 
@@ -567,7 +649,34 @@ _WORD = "word"
 _TABLE_NAME = "column-name"
 _KNOWN_NAME = "a-name-of-this-table"
 _SPELLING = "authorized-spelling"
+# The ONE exception in the ranges class: an affixed column publishes the
+# shared text its cells wore, on two keys and no others. It is a rule of
+# its own rather than `_SPELLING` because either side may be EMPTY -- a
+# column of `5mg` has no prefix -- and because an exception a reader can
+# see in this table is an exception nobody widens by accident. That both
+# sides are not empty at once is invariant AF1, checked with the
+# invariants and not here.
+_AFFIX = "affix-spelling"
 _DIGITS = "whole-number-as-text"
+# A KEY OF THE FRACTION CENSUS: a width written as decimal figures, or
+# the pooled remainder. It is not `_DIGITS`, and the difference is the
+# whole point of giving it a kind of its own: `_DIGITS` admits `02`
+# beside `2`, and a census whose keys admit padding is a census two
+# producers spell two ways and a consumer reads as two widths. The key
+# grammar is CANONICAL -- no sign, no padding, `0` written as itself.
+_WIDTH = "fraction-width-as-figures"
+_BIN = "histogram-bin-number"
+# ...AND A BIN NUMBER THAT HOLDS NOTHING, which is a kind of its own
+# rather than `_BIN` reused (plan P4-D32). The two carry different
+# disclosure prices and the audit is where that difference has to be
+# visible: `_BIN` stands at the KEY of a census whose entries are
+# counts of real cells and is therefore governed by the floor, while
+# this one names a stretch of the scale no cell of the table is in and
+# is governed by nothing, because there is no group smaller than
+# nobody. Filing both under one word would hide the ONE fact in this
+# document the floor does not reach.
+_EMPTY_BIN = "histogram-bin-number-holding-nothing"
+_SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -603,7 +712,7 @@ def _relationship_rules() -> "dict[tuple[str, ...], str]":
 # EVERY path of the finished document, with what may stand there. A
 # path missing from this table is a refusal, which is what makes adding
 # a field to the profile a decision somebody has to write down.
-PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
+_STATED_RULES: "dict[tuple[str, ...], str]" = {
     (): _OBJECT,
     ("profile_version",): _COUNT,
     ("created_with",): _VERSION,
@@ -631,6 +740,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     # of the table standing here is refused before the file is written.
     ("settings", "kept_values", "built_in_texts"): _ARRAY,
     ("settings", "kept_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "kept_values", "built_in_dates"): _ARRAY,
+    ("settings", "kept_values", "built_in_dates", _EACH): _WORD,
     ("settings", "kept_values", "built_in_numbers"): _ARRAY,
     ("settings", "kept_values", "built_in_numbers", _EACH): _STAND_IN_NUMBER,
     ("settings", "declared_missing_values"): _OBJECT,
@@ -638,6 +749,8 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "declared_missing_values", "values_recorded"): _FLAG,
     ("settings", "declared_missing_values", "built_in_texts"): _ARRAY,
     ("settings", "declared_missing_values", "built_in_texts", _EACH): _WORD,
+    ("settings", "declared_missing_values", "built_in_dates"): _ARRAY,
+    ("settings", "declared_missing_values", "built_in_dates", _EACH): _WORD,
     ("settings", "declared_missing_values", "built_in_numbers"): _ARRAY,
     (
         "settings",
@@ -648,8 +761,16 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "declaration_matching"): _WORD,
     ("settings", "declaration_publication"): _WORD,
     ("settings", "near_threshold_slack"): _COUNT,
+    ("settings", "day_first"): _FLAG,
+    ("settings", "long_tail_minimum_level"): _COUNT,
     ("settings", "forced_identifiers"): _ARRAY,
     ("settings", "forced_identifiers", _EACH): _KNOWN_NAME,
+    ("settings", "forced_codes"): _ARRAY,
+    ("settings", "forced_codes", _EACH): _KNOWN_NAME,
+    ("settings", "forced_measurements"): _ARRAY,
+    ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
+    ("settings", "forced_decimal_commas"): _ARRAY,
+    ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -710,6 +831,12 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "levels", _EACH): _OBJECT,
     ("columns", _EACH, "levels", _EACH, "label"): _SPELLING,
     ("columns", _EACH, "levels", _EACH, "count"): _FLOOR_COUNT,
+    # HOW MANY OF THE LEVEL'S CELLS WORE THE LABEL'S OWN WRITTEN FORM
+    # (plan amendment A-P4-47). A plain `_COUNT` and not `_HELD_BACK`:
+    # it is a count of the cells of a PUBLISHED level, so it is written
+    # at every floor, and at a floor of one it is simply the level's
+    # form-bearing cells with nothing held back anywhere.
+    ("columns", _EACH, "levels", _EACH, "shape_form_cells"): _COUNT,
     ("columns", _EACH, "levels", _EACH, "variants"): _OBJECT,
     ("columns", _EACH, "levels", _EACH, "variants", _KEY_OF): _SPELLING,
     ("columns", _EACH, "levels", _EACH, "variants", _ANY_KEY): _FLOOR_COUNT,
@@ -739,9 +866,21 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "percentiles"): _OBJECT,
     ("columns", _EACH, "percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
+    # The ninety rungs the ladder above does not name (plan P4-D4.10).
+    ("columns", _EACH, "percentiles_between"): _OBJECT,
+    ("columns", _EACH, "percentiles_between", _KEY_OF): _WORD,
+    ("columns", _EACH, "percentiles_between", _ANY_KEY): _MAYBE_NUMBER,
     ("columns", _EACH, "mean"): _MAYBE_NUMBER,
     ("columns", _EACH, "std"): _MAYBE_NUMBER,
     ("columns", _EACH, "skew"): _MAYBE_NUMBER,
+    ("columns", _EACH, "kurtosis"): _MAYBE_NUMBER,
+    ("columns", _EACH, "n_distinct_values"): _COUNT,
+    # THE MODE PAIR (plan P4-D4.11). The value is a published number
+    # like a ladder rung and may be absent, which is what the withheld
+    # pair looks like; the count is a count, and is nought exactly when
+    # the value is absent.
+    ("columns", _EACH, "mode"): _MAYBE_NUMBER,
+    ("columns", _EACH, "mode_count"): _COUNT,
     ("columns", _EACH, "std_unrepresentable"): _FLAG,
     ("columns", _EACH, "n_zero"): _COUNT,
     ("columns", _EACH, "n_negative_unrepresentable"): _COUNT,
@@ -750,9 +889,170 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_used_in_statistics"): _COUNT,
     ("columns", _EACH, "n_left_out_of_statistics"): _COUNT,
     ("columns", _EACH, "numeric_share"): _NUMBER,
+    # THE JOINED-NUMBER ROLE (plan P4-D21). `separator` is a spelling
+    # the table's cells wear, admitted on exactly the terms the affix
+    # pair is; `parts` holds one quantitative block per position, so
+    # every numeric key is repeated one level down. `n_joined`,
+    # `n_parts` and `n_unparsed` answer for the CELLS.
+    ("columns", _EACH, "separator"): _AFFIX,
+    ("columns", _EACH, "n_parts"): _COUNT,
+    ("columns", _EACH, "n_joined"): _COUNT,
+    ("columns", _EACH, "part_min_widths"): _ARRAY,
+    ("columns", _EACH, "part_min_widths", _EACH): _COUNT,
+    # How the positions move together, one pair at a time. An agreement
+    # runs from -1 to 1 and is a number like any other statistic this
+    # format publishes; a count of rows is a count.
+    ("columns", _EACH, "part_agreements"): _ARRAY,
+    ("columns", _EACH, "part_agreements", _EACH): _NUMBER,
+    ("columns", _EACH, "part_above"): _ARRAY,
+    ("columns", _EACH, "part_above", _EACH): _COUNT,
+    # THE COMPOUND ROLE (residual R-P4-13, landing L8). Two counts of
+    # CELLS that sum to `n_present`, so every present cell is in
+    # exactly one published population and a reader can check the
+    # arithmetic. That sum is the answer to review item P1-R6-F7,
+    # which deleted a rule describing part of a column and saying
+    # nothing about the rest.
+    ("columns", _EACH, "n_numeric_cells"): _COUNT,
+    # ...and the third population (residual R-P4-149).
+    ("columns", _EACH, "n_numeric_out_of_range"): _COUNT,
+    ("columns", _EACH, "n_numeric_contradictory"): _COUNT,
+    ("columns", _EACH, "n_label_cells"): _COUNT,
+    # The numeric half's own counts of different written cells, which
+    # the generator spends as its spelling budget. They are stated
+    # HERE, at the column's own level, rather than inside `numbers`:
+    # the rules for that sub-block are derived from what one position
+    # of a joined column publishes, and a position publishes neither.
+    ("columns", _EACH, "n_numeric_distinct"): _COUNT,
+    ("columns", _EACH, "n_numeric_distinct_folded"): _COUNT,
+    ("columns", _EACH, "parts"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): _WORD,
+    ("columns", _EACH, "parts", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "mean"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "std"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "skew"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "kurtosis"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "n_distinct_values"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "percentiles_between"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): _WORD,
+    (
+        "columns", _EACH, "parts", _EACH, "percentiles_between", _ANY_KEY
+    ): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "mode"): _MAYBE_NUMBER,
+    ("columns", _EACH, "parts", _EACH, "mode_count"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "std_unrepresentable"): _FLAG,
+    ("columns", _EACH, "parts", _EACH, "n_zero"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_negative"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_negative_unrepresentable"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_rows"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "integer_valued"): _FLAG,
+    ("columns", _EACH, "parts", _EACH, "n_used_in_statistics"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "n_left_out_of_statistics"): _COUNT,
+    ("columns", _EACH, "parts", _EACH, "numeric_share"): _NUMBER,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): _WORD,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "pad_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "pad_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "field_widths"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "field_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "parts", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "value_histogram"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "value_histogram", _KEY_OF): _BIN,
+    ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "empty_bins"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
+    # ...and each position's own stretch edges (residual R-P4-138).
+    ("columns", _EACH, "parts", _EACH, "empty_edges"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
+    # The affixed-number role: the pair it publishes, how many cells
+    # wore it, and the four counts that answer for the CORES rather
+    # than for the cells.
+    ("columns", _EACH, "affix_prefix"): _AFFIX,
+    ("columns", _EACH, "affix_suffix"): _AFFIX,
+    # ...and the other wrappers this column wears (plan P4-D36), each
+    # with the count of cells that wear it. The two sides are written
+    # under the same rule the pair above is, so a wrapper is spelled
+    # one way wherever it appears.
+    ("columns", _EACH, "affix_variants"): _ARRAY,
+    ("columns", _EACH, "affix_variants", _EACH): _OBJECT,
+    ("columns", _EACH, "affix_variants", _EACH, "prefix"): _AFFIX,
+    ("columns", _EACH, "affix_variants", _EACH, "suffix"): _AFFIX,
+    ("columns", _EACH, "affix_variants", _EACH, "count"): _COUNT,
+    # THE FOUR CLASSES OF ONE WRAPPER'S CORES (plan P4-D37), which
+    # close on that wrapper's own count exactly as the column's four
+    # close on `n_affixed`. The block beside them cannot be loaded
+    # without them: a loader checking a block of a subset has to know
+    # how many of its cores read as numbers.
+    ("columns", _EACH, "affix_variants", _EACH, "n_core_numeric"): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_out_of_range"
+    ): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_contradictory"
+    ): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_not_numeric"
+    ): _COUNT,
+    ("columns", _EACH, "affix_variants", _EACH, "n_core_distinct"): _COUNT,
+    (
+        "columns", _EACH, "affix_variants", _EACH, "n_core_distinct_folded"
+    ): _COUNT,
+    ("columns", _EACH, "n_affixed"): _COUNT,
+    # ...and how many different CORES the cells carry (plan P4-D36),
+    # which is not how many different cells they are once a column
+    # wears more than one wrapper.
+    ("columns", _EACH, "n_core_distinct"): _COUNT,
+    ("columns", _EACH, "n_core_distinct_folded"): _COUNT,
+    ("columns", _EACH, "n_core_numeric"): _COUNT,
+    ("columns", _EACH, "n_core_out_of_range"): _COUNT,
+    ("columns", _EACH, "n_core_contradictory"): _COUNT,
+    ("columns", _EACH, "n_core_not_numeric"): _COUNT,
     ("columns", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "numeric_styles", _KEY_OF): _WORD,
     ("columns", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    # The forms map's sibling: how many figures the cells written with a
+    # point wrote after it. Its keys are figures rather than words of
+    # this package, so they are held to a grammar rather than to a
+    # vocabulary -- and its counts are held to the floor exactly as the
+    # forms map's are, the pooled remainder included.
+    ("columns", _EACH, "fraction_widths"): _OBJECT,
+    ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "shape_forms"): _OBJECT,
+    ("columns", _EACH, "shape_forms", _KEY_OF): _SHAPE_FORM,
+    ("columns", _EACH, "shape_forms", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "pad_widths"): _OBJECT,
+    ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    # ...and the third census, over EVERY whole-written cell rather
+    # than over one form of them (P4-D30). Same grammar, same floor.
+    ("columns", _EACH, "field_widths"): _OBJECT,
+    ("columns", _EACH, "field_widths", _KEY_OF): _WIDTH,
+    ("columns", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "value_histogram"): _OBJECT,
+    ("columns", _EACH, "value_histogram", _KEY_OF): _BIN,
+    ("columns", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
+    # ...and the bins that hold nothing, which is a LIST rather than a
+    # census: there is no count beside a bin holding none, and writing
+    # one would be a nought standing where every other entry of this
+    # document stands for a cell somebody's table holds (P4-D32).
+    ("columns", _EACH, "empty_bins"): _ARRAY,
+    ("columns", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
+    # ...and the REAL edges of each of those stretches (residual
+    # R-P4-138). One `[below, above]` pair per run of empty bins, each
+    # a value of a real cell -- the same kind of fact a ladder rung is,
+    # which is what the owner's ruling of 2026-09-03 on the small-cell
+    # floor already covers.
+    ("columns", _EACH, "empty_edges"): _ARRAY,
+    ("columns", _EACH, "empty_edges", _EACH): _ARRAY,
+    ("columns", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -774,6 +1074,23 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "date_percentiles"): _OBJECT,
     ("columns", _EACH, "date_percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "date_percentiles", _ANY_KEY): _MOMENT_TEXT,
+    # The clock role's own two. `earliest`, `latest` and `n_unparsed`
+    # need no row of their own and must not be given one: these rules
+    # are keyed by PATH and not by role, so the rows above already
+    # serve both roles -- a clock value is canonical moment text by the
+    # same character rule a date is.
+    ("columns", _EACH, "clock_form"): _WORD,
+    # HOW MANY PARSED CELLS WORE EACH FORM. Its keys are members of
+    # this package's own format vocabulary, so a spelling of the table
+    # cannot become one; its counts are exact and no floor governs
+    # them, which is why they are plain counts rather than floored
+    # entries (contract C6-25).
+    ("columns", _EACH, "resolution_mix"): _OBJECT,
+    ("columns", _EACH, "resolution_mix", _KEY_OF): _WORD,
+    ("columns", _EACH, "resolution_mix", _ANY_KEY): _COUNT,
+    ("columns", _EACH, "clock_percentiles"): _OBJECT,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): _WORD,
+    ("columns", _EACH, "clock_percentiles", _ANY_KEY): _MOMENT_TEXT,
     ("columns", _EACH, "n_unparsed"): _COUNT,
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
@@ -796,24 +1113,116 @@ PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
     **_relationship_rules(),
 }
 
+
+def _compound_rules() -> "dict[tuple[str, ...], str]":
+    """The two sub-blocks of a `numbers_with_labels` column (L8).
+
+    DERIVED FROM THE BLOCKS THEY ARE, never written out a second time.
+    The numeric half of a compound column carries exactly what one
+    position of a joined column carries, and its label half exactly
+    what a label-publishing column carries, because both are built by
+    the same code over a view of their own cells. Writing the paths out
+    again would be two lists to keep in step with two others, and the
+    one that fell behind would be found by a person rather than by this
+    guard.
+
+    So they are read off the rules already stated above: everything
+    under `parts[]` becomes the same thing under `numbers`, and every
+    label key of a column becomes the same key under `labels`.
+    """
+    numeric_prefix = ("columns", _EACH, "parts", _EACH)
+    # EVERY KEY THE LABEL BUILDER EMITS, and it is a list because
+    # `_level_details` is in another module and this table is built at
+    # import. The first writing of it left out
+    # `suppressed_level_counts` and the guard caught that at once,
+    # which is the arrangement working: a key added to the builder and
+    # not to this list is refused by the publication check rather than
+    # published unaccounted for. `test_the_compound_label_block_carries
+    # _every_key_a_label_column_does` compares the two so the failure
+    # is a red test and not a run-time refusal.
+    label_keys = (
+        "levels",
+        "n_distinct",
+        "n_distinct_folded",
+        "n_present",
+        "suppressed_levels",
+        "suppressed_level_counts",
+        "suppressed_rows",
+        "suppressed_spellings",
+        "shape_forms",
+        "level_ceiling",
+        "n_distinct_by_occurrences",
+        "n_all_digits",
+        "n_code_alphabet",
+        "length",
+        "words",
+    )
+    built: "dict[tuple[str, ...], str]" = {
+        ("columns", _EACH, "numbers"): _OBJECT,
+        ("columns", _EACH, "labels"): _OBJECT,
+    }
+    for path in _STATED_RULES:
+        if path[: len(numeric_prefix)] == numeric_prefix:
+            built[
+                ("columns", _EACH, "numbers") + path[len(numeric_prefix):]
+            ] = _STATED_RULES[path]
+        elif len(path) > 2 and path[0] == "columns" and path[2] in label_keys:
+            built[("columns", _EACH, "labels") + path[2:]] = _STATED_RULES[path]
+    return built
+
+
+def _wrapper_rules() -> "dict[tuple[str, ...], str]":
+    """The block each wrapper of a SET carries (plan P4-D37).
+
+    DERIVED FROM THE BLOCK IT IS, for the reason the compound role's
+    two sub-blocks are derived rather than written out: a wrapper's
+    numbers are built by the same code that builds one POSITION of a
+    joined column -- `_numeric_details` over a tally of that wrapper's
+    own cores -- so the paths under it are the paths under `parts[]`,
+    and a second copy of them would be a second list to keep in step.
+
+    The one written out here is the container itself, because nothing
+    above states it.
+    """
+    numeric_prefix = ("columns", _EACH, "parts", _EACH)
+    under = ("columns", _EACH, "affix_variants", _EACH, "numbers")
+    built: "dict[tuple[str, ...], str]" = {under: _OBJECT}
+    for path in _STATED_RULES:
+        if path[: len(numeric_prefix)] == numeric_prefix:
+            built[under + path[len(numeric_prefix):]] = _STATED_RULES[path]
+    return built
+
+
+PUBLICATION_RULES: "dict[tuple[str, ...], str]" = {
+    **_STATED_RULES,
+    **_compound_rules(),
+    **_wrapper_rules(),
+}
+
 # For every path whose rule is `_WORD`, the WHOLE of what may stand
 # there. These are this package's own vocabularies, written out where
 # they are defined and read from there: a set gathered from the
 # document being checked would accept whatever it found.
-PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+_STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("settings", "declaration_matching"): (taxonomy.DECLARATION_MATCHING,),
     ("settings", "declaration_publication"): (DECLARATION_PUBLICATION,),
-    # The ten spellings this package reads as "no value", read from
+    # Every spelling this package reads as "no value", read from
     # where they are defined. A declared value that is not one of them
     # is written nowhere IN THE SETTINGS, so a spelling of the table
     # standing here is refused before anything is serialized (contract 5
     # C5-K1). Where such a spelling IS written is four entries below,
     # under `missing_by_source`, and its rule there is `_SPELLING`.
     ("settings", "kept_values", "built_in_texts", _EACH): (
-        parsing.MISSING_TEXTS
+        parsing.built_in_missing_texts()
+    ),
+    ("settings", "kept_values", "built_in_dates", _EACH): (
+        parsing.calendar_placeholders()
+    ),
+    ("settings", "declared_missing_values", "built_in_dates", _EACH): (
+        parsing.calendar_placeholders()
     ),
     ("settings", "declared_missing_values", "built_in_texts", _EACH): (
-        parsing.MISSING_TEXTS
+        parsing.built_in_missing_texts()
     ),
     ("source", "encoding"): reading.ENCODINGS,
     ("source", "header_source"): (
@@ -832,16 +1241,91 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         taxonomy.SENTINEL_REASONS
     ),
     ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # The ninety rungs the ladder does not name (plan P4-D4.10), whose
+    # words come from the same one place for the same reason.
+    ("columns", _EACH, "percentiles_between", _KEY_OF): (
+        taxonomy.FINER_LADDER_NAMES
+    ),
+    # THE SAME TWO VOCABULARIES ONE LEVEL DOWN (plan P4-D21). A joined
+    # column's `parts` holds one quantitative block per position, and a
+    # block there publishes the same maps a top-level one does -- so the
+    # words admitted in its keys are the same words, named again because
+    # this table is matched on the whole path.
+    ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): (
+        taxonomy.LADDER_NAMES
+    ),
+    ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): (
+        taxonomy.FINER_LADDER_NAMES
+    ),
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # Read from the one place the two forms are named, so the word a
+    # producer writes and the word this guard admits cannot drift.
+    ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
+    ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (
+        taxonomy.NUMERIC_STYLES + (taxonomy.SUPPRESSED_LABEL,)
+    ),
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): (
         taxonomy.NUMERIC_STYLES + (taxonomy.SUPPRESSED_LABEL,)
     ),
     ("columns", _EACH, "format"): parsing.DATE_FORMATS,
     ("columns", _EACH, "resolution"): taxonomy.RESOLUTIONS,
     ("columns", _EACH, "time_precision"): parsing.PRECISION_ORDER,
     ("columns", _EACH, "datetimes_read_at"): taxonomy.DATETIMES_READ_AT,
+}
+
+
+PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+    **_STATED_WORDS,
+    # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
+    # P4-D37), read off a joined position's for the reason the rules
+    # under it are: a wrapper's numbers are built by the code that
+    # builds a position's, so the words its maps admit are the same
+    # words, and a second list of them is a second thing to keep in
+    # step.
+    **{
+        ("columns", _EACH, "affix_variants", _EACH, "numbers") + path[4:]:
+            _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if path[:4] == ("columns", _EACH, "parts", _EACH)
+    },
+    # THE SAME VOCABULARIES INSIDE A COMPOUND COLUMN'S TWO HALVES, read
+    # off the ones above for the same reason the rules are: a style map
+    # inside `numbers` may hold exactly what a style map holds anywhere
+    # else, and a second list of the same words is a second thing to
+    # keep in step.
+    **{
+        ("columns", _EACH, "numbers") + path[4:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if path[:4] == ("columns", _EACH, "parts", _EACH)
+    },
+    **{
+        ("columns", _EACH, "labels") + path[2:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if len(path) > 2
+        and path[0] == "columns"
+        and path[2] in ("levels", "shape_forms", "length", "words")
+    },
+    **{
+        ("columns", _EACH, "numbers") + path[2:]: _STATED_WORDS[path]
+        for path in _STATED_WORDS
+        if len(path) > 2
+        and path[0] == "columns"
+        and path[2] in (
+            "numeric_styles",
+            "fraction_widths",
+            "pad_widths",
+            "field_widths",
+            "value_histogram",
+            "percentiles",
+            "percentiles_between",
+            "empty_bins",
+            "resolution_mix",
+        )
+    },
 }
 
 
@@ -939,13 +1423,23 @@ def _is_moment(value: object) -> bool:
 
 
 def _is_sentinel(value: object) -> bool:
-    """One of the numeric stand-ins this package knows, or the pool."""
+    """One stand-in this package knows -- a number or a day -- or the pool.
+
+    BOTH KINDS OF CANDIDATE, and the guard is what makes that a closed
+    question: a verdict names a value of the table, so the only values
+    it may name are this package's own constants, and a spelling
+    outside them is refused before anything is written (plan amendment
+    A-P4-1 item 3).
+    """
     if not isinstance(value, str):
         return False
     if value == taxonomy.SUPPRESSED_LABEL:
         return True
     for candidate in parsing.NUMERIC_SENTINELS:
         if value == f"{candidate:g}":
+            return True
+    for day in parsing.calendar_placeholders():
+        if value == day:
             return True
     return False
 
@@ -975,7 +1469,20 @@ def _is_sentence(value: object) -> bool:
         return False
     if len(value.arguments) != taxonomy.NOTE_ARITY[value.form]:
         return False
-    for argument in value.arguments:
+    for place, argument in enumerate(value.arguments):
+        if taxonomy.takes_a_bound_affix(value.form, place):
+            # The fourth argument class: an affix spelling, admitted at
+            # exactly the positions of exactly the forms that same
+            # table names, so this guard and the builder cannot drift
+            # apart. What it does NOT check here is the positional
+            # identity with the block's own two keys -- residual
+            # R-P4-15 -- because this walk reaches a leaf without the
+            # block that owns it. `_affix_notes_are_bound` checks that
+            # over the whole document, where the block IS in hand, and
+            # it is what makes this position safe.
+            if not isinstance(argument, str):
+                return False
+            continue
         if not taxonomy.argument_is_enumerated(argument):
             return False
     return f"{value}" == taxonomy.rendered(value.form, value.arguments)
@@ -1169,8 +1676,45 @@ def _leaf_is_published(
         # each of them to the floor is the count beside it, checked
         # under its own rule.
         return isinstance(value, str) and bool(value)
+    if kind == _AFFIX:
+        # Any text, the empty spelling included. What bounds this is
+        # not the shape of the value but the floor on `n_affixed`,
+        # which the role's own detection rule reads BEFORE the role is
+        # given: a pair too rare to publish sends the column to the
+        # next rule instead.
+        return isinstance(value, str)
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
+    if kind == _WIDTH:
+        if value == taxonomy.SUPPRESSED_LABEL:
+            return True
+        if not isinstance(value, str) or not parsing.is_digit_text(value):
+            return False
+        return value == "0" or value[:1] != "0"
+    if kind == _BIN:
+        # A BIN NUMBER IS NOT A WIDTH, and it has its own name here so
+        # a refusal says which kind of key it met. The grammar is the
+        # same canonical decimal one, and the range is fixed by the
+        # method rather than by the column.
+        if value == taxonomy.SUPPRESSED_LABEL:
+            return True
+        if not isinstance(value, str) or not parsing.is_digit_text(value):
+            return False
+        if value != "0" and value[:1] == "0":
+            return False
+        return 0 <= int(value) < parsing.HISTOGRAM_BINS
+    if kind == _EMPTY_BIN:
+        # A BIN NUMBER, WRITTEN AS A NUMBER AND NOT AS A KEY. It stands
+        # in a list rather than at the key of a mapping, so the
+        # canonical-decimal question `_BIN` asks does not arise: there
+        # is one way to write a whole number in this format. `True` is
+        # an integer to Python and is not one here, which is the check
+        # every other whole-number rule in this file makes as well.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < parsing.HISTOGRAM_BINS
+    if kind == _SHAPE_FORM:
+        return _is_shape_form(value)
     if kind == _MOMENT_TEXT:
         return _is_moment(value)
     if kind == _OFFSET:
@@ -1180,6 +1724,30 @@ def _leaf_is_published(
     if kind == _VERSION:
         return isinstance(value, str) and value == _version()
     return False
+
+
+def _is_shape_form(value: object) -> bool:
+    """Whether one key of the form census carries no value of the table.
+
+    THIS IS THE GUARD THAT MAKES THE CENSUS PUBLISHABLE, and it asks
+    the ONE definition rather than restating it. It restated it, and
+    the restatement drifted: this accepted `AAAA` and `9999`, which the
+    producer cannot write and no cell can wear, so a document carrying
+    one passed here and missed its own census at every recount (review
+    round 2 finding 2).
+
+    What `parsing.is_a_written_form` guarantees is what this guard
+    needs: a key is spelled from two placeholders and a closed list of
+    marks, and neither placeholder is a letter, a digit or a mark -- so
+    a cell carrying one has no form, and therefore NO CELL THAT HAS A
+    FORM CAN BE SPELLED THE SAME AS ANY KEY. That is checkable here,
+    where "the producer would not do that" is not.
+    """
+    if value == taxonomy.SUPPRESSED_LABEL:
+        return True
+    if not isinstance(value, str):
+        return False
+    return parsing.is_a_written_form(value)
 
 
 def _check_word(
@@ -1257,6 +1825,136 @@ def _check_published(
         raise _refuse(path)
 
 
+def _affix_notes_are_bound(document: "dict[str, object]") -> None:
+    """Every affix spelling in a sentence is that column's own, positionally.
+
+    THE COMPENSATING CONTROL for the fourth argument class (plan
+    amendment A-P4-7). The walk above reaches a sentence without the
+    block that owns it, so it can only ask whether an affix argument is
+    text -- and that is not the rule. The rule is that argument 1 IS
+    the block's `affix_prefix` and argument 2 IS its `affix_suffix`,
+    character for character.
+
+    Positional, because "one of the two" is satisfied by the pair
+    SWAPPED: a sentence saying cells read `kg`, a number, then `$`
+    misdescribes the column while passing a membership test.
+
+    Without this, any value of anybody's table could ride into a
+    published sentence through those two positions, which is the whole
+    hole the argument class opened. The rendering round trip does NOT
+    close it: a producer that builds the sentence from the wrong
+    spelling renders consistently and passes.
+
+    Raises ProfileError naming the column and the place, never the text
+    that stood there.
+    """
+    columns = document["columns"] if "columns" in document else None
+    if not isinstance(columns, list):
+        return
+    pairs: "dict[str, dict[int, str]]" = {}
+    for block in columns:
+        if not isinstance(block, dict):
+            continue
+        name = block["name"] if "name" in block else None
+        prefix = block["affix_prefix"] if "affix_prefix" in block else None
+        suffix = block["affix_suffix"] if "affix_suffix" in block else None
+        if (
+            isinstance(name, str)
+            and isinstance(prefix, str)
+            and isinstance(suffix, str)
+        ):
+            pairs[name] = {0: prefix, 1: suffix}
+        # THE JOINED-NUMBER ROLE BINDS ONE PLACE, NOT TWO (plan
+        # P4-D21). Its sentence names the character its cells are split
+        # on, at argument 3, and that character is published in the same
+        # block under `separator` -- so the binding is the same rule
+        # read against a different key, and the table above is keyed by
+        # POSITION rather than by side so that adding one did not mean
+        # loosening the check to "one of the spellings this column
+        # publishes", which the swap case rules out.
+        separator = block["separator"] if "separator" in block else None
+        if isinstance(name, str) and isinstance(separator, str):
+            pairs[name] = {2: separator}
+    for block in columns:
+        if not isinstance(block, dict):
+            continue
+        name = block["name"] if "name" in block else None
+        if not isinstance(name, str):
+            continue
+        said: "list[object]" = [block["detection_evidence"] if "detection_evidence" in block else None]
+        remarks = block["remarks"] if "remarks" in block else None
+        if isinstance(remarks, list):
+            for remark in remarks:
+                said = said + [remark]
+        for sentence in said:
+            _one_affix_note_is_bound(sentence, name, pairs)
+    notes = document["publication_notes"] if "publication_notes" in document else None
+    if isinstance(notes, list):
+        for note in notes:
+            if not isinstance(note, dict):
+                continue
+            named = note["column"] if "column" in note else None
+            if isinstance(named, str):
+                _one_affix_note_is_bound(note["note"] if "note" in note else None, named, pairs)
+    # THE FOURTH SENTENCE PATH, and it is here because leaving it out
+    # was not safe -- only unreached. `source.header_evidence` is one of
+    # the four places this format carries a sentence, and it belongs to
+    # no column, so no pair on earth can bind an affix spelling
+    # standing in it. A note written there passed the whole guard while
+    # the same note on a column's own evidence was refused, and the
+    # only thing standing between that and a published spelling of
+    # somebody's table was that no producer path writes one there
+    # today. A control that holds because nothing currently exercises
+    # it is not a control.
+    source = document["source"] if "source" in document else None
+    if isinstance(source, dict):
+        _no_affix_stands_outside_a_column(
+            source["header_evidence"] if "header_evidence" in source else None
+        )
+
+
+def _no_affix_stands_outside_a_column(sentence: object) -> None:
+    """Refuse an affix spelling in a sentence that belongs to no column.
+
+    The binding rule is positional against ONE column's published pair.
+    A sentence about the file's header names no column, so there is
+    nothing to bind it to and nothing that could make it right --
+    which makes the only honest answer to refuse the form there
+    outright rather than to invent a pair for it.
+    """
+    if not isinstance(sentence, taxonomy.Note):
+        return
+    for place in range(len(sentence.arguments)):
+        if taxonomy.takes_a_bound_affix(sentence.form, place):
+            raise _refuse(("source", "header_evidence"))
+
+
+def _one_affix_note_is_bound(
+    sentence: object, column: str, pairs: "dict[str, dict[int, str]]"
+) -> None:
+    """One sentence, checked against the spellings its column publishes.
+
+    POSITIONAL, and the table is keyed by position for that reason: a
+    sentence saying cells read `kg`, a number, then `$` misdescribes
+    the column while passing any test that asks only whether the text
+    is one of the two the column carries.
+    """
+    if not isinstance(sentence, taxonomy.Note):
+        return
+    for place, argument in enumerate(sentence.arguments):
+        if not taxonomy.takes_a_bound_affix(sentence.form, place):
+            continue
+        if column not in pairs:
+            # A sentence carrying such a spelling about a column that
+            # publishes none has nothing to be bound to.
+            raise _refuse(("columns", "[]", "affix argument"))
+        bound = pairs[column]
+        if place not in bound:
+            raise _refuse(("columns", "[]", "affix argument"))
+        if argument != bound[place]:
+            raise _refuse(("columns", "[]", "affix argument"))
+
+
 def _publication_context(document: dict[str, object]) -> _Publication:
     """The floor and the column names, read out before the walk.
 
@@ -1316,12 +2014,17 @@ def check_publication(document: dict[str, object]) -> None:
     """
     context = _publication_context(document)
     _check_published(document, (), "", context)
+    _affix_notes_are_bound(document)
 
 
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
+    forced_codes: list[str] | None = None,
+    forced_measurements: list[str] | None = None,
+    forced_decimal_commas: list[str] | None = None,
+    declarations_are_reconstructed: bool = False,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -1347,6 +2050,46 @@ def build_document(
       rules as any other missing spelling. DECLARATION_PUBLICATION
       above states the scope of the settings rule exactly.
     """
+    declared_codes = [] if forced_codes is None else forced_codes
+    declared_measurements = (
+        [] if forced_measurements is None else forced_measurements
+    )
+    # The columns a person said write their numbers with a comma for
+    # the point (plan P4-D26). Named columns only: a comma inside an
+    # address or a note is not a decimal point, and no rule here can
+    # tell the difference, which is why the declaration exists.
+    declared_commas = (
+        [] if forced_decimal_commas is None else forced_decimal_commas
+    )
+    # REFUSED AT THE PRODUCER, so that every path is covered and not
+    # only the command line (R-P4-54; review item P4-G3-R8-F2). A
+    # declared value whose number depends on which grammar reads it
+    # means one thing on a declared column and another everywhere
+    # else, and the settings block has one place to record it -- so a
+    # description carrying the pair can tell a correct file it missed
+    # its own presence, role and numbers. `build_document` is a public
+    # entry point; the CLI refusal alone left that one call away.
+    #
+    # `declarations_are_reconstructed` says these declarations came
+    # from a DESCRIPTION rather than from a person, which is what the
+    # validator hands over: it reads back the spellings a column
+    # published among its absent cells so that it can take the checked
+    # file the way the description was made. Those are not a person's
+    # words and were gated when the description was written, and one of
+    # them can legitimately be a spelling whose number depends on the
+    # grammar -- `--missing-value -999` is safe and matches a cell
+    # spelled `-999,0` by NUMBER on a declared column, which is what
+    # the matching rule says it should do. Refusing the reconstruction
+    # turned away a correct description while checking a correct file.
+    if declared_commas and not declarations_are_reconstructed:
+        for spelling in (
+            list(settings.kept_values)
+            + list(settings.declared_missing_values)
+        ):
+            if parsing.reads_as_two_numbers(spelling):
+                raise ValueError(
+                    f"{taxonomy.AMBIGUOUS_DECLARED_VALUE}: {spelling}"
+                )
     columns: list[dict[str, object]] = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
@@ -1357,6 +2100,9 @@ def build_document(
             table.n_rows,
             settings,
             name in forced_identifiers,
+            name in declared_codes,
+            name in declared_measurements,
+            name in declared_commas,
         )
         columns = columns + [_column_block(described)]
         for note in described.publication_notes:
@@ -1364,7 +2110,13 @@ def build_document(
     document: dict[str, object] = {
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),
-        "settings": _settings_block(settings, forced_identifiers),
+        "settings": _settings_block(
+            settings,
+            forced_identifiers,
+            declared_codes,
+            declared_measurements,
+            declared_commas,
+        ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and
         # it is fixed by the input bytes, so it does not make two runs
@@ -1459,5 +2211,36 @@ def default_output_paths(
     writing.refuse_if_folder(first)
     writing.refuse_if_folder(second)
     return (first, second)
+
+
+def questions_output_path(
+    table_path: pathlib.Path, out_dir: "str | None"
+) -> pathlib.Path:
+    """Where the questions file goes, under the same rules as the pair.
+
+    Every exact target goes through the locality gate rather than the
+    folder alone, which is the rule review round 1 of Phase 1 wrote
+    after a link left at an output name sent the file wherever it
+    pointed. This one is no exception for being advisory.
+
+    Raises ProfileError when a given folder does not exist and
+    PathValidationError when it is not a plain local path, exactly as
+    `default_output_paths` does.
+    """
+    source = pathlib.Path(table_path)
+    stem = _without_table_suffix(f"{source.name}")
+    if out_dir is None:
+        folder = pathlib.Path(source.parent)
+    else:
+        validated = validate_local_path(out_dir, purpose="output folder")
+        folder = pathlib.Path(validated)
+        if not folder.is_dir():
+            raise errors.ProfileError(errors.output_folder_missing(f"{folder}"))
+    target = validate_local_path(
+        f"{folder / (stem + QUESTIONS_SUFFIX)}", purpose="output file"
+    )
+    path = pathlib.Path(target)
+    writing.refuse_if_folder(path)
+    return path
 
 

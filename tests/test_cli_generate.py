@@ -36,6 +36,7 @@ run producer, loader, generator and command end to end.
 
 import builtins
 import importlib
+import json
 import pathlib
 import sys
 import typing
@@ -632,8 +633,8 @@ def test_the_report_states_the_same_things_every_run(
         "It does NOT say that no row of the twin can equal a row of your",
         # every file a full run leaves behind, and institutional
         # handling (plan amendment A-P3-8: the profiler's summary
-        # joined the list)
-        "All five files",
+        # joined the list; A-P4-58: the questions file joined it)
+        "All six files",
         "the plain-language summary beside it",
         "institution",
         # the formula-context warning
@@ -722,15 +723,35 @@ def test_every_role_the_profiler_can_publish_survives_the_whole_command(
     """
     text = fixtures.every_role_table()
     lines = [line for line in text.split("\n") if line]
-    widened = [f"{lines[0]},huge"]
+    readings = fixtures.joined_column_text()
+    widened = [f"{lines[0]},huge,{fixtures.JOINED_COLUMN}"]
     for index in range(len(lines) - 1):
+        wide = "1e999" if index % 2 else "-2e400"
         widened = widened + [
-            lines[index + 1] + ("," + ("1e999" if index % 2 else "-2e400"))
+            f"{lines[index + 1]},{wide},{readings[index]}"
         ]
-    joined = ""
+    body = ""
     for line in widened:
-        joined = joined + line + "\n"
-    description = _described(tmp_path, joined)
+        body = body + line + "\n"
+    # THROUGH THE COMMAND LINE, not `build_document`. The joined role
+    # exists only where somebody declares it, so the wiring from
+    # `--measurement` to the producer is the only thing that can make
+    # this role over the zero-code route -- and no test exercised it.
+    # Dropping that wiring left the direct producer, the generator, the
+    # validator and the golden all green while the command a person
+    # actually runs could no longer build the role (review item
+    # P4-A2-R4-F4).
+    table_path = fixtures.write(tmp_path, "clinic.csv", body)
+    assert main([
+        "profile", f"{table_path}",
+        "--measurement", fixtures.JOINED_COLUMN,
+    ]) == 0
+    capsys.readouterr()
+    description = tmp_path / "clinic-profile.json"
+    assert description.is_file(), sorted(p.name for p in tmp_path.iterdir())
+    made = json.loads(description.read_text(encoding="utf-8"))
+    roles = {column["role"] for column in made["columns"]}
+    assert "joined_numbers" in roles, sorted(roles)
     assert main(["generate", f"{description}"]) == 0
     capsys.readouterr()
     read = reading.read_table(f"{_twin_of(description)}")

@@ -1,12 +1,30 @@
 # Generation method v1 — the exact transform from (profile, seed) to twin bytes
 
-**Status:** revision 1, written before any Phase 2 code exists, under the
-owner sequencing override recorded in `docs/plans/phase-2-generator.md`
-(revision 5). **Not ratified.** This is artifact 3 of that plan's four,
-and it carries out decisions the plan makes; it introduces no mechanism
-the plan left open, except the one the plan explicitly delegated here —
-the invention domain and its capacity rule, with a named refusal
-(P2-R5-F4), which section G9 fixes.
+**Status:** written before any Phase 2 code existed, under the owner
+sequencing override recorded in `docs/plans/phase-2-generator.md`
+(revision 5), and revised repeatedly since — clauses below cite their
+own revisions 2, 4 and 5, each raised by a code-review round or an
+owner ruling against the implementation this document anchors. This
+header said "revision 1, written before any Phase 2 code exists" until
+2026-08-20, which had stopped being true at the first of those
+revisions and was plainly false once the generator shipped. It carries
+no revision number now rather than a guessed one; the next amendment
+to this document sets one and states what it counts.
+
+**Not ratified, and that is a statement about process rather than a
+doubt about the text.** No review round returned a ratifying verdict
+on this document. Phase 2 was closed by owner act on 2026-08-12 with
+its review record standing exactly as written, and nothing in this
+repository describes Phase 2 or its artifacts as review-ratified. This
+document is sealed and governing regardless: it is one of the
+documents `tools/dispositions/seal.py` counts, and the generator is
+held to it.
+
+This is artifact 3 of that plan's four, and it carries out decisions
+the plan makes; it introduces no mechanism the plan left open, except
+the one the plan explicitly delegated here — the invention domain and
+its capacity rule, with a named refusal (P2-R5-F4), which section G9
+fixes.
 
 **Who this is for.** Two readers, and the document fails if either is
 left guessing. The first is the implementer of `synthtwin generate`. The
@@ -283,17 +301,81 @@ draw budget.
 | role | content words | placement words |
 |---|---|---|
 | `empty` | 0 | `max(n_rows - 1, 0)` |
-| `constant`, `binary`, `categorical` | 0 | `max(n_rows - 1, 0)` |
+| `constant`, `binary`, `categorical`, `long_tail_labels` | 0 | `max(n_rows - 1, 0)` |
 | `count`, `continuous` | `S - pinned - zeroed` (G5.3) | `max(n_rows - 1, 0)` |
 | `datetime` | `max(P - 2, 0)` where `P = n_present - n_unparsed` (G7) | `max(n_rows - 1, 0)` |
 | `identifier` | 0 | `max(n_rows - 1, 0)` |
 | `free_text` | 0 | `max(n_rows - 1, 0)` |
 | `numeric_unrepresentable` | 0 | `max(n_rows - 1, 0)` |
+| `time_of_day` | `max(P - 2, 0)` where `P = n_present - n_unparsed` (G7A) | `max(n_rows - 1, 0)` |
+| `affixed_number` | `S - pinned - zeroed` (G5.3), read over the CORES | `max(n_rows - 1, 0)` |
+| `joined_numbers` | the sum over positions of `S - pinned - zeroed` (G5.3) read over that position's numbers, PLUS `max(n_joined - 1, 0)` for every position after the first | `max(n_rows - 1, 0)` |
 
 Where, for the numeric roles, `S` is the number of value strata
 (G5.2), `pinned` is the number of strata pinned to an endpoint (2 when
 `S >= 2`, 1 when `S == 1`, 0 when `S == 0`), and `zeroed` is 1 when a
 zero stratum exists and is not itself one of the pinned strata, else 0.
+
+**The two quantities the Phase 4 roles add.** On `affixed_number` the
+strata are counted over the CORES and not over the written cells: the
+prefix and the suffix are fixed text that costs no word, so this role's
+budget is the numeric budget of the numbers inside it. On
+`joined_numbers` each position is budgeted as its own numeric column,
+and the budget then RESERVES a further `max(n_joined - 1, 0)` words for
+every position after the first.
+
+Those reserved words are not spent inside any position. Each position
+draws exactly its own numeric budget and no more, and the reserve is
+handed afterwards, once, to the walk that chooses WHICH NUMBER OF ONE
+POSITION MEETS WHICH NUMBER OF THE NEXT in a row.
+
+**"Reserved" is the exact word and "spent" would not be.** The words
+are DRAWN from the stream either way -- which is what fixes the budget,
+and therefore where the next column starts -- but the walk may consume
+none of them: it begins from a sorted, rank-for-rank pairing, and where
+that already meets the published targets it stops without looking at a
+single reserved word. An implementer must draw them regardless, or
+every later column moves. The reserve exists because
+`_numeric_content` places its values by rule rather than by chance --
+the words decide arrangement, not which numbers come out -- so two
+positions built from it emerge in the same order and would pair up in
+lockstep. The measured effect of leaving them paired that way: a
+400-row column whose real cells held 387 different readings came out
+with 117, in runs of near-neighbours, while each position's own
+published distribution was right to the digit.
+
+**AND THE PAIRING IS ASKED FOR, which makes this role the one place in
+synthtwin today where structure BETWEEN two quantities is published and
+reproduced.** `part_agreements` gives, for each pair of positions, how
+strongly they rise and fall together BY RANK, and `part_above` gives
+how often the earlier position stands above the later one. Both are
+published facts of the real column, and the repair walks toward them by
+swapping two rows' numbers within ONE position at a time -- which keeps
+that position's multiset to the last cell, so its ladder, mean, spread,
+styles and widths are all untouched and only the pairing moves. Drawn
+independently and left alone, two positions of a reading agreed at
+-0.02 where the real column agreed at 0.83, and a twin cell could hold
+a second number above a first that no real cell ever did.
+
+This is an exception to the one-column-wide bound stated elsewhere in
+this repository, and it is a narrow one: the structure lives INSIDE a
+cell, between the positions of one column, and says nothing about any
+other column. `part_agreements` is APPROXIMATED against the fixed window
+of G12.9 on EVERY pair. Until landing L7 the walk moved the last
+position alone and a pair between two earlier positions was scored by
+nothing: no window was promised for it, which is not the same as no
+obligation, and it could come out at `+1` against a published `-1` --
+a plain MISS named as such by both reports (residual R-P4-51, review
+item P4-G3-R6-F7). The walk now moves every position but the first, so
+every pair is aimed at and every pair takes the window; a pair that
+lands outside it is still a MISS, named by both reports with the
+achieved value beside the published one. Measured on a 400-row
+two-position column published at 0.9613, the twin reached 0.8994 while
+`part_above` came out exact. BOTH reports name these facts and measure
+them (R-P4-42 and R-P4-44, closed 2026-08-27). The count of
+different CELLS is a separate fact a pairing of these numbers may be
+unable to meet, and the twin's report DOES say so (residual R-P4-40).
+
 
 **Everything else is placed by fixed rule and costs no word** (P2-D8):
 the endpoints of a numeric or datetime column, the zeros, the class
@@ -317,7 +399,15 @@ Published: the 11-rung `percentiles` ladder; `n_zero`; `n_negative`;
 `std_unrepresentable`; the universal class counts `n_numeric`,
 `n_out_of_range`, `n_contradictory`, `n_not_numeric`; `n_distinct` and
 `n_distinct_folded`; and (owner decision 10) `numeric_styles` with its
-withheld remainder.
+withheld remainder, TOGETHER WITH ITS TWO SIBLING CENSUSES:
+`fraction_widths`, how many `decimal`-styled cells wrote each number of
+figures after the point (plan P4-D4.5), and `pad_widths`, how many
+`leading_zero`-styled cells wrote each FIELD WIDTH (plan P4-D14). Both
+are floor-governed with a `(withheld)` remainder, both are read over
+the CORES on `affixed_number`, and both were absent from this list
+while the profile published them -- an omission that left an
+independent implementer writing a column the shipped tool would not
+write, which is the one thing this document exists to prevent.
 
 Fixed quantities used throughout:
 
@@ -400,6 +490,44 @@ M = min(K, F_num)          the number of different VALUES
 is deliberate: every value the ladder is allowed to distinguish is a
 value the twin keeps.
 
+**A GRAIN INSIDE A ROLE TAKES ITS OWN COUNT, AND THIS SECTION SAID
+NOTHING ABOUT IT UNTIL LANDING L7** (residual R-P4-112). One position
+of a joined column (G6B.2) and the cores of an affixed one (G6A.2) are
+handed to G5 and G6 as columns in their own right, and the universal
+counts they arrive with answer for the CELLS AROUND them. A 36-row
+column of `N/M` publishes 36 different cells while its first position
+holds 11 different numbers, so that position was divided into 36
+strata where a plain column carrying the same numeric facts gets 11 —
+and a stratum holds a VALUE, not a cell. So for such a grain, and only
+for such a grain,
+
+```
+F_num = n_distinct_values of the grain's own quantitative block
+```
+
+**for the division here AND FOR NOTHING ELSE.** The spelling budgets of
+G6.5 keep the counts the block arrives with, which are the counts of
+whole CELLS.
+
+**AND THIS SENTENCE SAID THE OPPOSITE FOR ONE REVISION.** A count of
+NUMBERS is not a count of spellings, and a spelling budget is precisely
+what buys the SECOND way of writing one number: an affixed cell's
+spelling is its core's spelling with fixed text around it, so the
+cells' count IS the cores' count, and a joined position's variants are
+the cell's spellings just as much. Measured on 300 cells holding sixty
+values, each written plainly and again with a leading zero — 120
+different spellings over 60 different numbers — at forty seeds through
+the real path: with the budget at the grain's 60 the twin held 55 to 60
+of the 120 published spellings, and with it on the cells' 120 it holds
+81 to 97. On the joined role, where both counts are exactly observable,
+the shortfall is a reported MISS at forty seeds of forty either way.
+An affixed core has no pairing stage that could recover the variants at
+all.
+
+A plain numeric column is unaffected: there the count on the block IS
+the column's own, and `n_distinct_folded` divides it exactly as it
+always has.
+
 The strata are laid out in one fixed order — **negatives ascending, then
 the zero stratum, then positives ascending** — because that is the
 sorted order of the column's own values, and the ladder is a statement
@@ -440,15 +568,203 @@ feasibility rule 4), `M` is raised to the smallest value that satisfies
 them, and the report names the raised distinct count beside the
 published one.
 
-Within the negatives, the `G` cells are divided into `M_neg` strata by
-the even split
+#### G5.2a How a band's cells divide between its strata
+
+The zero stratum, when it exists, has size `Z`. Each of the other two
+bands divides its own cells among its own strata by the rule below.
+Write `C` for the band's cell count (`G` for the negatives, `P` for the
+positives), `M` for its stratum count (`M_neg` or `M_pos`), and `lo`
+for the rank its first cell stands at in the sorted column — `0` for
+the negatives and `G + Z` for the positives.
+
+**THE EVEN SPLIT IS THE FALLBACK AND NO LONGER THE RULE.** Where there
+is no ladder, or where `M >= C`, the cells divide evenly:
 
 ```
-size of stratum i = floor((i + 1) * G / M_neg) - floor(i * G / M_neg)
+size of stratum i = floor((i + 1) * C / M) - floor(i * C / M)
 ```
 
-for `i = 0 .. M_neg - 1`, and the positives likewise over `P` and
-`M_pos`. The zero stratum, when it exists, has size `Z`.
+for `i = 0 .. M - 1`. That is what this clause said for every column
+until 2026-08-28, and residual R-P4-49 is what it cost: an even split
+gives every value the same number of cells, so a column of 230 cells
+holding 27 numbers — five of them about forty cells each, the other
+twenty-two about one — became 27 strata of eight or nine, a shape that
+can represent neither. The ladder decides WHICH values a twin holds and
+the split decides HOW MANY CELLS each of them gets, and no ladder,
+however fine, can repair the second.
+
+**OTHERWISE THE SIZES FOLLOW THE LADDER'S OWN SHAPE**, which is what
+the hundred-and-one-rung ladder of G5.1 knows and the eleven named
+rungs do not: a value standing at seventeen of the rungs stands at
+seventeen per cent of the column, because the rungs stand at the
+percentiles.
+
+**THE ORDER OF THE WHOLE LAYOUT, stated once so it cannot be read
+three ways.** The steps run: (1) read the ladder at every rank of both
+bands and take their runs, which is steps 1 and 2 below; (2) the band
+share of G5.2b, which turns those run counts into `M_neg` and `M_pos`;
+(3) the carrier band step of G5.2, which may move one stratum from one
+band to the other; (4) steps 3 and 4 below, which join or divide each
+band's runs to its final `M` and take the sizes; (5) the carrier cell
+step; (6) the reach step. Steps 1 and 2 are computed ONCE, before the
+band share, and are not re-taken when step 3 moves a stratum — only
+step 4 is redone, against the moved counts.
+
+**1. Read the ladder at every rank of the band.** THE LADDER IS THE
+HUNDRED-AND-ONE-RUNG ONE that G5.3 merges from `percentiles` and
+`percentiles_between`, and every other reader of a ladder in this
+section reads the same one. For `i = 0 .. C - 1`,
+
+```
+v[i] = Interpolate(Ladder, (lo + i) * 2**64, K * 2**64)
+```
+
+by the convex form of G5.3 — its segment rule, its four floating-point
+operations and its clamp — with the integer rule of G5.4 applied
+afterwards where `integer_valued` is published true. `K` is the
+column's numeric cell count and `2**64` is the scale G5.3 itself uses,
+so nothing rounds here that does not round there. G5.5's sign repair is
+NOT applied: the two operations named here are the whole of it.
+
+**2. Take the runs.** A RUN is a maximal block of consecutive ranks
+whose values are equal, compared as binary64 numbers. Write the runs in
+rank order as lengths `L[0..R-1]` and values `H[0..R-1]`. A run is a
+PLATEAU of the ladder: the cells that hold one value.
+
+**3. Make the run count equal `M`.** Interpolating a ladder over a
+column's ranks puts a one-rank TRANSITION between each pair of real
+plateaus — a value the column does not hold, standing between two it
+does — so `R` is usually larger than `M` and never exactly it by
+accident.
+
+While `R > M`, join one adjacent pair `(j, j+1)` into a single run of
+length `L[j] + L[j+1]` keeping the value `H[j]`. The pair is chosen by
+the SMALLEST of this key, and the leftmost pair wins a tie:
+
+```
+( min(L[j], L[j+1]),  0 if Whole(H[j]) == Whole(H[j+1]) else 1,  Gap(j) )
+
+span   = |H[j]| + |H[j+1]|
+Gap(j) = 0                              where span is 0
+       = | H[j+1]/span - H[j]/span |    where span is finite
+
+                                        and where span is NOT finite,
+scale  = max(|H[j]|, |H[j+1]|)          scale is finite and non-zero
+a      = H[j]/scale,  b = H[j+1]/scale  whenever span is not, so
+Gap(j) = | b/(|a|+|b|) - a/(|a|+|b|) |  this branch always answers
+```
+
+in binary64, and **DIVIDED BEFORE IT IS SUBTRACTED, which is the whole
+of the guard.** Taking `|H[j+1] - H[j]|` first overflows to an infinity
+where the two rungs sit at opposite ends of the representable range —
+the same hazard G5.3 spends two paragraphs on — and `inf / inf` is a
+NaN, which makes every comparison against it false and hands the choice
+to iteration order instead of to the key.
+
+**AND THE SECOND BRANCH IS WHY THE FIRST IS NOT ENOUGH** (review item
+P4-G6-R1-F1). Dividing first moves the overflow out of the numerator
+and into `span`, where it is still an overflow: two LARGE rungs of the
+SAME sign make `|H[j]| + |H[j+1]|` an infinity, both quotients zero,
+every `Gap` tied at zero, and the leftmost pair wins a comparison it
+should have lost. On the three cells `1e308`, `1.1e308`, `1.1e308` the
+true gaps are about 0.032 and 0.015, so the right pair is the nearer
+one and the left pair was taken. A column of very large numbers is not
+an exotic case. Scaling both rungs by the LARGER MAGNITUDE first cannot
+overflow, because that divisor is one of the two numbers themselves.
+
+The two branches compute one quantity in real arithmetic and not one
+binary64: over 400000 random pairs whose `span` was finite they agree
+on 97.8 per cent and part by one unit in the last place on the rest,
+which would move the choice on about 7 merges in every 10000 — always
+between two gaps already equal to within representation. So the second
+branch is taken ONLY where the first has no answer at all, and every
+column the first form could represent keeps exactly the bytes it had. `Whole(x)` is true
+where `x` is a whole number, by the test of G5.4. The key is recomputed
+after every join, not once for the whole walk.
+
+`Whole(x)` is true where `x` is a whole number. **All three parts of
+the key earn their place, and each was measured against a witness that
+the other two get wrong:**
+
+- **the smaller side smallest** — absorb the least. A transition is one
+  rank wide and a plateau is many, so this takes the artifact into the
+  real value beside it and never the reverse. Choosing instead the pair
+  of fewest cells joins two transitions, which are two different values
+  and neither spurious, and loses a value the column holds.
+- **both whole or both fractional next** — which cells can be written
+  without a point is `numeric_styles`, an EXACT-OBSERVABLE fact, and a
+  whole value's nearest neighbour is very often the fraction just below
+  it: `4` and `3.875` are closer than `4` and `5`. Choosing by distance
+  alone walked a column's whole-number plateaus into fractional ones
+  and left a published `plain` count of 38 written as 28.
+- **nearest in value last**, measured RELATIVELY against the pair's own
+  size, so a column of thousands and a column of thousandths are judged
+  the same way.
+
+While `R < M`, divide the longest run in two — leftmost on a tie — into
+lengths `floor(L/2)` and `L - floor(L/2)`, both keeping its value. The
+two strata then hold the same value, and the leading-zero family of
+G6.5 is what gives the second of them a spelling of its own.
+
+**4. The sizes are the run lengths**, in rank order. Each is at least
+one and they sum to `C`, because every run is at least one rank long
+and the joins and divisions above preserve the total.
+
+A stratum whose SHARE `[c/K, (c+g)/K]` lies inside one plateau takes
+that plateau's value for every word, because both rungs of every
+segment its share meets hold that value and G5.3's clamp returns it
+exactly. That is what makes a repeated value's count exact rather than
+approximate.
+
+**THE SHARE AND NOT THE RANK RANGE, and this clause said the rank range
+until 2026-08-28.** A stratum's share runs one rank PAST its last cell,
+so a stratum whose every rank sits inside a plateau can still draw from
+the segment above it: measured, a ladder flat at `7.0` over ranks 10 to
+20 with the next rung at `20.0`, a stratum at `c = 10, g = 11`, and the
+word `2**64 - 1` gives **19.999999999999996** and not `7.0`. The reach
+step of G5.2b already states the criterion correctly — "a stratum whose
+share does not move at all" — so the two were adjacent and disagreed.
+
+#### G5.2b How many strata each band gets
+
+`M_neg` and `M_pos` are fixed in G5.2 above, and the share between them
+follows the ladder rather than the cells wherever there is one. Where
+`G > 0` and `P > 0`, write `A_neg` and `A_pos` for the number of RUNS
+step 2 above finds in each band — how many different values the ladder
+gives that band — and replace the cell counts in G5.2's formula with
+them:
+
+```
+M_neg = (2 * M_rest * A_neg + (A_neg + A_pos)) // (2 * (A_neg + A_pos))
+then clamp M_neg into [ max(1, M_rest - P),  min(G, M_rest - 1) ]
+```
+
+falling back to `G` and `P` where there is no ladder or where
+`A_neg + A_pos` is zero.
+
+**THE LADDER DECIDES THE SHARE AND THE CELLS DECIDE THE CEILING**, and
+the clamp above says so because the formula alone does not. G5.2's
+cell-ratio version could never ask a band for more strata than it has
+cells: `M_rest <= G + P` makes `M_rest * G / (G + P) <= G` an identity,
+so the bound came free. A RUN count has nothing to do with a cell
+count, and the bound does not. Measured before the clamp was added: a
+102-cell column with two negative cells over two plateaus and a hundred
+positive cells over four asked SEVENTEEN strata of the two-cell band,
+and the sizes came back as fifteen strata of no cells — which G5.2
+forbids by name, because a stratum with no cell in it is not a value
+(P2-C1-F5), and each of those would still take an end of the ladder in
+G5.3 and still have its sign repaired in G5.5.
+
+**CELLS ARE THE WRONG THING TO FOLLOW HERE, and this clause followed
+them until 2026-08-28.** Two bands holding the same number of cells
+need not hold the same number of values, and a stratum count is about
+values. Measured on one column: thirteen negative cells holding TWO
+values, forty-eight positive cells holding five, and seven strata
+between them — the cell share gave the negatives one, so ten cells of
+`-30` and three of `-55.5` collapsed into a single value and took ten
+of the eighteen point-free cells the style map publishes with them.
+Following the ladder gives the negatives two, which is what the column
+holds.
 
 **The carrier step: the cells a published point-free count needs**
 (P2-C4-F3). Three of the six styles of G6.1 — `plain`, `leading_zero`
@@ -577,12 +893,76 @@ Then `c[S - 1] + g[S - 1] = K`.
 
 ### G5.3 The value of each stratum: pinned ends, stratified inverse transform, no word for a zero
 
+**REVISION 2 (2026-08-27, plan P4-D4.10): the ladder a column of
+numbers interpolates over is a HUNDRED AND ONE rungs, not eleven.**
+
+The measurement that forced it. An eleven-rung ladder says nothing
+about how many cells lie INSIDE a gap between two rungs, so a twin
+drawn from it puts too few values where the real column crowded them.
+Four hundred rows, a threshold at 1000, and the share of the column
+below that threshold varied — the error in the twin's count of cells
+below it:
+
+| share below the threshold | eleven rungs | hundred and one |
+|---|---|---|
+| 11% | −2 | **0** |
+| 24% | −9 | **0** |
+| 37% | −31 | **0** |
+| 62% | −39 | **0** |
+| 85% | −37 | **0** |
+
+The eleven-rung error grows with the distance from a named rung and
+reaches thirty-nine cells, a tenth of the column; the finer ladder is
+EXACT at every one of them. That is residual R-P4-30's defect, and this
+is its repair.
+
+**The first measurement of this table read `+2` in the right-hand
+column at every share, and that was not the method — it was a defect in
+this landing.** Eight places reached for `L[10]` meaning the top of the
+ladder, which on a hundred-and-one-rung ladder is `p10`; with them
+fixed the column reads nought. A constant error across five very
+different shapes should have been read as a structural fault rather
+than as a property, and it is written down here because the next person
+to see a suspiciously flat residual should look for one.
+
+**WHY THIS WORKED WHERE THE HISTOGRAM DID NOT** (G13, R-P4-49). The
+histogram asked the twin to hold a COUNT per bin, and counts come from
+the allotment, which never saw it. A ladder asks the twin to PLACE a
+value, and placing values by interpolating a ladder is what this
+section already does. No new mechanism was added: the list got longer.
+
+**THE WHOLE LAYOUT READS THIS LADDER, and this paragraph said the
+opposite until 2026-08-28.** It said the layout — how many strata a
+band gets and which can carry a point-free spelling — still read the
+eleven NAMED rungs, on a measurement taken before R-P4-49: handing the
+finer ladder to the carrier-band decision was found to change the
+strata counts, so a column came out a different shape rather than the
+same shape more finely placed.
+
+That measurement no longer holds, and it was RE-TAKEN rather than
+trusted. Over 120 columns of six shapes — gaussian, heavily repeated,
+bimodal, whole numbers, a narrow band around zero, and mostly zeros —
+the layout is identical either way, 0 of 120 differing. What changed is
+that G5.2a's sizes and G5.2b's band share now read this ladder
+themselves, so the carrier steps are no longer the only thing standing
+between the two.
+
+**It is unified because one fact read from two different ladder
+lengths is one fact written twice.** While the paragraph above stood, the shipped generator read
+the eleven at the carrier steps and the independent reference oracle
+read the hundred and one, and the frozen vectors agreed only because no
+committed case separates them. Everything in G5.2, G5.2a, G5.2b and
+G6.4 that reads a ladder reads THIS one.
+
 For each stratum `s`, in ascending `s`:
 
 - **`s == 0`**: the value is `L[0]` — the published `min`, used exactly
   as published. No word.
-- **`s == S - 1` and `S >= 2`**: the value is `L[10]` — the published
-  `max`, exactly. No word.
+- **`s == S - 1` and `S >= 2`**: the value is `L[-1]` — the published
+  `max`, exactly. No word. (The LAST rung, named by its position and
+  not by the number ten: the ladder a column of numbers interpolates
+  over has a hundred and one rungs, and code that reached for `L[10]`
+  as the top of it read `p10` instead — see the revision note below.)
 - **the zero stratum** (when it exists and is neither of the above): the
   value is exactly `0`. No word.
 - **any other stratum**: one word `w` is drawn, and the value is
@@ -595,7 +975,7 @@ For each stratum `s`, in ascending `s`:
   which places the stratum's uniform inside the stratum's own share of
   the distribution: `N_s / D` lies in `[c[s]/K, (c[s]+g[s])/K)`.
 
-  Find the ladder segment `j` — the unique `j` in `0 .. 9` with
+  Find the ladder segment `j` — the unique `j` with
 
   ```
   PCT[j] * D  <=  100 * N_s  <  PCT[j+1] * D
@@ -603,7 +983,21 @@ For each stratum `s`, in ascending `s`:
 
   scanning `j` upward from 0 and stopping at the first that holds. Where
   two adjacent rungs share a probability this cannot happen (the
-  probabilities are strictly increasing), so the segment is unique. Then
+  probabilities are strictly increasing), so the segment is unique.
+
+  **`PCT` HERE IS THE HUNDRED AND ONE PERCENTS `0 .. 100`, AND `L` IS
+  THE HUNDRED AND ONE RUNGS** — the eleven the description names and
+  the ninety of `percentiles_between` beside them, merged in percent
+  order and filled by G5.1's rule over the whole of it (revision 2,
+  plan P4-D4.10). A DATE or CLOCK column keeps the eleven of G7.3 and
+  G7A.4: each of those is a selection ladder over values that cannot be
+  averaged, and the finer ladder is a fact about numbers.
+
+  Which percents a ladder stands at follows from HOW MANY RUNGS IT
+  HAS, so an implementation cannot pair a ladder with the wrong
+  percents; doing so reads `L[j]` for a `j` chosen against the other
+  scale, which on a hundred-and-one-rung ladder means never reading
+  above the tenth percentile. Then
 
   ```
   A = 100 * N_s - PCT[j] * D                 (exact, 0 <= A < B)
@@ -672,6 +1066,51 @@ else:          n = b
 positive infinity**. Not banker's rounding, and not toward zero: two
 implementations that disagree here disagree on bytes, and half-even
 would make a twin's rounding depend on the parity of a neighbour.
+
+**AND THE ONE PLACE THAT RULE DOES NOT GOVERN, named here so that
+"stated once" stays true.** The integer rule above places ONE value at
+a time and a bias in it moves that value. Phase 4's fixed-fraction
+snap — the rule that writes a `decimal`-styled cell at a width the
+column's own census publishes (plan P4-D4.5, with amendments A-P4-5,
+A-P4-6, A-P4-8 and A-P4-15) — places a whole column of them at once,
+and a bias toward positive infinity applied to every tie there walks
+the column's own mean up with it. That snap rounds **half to even**,
+which the plan fixes in those words. Nothing else in this method does.
+
+**WHAT THE SNAP ROUNDS, which half to even alone does not settle.**
+The operand is the value's SHORTEST ROUND-TRIP DECIMAL FIGURES — the
+shortest decimal string that reads back as exactly this binary64,
+which is what `repr` produces and what G6.2 already builds every
+spelling from — and NOT the binary64 itself. The two give different
+answers and a second implementer has to be told which: `2.675` is held
+as a double a shade BELOW two and sixty-seven and a half hundredths,
+so rounding the double at two figures gives `2.67`, while rounding its
+shortest figures `2675` at two gives the tie, and the tie goes to even,
+so `2.68`. Both are defensible half-to-even; only one is this method's.
+Review round 2 of the integer-grid landing found this document silent
+on it while two implementations agreed on `2.68` for no stated reason.
+
+**AND THE SIGN SURVIVES A MAGNITUDE THAT SNAPS TO NOTHING.** Where the
+figures round away entirely the sign is still written: `-0.004` at two
+figures is `-0.00`, not `0.00`. This is NOT the "never `-0`" rule of
+G6.2, which governs the canonical spelling of zero itself; here the
+value is not zero and the width is what hides it. A second implementer
+who dropped the sign would write a different cell, and the twin would
+carry a positive-looking cell where the column held a negative value.
+
+**THE REST OF THE SNAP IS NOT WRITTEN HERE YET, and that is a recorded
+debt, not an omission this sentence closes.** **R-P4-146** owes this
+document the width assignment, the pinned-cell order, and the
+same-class and endpoint guards. It is named here because review round 3
+of the integer-grid landing found this paragraph assigning that debt to
+R-P4-17, which is CLOSED — so the unwritten half of the snap had no
+live owner at all. R-P4-18 owes a vector in which a value is actually
+rounded, and now owes it twice over, because no frozen case reaches the
+operand rule above either. Both
+are named in the Phase 4 plan's register. What the paragraph above
+settles is only the contradiction: a second implementer reading this
+section used to find a global tie rule the shipped snap violates by
+name, with nothing saying an exception existed.
 
 Both subtractions are exact. For `|v| >= 2**52` the value is already
 integral and `r` is zero; below that, `b` is exactly representable and
@@ -938,6 +1377,60 @@ because a zero in front of a plain spelling is what makes it
 reaches its published distinctness only as far as its different values
 carry it (G12.8).
 
+**A NAMED FIELD WIDTH SPENDS THE FAMILY, and this is the one bound the
+family has** (plan P4-D14). Where `pad_widths` names a width, the cells
+it counts are written AT that width: the order is not one, and not
+whatever an identity walk asks for, but exactly the number of zeros
+that makes the field the published width. Every further order writes
+one more figure, so a value has exactly ONE leading-zero spelling at a
+named width and the supply that "has no ceiling" above has, for those
+cells, a ceiling of one. Two rules follow and both are normative:
+
+1. **A width narrower than a value is never assigned.** A padded cell
+   writes at least one zero in front of at least one figure, so a value
+   needing `k` figures can wear only a field STRICTLY wider than `k`.
+   Assigning it a field of `k` or less would lose figures the value
+   needs, and padding must never move a value.
+2. **The style is placed on values the widths can hold.** Where the
+   style walk of G6.4 would give `leading_zero` to a value no published
+   width can hold while a value that fits wears another style, the two
+   cells EXCHANGE styles. The exchange is between two cells, so every
+   published style count is unchanged. A PINNED CELL IS NOT SPECIAL
+   HERE, either way round: what pins a cell is its value, a style
+   carries no value, and `1` and `01` read back as the same number, so
+   a published endpoint may give the padded style up and may equally
+   receive it. The two guards that DO bind are the ones the styles
+   themselves impose: there is no leading-plus spelling of a negative
+   value, and no point-free spelling of a value that has none.
+
+Placing the counted cells into the published widths is a packing
+problem and this method fixes a WALK rather than an optimum. The walk
+is stated to the byte, because two implementations agreeing on the
+census and differing on the order write different files:
+
+- the published widths are served in ASCENDING order, narrow fields
+  first, a value that fits a narrow field fitting every wider one;
+- within one width, the cells are taken in ASCENDING CELL POSITION,
+  each cell taken if its value needs strictly fewer figures than the
+  field and the width's count is not yet spent;
+- THE UNIT IS THE CELL AND NOT THE VALUE. One value may wear several
+  published widths, and must be able to: a column publishing widths
+  two, three and four over the single value 1 is a column whose source
+  wrote `01`, `001` and `0001`, and whose three different spellings are
+  published because of it. Holding such a value to one width collapses
+  the census and the spelling count together;
+- a cell no count can hold takes the NARROWEST published width its
+  value can still wear, over that width's count. Only where no
+  published width can hold the value at all is the cell written at its
+  own value's width;
+- and in the exchange of rule 2 above, the published widths are walked
+  ascending, the cells that may receive the padded style are walked in
+  ascending position, and the cell that gives it up is the first in
+  ascending position whose value the width in hand cannot hold.
+
+A width the walk cannot fill is reported by G13's recount rather than
+passed over.
+
 ### G6.4 Which cell gets which style
 
 `numeric_styles` publishes a count per style, plus a withheld remainder
@@ -948,6 +1441,54 @@ that is the style that changes nothing a reader infers, and in the
 value's own canonical text (contract 3.2.1) where it has none. The
 report names how many cells the remainder covered and how many of them
 had no point-free spelling.
+
+**AND CELLS ARE HELD BACK FROM THE POINT-FREE WALK SO THAT BOTH THE
+COLUMN'S TYPE AND ITS `plain` FLOOR SURVIVE** (residual R-P4-69). Two
+duties, and they are not the same one:
+
+- **the type.** A column publishing `integer_valued: false` whose twin
+  holds a whole number in every cell re-describes as `count`, and every
+  downstream reading of it is then a reading of a different kind of
+  column. ONE cell is owed a value with a point in it whatever the style
+  census says. The pooled count is only one road to losing it: a
+  description with no pool at all may name a `decimal` quota whose cells
+  the twin then writes `1.0`, whole-valued in every cell with the form
+  map still met exactly.
+- **the `plain` floor.** Where `plain` is a NAMED count, every cell that
+  can be written point-free is written `plain` by the rule above, so the
+  cells carrying a point number exactly the pool: `r(plain) = p(plain) +
+  R - D`, where `R` is the pooled count and `D` the cells carrying a
+  point. G13's recount asks that `r(plain)` lie between `p(plain)` and
+  `p(plain) + R`, so `D` must not exceed `R`. Where `plain` is NOT a
+  named count the arithmetic is a different one — a pooled cell may
+  perfectly well be point-free, as `060` and `11` are in a column whose
+  only named style is `leading_plus` — and only the type is owed.
+
+The cells are held back on the NARROWEST strata the ladder has, after
+the step that pulls two strata apart, and a stratum wider than the count
+still wanted is passed over rather than overshot: a cell written with a
+point that the description did not pool is a `plain` floor missed just
+as surely as one written without. The one exception is the type, which
+is not a count and is not traded for an exact fit: where no stratum
+fits, the narrowest there is NARROWED TO A SINGLE CELL, the neighbour
+it already touches taking the rest, and that one cell carries the value.
+Taking the stratum whole instead spends a `plain` floor that was
+reachable — a 200-row column of two `0`, one `0.5` and 197 `2` is
+allotted strata of 2, 2 and 196 and its pool is one cell, so the whole
+two-cell stratum missed an achievable `plain: 199` by one. Dividing the
+stratum in place and keeping both its values would buy the floor with
+the count of different values instead, which is published too; moving
+the spare cells to a neighbour writes a value the twin was writing
+anyway and moves neither. A pinned end may TAKE those cells — what is
+pinned is its value, not how many cells hold it — and on a column of
+three strata the ends are the only neighbours there are. The value it takes
+is chosen by the rule of G6.4's exchange above, so it stays inside its
+own share and on its own side of zero.
+
+**A SHORTFALL IS G13's TO NAME.** Where the walk cannot bring the cells
+carrying a point down to the pool — the search is cheapest at each step,
+which is not cheapest over the column — the recount names `plain` short
+of its floor, and no separate note is written beside it.
 
 **This amends the rule that wrote every pooled cell plainly** (Phase 3
 plan P3-D8.1, 2026-08-12, closing the registry's open P2-C5-F3). A
@@ -1140,6 +1681,144 @@ it was owed — every whole number of its own share, and every one within
 the half unit that no later stratum's share holds, is still open to it
 — and it leaves the later stratum the only number it has.
 
+**REVISION 3: A NUMBER ANOTHER STRATUM HOLDS IS ASKED FOR RATHER THAN
+PASSED OVER** (residual R-P4-69). Only so many whole numbers lie between
+a column's published ends, so where the ladder asks for more strata than
+there are whole numbers to give them, some stratum keeps a value with a
+point in it whatever the walk does. WHICH stratum is a choice, and the
+rules above left it to arrival order: a 36-cell column holding 34 whole
+numbers and two halves, publishing `plain: 34` and a pool of 2, gave its
+two single-cell strata `2` and `8` before the four-cell strata either
+side of them could, so the twin wrote 28 point-free cells against a
+published floor of 34 — or, where the walk was given every cell, 36 of
+them, losing both halves so completely that the twin re-described as a
+column of COUNTS.
+
+Where a stratum can take no whole number under the three rules above,
+the walk asks each stratum that is HOLDING one, in ascending order:
+
+- a number two strata are both holding is never asked for, because
+  moving one of them frees nothing;
+- the holder is asked to find a whole number of ITS OWN, under exactly
+  the three rules and the share rule above, with the number being asked
+  for still counted as held. That question is the same one, so it
+  repeats, and a stratum already visited on the chain is not revisited;
+- a holder that can find none gives the number up only if it covers
+  FEWER cells than the stratum asking, and takes in exchange a value
+  with a point in it drawn from its OWN share, by the rule below;
+- of every answer the holders give, the walk takes the one leaving the
+  fewest CELLS carrying a point, ties going to the lower stratum. This
+  is not decoration: taking the first workable answer ended a chain at a
+  three-cell stratum where a single-cell one stood two steps further
+  along, on 85 seeds in 200 of the column above.
+
+A stratum that has given a number up is not asked again in this
+column's walk, so a later stratum cannot undo the exchange. The walk
+over the strata REPEATS until a pass moves nothing, because giving one
+stratum a whole number frees the one it was holding, and the number of
+passes is bounded by the strata.
+
+**THE CHAIN IS BOUNDED IN DEPTH AND IN WORK, AND THE WORK IS BOUNDED
+OVER THE WHOLE COLUMN.** A conforming implementation must cap both: the
+chain's length, because a column may be allotted more strata than an
+implementation can nest that question for, and the strata examined,
+because asking every holder for its cheapest answer explores every
+simple chain and that count is not linear in the strata. The work cap
+is spent ACROSS the column and not renewed for each question, because
+the walk asks one question per stranded stratum per pass and a
+per-question cap therefore bounds no total at all: measured on a
+482-cell column of 242 strata, a per-question cap cost 15.8 seconds
+against 5.2 with the chain withdrawn, and shared it costs 5.4. A search that reaches either cap
+gives back the best answer it has found, which is a stratum keeping a
+value with a point in it — a cost G13's recount names — and never a
+different answer. The caps are an implementation's own, and two
+implementations that both reach them may differ; a description whose
+walk reaches them is one whose twin the report already says is
+approximate.
+
+**A GRAIN INSIDE A ROLE IS LAID OUT BY ITS OWN COUNT OF DIFFERENT
+NUMBERS** (residual R-P4-112, closed; G5.2's grain rule). An affixed
+core and a joined position are handed to this method as columns of
+their own, and the division of cells into strata reads
+`n_distinct_values` from the grain's OWN quantitative block. The
+counts the block arrives with answer a different question for those
+roles: a 36-row column of `N/M` holds 36 different CELLS while its
+first position holds 11 different numbers, so reading the column's
+count divided that position into 36 strata where a plain column
+carrying the same numeric facts is divided into 11.
+
+**THE SPELLING BUDGETS OF G6.5 DO NOT MOVE WITH IT**, and they took the
+grain's count for one revision before review found what that costs. A
+budget bounds how many different SPELLINGS the twin may write, and a
+count of NUMBERS cannot buy the second way of writing one number: a
+column of `01/5` and `1/5` publishes two different cells whose first
+position holds one number. Measured on 300 cells holding sixty values
+each written plainly and again with a leading zero — 120 spellings over
+60 numbers — at forty seeds, the twin held 55 to 60 of the 120 with the
+budget at the grain's count and holds 81 to 97 with it on the block's.
+
+**THIS PARAGRAPH SAID THE OPPOSITE OF BOTH UNTIL 2026-09-01**, naming
+the grain rule a recorded LIMIT and the repaired behaviour
+nonconforming. It is superseded: a conforming implementation divides by
+the grain's count and budgets by the block's.
+
+**THE VALUE A STRATUM TAKES IN EXCHANGE** is chosen from its own share
+of the ladder, so the stratum stays where the ladder put it, and is
+never a value another stratum holds. The share is first cut back to the
+stratum's own side of zero — the rung above a column's last negative
+value is a positive number, so the share of the stratum just under zero
+STRADDLES zero, and a column of four `-4.5` cells whose negative stratum
+was handed `2.097` came out holding one negative cell against a
+published four. The middle of the cut share is taken where it has no
+point-free spelling; where the middle IS whole, the value is the middle
+plus a step of at most half a unit, which cannot be whole WHEREVER THAT
+STEP IS REPRESENTABLE, the step halving again only to move around a
+value another stratum holds — and
+each step is tried BOTH above the middle and below it. **Halving alone
+is not enough, and neither is halving upward**: eight halvings of a
+share `(1, 257)` are `129, 65, 33, 17, 9, 5, 3, 2`, every one whole, and
+`(1, 2)` with the middle and every upper step already held leaves `1.25`
+free below. An implementation that gave up in either case passed the
+stratum over in silence.
+
+**AND ABOVE ABOUT TWO TO THE FIFTY-THIRD THERE IS NOTHING TO FIND.**
+The gap between one representable number and the next is more than a
+whole unit there — at two to the fifty-fifth it is eight — so every
+number a share up there can hold is whole, and a column of such numbers
+publishing `integer_valued: false` has nowhere to put a value with a
+point in it. The twin then writes whole numbers throughout and
+re-describes as a column of COUNTS.
+
+**THE OWNER'S RULING BOUNDS THAT OUTCOME, AND THE BOUND IS
+ARITHMETIC** (amendment A-P4-48, closing residual R-P4-117).
+`integer_valued` is EXACT-OBSERVABLE and stays so; it falls back to
+REPORT-ONLY — not APPROXIMATED, because a boolean has no window to
+approximate INSIDE, only a fact the twin either holds or names — where
+no stratum that MAY take a value has a share holding a number a double
+can represent with anything after the point.
+
+**THE CONDITION IS OVER THE SHARES AND NOT THE PUBLISHED ENDS** (round
+5, item 2). A column may run from `1` to two to the fifty-fifth, holding
+countless fractions between those ends, while every stratum that may
+take a value sits high above them: the ends bound the ladder, the shares
+bound what a value may BE. The arithmetic edge is exact — the gap
+between one representable number and the next reaches a WHOLE UNIT at
+two to the fifty-SECOND, about four and a half quadrillion — and the
+search walks in from both ends of a share rather than probing its
+middle, because on a wide share the values with a point in them live at
+the LOW end and the middle is the worst place to look. Round 5 built a
+column whose middle stratum ran from about 3.6 to 7.2 thousand million
+million: the middle of it is whole in every direction, and
+`4053239664633446.5` sits inside it. The twin keeps its type there now
+and names nothing.
+
+This method does not grant that outcome by writing it down — an earlier
+revision said the outcome was "permitted", which a sentence cannot do.
+The plan grants it, the registry carries the authorization, and the
+twin still NAMES `integer_valued` as a fact it could not meet, so a
+reader meets the changed type in the report rather than by measuring
+the twin.
+
 **A quota that cannot be placed is a MISS, and naming it is not a
 licence to leave it unplaced.** Where a quota's own cells exist, an
 implementation that fails to put them there is defective, not
@@ -1149,7 +1828,16 @@ does, and the anonymous pool gives way before a named count does.
 **The remainder leaves no shape a producer writes** (Phase 3 plan
 P3-D8.1): what a producer could once cost THROUGH THE POOL is placed
 exactly now, because a remainder names no form and is spelled by its own
-cells' values. **One producer-reachable shape survives, and it is not
+cells' values. **That sentence was too strong, and residual R-P4-69 is
+the producer-written shape it missed**: a 36-cell column of 34 whole
+numbers and two halves publishes `plain: 34` with a pool of 2, and the
+pool is exactly the two halves. Its twin lost them — every cell whole,
+the column re-describing as `count` — because the point-free walk was
+asked for the plain count AND the pool, a pooled cell being written
+plainly wherever it can be. The hold-back above is what places it, and
+what remains is bounded rather than absent: measured on that column over
+200 seeds, 182 write the published count exactly and 18 run over it and
+are named by the recount (residual R-P4-111). **One producer-reachable shape survives, and it is not
 the pool's** (review item P3-C2-F1): a column whose values are whole but
 lie outside the fixed-point window of G6.2 is published `plain` by a
 source that wrote it in figures, while the twin writes it with a
@@ -1212,6 +1900,27 @@ states: every style quota is met exactly whenever any assignment of
 whole strata meets them all, and each stratum keeps one form. It is
 reached for only there, and where no such assignment exists the walk's
 answer stands.
+
+**Which supply, against which ceiling** (R-P4-55). "More spellings than
+the column has" is TWO tests and not one, because a split does not
+always cost both published counts. Take the distinct pairs of VALUE and
+STYLE the cell walk leaves standing: how many there are is the column's
+RAW supply, and it may not exceed `R_num`. Fold `exponent_upper` onto
+`exponent_lower` and count the distinct pairs again: that is the FOLDED
+supply, and it may not exceed `F_num`. The strata are packed only where
+one of the two ceilings is passed.
+
+Charged the other way round -- the raw supply against the folded
+ceiling -- this exception refuses the one construction G6.5 names for
+reaching a raw count above a folded one. The exponent case pair is two
+raw spellings of one folded identity, so it costs `R_num` a spelling
+and costs `F_num` nothing; one form per stratum makes the pair
+impossible. A column publishing `n_distinct` one above
+`n_distinct_folded` therefore had the pair packed away and came out one
+raw spelling short of a count it could have met exactly. That column is
+`numeric_decimal_styles`, and it is a committed vector, which is how
+the disagreement was caught: the reference implementation of this
+section wrote the pair and the shipped one did not.
 
 ### G6.5 Reaching `n_distinct` and `n_distinct_folded`
 
@@ -1281,6 +1990,1343 @@ decision 7 permits, falling back to the two-sided envelope only where
 even those cannot supply the count" — and it is stated here so two
 implementations cannot resolve the conflict in opposite directions.
 
+### G6.5a Reaching `n_distinct_values`, the count of different NUMBERS
+
+G6.5 above reaches the two counts of different SPELLINGS. This section
+reaches the count of different numbers, which is a separate published
+fact and is not met by spelling one number two ways. **The method
+referenced this pass twice — G6.4's held-back pool and G6.6.5 both
+order themselves against "the step that pulls two strata apart" — and
+never stated it. Written here at review of the distinct-count landing.**
+
+**Why a pass is needed at all.** G5.2 divides a grain into as many
+strata as the block publishes different numbers and G5.3 gives each
+stratum a value from its own share of the ladder. Two of those values
+can be written as one cell: on a fixed-shape code column of 240 cells
+at `NNN.N`, the ladder hands back `252.96704532913995` and
+`253.02741326459255`, six hundredths apart, and at the published one
+figure both are `253.0`. The carrier walk of G6.4 can cause it too, by
+moving a stratum onto a whole number another stratum already holds.
+
+**WHEN IT RUNS.** After G6.4's point-free carrier walk — which can
+itself land two strata on one text — and before the held-back pool.
+
+**WHICH GRID, and this is the clause the landing corrected.** The pass
+acts only where every numeric cell of the column is written on ONE
+grid, because only then does a value know what text it will wear:
+
+- where `fraction_widths` names exactly one width and that width covers
+  every numeric cell, the grid is that width — tenths, hundredths;
+- where `fraction_widths` is EMPTY and the column is `integer_valued`,
+  the grid is the INTEGERS. A whole-number column carries no figure
+  after the point, so it has no width to count and its census is empty
+  — which an implementation may read as "no grid" and skip the pass
+  entirely. It IS a grid: the one every whole-valued column is written
+  on;
+- otherwise the pass does not run. Where the census names several
+  widths, which cell gets which is settled after the styles by G6.6,
+  and a value cannot know here what it will be written at.
+
+**WHICH STRATA MAY MOVE.** Only a stratum whose text is held by more
+than one stratum — moving a stratum that collides with nothing frees
+nothing. Never the first or last stratum, whose values are the
+published `min` and `max`. Never the zero stratum, whose value is a
+published count's whole reason for being there.
+
+**IN WHAT ORDER.** The strata are visited in ascending index, ONCE
+each, and a stratum the walk could not move is not returned to. Which
+stratum is repaired first decides which grid points the later ones find
+occupied, so the order is part of the answer and not an implementation
+detail.
+
+**THE MOVE.** The nearest free point of the grid inside the stratum's
+own share of the ladder, walked outward one grid step at a time — the
+step being one unit of the last place the width holds, so `1` on the
+integer grid and `0.01` at two figures — and the LOWER of two equally
+distant candidates taken first, so that two implementations reading
+this text choose the same point.
+
+**FROM WHERE, EXACTLY.** Not from the stratum's value, but from that
+value's OWN GRID TEXT read back as a number. The two differ: a stratum
+holding `1.25` on a grid of one figure is written `1.2`, and the
+candidates are `1.1` and `1.3` rather than `1.15` and `1.35`. This
+paragraph named the value until review round 1 of the integer-grid
+landing, which is the wrong anchor and a byte-determining one.
+
+**HOW FAR, AND THE STEPS ARE COUNTED ON THE GRID.** At most SIXTY-FOUR
+grid steps out, where a step is ONE UNIT of the last place the width
+holds and the count is of units, not of additions. A share wider than
+that is not searched to its ends; the walk answers with nothing and the
+stratum stays where it is.
+
+**The distinction is not pedantry.** Adding `10 ** -figures` to a
+double sixty-four times does not move sixty-four grid units: the
+addition accumulates, and at eleven figures a candidate this rule
+bounds at sixty-four units came back SEVENTY units from its anchor and
+was taken. So the anchor is read as a whole number of grid units and
+the step is added to THAT — by whatever arithmetic an implementation
+likes, so long as sixty-four means sixty-four.
+
+**AND A GRID POINT NO DOUBLE HOLDS IS PASSED OVER.** The stratum
+carries a number, not a text, and the run re-spells that number when it
+books the text the stratum took. Where a grid point's text does not
+survive being read back and written again — which begins where the grid
+is finer than the numbers near it, at eleven figures on a value in the
+millions — the walk passes it by rather than recording one text and
+writing another.
+
+**WHAT IS TESTED AND TAKEN IS THE GRID POINT, not the sum that reached
+it.** Stepping outward accumulates in binary: a tenth added to `0.2`
+is `0.30000000000000004`, which is greater than `0.3`. Ask the bounds
+about THAT and a candidate whose grid text is exactly the share's
+inclusive upper end is refused by the end it sits on — which is how
+this pass came to leave two strata written as one cell on a column it
+was built for. So each step is snapped to its grid text first, that
+text is what the written-text refusal reads, the number that text
+reads back as is what the share, the ends and the sign band are asked
+about, and it is what the stratum takes.
+
+**WHAT IS REFUSED.** A candidate that is not a finite number; a
+candidate whose text is already written by another stratum; a candidate
+outside the stratum's share, whose two ends are INCLUSIVE; a candidate
+outside the published `min` and `max`, inclusive likewise; and a
+candidate that would cross into another sign band — the counts of negative, zero and positive cells are published
+facts and no repair may move one. A stratum in the ZERO band answers
+with nothing at once, without walking. So does a grid whose step is not
+a finite number greater than nought, and a value whose grid text does
+not read back as a number.
+
+**WHERE THERE IS NO LADDER** — a column published without one — there
+is no share and no published ends, so those two refusals do not apply.
+The other three do: a candidate must still be finite, must still not
+wear a text another stratum has written, and must still stay in its
+sign band.
+
+**WHEN IT STOPS.** As soon as the count of different texts reaches the
+published `n_distinct_values`, and otherwise at the end of its single
+ascending pass. A stratum for which every candidate was refused keeps
+its value; the shortfall is then G13's to name.
+
+**MEASURED, through the real reader, producer, loader and generator at
+twelve seeds, published against held, before this clause and after.**
+300 ages between 18 and 89 publishing 70 different numbers: **56 to 66
+before, 67 to 70 after**. A tight 200-row column publishing 74: **61 to
+68 before, 69 to 71 after**. A wide one publishing 194: **193 to 194
+before, 194 at every seed after**. A column of seven repeated numbers
+over 200 rows publishes 7 and holds 7 either way, so the clause costs
+nothing where there was nothing to win. Columns at one fixed fraction
+width were already on a grid, so THIS CLAUSE moves none of them --
+the pass itself moves them, which is what it was built for.
+
+**WHAT IT STILL DOES NOT DO, AND WHY THAT IS THE WALK AND NOT THE
+FACTS.** A tight column's strata have narrow shares and a share can
+hold no free grid point at all — on the 200-row column above the walk
+was asked 14 times and answered 6. The count stays REPORT-ONLY and the
+twin's own report names the shortfall.
+
+**But that is this walk falling short, not the count being
+unreachable**, and an earlier writing of this paragraph said otherwise.
+The walk is greedy, ascending and single-pass, and it moves only a
+stratum that has COLLIDED. Take pinned ends `0` and `5` with interior
+values `1`, `1`, `2` and shares `[0,1]`, `[1,2]`, `[2,4]`: neither `1`
+can move, because `2` is taken and their shares reach nothing else, and
+the unique `2` is never asked because it collided with nothing. Yet
+moving that `2` to `3`, inside its own share, and then a `1` to `2`,
+inside its own, gives `0,1,2,3,5` — every value distinct, no stratum
+off its share, no sign changed, no end moved. A walk that could move an
+uncollided stratum to make room would reach the count here. That walk
+has not been built or measured, so what is stated is what this one
+does; the shortfall it leaves is not evidence that the ladder and the
+count are in conflict.
+
+### G6.6 The published field widths reach the VALUES
+
+**THE CENSUS THIS SECTION SERVES IS `field_widths`** (contract 7.10,
+plan P4-D30), and it is served here rather than among the spelling
+walks for one reason: an unpadded cell is exactly as wide as its value.
+`pad_widths` is bought with a zero and `fraction_widths` by adjusting a
+value inside its own stretch, so both are the writing stage's business.
+A cell written `199` can be made three figures wide only by holding a
+value between 100 and 999, which is the VALUE stage's business and
+nothing else's.
+
+Until this section existed the value stage ran first and read neither
+census. That is residual R-P4-27 in one sentence, and R-P4-30 and
+R-P4-35 are what it produced: a dental-code column of `D0120`, `D1110`
+and `D2740`, every core four figures, published `pad_widths {4: 97}`
+and a twin that drew 78 values below a thousand where 97 were needed.
+No assignment of 78 small values fills 97 narrow fields, and the
+padding walk was not at fault.
+
+**G6.6.1 The two censuses become demands on the values.** Let *P* be
+`pad_widths` and *X* be `field_widths`, each read over its NAMED keys
+alone; the pooled remainder of either names no width and asks for
+nothing. Then:
+
+- for every width *w* named by *P*: **P(w)** cells must hold a value of
+  AT MOST *w* − 1 figures, the leading zero being a figure of the field
+  and not of the value. A width of 1 asks for nothing and is skipped,
+  no value having fewer than one figure;
+- for every width *w* named by *X*: **X(w) − P(w)** cells must hold a
+  value of EXACTLY *w* figures, there being nothing else to make up the
+  difference. Where *P* does not name *w*, *P(w)* is nought.
+
+The figure count of a value is the count of figures in its own
+point-free spelling, the sign not counted — the reading
+`pad_widths` is taken with, applied to the twin's own text.
+
+**G6.6.2 The demands are served from the values already drawn, and the
+order is fixed.** The EXACT demands are served first, because only one
+figure count can serve one of them while a ceiling demand accepts every
+count at or under its own. The ceiling demands are then served in
+ASCENDING order of width, each from the NARROWEST values still
+unclaimed: a value that fits a narrow ceiling fits every wider one, so
+spending it on a wide one is what leaves the narrow one unfillable.
+Within a demand, WHOLE STRATA are taken first and one stratum is split
+only to finish a count nothing else can — the rule G6.4's padded walk
+keeps over the cells, kept here over the values, and for a second
+reason of its own: a stratum holds ONE value, so a stratum that is only
+partly spare cannot move without breaking the demand it is half
+serving.
+
+**G6.6.3 One stratum moves, and the rules it may not break.** Where a
+demand is short, one stratum takes a value of the figure count that
+demand wants. The stratum must be
+
+1. not one of the two PINNED strata, which hold the published ends of
+   the ladder;
+2. not in the ZERO band, so the count of zero values does not move;
+3. holding a value that can be written point-free, so that the pass
+   moves nothing the point-free count, the strata-apart rule or the
+   held-back pool has just settled;
+4. no wider than the cells the short demand is still owed, a wider
+   stratum overshooting the width it moves to — which is the same miss
+   in the other direction;
+5. covered, cell for cell, by cells of its OWN figure count that no
+   demand claimed. A stratum wholly spare satisfies this trivially; a
+   stratum half claimed satisfies it when the surplus can take its
+   place, which is sound because a cell serves a demand by its figure
+   count and by nothing else.
+
+The value it takes is the one nearest the value it holds, among the
+whole numbers of the wanted figure count this stratum could have been
+GIVEN. **Which whole numbers those are is not "the ones strictly inside
+its share", and writing it that way first left a floor-one column two
+cells short of a width it could reach.** G5.3 draws a position inside
+the stratum's share and G5.4 rounds it to the nearest whole number, so
+every whole number within HALF A UNIT of the share is one an ordinary
+run could have produced for this stratum: a share of `(9.18, 11.55)`
+yields 9, 10, 11 and 12, not 10 and 11 alone.
+
+That half unit is G5.4's own, the one G12.2 already widens the rung
+window by, so this rule grants nothing the method had not granted
+already. **It is not a widening of amendment A-P4-18**, which bounds a
+move's REACH by the stratum's stretch: the reach here is half a unit,
+and a stratum whose stretch is narrower than that gets the two whole
+numbers its own rounding could have reached and no others. A share of
+`(99.23, 99.79)` holds no whole number at all and yields exactly 99 and
+100 — which is the case the ladder itself does not settle, a decade
+crossing falling between two rungs, and the census is what settles it.
+
+It never crosses zero, for the reason G6.4's searches do not.
+
+**It may not take a value another stratum holds, EXCEPT where the value
+it gives up is one another stratum also holds.** Then the count of
+different values cannot fall: what it vacates stays behind and what it
+lands on was there or is new. Drawn values ARE shared — two strata
+either side of a rung can round onto one whole number — so this is a
+case that arises rather than one imagined for it.
+
+**G6.6.4 What the half unit buys, measured rather than argued.** The
+rule above was written twice. The first version took only the whole
+numbers strictly inside the share, and the second takes every one the
+stratum's own rounding could reach; the difference is not a nicety.
+
+Measured on a 230-row vaccine-code column running `000` to `199`
+(residual R-P4-35), where the rung above the crossing is interpolated
+across a jump and the ladder puts 128 cells below a hundred against the
+source's 127: over forty seeds, 20 wrote a cell at a width the source
+never used before this section and 2 after it — and the 2 are named by
+`synthtwin validate` where before nothing said anything at all.
+
+**G6.6.5 The pass runs LAST among the value passes**, after G6.4's
+point-free carrier walk, after the step that pulls two strata apart and
+after the held-back pool. It moves a whole value onto another whole
+value no stratum holds alone, so every guarantee those three
+established comes through it untouched and none has to be re-argued
+against a value this pass chose.
+
+**G6.6.6 What it does NOT do, stated so no reader assumes it.** It does
+not move a value outside its stretch except by G6.6.4's single
+neighbour. It does not change how many cells a stratum holds — the
+allotment is G5.2's and is not read here — so a census whose widths
+disagree with the allotment by a whole stratum is reported rather than
+met. And its search over the whole numbers of a share stops at 4096
+candidates and at fifteen figures, fifteen being the widest field every
+value of which is exact in binary64; beyond either, the width is given
+up and named rather than met with a value that is not the value it
+looks like.
+
+**G6.6.7 Where the width is given up.** `field_widths` is
+REPORT-ONLY — plan P4-D30 and contract 7.10 and 9.4 all say so, on the
+measurement 7.10 carries — so a width the pass cannot reach is
+RECOUNTED off the finished cells and NAMED in the twin's own report as
+a deviation carrying the published count and the achieved one, while
+`synthtwin validate` LISTS `numeric.field_widths` with a sentence
+saying the twin follows the census without being held to it. **This
+paragraph said EXACT-OBSERVABLE and named a subcheck
+`fields.published.<width>` that exists nowhere in the product or the
+suite**; nothing read it, so nothing turned red, and it is repaired
+here rather than left as a fourth document saying a fifth thing (the
+sibling search of landing L12). The report reads the census with the
+producer's own reader, so a width the writer intended and a width a
+cell actually wears cannot come apart between them.
+
+### G6.7 No value stands where the description says there is none
+
+**THE FACTS THIS SECTION SERVES ARE `empty_bins` AND `empty_edges`**
+(contract 7.11 and 7.11a, plan P4-D32), and they are served at the
+value stage because each is a statement about VALUES and about nothing
+else. A cell cannot be written out of a stretch it stands in; only the
+value can be moved. The first says WHICH stretches there are and the
+second says where each one really begins and ends.
+
+**G6.7.1 What was wrong.** A column with two clusters and nothing
+between them publishes a middle rung BETWEEN the clusters — the median
+of a hundred and fifty values around twenty and a hundred and fifty
+around eighty is 49.65, a number no cell of that column holds — and
+G5.3 interpolates the rungs and honours it. Measured through the real
+reader, producer, loader, generator and validator at FORTY seeds and
+at the default floor, the twins of three such columns put 4–6, 2–3 and
+3–6 of their 300 cells in a stretch the real column left completely
+empty. Nothing crashed and nothing was named. Anybody plotting the
+twin met a third cluster that is not there.
+
+**AND WHAT THE FIRST REPAIR LEFT.** Moving a cell to the nearest
+occupied BIN emptied the named stretches but not the source's own gap,
+because the bins lie strictly inside it. Publishing the real edges
+(`empty_edges`, residual R-P4-138, owner's ruling of 2026-09-04) and
+then asking those edges which stretch a stratum stands in took it to
+nothing. **THE LEDGER, and it is the only one: ** three stages, measured the same way each time -- forty seeds on each
+of the three two-cluster witnesses, counting cells inside the SOURCE's
+own widest gap rather than inside a bin:
+
+* moved to the nearest occupied BIN: one cell per column per seed,
+  15.7 to 23.0 units from the nearest real value;
+* walking from the published EDGES, with the queue still gathered from
+  the bins: **8, 4 and 27** of 12,000;
+* asking the published PAIRS which stretch a stratum stands in:
+  **0, 0 and 0** of 12,000, which is where the shipped pass is.
+
+**G6.7.2 The bins, and where they come from.** The scale is the one
+G6.6's sibling census is counted on: `HISTOGRAM_BINS` equal bins
+between the block's published `min` and `max`, divided by contract
+C6-31f's rule -- which fixes, among other things, that a value on a
+shared edge belongs to the UPPER bin, the one that starts there. The
+generator reads the two ends from the LADDER rather than recomputing
+them, which is what makes a bin number mean one thing in the producer,
+the loader and here. A block whose ends this format
+cannot hold, or whose ends are finite and whose WIDTH is not, has no
+scale, publishes an empty list, and this section does nothing.
+
+**G6.7.3 The stretches.** Consecutive named bins are taken as one
+STRETCH, and the move is out of the whole stretch rather than out of
+the bin a value happens to stand in: a value in the middle of nineteen
+empty bins has to reach the occupied bin below the first of them or
+the one above the last, and the bin it stands in says nothing about
+how far that is. Both of those bins always exist, because the smallest
+value of a block is in the first bin of the scale and the largest is
+in the last, so neither end bin is ever empty (contract Q20).
+
+**AND THE STRETCH'S REAL EDGES ARE PUBLISHED, one pair per stretch, in
+the same order** (`empty_edges`, contract 7.11a; residual R-P4-138,
+closed by the owner's ruling of 2026-09-04). The pair is the largest
+value the block holds below the stretch and the smallest above it. It
+matters because a bin is a thirty-second of the block's reach, so the
+bins a column leaves empty lie strictly INSIDE the stretch it really
+leaves empty: a cell moved to a bin edge was still in the source's own
+gap. Contract Q21 holds a description to one pair per stretch, in
+order, and to each pair standing either side of its OWN run of bins,
+so the generator indexes the pairs by the stretch's position and needs
+no search.
+
+**WHICH STRETCH A STRATUM IS IN IS ASKED OF THE PAIRS, and of the bins
+only where the pairs say nothing.** A bin is a thirty-second of the
+block's reach and a pair is the gap itself, so a value can stand
+INSIDE the gap and still be in a bin that holds plenty. A pass that
+gathered its queue from the bins alone never saw those values: it is
+what left 8, 4 and 27 cells of 12,000 inside the source's own gap
+after the edges were published, and asking the pairs first took all
+three to nought. A stratum is in the FIRST pair that holds it, read by
+the value and by every spelling of it, in the width order
+`_census_widths` fixes.
+
+**AND A CANDIDATE IS REFUSED IF IT READS INSIDE ANY PUBLISHED PAIR,
+not only inside a barred bin.** A column with two stretches sharing
+the one value between them let the further-edge walk step past that
+value into the FIRST stretch's real gap — outside every barred bin,
+because a bin is coarser than a gap, and so accepted with nothing
+naming it. The pairs are OPEN intervals: an edge is a value the source
+really holds, so landing ON one is not landing in the gap.
+
+**AND WHERE NOTHING CLEAN IS FREE, A SLOT INSIDE SOME STRETCH BUT
+OUTSIDE EVERY BARRED BIN IS TAKEN RATHER THAN NONE** (residual
+R-P4-156, closed 2026-09-04). The walk is four walks in order of how
+much they ask for: the nearer edge and then the further one refusing
+every published stretch, and then the same two refusing only the
+barred bins. STAYING IS NEVER BETTER THAN MOVING — a stratum that
+stays is inside its own stretch AND inside the barred bin it stood in,
+while the looser slot is better on one count and no worse on the
+other. Measured on the committed battery, forty columns at forty
+seeds: refusing every stretch and stopping there raised the count of
+runs leaving a cell in a named bin to 240; walking the loose pass
+after it gives **130 runs in a named bin and 213 inside a stretch the
+source really leaves empty**, against 135 and 1058 on the tree before
+the stretch edges landed.
+
+**G6.7.4 Which stratum moves, and the rules it may not break.**
+
+**ELIGIBILITY, STATED EXACTLY, because the enumerated rule below used
+to say "falls in a named bin" and the shipped pass moves more than
+that.** A stratum is IN a stretch when its value, or any spelling of
+it at any width the fraction census could reach that cell at, reads
+strictly inside one of the published `empty_edges` pairs — the FIRST
+such pair, taking the pairs in ascending order and the spellings in
+the width order G6.4's census fixes. Where no pair holds it, and only
+then, the BINS are asked: a stratum whose value or spelling falls in a
+named bin belongs to the stretch that bin is part of. A generator that
+asked the bins alone recreates the residual this pass exists to remove
+— measured, 8, 4 and 27 cells of 12,000 on the three witnesses — since
+a gap is finer than a bin and a value can sit inside the gap while
+standing in a bin that holds plenty.
+
+**AND THE FACT A FAILED MOVE NAMES FOLLOWS FROM WHICH ROUTE QUEUED
+IT.** A stratum queued because it stands in a named BIN that cannot be
+moved names `empty_bins`; one queued only because its value is inside
+a published PAIR names `empty_edges`. Naming the bins for the second
+would send a reader to a fact the twin did not break.
+
+Every stratum so identified moves, subject to:
+
+1. not one of the two PINNED strata, which hold the published ends of
+   the ladder — and which are never in a named stretch anyway, being
+   the two values the end bins are defined by;
+2. not in the ZERO band, so the count of zero values does not move;
+3. never across zero, so the sign counts do not move;
+4. keeping its WRITTEN FORM — a value that carries no point moves to a
+   value that carries no point, and one that carries a point moves to
+   one that carries a point — so the point-free count G6.4 met and the
+   held-back pool are untouched;
+5. landing on no value another stratum holds, AND on no value that
+   would be WRITTEN the way another stratum's value can be written, at
+   any width the fraction census could reach either of them at. The
+   second half of that is not caution: two values a thousandth apart
+   are two values and ONE cell, so a rule that compared only the
+   numbers handed the column two identical cells and took back the
+   count of different values;
+6. holding its value ALONE. A move costs nothing only when the stratum
+   VACATES what it leaves: one value goes, one arrives, and the count
+   stands. A stratum sharing its value vacates nothing, so whatever it
+   does ADDS — a fresh value adds a number, and joining another
+   stratum's value adds a spelling, because the writing stage then has
+   two strata on one number and the leading-zero family splits them;
+7. keeping its FIGURE COUNT, where its value carries no point. A
+   point-free cell is exactly as wide as its value, so moving a
+   stratum from one figure to two takes a carrier away from the padded
+   -width census: 9 can be written `09` at a published width of two
+   and 10 cannot.
+
+**RULES 6 AND 7 EXIST BECAUSE THE SUITE FOUND THEM, and both were
+measured on the floored witness of review item P3-V7-F4** — a column
+of nine different spellings at a floor of eleven, the case where this
+fact is published and the census beside it is not. Without either rule
+the twin wrote TEN spellings against a published nine and
+`distinct.n_distinct` fell from HELD to an authorized deviation. With
+both, it writes nine and the count is met outright. `n_distinct` and
+`pad_widths` are EXACT-OBSERVABLE and this fact is REPORT-ONLY, so
+where they meet this one gives way and G6.7.8's deviation names the
+stretch instead. **Measured cost of the two rules on the corpus of
+G6.7.8: none.** The three two-cluster columns still write no cell in a
+named stretch at any of forty seeds at either floor, and the forty
+described columns leak on the same 119 runs of 1600 — 130 after this
+landing, against 1058 to 213 on the stretches the bins stand in for.
+
+**G6.7.5 Where it goes, and the bound.** To the published EDGE nearer
+to it — measured from the value to each of the stretch's two edges —
+and no further past that edge than one BIN'S WIDTH. **That is this
+move's whole reach, and it is written in the published fact's own
+terms**: a value moves out of the stretch the description says holds
+nothing, to the real value the description says stands beside it, and
+stops within a bin's width of it.
+
+**THE REACH IS A DISTANCE AND NOT A COUNT OF BINS**, and the two are
+not the same once the walk starts from a published EDGE. An edge is a
+VALUE standing somewhere inside its bin, so a candidate a bin's width
+below it can fall in the bin beyond the stretch's neighbour — on a
+whole-numbered column whose bin is narrower than a unit, the rounding
+puts it there. That candidate violates no published fact: it is
+outside every named bin and outside every published stretch. Reading
+the bound as "the adjacent bin" instead was measured on the committed
+battery and refuses those slots: runs leaving a cell in a named bin go
+from 130 of 1600 to 190, and runs leaving one inside a stretch the
+source really leaves empty from 213 to 285. The distance is the
+bound.
+
+**THE FURTHER EDGE IS WALKED AFTER THE NEARER ONE**, and only where
+the nearer one has nothing free. Both edges are edges of the SAME
+stretch, so a value reaching either has left it; the nearer is tried
+first because that is the smaller move. This is what a published edge
+made necessary rather than a preference: a BIN edge has a whole
+occupied bin behind it, while a published edge may have a single value
+— a column whose two clusters sit close together publishes a stretch
+whose lower edge is one value alone in its bin with ANOTHER stretch
+below it, so the downward walk had a twelfth of a bin to work in and
+gave up. Walking the other edge afterwards moved that cell and cost
+the near-side answers nothing.
+
+**IT IS NOT A-P4-18's BOUND, and it cannot be.** That amendment bounds
+the width snap by the stretch of the ladder a stratum covers. Measured
+on all three columns above, most of the strata that land in the empty
+middle have a share lying WHOLLY inside it — four of six on the first,
+one of three on the second, four of six on the third — so a move
+bounded by the share reaches nothing at all. Plan amendment A-P4-50
+records the choice and its ground: between the rungs the ladder says
+nothing and the method fills the silence by interpolating, which is an
+INFERENCE, while "no cell of the real column lies between these two
+edges" is a MEASUREMENT. Where the two meet, the measurement wins.
+
+**G6.7.6 The walk inside the bin.** From the published edge outward,
+in sixty-fourths of a bin, taking the first position that breaks none
+of G6.7.4's rules. The edge ITSELF is the first candidate on both
+sides, because each published edge is a value the source really holds
+and so a target in its own right; the bin edges this walk took before
+were the edges of the EMPTY bin, so the downward one had to start a
+step past it.
+
+**THE ORDER THE STRATA ARE WALKED IN IS WHAT KEEPS THE LADDER'S
+ORDER**, and it is stated here in the terms the walk really uses. Each
+stretch's strata are split by which edge is nearer to them; each group
+is then walked **furthest from its own destination edge FIRST**. The
+group going DOWN is walked from its largest value downward and the
+group going UP from its smallest value upward, and since the walk
+hands out positions from the edge inward, that gives the largest of
+the down group the position nearest the lower edge and the smallest of
+the up group the position nearest the upper one. The moved values
+therefore come out in the order the ladder gave them.
+
+This section said "the strata standing nearest the edge are walked
+FIRST" until 2026-09-04, which is the opposite of both groups: a
+generator following it would reverse the moved values against the
+shipped one and write different bytes for the same description. On a
+whole-numbered column each position is rounded to a whole number
+before it is tested, and a position that then reads back inside a
+named bin is passed over.
+
+**AND THE TEST IS APPLIED TO THE SPELLING, not to the value.** A
+column written to one figure after the point has its values rounded
+when they are written, and a value placed a thousandth of the reach
+outside a stretch comes back inside it: the value 71.625, placed in
+the first occupied bin above a stretch, was written `71.6`, which is
+in the last bin OF it — one cell of three hundred, at every seed, and
+the only sign of it was the recount. So each candidate is written at
+every width the fraction census could reach the cell at, with this
+method's own writer, and every one of those readings must fall outside
+every named bin.
+
+**G6.7.7 The pass runs LAST among the value passes**, and takes that
+place from G6.6. The reason is a difference in kind between the two
+obligations: a width the values cannot wear is a SHORTFALL the report
+names, while a cell in a stretch the real column left empty is the
+twin SHOWING A CLUSTER NOBODY HAS. What this pass can take back from
+the four before it is bounded by G6.7.4 to exactly one thing — a field
+width — and that census is REPORT-ONLY with its shortfalls named.
+
+**G6.7.8 What the report says, and when.** The report names every
+FINISHED CELL that reads inside a published stretch, RECOUNTED from
+the twin's own text after the cells are written — one note per stretch
+and per fact, carrying the stretch's two PUBLISHED edges, the number
+of cells standing in it and the values they read as. A cell in a bin
+the description names as empty misses `empty_bins`; one standing only
+inside the published pair misses `empty_edges`; a stretch holding both
+kinds gets a note for each.
+
+**IT IS A RECOUNT AND NOT A PREDICTION**, and three things were wrong
+while it was written at the value stage. The edges it carried were the
+BIN boundaries, so on a real gap of 26.6 to 72.7 it read "no value
+from 26.7 to 71.3" — a narrower range than the description states. The
+count was a STRATUM's size, and a stratum stands for several cells
+whose widths are chosen later, so it could report two cells where one
+was inside the stretch and one outside. And a stratum that MOVED, to a
+slot the looser walk of G6.7.6 found inside a stretch other than its
+own, left no note at all. Measured over forty described columns
+at forty seeds each, the runs writing a cell into a named stretch went
+from 1049 of 1600 to 119 — and, re-measured on the same committed
+battery after this landing on 2026-09-04, to 130 of 1600 in a named
+BIN while runs putting a cell inside a stretch the SOURCE really
+leaves empty fell from 1058 to 213 and the worst run of either from
+twelve cells to four. Every one of them is a column whose
+other published facts leave no room beside the stretch: a
+whole-numbered column whose bins are barely wider than a unit and
+whose neighbouring bin holds no free whole number, or a stratum whose
+sign band ends at the edge it would have to cross. `empty_bins` is
+REPORT-ONLY on that measurement (contract 7.11), so `synthtwin
+validate` LISTS the fact rather than holding a file to it.
+
+## G6A. Affixed-number columns (`affixed_number`)
+
+Added by Phase 4; like G7A this section was written after the
+implementation shipped, which is the wrong order and is recorded in
+G13.
+
+### G6A.1 Two populations, and which facts answer for which
+
+An affixed column holds cells such as `$1200` or `450 mg`: a NUMBER
+with a fixed prefix, a fixed suffix, or both. The role's whole
+difficulty is that it has TWO populations and the profile publishes
+facts about both, so an implementer who reads one set of counts as the
+other builds the wrong column.
+
+- **The CELLS.** The universal class counts — `n_present`, `n_numeric`,
+  `n_out_of_range`, `n_contradictory`, `n_not_numeric` — answer for the
+  cells, like every other role. A cell reading `$1200` is not itself a
+  number, so a column of prices publishes `n_numeric` of 0 and
+  `n_not_numeric` equal to its present count.
+- **The CORES.** The quantitative block `numbers` — the ladder, the
+  moments, `numeric_styles` and its two sibling censuses, everything
+  G5 and G6 consume — answers for the cores, the text left when the
+  pair is taken off. Beside it stand `n_affixed`, how many cells wore
+  the pair, and the four CORE class counts `n_core_numeric`,
+  `n_core_out_of_range`, `n_core_contradictory`, `n_core_not_numeric`.
+
+Also published: `affix_prefix` and `affix_suffix`, either of which may
+be empty, but not both.
+
+### G6A.2 The core view: G5 and G6 apply unchanged
+
+The construction does not reimplement any numeric rule. It builds a
+COLUMN VIEW of the cores and hands it to the numeric machinery:
+
+```
+statistical_type  <- continuous
+n_present         <- n_affixed
+n_numeric         <- n_core_numeric
+n_not_numeric     <- n_core_not_numeric
+n_out_of_range    <- n_core_out_of_range
+n_contradictory   <- n_core_contradictory
+facts             <- numbers
+```
+
+Every rule of G5 and G6 then applies to that view WORD FOR WORD,
+including the stratification of G5.2, the endpoint pins of G5.3, the
+spelling family of G6.1 and the style walk of G6.4. This is also why
+G4.3 budgets this role as `S - pinned - zeroed` read over the cores,
+and why G5.1 says `fraction_widths` and `pad_widths` are read over the
+cores here: there is one numeric implementation and the affixed role
+is a caller of it, never a copy.
+
+The pair goes on afterwards, character for character as published:
+
+```
+cell = affix_prefix + core + affix_suffix
+```
+
+No trimming, no case change, no normalization of either side.
+
+### G6A.3 The stragglers, and the overlap that must not be assumed away
+
+`n_present - n_affixed` cells wore no pair. The detection rule requires
+one side of an affixed cell to carry text, so a cell that IS a plain
+number wears no pair and is a straggler. The description says HOW MANY
+there were and, through the universal counts, what CLASSES they fell
+in — and nothing else about them, so they are invented.
+
+**The two populations OVERLAP, and this is the trap.** A cell wearing
+the pair is still a cell, so it lands in one of the four universal
+classes like any other cell. A column whose prefix is `1` holds cells
+such as `12` that wear the pair AND read as ordinary numbers. An
+implementation that subtracts `n_affixed` from the text class alone,
+clamps at zero and then writes the number class again on top produces
+a hundred-and-one-cell twin for a hundred-row column.
+
+So the classes the affixed cells ALREADY fill are RECOUNTED from the
+finished text, with the same classifier the description was built with,
+and only the shortfall is written:
+
+```
+worn[k]  = how many of the written affixed cells classify as k
+short[k] = max(published[k] - worn[k], 0), then capped at the room left
+```
+
+taken in the order `n_numeric`, `n_out_of_range`, `n_contradictory`,
+each capped by the stragglers not yet spent. **Whatever the three named
+classes do not claim is ordinary text**, which is the class the contract
+gives every cell no other class names. The cells are then appended in
+that same order: numbers first, then out-of-range, contradictory and
+text.
+
+**Three spellings are refused for every straggler**, and each refusal
+was learned from a defect: a spelling already written would repeat a
+cell; a spelling that WEARS the pair would be counted affixed when the
+twin is described again; and a spelling this column publishes as a HOLE
+would be read back as no value at all — a column of prices beside
+eleven cells spelled `1`, declared missing, published
+`missing_by_source {"1": 11}`, and a twin that wrote a present `1` had
+five exact counts move against the description it was built from.
+
+The plain-number stragglers are written as WHOLE NUMBERS counting up
+from 1, skipping every refused spelling, because nothing else about
+them is published: the ladder and every moment belong to the cores.
+
+**The walk for the other three classes is BOUNDED, and what happens
+past the bound is part of the method.** It asks the class builder for
+progressively larger batches and keeps the survivors, and it stops
+after `count * 8 + 64` steps. A column can exhaust it — one whose every
+candidate wears the pair, such as a prefix of `text-` against text
+stand-ins spelled `text-1`, `text-2` — and past that point the cells
+are written from a last resort of this method's own: `(no pair 0)`,
+`(no pair 1)`, and so on by their place.
+
+That last resort **owes the same hole refusal the walk owes**. A
+spelling this column publishes as a hole is read back as no value at
+all, so writing one as a PRESENT cell moves the twin's own missing
+counts against the description it was built from. It also refuses a
+spelling already written. It PREFERS not to wear the pair rather than
+refusing to, and that is deliberate: a pair can be any text — a column
+of `(1)` and `(2)` wears `(` and `)` — so a rule that refused every
+spelling wearing the pair would refuse every spelling this branch can
+make and never finish. Past a bound of `count * 4 + 64` the pair alone
+is conceded, because a repeated cell and a cell read as absent are both
+worse than a cell counted in the wrong class.
+
+This branch kept only two of the three refusals until 2026-08-27, and
+no column reaching it was built from the profiler while the third was
+added, so it is recorded as a guard rather than as a demonstrated
+repair.
+
+## G6B. Joined-number columns (`joined_numbers`)
+
+Added by Phase 4; like G6A and G7A this section was written after the
+implementation shipped, which is the wrong order and is recorded in
+G13. It is the longest of the three because this role's pairing walk is
+byte-determining and nothing outside it fixes the answer.
+
+### G6B.1 What the profile supplies
+
+A joined column holds cells such as `120/80`: two or more NUMBERS
+written in one cell with a fixed separator between them. Published:
+
+| key | what it holds |
+|---|---|
+| `parts` | one full numeric block per POSITION — the same block G5 and G6 consume, measured over the cells that split |
+| `separator` | the exact text between two positions |
+| `n_parts` | how many positions |
+| `n_joined` | how many cells split that way |
+| `n_unparsed` | how many present cells did not |
+| `part_min_widths` | the smallest written width of each position |
+| `part_agreements` | one number per PAIR of positions, each −1 to 1, in the order (1,2), (1,3), … (2,3), … — how strongly the two rise and fall together BY RANK |
+| `part_above` | one count per pair — how often the earlier position stands above the later |
+
+**`part_agreements` and `part_above` make this the one role in
+synthtwin today that publishes structure between two quantities and
+reproduces it.** The structure lives INSIDE a cell, between the
+positions of one column; it says nothing about any other column, so the
+one-column-wide bound stated elsewhere is unaffected.
+
+Each position's block describes only the `n_joined` cells that split,
+so it echoes `n_joined` as its own `n_rows` — NOT the table's. A
+reader checking that block against the table's row count refuses every
+column with an unparsed cell; the two coincide only when `n_unparsed`
+is zero, which is why that defect survived a whole phase.
+
+### G6B.2 Each position is a numeric column
+
+Each position is built by G5 and G6 unchanged, over a view of the
+column carrying that position's block and `n_joined` as its present
+count. **G5.2's grain rule applies**: the STRATA take that
+position's own `n_distinct_values` and not the column's counts, which
+are counts of whole CELLS. The spelling budgets do NOT — they keep the
+counts the block arrives with, because a joined position is a
+projection of whole joined cells and the cell count is a safe ceiling
+on the spellings one position can wear, while a count of numbers cannot
+buy a second spelling of one number. Its word budget is
+G5.3's, and G4.3 states the whole: the sum over positions, plus a
+RESERVE of `max(n_joined - 1, 0)` for every position after the first,
+drawn after all the positional words.
+
+A finished cell is then
+
+```
+cell = pad(v[0], part_min_widths[0]) + separator
+     + pad(v[1], part_min_widths[1]) + separator + …
+```
+
+where `pad` adds leading zeros until the text is that many characters
+wide and never truncates.
+
+### G6B.3 Why a pairing step exists at all
+
+`_numeric_content` places its values by RULE and not by chance — the
+words decide arrangement, not which numbers come out — so two positions
+built from it emerge in the same order and pair up in lockstep.
+Measured: a 400-row column whose real cells held 387 different readings
+came out with 117, in runs of near-neighbours, while each position's
+own published distribution was right to the digit. Drawn independently
+and left alone, two positions of a reading agreed at −0.02 where the
+real column agreed at 0.83, and a twin cell could hold a second number
+above a first that no real cell ever did.
+
+Every step below swaps two rows' numbers within ONE position, so each
+position keeps its multiset to the last cell and every number published
+about it — ladder, mean, spread, styles, widths — is untouched. Only
+the pairing moves.
+
+### G6B.4 The pairing walk, step by step
+
+Write `T` for `n_joined` and `last` for `n_parts - 1`.
+
+**1. Sort.** Each position's spellings are ordered by `(value,
+spelling)` ascending, value being the spelling read as a number. This
+is the rank-for-rank start: largest with largest.
+
+**2. Choose each position's start.** Position `0` is the ANCHOR and is
+never moved, here or below. A pairing is only ever relative — permuting
+every position the same way writes the same cells in a different order
+— so one position may be held still without losing a single
+arrangement, and holding the FIRST one still is what leaves a
+two-position column the same walk it was: the same position moves under
+the same start rule, so nothing about such a column changes on account
+of the anchor.
+
+For each position `p` from `1` to `n_parts - 1`, let `A` be the
+published `part_agreements` entry of the pair `(0, p)` — seat `p - 1`,
+since the seats run `(0,1), (0,2), … (1,2), …` — or `0.0` where the key
+is shorter than that. Then
+
+- `A < -0.4`: position `p` is reversed, seat `i` taking seat
+  `T - 1 - i`;
+- `-0.4 <= A < 0.4` and at least `max(T - 1, 0)` words remain in the
+  reserve from `(p - 1) * max(T - 1, 0)` onward: position `p` is
+  permuted by `permutation(T)` of G3.4c, drawn from the reserve
+  STARTING AT THAT OFFSET — each shuffling position takes its own
+  slice, which is exactly what G4.3 sets `T - 1` words aside per
+  position after the first for;
+- otherwise: it is left rank for rank.
+
+A low target starts from a shuffle because it is already near it, and
+a strongly negative one from the REVERSED order — seat `i` taking seat
+`T - 1 - i`, as the first rule above says — because the walk cannot
+travel the whole way from rank against rank inside its try ceiling.
+This paragraph said "from rank against rank" until review round 8 of
+L7, which is the opposite of the rule it stands under: at `A = -0.5`
+an
+unchanged rank order starts near `+1` and the reversal starts near
+`-1`.
+
+**IT IS THE PAIR WITH THE ANCHOR AND NOT A MEAN, AND IT WAS A MEAN
+UNTIL LANDING L7.** While step 3 moved the last position and nothing
+else, one choice served every pair the walk could reach, and the mean
+of the scored entries was that choice — computed as a binary64 running
+sum in published order and divided once, because a mathematical mean of
+`-0.4, -0.4, -0.4` is exactly `-0.4` and takes the permutation branch
+while the sequential sum gives `-0.4000000000000001` and takes the
+reversal, and the two write different cells. Now every position moves
+and every position has a target of its own, so a mean would let a fact
+one position owns decide another position's start. Three positions
+publishing `-0.68, 0.4, 0.4` average `0.04` over every entry and
+`0.4` over the two the old walk scored; the rule here reads `-0.68`
+for position two and reverses it, and `0.4` for position three and
+leaves it rank for rank. For a two-position column all three rules are
+the same rule, because its only pair is the pair with the anchor.
+
+**3. Every position but the anchor moves,** taken in turn — try number
+`t`, counting from zero, moves position `1 + (t mod (n_parts - 1))` —
+and **every pair is scored**, because a pair has two different
+positions and at most one of them can be the anchor. Choosing the
+position by turn costs no reserve word; drawing it would consume the
+reserve at a different rate and rewrite every two-position column's
+cells for a choice that has only one answer there.
+
+**THIS WAS A REAL BOUND ON WHAT THE ROLE REPRODUCED, AND IT IS THE
+RESIDUAL LANDING L7 CLOSED.** The walk moved the LAST position alone
+and scored only the pairs whose later member was that position. With
+`n_parts` of 2 there is one pair and it is that pair, so nothing
+showed. With THREE OR MORE, every pair among the earlier positions was
+neither moved nor scored: those positions kept the ascending order
+step 1 sorted them into, so their agreement came out at `+1` whatever
+the description published, and no term of the distance ever noticed.
+
+Measured on a 100-row three-position column built from 25 copies each
+of `1/4/10`, `2/3/20`, `3/2/30` and `4/1/40` — whose first two
+positions are perfectly anti-correlated, published `-1.0`:
+
+| pair | published | before | now |
+|---|---|---|---|
+| (1,2) | −1.0 | **+1.0** | −0.9922 |
+| (1,3) | +1.0 | −0.144 | +1.0 |
+| (2,3) | −1.0 | −0.144 | −0.9922 |
+
+and over a wider battery — twelve columns of three and four positions,
+FORTY seeds, 2,160 pairs of which 960 are between two EARLIER
+positions:
+
+| | before | now |
+|---|---|---|
+| agreements outside G12.9's window | 1,560 of 2,160 | 665 of 2,160 |
+| above-counts missed | 1,038 of 2,160 | **1 of 2,160** |
+| early pairs outside the window | **960 of 960** | 407 of 960 |
+| early pairs' above-counts missed | 945 of 960 | 1 of 960 |
+| widest agreement gap | 1.0546 | 0.2433 |
+
+**What is still bounded, stated rather than implied.** Aiming at a pair
+is not reaching it: 188 of those 540 agreements still land outside
+G12.9's window, because a column of three or four positions sets three
+or six agreement targets that pull against each other inside one
+bounded search. Those are MISSES and are reported as misses on both
+pages, exactly as a two-position column's miss is. What is gone is the
+class of pair that no term of the distance looked at.
+
+**4. The distance.** Ranks here are ZERO-BASED — the smallest value of
+a position takes rank `0` and the largest `T - 1`, with tied values
+sharing the average of the ranks they span — and the middle is
+`m = (T - 1) / 2`, the mean of those ranks. The divisors
+`spread[p] = Σ_rows (rank[p][r] − m)²` are computed once and never
+move, because no swap changes a position's multiset of ranks.
+
+**The ORIGIN is a convention and not a byte-determining rule, and an
+earlier revision of this passage claimed otherwise.** Every use of a
+rank here is a deviation from the middle, and the whole expression is
+translation-invariant: an implementation using one-based ranks WITH
+their own middle `(T + 1) / 2` computes the same deviations, the same
+spreads, the same numerators, the same distance, and writes the same
+cells. What must not be done is to move the ranks and leave the middle
+where it was — that is not the other convention, it is a defect, and
+measuring it was how the false claim got in. Either convention is
+conforming provided its middle matches it. Then:
+
+```
+room = 0.02 − 0.00005            G12.9's window, less half a unit at
+                                 the precision an agreement is
+                                 published to (4 decimal places)
+tip  = 1 / (T * (pairs + 1))     0 when there are no pairs
+gap[pair] = |agreement[pair] − part_agreements[pair]|
+
+away =  |distinct_cells − wanted| / T
+      + Σ_pairs |above[pair] − part_above[pair]|
+      + Σ_pairs (gap[pair] − room  if gap[pair] > room  else 0)
+      + Σ_pairs (min(gap[pair], room) / room) * tip
+```
+
+where `agreement[pair] = (Σ_rows (rank[a][r] − m)(rank[b][r] − m))
+/ sqrt(spread[a] * spread[b])` over the pair's two positions `a` and
+`b`, taken as 0 when the divisor is 0.
+
+**The terms are scaled differently on purpose, and each scale is a
+measurement.** `part_above` is an exact count a pairing can meet
+whenever the twin's own numbers admit it — which is not always, and
+R-P4-144 measures where they do not — and one row out of it is one
+cell holding a reading that cannot happen
+— at equal weight the walk sold a row of it for a thousandth of
+agreement and produced an impossible cell — so it carries FULL WEIGHT
+PER ROW. The count of different cells is divided by `T`: weighting it
+per row instead was built and was worse at everything — the agreement
+fell from 0.834 to 0.559, two impossible cells appeared, and the count
+it was chasing still stopped at 317 of 324 — so it competes fairly and
+yields where it cannot win, and any shortfall is REPORTED (G11,
+instance 4).
+
+**AN AGREEMENT IS SCORED BY HOW FAR IT LIES OUTSIDE ITS OWN WINDOW,
+AND IT WAS SCORED AS AN EXACTNESS UNTIL LANDING L7.** The three facts
+are not held to the same standard by the tool that checks them:
+`part_above` and the count of different cells are EXACT-OBSERVABLE,
+checked value for value by `synthtwin validate`, while an agreement is
+APPROXIMATED inside G12.9's window. Scored as an exactness, an
+agreement already four ten-thousandths from its target outbid every
+remaining different cell on a 240-row column — each of those is worth a
+240th — and the twin held 185 to 231 of 240 published readings while
+overpaying a fact it is never held to exactly. `room` is HALF the
+published window, because the published agreement is rounded to four
+places and the walk's own is not, so a bound met exactly is a bound a
+rounding can cross.
+
+**`room` IS THE WHOLE WINDOW, AND IT WAS HALF OF IT FOR ONE
+REVISION.** Half was chosen for a rounding, and the rounding is far
+smaller than half a window: an agreement published to four decimal
+places carries at most `0.00005` of uncertainty, not `0.01`. Any margin
+the walk keeps BELOW the published window is margin it will buy with an
+exactly-checked fact — a swap moving a gap from 0.019 to 0.015 cut the
+half-window term by 0.004, where one different cell on a 400-row column
+is worth 0.0025, and both of those agreements are already inside the
+range the validator accepts.
+
+**`away` IS THE SCORE AND IT IS NOT THE ACCEPTANCE RULE.** The Σ over
+pairs is a sum, and a sum cannot carry identity: it cannot tell one
+above-count going from held to MISSED while another improves by one
+from nothing happening at all. Full weight per row is exactly
+what the sum already delivers, so the weights above are not what
+forbids that trade — the per-pair refusal of step 5 is, and it runs
+before this score is consulted. The scales themselves stay as they
+are: re-weighting them was built and measured and was worse at
+everything.
+
+**The raw gap is kept as a TIE-BREAK and nothing more, SCALED TO THE
+WINDOW.** Inside the window the walk still prefers the closer
+agreement, because near-exactness is free where nothing is bought with
+it. Each pair contributes at most `tip`, so every pair together
+contributes less than `pairs / (T * (pairs + 1))`, which is strictly
+less than the `1 / T` one different cell is worth: the preference can
+never be spent on a cell. **That guarantee had no counterpart for
+`part_above` and now has one**, but not from a weight — from step 5's
+first refusal, which forbids a held above-count being sold whatever
+the tie-break says. It had to be a rule rather than a scale, because
+the trade the tie-break bought was one above-count against ANOTHER,
+and no choice of weight tells those two apart. It is scaled to `room`
+rather than to the whole range an agreement can take, because a tie-break spread from −1
+to 1 is a hundred times too shallow to steer inside a window two
+hundredths wide.
+
+**`wanted` is not the column's `n_distinct`.** Cells that did not split
+are replaced after the walk by stand-ins that are all ONE spelling,
+which no joined cell wears, so they add exactly one to the number of
+different cells however many there are. The walk is therefore asked for
+`n_distinct - 1` where any such cell exists and `n_distinct` where none
+does. Comparing the walk's result against the whole column's figure
+instead made a 120-cell column holding 120 different cells report "120
+published, 119 achieved" while the recount in the same report said 120.
+
+**5. The walk.** While anything is still OWED, fewer than
+`max(200 * T, n_parts − 1)` tries have been made, and at least two
+reserve words exist:
+
+Something is owed when the count of different cells is not the wanted
+one, or any `above[pair]` is not its published value, or any pair's
+`gap` exceeds `0.00005` — half a unit at the precision the agreement is
+published to.
+
+**THE STOPPING RULE IS THE OBLIGATIONS THEMSELVES, and it was a fixed
+distance of `0.0005` for one revision.** A distance cannot serve: one
+different cell is worth `1 / T`, so above about two thousand rows a
+whole missed cell costs less than that threshold and the walk stops
+with an exactly-checked fact still missed — at four thousand rows it
+can stop before its first try. And the agreement half of the test is
+the PUBLISHED PRECISION rather than the window, because stopping at the
+window leaves the walk idle while it could still be improving a fact a
+reader reads: measured on a correlated 300-row blood pressure, stopping
+at the window left the twin agreeing at 0.8174 against a published
+0.8343, where continuing reaches 0.8343. Continuing is not a trade —
+what could trade a cell for margin is the SCORE, and it cannot.
+
+**THE CEILING IS AT LEAST THE NUMBER OF MOVABLE POSITIONS.** `n_parts`
+may reach `n_present + 2`, so a column admitted at a lowered parse rate
+can hold many present cells of which few SPLIT — and `200 * T` tries
+could then be fewer than the positions taken in turn, leaving a tail
+position no try at all while its pairs are still counted in the score.
+Measured: 602 present cells of which two split into 402 positions gives
+401 movers against 400 tries. "Every pair is aimed at" is only true if
+every position is reached.
+
+- let `p` be the position this try moves, `1 + (t mod (n_parts - 1))`
+  for try number `t` counting from zero, per step 3;
+- take the next two reserve words, **counting from reserve word ZERO
+  even when the permutations of step 2 already consumed some** — the
+  walk does not continue after them, it starts again at the beginning
+  of the reserve and reads the same words a second time. **Each restart
+  begins one word further along than the last**: the `r`-th restart
+  begins at reserve word `r mod max(len(reserve) - 1, 1)`, so a second
+  pass over the reserve does not draw the pairs the first one drew;
+- `i = bounded(w1, T)`, `j = bounded(w2, T)` by G3.4b;
+- **the proposal step (G6B.4a) may move `i` and `j` to two other rows**
+  — when the count of different cells is not yet the published one,
+  AND ALSO when it already is and an above-count is still unmet, which
+  is that section's `d == 0` bullet. This line named only the first
+  case until review round 7 of L7; an implementer who read the summary
+  and stopped would omit the second branch entirely and never repair
+  an above-count once the distinct count was right;
+- if `i == j`, or position `p` holds the same spelling at both, the try
+  is spent and nothing moves;
+- otherwise swap position `p`'s seats `i` and `j`, recompute `away`,
+  and **accept when the new distance is less than OR EQUAL to the old
+  AND the swap is allowed**. A swap is allowed unless one of three
+  refusals applies, in this order, every one of them evaluated on
+  EVERY try:
+  1. it takes any pair's above-count from HELD to missed;
+  2. it takes any above-count further from its published value, while
+     the moved pairs' above-counts do not fall as a whole and no other
+     above-count reaches its published value in the same swap;
+  3. it takes any pair out of its window, while neither exact fact
+     comes closer — neither the moved above-counts as a whole nor the
+     count of different cells.
+
+  Otherwise restore every carried quantity exactly.
+
+**THE ABOVE-COUNTS ARE CARRIED BY IDENTITY, ONE ENTRY PER MOVED
+PAIR**, in a fixed order, so entry `k` names the same pair on both
+sides of the swap. A SUM cannot express these refusals: an above-count
+can go from held to MISSED while another improves by one, the total
+says nothing happened, and the agreement tie-break is the only reason
+left to take the swap. Measured on a 150-row four-position column at
+one seed, four accepted swaps did exactly that — at the fifty-seventh
+the per-pair gaps went `(0, 3, 0, 0, 0, 0)` to `(0, 2, 0, 1, 0, 0)`
+while `away` fell by 2.4e-5, and no pair had left its window, so the
+refusal was never even reached — and the twin came out holding
+`(65, 120, 32, 118, 31, 0)` against a published
+`(65, 122, 32, 118, 31, 0)`. An independent transcription of this
+section reproduced the same trade on its own columns, which is why the
+refusals are numbered here rather than described.
+
+**THE COUNT OF DIFFERENT CELLS IS A SEPARATE READING AND IS NOT ADDED
+TO THEM.** It belongs to no pair, and it is the one exact fact
+deliberately licensed to yield (step 4); added into the same number, a
+gained cell could buy a lost row of `part_above` and no rule could see
+the trade. It enters refusal 3 alone, as its own term beside the rows,
+and refusal 3 asks the two facts SEPARATELY — "an exactly-checked
+fact" is singular, and netting rows against cells is the arithmetic
+these refusals exist to stop.
+
+**REFUSAL 2's ESCAPE AND REFUSAL 3's SEPARATION EACH COST ONE
+AGREEMENT AND ARE TAKEN ANYWAY, and saying so is the honest form of
+the record.** Measured over twelve columns of three and four positions
+at forty seeds, 2,160 pairs: the rules as written leave 550 agreements
+outside their window; refusal 2 without its escape leaves 549 and
+refusal 3 written as one combined total leaves 549. Neither variant
+misses an above-count either, so neither costs a fact a reader is
+told about — the difference is one pair's agreement in each case, and
+both are kept for a reason a battery cannot show. Refusing a swap that
+takes a pair ONTO its published count is refusing progress towards the
+fact refusal 1 protects, and refusal 1 is absolute: without the escape,
+a column whose remaining debt needs one seat to dip has no route to it
+at all. And netting rows against cells is the collapse this revision
+removes, so refusal 3 may not be written as the arithmetic being
+repaired.
+
+**REFUSAL 2 COSTS NOTHING WHERE THE ABOVE-COUNTS WERE NEVER AT RISK.**
+On a correlated 400-row blood pressure at six seeds the twin holds all
+324 different cells, all 400 above-rows and a worst agreement gap of
+0.009948 with these refusals and without them alike.
+
+**WHAT REFUSAL 1 GUARANTEES ACROSS A WALK**, and it is the guarantee
+G12.9's "either holds it or has missed it" rests on: the set of pairs
+holding their published `part_above` never shrinks. A pair the swap
+cannot touch keeps its count, a refused swap is put back exactly, and a
+moved pair cannot go from held to missed. Measured on the column above,
+that count fell four times over 149 accepted swaps before these
+refusals and falls at none of the 146 after them. Over the whole
+battery — twelve columns, forty seeds, 2,160 pairs — the above-counts
+missed go from one to none and the agreements outside their window
+from 643 to 550.
+
+**WHY THE WINDOW IS GUARDED SEPARATELY FROM THE SCORE.** Scoring an
+agreement only beyond the window is what stops the walk buying margin
+with an exactly-checked cell, but it leaves the inside of that window
+flat, and a walk indifferent there lets a pair drift across the edge
+and out. Measured on a forged three-position column at forty seeds, 120
+pair measurements: flattening the interior took the pairs landing
+OUTSIDE the window from 87 to 110, while the count of different cells
+it was meant to protect was already met at every seed both ways — so
+the trade bought nothing and cost 23. Refusing the drift directly
+brings it to 73, better than either. The exception for an exact fact is
+not optional: without it the same column lost ten above-counts of forty
+where none had been missed.
+
+**THE RESTART STEPS ALONG, AND IT RETURNED TO ZERO UNTIL LANDING L7.**
+The reserve holds `T - 1` words for each position after the first and
+the ceiling is `200 * T` tries, so a cursor returning to zero drew the
+same `T / 2` pairs of rows two hundred times over: measured on a
+240-row column publishing 240 different readings, the walk spent 48,000
+tries on 119 distinct draws. Stepping the restart walks the reserve
+against itself and costs no word and no draw.
+
+**An equal swap is taken, and that is not a detail.** Three facts are
+being met at once and they pull against each other: a swap that breaks
+a repeated cell often costs a little agreement and gains it back two
+swaps later. Taking only strict improvements stops on the first ridge —
+measured, it left a column of 324 different readings at 276 while the
+agreement was already right. Equal moves let the walk cross the ridge,
+and the try ceiling is what stops it wandering.
+
+**The reserve is DRAWN whether or not it is used.** The walk may
+consume none of its words — it can begin already inside 0.0005 of every
+target and stop — but the words are drawn from the stream regardless,
+because that is what fixes the budget and therefore where the next
+column starts.
+
+#### G6B.4a Which two rows a try really swaps
+
+`away` scales a row of `part_above` at a whole unit and one different
+cell at `1 / T`, so a walk drawing its two rows at random spends its
+ceiling on swaps that move the count of different cells by nothing at
+all. **The objective is not re-weighted for this** — weighting that
+count per row was built and measured and was worse at everything, per
+step 4 — what changes is which swaps are put to it.
+
+Write `seen` for how many rows hold each cell, `d = distinct_cells −
+wanted`, and `R = 16` for how far either scan looks. Both scans run
+forward cyclically from the drawn row and both fall back to the row as
+drawn, so a try always has something to propose.
+
+**EXACTLY WHICH ROWS EITHER SCAN VISITS, because an implementer who
+counts from one instead of zero writes a different twin.** The scan
+for `i` visits `(i + k) mod T` and the scan for `j` visits
+`(j + k) mod T`, for `k = 0, 1, …, R − 1` in that order, where `i` and
+`j` are the rows AS DRAWN. So `k = 0` is the drawn row itself: each
+scan tests its own drawn row first, and the two scans count from
+DIFFERENT origins. A scan that finds no qualifying row inside its `R`
+candidates yields its own drawn row unchanged.
+
+**And "a different spelling at `p`" is measured against the row the
+FIRST scan settled on, not against the row `j` was drawn at**: the
+partner scan takes the first candidate row that is neither the row `i`
+ended at nor holds the spelling that row holds at `p`. Comparing
+against the drawn `j` instead CAN select a different partner and so
+write a different twin — the two agree only when the settled `i` row
+and the drawn `j` hold the same spelling at `p`, which is why the rule
+has to be stated rather than left to chance.
+
+- `d == 0`, the count of different cells already met — TWO sub-cases,
+  written as one bullet because an implementer reading in order must
+  not take the first and stop. Write `s` for **how many turns position
+  `p` has already had in this walk**: step 5 takes its positions in
+  turn, so a try index `t` gives `p = 1 + (t mod (P − 1))` and
+  `s = ⌊t / (P − 1)⌋`, the remainder and the quotient of one division,
+  and `s` is read BEFORE the try index is stepped:
+  - every `above[pair]` is its published value, or `s + p` is ODD: the
+    two rows as drawn;
+  - some `above[pair]` is not its published value and `s + p` is EVEN.
+    **WHICH pair is named here, because two programs that chose
+    differently would scan different rows and write different twins.**
+    The pair is the EARLIEST, in `part_above`'s own published order,
+    among those that BOTH contain position `p` and whose count is
+    unmet. Position `p` may sit in several unmet pairs — at the
+    `battery-11` start it sits in three, short by 14, 1 and 4 — and
+    only the earliest is aimed at on this turn. If `p` sits in NO
+    unmet pair, this turn proposes the two rows as drawn, exactly as
+    the first bullet does.
+
+    **"Unmet" means the count differs from its published value, and
+    NOTHING ELSE.** In particular a program must NOT screen out a pair
+    whose published count its own drawn numbers cannot express under
+    any arrangement, even though such a pair stays unmet forever and
+    is therefore aimed at on every ABOVE-COUNT-AIMING turn — the
+    `(s + p)` EVEN ones — of every position it contains. On the odd
+    turns nothing is pair-directed at all, so it is half of those
+    positions' turns and not all of them.
+    Screening it would be defensible and would write a different twin,
+    which is why the rule is stated rather than left to judgement.
+    R-P4-144 measures how many such pairs there are and records that
+    the turns they consume, and the pairs behind them in the order
+    that consequently get none, are an unmeasured contributor to the
+    shortfall it reports. Then: `i` becomes the first row within `R`
+    steps that holds that pair's earlier position above its later one
+    where the count is too high, or does not where it is too low; `j`
+    becomes the first row within `R` steps holding a different
+    spelling at `p`. The
+    acceptance rule refuses to trade one above-count for another, so
+    the walk cannot reach the repair sideways and has to aim at it. On
+    ALTERNATE TURNS OF THAT POSITION because aiming on every turn
+    starves the agreement, which is the other fact still being
+    improved: measured on a 300-row blood pressure, aiming every try
+    left the twin agreeing at 0.8232 against a published 0.8343 where
+    alternating reaches it exactly.
+    **This branch is not optional beside the acceptance rule**: with
+    the refusals in place and this proposal withdrawn, the battery
+    leaves seven above-counts of 2,160 short of their published value,
+    where the walk that could still trade them sideways left one. The
+    wording here avoids one word on purpose — this bullet also carries
+    the word `earliest`, and the guard of `docs/spec` that reads for a
+    temporal end met with something else would take the pair for one of
+    those.
+- `d < 0`, the walk short of the count:
+  - `i` becomes the first row within `R` steps whose cell more than one
+    row holds;
+  - `j` becomes the first row within `R` steps, other than `i` and
+    holding a different spelling at `p`, for which the swap would give
+    row `i` a cell no row holds AND would either give row `j` a cell no
+    row holds or take from row `j` a cell another row also holds. The
+    second half is not optional: the partner's own cell changes too and
+    can go from unique to repeated, leaving the count where it was.
+- `d > 0`, the walk over the count:
+  - `i` becomes the row within `R` steps whose cell the FEWEST rows
+    hold, the earliest where several tie. The mirror image of the rule
+    above — "a row whose cell is unique" — finds nothing on a column
+    holding six different cells over a hundred rows, and it is the
+    rarest cell whose last few rows the count comes down by;
+  - `j` becomes the first row within `R` steps, on the same terms, for
+    which the swap would give row `i` a cell some row already holds AND
+    would give row `j` one some row already holds or the same cell as
+    row `i`.
+
+**THE TURN IS THE POSITION'S OWN AND NOT THE WALK'S, and the `d == 0`
+bullet above read "the try number" until amendment A-P4-52.** Step 5
+reaches position `p` at try indices `p − 1`, `p − 1 + (P − 1)`,
+`p − 1 + 2(P − 1)`, … which all carry ONE parity whenever `P − 1` is
+even. A gate on the try number is therefore not alternating at all on
+a column with an odd number of positions: it answers the same thing at
+every turn a given position ever gets, so half the positions aim at an
+above-count on all of their turns and the other half on none of
+theirs. Position 1 is the ONLY mover of the pair it makes with the
+anchor, so where position 1 is the starved half that pair has no route
+to its published `part_above` at all. `s + p` alternates on each
+position's own turns for every `P`, and wherever `P − 1` is odd it is
+the SAME schedule the try number gave, so a column with an even number
+of positions writes the same cells under either wording. Measured
+through the reader, producer, loader and generator over forty
+described columns of two to five positions at forty seeds each, 9,640
+pairs: the pairs whose `part_above` the twin did not reach run 120 on
+the try number, 153 on its phase flip and 44 on `s + p`, with the
+agreements outside G12.9's window 3,665, 3,668 and 3,638. On eight
+five-position columns, 3,200 pairs: 71, 96 and 12. The driver is
+`tools/measurements/a_p4_52_l7_parity.py`.
+
+**THE `p` IN `s + p` IS NOT LOAD-BEARING, and this method implied
+otherwise until review round 4 of L7.** It staggers neighbouring
+positions onto opposite turns, which reads as a reason, and it was
+kept because dropping it moved bytes an earlier commit had set — a
+circular argument, since that commit is the one that carried the
+lockout this amendment repairs. Measured across THREE families built
+three different ways, 15,560 pairs at forty seeds, the four phases
+`s + p`, `s + p + 1`, `s` and `s + 1` miss 716, 709, 709 and 717
+above-counts. `s + p + 1` has fewer misses than `s + p` in every one
+of the three families, and `s + p` has fewer agreement excursions in
+aggregate, 5,513 against 5,527: **no phase dominates across BOTH
+reported metrics**, and the differences are not zero either — 716
+against 709 is seven above-counts one phase reaches and another does
+not.
+
+**THE PHASE IS THEREFORE FIXED HERE, and `s + p` is the one.** An
+implementation MUST gate on `(s + p) mod 2`, aiming when it is zero.
+This is a reproduction rule, not a fidelity one: two programs that
+chose different phases would both be defensible statistically and
+would still write different twins from the same profile and seed,
+which this document exists to forbid. All `p` amounts to is a stagger
+of neighbouring positions onto opposite turns, and the measurement
+says only that dropping it costs nothing consistent — not that a
+conforming program may drop it.
+
+Gating on the TRY NUMBER is refused for a second and stronger reason,
+by a published fact rather than by a byte: it starves a parity, and
+restoring it leaves seat 0 of the witness column reaching 49 against a
+published 64.
+
+`R` is a fixed small number and not the whole column because the scan
+runs inside a walk whose ceiling is already `200 * T`, so an unbounded
+scan makes the walk quadratic in the rows. **Sixteen is a
+measurement**: over four columns at forty seeds each, counting different
+cells held against published, a 36-row witness goes 30–35 at `R = 1`,
+32–35 at 4, 32–36 at 8 and 33–36 from 16 upward, and a 240-row
+all-different column goes 176–211, 192–231, 196–236 and 197–236 from
+16 upward — flat from sixteen, at more than twice the running time by
+sixty-four. A 400-row blood pressure reaches its published count at
+every value of `R` and separates none of them. (Forty seeds; a
+ten-seed reading of the same sweep put the witness at 33–36 from
+sixteen, which forty does not support.)
+
+### G6B.5 The cells that did not split
+
+`n_present - n_joined` cells wore no such shape. The description says
+HOW MANY and nothing else, so they are invented as ordinary text at a
+budget of one distinct spelling, stepped past every cell already
+written and every spelling this column publishes as a hole, and the
+invention is REPORTED as a deviation of `n_unparsed`.
+
 ## G7. Datetime columns
 
 ### G7.1 The ordinal space
@@ -1294,6 +3340,17 @@ fixed by the published `resolution`:
 | `date` | `YYYY-MM-DD` | one day | days from 1970-01-01, proleptic Gregorian |
 | `datetime` | `YYYY-MM-DD HH:MM:SS` | one second | `86400 * days + 3600*HH + 60*MM + SS` |
 | `quarter` | `YYYY-Qn` | one quarter | `4 * (year - 1970) + (n - 1)` |
+| `month` | `YYYY-MM` | one month | `12 * (year - 1970) + (MM - 1)` |
+
+**THE TWO SPAN ROWS ARE SPANS, AND THAT IS WHY THEY HAVE SPACES OF
+THEIR OWN** (plan P4-D4.3 item 2, amendment A-P4-24). A quarter and a
+month each name a stretch of days rather than one instant, so neither
+has a place in the day or second space: turning `2024-03` into a day
+would put a value in the column that no cell of it holds. Both count
+from the same origin, both are exact whole-number arithmetic on the
+written figures, and for both the canonical form IS the cell text, so
+their endpoints and their ladder rungs sort as text and come back out
+of a file unchanged.
 
 The day count is the proleptic Gregorian civil-to-days function the
 shipped `parsing._days_from_civil` computes, and its inverse is
@@ -1417,8 +3474,8 @@ says which clock `earliest`, `latest` and the ladder are written on:
   ```
   local_ordinal = ordinal + offset_in_seconds     (resolution `datetime`)
   local_ordinal = ordinal                          (resolution `date`,
-                                                    `quarter`: no clock
-                                                    to shift)
+                                                    `month`, `quarter`:
+                                                    no clock to shift)
   ```
 
   where `offset_in_seconds` is `+/- (3600 * HH + 60 * MM)` read from the
@@ -1445,6 +3502,7 @@ only where the profile records a real one.** Exactly:
 | `resolution` | `time_precision` | cell text |
 |---|---|---|
 | `quarter` | `quarter` | `YYYY-Qn` |
+| `month` | `month` | `YYYY-MM` |
 | `date` | `date` | `YYYY-MM-DD` |
 | `datetime` | `minute` | `YYYY-MM-DDTHH:MM` |
 | `datetime` | `second` | `YYYY-MM-DDTHH:MM:SS` |
@@ -1465,14 +3523,17 @@ now refuses it and its loader enforces that. Every pair a description
 can carry has a row above.
 
 **An offset is written only where `resolution` is `datetime`** (contract
-invariant D9). A whole date and a quarter have no time of day for an
-offset to move, and a cell written `2024-03-15+02:00` reads back as no
-date at all.
+invariant D9). A whole date, a month and a quarter have no time of day
+for an offset to move, and a cell written `2024-03-15+02:00` reads back
+as no date at all.
 
 **THE TWO ENDPOINT CELLS ARE BUILT FROM THE PUBLISHED ENDPOINT'S OWN
 FIELDS, NOT FROM ITS ORDINAL** (review item P2-C2-F5). G7.3 pins ranks
 `0` and `P - 1` to `earliest` and `latest` "used exactly as published",
-and this paragraph is what makes that sentence literal. The ordinal
+and this paragraph is what makes that sentence literal. For the two
+SPAN resolutions the two routes cannot differ at all: a month and a
+quarter ARE their canonical text, so the fields route and the ordinal
+route write the same characters, and the pin is literal either way. The ordinal
 space of G7.1 round-trips every instant a whole-second count can hold,
 and there is one a real reader can still hand a description that it
 cannot: the last second of a leap minute, `SS` of `60`, which the
@@ -1480,7 +3541,7 @@ profile contract's canonical form admits at 6.6.2 because the shipped
 reader accepts one. Read `earliest` (or `latest`) as its four fields —
 the date, `HH`, `MM` and `SS` — and build the cell as:
 
-1. `resolution` `date` or `quarter`: the published text itself, which is
+1. `resolution` `date`, `month` or `quarter`: the published text itself, which is
    already the cell text the table above asks for.
 2. `resolution` `datetime`: take the published date with `HH:MM` and
    `SS` of `00`, move THAT to the clock G7.4 allocates for this cell —
@@ -1552,6 +3613,25 @@ rather than passing it off as an outcome the description asked for.
 - **The separator is `T`**, on every `datetime` cell. The shipped parser
   accepts `T`, `t` and a space; `T` is the ISO form and one choice has
   to be made for the bytes to be fixed.
+
+  **WITH ONE EXCEPTION, AND IT KEEPS AN EXACT FACT RATHER THAN
+  RELAXING ONE** (review item P4-DATE-F2). Where the cell this rule
+  produces is one of the spellings the column publishes among its
+  absent cells — the keys of `missing_by_source` — the space form is
+  written instead. The two spell the same instant at the same precision
+  on the same clock, so nothing published moves; what moves is whether
+  the twin's OWN description still counts the cell. A real column can
+  hold a present cell at midnight written `2024-01-01` and, beside it,
+  cells a declaration made absent as `2024-01-01T00:00:00`; the twin
+  writes every parsed cell at the finest precision, reaches the second
+  spelling, and hands back a cell its own reader calls absent — so
+  `n_present` falls and, where the cell was an endpoint, an
+  EXACT-OBSERVABLE end walks out of the twin over a separator nobody
+  chose. The exception is asked ONLY at that collision, so no other
+  cell and no frozen vector moves. Where BOTH spellings are published
+  as absent the `T` form stands and G12's endpoint entry names the
+  loss: this rule declines to invent a third spelling to hide a fact
+  the description really does make impossible.
 - **The fractional digits are zeros.** The profile publishes how MANY
   subsecond digits the finest cell carried and nothing about their
   values — the parser reads and discards the fraction — so any other
@@ -1567,7 +3647,200 @@ rather than passing it off as an outcome the description asked for.
   `iso-date`. Code that parses dates with an explicit source format
   needs that argument changed, and the report says so.
 
-## G8. Label columns (`constant`, `binary`, `categorical`)
+## G7A. Clock columns (`time_of_day`)
+
+This role was added by Phase 4 and this section was written after its
+implementation shipped, which is the wrong order and is recorded as
+such in G13. It is written from the behaviour the shipped tool has, so
+that an independent implementer can reproduce it; it is not evidence
+that the behaviour was reviewed before it existed.
+
+### G7A.1 The ordinal space
+
+A clock column holds TIMES OF DAY and nothing else: no date, no zone,
+no offset. Each cell is a place in one day, and the role counts in
+**integer ordinals** of the form's own unit. No float is formed
+anywhere in G7A.
+
+| form | unit | capacity | spelling |
+|---|---|---|---|
+| `hh-mm` | minutes of day | 1,440 | `HH:MM` |
+| `hh-mm-ss` | seconds of day | 86,400 | `HH:MM:SS` |
+
+The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
+`hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`. The spelling of
+an ordinal is that map inverted and zero-padded to two digits per
+field. Because the unit is the form's own, every ordinal in
+`[0, capacity)` has exactly one spelling in that form, and no value the
+generator interpolates is ever truncated or widened to fit a cell.
+
+**What the reader accepts is EXACTLY these two shapes**, and the word
+exactly is the rule rather than a summary of it: two ASCII digits in
+every field, hours at most 23, minutes and seconds at most 59, nothing
+before the digits and nothing after. Four shapes a reader might expect
+are refused on purpose — a fractional part (a reading that dropped it
+would describe such a cell approximately while publishing an exact
+ladder), the leap second `23:59:60` (the ordinal space has no faithful
+point for it, and making one up would write into the twin a time that
+no clock face reaches), an hour written with one digit such as `9:30`
+(the published spellings are fixed width), and anything else — a
+date, an offset, a name.
+
+**Nothing is trimmed before the reader looks**, and that is a fifth
+refusal rather than an oversight. What this role publishes are the
+CELLS THEMSELVES: the two endpoints and the eleven ladder rungs are
+values some row wore, character for character. A cell wearing the form
+the column did NOT publish is counted unparsed rather than silently
+re-read, so a column of `hh-mm` cells with one `hh-mm-ss` cell among
+them publishes `n_unparsed` of 1.
+
+### G7A.2 What the profile supplies
+
+Published: `clock_form`; the 11-rung `clock_percentiles` ladder;
+`earliest`; `latest`; `n_unparsed`; together with the universal class
+counts and `n_distinct` / `n_distinct_folded`. **This role publishes no
+sixth key.** It has NO OFFSET MACHINERY AND MAY NOT INVENT ANY: the
+datetime role's ten offset and resolution keys are absent here, so
+there is no zone to carry, no reading to convert and no endpoint field
+surgery. A clock time is a place in the day and nothing else.
+
+The loader holds the published values to four rules before the
+generator sees them: every published time wears the column's own form
+(T1); the ladder begins at `earliest` and ends at `latest` (T2); the
+ladder never goes backwards (T3); and at least one cell parsed (T4). A
+fifth (T5) is the detection line — enough of the column's cells are
+clock times for it to be read this way.
+
+Fixed quantity used below:
+
+```
+P = n_present - n_unparsed        cells that parsed as clock times
+```
+
+### G7A.3 The one refusal this role adds
+
+A day holds 1,440 different minutes and 86,400 different seconds, and
+nothing else can be written in the column's form. So where
+
+```
+n_distinct - n_unparsed  >  capacity(clock_form)
+```
+
+the description asks for more different times than its form has, and
+generation REFUSES before a single cell exists, naming the description
+valid and the table impossible. The test is the FORM'S CAPACITY and not
+the span between the two endpoints: a description whose own source met
+every count is never refused here, which is the difference between a
+description nothing can satisfy and one this method finds hard.
+
+**The span is a separate matter and is not a refusal.** Where the
+endpoints are close together and the column asks for many different
+values, the form has room but the RANGE does not, and G7A.4's repair
+runs out of places. Nothing is silently dropped: the twin holds fewer
+different times than published and the generation report names the
+shortfall as a deviation of `n_distinct`, alongside every ladder rung
+the clamp moved. Measured on a forged 100-cell `hh-mm` column whose
+ends were `08:00` and `08:10` -- eleven minutes for a hundred different
+values -- the twin held 11 different times, reported a deviation of
+`n_distinct` reading 11, and reported 8 of the 11 rungs moved.
+
+**A description the PROFILER wrote can never have that shape**, and the
+reason is worth stating because it tells an implementer exactly when
+the clamp can bite. Write `lo` and `hi` for the ordinals of `earliest`
+and `latest`. Every parsed cell is a clock time between those two
+endpoints, so the number of DIFFERENT parsed cells is at most
+`hi - lo + 1`. And `n_unparsed` counts unparsed CELLS while `n_distinct`
+counts each unparsed spelling once, so `n_unparsed` is at least the
+number of different unparsed spellings, and therefore
+
+```
+n_distinct - n_unparsed  <=  (different parsed cells)  <=  hi - lo + 1
+```
+
+on every description measured from a real column. The repair always has
+a place to step into there.
+
+The inequality is necessary and, on its own, not quite sufficient: it
+bounds how many different times are wanted, and the repair also needs
+the interpolation not to jump past them. That second half comes from
+the ladder being a SELECTION ladder over the column's own values
+(G7A.2, invariants T2 and T3), so its rungs are real cells in order and
+the interpolation between two rungs stays between two values the column
+held. With both halves the conclusion holds, and no profiler path was
+found that breaks either. The clamp is reachable only from a
+HAND-WRITTEN description, which this method accepts and must therefore
+say what it does with -- and what it does is degrade and report, never
+refuse and never quietly hold fewer. Sixty profiler-built clock columns
+were checked against the inequality and none came within reach of it;
+the inequality is the reason, and the check is only corroboration.
+
+This is why G7A.3's first paragraph does not say the capacity test
+guarantees a place for every value. It does not: it guarantees the FORM
+has room, not that the RANGE does. Only the report closes that gap.
+
+### G7A.4 Values: the same stratified inverse transform, in integers
+
+Convert the eleven rungs to ordinals `Lo[0] .. Lo[10]`. The cells are
+ranks `r = 0 .. P - 1`, one cell per rank; clock columns are not
+stratified by value, because no clock multiplicity map is published.
+Then:
+
+- `r == 0`: the cell is `earliest`, used exactly as published — the
+  published TEXT, not a re-spelling of its ordinal. No word.
+- `r == P - 1` and `P >= 2`: the cell is `latest`, exactly, by the same
+  rule. No word.
+- otherwise: one word `w`, and
+
+  ```
+  N_r = r * 2**64 + w
+  D   = P * 2**64
+  find j with PCT[j] * D <= 100 * N_r < PCT[j+1] * D
+  A   = 100 * N_r - PCT[j] * D
+  B   = (PCT[j+1] - PCT[j]) * D
+  ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B
+  ```
+
+  identical in shape to G7.3, with `Lo` in the form's own unit. The
+  floor division rounds toward the EARLIER time. `ordinal` lies in
+  `[Lo[j], Lo[j+1]]` by construction and so in `[Lo[0], Lo[10]]`, which
+  T2 makes `[earliest, latest]`: no interior cell falls outside the
+  published range and both endpoints stay exact.
+
+**The all-different obligation is EXACT for this role**, and it is the
+one shape where it is. Everywhere else a column's count of different
+values falls to an envelope; here a closed finite space of times has a
+place for each of them and the construction can take the next one. The
+obligation applies where
+
+```
+n_distinct - n_unparsed  >=  P
+```
+
+and the repair is: keep the ordinal of the previous rank; if this
+rank's ordinal is not above it, step to the previous ordinal plus one;
+then clamp to the ordinal of `latest`. The interpolation is
+non-decreasing across ranks, so two ranks land on one time only where
+the ladder is tighter than the ranks are numerous, and stepping the
+later one up by one unit is what the source column itself did. The
+clamp is what G7A.3's second paragraph is about.
+
+### G7A.5 The stand-ins
+
+The `n_unparsed` cells are outside the obligation to reproduce a clock
+value: they are COUNTED rather than described, exactly as the datetime
+role's stand-ins are (G10.4). Each is stepped past four things — a
+spelling this column has already written, a word this format reads as
+"no value", a spelling that would read as a clock time in EITHER form,
+and a spelling this column publishes as a hole.
+
+The third of those is the one specific to this role. A stand-in that
+reads as a clock time under the form the column did NOT publish is
+still a cell the twin's own description would count differently from
+the description the twin was built from, so it would quietly move
+`n_unparsed` — and a twin that re-describes to a different profile is
+the failure this whole document exists to prevent.
+
+## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
 A label column consumes no content words. Everything is fixed by
 published counts, which is why a fully determined label column produces
@@ -1585,8 +3858,26 @@ cells are filled as follows:
    sorted key order.
 2. **`variants_withheld`** maps an occurrence count to how many distinct
    spellings occurred that often. For each key in ascending numeric
-   order, and for each of its distinct spellings, one invented variant
-   spelling is produced (G8.2) and used exactly that many times.
+   order — the key is a whole number written in figures, and the order
+   is over the NUMBER, so `2` comes before `10` — and for each of its
+   distinct spellings, one invented variant spelling is produced (G8.2)
+   and used exactly that many times. **Which form each of those
+   spellings must wear is fixed first, by G8.1a.**
+
+   **Where step 3 is not reached, the label's OWN spelling is one of
+   the spellings available to G8.2**, and it is offered to the LARGEST
+   group whose target form the label's own spelling wears — which is
+   the largest FORM-KEEPING group where the label has a written form of
+   its own, and the largest group of all where it has none, because
+   then every group's target is "no form" and so is the label's. Where
+   the label HAS a form and G8.1a gives it to no group, the label's own
+   spelling is not spent at all. It is available only where step 3 is
+   not reached: a level whose published and withheld spellings do not
+   cover its `count` is finished by step 3 writing the label itself, so
+   that spelling is spoken for. It is worth offering because it is the
+   one further spelling that folds onto the label while KEEPING ITS
+   WRITTEN FORM, where a trailing space does not (P4-D18, amended by
+   A-P4-47).
 3. If the entry publishes neither key, or both are empty, all `count`
    cells are written with the normalized label itself.
 
@@ -1604,11 +3895,64 @@ the all-different obligation for every label role. Owner decision 9
 directed that the variants be published so the twin can keep the values
 distinct; this section is where that is spent.
 
+### G8.1a Which held-back groups keep the label's written form
+
+**Input: the level's `shape_form_cells`** (contract 7.4.8), how many of
+the level's rows wrote the label in the label's own written form. Owner
+ruling of 2026-08-31, plan amendment A-P4-47; before it the description
+did not carry the fact and the walk guessed, missing in both directions
+(residual R-P4-34).
+
+**Step 1 — what the published spellings already cover.** Walk
+`variants` and add up the counts of the keys whose spelling has a form
+under contract 7.9. Those cells are written byte for byte by G8.1 step
+1, so what they wear is read rather than reasoned about. Call the total
+`covered`.
+
+**Step 2 — the debt.** `debt = shape_form_cells - covered`. Where it is
+nought or less, no held-back group keeps the form and this section is
+finished.
+
+**Step 3 — the plain walk.** Take the `variants_withheld` keys in
+DESCENDING numeric order. For each key, take as many of its groups as
+fit under what is still owed — `min(multiplicity, owed // key)` of them
+— and subtract what they cover. Where nothing is left owed, those
+groups are the answer.
+
+**Step 4 — the reachability walk, where step 3 leaves a remainder.**
+Taking the largest size that fits at each step misses arrangements that
+exist: a debt of 6 against groups of 4, 3 and 3 takes the 4 and is left
+with a 2 no group covers, while 3 and 3 settle it exactly. So walk
+every total from 0 up to the debt and record, for each, the FIRST size
+that reaches it, offering the sizes in the same descending order and
+never using a size along one chain more often than the entry holds
+groups of it. Where the debt is reached, follow the record back from it
+to nought and count the sizes taken; that is the answer.
+
+**A SUB-MULTISET SUMMING TO THE DEBT ALWAYS EXISTS ON A DESCRIPTION THE
+PRODUCER WROTE**, because the debt is a sum of those very sizes there,
+by construction: the source's own form-bearing held-back spellings are
+whole groups. So the closure is EXACT and not approximate.
+
+**THE WALK IS BOUNDED**, because its cost is the product of the debt
+and the number of different group sizes and neither is bounded by the
+document. Where the product exceeds the bound, or where the debt is not
+reachable at all, step 3's own partial answer stands and the twin's
+report NAMES what it left unsettled — the same treatment every other
+bounded search in this method gets.
+
+**Each group of a size is then asked in walk order**, and the first
+however-many groups of each size the answer names are the form-keeping
+ones. Which group of one size is which does not matter and cannot: the
+description publishes group SIZES and names no spelling, so two groups
+of one size are indistinguishable in it.
+
 ### G8.2 Invented variant spellings
 
 An invented variant must fold to its parent label, differ from every
-spelling already used in the column, and be produced by a rule that has
-an unbounded supply. In this order:
+spelling already used in the column, WEAR THE FORM G8.1a ALLOTTED IT
+(G8.2a), and be produced by a rule that has an unbounded supply. In
+this order:
 
 1. **Case flips.** Let the parent's alphabetic positions be
    `q[0] .. q[L-1]`, left to right. For `k = 1, 2, 3, ...` write `k` in
@@ -1626,21 +3970,95 @@ an unbounded supply. In this order:
 A spelling that is only spaces cannot arise, because a published label
 is not empty — an empty cell is an absent value, not a label.
 
+### G8.2a The form a made-up spelling must wear
+
+**Each held-back group carries a TARGET FORM**: the label's own form
+where G8.1a gives that group the form, and "no form" otherwise. A
+candidate of G8.2 whose form is not the target is stepped past, exactly
+as one already used in the column is.
+
+**The two halves of the supply are the two answers, which is why one
+rule settles it.** A case flip of the label wears the label's own form
+— such a spelling holds no space, so trimming changes nothing, and
+folding an ASCII letter leaves an ASCII letter in the same place. A
+trailing space wears no form at all, since a space is not one of the
+thirteen marks. So a form-keeping group takes a case flip (or the
+label's own spelling, G8.1 step 2), and a form-losing group takes a
+trailing space, or a case flip where the label itself has no form.
+
+**Where the case flips run out with the form still wanted**, the
+trailing space is written and the level falls short of its published
+`shape_form_cells`. A label of one letter has one case flip, so a
+description asking two of its held-back groups to keep the form is
+asking for a spelling that does not exist. No producer writes such a
+description — a source that spelled those groups had the spellings to
+do it — and the loader cannot see it, because the count is inside W8's
+two bounds. The twin's own report names the shortfall.
+
 ### G8.3 Withheld levels
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_level_counts` gives their sizes as an anonymous multiset,
-in ascending order. For each size in that list, in order, one invented
-neutral label is produced and used exactly that many times.
+in ascending order. One invented label is produced for each size and
+used exactly that many times.
 
-The invented labels are `group-1`, `group-2`, `group-3`, … in order.
-Each candidate is skipped and the number advanced when it collides,
-raw or folded, with any spelling already used in the column. They are
-neutral by construction: they carry no fragment of any real value, they
-are not one of the spellings that mean "no value", they do not read as a
-number or a date, they contain no comma or quote so they need no
-quoting, and they do not begin with a character that a spreadsheet reads
-as a formula.
+**WHICH SIZE TAKES WHICH FORM IS SETTLED BEFORE ANY LABEL IS BUILT,
+and it is not the list's own order** (contract 7.9.1, review round 3
+finding 9). Where the column publishes a census, the sizes are
+considered LARGEST FIRST and each published form's outstanding debt is
+settled by an exact subset of them, read off the reachable sums rather
+than hunted for; a size no debt needs is left NEUTRAL. Where no
+arrangement settles every debt exactly, the largest debt is taken
+first and the report names what went unmet.
+
+Ascending order and neediest-form-first were what this said, and they
+do not reach an arrangement the source itself exhibits: twelve levels
+whose debts of 31 and 74 are met exactly by `14+17` and
+`6+13+13+14+14+14` are reached by no one-pass rule over the ascending
+list. The published counts are exact facts and the order of a list is
+not, so the order yields.
+
+**Where the column's census NAMES NO FORM** the invented
+labels are `group-1`, `group-2`, `group-3`, … in order. Each candidate
+is skipped and the number advanced when it collides, raw or folded,
+with any spelling already used in the column. They are neutral by
+construction: they carry no fragment of any real value, they are not
+one of the spellings that mean "no value", they do not read as a number
+or a date, they contain no comma or quote so they need no quoting, and
+they do not begin with a character that a spreadsheet reads as a
+formula.
+
+**Where it DOES — which is any of the four label roles, since all four
+carry the census (contract 6.11, C6-31b) — the invented label is
+written in one of the published forms**
+(contract C6-D18, plan P4-D18). `group-14` is not a code: it is the
+wrong length, it is lower-case where the codes are not, and on a
+hyphenated scheme it carries a hyphen of its own, so it passes a "looks
+segmented" check, crashes a split into a fixed number of parts, and,
+the word being exactly five characters, makes a width check on the
+leading segment answer plausibly and wrongly.
+
+- **The debt is over CELLS ALREADY WRITTEN.** The census counts every
+  present cell of the column, and the published spellings and the
+  invented variants of G8.1 and G8.2 are already on the page wearing
+  their forms. What the invented labels owe is the published count
+  minus what those cells paid, counted over the twin's own cells. A
+  walk taking its debt from the census alone writes every form twice
+  over and misses every count it was built to meet.
+- **Each invented label covers its level's size**, which
+  `suppressed_level_counts` fixes, so the walk chooses only WHERE to
+  pay: the form owing the most cells, ties broken by the form's own
+  spelling ascending.
+- **The form is filled from a counter**, never from a reading. Every
+  `%` takes a figure and every `@` a letter, the step taken apart into
+  those positions by mixed-radix arithmetic after being multiplied by a
+  stride sharing no factor with the form's own supply — so consecutive
+  labels differ in every fillable position, and no two steps below that
+  supply collide. Every other character of the form stands as itself.
+- **The four neutrality properties are ASKED rather than had.** A
+  spelling built to look like a code no longer has them by
+  construction, so each candidate is tested against all four and
+  stepped past where it fails, exactly as a collision is.
 
 ### G8.4 The order of `content`
 
@@ -1868,6 +4286,46 @@ The construction, in this order:
    Case flips of the unspaced parent are therefore the first `2**L - 1`
    partners, in exactly the order revision 4 gave them, so a column whose
    collisions case alone could carry writes what it wrote before.
+
+   **THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS ITS
+   TRIMMED TEXT** (residual R-P4-47). The three rules above are stated
+   over the parent, and for every parent an invention role produced
+   before this those are the same thing: a parent carrying no edge
+   spacing of its own IS its own trimmed text, its own placement is the
+   no-spacing one, and the walk starts and steps exactly where revision
+   5 said it did. Where a parent DOES carry edge spacing the total is
+   counted over the whole cell rather than added to what the parent
+   already has, so a parent written `N ` inside a window pinned at
+   `len(N) + 1` has ` N` as its next partner AT THAT SAME WIDTH, and
+   not ` N ` one character past it. The placement stepped over is the
+   parent's own — its own total, its own leading share, and `k = 0`.
+
+   **AND A PARENT THAT WILL BE ASKED FOR PARTNERS AT A PINNED WIDTH IS
+   WRITTEN WITH ROOM FOR THEM** (residual R-P4-47; section 9.7 of the
+   profile contract says this in its own words about the partner, and
+   this is the same sentence applied to the parent). Spacing only
+   LENGTHENS, so a parent already filling a pinned width has no partner
+   at that width at all: `N + " "` beside `" " + N` is ONE published
+   width and one folded identity, and the walk kept the fold, fell back
+   to the open window, and missed the ceiling by one character. The
+   source column shows the answer its own cells took, which is that the
+   PARENT carries a space too. So the parent of such a slot is written
+   with that many fewer figures and that many spaces, and both cells
+   land where the description says a cell of that column sits.
+
+   **THE ROOM IS NOT FORECAST, IT IS MEASURED IN A FIRST PASS.** Which
+   parent a slot takes is settled by step 4's preferences, so a rule
+   that predicted the assignment would be a second implementation of
+   it, free to disagree with the first. Instead the column is built
+   once exactly as it was built before, the parents whose partners fell
+   back to the open window are counted, and ONLY such a column is built
+   again with that many spaces reserved in each of those parents. A
+   column whose widths were already held has no fallback, so it is
+   never built twice and none of its bytes move — which includes every
+   column whose parent holds a letter, since a case flip keeps the
+   length exactly where it was. Where the reserved room would take a
+   parent below its own shape's floor the reservation is not made, the
+   fallback stands, and the recount names the width as before.
 
    **WHICH MEMBER OF THAT ORDER A SLOT TAKES** (review item P2-C4-F4).
    The three rules above say what the family IS; this says which member
@@ -2482,6 +4940,54 @@ for.
    (G9.2) at that word's length, so the whole cell is distinct from
    every other group's cell.
 
+   **Where the column publishes a census of written forms and one of
+   them fits this group, the group is written in that form instead**
+   (contract 7.9.1, plan P4-D18). A form FIXES a length — every cell
+   that wore one was exactly as long as the form — so which lengths a
+   group may be offered is the whole question here.
+
+   **A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly**,
+   because `length.min` and `length.max` are EXACT-OBSERVABLE. **EVERY
+   OTHER GROUP may take a form of another length, but only while the
+   published AVERAGE can still afford it** — the total length may move
+   by ONE CHARACTER in each direction and no further, measured against
+   what the packing's own lengths already spend (review round 3 finding
+   10; the rule stated here was "the assigned length", which met one
+   form of a blood-pressure column and missed the two beside it).
+
+   That budget is the precedence rule of this section made arithmetic:
+   an exact count outranks an approximated average, and it spends the
+   average's own slack to the last character and no further. Swept
+   against two real columns at four budgets — half the rows, a
+   fiftieth, a hundredth and one character — only one character keeps
+   BOTH a blood-pressure column's four forms and a column whose census
+   asks for lengths its average does not want.
+
+   A space survives into a form unchanged, so the form's own word count
+   must equal the group's either way. The debt is over cells and a
+   group covers its own number of them, so the walk settles the form
+   owing the most cells, ties broken by the form's own spelling.
+
+   **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
+   collision of G9.3 is. The candidate is still checked against the
+   class the group has to read back as, against what the column has
+   already written, and against the four neutrality tests; where the
+   form's spellings cannot satisfy those, the walk is put back where it
+   started and taken again WITHOUT the form, so a form can cost the
+   column no value the ordinary rule could still have written. A column
+   of prose publishes an empty census, so no group of it is offered a
+   form and this paragraph is vacuous there — which is every free-text
+   column the free-text promise was written for.
+
+   **The stride matters and is part of the rule.** Two hundred and
+   forty values taken in counting order out of a form holding a hundred
+   thousand leave every position but the lowest at zero, so every cell
+   ends alike — and a column whose cells all end in the same characters
+   is not free text to the describer, it is a column of numbers wearing
+   an affix. The twin then reprofiles into a role the source never had.
+   The step is therefore multiplied by a stride sharing no factor with
+   the form's supply, which is a one-to-one map onto it.
+
 ### G9.6 Identifiers
 
 `min_length`, `max_length`, `all_whole_numbers`, `n_all_digits` and
@@ -2758,19 +5264,258 @@ names so that a stand-in cannot accidentally parse as a date and change
 ### G10.5 The `numeric_unrepresentable` role
 
 The column publishes `n_whole`, `n_fraction`, `n_whole_unknown`,
-`n_positive`, `n_negative`, `n_sign_unknown`, `n_out_of_range` and
-`n_distinct_by_occurrences`, and publishes **no width and no magnitude
-fact** (P2-D4, verified against the producer: two columns of overflowing
-values, one about 400 characters wide and one about 4,000, publish
-identically). Width fidelity is withdrawn; one canonical invented width
-is used and disclosed (R-P2-1).
+`n_positive`, `n_negative`, `n_sign_unknown`, `n_out_of_range`,
+`n_distinct_by_occurrences` and — since revision 4 — the two widths
+`min_length` and `max_length`, the character counts of the narrowest
+and the widest value the real column holds. It publishes no magnitude
+fact of any other kind.
 
-**The canonical width is 400 significant digits.** A 400-digit whole
-number is far outside binary64's range, so it classifies as out of range
-and as whole; a fraction written as `0.` followed by 399 zeros and one
-non-zero digit is far below the smallest subnormal, so it classifies as
-out of range and as a fraction. The width is invented, it is the same
-for every such column, and the report says so in those words.
+**REVISION 4 RETIRES THE CANONICAL INVENTED WIDTH** (residual R-P2-1,
+closed). Revisions 1 to 3 published no width at all for this role and
+wrote every such column at one invented width of 400 significant
+digits, the same for every column and disclosed in the report as
+invented. That was measurably wrong for the product's one job: two
+columns of overflowing values, one about 400 characters wide and one
+about 4,000, described identically, and a twin built from either
+description held cells of a width neither table had. Code that measures
+how wide the written values are — a column width, a fixed-width read, a
+check on the length of a field — reads a different answer on the twin
+from the one it reads on the real table, and nothing in the description
+let the generator do better.
+
+**REVISION 5 GIVES THE WIDE-VALUE WALK A SECOND SPELLING FAMILY**
+(residuals R-P4-48 and R-P4-68, both closed). Revision 4 published the
+two widths and then could not write them on a column spelled compactly,
+because the only spelling either out-of-range shape had was a digit
+string and a digit string cannot say `1e400` in five characters. The
+family, its floors, its capacity and its recount are the clauses marked
+revision 5 below.
+
+**The two published widths are the width window, and both ends are
+carried where the column's own shapes can carry them.** The rule has
+three parts and they apply in this order.
+
+* **Every group is asked for a width.** By default a group is asked for
+  `max_length`. One group is asked for `min_length` instead: the FIRST
+  group, in the packing order of step 3, whose shape can be written at
+  that width. Choosing the floor carrier by shape rather than by
+  position matters — a column whose one narrow-capable group comes
+  first would otherwise carry no floor at all. A column of a single
+  group, or one whose two published widths are equal, asks every group
+  for `max_length` and there is nothing to choose.
+* **A shape may have a floor of its own, and the floor wins.** A whole
+  number is out of binary64's range only past about 1.8e308, and a
+  fraction is below its smallest subnormal only past about 5e-324, so
+  a value narrow enough for the format to hold is a value of a
+  different kind from the one the description publishes. The shape's
+  floor therefore takes precedence over the asked width and the report
+  names the widening in those words. **What that floor IS depends on
+  the spelling family, and revision 5 is the clause that says so:**
+  spelled as a digit string the too-large shape needs **310
+  characters** of room and the too-small shape **327** (a leading
+  `0.` and 325 decimal places); spelled in exponent notation the two
+  need **five** and **six**. The floor that binds is the narrower of
+  the two, so it is five for the too-large shape and six for the
+  too-small one. The other four shapes have no floor: contradictory
+  notation, ordinary text and the two in-range shapes are written at
+  exactly the width they are asked for.
+* **EXPONENT NOTATION IS A SPELLING FAMILY OF ITS OWN, AND IT IS WHAT
+  CARRIES A NARROW COLUMN OF WIDE VALUES** (revision 5, closing
+  residuals R-P4-48 and R-P4-68). Revision 4 spelled the two
+  out-of-range shapes as DIGIT STRINGS and nothing else, so their
+  floors above were the narrowest cell either could be written at at
+  all — and a real column whose cells are `1e400`, `-1e400`, `2e400`,
+  five and six characters, publishing `min_length` 5 and `max_length`
+  6 exactly right, got a twin of 310- and 311-character numerals.
+  Somebody who develops `len(x) == 5`, a fixed-width read or a slice
+  against that twin meets a value sixty times wider than anything
+  their real column held.
+
+  A value too large or too small for the format has a second spelling:
+  a mantissa, the letter `e`, and a signed exponent. Both families
+  write the same two shapes and answer for the same published counts —
+  the table of step 1 is untouched, because what a cell answers for is
+  what the shipped parser says of it and the parser says the same of
+  both. What separates the families is the width each can be written
+  at and how many distinct values each supplies there.
+
+  **Which family writes a group is settled by the ASKED WIDTH and then
+  by capacity, in that order.** The digit-string family is asked
+  first, and it writes the group where the asked width is at or above
+  ITS OWN floor and the spelling it would write lands at exactly that
+  width. Where it cannot — the asked width is below its floor, or the
+  candidate it would write is wider than the width asked for, or its
+  spellings at that width are already spent — the exponent family
+  writes instead. Asking the digit-string family first is what keeps
+  every column revision 4 wrote byte-identical: at 310 characters and
+  above nothing moves.
+
+  **THE EXPONENT FAMILY'S SPELLINGS ARE ONE CONSTRUCTION FOR BOTH
+  SHAPES.** A cell of this family is the value's sign, a mantissa of
+  decimal figures, the letter `e`, and a THREE-FIGURE exponent, which
+  carries a minus for the too-small shape. The exponent field is
+  therefore four characters wide for the too-large shape and five for
+  the too-small one, whatever exponent it holds, and the mantissa
+  fills whatever that field leaves of the asked width. **What
+  separates one spelling from the next is the mantissa read as a
+  number** — 1, 2, 3 and so on — written at the right of that room
+  behind a run of leading zeros. That is step 4's own rule (the zeros
+  are the width and the figures are the difference) applied to this
+  family, and it is why a group asked for a width writes exactly that
+  width. So at a room of five the too-large shape writes `1e400`
+  through `9e400`, and at a room of 327 the too-small shape writes
+  `0…01e-400`, `0…02e-400` and onward, which is the family a real
+  column reaches twenty-five distinct values with where the
+  digit-string family reaches nine.
+
+  **THE MANTISSA IS SPENT BEFORE THE EXPONENT MOVES, AND THE EXPONENT
+  MOVES.** When the mantissas at one exponent are gone the exponent
+  steps OUTWARD from 400 — up to 999, then down from 399 — and the
+  mantissa starts again. Both move, so the family's capacity at a
+  width is the SHAPE's own count of spellings there rather than one
+  exponent's.
+
+  **That is a repair of the first build of this family and the
+  measurement is the reason it is written here rather than left as a
+  detail.** With the exponent fixed at 400 the family had nine
+  spellings at five characters, and a real column has thousands
+  (`1e309` through `9e999`). A 160-row column of sixteen distinct
+  five-character values then made `synthtwin generate` REFUSE — the
+  domain-too-small refusal of G9.4 — on a description the profiler had
+  just written from a real table, where the same column before this
+  family existed generated at 310 characters with both widths missed.
+  A repair that met the width had turned a reported miss into a stopped
+  command; **a repair can move a hazard, and a capacity rule is where
+  this one moved to.**
+
+  400 is where the walk STARTS and not a bound: it is deep inside both
+  shapes' ranges at every width this method writes, and starting there
+  is what lets two implementations agree on the first cell rather than
+  on a search.
+
+  **AND EACH CANDIDATE IS ASKED THE QUESTION rather than trusted to
+  the constant.** A spelling of this family is written only where the
+  shipped parser reads it back as out of range AND settles it as the
+  shape's own whole-number status — the same two questions step 6's
+  recount asks of the finished cell. Where a candidate fails either,
+  it is STEPPED PAST and the walk carries on to the next. That is the
+  rule the too-small shape's zero run already follows, and the only
+  form two implementations can agree on without sharing a number.
+
+  **A REFUSED CANDIDATE IS NOT THE END OF THE WALK, and revision 5
+  read it as one.** Inside one exponent the mantissa ascends, so the
+  candidates the question turns down are contiguous at one END of that
+  exponent — a SUFFIX for the too-small shape, whose values grow past
+  the smallest subnormal as the mantissa grows, and a PREFIX for the
+  too-large one, whose values grow past the largest holdable number
+  the same way. Stopping at the first refusal is therefore right for
+  one shape and wrong for the other, which is exactly what happened:
+  at five characters `1e308` is a number this format holds while
+  `2e308` through `9e308` are not, so the walk stopped one spelling
+  short of eight it could have written.
+
+  **WHAT ENDS THE WALK IS ONE WHOLE EXPONENT TURNED DOWN.** The
+  exponent steps outward from 400 and then inward from 399, so it
+  moves monotonically away from the shape after it leaves 999; an
+  exponent every one of whose mantissas is refused is therefore an
+  exponent past which nothing is ever accepted again, and the family
+  is spent at that width. This is a rule of the SHAPE and not a step
+  budget: no number is written down for it, it cannot stop a family
+  that still holds a spelling, and it BOUNDS the walk, which "step
+  past it and carry on" does not.
+
+  Measured at each shape's narrowest width, and the two shapes end
+  DIFFERENTLY:
+
+  * the too-large shape ends INSIDE an exponent and past a refusal.
+    Every mantissa at an exponent of 309 or more overflows and so does
+    every mantissa but the first at 308, so the first refused spelling
+    is `1e308`, the eight after it are written, and the capacity at
+    five characters is **6,227** — nine mantissas at each of 691
+    exponents plus those eight, which is the shape's own count of
+    five-character spellings;
+  * the too-small shape ends PARTWAY THROUGH an exponent and at its
+    first refusal. `1e-324` and `2e-324` are below the smallest
+    subnormal and `3e-324` rounds up onto it, so every candidate from
+    there on is refused and the capacity at six characters is
+    **6,077**, two spellings into its 677th exponent.
+
+  A rule that stopped at the exponent boundary would throw the
+  too-small shape's two spellings away; a rule that stopped at the
+  first refusal throws the too-large shape's eight away; and a rule
+  that ASSUMED a boundary would write a value the format holds into a
+  column described as holding none. Asking each candidate, stepping
+  past the ones turned down, and giving the family up on a whole
+  exponent of them is what gets all three right without any of the
+  numbers being written down.
+
+  The mantissa has an edge of its own, measured the same way and far
+  further out: a too-small spelling stops underflowing at a mantissa of
+  seventy-seven figures, which needs a room of 82 characters. So the
+  exponent's edge is the one a column can reach and the mantissa's is
+  not.
+* **NEITHER FAMILY MAY CLAIM A HOLE SPELLING, and the hole spellings
+  this role must avoid are the WHOLE DOCUMENT'S.** A `--missing-value`
+  declaration is made once and reaches every column of the table, and
+  a spelling any column publishes among its absent cells therefore
+  means "no value" wherever it is written. This role is the one that
+  cannot learn it from its own block: it publishes no value of the
+  table at all, so its own `missing_by_source` is empty however many
+  of its cells wore a declared spelling, and a walk consulting that
+  map alone reserves nothing. A candidate the reader's own rule would
+  call absent is stepped past by both families before it is claimed,
+  and the capacity a shape supplies at a width is what is left after
+  those spellings are taken out — so the refusal of G9.4 counts them
+  out too. Measured: a label column publishing `missing_by_source
+  {"1e400": 12}` beside a wide column of five-character values gave
+  that wide column `1e400` — the exponent family's very first
+  spelling — as a PRESENT cell, and `synthtwin validate` reported
+  eight of its counts missed against a generation report that named
+  nothing.
+* **The asked width is the width of the WHOLE CELL.** A minus sign, a
+  leading `0.` and a trailing figure are all spent inside it, so a group
+  asked for 400 characters writes a cell 400 characters long and not
+  401 or 402.
+* **THE TOO-SMALL SHAPE'S ZERO RUN GROWS UNTIL ITS VALUE UNDERFLOWS,
+  and is not a fixed count.** That shape spends its width on `0.`, a
+  run of zeros and a figure body, and the body grows as the walk
+  enumerates distinct values — so a run sized as whatever the width
+  leaves shrinks as the body grows, and the value climbs back up until
+  it is a value binary64 holds. A fixed floor high enough for the worst
+  body is safe and writes every better body too wide: behind 323 zeros
+  the body `10` underflows and the body `9` does not, and a six-figure
+  body needs only 319. The rule is therefore the question itself, asked
+  of each candidate spelling, which is also the only form two
+  implementations can agree on without sharing a constant.
+* **The in-range fraction's narrowest spelling is `.5`, two
+  characters.** The leading zero is optional, so a column whose
+  narrowest numeric-looking cell is two characters has a shape that can
+  carry that floor; at that width the body is the point and one figure,
+  which gives nine distinct spellings.
+* **A shape may only be asked for a width it can actually write.** Two
+  of the six write at a width of their own whatever they are given —
+  contradictory notation is the fixed construction of G10.3 and
+  ordinary text is a stand-in drawn by the text rule — so neither may
+  be chosen to carry either published end. Of the four that may, each
+  has a narrowest spelling as well as a magnitude floor: the in-range
+  fraction needs three characters (`1.5`) however narrow the ask, and
+  the two out-of-range shapes need five and six by the exponent
+  family's floors above — which is what lets a column published at 5
+  and 6 characters carry BOTH its ends rather than neither.
+  **And the floor is only assigned when some OTHER group can still
+  carry the ceiling**: a column with exactly one carrying group must
+  spend it on the ceiling, because the groups that carry nothing land
+  where they land and that is where the floor already is.
+* **A FOLD-COLLISION PARTNER IS HELD TO ITS GROUP'S ASKED WIDTH**
+  (revision 4). A partner (G9.3) is a respelling of a value already
+  written — a case flip, edge spacing, or both — and while this role
+  published no length at all its spacing was held to no window and ran
+  on as far as the collision needed. Now that both ends are published,
+  a partner free of the window consumes the group the ceiling was
+  assigned to: two 310-figure values folding together, published as 310
+  to 312 characters wide, wrote a parent at 310 and a partner at 311
+  and held no 312-character cell anywhere. The window is the group's
+  own ask at both ends.
 
 Construction, in this fixed order, so the counts land exactly:
 
@@ -2837,12 +5582,57 @@ Construction, in this fixed order, so the counts land exactly:
    first group too large to fit is not conforming — on three negative
    rows in one group beside two positive groups of two it writes two
    negatives (P2-C1-F1).
-4. In-range cells are written as `1`, `-1`, `0.5`, `-0.5` and their
-   distinct variants from the leading-zero family, since no ladder and
-   no statistic is published for this role.
+4. In-range cells are written from the leading-zero family — a run of
+   zeros carrying a whole number or a fraction — padded to the width
+   the group was asked for, since no ladder and no statistic is
+   published for this role. **What separates one spelling of a shape
+   from the next is its VALUE and not its width**: the in-range whole
+   shape writes `1`, `2`, `3` and so on behind the zeros, and the
+   in-range fraction shape writes `1.5`, `2.5`, `3.5`. Distinguishing
+   them by adding a zero instead — which revision 3 did, having no
+   width to hold to — makes every group after the first one character
+   wider than the width it was asked for, so a column published as at
+   most 372 characters wide holds a 373-character cell.
+
+   **EACH SHAPE-AND-SIGN PAIR WALKS EACH FAMILY FROM THAT FAMILY'S OWN
+   START** (stated in revision 5). This document had left the walk's
+   bookkeeping unsaid, so one conforming program could count per shape
+   and another per shape and sign, and the two would write different
+   cells the first time a column carried a positive and a negative
+   group of one shape. No frozen case carried one, which is why it
+   took until revision 5 to notice. The rule is the second: the
+   positive and the negative groups of a shape each begin at that
+   shape's first spelling, and a group refused by one family does not
+   move another family's place.
 5. The repetition pattern is `n_distinct_by_occurrences`, exactly as in
    G9.5 step 1; the capacity rule and its refusal (G9.4) apply, with the
-   digit alphabet over the canonical width.
+   digit alphabet over the width each group was asked for.
+
+   **A SHAPE'S CAPACITY IS THE SUM OVER ITS FAMILIES** (revision 5).
+   The two out-of-range shapes have two spelling families, so the count
+   of distinct values either can supply at one width is what the
+   digit-string family supplies there PLUS what the exponent family
+   supplies there, and the refusal is raised only when both are spent.
+   The two counts are very different and a reader who prices one for
+   the other gets a wrong answer: at a room of 327 characters the
+   too-small shape's digit-string family runs out at twenty-four
+   spellings — the next is a value the format holds unless its zero run
+   grows, and a grown run is a character wider than the description
+   asks — while its exponent family supplies every mantissa the room
+   holds at each exponent it visits. At a room of five the too-large
+   shape's digit-string family supplies NOTHING at all, because its own
+   floor is 310, and its exponent family supplies **6,227**: nine
+   mantissas at each of the 691 three-figure exponents whose every
+   mantissa overflows, plus the eight at 308 that overflow while
+   `1e308` does not. A rule that fixed the exponent would supply nine,
+   and nine is fewer than a real column of that width holds — which is
+   how the refusal of G9.4 came to be raised on a description a
+   profiler wrote. A rule that stopped at the first refused candidate
+   supplies 6,219, and a real 6,220-value column of that width was
+   refused for the missing eight. At six characters the too-small
+   shape's exponent family supplies **6,077**, and the difference
+   between that and 6,084 is the two spellings its edge falls short of
+   a whole exponent by.
 6. **Every one of `n_whole`, `n_fraction`, `n_whole_unknown`,
    `n_positive`, `n_negative` and `n_sign_unknown` is recounted from the
    finished cells** and named in the report where it was missed, under
@@ -2860,6 +5650,32 @@ Construction, in this fixed order, so the counts land exactly:
    recounted the same way on every role (G10.2). A miss on this path is
    never silent, and a miss the search could have avoided is a defect
    rather than a deviation.
+
+   **THE RECOUNT SPANS BOTH SPELLING FAMILIES** (revision 5), and it is
+   worth saying why it needed no clause of its own to do so: it asks
+   the shipped parser rather than reading the writer's intention. The
+   parser answers of `1e400` exactly what it answers of a 310-figure
+   numeral — out of range, whole, and the sign its leading character
+   carries — and of `1e-400` exactly what it answers of `0.` behind
+   325 zeros and a figure. So a cell of the exponent family recounts
+   under the same class as the digit string it stands in for, and the
+   twelve counts of this step bind it unchanged. A recount that read
+   the class off the FAMILY instead would have had to move; there is no
+   such recount on either side of this product, and this sentence is
+   what a second implementer should check rather than assume.
+7. **AND BOTH PUBLISHED WIDTHS ARE RECOUNTED THE SAME WAY** (revision
+   4). Nothing in steps 1 to 5 promises them: the in-range shapes take
+   the width they were asked for, the out-of-range shapes take whatever
+   keeps them out of range, and a fold-collision partner (G9.3) is
+   spelled to fold onto its parent rather than to fit a width. So the
+   character counts of the narrowest and the widest finished cell are
+   measured and compared to `min_length` and `max_length` **for
+   equality, not for containment**. A twin whose narrowest cell is
+   WIDER than the narrowest in the real table has not held the
+   published fact, and a check written as "no narrower than the floor"
+   passes a column published at 250 whose twin starts at 310. Either
+   end that does not match is a NAMED deviation carrying the twin's own
+   count beside the published one. A miss on this path is never silent.
 
 ## G11. The all-different obligation
 
@@ -2882,10 +5698,13 @@ How each role meets it:
 |---|---|---|
 | `count`, `continuous` | the raw spelling | G6.5: `M = K` different values, and the leading-zero family for any spelling budget above that |
 | `datetime` | the raw spelling | G7.3 with `P` ranks, plus the published offsets of G7.4 |
-| `constant`, `binary`, `categorical` | the raw spelling | G8.1: the published variants |
+| `constant`, `binary`, `categorical`, `long_tail_labels` | the raw spelling | G8.1: the published variants |
 | `identifier`, `free_text`, `numeric_unrepresentable` | the raw spelling | G9.2: one enumeration element per group |
+| `time_of_day` | the raw spelling | G7A.4 with `P` ranks, plus the step-and-clamp repair, which is EXACT on every description a profiler wrote |
+| `affixed_number` | the raw spelling | G6.5 read over the CORES; the affix pair is fixed text and separates nothing |
+| `joined_numbers` | the raw spelling of the WHOLE cell | the pairing of G4.3 over positions laid out by G5.2's grain rule: each position's numbers are placed by rule and the reserve is spent making the pairs different. This is the fourth instance below |
 
-**The three known instances where it cannot hold**, each of which is
+**The four known instances where it cannot hold**, each of which is
 tested:
 
 1. **Declared identifiers** whose published length range cannot supply
@@ -2909,7 +5728,73 @@ tested:
    same column's offsets ARE published, the obligation holds and the
    twin uses them.
 
-A fourth instance is a change to this document, not an exception granted
+4. **Joined-number columns, where the PAIRING cannot reach the count.**
+   This role publishes each position's numbers separately, so the cell
+   a row wears is made by pairing one number from each position. Each
+   position's multiset is held exactly, but the number of different
+   WHOLE CELLS that any pairing of those numbers can produce is bounded
+   by the numbers themselves, and the published count is a fact of a
+   real column that the bound may sit below. The pairing is not left to
+   chance: it is walked toward the published `part_agreements`,
+   `part_above` and cell count together (G4.3), which closes most of
+   the gap and not all of it, and those targets can pull against
+   each other. Measured on six 400-row
+   two-position columns whose cells were all different: the twin held
+   375 to 385 of 378 to 388, short by three or four every time, and
+   every one of the six reported the shortfall as a deviation of
+   `n_distinct` and `n_distinct_folded`.
+
+   **WHERE THE BOUND CAME FROM WAS PART OF THE DEFECT UNTIL LANDING
+   L7, and the bound is real but was far tighter than it had to be.**
+   Each position was laid out in as many strata as the whole CELL had
+   different values (G5.2), so a position held far MORE different
+   numbers than the real one did and the pairs it could make were the
+   wrong pairs — a 400-row blood pressure publishing 110 different
+   readings, whose positions hold 13 and 9 different numbers, came out
+   with its positions holding 34 to 41 and 23 to 29 and the column
+   holding 157 to 169 different cells. G5.2's grain rule and the walk
+   of G6B.4 close that one: measured at forty seeds, the same column now
+   holds exactly 13 and 9 different numbers and exactly 110 different
+   cells at all forty sampled seeds, and `synthtwin validate` misses
+   nothing at those. Seed 141 holds 108 of 110, which is the duplicate-
+   value mechanism of residual R-P4-120 rather than the pairing.
+
+   **What remains is bounded by the DRAW and not by the pairing, and it
+   is measured.** A 240-row column of 240 different readings whose
+   positions hold 20 and 12 different numbers — exactly 240 possible
+   pairs — reached 173 to 188 before and 195 to 234 now, and the reason
+   it is not 240 is that the twin's own positions hold 18 to 20 and 11
+   to 12 different numbers rather than 20 and 12: two strata of one
+   position can be given the same number by the ladder, which is
+   residual R-P4-120 and is the plain numeric roles' business rather
+   than this one's.
+
+   **The report vehicle is a DEVIATION and not an approximation**, and
+   the difference is not a nicety. This role builds no `Approximation`
+   record and carries no window for distinctness: what it writes is a
+   named miss, and the recount at the end of generation measures the
+   FINISHED cells, so no shortfall on a finished column is silent.
+   Calling it APPROXIMATED, as an earlier revision of this passage did,
+   would say a window governs it when none does. This is residual
+   R-P4-40.
+
+   **Two defects here were found and fixed on 2026-08-27, and the first
+   is why the second went unseen.** The LOADER refused every joined
+   column carrying an unparsed cell: a position describes only the
+   cells that split, so the profiler writes `n_joined` as that block's
+   row count, and Q1 compared it against the TABLE's row count -- so
+   `synthtwin profile` wrote a file `synthtwin generate` refused,
+   telling the user the file had been changed since it was written and
+   to make it again, which produces the same file. With no unparsed
+   cell the two counts coincide, which is why nothing showed. And the
+   PAIRING was asked for the whole column's count rather than the count
+   the pairs can carry: cells that did not split are replaced
+   afterwards by stand-ins that are all ONE spelling, adding exactly one
+   to the number of different cells however many there are, so a
+   120-cell column holding 120 different cells was told by its own
+   report that it held 119.
+
+A fifth instance is a change to this document, not an exception granted
 during implementation.
 
 ## G12. Feasibility, refusals, and named deviations
@@ -2988,8 +5873,126 @@ variants (G8.2) and withheld levels (G8.3); identifier duplicates and
 the three distinctness facts they cost (G9.6); a word count brought down
 to what its own length carries on a group carrying NEITHER published
 word extreme, the two carrying groups being settled by a refusal instead
-(G9.5 step 6, P2-C5-F4); the invented canonical width of an unrepresentable column
-(G10.5); and the out-of-range cells all written too large (G10.3).
+(G9.5 step 6, P2-C5-F4); a published width of an unrepresentable column
+that no shape of that column can be written at, which revision 4 names
+as a deviation rather than making a width up for (G10.5); the
+out-of-range cells all written too large (G10.3); the
+form census of a column of dates read under the joint ISO reading,
+which the twin does not reproduce (G7.5, contract C6-25, plan
+P4-D4.3); a count of the census of written forms
+(`shape_forms`, contract 7.9) a twin's finished cells did not reach,
+which the same landing's own guard found missing from this list on its
+first run; and **a value left inside a stretch the description says
+holds nothing** — named `empty_bins` where the stratum stands in a bin
+the description names, `empty_edges` where it stands only inside a
+published pair, carrying that stretch's two PUBLISHED edges and the
+value that stayed inside them (G6.7.8, plan P4-D32 and P4-D35). Those
+last two were missing from this list from the landing that authorized
+them until 2026-09-04, which is a list that calls itself complete and
+was not.
+
+**The census entry, in full, because it is the one entry on this list
+that is named on EVERY run of the column it belongs to.**
+`resolution_mix` is REPORT-ONLY: it records how many of the real
+column's parsed cells were written as a whole date and how many carried
+a time of day, and the twin writes every one of them at the column's
+finest recorded precision, because a cell spelled as a whole date
+cannot carry an interior value of a column published at the second. So
+the achieved side is not a shortfall a rule failed to reach; it is what
+the rule above says the twin writes, and the entry exists so the reader
+is told rather than left to work it out. It is RECOUNTED from the
+finished cells like every count below, not predicted: the rule says the
+twin writes no whole dates at all, and a run that finds otherwise has
+found a defect in itself. A column read under ONE format has no such
+line — its census restates that format's own name beside the parsed
+total, and `format` is already disclosed as recorded-not-reproduced, so
+a second line would tell a reader there were two losses where there is
+one.
+
+**THE KEY INDEX, so that "complete" is a claim a machine can check.**
+The prose above names each deviation by the SHAPE of what happened,
+which is what a reader needs and what a checker cannot read. Every
+`fact` name a report may carry is therefore listed here as well, and
+`tests/test_p4d32_empty_bins.py` resolves the names the generator can
+pass -- through the helpers that forward one -- and holds this index
+to them in BOTH directions. Three keys were missing from the prose
+list when that guard was first written: `shape_forms`, and the two
+gap keys `empty_bins` and `empty_edges`.
+
+* `all_whole_numbers`
+* `datetimes_read_at`
+* `earliest`
+* `empty_bins`
+* `empty_edges`
+* `field_widths`
+* `fraction_widths`
+* `integer_valued`
+* `latest`
+* `max_length`
+* `min_length`
+* `n_all_digits`
+* `n_code_alphabet`
+* `n_contradictory`
+* `n_distinct`
+* `n_distinct_by_occurrences`
+* `n_distinct_folded`
+* `n_distinct_values`
+* `n_fraction`
+* `n_missing`
+* `n_negative`
+* `n_not_numeric`
+* `n_numeric`
+* `n_out_of_range`
+* `n_positive`
+* `n_present`
+* `n_sign_unknown`
+* `n_unparsed`
+* `n_whole`
+* `n_whole_unknown`
+* `numeric_styles`
+* `pad_widths`
+* `percentiles`
+* `resolution_mix`
+* `shape_forms`
+* `suppressed_levels`
+* `utc_offsets`
+* `words`
+* `levels -> shape_form_cells`
+* `levels -> variants_withheld`
+
+**AND FIVE FAMILIES whose name carries a number, listed as their
+shape** (review round 6 item 5). A report builds these from a
+position, a seat or a rung, so the index names the SHAPE and the guard
+holds the shapes to the writing rules that build them:
+
+* `parts[<n>].<key>` — any key above, carried by one POSITION of a
+  `joined_numbers` cell, `<n>` counting from nought
+* `affix_variants[<n>].<key>` — one WRAPPER's own key, which is where
+  its two counts of different cores sit: they belong beside the block
+  rather than inside it, so a record about them takes this path
+* `affix_variants[<n>].numbers.<key>` — any key above, carried by one
+  WRAPPER of an `affixed_number` column that wears a set of them (plan
+  P4-D37), `<n>` counting from nought over the wrappers the description
+  states beside the commonest. The commonest wrapper's own block is the
+  column's, so its keys are carried bare and appear above rather than
+  here: a report naming `affix_variants[0].numbers.mean` says WHICH
+  wrapper's mean moved, and a bare `mean` on such a column says it was
+  the commonest one's
+* `numbers.<key>` — any key above, carried by the NUMERIC HALF of a
+  `numbers_with_labels` cell, which is where that role publishes its
+  quantitative facts
+* `part_agreements[<n>]` — the agreement between two neighbouring
+  positions, `<n>` the earlier of the pair
+* `part_above[<n>]` — how often the later of two positions is above
+  the earlier, `<n>` the earlier of the pair
+* `percentiles.p<nn>` — one rung of a NUMBER ladder, `<nn>` the
+  percent written to two figures
+* `clock_percentiles.p<nn>` — the same for a clock ladder
+* `date_percentiles.p<nn>` — the same for a date ladder
+
+A name here is a key a report MAY carry, never one it must: every
+entry above is a deviation raised only where the twin did not reach
+the published fact.
 
 **What this list does not hold, and why the absence is the point.** No
 end of a column of dates appears in it. The contract's D10 and D11
@@ -3196,6 +6199,28 @@ are:
 -(K - 2) / sqrt(K - 1)   <=   skew   <=   +(K - 2) / sqrt(K - 1)
 ```
 
+**AND EVERY LIMIT WRITTEN IN THIS SECTION IS WIDENED ONE PLACE OUTWARD
+BEFORE ANYTHING IS COMPARED AGAINST IT** (review item P4-G6-R7-F1,
+opened by the shape P4-G6-R6-F1 found). A limit stated as a closed form
+and computed in binary64 can land one place INSIDE itself: on three
+values `(K - 2) / sqrt(K - 1)` is one over the square root of two,
+whose correctly rounded value is 0.7071067811865476, and the division
+and the square root each round, so the expression gives ...75. A column
+whose skew IS the maximum then falls outside a bound it exactly meets,
+and the report tells its reader that an exactly reproduced fact was not
+reproduced.
+
+So each end of each of these bounds -- the skew range here, the tail
+weight's range in G12.3a, and the inclusive agreement window of G12.9
+-- is moved to the number this format holds NEXT TO IT, away from the
+middle of the bound: the lower end downward, the upper end upward.
+Outward, and not away from zero: the tail weight's two ends are both
+positive, and moving its lower end away from zero moves it UP, past the
+value the bound was drawn to admit. The widening can never turn a real
+miss into a pass, because it admits exactly the values the limit itself
+admits and no others. A limit already at the edge of the range is left
+as it is, there being no number beyond it.
+
 The published bound is the INTERSECTION of the quotient with that
 range, so it is finite on both sides for every column, and it narrows
 to the quotient exactly when the ladder's own spread exceeds the
@@ -3203,6 +6228,85 @@ displacement — which is the ordinary case for a column whose ladder
 describes it at all. A column whose published ladder is so coarse that
 `E` reaches its own spread is told so by a wide bound rather than by a
 bound that cannot be printed.
+
+### G12.3a The bound on `kurtosis`
+
+`kurtosis` is APPROXIMATED and until this section existed its bound was
+written only in code and in a plan. Three places cited "method G12.3a"
+and no such section existed, so an implementer working from this
+document alone could not know how close a twin has to come, and a
+reader of a report that counts this fact among its approximations could
+not find the rule its range rests on. That is review item P4-G3-R1-F4,
+and this closes it.
+
+The notation is G12.3's: `V`, `K`, `A[k]`, `B[k]`, `R[k]` and the
+displacement `E` all carry the meanings fixed there. The formula
+bounded is the profiler's own — the average FOURTH deviation over the
+FOURTH power of the POPULATION standard deviation. It is undefined for
+`K < 4`, matching the contract's Q16; where the published field is null
+the twin owes nothing and the fact is not measured.
+
+**The range every sample lies in.** Whatever `K` values a column holds,
+
+```
+1   <=   kurtosis   <=   K - 2 + 1 / (K - 1)
+```
+
+the top reached exactly when one value stands apart from `K - 1` equal
+ones. The published bound is always intersected with this, so it is
+finite on both sides for every column — including one whose spread
+window reaches zero, where the quotient alone would not be.
+
+**The quotient.** The spread moves by at most `E`, exactly as in
+G12.3, so with `S` the twin's own population standard deviation:
+
+```
+S_low  = max(0, S - E)          S_high = S + E
+```
+
+and, writing `m_low` and `m_high` for the means of `A` and `B`,
+
+```
+below[k]    = A[k] - m_high
+above[k]    = B[k] - m_low
+nearest[k]  = below[k]         if below[k] > 0
+              -above[k]        if above[k] < 0
+              0                otherwise
+furthest[k] = max(-below[k], above[k], 0)
+```
+
+```
+(1/K) * sum (nearest[k]  / S_high)^4   <=   kurtosis(V)
+kurtosis(V)   <=   (1/K) * sum (furthest[k] / S_low )^4
+```
+
+**THE FOURTH POWER DOES NOT KEEP THE ORDER, and that is the one place
+this differs from the cube of G12.3.** Cubing a window's two ends
+leaves them the ends. Raising them to the fourth does not, because a
+window that STRADDLES the mean has its smallest fourth power in the
+middle and not at either end. So the low end of a rank's contribution
+is zero wherever its window straddles the mean, which is what
+`nearest[k]` says, and the high end is the further of the two ends.
+
+**Each deviation is divided by the spread BEFORE it is raised**, and
+that ordering is part of the method rather than an implementation
+detail. Raising first and dividing after is the same number in exact
+arithmetic and NOT the same computation in binary64: an ordinary column
+of a hundred values around `1e79` has deviations whose fourth power is
+not a number the format holds, and an implementation that raised first
+could not produce a bound at all.
+
+**The spread enters to the FOURTH power** and not the second — the
+skewness divides an average cubed deviation by the spread cubed, and
+this divides an average fourth deviation by the spread to the fourth.
+Squaring instead puts a gaussian column's window at 107 to 298 around
+a published 3, which is a bound that binds nothing.
+
+Where `S_low` is zero, or either end is not finite, the bound is the
+sample range above and nothing narrower. The two ends are ORDERED
+before they are published: on a four-value column the two clamps can
+cross by one unit in the last place, and a window whose low end sits
+above its high end excludes the very statistic it was drawn for.
 
 ### G12.4 The bound on the nine interior datetime rungs
 
@@ -3224,8 +6328,8 @@ where `u` is what reading a written cell back can lose: one unit for
 the downward rounding of the whole-number interpolation itself, plus
 59 seconds where `resolution == "datetime"` and
 `time_precision == "minute"`, because such a cell carries no seconds.
-A date, a quarter, a second and a subsecond cell each carry their own
-unit exactly and lose nothing further.
+A date, a month, a quarter, a second and a subsecond cell each carry
+their own unit exactly and lose nothing further.
 
 The achieved rung at percent `c` is the profiler's own selection rule
 (`taxonomy._ordinal_rung`): the ordinal at sorted position
@@ -3400,6 +6504,10 @@ construction and not a second reading of the output:
 ```
 supply = for each (value, style) group of the numbers class:
              1                      where the style is `plain`
+             1                      where the style is `leading_zero`
+                                    AND `pad_widths` names that cell's
+                                    field width, the family being spent
+                                    by the width (G6.3)
              the group's cell count otherwise, since every other style
                                     carries the leading-zero family
        + for each other class:
@@ -3417,10 +6525,174 @@ the published count beside the achieved one under the recount of G12 as
 well. The bound is able to fail: a twin that wrote one spelling where
 its own cells could have carried two lands outside it.
 
+### G12.9 The envelope on a joined column's rank agreement
+
+`part_agreements` is APPROXIMATED, and until this section existed the
+window it is approximated inside was written **only in a plan**
+(P4-D25). Every other envelope of this method is stated here and cited
+here; that one was cited as `docs/plans/phase-4-columns.md`, so an
+implementer working from the specification alone could not know how
+close a twin has to come, and a reader of a quality report could not
+find the rule the verdict rests on. That is residual R-P4-42, and this
+closes it.
+
+**The window.** For EVERY pair of positions -- and until landing L7
+this section reached only the pairs the walk moved, which is the last
+paragraph's own subject -- the twin's own rank agreement must lie
+within **0.02** of the published value, two-sided:
+
+```
+|agreement(twin) - part_agreements[pair]|  <=  0.02
+```
+
+**THE COMPARISON IS INCLUSIVE AND THE SUBTRACTION ROUNDS**, so both
+ends of that window are widened one place outward before anything is
+compared against them, exactly as G12.3's limits are (review item
+P4-G6-R7-F1). On a published agreement of `0.2487` the lower end
+`published - 0.02` comes out `0.22870000000000001` in binary64, so a
+file agreeing at exactly `0.2287` -- which this rule admits, the
+comparison being `<=` -- was reported MISSED against it. Widening
+outward admits exactly what the rule admits and nothing else.
+
+
+Both sides are measured at the precision the description PUBLISHES the
+agreement at, which is four decimal places. A twin measured raw can sit
+outside a window that the same twin, re-described, sits inside -- an
+agreement of `0.020018` against a published `0.0` is one such -- and a
+fact cannot be inside its window for one command and outside it for
+another.
+
+`part_above` beside it carries NO window. It is a count of rows and the
+walk of G6B.4 weights one row of it above the whole agreement, so a
+twin either holds it or has missed it.
+
+**AND THE PRECEDENCE IS HELD UP BY THE ACCEPTANCE RULE, NOT BY THE
+WEIGHT.** A weight is a term in a sum, and a sum could not tell one
+above-count being sold from another being bought at the same price —
+which is how a twin came out having traded one for another with that
+weight already at a whole unit per row. G6B.4 step 5's first
+refusal is what holds this sentence up: a pair holding its published
+count never stops holding it.
+
+**Why a window and not an exactness.** The pairing is chosen by a
+bounded search (G6B.4), and published facts pull against each other
+inside it: every pair's agreement, every pair's above-count, and how
+many different whole CELLS the pairing makes. The search stops at
+`0.0005` of its own combined distance or at its try ceiling of
+`200 * n_joined`, whichever comes first, and on a column whose targets
+conflict it stops at the ceiling with an agreement short. Measured on a
+400-row two-position column published at 0.9613, the twin reached
+0.8994.
+
+**What the window does NOT promise, and this paragraph replaces the one
+that stood here.** Until landing L7 the walk moved only the last
+position, so a pair between two EARLIER positions of a three-or-more
+position cell was neither moved nor scored, could come out at `+1`
+against a published `-1`, and was not an approximation of anything —
+this envelope expressly did not reach it (residual R-P4-51). The walk
+now moves every position but the first, so every pair is aimed at and
+every pair takes this window.
+
+Aiming at a pair is not reaching it. A column of three or four
+positions sets three or six agreement targets that pull against each
+other inside one bounded search: measured over 2,160 pairs of a
+twelve-column battery at forty seeds, **665 landed outside this
+window**, against 1,560 before. Those are MISSES, reported as misses on both pages
+with the achieved value beside the published one — the same verdict a
+two-position column's miss gets, which the second paragraph above
+already measured at 0.06 outside. What is gone is the class of pair no
+term of the distance ever looked at.
+
+### G12.10 The envelope on a clock column's interior rungs
+
+`clock_percentiles` is APPROXIMATED and its bound was cited as "G12.9"
+from the day the clock role landed — a section that did not exist then,
+and that when it was later written turned out to be about something
+else entirely. So a reader who followed the citation first found
+nothing and then found a rule about rank agreement between the
+positions of a joined column, with a window of `0.02` that means
+nothing for a time of day. That is review item P4-G3-R1-F5, and this
+section and G12.11 close it.
+
+**THIS IS A WINDOW ON THE FILE'S OWN RUNG AND NOT A MARGIN AROUND THE
+PUBLISHED VALUE.** It is the same shape as G12.4's for dates, in this
+role's own space: whole-number arithmetic throughout, in the ordinal
+unit the published `clock_form` sets — minutes of the day where the
+form is the one without seconds, seconds of the day otherwise. The unit
+matters and is not a presentation choice: the construction interpolates
+and FLOORS in that unit, and a window drawn in seconds around a
+minute-form column lands part way through a minute the construction
+cannot write.
+
+Let `P = n_present - n_unparsed` be the number of cells that read back
+as clock times, `Ladder` the published eleven rungs converted to
+ordinals, and `Ladder(r, P)` its interpolation at rank `r` of `P`. Then
+rank `r` of the twin, read back and converted to ordinals, satisfies
+
+```
+r = 0        :  ordinal = Ladder[min]
+r = P - 1    :  ordinal = Ladder[max]                    (for P >= 2)
+otherwise    :  Ladder(r, P) - 1  <=  ordinal  <=  Ladder(r + 1, P)
+```
+
+The two ends are then multiplied into seconds, because the measured
+side is read in the FILE's own form and the two have to meet in one
+space. The first and last ranks are EXACT: the twin writes the
+published ends themselves.
+
+The lower end subtracts one whole unit because the interpolation
+floors, so a value the construction writes for rank `r` can sit one
+unit below the un-floored ladder value there. The upper end is the
+ladder at rank `r + 1` because the construction never writes a value
+for rank `r` above the value it would write for the rank after it.
+
+### G12.11 The envelope on a clock column's two distinctness counts
+
+The same two ends the date role's envelope has (G12.5), in this role's
+ordinal space, and it carries the same citation defect this section
+closes with G12.10.
+
+```
+separate  =  how many of the P rank windows of G12.10 pairwise fail to overlap
+room      =  latest - earliest + 1        (in the form's own ordinal unit)
+
+lower  =  min(separate + n_unparsed, upper)
+upper  =  min(n_present, room + n_unparsed)
+```
+
+The LOWER end counts ranks whose windows do not overlap — two ranks
+that cannot hold the same time are two identities the twin must
+carry — plus every stand-in, each spelled differently from every other
+cell. The UPPER end is how many different times the published range
+holds at all, plus those stand-ins, and never more than the column has
+cells.
+
+**IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column it
+does not.** A column of two hundred and forty rows over a hundred and
+twenty different times publishes a hundred and twenty, while the
+construction writes a value per RANK and so tends to hold more. That is
+what an explicit cardinality bound is for, and it is why this role's
+two distinctness counts are approximated rather than exact: a bound
+that had to contain the published value would be a promise the
+construction cannot keep.
+
 ## G13. Residuals this method carries
 
-- **R-P2-1** — unrepresentable values have no published width; one
-  canonical width (400 digits) is invented and disclosed.
+- **R-P2-1 — CLOSED in revision 4, and its remaining deviation
+  narrowed almost to nothing in revision 5.** Unrepresentable values
+  publish `min_length` and `max_length`, and the twin carries both ends
+  where the column's own shapes can be written at them (G10.5). The
+  invented 400-digit canonical width this residual was opened for is
+  gone. What remains is not a residual but a named deviation: where a
+  shape's own floor is wider than the published width, the twin writes
+  the floor and the report says the published width was not held.
+  **Revision 4 measured that floor against the digit-string family
+  alone — 310 characters for a value too large to hold, 327 for one
+  too small — and revision 5's exponent family brings it down to five
+  and six**, so a column of `1e400` is now written at the width it
+  publishes instead of sixty times wider. The deviation survives only
+  for a published width of four characters or fewer, which no
+  out-of-range cell a real table holds can have.
 - **R-P2-2** — absent-value spellings and classes are not reproduced.
 - **R-P2-7** — the twin keeps a datetime column's precision and offset
   state but not the source's lexical date family; a month-first table
@@ -3484,9 +6756,14 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the six it
+`tests/reference/generation-branch-vectors.json` carries the eleven it
 names after them (five, until owner decision 11 added the
-pooled-spelling case). Both are written by
+pooled-spelling case; then the month-span case of plan P4-D4.3, and
+then the long-tail, clock, affixed and joined cases of residual
+R-P4-17). This sentence carried the
+count `six` while the file held seven, which is the same drift G14.3's
+own warning is about, and it is written here as a growth list so the
+next case has an obvious place to be recorded. Both are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
 through the entry point `tools/reference/make_generation_branch_vectors.py`,
 which runs that oracle and asks it for the second case set — so there is
@@ -3569,9 +6846,17 @@ review item P2-C4-C3 and one at owner decision 11, review
 item P2-C3-F3), and one more for the published end the ordinal space
 cannot hold (review item P2-C4-C3), and the pooled remainder written by
 its own value beside a whole number wider than the fixed-point window
-(owner decision 11). **All fifteen are required.** The
-first nine are the first committed file and the last five the second
-(G14.2):
+(owner decision 11), and one for the second SPAN resolution when it was
+added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
+(residual R-P4-17, now closed), and one for the second spelling family
+of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68).
+**All twenty-one are required.** The
+first nine are the first committed file and the last twelve the second
+(G14.2). **The table below is the inventory itself, and it was short of
+the count above by one row from the day the pooled-spelling case was
+added** (review item P4-DATE4-F3): an implementer who built exactly the
+rows listed would have left out a required branch while every listed
+case passed, which is the failure the count exists to prevent:
 
 | case | pins |
 |---|---|
@@ -3585,10 +6870,17 @@ first nine are the first committed file and the last five the second
 | `identifier_fold_collisions` | G9.3 with `n_distinct_folded < n_distinct`, and G9.2's length pins |
 | `identifier_whole_numbers` | G9.6 with `all_whole_numbers: true` reaching all three bands, and the whole-group alphabet packing |
 | `unrepresentable_joint` | G10.5's three margins packed together, on the six-row column of its step 2 whose out-of-range cell no two of them place |
+| `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
+| `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |
+| `numeric_pooled_spelling` | owner decision 11's pooled remainder written by its own value, beside a whole number wider than the fixed-point window |
+| `long_tail_levels` | G8.1 to G8.4 reached through `long_tail_labels`: the ADMISSION of a folded count above the categorical ceiling, and the G8.3 stand-ins taken as words because a form census covers the held-back rows. It pins admission and routing into the shared label machinery, not a generator branch of the role's own |
+| `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
+| `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
+| `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -3639,6 +6931,20 @@ G9.3. Each of the four reaches exactly one of those branches:
   off the finished cells. Withdrawing the too-small shape — which is
   what spending `n_whole` on the too-large cells amounts to — leaves the
   column with no packing at all, and that is the committed mutant.
+
+  **It reaches this role and NOT the second spelling family**, which is
+  why revision 5 adds a case rather than widening this one: every cell
+  it freezes is a four-hundred-character digit string or the fixed
+  contradictory construction, so the exponent family could have been
+  withdrawn whole with both committed files byte-identical.
+  `unrepresentable_exponent` is six cells published at five and six
+  characters, widths no digit string can be written at; its mutant puts
+  the too-large shape's floor back to the digit string's own 310 and
+  the recount then reads `min_length` as 310 against a published 5.
+  Writing it is also what found that this section had never said
+  whether the walk counts per shape or per shape and sign — no earlier
+  case carried a positive and a negative group of one shape, so two
+  conforming programs could differ and agree on every committed byte.
 - **`free_text_joint`** is four cells over three groups whose class
   counts and alphabet counts have a joint answer that neither margin
   settles alone: deciding the classes first hands the two singletons to
@@ -3717,6 +7023,169 @@ weaken the provenance the artifact exists for. The reconciliation was
 carried out from this document, the committed bytes were rebuilt and
 re-registered, and `tests/test_generation_reference.py` now holds the
 implementation to the regenerated case with no exception of any kind.
+
+**Why the seventeenth exists** (2026-08-27; residual R-P4-17). Phase 4
+added four roles -- `long_tail_labels`, `time_of_day`, `affixed_number`
+and `joined_numbers` -- and for a year of commits not one frozen case
+reached any of them, so every rule those roles carry could be changed,
+lowered or withdrawn with all sixteen committed cases still passing
+byte for byte. `long_tail_levels` is the first to close, and it closes
+the cheapest of the four: forty rows, twenty-one folded identities at a
+floor of eleven, one published level of eleven rows carrying one
+variant, and twenty suppressed levels covering the other twenty-nine.
+
+**What it pins, stated at its real width.** The role has no generator
+branch of its own: a long tail is ADMITTED by rules a categorical
+column would fail -- its folded count stands above the ceiling, and the
+`level_ceiling` key categorical must carry is one this role may not --
+and it is then written by the shared G8 machinery. So the case pins
+admission and routing plus G8.3's stand-in walk, and it does NOT pin a
+transform belonging to the role. An implementation that accepted the
+profile and then discarded the role tag, sending every label column
+down one path, would still write all forty cells. That is a real limit
+of this case and it is written here rather than left for a reader to
+discover.
+
+Its mutant starts G8.3's stand-in walk one spelling along, which
+changes the stand-ins and nothing else. The case also carries a form
+census of `{"@@@@-@@": 29}`, which is what makes those stand-ins words
+rather than numbered labels: emptied, the oracle refuses to build the
+case at all, because `group-1` carries a figure and could read back as
+a number. An earlier draft published `{"@@@@-@@": 29, "(withheld)": 11}`
+instead, a census no profiler can write -- the eleven published cells
+are spelled with a SPACE and so have no form at all, and `(withheld)`
+means a group too small to name, which eleven cells at a floor of
+eleven are not. The committed census was measured against the profiler
+on a table of this exact shape. Correcting it left every frozen cell
+unchanged, which is worth recording: what was wrong was the
+DESCRIPTION's producibility, not the transform under it.
+
+**Why the eighteenth exists** (2026-08-27; residual R-P4-17).
+`time_of_day` and `joined_numbers` had no section in this document at
+all, and `affixed_number` a single passing mention, so no vector for
+any of the three could be built from the specification -- there was
+nothing to build from. G6A, G6B, G7A and G4.3's rows are that work, and
+`clock_ladder` is the first case they make possible.
+
+It is deliberately a column with NO SLACK. Its ends are `08:00:00` and
+`08:00:10`; the eleven ordinals between them inclusive are exactly as
+many as the cells that parsed; and it publishes every value different.
+So G7A.4's all-different repair -- EXACT for this role where every
+other shape's distinctness falls to an envelope -- has nowhere to give:
+each interior rank must land on the one ordinal left for it. Its mutant
+withdraws the STEP-UP and keeps the clamp, and the same column then
+comes out holding `08:00:01` and `08:00:06` twice each, so the repair
+is doing the work here rather than merely being present. The case also
+carries one cell that is not a clock time, which puts a stand-in beside
+the parsed cells (G7A.5), and it reads its ladder in SECONDS OF DAY --
+the form's own unit -- which is the whole of what separates this role
+from the date role whose transform it borrows.
+
+**Why the nineteenth exists** (2026-08-27; residual R-P4-17).
+`affixed_brackets` pins the rule its role exists for. A column of this
+role publishes TWO SETS of class counts and they are not the same set:
+the universal counts answer for the CELLS, and a cell reading `[12]` is
+not a number, so such a column publishes `n_numeric` of nought and
+twelve cells of ordinary text; the quantitative block answers for the
+CORES, where `n_core_numeric` is twelve. Its mutant hands the numeric
+machinery the cell counts, and the oracle then stops at the WORD
+BUDGET — G4.3 reads that over the cores too, so cell counts ask for no
+content words at all and no cell can be built.
+
+Writing it independently found a fact about the role the oracle did not
+have: **a block of this role must carry its own REMARK**, the sentence
+naming the shared text, saying how many cells wore it, and naming
+`--identifier` as the route for a column of codes (contract AF-R). The
+loader refused the case until it was there, which is the argument this
+residual makes, arriving for the third time.
+
+**It is also the one case in either file where a conforming generator
+MISSED a published fact and said so — until the integer-grid landing
+took the miss away.** Its source column held twelve different numbers
+and it publishes twelve; the twin held eleven, because values drawn to
+a published ladder repeat more evenly than real ones did, so `23` came
+out twice. G6.5a's pass had been declining every whole-number column,
+this case is one, and the twin holds twelve now. `n_distinct_values`
+is EXACT-OBSERVABLE since amendment A-P4-55 of 2026-09-04 -- it was
+REPORT-ONLY when this paragraph was written, and the owner ruled it an
+obligation because analysis code groups by and counts distinct on
+numeric columns -- and **no committed case exercises a reported miss of
+it any more.** The reporting control itself is not
+lost — `tests/test_p2c4f3_style_capacity.py` asserts it seed by seed —
+and what R-P4-145 records is narrower and older than this case: the
+frozen harness compares cells and CSV bytes and has never read a
+deviation or a report line, so no committed case pins what a twin
+SAYS. Every other case
+carrying that key publishes the figure its OWN TWIN reaches, so none of
+them can exercise the miss: an adversarial read found that the oracle
+was overwriting the field with a count of the finished cells, which
+puts a fact about the twin where a profiler publishes a fact about the
+table. A case may now publish its own, and this one does.
+
+**Why the twentieth exists** (2026-08-27; residual R-P4-17, and it
+closes it). `joined_readings` pins G6B.4's pairing walk — the only
+SEARCH in this method, and the only place synthtwin reproduces
+structure between two quantities at all.
+
+**It was designed against a vacuity check rather than assumed to
+work.** The first draft published an agreement of 0.9983, and a
+rank-for-rank start already agrees at about 1.0, so the walk found
+nothing to do: removing step 5 entirely left every committed byte where
+it was, and the case would have pinned only the sort and the start
+rule. The committed column publishes **0.4323** instead, holds the
+earlier position above the later in only seven of twelve rows, and
+repeats values in both positions; measured with step 5 withdrawn, six
+of its twelve cells move, and that is the mutant.
+
+**And writing it validated the section.** The walk is 237 lines in the
+shipped generator; the oracle's is written from G6B.4's text alone —
+the sort key, the binary64 sequential mean, the two thresholds, the
+last position moving, the three-term distance and its scaling, the
+zero-based ranks, the fixed divisors, the `0.0005` stop, the `200 * T`
+ceiling, two words a try from a cursor that restarts at zero, the skip
+conditions, accept-on-equal and the exact restore — and it writes the
+same bytes. A section that could not be reimplemented from its own
+words would have shown here.
+
+**WHAT ONE CASE PINS IS NOT THE WHOLE WALK, and the difference is
+measured rather than left to be assumed.** The committed column was
+chosen against that check: a first draft published an agreement of
+0.9983, which a rank-for-rank start already meets, so withdrawing the
+walk entirely changed no byte and the case pinned the sort and the
+start rule and nothing else. The committed one publishes **0.4323**,
+holds the earlier position above the later in only seven of twelve
+rows, and repeats values in both positions.
+
+Withdrawn one at a time, these move its cells, and are pinned:
+
+| rule of G6B.4 | cells moved |
+|---|---|
+| the walk itself (step 5) | 6 |
+| the reserve cursor's restart at word zero | 6 |
+| the `0.4` threshold's VALUE — moving it to `0.9` pulls this column into the permutation branch | 11 |
+| accept-on-equal against strict improvement | 5 |
+| that a try ceiling EXISTS (`200 * T` down to `1 * T`) | 5 |
+| the `part_above` term of the distance | 5 |
+
+**And these do not move its cells, so they stand on this document's
+word alone:** the ceiling's exact VALUE (`100 * T` writes the same
+bytes as `200 * T`); the skip when both drawn seats hold one spelling;
+the `0.0005` stop (even `0.0` writes the same bytes, because this
+column never stops on distance); that a start rule exists AT ALL
+(deleting both branches is identical, because an agreement of 0.4323
+takes neither); and the scaling of the distinct-cell term.
+
+The rank origin is absent from both lists on purpose: as stated in
+G6B.4 step 4 it is not byte-determining in either direction, so no case
+can pin it and none should claim to.
+
+Reaching the five unpinned rules needs further columns shaped for them.
+Saying so is the rule about silent coverage: a case that claims a whole
+search and holds up part of one is the failure the frozen files exist
+to prevent.
+
+**All four roles Phase 4 added now have a frozen case**, which is what
+residual R-P4-17 asked for.
 
 ### G14.4 What the vectors do NOT freeze
 

@@ -795,6 +795,16 @@ QUALITY_WORDS = ArtifactWords(
 INPUT_DESCRIPTION = "description"
 INPUT_MEASURED_FILE = "file you asked synthtwin to check"
 
+# AND THE TWO A `profile` RUN MUST NOT LAND ITS THIRD FILE ON (review
+# item L17b-R1-1). The questions file is written after the description
+# and the summary and outside their transaction, so by the time it is
+# written those two are real files of this run and the table is the
+# person's own. All three are guarded, and a refusal has to say which
+# one the output name reached: "your table" is the noun for the worst
+# of the three, and it is the person's own words for it.
+INPUT_TABLE = "table you asked synthtwin to describe"
+INPUT_SUMMARY = "plain-language summary beside the description"
+
 
 COULD_NOT_CHECK = (
     "synthtwin could not read what is at that name to see whether it is "
@@ -1216,9 +1226,168 @@ def floor_not_positive(given: str) -> str:
     return (
         f"The smallest group size must be a whole number of 1 or more, "
         f"but {given} was given. Give a whole number, or leave the "
-        f"option out altogether to use the default of 11: any value "
-        f"shared by fewer than 11 rows is then left out of the profile, "
-        f"so that a rare value cannot point back at anybody."
+        f"option out altogether to use the default of 1: every value "
+        f"your table holds is then named in the profile, together with "
+        f"how many rows shared it. Raise it -- for instance to 11 -- "
+        f"where no group named in the profile may be small enough to "
+        f"point at one person."
+    )
+
+
+def column_declared_twice(name: str) -> str:
+    """Message for a column named as BOTH a record number and a code.
+
+    The two declarations ask for opposite things -- one publishes none
+    of the column's values, the other publishes its distribution -- so
+    the pair is refused rather than ranked. Ranking them would mean
+    guessing which the person meant, and the guess would be invisible
+    in the profile that came out.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with both --identifier "
+        f"and --code, and those ask for opposite things. --identifier "
+        f"publishes none of a column's values, which is what a record "
+        f"number needs. --code publishes which values are common and how "
+        f"many rows carried each, which is what a coding system needs. "
+        f"synthtwin will not choose between them for you. Name the "
+        f"column once, with whichever of the two you meant, and run the "
+        f"command again. Nothing was written."
+    )
+
+
+def a_declared_value_reads_two_ways(spelling: str, option: str) -> str:
+    """Message for a declared VALUE whose number depends on the grammar.
+
+    THE ONE COMBINATION `--decimal-comma` CANNOT BE HONEST ABOUT (plan
+    amendment for P4-D26; review item P4-G3-R7-F1). `--decimal-comma`
+    names COLUMNS. `--keep-value` and `--missing-value` name VALUES and
+    reach every column in the table. A spelling whose number depends on
+    which grammar reads it therefore means one thing on a declared
+    column and another everywhere else -- and the description has one
+    settings block in which to record what was declared.
+
+    That is not a defect in any one function. It was carried for a
+    while as a residual on the argument that the consequence was
+    conservative -- a column's obligations withheld rather than
+    checked -- and THAT ARGUMENT WAS WRONG, which is why this refusal
+    exists. The count can fall on either side: two spellings that are
+    one number under the ordinary grammar and two under the comma one
+    make the recovery look complete when it is not, and the checked
+    file then receives MISSED verdicts on presence, role and its
+    numbers, against a description that is correct about all three.
+
+    So the pair is refused. What a person loses is the ability to name
+    a "no value" word that is itself grammar-dependent; what they keep
+    is every word that is not -- `NA`, `unknown`, `-999`, and any
+    spelling reading the same way under both.
+    """
+    return (
+        f"You named the value '{_shown(spelling)}' with {option}, and "
+        f"you also used --decimal-comma. Those cannot both be acted "
+        f"on: '{_shown(spelling)}' is one number when a column's "
+        f"numbers are written with a comma for the decimal point and a "
+        f"different number everywhere else, so synthtwin cannot record "
+        f"what you meant by it. The description has one place to say "
+        f"what a declared value is, and this value would need two. "
+        f"Choose a word that means the same thing either way -- a word "
+        f"with no digits in it, such as 'NA' or 'unknown', or a whole "
+        f"number such as -999 -- and run the command again. Nothing "
+        f"was written."
+    )
+
+
+def the_comma_declaration_was_answered_away(name: str) -> str:
+    """Message when an ANSWER withdraws a `--decimal-comma` column.
+
+    The command line refuses `--decimal-comma` beside `--code` or
+    `--identifier`, because both silence the numeric reading and the
+    declaration would be accepted and then ignored. A question answered
+    after the table is read can create the same pair, and the answer is
+    the newer statement -- the person has just been asked directly what
+    the column holds. So the comma declaration is dropped rather than
+    the run refused, and it is said out loud, because a declaration
+    that quietly stops applying is the thing this whole family of
+    checks exists to prevent.
+    """
+    return (
+        f"You named the column '{_shown(name)}' with --decimal-comma, "
+        f"and then answered that it holds codes or record numbers. "
+        f"Those cannot both be acted on: the comma reading is only "
+        f"used for columns read as numbers, and your answer says this "
+        f"column is not read as numbers. synthtwin has taken your "
+        f"answer and dropped the --decimal-comma for this column, so "
+        f"its values are kept exactly as your file writes them. If "
+        f"that is wrong, run the command again with --decimal-comma "
+        f"and answer that the column holds measurements."
+    )
+
+
+def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--decimal-comma` lands on a role it cannot help.
+
+    NOT A REFUSAL, because nothing has gone wrong with the person's
+    file and a description was written. It is the loud remark
+    principle 5 asks for: a column is never silently miscast, and this
+    is the one case where a declaration is accepted and then cannot be
+    honoured (residual R-P4-52).
+
+    Which columns a declaration REACHES cannot be known before the
+    table is read, because it depends on the role the values take. So
+    the refusals that can be made early are made early -- a name the
+    table does not hold, a declaration beside one that would silence it
+    -- and this one is said afterwards, naming the column and the role
+    it landed on.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --decimal-comma, "
+        f"but synthtwin read it as {role}, and the comma reading is "
+        f"only used for columns read as plain numbers. Its numbers "
+        f"were NOT read with the comma as a decimal point, and its "
+        f"twin will not be written with one. This happens where a "
+        f"cell holds a number inside a larger spelling -- a unit or a "
+        f"currency mark around it, or a separator between two numbers "
+        f"-- because then synthtwin cannot tell which mark in the cell "
+        f"is the decimal point. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. If this column really does hold plain numbers, "
+        f"check whether something else in each cell -- a unit, a "
+        f"currency mark, a second number after a slash or a dash -- is "
+        f"being read as part of it, and run the command again with "
+        f"that column as it should be. If the cells really are that "
+        f"shape, leave the option off for this column: synthtwin "
+        f"cannot yet read a comma inside one of them, and the "
+        f"description is the same either way."
+    )
+
+
+def comma_declaration_would_be_ignored(name: str, other: str) -> str:
+    """Message for `--decimal-comma` on a column already silenced.
+
+    REFUSED BECAUSE IT WOULD BE IGNORED, which is the whole reason
+    (plan P4-D26). `--decimal-comma` says how a column's NUMBERS are
+    spelled, and both `--identifier` and `--code` stop the column being
+    read as numbers at all -- so accepting the pair would take an
+    instruction, do nothing with it, and leave the person believing
+    they had corrected their file's reading. A declaration a tool
+    quietly ignores is worse than one it refuses, because only the
+    refusal is visible.
+
+    `--measurement` is NOT refused beside it: that pair is coherent and
+    is the commonest true thing a person has to say about a file whose
+    quantities are written with commas.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with both "
+        f"--decimal-comma and {other}, and synthtwin would have to "
+        f"ignore one of them. --decimal-comma says the numbers in a "
+        f"column are written with a comma where the decimal point "
+        f"goes, so '1,5' means one and a half. {other} stops the "
+        f"column being read as numbers at all, so there would be no "
+        f"number left for the comma to be part of. Decide which one "
+        f"this column needs -- if its cells really are quantities, "
+        f"drop {other}; if they are codes or record numbers, drop "
+        f"--decimal-comma -- and run the command again. Nothing was "
+        f"written."
     )
 
 
@@ -1366,8 +1535,21 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FIVE OPTIONS AND NAMED TWO UNTIL 2026-08-17, AND THE TWO
-    COULD DISCLOSE (review item P3-V9-F6; plan amendment A-P3-36). The
+    IT NAMES TEN OPTIONS. It named two until 2026-08-17, five after
+    that, gained `--code` on 2026-08-25 with the declaration itself
+    (plan amendment A-P4-38), and gained `--answers` on 2026-09-10 with
+    the hand-back (amendment A-P4-60). `--answers` belongs here for a
+    reason of its own and it is not a new kind: every answer in a
+    questions file BECOMES one of `--code`, `--identifier` or
+    `--measurement`, so leaving the file out of a re-run costs exactly
+    what leaving those out costs, which this sentence already prices.
+    Naming it is what stops a person who answered forty columns in a
+    file from re-running with a command line that names none of them. `--code` belongs here by the same test as
+    every other name on the list: leaving it out of a re-run moves a
+    column off the label roles and back onto the numeric ones, and the
+    new description then publishes a ladder of real codes the old one
+    never named. THE TWO ORIGINALS COULD DISCLOSE (review item
+    P3-V9-F6; plan amendment A-P3-36). The
     retired wording named `--keep-value` and `--missing-value` only.
     Follow it to the letter -- which is what a person who does not
     program will do, because it is the whole of what they were told --
@@ -1436,28 +1618,44 @@ def profile_version_is_older(found: int, reads: int) -> str:
     return (
         f"This description was written by an older version of synthtwin: "
         f"it says it is version {found}, and this synthtwin reads "
-        f"version {reads}. A version {reads} description records which "
-        f"of synthtwin's own words for \"no value\" you named on the "
-        f"command line, and a version {found} description does not, so "
-        f"this file cannot be read back exactly. Please make the "
+        f"version {reads}. A version {reads} description records things "
+        f"an older description does not \u2014 which of synthtwin's own "
+        f"words for \"no value\" you named on the command line, and how "
+        f"dates whose day and month are both numbers were read "
+        f"\u2014 so this file cannot be read back "
+        f"exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
-        f"--keep-value, --missing-value, --identifier, --smallest-group "
-        f"and --first-row. Every one of them changes what the "
+        f"--keep-value, --missing-value, --identifier, --code, "
+        f"--measurement, --decimal-comma, --smallest-group, --first-row, "
+        f"--day-first and --answers. "
+        f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "
         f"counted as an ordinary value becomes a gap, which can change "
         f"what kind of column synthtwin sees and publish both that word "
-        f"and the column's own numbers; and without the --first-row you "
+        f"and the column's own numbers; without the --first-row you "
         f"gave, the first line of your file is read as the column names "
-        f"and published as them. Read the summary page synthtwin writes "
+        f"and published as them; and without the --day-first you gave, "
+        f"a date whose day and month are both written as numbers \u2014 "
+        f"with slashes, with dots, or with a two-figure year \u2014 can "
+        f"be read the other way round, which changes "
+        f"the dates the description publishes and can leave the column "
+        f"described as text instead; and without the --answers you "
+        f"gave, every answer you wrote in the questions file is gone \u2014 "
+        f"each of them was a --code, an --identifier or a --measurement, "
+        f"so leaving the file out costs whichever of those you had "
+        f"given, and this same sentence says what each one costs. If "
+        f"you do not hold the table "
+        f"yourself, ask whoever made this description to run it again "
+        f"for you. Read the summary page synthtwin writes "
         f"beside the new description before either file goes anywhere, "
         f"and use the description exactly as synthtwin writes it."
     )
@@ -1809,4 +2007,151 @@ def outputs_already_there(
         f"seed -- add --replace to the command. If not, move or rename "
         f"what is there, or give --out-dir a different folder to write "
         f"into, then run the command again."
+    )
+
+
+def the_questions_were_not_finished() -> str:
+    """Message for a person who ended the run at a question.
+
+    Ctrl-C and Ctrl-D at a prompt mean stop. A profile built on half an
+    interview would record some columns as the person described them
+    and the rest as synthtwin guessed, with nothing on its face saying
+    which were which -- so nothing is written and the run says so.
+    """
+    return (
+        "You ended the run before answering every question, so nothing "
+        "was written. Run the command again to answer them, or name the "
+        "columns yourself with --code and --identifier and no questions "
+        "will be asked."
+    )
+
+
+# THE QUESTIONS FILE IS THE ONE FILE A PERSON IS MEANT TO EDIT, which
+# is why these four messages read the way they do (amendment A-P4-58).
+# Every other file synthtwin writes is refused with "make it again":
+# the description is machine-written and a hand-edited one is a
+# corrupted one. This file is the opposite -- it is written blank and
+# handed over precisely so that somebody types in it -- so a refusal
+# here tells them what to type, names the place in the file, and never
+# suggests that editing it was the mistake.
+_ANSWER_IT_AGAIN = (
+    "Open the file, fix that one line, save it, and run the command "
+    "again."
+)
+
+_A_QUESTIONS_FILE_IS_WRITTEN = (
+    "A questions file is written by 'synthtwin profile', beside the "
+    "description, and its name ends '-questions.json'."
+)
+
+
+def answers_file_is_not_one(path: str) -> str:
+    """The file parsed, but it is not shaped like a questions file."""
+    return (
+        f"The file at {path} was read, but it is not a synthtwin "
+        f"questions file: a questions file holds a list called 'asked' "
+        f"and a section called 'checklist', and this one does not. "
+        f"{_A_QUESTIONS_FILE_IS_WRITTEN} If you have one, name that "
+        f"file after --answers instead."
+    )
+
+
+def answers_entry_is_not_a_question(place: str) -> str:
+    """One entry of the file is not shaped like a question."""
+    return (
+        f"The questions file has something at {place} that is not a "
+        f"question. Each entry names a column, says what synthtwin saw "
+        f"in it, and offers you a set of answers. {_ANSWER_IT_AGAIN} If "
+        f"the file has been edited past repair, run 'synthtwin profile' "
+        f"on your table again and answer the fresh file it writes."
+    )
+
+
+def answers_entry_names_no_column(place: str) -> str:
+    """One entry lost its column name, so nothing can be done with it."""
+    return (
+        f"The question at {place} in the questions file has no column "
+        f"name, so synthtwin cannot tell which column your answer is "
+        f"about. The name belongs beside 'column'. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def questions_would_replace_a_file(path: str, noun: str) -> str:
+    """The questions file's name resolves onto a file that must survive.
+
+    SAID BEFORE ANYTHING IS WRITTEN (review item L17b-R1-1). The write
+    transaction refuses to land on any of its guarded names, so the
+    file survives either way; what this buys is that the person is not
+    first told their own table is about to be written and then left to
+    work out why the third file never appeared.
+    """
+    return (
+        f"synthtwin will not write its questions to {path}, because "
+        f"that name is the {noun}. A link or a name of your own is "
+        f"standing where the questions file goes, and writing there "
+        f"would destroy a file this run needs or that you asked it to "
+        f"describe. The description and its plain-language summary are "
+        f"written as usual, and the columns synthtwin could not settle "
+        f"are named on the screen. To get the questions file too, move "
+        f"or rename whatever is at that name, or run the command again "
+        f"with --out-dir and a folder of its own."
+    )
+
+
+def answers_names_one_key_twice(path: str, key: str) -> str:
+    """One object of the questions file names the same key twice.
+
+    REFUSED BECAUSE A PARSE KEEPS ONLY ONE OF THEM (review item
+    L17b-R1-2). A description is refused unless its bytes are exactly
+    synthtwin's own, which catches this among six other defects; a file
+    a person EDITS cannot be held to that without refusing their
+    answers for their editor's indentation. So the ambiguity is refused
+    on its own: a repeated `column` key would silently move an answer
+    from the column they meant to another real column of their table.
+    """
+    return (
+        f"The questions file at {path} names '{_shown(key)}' twice "
+        f"inside one question, and synthtwin cannot tell which of the "
+        f"two you meant -- reading it would silently act on one and "
+        f"ignore the other. Delete the line you did not mean and leave "
+        f"one. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_entry_offers_nothing(place: str, name: str) -> str:
+    """A question whose list of answers is missing or malformed.
+
+    REFUSED RATHER THAN TREATED AS "ANYTHING GOES" (review item
+    L17b-R1-5). The offered answers are what an answer is checked
+    against, so an entry that has lost them is an entry where no answer
+    can be verified -- and accepting one anyway would take a word
+    nobody offered and act on it.
+    """
+    return (
+        f"The question about '{_shown(name)}' at {place} in the "
+        f"questions file has lost the list of answers it offers, so "
+        f"synthtwin cannot tell whether what you wrote is one of them. "
+        f"Run 'synthtwin profile' on your table again to get a fresh "
+        f"questions file, and write your answers into that one. "
+        f"{_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_answer_is_not_offered(
+    path: str, name: str, given: str, offered: list[str]
+) -> str:
+    """An answer was written that the question did not offer.
+
+    REFUSED RATHER THAN IGNORED, and the message carries the person's
+    own word back to them. Dropping an answer nobody could read would
+    describe the table the old way while the file on disk said
+    otherwise, so the person would have corrected their description and
+    been told nothing.
+    """
+    return (
+        f"The questions file at {path} answers the column "
+        f"'{_shown(name)}' with '{_shown(given)}', which is not one of "
+        f"the answers that question offers. Write one of these instead: "
+        f"{_listed(offered)}. Leave it blank to keep the reading "
+        f"synthtwin made. {_ANSWER_IT_AGAIN}"
     )

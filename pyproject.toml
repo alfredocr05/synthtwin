@@ -71,6 +71,26 @@ include = [
 line-length = 88
 src = ["src", "tests", "tools"]
 
+# THE RULE SET IS NAMED RATHER THAN INHERITED, and it is named because
+# inheriting it broke. This project was written against ruff's classic
+# default -- pycodestyle's error subset plus pyflakes -- and later ruff
+# versions widened what "default" means. The tree then carried 183
+# reports it had never been written to satisfy, 120 of them quoted type
+# annotations, which are a deliberate style here: this codebase writes
+# `"list[str]"` in annotations throughout. Tracking a tool's changing
+# default silently is how a lint job comes to fail on a style nobody
+# chose, so the set is written down.
+#
+# Widening it is a decision somebody makes on purpose, in this file.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+# The decontamination and disposition tools put their own directory on
+# the path before importing from it, which is the one thing that has to
+# happen before those imports and cannot happen after them.
+[tool.ruff.lint.per-file-ignores]
+"tools/**" = ["E402"]
+
 [tool.mypy]
 strict = true
 files = ["src"]

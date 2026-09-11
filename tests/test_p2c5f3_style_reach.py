@@ -297,3 +297,108 @@ def test_the_reach_step_is_what_carries_the_battery(
                     missed = missed + 1
                     break
     assert missed > 0, "the battery reaches no column the reach step carries"
+
+
+# THE COLUMN THAT HAS TO WRITE AN EXPONENT CASE PAIR (R-P4-55). Twelve
+# cells, ten of them values no fixed-point window holds, and one value
+# written TWICE -- once with a lower-case exponent and once with an
+# upper-case one. G6.5 names that pair as the only construction a
+# numeric column has for a raw spelling count above its folded one, so
+# this description publishes `n_distinct` 12 against `n_distinct_folded`
+# 11 and a twin reaches both counts only by writing the pair.
+#
+# SEARCHED RATHER THAN COMPOSED. Twelve rows is the smallest size at
+# which the shipped guard and the repaired one part company, and at that
+# size they part at every seed -- which is what makes the mutant below
+# a strict one rather than a sampling.
+CASE_PAIR = (
+    "90010990.39664085",
+    "81022.18879182487",
+    "1.780748719032198e+17",
+    "4562546.455625033",
+    "0.0007690174397238888",
+    "0.7523187990707938",
+    "9.938011207754502e-06",
+    "236035630.34334084",
+    "0.08258517838289767",
+    "65041600349440.74",
+    "9.822753491023274e+16",
+    "9.822753491023274E+16",
+)
+
+
+def test_a_raw_count_above_a_folded_one_is_reached_by_the_case_pair(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Both spelling counts exactly, on the column that needs the pair.
+
+    `n_distinct` counts different SPELLINGS and `n_distinct_folded`
+    counts different folded identities, so a column where the first is
+    larger than the second holds two texts that fold together. In a
+    numeric column there is exactly one way to write that (G6.5): one
+    value in `exponent_lower` and the same value in `exponent_upper`.
+    This asserts the twin writes it -- both counts exact, at every seed.
+    """
+    document, loaded = _described(tmp_path, list(CASE_PAIR))
+    column = document["columns"][0]
+    assert column["n_distinct"] == column["n_distinct_folded"] + 1, (
+        "this witness no longer asks for a case pair, so it no longer "
+        f"tests what it was built for: {column['n_distinct']} raw against "
+        f"{column['n_distinct_folded']} folded."
+    )
+    for seed in SEEDS:
+        written = [
+            cell
+            for cell in generation.generate(loaded, seed).columns[0]
+            if cell != ""
+        ]
+        raw = len(set(written))
+        folded = len({parsing.folded(cell) for cell in written})
+        assert raw == column["n_distinct"], (
+            f"seed {seed}: the twin wrote {raw} different spellings against "
+            f"a published {column['n_distinct']}."
+        )
+        assert folded == column["n_distinct_folded"], (
+            f"seed {seed}: the twin wrote {folded} folded identities against "
+            f"a published {column['n_distinct_folded']}."
+        )
+
+
+def test_the_two_ceilings_are_what_keeps_the_case_pair(
+    tmp_path: pathlib.Path, monkeypatch: "object"
+) -> None:
+    """The mutant that makes the test above mean something (R-P4-55).
+
+    `_style_strata` packs the styles over whole strata where the cell
+    walk would spend more spellings than the column has. It shipped
+    counting the RAW supply -- the distinct pairs of value and style --
+    and comparing that number against the FOLDED ceiling. Charged that
+    way the guard fires on exactly the columns the case pair exists for,
+    packs it away, and leaves the twin one raw spelling short.
+
+    The mutant here is that arithmetic put back: the raw supply against
+    `wanted`, which is the folded ceiling. Every seed must then miss.
+    """
+    document, loaded = _described(tmp_path, list(CASE_PAIR))
+    column = document["columns"][0]
+    kept = generation._style_strata
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation,
+        "_style_strata",
+        lambda quotas, layout, values, whole, wanted, raw, styles: kept(
+            quotas, layout, values, whole, wanted, wanted, styles
+        ),
+    )
+    short = 0
+    for seed in SEEDS:
+        written = [
+            cell
+            for cell in generation.generate(loaded, seed).columns[0]
+            if cell != ""
+        ]
+        if len(set(written)) < column["n_distinct"]:
+            short = short + 1
+    assert short == len(SEEDS), (
+        "the shipped ceiling costs this column its raw spelling count at "
+        f"every seed, and here it cost it at {short} of {len(SEEDS)}."
+    )

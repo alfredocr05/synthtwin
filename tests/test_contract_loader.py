@@ -61,10 +61,17 @@ Change = typing.Callable[[Document], None]
 def table_text() -> str:
     """A neutral table with one column for every role in the taxonomy.
 
-    The builder in `fixtures` covers nine of the ten; a column of
-    numbers no binary64 can hold is added here so that the tenth is
+    The builder in `fixtures` covers most of them; a column of numbers
+    no binary64 can hold is added here so the unrepresentable role is
     covered too, and so that the battery has a block of every shape to
     damage.
+
+    A JOINED column is added for the same reason and needs a
+    declaration to be one. Without it this battery had no `JoinedFacts`
+    block at all, so the loader's own rules about that role -- the
+    range its rank agreements lie in, the length of its per-position
+    widths -- could be deleted with every mutation here still green
+    (review item P4-A2-R4-F3).
 
     A column of dates AND times in two offsets is added for the same
     reason. The builder's own column of dates carries no time of day,
@@ -73,7 +80,8 @@ def table_text() -> str:
     (review item P2-C3-F2).
     """
     lines = [line for line in fixtures.every_role_table().split("\n") if line]
-    rows = [f"{lines[0]},huge,logged_at"]
+    joined = fixtures.joined_column_text()
+    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN}"]
     for index, line in enumerate(lines[1:]):
         huge = "1e999" if index % 2 else "-2e400"
         offset = "+02:00" if index % 2 else "-05:00"
@@ -82,18 +90,36 @@ def table_text() -> str:
             f"{index % 24:02d}:{(index * 11) % 60:02d}:"
             f"{(index * 7) % 59 + 1:02d}{offset}"
         )
-        rows.append(f"{line},{huge},{stamp}")
+        rows.append(f"{line},{huge},{stamp},{joined[index]}")
     return "\n".join(rows) + "\n"
 
 
 @pytest.fixture(scope="module")
 def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
-    """The conforming description every mutation starts from."""
+    """The conforming description every mutation starts from.
+
+    THE FLOOR IS DECLARED HERE RATHER THAN LEFT TO THE DEFAULT, which
+    is now one (owner ruling, plan amendment A-P4-37). At a floor of one
+    NOTHING is ever held back -- no pooled `(withheld)` key, no
+    `suppressed_levels`, no `variants_withheld`, no unpublished
+    tally -- and this battery is written against a description that
+    HOLDS THINGS BACK: a whole family of rules here (B4, B5, C5-N3,
+    C5-N4, W5, V1, D3, P2, P6, P6b, P8, SF1, LT1) can only be broken by
+    damaging a pool or a held-back size, and those keys have to exist
+    in the base before a mutation can damage one. Eleven is the floor
+    the battery's arithmetic was sized for, and asking for it keeps
+    every entry exercising the rule it is filed under. The two entries
+    that are ABOUT the floor of one lower it themselves, from here.
+    """
     folder = tmp_path_factory.mktemp("contract")
     path = fixtures.write(folder, "table.csv", table_text())
     table = reading.read_table(str(path))
     document = profile.build_document(
-        table, taxonomy.Settings(), ["record_code"]
+        table,
+        taxonomy.Settings(small_cell_floor=11),
+        ["record_code"],
+        [],
+        [fixtures.JOINED_COLUMN],
     )
     return json.loads(json.dumps(document))
 
@@ -150,6 +176,22 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def lower_a_finer_rung(_column: str, _rung: str) -> Change:
+    """Push one rung of the finer ladder below the one before it.
+
+    The finer rungs are ninety, so a mutation that rewrote the whole
+    map would be a hundred lines of fixture; this reaches into the
+    block the producer wrote and moves ONE of them, which is what
+    invariant Q19's joint walk is about.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        finer = dict(block["percentiles_between"])
+        finer[_rung] = -1.0e9
+        block["percentiles_between"] = finer
+    return change
+
+
 def drop(_column: str, _key: str) -> Change:
     """Take one key out of a column's block."""
     def change(document: Document) -> None:
@@ -182,6 +224,57 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
     """Replace keys of one published label."""
     def change(document: Document) -> None:
         at(document, _column)["levels"][_index].update(changes)
+    return change
+
+
+def _relabelled_as_a_long_tail(_column: str) -> Change:
+    """Give a set of categories the long tail's role and key set.
+
+    The role's key set is the five shared label keys, the form census
+    among them (P4-D18), so the relabelling supplies one -- otherwise the
+    document is refused for a missing key and never reaches LT2, which
+    is the rule this mutation exists to break.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["role"] = "long_tail_labels"
+        block["statistical_type"] = "long_tail_labels"
+        del block["level_ceiling"]
+        block["shape_forms"] = {"(withheld)": block["n_present"]}
+    return change
+
+
+def _long_tail_below_its_line(_column: str) -> Change:
+    """Lower the floor, then put every published level under the line.
+
+    The rows the two levels give up are counted among the withheld
+    ones, so the sums the label invariants check still hold and G2 is
+    the rule the document breaks rather than an arithmetic one.
+    """
+    def change(document: Document) -> None:
+        document["settings"]["small_cell_floor"] = 10
+        block = at(document, _column)
+        given = 0
+        # Both levels take the floor exactly -- ten, which is under the
+        # line of eleven and is the smallest a published label may
+        # take at this floor (B5) -- and are then put in the order B6
+        # asks for, which at equal counts is by name.
+        for level in block["levels"]:
+            spare = level["count"] - 10
+            level["count"] = 10
+            level["variants"] = {key: 10 for key in level["variants"]}
+            given = given + spare
+        block["levels"] = sorted(
+            block["levels"], key=lambda level: level["label"]
+        )
+        # The rows the two levels gave up join a level that was already
+        # held back, rather than making a new one: the number of
+        # DIFFERENT values did not change, and B2 counts the published
+        # and the held-back levels against it.
+        block["suppressed_rows"] = block["suppressed_rows"] + given
+        sizes = list(block["suppressed_level_counts"])
+        sizes[0] = sizes[0] + given
+        block["suppressed_level_counts"] = sorted(sizes)
     return change
 
 
@@ -241,6 +334,15 @@ def flat_ladder(name: str) -> Change:
     def change(document: Document) -> None:
         block = at(document, name)
         block["percentiles"] = {rung: 5.0 for rung in contract.LADDER_KEYS}
+        # THE FINER RUNGS GO FLAT WITH THEM (plan P4-D4.10). They are
+        # part of the same ladder, so leaving them where they were says
+        # a column whose named rungs are all 5 holds a value of 0 at
+        # the second percentile -- which invariant Q19 refuses, and the
+        # refusal a reader would then see is Q19's rather than the one
+        # this mutation exists to reach.
+        block["percentiles_between"] = {
+            rung: 5.0 for rung in contract.FINER_LADDER_KEYS
+        }
     return change
 
 
@@ -303,6 +405,20 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # ONE COLUMN, TWO READINGS THAT CANNOT BOTH BE ACTED ON.
+            # `amount` is a real continuous column of this fixture, so
+            # the name resolves and S8 is satisfied; what is wrong is
+            # that a column read as codes is not read as numbers at
+            # all, so the comma declaration could never be used and
+            # would be recorded and silently ignored (plan P4-D26).
+            "S8a", "one column named as codes and as writing commas",
+            edit_in(
+                "settings",
+                forced_codes=["amount"],
+                forced_decimal_commas=["amount"],
+            ),
+        ),
+        Mutation(
             "S9", "more categories allowed at the floor than at the ceiling",
             edit_in("settings", categorical_floor=2000),
         ),
@@ -323,7 +439,7 @@ def battery() -> list[Mutation]:
         ),
         # THE FLOOR OF ONE, AND WHY THE MUTATION HAS TWO HALVES. At a
         # floor of one there is no group below the floor, so nothing may
-        # be held back; the base is written at the default floor, where
+        # be held back; the base is written at a floor of eleven, where
         # holding something back is ordinary. So the floor is lowered
         # AND something is left held back -- either half on its own is a
         # description the loader is right to accept. The tally is used
@@ -594,6 +710,32 @@ def battery() -> list[Mutation]:
             "G1", "more categories than the line the column passed",
             edit("region", level_ceiling=2),
         ),
+        Mutation(
+            # G2 CAN ONLY BE REACHED UNDER A LOWERED FLOOR, and that is
+            # the rule rather than a gap in the battery: at this
+            # document's floor of eleven every published level covers the
+            # long-tail line, because the line IS eleven there. At a
+            # floor of ten a column may publish levels of ten, none of
+            # which reaches the line -- a document claiming a role its
+            # own numbers say the rule would not have given it.
+            #
+            # TEN AND NOT LESS, because a lowered floor is not simply
+            # more permissive: a label the document HOLDS BACK must
+            # cover fewer rows than the floor, so dropping the floor to
+            # five makes another column's seven-row withheld label
+            # illegal and B5 fires before G2 is reached.
+            "LT1", "a long tail whose levels never reach its own line",
+            _long_tail_below_its_line("note"),
+        ),
+        Mutation(
+            # LT2, and it is the OTHER half of the rule: a document can
+            # claim this role for a column that is not past the
+            # categorical ceiling at all, whose four label keys are
+            # perfectly good ones. Only recomputing the ceiling catches
+            # it (review item P4-TAIL-F3).
+            "LT2", "a set of categories relabelled as a long tail",
+            _relabelled_as_a_long_tail("region"),
+        ),
         # -- the spellings of a published label -----------------------
         Mutation(
             "W2", "a spelling filed under the wrong label",
@@ -616,6 +758,18 @@ def battery() -> list[Mutation]:
         Mutation(
             "W7", "a published label nobody wrote",
             edit_level("region", 0, variants={}, variants_withheld={}),
+        ),
+        Mutation(
+            # W8, on the clause this fixture can break: `west` is
+            # letters alone, and a form carries two of the three kinds,
+            # so the label has no written form and no spelling of it can
+            # wear one (7.4.8, plan amendment A-P4-47). The other two
+            # clauses -- the named spellings' own floor and the ceiling
+            # the held-back rows set -- are pinned in
+            # `tests/test_p4r34_form_census_per_level.py`, where the
+            # column carrying a form-bearing label lives.
+            "W8", "rows written in a form their label does not have",
+            edit_level("region", 0, shape_form_cells=1),
         ),
         # -- the datetime column --------------------------------------
         Mutation(
@@ -647,8 +801,30 @@ def battery() -> list[Mutation]:
             edit("recorded_on", subsecond_digits=3),
         ),
         Mutation(
+            # THE CENSUS MOVES WITH IT. Since the form census joined
+            # the block it counts the values that parsed, so a
+            # mutation that makes nothing parse has to empty the
+            # census too -- otherwise RM2 refuses the document one
+            # rule earlier and D8 is never reached, which would leave
+            # D8 with no case at all while this file still looked
+            # green.
             "D8", "a column of dates where nothing read as a date",
-            edit("recorded_on", n_unparsed=240),
+            edit("recorded_on", n_unparsed=240, resolution_mix={}),
+        ),
+        Mutation(
+            "RM1", "a form census naming a form the column was not read in",
+            edit("recorded_on", resolution_mix={"compact-date": 240}),
+        ),
+        Mutation(
+            "RM1", "a form census naming two forms on a single-form column",
+            edit(
+                "recorded_on",
+                resolution_mix={"iso-date": 200, "iso-datetime": 40},
+            ),
+        ),
+        Mutation(
+            "RM2", "a form census counting more values than parsed",
+            edit("recorded_on", resolution_mix={"iso-date": 241}),
         ),
         Mutation(
             "D9", "an offset on a column that publishes no time of day",
@@ -714,6 +890,42 @@ def battery() -> list[Mutation]:
             "Q11", "more zeroes than numbers", edit("visits", n_zero=230)
         ),
         Mutation(
+            "Q15",
+            "a shape whose bins do not account for the values",
+            edit("visits", value_histogram={"0": 3}),
+        ),
+        Mutation(
+            "Q20",
+            "the first bin named as holding nothing",
+            edit("visits", empty_bins=[0], value_histogram={}),
+        ),
+        Mutation(
+            "Q21",
+            "one pair of stretch edges more than there are stretches",
+            edit("visits", empty_edges=[[0.0, 1.0]]),
+        ),
+        Mutation(
+            "Q17",
+            "more different numbers than cells that read as one",
+            edit("visits", n_distinct_values=900),
+        ),
+        Mutation(
+            "Q16",
+            "tails no sample of that many values could have",
+            edit("visits", kurtosis=900.0),
+        ),
+        Mutation(
+            "Q19",
+            "a finer rung below the rung before it",
+            lower_a_finer_rung("visits", "p02"),
+        ),
+        Mutation(
+            "Q18",
+            "a commonest number held by more cells than the column has "
+            "numbers",
+            edit("visits", mode=1.0, mode_count=900),
+        ),
+        Mutation(
             "P1", "forms that do not account for the numbers",
             edit("visits", numeric_styles={"plain": 228}),
         ),
@@ -724,6 +936,137 @@ def battery() -> list[Mutation]:
         Mutation(
             "P3", "a column of numbers saying nothing about their form",
             edit("visits", numeric_styles={}),
+        ),
+        Mutation(
+            "P5",
+            "figures after the point counted for cells that wrote none",
+            edit("visits", fraction_widths={"2": 40}),
+        ),
+        # -- the census of padded field widths (P4-D14) --------------
+        Mutation(
+            "P5b",
+            "field widths counted for cells that wrote no padding",
+            edit("visits", pad_widths={"5": 40}),
+        ),
+        Mutation(
+            "P6b",
+            "a field width written by too few cells to name",
+            edit(
+                "visits",
+                numeric_styles={"plain": 218, "leading_zero": 11},
+                pad_widths={"5": 10, "6": 1},
+            ),
+        ),
+        # -- the census of written forms (P4-D18) --------------------
+        # Each of these is a document the loader must REFUSE, and each
+        # is registered here because a rule the loader raises without
+        # an entry in this battery reaches a person as a bare KeyError
+        # (review round 1 finding 9).
+        # THE KEYS HERE MUST BE FORMS THE PRODUCER COULD WRITE, or the
+        # key grammar refuses them before SF1 is reached and the entry
+        # names a rule it does not exercise. They were `AAAA` and
+        # `AAAAA`, which the two-kinds rule forbids -- the review named
+        # it before the alphabet change made it fail loudly (round 2,
+        # test weakening 17).
+        Mutation(
+            "SF1",
+            "a written form named by fewer cells than the floor admits",
+            edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 3}),
+        ),
+        # A pooled remainder at a floor of one is refused too, but by
+        # C5-S13 at the top of the document rather than by a rule of
+        # the census's own -- `shape_forms` is in C5-S13's list, so the
+        # census never gets to see it.
+        Mutation(
+            "C5-S13",
+            "a form census holding a pooled remainder at a floor of one",
+            all_of(
+                edit_in("settings", small_cell_floor=1),
+                edit("region", shape_forms={"@@@-@": 1, "(withheld)": 1}),
+            ),
+        ),
+        Mutation(
+            "SF3",
+            "a census counting more cells than the column has present",
+            edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 9999}),
+        ),
+        Mutation(
+            "P8",
+            "two width censuses that are each possible and not both",
+            edit(
+                "visits",
+                numeric_styles={
+                    "plain": 174, "leading_plus": 20, "(withheld)": 35,
+                },
+                fraction_widths={"(withheld)": 10},
+                pad_widths={},
+            ),
+        ),
+        Mutation(
+            "P7b",
+            "a field width no padded cell could ever wear",
+            edit(
+                "visits",
+                numeric_styles={"plain": 218, "leading_zero": 11},
+                pad_widths={"1": 11},
+            ),
+        ),
+        # -- the census of whole-number field widths (P4-D30) --------
+        # Each of these is a document the loader must REFUSE. The
+        # census counts THREE of the six forms rather than one, so its
+        # sum is bounded on both sides rather than pinned, and each end
+        # is registered here.
+        Mutation(
+            "P9c",
+            "a whole-number width census counting fewer cells than the "
+            "forms map says were written without a point",
+            edit("visits", field_widths={}),
+        ),
+        Mutation(
+            "P9c",
+            "a whole-number width census counting more cells than the "
+            "column holds",
+            edit("visits", field_widths={"5": 9999}),
+        ),
+        Mutation(
+            "P6c",
+            "a whole-number field width written by too few cells to name",
+            edit("visits", field_widths={"5": 10}),
+        ),
+        Mutation(
+            "P7c",
+            "a whole-number field width of no figures at all",
+            edit("visits", field_widths={"0": 228}),
+        ),
+        # -- clock times --------------------------------------------
+        Mutation(
+            "T1", "a clock rung written in the other form",
+            edit_inside("seen_at", "clock_percentiles", p50="07:59:00"),
+        ),
+        Mutation(
+            "T2", "a ladder that does not begin at the earliest time",
+            edit("seen_at", earliest="07:01"),
+        ),
+        Mutation(
+            "T3", "clock rungs that go backwards",
+            edit_inside("seen_at", "clock_percentiles", p50="07:01"),
+        ),
+        Mutation(
+            "T4", "a column of clock times holding none",
+            edit("seen_at", n_unparsed=240),
+        ),
+        Mutation(
+            "T5", "too few clock times for the column to be read that way",
+            edit("seen_at", n_unparsed=100),
+        ),
+        Mutation(
+            "P6",
+            "a pool larger than the forms left to hold it",
+            edit(
+                "visits",
+                numeric_styles={"plain": 100, "decimal": 60, "(withheld)": 69},
+                fraction_widths={"2": 60},
+            ),
         ),
         # -- record numbers and text ----------------------------------
         Mutation(
@@ -882,8 +1225,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 12
-    assert len(loaded.columns) == 12
+    assert loaded.n_columns == 16
+    assert len(loaded.columns) == 16
 
 
 def test_every_mutation_starts_from_a_document_that_loads(
@@ -1019,7 +1362,7 @@ def test_r5_text_that_is_not_the_written_form(
     tmp_path: pathlib.Path
 ) -> None:
     """R5 says where the reading stopped and what usually causes it."""
-    message = refusal_of_text(tmp_path, '{\n  "profile_version": 5,\n')
+    message = refusal_of_text(tmp_path, '{\n  "profile_version": 6,\n')
     assert "line 3" in message
     assert "character" in message
     assert "edited" in message or "copied" in message
@@ -1030,7 +1373,7 @@ def test_r6_a_character_that_cannot_be_written(
 ) -> None:
     """R6 says the file holds a character that is not writable text."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 5\n}\n'
+        tmp_path, '{\n  "note": "\\ud800",\n  "profile_version": 6\n}\n'
     )
     assert "cannot be written as text" in message
 
@@ -1038,7 +1381,7 @@ def test_r6_a_character_that_cannot_be_written(
 def test_r7_a_number_that_is_not_one(tmp_path: pathlib.Path) -> None:
     """R7 says the file holds a number that is not a number."""
     message = refusal_of_text(
-        tmp_path, '{\n  "note": NaN,\n  "profile_version": 5\n}\n'
+        tmp_path, '{\n  "note": NaN,\n  "profile_version": 6\n}\n'
     )
     assert "is not a number" in message
 
@@ -1078,24 +1421,24 @@ def test_the_number_bound_accepts_the_token_at_the_limit() -> None:
 
 def test_the_pre_scan_counts_nothing_inside_a_string() -> None:
     """A brace or a long figure inside a value is a character of it."""
-    braces = '{"note": "' + "{" * 100 + '", "profile_version": 5}'
+    braces = '{"note": "' + "{" * 100 + '", "profile_version": 6}'
     contract._scanned(braces, "somewhere")
-    figures = '{"note": "' + "1" * 500 + '", "profile_version": 5}'
+    figures = '{"note": "' + "1" * 500 + '", "profile_version": 6}'
     contract._scanned(figures, "somewhere")
     escaped = '{"note": "a quotation mark \\" and ' + "{" * 100 + '"}'
     contract._scanned(escaped, "somewhere")
 
 
 NOT_CANONICAL = (
-    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
-    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 5\n}\n'),
-    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 5\n}\n'),
-    ("no final newline", '{\n  "a": 1,\n  "profile_version": 5\n}'),
-    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 5\n}\n\n'),
-    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 5\n}\n'),
+    ("a repeated entry", '{\n  "a": 1,\n  "a": 2,\n  "profile_version": 6\n}\n'),
+    ("entries out of order", '{\n  "b": 1,\n  "a": 2,\n  "profile_version": 6\n}\n'),
+    ("a number written the long way", '{\n  "a": 1.0e2,\n  "profile_version": 6\n}\n'),
+    ("no final newline", '{\n  "a": 1,\n  "profile_version": 6\n}'),
+    ("two final newlines", '{\n  "a": 1,\n  "profile_version": 6\n}\n\n'),
+    ("an indent of its own", '{\n    "a": 1,\n    "profile_version": 6\n}\n'),
     (
         "line endings from another system",
-        '{\r\n  "a": 1,\r\n  "profile_version": 5\r\n}\r\n',
+        '{\r\n  "a": 1,\r\n  "profile_version": 6\r\n}\r\n',
     ),
 )
 
@@ -1124,7 +1467,7 @@ def test_r11_an_older_description_is_made_again(
     document["profile_version"] = 4
     message = refusal(tmp_path, document)
     assert "version 4" in message
-    assert "version 5" in message
+    assert "version 6" in message
     assert "synthtwin profile" in message
     # THE THINGS CONTRACT 5 SECTION 10.2 FIXES WORD FOR WORD: why the
     # older file cannot be read, and every option that has to come back
@@ -1157,10 +1500,10 @@ def test_r12_a_newer_description_never_sends_anybody_to_a_profiler(
     acted on anyway.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 6
+    document["profile_version"] = 7
     message = refusal(tmp_path, document)
+    assert "version 7" in message
     assert "version 6" in message
-    assert "version 5" in message
     assert "update synthtwin" in message
     assert "synthtwin profile" not in message
 
@@ -1175,7 +1518,7 @@ def test_the_version_is_read_before_the_canonical_form(
     another version is very likely canonical under its own rules.
     """
     document = copy.deepcopy(base)
-    document["profile_version"] = 6
+    document["profile_version"] = 7
     target = tmp_path / "table-profile.json"
     target.write_text(
         canonical.serialize(document) + "\n", encoding="utf-8", newline="\n"

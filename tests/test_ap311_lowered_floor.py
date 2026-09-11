@@ -55,7 +55,7 @@ from synthtwin import (
 )
 from synthtwin.cli import main
 
-# Two floors below the default, and they are different cases. Two is an
+# Two floors below eleven, and they are different cases. Two is an
 # ordinary lowering. One is the boundary the contract now stops at, and
 # the value at which nothing is held back at all -- which is where an
 # arithmetic assumption of "there is always a pooled remainder" would
@@ -64,12 +64,24 @@ _LOWERED = (2, 1)
 
 _DEFAULT = taxonomy.Settings().small_cell_floor
 
+# ELEVEN IS NO LONGER THE DEFAULT (owner ruling, plan amendment
+# A-P4-37): the default floor is 1, and at 1 nothing is held back at
+# all. Eleven is still the protective floor a review board or a
+# data-use agreement asks for -- it is the number `--smallest-group`'s
+# own help names as the one to raise to -- so it is still the floor a
+# lowered floor is lowered FROM, and it is the floor every scenario in
+# this file was written against. The tests below whose subject is what
+# a description WITHHOLDS therefore say eleven out loud, rather than
+# inheriting a default that now withholds nothing and would leave them
+# comparing a description with itself.
+_STRICT = 11
+
 
 def _table(folder: pathlib.Path) -> pathlib.Path:
     """The every-role table, whose `region` column has one rare label.
 
     `outlying` covers about seven of its 240 rows, so it is withheld at
-    the default floor and published at any floor of seven or less. That
+    a floor of eleven and published at any floor of seven or less. That
     makes it the witness that a lowered floor really lowers something.
     """
     folder.mkdir(parents=True, exist_ok=True)
@@ -148,23 +160,24 @@ def test_a_lowered_floor_really_publishes_the_small_group(
     anyway would pass every other test in this file.
     """
     strict = json.loads(
-        _described(tmp_path / "strict", _DEFAULT).read_text(encoding="utf-8")
+        _described(tmp_path / "strict", _STRICT).read_text(encoding="utf-8")
     )
     loose = json.loads(
         _described(tmp_path / "loose", floor).read_text(encoding="utf-8")
     )
     assert "outlying" not in _levels_of(strict, "region"), (
-        "the rare label is published at the DEFAULT floor, so this table "
-        "no longer witnesses anything"
+        f"the rare label is published at a floor of {_STRICT}, so this "
+        "table no longer witnesses anything"
     )
     published = _levels_of(loose, "region")
     assert "outlying" in published, (
         f"a floor of {floor} did not publish the rare label, so the "
         "option changed nothing"
     )
-    assert published["outlying"] < _DEFAULT, (
-        "the published count is not below the default floor, so nothing "
-        "the floor was protecting has actually been given up here"
+    assert published["outlying"] < _STRICT, (
+        f"the published count is not below {_STRICT}, so nothing the "
+        "protective floor was holding back has actually been given up "
+        "here"
     )
     assert loose["settings"]["small_cell_floor"] == floor
 
@@ -323,22 +336,38 @@ _PAGES = (
 def test_each_written_page_says_it_on_its_own_face(
     tmp_path: pathlib.Path, floor: int, what: str, page: object
 ) -> None:
-    """One file, read alone, tells its reader the floor was lowered.
+    """One file, read alone, tells its reader what floor it names at.
 
     This is the same reasoning that put the handling rule on all five
     files (amendment A-P3-8 clause 2): a person is handed ONE of these,
     and the floor lives in the description's JSON as a number a
     non-programmer does not open. So each page is asserted separately,
     with no reference to the others.
+
+    THE SENTENCE THE PAGES SAY CHANGED ON 2026-08-25 (plan amendment
+    A-P4-37), AND THE OBLIGATION DID NOT. It used to open "THE SMALLEST
+    GROUP SIZE WAS LOWERED", which was true while a low floor was
+    something a person had to ask for. The default is 1 now, so on an
+    ordinary run nobody lowered anything and that sentence would be
+    telling a reader something that did not happen. The pages state the
+    fact instead -- which groups this description names -- and it is
+    still asserted here word for word, at both floors, on all three
+    pages.
+
+    WHAT IS NAMED TO MEASURE AGAINST IS `_STRICT` AND NOT `_DEFAULT`.
+    A reader can only tell how much a floor gives up by comparing it
+    with the floor that pools, which is eleven. Comparing it with the
+    default would be comparing 1 with 1.
     """
     assert callable(page)
     text = page(tmp_path, floor)
-    assert f"LOWERED TO {floor}" in text or (
-        f"LOWERED FOR THIS PROFILE, TO {floor}" in text
-    ), f"{what} does not say the floor was lowered, or does not say to what"
-    assert f"{_DEFAULT}" in text, (
-        f"{what} does not name the number it was lowered FROM, so a "
-        "reader cannot tell how far"
+    assert f"NAMES GROUPS AS SMALL AS {floor} ROW(S)" in text, (
+        f"{what} does not say what size of group it names, or does not "
+        "say down to what"
+    )
+    assert f"{_STRICT}" in text, (
+        f"{what} does not name the floor that WOULD pool this, so a "
+        "reader cannot tell how far from it this description is"
     )
     for owed in _OWED:
         assert owed in text, (
@@ -356,19 +385,31 @@ def test_each_written_page_says_it_on_its_own_face(
 def test_no_written_page_says_it_on_an_ordinary_run(
     tmp_path: pathlib.Path, what: str, page: object
 ) -> None:
-    """And it is silent at the default floor, which is the point.
+    """And it is silent where the floor POOLS, which is the point.
 
-    A paragraph printed on every run to say the floor was NOT lowered is
-    how a reader is trained to skip the paragraph that matters. It is
-    also what keeps the golden digests of an ordinary run still.
+    A paragraph printed on every run to say there is nothing to disclose
+    is how a reader is trained to skip the paragraph that matters.
+
+    WHICH FLOOR THAT IS MOVED ON 2026-08-25 AND THE OBLIGATION DID NOT
+    (plan amendment A-P4-37). This asked about `_DEFAULT`, which was 11
+    and was also the floor that pools -- one number doing two jobs. The
+    default is 1 now, and at 1 the pages MUST carry the section,
+    because a description that names groups of one row has something to
+    tell its reader. The floor with nothing to disclose is the one that
+    pools, `_STRICT`, and that is what is asked about here.
+
+    LEFT AS IT WAS, THIS TEST WOULD HAVE PASSED FOREVER AND CHECKED
+    NOTHING: it pinned the words "LOWERED TO", which no page says any
+    more, against a floor whose pages now speak. An adversarial read of
+    the repair diff is what caught it.
     """
     assert callable(page)
-    text = page(tmp_path, _DEFAULT)
-    assert "LOWERED TO" not in text, (
-        f"{what} carries the lowered-floor section on a description made "
-        "at the default floor"
+    text = page(tmp_path, _STRICT)
+    assert "NAMES GROUPS AS SMALL AS" not in text, (
+        f"{what} carries the small-group section on a description made "
+        "at a floor that pools, where there is nothing to disclose"
     )
-    assert "LOWERED FOR THIS PROFILE" not in text
+    assert f"{_STRICT} ROW(S)" not in text
 
 
 def test_the_quality_report_names_the_floor_it_ran_at_on_every_run(
@@ -381,12 +422,17 @@ def test_the_quality_report_names_the_floor_it_ran_at_on_every_run(
     number now, so a reader supplies eleven and is wrong about what the
     lines above are showing them. This is the only sentence of an
     ordinary report that amendment A-P3-11 moves.
+
+    THE THREE RUNS ARE THE THREE KINDS OF FLOOR there now are: the
+    protective eleven a review board asks for, an ordinary lowering,
+    and one -- which since amendment A-P4-37 is the default, and is the
+    one floor whose sentence is a different sentence.
     """
-    ordinary = _quality_at(tmp_path / "ordinary", _DEFAULT)
+    protective = _quality_at(tmp_path / "protective", _STRICT)
     lowered = _quality_at(tmp_path / "lowered", 2)
-    assert f"publication floor of this description is {_DEFAULT}" in ordinary
+    assert f"publication floor of this description is {_STRICT}" in protective
     assert "publication floor of this description is 2" in lowered
-    assert "never named in any description" not in ordinary, (
+    assert "never named in any description" not in protective, (
         "the sentence that invites a reader to supply eleven is back"
     )
     # A floor of one makes the general sentence absurd -- "a group fewer

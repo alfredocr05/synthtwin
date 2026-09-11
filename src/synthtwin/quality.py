@@ -243,23 +243,23 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     - Boundary: no value of any table reaches it; it names counts.
     """
     floor = description.settings.small_cell_floor
-    if floor >= contract.DEFAULT_SMALL_CELL_FLOOR:
+    if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
-    usual = contract.DEFAULT_SMALL_CELL_FLOOR
+    usual = contract.SMALL_GROUP_NOTICE_LINE
     lines = [
         _RULE,
         (
-            f"THIS DESCRIPTION WAS MADE WITH THE SMALLEST GROUP SIZE "
-            f"LOWERED TO {floor}"
+            f"THIS DESCRIPTION NAMES GROUPS AS SMALL AS {floor} ROW(S)"
         ),
         _RULE,
         "",
         (
-            f"synthtwin normally publishes a value only where at least "
-            f"{usual} rows"
+            f"A description holds nothing back for being a small group "
+            f"unless it is asked to. Pooling everything under {usual} rows"
         ),
-        "of the real table shared it. This description publishes values as",
-        f"few as {floor} row(s) shared, and prints how many rows that is.",
+        f"is what --smallest-group {usual} does, and this description was",
+        f"not made that way: it names values as few as {floor} row(s)",
+        "shared, and prints how many rows that is.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the
@@ -644,6 +644,40 @@ _LISTING_WORDS = {
     "datetime.format": (
         "the date spelling your column was written in"
     ),
+    "datetime.resolution_mix": (
+        "which written form each of your dates wore, and how many wore "
+        "each"
+    ),
+    "numeric.n_distinct_values": (
+        "how many different numbers your column holds, as distinct from "
+        "how many different ways of writing them"
+    ),
+    "numeric.percentiles_between": (
+        "the ninety percentile rungs between the eleven your "
+        "description names, which say where your numbers sit between "
+        "them"
+    ),
+    "numeric.mode": (
+        "the number your column held most often"
+    ),
+    "numeric.mode_count": (
+        "how many cells held the number your column held most often"
+    ),
+    "numeric.value_histogram": (
+        "the shape of your numbers -- how many of them fall between "
+        "each pair of edges"
+    ),
+    "numeric.empty_bins": (
+        "which stretches of your column's range held no value at all"
+    ),
+    "numeric.empty_edges": (
+        "the two values your column really holds on either side of "
+        "each of those stretches"
+    ),
+    "numeric.field_widths": (
+        "how many figures each of your whole-numbered cells was "
+        "written with"
+    ),
 }
 
 
@@ -824,7 +858,7 @@ def _withheld_census_lines(withheld: int) -> "list[str]":
 def _handling_lines(
     description: contract.Profile, withheld: int
 ) -> "list[str]":
-    """Where the numbers came from, and how the five files are handled.
+    """Where the numbers came from, and how the six files are handled.
 
     V7.5. This report states measured facts about a file derived from
     real data, so it is real-derived material exactly as the description,
@@ -889,13 +923,13 @@ def _handling_lines(
         "at the top, because a report that does not say what it measured",
         "can be read as being about a file it is not -- so if you chose a",
         "file name that says something about your study, this report",
-        "carries it wherever it goes. All five files a full run produces",
+        "carries it wherever it goes. All six files a full run produces",
         "-- the description, the plain-language summary beside it, the",
-        "twin, the twin's report and this quality report -- carry facts",
-        "computed from your real data. Keep all five under the rules your",
-        "institution applies to the table itself, and check with whoever",
-        "approves data leaving your environment before you move any of",
-        "them anywhere.",
+        "questions file, the twin, the twin's report and this quality",
+        "report -- carry facts computed from your real data. Keep all",
+        "six under the rules your institution applies to the table",
+        "itself, and check with whoever approves data leaving your",
+        "environment before you move any of them anywhere.",
         "",
         "WHAT SYNTHTWIN SAYS ABOUT THE ROWS OF A TWIN, unchanged by any",
         "verdict here. Building a twin reads no table: it",

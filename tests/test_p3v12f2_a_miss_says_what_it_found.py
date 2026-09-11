@@ -154,6 +154,25 @@ _CALL_SITES = 20
 # places, which is how a spreadsheet, an instrument export and a
 # currency column all write numbers.
 _PADDED = [f"{index}.20" for index in range(1, 61)]
+# The same sixty values written the way their own canonical spelling
+# writes them. A description built from THIS file licenses one figure
+# after the point and no more, so the padded file above misses the
+# per-cell spelling obligation against it -- which is the shape that
+# still carries a MISSED line now that a file checked against its own
+# description no longer does (plan P4-D4.5).
+_CANONICAL = [f"{index}.2" for index in range(1, 61)]
+
+# The publication floor every description in this file is built at. Four
+# of the sixteen obligation families the corpus must reach exist only
+# where a floor holds something back -- `label.variants`,
+# `label.variants_withheld`, `label.suppressed_level_counts` and the
+# pooled half of `label.levels` -- and at a floor of one nothing is held
+# back at all (contract invariant C5-S13). A floor of one became the
+# default under the owner ruling recorded as plan amendment A-P4-37, so
+# this file states the floor its corpus was written against instead of
+# inheriting one: eleven, the number the "rare enough that the floor
+# names none of them" tables below are counted against.
+_SMALL_CELL_FLOOR = 11
 
 
 @pytest.fixture(autouse=True)
@@ -233,7 +252,9 @@ def _described(
     read = reading.read_table(
         f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC
     )
-    document = profile.build_document(read, taxonomy.Settings(), [])
+    document = profile.build_document(
+        read, taxonomy.Settings(small_cell_floor=_SMALL_CELL_FLOOR), []
+    )
     written = fixtures.write_profile(folder, f"{name}-profile.json", document)
     return contract.load_profile(f"{written}"), table
 
@@ -254,6 +275,9 @@ def _stamps(year: int, sign: str) -> "list[str]":
         f"T0{index % 8}:00:00{sign}0{(index % 3) + 1}:00"
         for index in range(60)
     ]
+
+
+_SENTENCES = fixtures.prose(120)
 
 
 def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
@@ -299,6 +323,29 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
     )
     measured = measured + [
         ("every role, renamed header", validation.measure(roles, f"{renamed}"))
+    ]
+
+    # Free text that REPEATS, against the same column repeating
+    # differently. The every-role table's own free-text column is all
+    # different by design -- other batteries rest on that -- so a file
+    # whose repetition map can MOVE has to be built here, and without
+    # it the free-text repetition family is unreachable and this
+    # battery measures less than it was written for.
+    repeated = [_SENTENCES[index % 40] for index in range(240)]
+    grouped, _table = _described(
+        root / "grouped",
+        "grouped.csv",
+        fixtures.single_column_table("comment", repeated),
+    )
+    regrouped = fixtures.write(
+        root / "grouped",
+        "regrouped.csv",
+        fixtures.single_column_table(
+            "comment", [_SENTENCES[index % 26] for index in range(240)]
+        ),
+    )
+    measured = measured + [
+        ("free text regrouped", validation.measure(grouped, f"{regrouped}"))
     ]
 
     # A description of no rows at all, against a file holding two lines.
@@ -488,13 +535,48 @@ def corpus(tmp_path: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
 def test_the_reviewers_own_table_is_told_why_it_cannot_be_told(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The exact scenario, from the CSV to the page a person reads."""
+    """The exact scenario, from the CSV to the page a person reads.
+
+    THE ROUTE ITSELF IS CLOSED, AND THIS READS THE ROUTE THAT REPLACED
+    IT. Amendment A-P3-46 put two options in front of the owner and said
+    the tree behaves as described until the ruling; plan P4-D4.5 closed
+    it a third way, superseding whichever option the ruling would have
+    taken. The census of fraction widths publishes how many cells wrote
+    each number of figures after the point, so a column of readings
+    written to two places names that width -- and a cell wearing it is
+    then wearing a spelling its own description asked for. Sixty
+    readings checked against their own description HOLD.
+
+    What this test still exists for is the other half of the finding:
+    that a MISSED line on this subcheck says why the file's own text may
+    not be printed beside it. So the description is now built from the
+    CANONICAL file and the PADDED one is checked against it, which is
+    the same per-cell obligation asked of a file whose description did
+    not license its width -- and it is the shape a person actually
+    meets, because it is what checking a twin against a description
+    written from the real table does.
+    """
+    canonical, _written = _described(
+        tmp_path / "canonical",
+        "canonical.csv",
+        fixtures.single_column_table("reading", _CANONICAL),
+    )
     description, table = _described(
         tmp_path / "padded",
         "padded.csv",
         fixtures.single_column_table("reading", _PADDED),
     )
-    outcome = validation.measure(description, f"{table}")
+    own = [
+        check
+        for check in validation.measure(description, f"{table}").checks
+        if check.subcheck == "styles.spelled"
+    ]
+    assert len(own) == 1 and own[0].verdict == validation.HELD, (
+        "a column checked against its OWN description misses the "
+        "per-cell spelling obligation again, so P4-D4.5's census is not "
+        "licensing the width it publishes"
+    )
+    outcome = validation.measure(canonical, f"{table}")
     spelled = [
         check for check in outcome.checks if check.subcheck == "styles.spelled"
     ]
@@ -505,16 +587,15 @@ def test_the_reviewers_own_table_is_told_why_it_cannot_be_told(
     )
     check = spelled[0]
     assert check.verdict == validation.MISSED, (
-        "sixty readings written to two decimal places no longer miss "
-        "`styles.spelled` against their own description -- if that was "
-        "repaired, amendment A-P3-46's owner decision was taken and this "
-        "test should be reading the route that replaced it"
+        "sixty readings carrying a trailing zero no longer miss "
+        "`styles.spelled` against a description that licenses no such "
+        "width, so this test is no longer reading a missed line at all"
     )
     assert not check.achieved, (
         "this subcheck now prints a measured side, which would be a "
         "change to V5.4 and not to this amendment"
     )
-    report = quality.quality_report(description, outcome)
+    report = quality.quality_report(canonical, outcome)
     where = report.find("styles.spelled")
     assert where >= 0
     said = report[where : where + 1400]
@@ -549,13 +630,18 @@ def test_the_summarys_promise_about_a_missed_line_is_true_of_the_page(
     it -- and it is repaired by making the sentence true and by making
     the section carry the other half.
     """
-    description, table = _described(
+    canonical, _written = _described(
+        tmp_path / "canonical",
+        "canonical.csv",
+        fixtures.single_column_table("reading", _CANONICAL),
+    )
+    _description, table = _described(
         tmp_path / "padded",
         "padded.csv",
         fixtures.single_column_table("reading", _PADDED),
     )
-    outcome = validation.measure(description, f"{table}")
-    report = quality.quality_report(description, outcome)
+    outcome = validation.measure(canonical, f"{table}")
+    report = quality.quality_report(canonical, outcome)
     assert "or the reason that may not be printed here" in report, (
         "the verdict section promises a found value under every missed "
         "obligation, and the detail below it prints one only where V5.4 "

@@ -75,6 +75,16 @@ EACH = "[]"
 # format with the table's text for keys turns the suite red until it is
 # named here (`tests/test_p3v9f2_one_key_space.py`).
 TABLE_TEXT_KEY_SPACES = (
+    # IN SORTED ORDER, which is how the producer's own rules answer the
+    # same question -- a test compares the two and the comparison is of
+    # tuples, so the order is part of the answer.
+    #
+    # The first is the label half of a compound column (residual
+    # R-P4-13, landing L8). That half publishes levels exactly as a
+    # label column does, so the table's own spellings appear one step
+    # deeper, and a walk that did not know it would treat a person's
+    # spelling as one of this package's own words.
+    ("columns", EACH, "labels", "levels", EACH, "variants"),
     ("columns", EACH, "levels", EACH, "variants"),
     ("columns", EACH, "missing_by_source"),
 )

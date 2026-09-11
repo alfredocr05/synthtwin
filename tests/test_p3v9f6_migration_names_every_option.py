@@ -15,10 +15,12 @@ THE ONE THAT MATTERS IS `--smallest-group`, AND IT IS MEASURED BELOW,
 not argued. A first run with `--smallest-group 20` over a table holding
 a declared marker in twelve cells publishes nothing about that marker:
 twelve is under the floor the person chose, so the spelling is pooled
-and unnamed. Following the retired advice re-runs at the DEFAULT floor
-of eleven, twelve clears it, and the new description names the marker
-character for character. The old file withheld a word of the person's
-own; the new one publishes it; nothing warned them. The plan called the
+and unnamed. Following the retired advice re-runs at whatever the
+DEFAULT floor is -- eleven when this was written, one since plan
+amendment A-P4-37 -- and twelve clears either of them, so the new
+description names the marker character for character. The old file
+withheld a word of the person's own; the new one publishes it;
+nothing warned them. The plan called the
 result merely "different".
 
 `--identifier` is the same shape and reaches further -- a column named
@@ -87,7 +89,7 @@ import fixtures
 from synthtwin import cli, contract, errors, profile, reading, taxonomy
 
 _FOUND = 4
-_READS = 5
+_READS = 6
 
 # The wording as it shipped, for the red check. It is written out rather
 # than described, because a reinstatement somebody has to reconstruct is
@@ -254,12 +256,8 @@ def test_the_message_says_what_leaving_out_each_option_costs() -> None:
 
 def test_the_message_is_the_contract_clause_word_for_word() -> None:
     """C5-26 fixes this text; the two may not drift apart."""
-    document = (
-        pathlib.Path(__file__).resolve().parents[1]
-        / "docs"
-        / "spec"
-        / "profile-contract-v5.md"
-    ).read_text(encoding="utf-8")
+    # Derived, never named: review item P4-A1-R3-F2.
+    document = fixtures.GOVERNING_CONTRACT.read_text(encoding="utf-8")
     opening = "> This description was written by an older version"
     start = document.index(opening)
     quoted = " ".join(
@@ -268,8 +266,11 @@ def test_the_message_is_the_contract_clause_word_for_word() -> None:
     )
     assert " ".join(quoted.split()) == " ".join(_message().split()), (
         "R11's message and the contract clause that fixes it word for "
-        "word have drifted apart. Contract 5 section 10.2 is the "
-        "governing text; change it by amendment, then change the code."
+        "word have drifted apart. The GOVERNING text is the contract "
+        "whose number the tree stamps; change that clause by "
+        "amendment, then change the code. An older contract keeps its "
+        "own clause as the record of what it asked for, and is not "
+        "edited to carry a later one's."
     )
 
 
@@ -297,6 +298,17 @@ def test_the_loader_really_raises_this_message(
 
 _MARKER = "MARKERWORD"
 _RAISED_FLOOR = 20
+
+# THE FLOOR THE POOLING MEASUREMENTS BELOW ARE MADE AT, GIVEN RATHER
+# THAN INHERITED. Plan amendment A-P4-37 lowered the DEFAULT floor from
+# eleven to one, and at a floor of one nothing is held back at all:
+# every spelling clears it, so no run pools anything. Two of the
+# disclosures below turn on a handful of cells being POOLED in the
+# first run, so both runs of each name this floor -- which is exactly
+# what the message tells the person to do, give the same
+# `--smallest-group` you gave the first time. The floor is then held
+# still and the disclosure measured is the one option left out.
+_STATED_FLOOR = 11
 
 
 def _numbers(count: int) -> "list[str]":
@@ -350,9 +362,11 @@ def test_leaving_out_the_floor_publishes_what_the_first_run_withheld(
     Sixty readings and twelve cells wearing a word of the person's own.
     Described once at `--smallest-group 20`, the word is under the floor
     and the description names it nowhere. Described again with only the
-    two options the retired message listed -- so at the default floor of
-    eleven -- twelve clears it and the description carries the word,
-    character for character.
+    two options the retired message listed -- so at the DEFAULT floor,
+    whatever it is, which is the point: the person who follows that
+    advice gives no floor at all. Twelve cleared the eleven this was
+    written against and clears the one plan amendment A-P4-37 lowered it
+    to, so the description carries the word, character for character.
 
     That is a disclosure and not a difference: the file the person is
     about to hand on now holds a word their first file held back.
@@ -443,10 +457,17 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     """The fourth disclosure, and the floor does not stop this one either.
 
     Sixty readings and five cells holding `-100`, named as "no value".
-    Named, the five are absent; five is below the floor, so no field of
-    the description holds the number. Left out, `-100` is a reading and
-    it is the smallest one, so the description publishes it as the
-    column's minimum -- and a percentile is published whatever its count.
+    Named, the five are absent; five is below the floor the run gives,
+    so no field of the description holds the number. Left out, `-100`
+    is a reading and it is the smallest one, so the description
+    publishes it as the column's minimum -- and a percentile is
+    published whatever its count.
+
+    Both runs give `--smallest-group 11`, because the pooling half of
+    this measurement needs a floor five cells fall under and plan
+    amendment A-P4-37 lowered the default to one. Naming it in both
+    runs is what the message under test asks of the person and leaves
+    `--missing-value` as the only thing that differs between them.
     """
     stand_in = "-100"
     values = _numbers(60) + [stand_in] * 5
@@ -454,7 +475,10 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
         tmp_path,
         "named",
         values,
-        taxonomy.Settings(declared_missing_values=(stand_in,)),
+        taxonomy.Settings(
+            small_cell_floor=_STATED_FLOOR,
+            declared_missing_values=(stand_in,),
+        ),
         [],
     )
     column = named["columns"][0]
@@ -465,7 +489,11 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     )
     assert stand_in not in json.dumps(named)
     forgotten = _described(
-        tmp_path, "forgotten", values, taxonomy.Settings(), []
+        tmp_path,
+        "forgotten",
+        values,
+        taxonomy.Settings(small_cell_floor=_STATED_FLOOR),
+        [],
     )
     forgotten_column = forgotten["columns"][0]
     assert forgotten_column["n_present"] == 65
@@ -480,12 +508,21 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
 
     Sixty readings and twelve cells holding one of synthtwin's own
     thirteen words, named as REAL DATA. Named, twelve of the column's
-    values are not numbers, so the column reads as free text and the
-    description publishes not one value of it -- no smallest, no
-    largest, no percentile, and not the word. Left out, the word is read
-    as "no value", the column reads as numbers, and the description
-    publishes the whole distribution of the sixty readings AND the word
-    itself, character for character.
+    values are not numbers, so the column is not read as numbers at all
+    and the description publishes no reading of it -- no smallest, no
+    largest, no percentile. Left out, the word is read as "no value",
+    the column reads as numbers, and the description publishes the
+    whole distribution of the sixty readings AND the word itself,
+    character for character.
+
+    THE SENTENCE THIS DOCSTRING USED TO CARRY IS STRUCK RATHER THAN
+    EDITED AWAY: "the description publishes not one value of it, the
+    word included". That was true while such a column was free text.
+    Plan P4-D5 gives it the long-tail role instead, because twelve
+    cells share one spelling and that clears the publication floor, so
+    the word is published as a label. The option's larger disclosure --
+    the whole distribution of sixty readings — is what this test holds,
+    and it is untouched.
     """
     word = " N/A "
     readings = _numbers(60)
@@ -494,20 +531,74 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
         tmp_path,
         "kept",
         values,
-        taxonomy.Settings(kept_values=(word,)),
+        taxonomy.Settings(
+            small_cell_floor=_STATED_FLOOR, kept_values=(word,)
+        ),
         [],
     )
     column = kept["columns"][0]
-    assert column["role"] == "free_text"
+    # WHAT THIS COLUMN IS HAS MOVED, AND THE MOVE IS RECORDED HERE
+    # RATHER THAN WORKED AROUND. Until plan P4-D5 the kept column was
+    # free text and published NOT ONE value of itself, the word
+    # included. Twelve cells share that word, which clears the
+    # publication floor of eleven both runs here give, so the column is
+    # now a long tail of labels and the word IS published -- as a label
+    # of the column, with its count.
+    #
+    # That is a real narrowing of what this option buys, and P4-D5
+    # prices it in the open under owner decision 1: columns that today
+    # publish no value will publish their floor-clearing spellings.
+    #
+    # AND LANDING L8 NARROWS IT AGAIN, further than P4-D5 did, which is
+    # recorded here rather than discovered later. The column holds
+    # sixty readings beside a word on twelve rows -- a numeric
+    # population beside a repeated label -- so rule 7b claims it and
+    # its numeric half is DESCRIBED: a mean, a spread and a ladder over
+    # the sixty. Kept, this option used to publish no distribution of
+    # them at all, and that was the larger half of the disclosure this
+    # test was written to hold.
+    #
+    # AND THE READINGS THEMSELVES NOW APPEAR, which is the part this
+    # test was written to hold and which has stopped being true. A
+    # percentile ladder is made of ORDER STATISTICS -- rungs that are
+    # values the column really holds -- so describing the numeric half
+    # puts real readings into the document. That is how every numeric
+    # column in this package has always worked; what changed is that
+    # THIS column is now described as one.
+    #
+    # So naming the word as real data used to publish not one of the
+    # sixty readings, and now publishes several of them as rungs. That
+    # is a disclosure change to a shipped option and it is R-P4-148.
+    assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
+    # THE DECLARATION REACHES THE WRITTEN DESCRIPTION, and this line
+    # measured nothing until 2026-09-09: it serialized the settings and
+    # asserted on neither the string nor anything derived from it, so
+    # the one thing it was here to show -- that the declared word is
+    # carried into the file a person keeps -- was shown by nothing.
     written = json.dumps(kept)
-    assert word not in written
-    assert readings[0] not in written, (
-        "the witness is wrong: a free-text column was supposed to "
-        "publish no value of the table"
+    assert json.dumps(word) in written, written
+    # The COLUMN publishes no distribution of its own; the numeric HALF
+    # does, which is the change.
+    assert "percentiles" not in column
+    assert "percentiles" in column["numbers"]
+    rungs = [
+        value for value in column["numbers"]["percentiles"].values()
+        if isinstance(value, (int, float))
+    ]
+    held = {float(reading) for reading in readings}
+    appearing = [rung for rung in rungs if rung in held]
+    assert appearing, (
+        "the witness is wrong: a percentile ladder is made of order "
+        "statistics, so describing this half must put real readings "
+        "into the document"
     )
     forgotten = _described(
-        tmp_path, "forgotten-keep", values, taxonomy.Settings(), []
+        tmp_path,
+        "forgotten-keep",
+        values,
+        taxonomy.Settings(small_cell_floor=_STATED_FLOOR),
+        [],
     )
     forgotten_column = forgotten["columns"][0]
     assert forgotten_column["role"] == "continuous"

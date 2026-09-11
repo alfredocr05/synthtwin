@@ -203,6 +203,26 @@ LADDER = (
     ("max", 100, 100),
 )
 
+# THE NINETY PERCENTS THE LADDER ABOVE DOES NOT NAME (plan P4-D4.10,
+# the owner's second numeric ask of 2026-08-26: "every p value 1 to
+# 100"). Together with `LADDER` these are the whole hundred and one
+# rungs: nought and a hundred are the two ends, `LADDER` names nine
+# more between them, and this names the rest.
+#
+# THEY ARE ONE FACT AND NOT NINETY. Every rung `percentiles` names is
+# an obligation with its own subcheck, and every executable subcheck
+# owes a registered red case that makes THAT subcheck report missed;
+# the entry table carries ninety-nine such cases for eleven rungs, and
+# a hundred and one rungs would need about nine hundred. So the finer
+# ladder is published under one key, disposed once, and its fidelity
+# comes from the GENERATOR INTERPOLATING IT rather than from checking
+# it rung by rung.
+FINER_LADDER = tuple(
+    (f"p{percent:02d}", percent, 100)
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
 ROLE_EMPTY = "empty"
 ROLE_UNREPRESENTABLE = "numeric_unrepresentable"
 ROLE_CONSTANT = "constant"
@@ -212,7 +232,28 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_CLOCK = "time_of_day"
+ROLE_AFFIXED = "affixed_number"
+ROLE_LONG_TAIL = "long_tail_labels"
+# THE FIFTEENTH ROLE (residual R-P4-13, landing L8): numbers and
+# labels sharing one cell space, each half described in its own
+# terms and every present cell in exactly one of them.
+ROLE_COMPOUND = "numbers_with_labels"
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
+# in one cell, joined by one repeated separator: `120/80`, `12-05-3`.
+# It is reached ONLY where the person names the column, and never from
+# the values -- see `_joined_reading` for the measurement that says why.
+ROLE_JOINED = "joined_numbers"
 ROLE_TEXT = "free_text"
+
+# The lower bound of the long-tail detection line, and the max below is
+# deliberate (plan P4-D5). LOWERING the publication floor must not widen
+# WHICH columns become label-publishing: an all-different or nearly
+# all-different column -- names, addresses, free comments -- has no
+# eleven-row level and stays free text at EVERY floor, so the free-text
+# role stays reachable and its promise stays floor-invariant. Raising
+# the floor raises the line with it.
+LONG_TAIL_LINE = 11
 
 # Every role a column can be given. The order is the order the rules
 # are tested in, with one exception worth naming: `identifier` is not in
@@ -241,6 +282,11 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_CLOCK,
+    ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
+    ROLE_JOINED,
+    ROLE_COMPOUND,
     ROLE_TEXT,
 )
 
@@ -255,8 +301,29 @@ ROLES = (
 # * nothing: no value, no spelling, no fragment of one, anywhere --
 #   not in levels, not in missing_by_source, not in the evidence, not
 #   in a remark, not in a publication note, not in a sentinel verdict.
-ROLES_PUBLISHING_LABELS = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL)
-ROLES_PUBLISHING_RANGES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_DATETIME)
+ROLES_PUBLISHING_LABELS = (
+    ROLE_CONSTANT,
+    ROLE_BINARY,
+    ROLE_CATEGORICAL,
+    ROLE_LONG_TAIL,
+)
+# `affixed_number` is a ranges role with ONE named exception: its two
+# affix keys carry floor-governed shared text off the table's cells, and
+# no other key of any ranges role may ever carry a spelling. The
+# exception is confined to those two keys by the forbidden-key rule, not
+# by this tuple.
+ROLES_PUBLISHING_RANGES = (
+    ROLE_COUNT,
+    ROLE_CONTINUOUS,
+    ROLE_DATETIME,
+    ROLE_CLOCK,
+    ROLE_AFFIXED,
+    # `joined_numbers` is a ranges role with ONE named exception of its
+    # own, the same shape as the affixed role's two: `separator` carries
+    # a character the table's cells wear. No other key of it may carry a
+    # spelling, and the forbidden-key rule is what confines it.
+    ROLE_JOINED,
+)
 ROLES_PUBLISHING_NOTHING = (
     ROLE_UNREPRESENTABLE,
     ROLE_IDENTIFIER,
@@ -302,6 +369,11 @@ STATISTICAL_TYPES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     TYPE_CODE,
+    ROLE_CLOCK,
+    ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
+    ROLE_JOINED,
+    ROLE_COMPOUND,
     TYPE_TEXT,
 )
 QUALITY_STATES = (QUALITY_OK, QUALITY_EMPTY, QUALITY_UNREPRESENTABLE)
@@ -320,7 +392,8 @@ STRUCTURAL_ROLES = (STRUCTURAL_DATA, STRUCTURAL_IDENTIFIER)
 # `free_text` holds text. The other six name their own shape, and are
 # written out one by one rather than derived from the role string,
 # because a mapping a reader can check is worth more than one line of
-# cleverness.
+# cleverness. `affixed_number` names its own shape and joins the ones
+# that do.
 ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_EMPTY: (TYPE_UNKNOWN, QUALITY_EMPTY),
     ROLE_UNREPRESENTABLE: (TYPE_NUMERIC, QUALITY_UNREPRESENTABLE),
@@ -331,6 +404,34 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
     ROLE_CONTINUOUS: (ROLE_CONTINUOUS, QUALITY_OK),
     ROLE_CATEGORICAL: (ROLE_CATEGORICAL, QUALITY_OK),
     ROLE_IDENTIFIER: (TYPE_CODE, QUALITY_OK),
+    ROLE_CLOCK: (ROLE_CLOCK, QUALITY_OK),
+    ROLE_AFFIXED: (ROLE_AFFIXED, QUALITY_OK),
+    # A LONG-TAIL COLUMN NAMES ITS OWN SHAPE (contract 14.1 and C6-19).
+    # It was mapped to `categorical` when the role landed, on the
+    # ground that the two publish the same four keys -- but the axis
+    # table is a BIJECTION, thirteen roles onto thirteen types, and a
+    # role sharing another's type breaks the totality discipline that
+    # is the axes' whole value here. The contract states the cost
+    # plainly: for this role the shape axis buys nothing over the role
+    # name, and it names itself anyway so that every role's type is one
+    # row of one table a reader can check.
+    ROLE_LONG_TAIL: (ROLE_LONG_TAIL, QUALITY_OK),
+    # AND SO DOES A JOINED-NUMBER COLUMN, for the reason stated just
+    # above (plan P4-D21). The table is a bijection, now fourteen roles
+    # onto fourteen types, and this role's shape is not `continuous`
+    # and not `count`: those name ONE number per cell, and a consumer
+    # that read this column as either would take the whole cell for a
+    # value and find `120/80` is not one.
+    ROLE_JOINED: (ROLE_JOINED, QUALITY_OK),
+    # AND SO DOES A COLUMN OF NUMBERS BESIDE LABELS (residual R-P4-13,
+    # landing L8). The table is a bijection, now FIFTEEN roles onto
+    # fifteen types, and this role's shape is neither `continuous` nor
+    # `long_tail_labels` though it holds a population of each: a
+    # consumer routing on the type axis must not be told this column is
+    # a quantity, because a quarter of its cells are not, nor that it
+    # is a set of labels, because most of them are numbers. It names
+    # itself for the same reason the two above do.
+    ROLE_COMPOUND: (ROLE_COMPOUND, QUALITY_OK),
     ROLE_TEXT: (TYPE_TEXT, QUALITY_OK),
 }
 
@@ -414,6 +515,18 @@ KEYS_THAT_CARRY_NO_VALUE = (
     "n_negative",
     "n_occurrences",
     "n_positive",
+    # THE FORM CENSUS IS ADMITTED HERE ON A CHECKED PROPERTY rather
+    # than on a judgement (plan P4-D18). Every other key here carries a
+    # COUNT, which is safe to read at a glance. A form is TEXT, which
+    # is the kind of thing this list exists to keep out -- so it is
+    # admitted only because every figure of a cell is replaced by `%`
+    # and every letter by `@` before the key is built -- two
+    # characters no cell that HAS a form may contain -- and because
+    # `profile._is_shape_form` refuses any key holding anything but
+    # those two and thirteen named marks, whatever built it. What is
+    # published is where the marks fell; what is not is anything that
+    # stood between them.
+    "shape_forms",
     "n_sign_unknown",
     "n_whole",
     "n_whole_unknown",
@@ -452,7 +565,13 @@ SENTINEL_REASONS = (
 RESOLUTION_DATE = "date"
 RESOLUTION_DATETIME = "datetime"
 RESOLUTION_QUARTER = "quarter"
-RESOLUTIONS = (RESOLUTION_DATE, RESOLUTION_DATETIME, RESOLUTION_QUARTER)
+RESOLUTION_MONTH = "month"
+RESOLUTIONS = (
+    RESOLUTION_DATE,
+    RESOLUTION_DATETIME,
+    RESOLUTION_QUARTER,
+    RESOLUTION_MONTH,
+)
 READ_AT_LOCAL = "local"
 READ_AT_UTC = "utc"
 DATETIMES_READ_AT = (READ_AT_LOCAL, READ_AT_UTC)
@@ -462,6 +581,7 @@ DATETIMES_READ_AT = (READ_AT_LOCAL, READ_AT_UTC)
 # (its length and its word count). Every key of a published summary of
 # that shape is one of these words.
 LADDER_NAMES = tuple([name for name, _num, _den in LADDER])
+FINER_LADDER_NAMES = tuple([name for name, _num, _den in FINER_LADDER])
 LENGTH_KEYS = ("min", "max", "mean", "p50")
 WORD_KEYS = ("min", "max", "mean")
 
@@ -474,6 +594,21 @@ DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 # the person typed.
 CONTRADICTORY_DECLARATION = (
     "the same value cannot be both kept as data and read as 'no value'"
+)
+
+# What the PRODUCER says when a declared value's number depends on
+# which grammar reads it, beside a `--decimal-comma` column. The
+# command says it in its own words, because it can name the option the
+# person typed; this is what any other caller of `build_document` gets.
+#
+# IT IS REFUSED AT THE PRODUCER AND NOT ONLY AT THE COMMAND LINE
+# (review item P4-G3-R8-F2). `build_document` is a public entry point
+# and accepted the pair, so the same wrong presence, role and numeric
+# verdicts were one call away for anybody not going through the CLI.
+AMBIGUOUS_DECLARED_VALUE = (
+    "a declared value whose number depends on whether a column's "
+    "numbers are written with a comma cannot be used together with a "
+    "decimal-comma column"
 )
 
 
@@ -515,6 +650,7 @@ NOTE_ONE_OF_TWO_BELOW_FLOOR = "one_of_two_labels_below_the_floor"
 NOTE_LABELS_POOLED = "labels_pooled_below_the_floor"
 NOTE_FREE_TEXT_WITHHELD = "free_text_publishes_no_values"
 NOTE_IDENTIFIER_WITHHELD = "identifier_publishes_no_values"
+NOTE_HISTOGRAM_WITHHELD = "histogram_publishes_no_shape"
 
 # The detection evidence: why the column was given the role it has.
 EVIDENCE_EMPTY = "evidence_every_value_absent"
@@ -525,6 +661,18 @@ EVIDENCE_DATES = "evidence_dates"
 EVIDENCE_COUNTS = "evidence_counts_things"
 EVIDENCE_NUMBERS = "evidence_written_as_numbers"
 EVIDENCE_CATEGORIES = "evidence_set_of_categories"
+EVIDENCE_LONG_TAIL = "evidence_long_tail_of_labels"
+EVIDENCE_COMPOUND = "evidence_numbers_with_labels"
+# THE OTHER BRANCH OF THE SAME RULE, and it needs its own sentence
+# because the one above states a fact that is not true of it (review
+# round 1 of landing L8, item 5). Rule 7b admits a label half two ways:
+# a value shared by the detection line's rows or more, OR a SMALL SET
+# of different values however few rows each covers. A column of 295
+# readings beside five `NOT DETECTED` is admitted by the second, and
+# the first sentence told its reader that some value is shared by
+# eleven rows or more. No value is. One rule, two grounds, two
+# sentences.
+EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
@@ -537,6 +685,15 @@ SAID_READ_AS_DATES = "said_read_as_dates"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
+# The affixed-number role's two sentences. The evidence says how the
+# column was read; the remark is carried by EVERY column of the role,
+# without condition, because no test of the values separates an opaque
+# token family from a measurement -- so the choice is between telling
+# every such column's owner and telling none.
+EVIDENCE_CLOCK = "evidence_clock_times"
+EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
+EVIDENCE_JOINED = "evidence_numbers_joined_in_one_cell"
+REMARK_AFFIXED = "remark_affixed_numbers_may_be_codes"
 REMARK_CONTRADICTORY = "remark_values_contradictory"
 REMARK_RARE_SENTINELS = "remark_rare_sentinels_unnamed"
 REMARK_UNREPRESENTABLE = "remark_too_few_holdable_numbers"
@@ -544,14 +701,103 @@ REMARK_CASE_ONLY_TWO = "remark_two_values_differ_in_case"
 REMARK_TWO_ALSO_NUMBERS = "remark_two_values_also_read_otherwise"
 REMARK_DATES_ALSO_NUMBERS = "remark_dates_also_read_as_numbers"
 REMARK_MONTH_FIRST = "remark_slashed_dates_are_month_first"
+REMARK_SLASHED_EVIDENCE = "remark_slashed_dates_read_against_your_declaration"
+# The century a two-figure year is read into is a GUESS, and this is
+# where the column says so (plan P4-D15, contract NF42).
+REMARK_TWO_DIGIT_YEAR = "remark_two_figure_years_are_read_at_a_pivot"
+
+# The two reading names the slashed remark's fifth argument takes. They
+# are package words rather than format members on purpose (contract
+# NF36): the remark speaks about a READING -- a way round to read a
+# slashed date -- and one reading covers two format members, so naming
+# the member would make the sentence say something narrower than it
+# means and would render differently for a date column and a stamp
+# column that were decided identically.
+READING_DAY_FIRST = "day-first"
+READING_MONTH_FIRST = "month-first"
+NOTE_READING_WORDS = (READING_DAY_FIRST, READING_MONTH_FIRST)
 REMARK_CASE_ONLY_MANY = "remark_values_differ_in_case"
 REMARK_NEAR_CATEGORY_LINE = "remark_close_to_the_category_line"
+# THE COLUMN TWO RULES BOTH READ, and the question the tool puts to the
+# person rather than guessing (amendment A-P4-58, owner ruling
+# 2026-09-09; residual R-P4-157). It carries the count of cells whose
+# spelling wears the shared text, so a reader can see how much of their
+# column the answer decides.
+REMARK_TWO_READINGS_FIT = "remark_two_readings_both_fit"
+# THE SAME QUESTION, ON THE COLUMN NO RULE CLAIMED AT ALL (amendment
+# A-P4-58; residual R-P4-157, landing L16). Where a letter is written
+# FLUSH against the digits -- `13.5H` beside `1234F` -- the affix rule
+# refuses the column undeclared, on purpose, because a rear letter is
+# an abnormal flag on one table and a category of procedure code on
+# the next. That refusal was SILENT: the column fell to free text and
+# the competing-readings remark told the person to rewrite their data,
+# naming neither declaration that already reads it. A chance of a
+# wrong guess is the trigger, so the column is asked about rather than
+# left in silence. It routes nothing.
+REMARK_A_LETTER_NEEDS_A_DECLARATION = "remark_a_letter_against_the_digits"
 REMARK_NO_READING_FITS = "remark_no_reading_fits"
 REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
 REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
 REMARK_ALL_DIFFERENT_NUMBERS = "remark_every_number_is_different"
+# A number written with a leading zero is usually a code, and a column
+# of them is described as quantities unless a person says otherwise
+# (plan P4-D16, contract NF43).
+REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
+# A comma inside a number is read as a thousands separator, which is a
+# CHOICE this package makes and cannot check (plan P4-D17, contract
+# NF44).
+REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
+# THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D30, residual
+# R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
+# `user12345@example.org` as a number wearing affixes, and the refusal
+# was SILENT: a column that had been publishing a mean, a spread and a
+# ladder stopped doing so and no sentence anywhere said why or what the
+# owner could do about it. Principle 5 says a column is either handled
+# or declined with a plain-language explanation, and this decline had
+# none.
+REMARK_ADDRESS_NOT_A_QUANTITY = "remark_an_address_is_not_a_quantity"
+# A LABEL COLUMN PUBLISHING ONE OF THIS PACKAGE'S OWN STAND-IN NUMBERS
+# AS A LEVEL (plan P4-D4.7, amendment A-P4-30 item 1, contract NF37).
+# The stand-in judgement runs only above the numeric parse line, so a
+# column of labels publishes `-999` as an ordinary level with an
+# ordinary count and nothing anywhere said that the same number on a
+# numeric column would have been read as a gap. Advisory: it routes
+# nothing, and `--missing-value` is the person's own to make.
+REMARK_LABEL_IS_A_STAND_IN = "remark_a_label_is_a_built_in_stand_in"
+# A COLUMN OF WHOLE NUMBERS WHOSE EVERY VALUE LIES IN THE BAND A
+# MOMENT IN TIME IS COUNTED INTO (residual R-P4-9, contract NF51).
+# Such a column is read as a count and stays one -- no rule of this
+# package reads a number as a time and no declaration makes one -- so
+# the remark exists for the one thing that WAS missing: being told.
+REMARK_EPOCH_BAND = "remark_whole_numbers_could_be_times"
+
+# THE TWO BANDS, and there is no third. A moment in time is counted
+# into a whole number in one of two units a person meets: seconds from
+# the 1st of January 1970, or milliseconds from the same instant. The
+# argument NAMES the band by its place in that pair, so the remark's
+# rendering is a lookup rather than a spelling.
+EPOCH_BAND_SECONDS = 1
+EPOCH_BAND_MILLISECONDS = 2
+
+# HOW WIDE EACH BAND IS, STATED AS TWO CALENDAR YEARS AND NOT AS TWO
+# LARGE NUMBERS. The band runs from the first day of `EPOCH_BAND_FROM`
+# up to, and not including, the first day of `EPOCH_BAND_UNTIL`; the
+# whole numbers themselves are worked out from those days by
+# `parsing.days_from_civil`, so nothing here is a constant somebody
+# would have to check against a calendar.
+#
+# WHY THE BAND HAS A LOWER END AT ALL, and why it is this one. Zero is
+# the 1st of January 1970, so a band that started there would cover
+# every ordinary count a table holds -- ages, tallies, row counts -- and
+# the remark would fire on almost every column of whole numbers, which
+# is the noise a routing-nothing sentence can least afford. Starting
+# at the year 2000 puts the band's floor at 946,684,800 in seconds:
+# a count column reaching that is already unusual, and one whose
+# EVERY value does is the shape this remark exists for.
+EPOCH_BAND_FROM = 2000
+EPOCH_BAND_UNTIL = 2051
 
 # The header verdict, which the reader settles and the profile
 # publishes. The sentences live in this table with every other
@@ -576,6 +822,7 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_LABELS_POOLED: 3,
     NOTE_FREE_TEXT_WITHHELD: 0,
     NOTE_IDENTIFIER_WITHHELD: 0,
+    NOTE_HISTOGRAM_WITHHELD: 0,
     EVIDENCE_EMPTY: 0,
     EVIDENCE_UNREPRESENTABLE: 3,
     EVIDENCE_ONE_VALUE: 1,
@@ -584,26 +831,82 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_COUNTS: 1,
     EVIDENCE_NUMBERS: 2,
     EVIDENCE_CATEGORIES: 3,
+    # The different values, the ceiling it passed, the rows, the line a
+    # level had to cover, and how many levels covered it.
+    EVIDENCE_LONG_TAIL: 5,
+    EVIDENCE_COMPOUND: 4,
+    EVIDENCE_COMPOUND_SMALL_SET: 4,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     REMARK_OUT_OF_RANGE: 1,
+    # How many cells wore the pair, and the pair itself.
+    EVIDENCE_CLOCK: 3,
+    EVIDENCE_AFFIXED: 3,
+    EVIDENCE_JOINED: 3,
+    REMARK_AFFIXED: 3,
     REMARK_CONTRADICTORY: 1,
     REMARK_RARE_SENTINELS: 1,
     REMARK_UNREPRESENTABLE: 2,
     REMARK_CASE_ONLY_TWO: 0,
     REMARK_TWO_ALSO_NUMBERS: 0,
-    REMARK_DATES_ALSO_NUMBERS: 0,
+    # BOTH COUNTS, BECAUSE THE READING WAS A CHOICE (contract NF25,
+    # plan P4-D4.7, amendment A-P4-30 item 1). Argument 1 is what the
+    # chosen date format parsed and argument 2 is the numeric-looking
+    # count; the compact family is where the two readings compete most
+    # often, and a sentence saying only which one won leaves its
+    # reader no way to see how close the other came.
+    REMARK_DATES_ALSO_NUMBERS: 2,
     REMARK_MONTH_FIRST: 0,
+    REMARK_TWO_DIGIT_YEAR: 0,
+    # Contract NF36 fixes the order: D, M, X, Y, then the reading used.
+    REMARK_SLASHED_EVIDENCE: 5,
     REMARK_CASE_ONLY_MANY: 0,
     REMARK_NEAR_CATEGORY_LINE: 2,
-    REMARK_NO_READING_FITS: 5,
+    REMARK_TWO_READINGS_FIT: 1,
+    # The count of cells wearing a wrapper that holds a letter, on a
+    # column the affix rule refused undeclared. It is the same argument
+    # NF54 carries and is counted the same way, so the two sentences a
+    # person may meet about one hazard state one number.
+    REMARK_A_LETTER_NEEDS_A_DECLARATION: 1,
+    # NINE SINCE THE ADVISORY REMARKS LANDED (contract NF29). Seven
+    # shipped: the two readings, the parse line, the different values,
+    # the ceiling, the affix reading's reach and what stand-in judging
+    # removed. Argument 8 is how far a CLOCK reading got -- the one
+    # reading a declined column stayed silent about -- and argument 9
+    # is the recoverable-distribution advice of amendment A-P4-1 item
+    # 4. Each is 0 where its clause is not written.
+    REMARK_NO_READING_FITS: 9,
     REMARK_SOME_NOT_NUMBERS: 1,
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
+    REMARK_PADDED_NUMBERS: 1,
+    REMARK_GROUP_COMMAS: 2,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
+    # IT CARRIES NO ARGUMENT ON PURPOSE. A count of the cells that wore
+    # the address would be a count of a reading this column does NOT
+    # publish -- the block that would have held `n_affixed` is the one
+    # the decline refused to write -- and the affix pair itself is the
+    # fourth argument class, admitted only where the same block
+    # publishes the spelling. Neither is available here, so the
+    # sentence says the shape in its own fixed words and names no
+    # number of this column at all.
+    REMARK_ADDRESS_NOT_A_QUANTITY: 0,
+    # WHICH stand-in number, as its one-based place in this package's
+    # own three-member list -- so 1, 2 or 3 and nothing else (contract
+    # NF37). The NUMBER is written from that place through a fixed
+    # table, so no spelling of the column reaches the sentence: the
+    # level itself is published in the block beside the remark and the
+    # reader finds it there.
+    REMARK_LABEL_IS_A_STAND_IN: 1,
+    # WHICH BAND, then the two ends read as calendar dates: the year,
+    # the month and the day of the smallest value, then of the largest
+    # (contract NF51). Seven whole numbers and no spelling of any kind
+    # -- the two ends are the `min` and `max` this block already
+    # publishes, said a second way.
+    REMARK_EPOCH_BAND: 7,
     HEADER_NAMES_BY_OPTION: 0,
     HEADER_DATA_BY_OPTION: 0,
     HEADER_NAMES_BY_CONVENTION: 0,
@@ -622,7 +925,20 @@ NOTE_FORMS = tuple(sorted(NOTE_ARITY))
 # A value of the real table is not here and cannot be added by any
 # route, because this tuple is written out rather than gathered: that
 # is what stops a spelling from becoming an argument.
-NOTE_ARGUMENT_WORDS = parsing.DATE_FORMATS
+# ...and the two words a clock sentence names its form by. They are
+# this package's own, chosen from a closed pair, so a sentence carrying
+# one says which SHAPE the column's cells had and nothing about what
+# any cell said.
+NOTE_CLOCK_HOURS_MINUTES = "hours_and_minutes"
+NOTE_CLOCK_HOURS_MINUTES_SECONDS = "hours_minutes_and_seconds"
+NOTE_CLOCK_WORDS = (
+    NOTE_CLOCK_HOURS_MINUTES,
+    NOTE_CLOCK_HOURS_MINUTES_SECONDS,
+)
+
+NOTE_ARGUMENT_WORDS = (
+    parsing.DATE_FORMATS + NOTE_CLOCK_WORDS + NOTE_READING_WORDS
+)
 
 # What `note` and `rendered` say when they are handed something the
 # grammar does not have. Both are internal invariants -- no input a
@@ -724,6 +1040,57 @@ def _whole(arguments: "tuple[object, ...]", place: int) -> int:
     return argument
 
 
+def _stand_in_spelling(place_in_list: int) -> str:
+    """One built-in stand-in number, from its one-based place.
+
+    Contract NF37's fixed table, DERIVED rather than typed: the list a
+    cell is judged against is `parsing.NUMERIC_SENTINELS`, and a table
+    written out beside it would be the same fact in two places -- the
+    shape this project keeps finding drifted apart. Every member is a
+    whole number, so the spelling is the number without a fraction.
+
+    Guarantees: accepts 1, 2 or 3; returns this package's own spelling
+    of that member. Raises ValueError for any other position, which is
+    an internal check -- `note` refuses an argument no producer built.
+    No value of any table can reach it. No I/O of any kind.
+    """
+    if place_in_list < 1 or place_in_list > len(parsing.NUMERIC_SENTINELS):
+        raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return f"{int(parsing.NUMERIC_SENTINELS[place_in_list - 1])}"
+
+
+def _epoch_band_word(band: int) -> str:
+    """The unit one of the two time bands counts in.
+
+    Contract NF51's fixed table: 1 is seconds and 2 is milliseconds.
+    Two bands and no third, so the word is a lookup and never a
+    spelling of anybody's column.
+
+    Guarantees: accepts 1 or 2; returns the word. Raises ValueError
+    otherwise, which is an internal check. No I/O of any kind.
+    """
+    if band == EPOCH_BAND_SECONDS:
+        return "seconds"
+    if band == EPOCH_BAND_MILLISECONDS:
+        return "milliseconds"
+    raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+
+
+def _written_day(arguments: "tuple[object, ...]", place: int) -> str:
+    """Three whole numbers as one calendar day, `YYYY-MM-DD`.
+
+    The year is written in four figures and the month and day in two,
+    each padded with zeros on the left, which is the one spelling this
+    package writes a day in anywhere. The three numbers are arguments
+    of the form, so nothing is read from a column here.
+    """
+    return (
+        f"{_whole(arguments, place):04d}-"
+        f"{_whole(arguments, place + 1):02d}-"
+        f"{_whole(arguments, place + 2):02d}"
+    )
+
+
 def _word(arguments: "tuple[object, ...]", place: int) -> str:
     """One argument as the vocabulary word the form says it is."""
     argument = arguments[place]
@@ -732,6 +1099,76 @@ def _word(arguments: "tuple[object, ...]", place: int) -> str:
     if argument not in NOTE_ARGUMENT_WORDS:
         raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
     return argument
+
+
+def _affix(arguments: "tuple[object, ...]", place: int) -> str:
+    """One argument as an affix spelling, the fourth argument class.
+
+    The first three classes -- a whole number, one of this package's own
+    words, a nested form -- carry nothing off anybody's table. This one
+    does, and it is admitted under plan amendment A-P4-7 because the
+    remark's whole purpose is to let somebody holding a column of codes
+    recognize THEIR column, which a sentence that could not name the
+    pair would never do.
+
+    What keeps it narrow is a binding rather than a type: the argument
+    conforms only when it is character-for-character the `affix_prefix`
+    or `affix_suffix` of the block the note names, POSITIONALLY --
+    argument 1 is the prefix and argument 2 the suffix, never either.
+    The pair is already published in that block, so the sentence
+    discloses no spelling the document does not already hold, and a
+    reader who may not see the pair may not see the remark either:
+    one publication class governs both.
+
+    This accessor checks the type and renders the value. The identity
+    check is the publication guard's, because only the guard holds the
+    block the note names; residual R-P4-15 records that the binding is
+    written per form by hand rather than derived.
+    """
+    argument = arguments[place]
+    if not isinstance(argument, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return f"'{argument}'" if argument else ""
+
+
+def _clock_shape(arguments: "tuple[object, ...]", place: int) -> str:
+    """The clause naming which clock form a column's cells wore."""
+    word = _word(arguments, place)
+    if word == NOTE_CLOCK_HOURS_MINUTES:
+        return "hours and minutes, `09:30`"
+    return "hours, minutes and seconds, `09:30:00`"
+
+
+def _affix_shape(
+    arguments: "tuple[object, ...]", prefix_place: int, suffix_place: int
+) -> str:
+    """The clause describing how a cell of an affixed column is written.
+
+    Four shapes, because one of the two sides is usually empty and a
+    sentence that said "written as nothing, a number, then 'mg'" would
+    be describing a shape no cell has.
+
+    AND THE FOURTH IS THE BARE WRAPPER, WHICH MAY BE THE COMMONEST ONE
+    (plan P4-D36). It was three shapes until this landing, when the
+    wrapper worn by no text at all became a member of the vocabulary --
+    and on the shape this role was widened FOR it is usually the
+    commonest, because most laboratory results carry no abnormal flag.
+    A column of two hundred readings, a hundred of them bare, fifty
+    ` H` and fifty ` L`, then rendered `written as a number followed by
+    ''`, and the loader -- which holds the same shapes and cannot
+    import this module -- refused its own producer's document. A
+    documented command wrote a file the next command would not take,
+    which is the defect amendment A-P3-11 exists to keep closed.
+    """
+    prefix = _affix(arguments, prefix_place)
+    suffix = _affix(arguments, suffix_place)
+    if prefix and suffix:
+        return f"written as {prefix}, a number, then {suffix}"
+    if prefix:
+        return f"written as {prefix} followed by a number"
+    if suffix:
+        return f"written as a number followed by {suffix}"
+    return "written as a number, with others wearing text beside it"
 
 
 def _said(arguments: "tuple[object, ...]", place: int) -> str:
@@ -807,7 +1244,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "this column is described as free text, so none of its values "
             "are published: only how long they are, how many words they "
-            "hold, and how often they repeat"
+            "hold, how often they repeat, and -- where enough of them "
+            "were written the same way -- the shape of that writing, "
+            "which carries no letter and no figure of any value"
+        )
+    if form == NOTE_HISTOGRAM_WITHHELD:
+        return (
+            "the shape of this column's numbers is not published: the "
+            "values spread out far enough that at least one stretch "
+            "between two edges holds fewer rows than your smallest "
+            "group size, and a shape published in part would say less "
+            "than nothing -- it names some stretches and leaves the "
+            "reader to guess where the rest of the values sit"
         )
     if form == NOTE_IDENTIFIER_WITHHELD:
         return (
@@ -866,6 +1314,38 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"have in a table of {_whole(arguments, 2)} rows, so this "
             f"column is a set of categories"
         )
+    if form == EVIDENCE_LONG_TAIL:
+        return (
+            f"there are {_whole(arguments, 0)} different values, more "
+            f"than the {_whole(arguments, 1)} a set of categories may "
+            f"have in a table of {_whole(arguments, 2)} rows -- but "
+            f"{_whole(arguments, 4)} level(s) of it are shared by at "
+            f"least {_whole(arguments, 3)} rows each, so this column is "
+            f"a long tail of labels rather than free text"
+        )
+    if form == EVIDENCE_COMPOUND:
+        return (
+            f"{_whole(arguments, 0)} of this column's cells are ordinary "
+            f"numbers and {_whole(arguments, 1)} are not, out of "
+            f"{_whole(arguments, 3)} rows; the numbers are too few a "
+            f"share to read the whole column as a quantity, and the "
+            f"cells that are not numbers hold at least one value shared "
+            f"by {_whole(arguments, 2)} rows or more -- so this column "
+            f"is numbers and labels sharing one cell space, and each "
+            f"half is described in its own terms"
+        )
+    if form == EVIDENCE_COMPOUND_SMALL_SET:
+        return (
+            f"{_whole(arguments, 0)} of this column's cells are ordinary "
+            f"numbers and {_whole(arguments, 1)} are not, out of "
+            f"{_whole(arguments, 3)} rows; the numbers are too few a "
+            f"share to read the whole column as a quantity, and the "
+            f"cells that are not numbers hold {_whole(arguments, 2)} "
+            f"different value(s) between them, which is a set of "
+            f"markers rather than free writing -- so this column is "
+            f"numbers and labels sharing one cell space, and each half "
+            f"is described in its own terms"
+        )
     if form == EVIDENCE_NO_READING_FITS:
         return (
             f"{_said(arguments, 0)}, {_said(arguments, 1)}, and there are "
@@ -896,6 +1376,59 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"{read} read as dates written as "
             f"{parsing.format_example(_word(arguments, 1))}"
+        )
+    if form == EVIDENCE_CLOCK:
+        return (
+            f"{_whole(arguments, 0)} value(s) are clock times written "
+            f"as {_clock_shape(arguments, 1)}, and "
+            f"{_whole(arguments, 2)} value(s) are not"
+        )
+    if form == EVIDENCE_JOINED:
+        # NUMBERS, NOT *WHOLE* NUMBERS, and the word was wrong on the
+        # page a person reads until 2026-08-26. `splits_into_numbers`
+        # admits a decimal part -- that is what lets an I:E ratio be
+        # read at all, and the changelog offers `1:1.5` as a feature --
+        # so a column of `1:2.0` and `1:2.5` published "2 whole numbers"
+        # of cells whose second number is not whole. Measured on 400
+        # such rows before the repair. Contract NF47 carries the same
+        # correction.
+        return (
+            f"{_whole(arguments, 0)} value(s) are "
+            f"{_whole(arguments, 1)} numbers written in one cell "
+            f"and joined by {parsing.format_example(_affix(arguments, 2))}"
+        )
+    if form == EVIDENCE_AFFIXED:
+        return (
+            f"{_whole(arguments, 2)} value(s) are "
+            f"{_affix_shape(arguments, 0, 1)}"
+        )
+    if form == REMARK_AFFIXED:
+        # It names the COUNTED cells, never "every value": the role
+        # tolerates stragglers up to the parse line, so a sentence
+        # about every value would be false of them.
+        # AND IT NAMES `--code` FIRST (residual R-P4-72, landing L19).
+        # It named `--identifier` alone, which is the OPPOSITE
+        # declaration: a person told "if these are codes, run with
+        # --identifier" and doing as they were told published no value
+        # of the column at all -- throwing away the distribution of
+        # codes that is the whole reason the column was declared. NF43
+        # shed this flaw at landing L16 and this sentence kept it,
+        # because it is quoted inside a frozen reference vector and
+        # moving it moves committed bytes. One answer per page now, and
+        # each route says what it does.
+        return (
+            f"{_whole(arguments, 2)} of this column's values are "
+            f"{_affix_shape(arguments, 0, 1)}, and synthtwin described "
+            f"those numbers as quantities: their average, their spread "
+            f"and their ends are in this profile. If these are codes "
+            f"rather than measurements, run the command again with "
+            f"--code NAME, where NAME is this column's name, and no "
+            f"average will be published over them; each code a "
+            f"smallest-group's worth of rows share is kept exactly as "
+            f"written, with the number of rows that carried it. If "
+            f"instead they are record numbers nothing should publish, "
+            f"--identifier NAME leaves them out of the profile "
+            f"altogether"
         )
     if form == REMARK_OUT_OF_RANGE:
         return (
@@ -946,21 +1479,140 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "which describes the column exactly"
         )
     if form == REMARK_DATES_ALSO_NUMBERS:
+        # BOTH COUNTS ARE IN THE SENTENCE BECAUSE THE READING WAS A
+        # CHOICE (contract NF25). Eight digits are a date and a number
+        # at once, so the compact family is where the two readings
+        # compete most often -- and a remark that says only which
+        # reading won leaves its reader no way to see how close the
+        # other one came. Stating both counts is what lets somebody
+        # recognize a column that should have been read the other way.
         return (
-            "the values in this column read both as dates and as "
-            "plain numbers; they were read as dates"
+            f"the values in this column read both as dates and as "
+            f"plain numbers: {_whole(arguments, 0)} of them read as "
+            f"dates and {_whole(arguments, 1)} of them are written as "
+            f"numbers. They were read as dates"
         )
     if form == REMARK_MONTH_FIRST:
+        # THE SENTENCE NAMES NO PUNCTUATION, and that is the change
+        # P4-D15 made to it. The same ambiguity is carried by slashes,
+        # by dots and by a two-figure year, and a sentence that said
+        # "written with slashes" was read by a person holding a dotted
+        # column as a statement about some other column.
         return (
-            "dates written with slashes are read month first "
-            "(03/04/2024 is the 4th of March); if this table writes "
-            "the day first, the profile has the month and day the "
-            "wrong way round"
+            "where the day and the month are both written as numbers, "
+            "they are read month first (03/04/2024 is the 4th of "
+            "March); if this table writes the day first, the profile "
+            "has the month and day the wrong way round"
+        )
+    if form == REMARK_TWO_DIGIT_YEAR:
+        # THE CONSEQUENCE IS STATED AS A RANGE AND NOT AS A DISTANCE.
+        # An earlier wording said such a table is read forward "by a
+        # hundred years", which is true only for the century either
+        # side of the pivot: `68` meaning 1868 is read as 2068 and is
+        # two hundred years out, and `75` meaning 2075 is read as 1975
+        # and is out in the other direction, which that wording did not
+        # warn about at all.
+        return (
+            "this column writes its years with two figures, which do "
+            "not say which century they are in; 00 to 68 are read as "
+            "2000 to 2068 and 69 to 99 as 1969 to 1999, so any year "
+            "this table means outside 1969 to 2068 is read as the "
+            "wrong one"
         )
     if form == REMARK_CASE_ONLY_MANY:
         return (
             "some values in this column differ only in upper and "
             "lower case; they are counted, and published, as one"
+        )
+    if form == REMARK_SLASHED_EVIDENCE:
+        # CONTRACT NF36, WHICH FIXES EVERY PART OF THIS SENTENCE. Two
+        # clauses, the first always and the second on its own trigger;
+        # the first has three renderings and exactly one applies,
+        # selected by the arguments alone. The tie has a rendering of
+        # its own because the tie is the case the declaration decides:
+        # with only the other two, a producer on a tie must invent a
+        # sentence or write a false one, since each of those claims one
+        # reading parsed more than the other.
+        day = _whole(arguments, 0)
+        month = _whole(arguments, 1)
+        day_only = _whole(arguments, 2)
+        month_only = _whole(arguments, 3)
+        used = _word(arguments, 4)
+        if day > month:
+            first = (
+                f"read day first, which parses {day} of these values "
+                f"against the month-first reading's {month}."
+            )
+        elif month > day:
+            first = (
+                f"read month first, though you asked for day first, "
+                f"because it parses {month} against {day}."
+            )
+        else:
+            first = (
+                f"read day first because you asked for it: both "
+                f"readings parse {day} of these values and the values "
+                f"themselves do not settle which is right."
+            )
+        if used != READING_DAY_FIRST and used != READING_MONTH_FIRST:
+            raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+        if day_only > 0 and month_only > 0:
+            # THE COMPOSITION IS EXACT: one space after the first
+            # clause's closing stop, and no conjunction or joining word.
+            return (
+                f"{first} This column contradicts itself: {day_only} "
+                f"values only a day-first reading accepts, and "
+                f"{month_only} only a month-first one."
+            )
+        return first
+    if form == REMARK_TWO_READINGS_FIT:
+        # THREE READINGS, NOT TWO, AND BOTH DECLARATIONS (landing L16).
+        # The sentence named a measurement and a label set and stopped
+        # there, which left out the reading that costs a person most: a
+        # CODING SYSTEM some of whose codes end in a letter. Measured on
+        # a register of 280 five-digit codes beside fifteen `3074F` and
+        # five `3075F`, the cautious reading publishes an average of
+        # 54,239 over the bare codes -- true of nothing -- and the
+        # sentence that reached the person offered only the declaration
+        # that would publish MORE of them.
+        return (
+            f"{_whole(arguments, 0)} of this column's values are a "
+            f"number with a short word or letter beside it, and "
+            f"synthtwin cannot tell from the values alone which of "
+            f"three things that means. It may be a MEASUREMENT that "
+            f"some cells carry a marker beside -- a laboratory result "
+            f"flagged high or low; it may be numbers beside a small set "
+            f"of LABELS whose spellings hold a figure, such as a stage; "
+            f"or the whole column may be a CODING SYSTEM, some of whose "
+            f"codes end in a letter. The three are described very "
+            f"differently: as measurements, every one of these numbers "
+            f"joins this column's average, spread and ends; as labels, "
+            f"only the values wearing no marker are described that way; "
+            f"as codes, no average is published at all, and the codes "
+            f"themselves are published under the smallest-group size in "
+            f"force -- at the default of one, every one of them, with "
+            f"the rows that carried it. synthtwin has described the "
+            f"unmarked values as numbers and the marked ones as labels, "
+            f"and has not guessed further. If they are measurements, "
+            f"run the command again with --measurement and this "
+            f"column's name, and every one of its numbers will be "
+            f"described; if they are codes, run it again with --code "
+            f"and this column's name, and no average, smallest or "
+            f"largest will be published over them"
+        )
+    if form == REMARK_A_LETTER_NEEDS_A_DECLARATION:
+        return (
+            f"{_whole(arguments, 0)} of this column's values are a "
+            f"number with a letter written against it, and synthtwin "
+            f"does not read such a column as a quantity unless it is "
+            f"told to: `13.5H` is a flagged laboratory result and "
+            f"`1234F` is a category of procedure code, and the values "
+            f"cannot say which. Nothing was assumed, so this column is "
+            f"described without a distribution. If these are "
+            f"measurements, run the command again with --measurement "
+            f"and this column's name; if they are codes, run it again "
+            f"with --code and this column's name, and no average, "
+            f"smallest or largest will be published over them"
         )
     if form == REMARK_NEAR_CATEGORY_LINE:
         return (
@@ -992,7 +1644,11 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"as "
             f"plain numbers -- one column for the number, and the unit in "
             f"the "
-            f"column name -- and run the command again"
+            f"column name -- and run the command again. "
+            f"{_whole(arguments, 5)} of its values are numbers wearing "
+            f"one shared piece of text, which is the reading that came "
+            f"closest{_removed_said(arguments, 6)}"
+            f"{_later_clauses(arguments, 7, 8)}"
         )
     if form == REMARK_SOME_NOT_NUMBERS:
         return (
@@ -1006,6 +1662,103 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"and text: {_whole(arguments, 0)} of its "
             f"{_whole(arguments, 1)} values are "
             f"written as numbers, and the line is at {_whole(arguments, 2)}"
+        )
+    if form == REMARK_GROUP_COMMAS:
+        # TWO SENTENCES, BECAUSE THERE ARE TWO SITUATIONS AND THEY ARE
+        # not the same news. Argument 1 counts the cells that settled
+        # NOTHING -- a comma with three figures after it and no point,
+        # which reads either way. Argument 2 counts the cells that
+        # settle it as a DECIMAL comma: a group that is not three
+        # figures, a first group longer than three, or a point before
+        # the comma. Where the second is not zero the column has
+        # answered the question itself, and the sentence stops saying
+        # "synthtwin cannot tell" and starts saying "your file has told
+        # it, and the reading is wrong".
+        #
+        # It counts CELLS and speaks of them, never of "every value":
+        # a column of fifty comma-bearing cells beside fifty plain ones
+        # is not uniformly a thousand times out, and its average is not
+        # out by that factor either.
+        # NEITHER SENTENCE CLAIMS A STATISTIC THIS COLUMN MAY NOT
+        # HAVE. An earlier wording said "this column's average, its
+        # spread and its ends are wrong with them" -- which is false of
+        # a `free_text` column, and a column that PROVES a decimal
+        # comma is usually exactly that, because the cells that prove
+        # it are not numbers this format reads and the column drops
+        # below the parse line because of them. Both sentences now say
+        # "any average, spread or ends this profile publishes", which
+        # is true whether it publishes them or none.
+        #
+        # AND THE SETTLED SENTENCE DOES NOT SPEAK FOR THE FILE. Two
+        # proof cells beside two hundred legitimate thousands-grouped
+        # ones do not make the file European, and declaring that it is
+        # would be the same false confidence in the other direction.
+        # It says what it saw: this column CONTAINS values that cannot
+        # be thousands-grouped.
+        if arguments[1]:
+            return (
+                f"{_whole(arguments, 1)} of this column's values "
+                f"cannot be read with the comma as a thousands "
+                f"separator -- a thousands group is exactly three "
+                f"figures and these are not -- so THIS COLUMN "
+                f"CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA, and "
+                f"synthtwin does not read those as numbers at all. "
+                f"Of the rest, {_whole(arguments, 0)} could be read "
+                f"either way and were read with the comma as a "
+                f"thousands separator, so `1,795` was read as one "
+                f"thousand seven hundred and ninety-five; every one "
+                f"of those that was meant the way the values above "
+                f"are written has been read a thousand times too "
+                f"large, and any average, spread or ends this profile "
+                f"publishes for this column are wrong with them. "
+                f"Run the command again with --decimal-comma and "
+                f"this column's name, and every one of them is read "
+                f"as a decimal number. Rewriting the column with a "
+                f"decimal point works too, and changes your file "
+                f"where the declaration does not"
+            )
+        return (
+            f"{_whole(arguments, 0)} of this column's values are "
+            f"written with a comma inside the number that could be "
+            f"read either way, and synthtwin read every one of them "
+            f"with the comma as a thousands separator -- so `1,795` "
+            f"was read as one thousand seven hundred and ninety-five. "
+            f"MANY COUNTRIES WRITE THE DECIMAL POINT AS A COMMA, and "
+            f"if this table is one of them then `1,795` means 1.795 "
+            f"and each of those values has been read as a thousand "
+            f"times its real size, and every statistic this profile "
+            f"publishes about this column was computed from those "
+            f"numbers. Nothing in this column settles which was meant. "
+            f"If your file writes decimals with a comma, run the "
+            f"command again with --decimal-comma and this column's "
+            f"name, and this column is read that way. Rewriting the "
+            f"column with a decimal point works too, and changes your "
+            f"file where the declaration does not"
+        )
+    if form == REMARK_PADDED_NUMBERS:
+        # IT DECIDES NOTHING, and says so, on the exact pattern the
+        # all-different remark set: the column is described as numbers
+        # either way, which is what keeps its distribution. What it
+        # adds is the one pointer a numeric code column had nowhere. A
+        # column wearing an affix has carried this sentence since
+        # P4-D4.1; a column of `00100` carried none, and those are the
+        # same hazard written two ways.
+        return (
+            f"{_whole(arguments, 0)} of this column's values are "
+            f"written with a leading zero, and synthtwin described "
+            f"them as quantities: their average, their spread and "
+            f"their ends are in this profile. A number written `00100` "
+            f"is usually a code rather than a measurement -- nothing "
+            f"is assumed from that, and the column is described as "
+            f"numbers either way, which keeps its distribution. If "
+            f"these are codes, run the command again with --code NAME, "
+            f"where NAME is this column's name, and no average will be "
+            f"published over them; each code a smallest-group's worth of "
+            f"rows share is kept exactly as written, leading zeros and "
+            f"all, with the number of rows that carried it. If instead "
+            f"they are "
+            f"record numbers nothing should publish, --identifier NAME "
+            f"leaves them out of the profile altogether"
         )
     if form == REMARK_ALL_DIFFERENT_NUMBERS:
         return (
@@ -1047,6 +1800,101 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "described. Do not use --identifier on a measurement: it "
             "withholds the column entirely"
         )
+    if form == REMARK_ADDRESS_NOT_A_QUANTITY:
+        # IT ROUTES NOTHING, and every clause of it is written to say
+        # so. The decline is what moved this column; the sentence only
+        # tells its owner that the decline happened, what shape caused
+        # it, and which three declarations settle a question no rule of
+        # this package may settle from the values (P1-R6-F8).
+        #
+        # THE THREE ROUTES EACH SAY A DIFFERENT THING, and the sentence
+        # says which, because a list of three flags with no consequence
+        # beside them is a list nobody can choose from. Each one was
+        # measured on this exact column before being named here:
+        # --identifier gives the `identifier` role and publishes no
+        # value; --code gives `long_tail_labels` and publishes each
+        # spelling with its count; --measurement restores the
+        # `affixed_number` reading with its distribution over the
+        # cores.
+        return (
+            "the values in this column are a number wrapped in an "
+            "electronic address -- some text, then the number, then an "
+            "at sign, a host and a dot label -- and synthtwin did NOT "
+            "read them as a number wearing a shared piece of text. "
+            "Reading them that way publishes an average, a spread and "
+            "two ends over the numbers inside real addresses, which "
+            "are whatever numbers those addresses were given and are "
+            "not a quantity of anything. THIS SENTENCE DECIDES "
+            "NOTHING, and no rule of synthtwin can decide it either: "
+            "it is here so that you can recognize your own column and "
+            "say what it holds. Three declarations say it, each a "
+            "different thing. Run the command again with --identifier "
+            "NAME to say these are record numbers, and no value of "
+            "this column is published at all; with --code NAME to say "
+            "they are a coding system, and each spelling is published "
+            "with how many rows carried it; or with --measurement NAME "
+            "to say the number inside is a quantity after all, and the "
+            "column is described as numbers wearing that address. NAME "
+            "is this column's name"
+        )
+    if form == REMARK_LABEL_IS_A_STAND_IN:
+        # THE NUMBER IS WRITTEN FROM THE ARGUMENT, NOT CARRIED IN IT
+        # (contract NF37). Argument 1 is a POSITION in this package's
+        # own three-member list, so the sentence names one of this
+        # package's own numbers and never a spelling taken out of the
+        # column. The level itself is published in the block beside
+        # this remark, and a reader who wants to see it looks there.
+        #
+        # It is spelled from `parsing.NUMERIC_SENTINELS` rather than
+        # typed, so the sentence and the list a cell is judged against
+        # cannot drift apart -- the standing lesson of this project,
+        # applied to a table small enough to look safe.
+        number = _stand_in_spelling(_whole(arguments, 0))
+        return (
+            f"one of the values this column publishes is {number}, "
+            f"which is one of the three numbers synthtwin treats as a "
+            f"stand-in for 'no value' when a column's own numbers make "
+            f"it one. This column holds labels rather than numbers, so "
+            f"that value is published as a label and counted as a real "
+            f"one. If it means 'no value' in your table, run the "
+            f"command again with --missing-value {number} and it will "
+            f"be counted as a gap instead."
+        )
+    if form == REMARK_EPOCH_BAND:
+        # IT ROUTES NOTHING AND THERE IS NOTHING FOR IT TO ROUTE TO.
+        # No rule of this package reads a number as a moment in time
+        # and no declaration makes one, so unlike the address decline
+        # beside it this sentence names no flag at all. What it does
+        # is tell somebody that the column they are holding may be
+        # times, which nothing in the document said before.
+        #
+        # AND IT SAYS PLAINLY THAT THE TWIN IS UNAFFECTED, because
+        # that is the question a reader of a fidelity report asks
+        # next. The numeric reading keeps every value's place and the
+        # distance between any two of them, so converting the twin's
+        # column to dates the way the source column would be converted
+        # gives dates over the same span. What was missing is the
+        # person being told, and this sentence is the whole of it.
+        unit = _epoch_band_word(_whole(arguments, 0))
+        first = _written_day(arguments, 1)
+        last = _written_day(arguments, 4)
+        return (
+            f"every value in this column is a whole number, and every "
+            f"one of them sits in the band a computer writes a moment "
+            f"in time into when it counts {unit} from the 1st of "
+            f"January 1970. Read that way this column runs from "
+            f"{first} to {last}. synthtwin read them as plain numbers "
+            f"and describes them as a count of things. THIS SENTENCE "
+            f"DECIDES NOTHING and moves nothing: no rule of synthtwin "
+            f"reads a number as a moment in time, and no declaration "
+            f"makes one. It changes nothing about your twin either -- "
+            f"reading the column as plain numbers keeps every value "
+            f"where it was and every distance between two of them, so "
+            f"turning the twin's column into dates the way you would "
+            f"turn your own gives dates over the same span. What was "
+            f"missing is being told, so that you can recognize your "
+            f"own column and say in its name what it holds"
+        )
     if form == HEADER_NAMES_BY_OPTION:
         return (
             "The first row was read as the column names because the command "
@@ -1082,6 +1930,52 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
 
 
+# The ONLY forms and positions where an affix spelling is an argument.
+# Written as a table rather than as a test on the value, so that
+# widening it is an edit somebody must make on purpose: a check that
+# asked "is this a string?" would admit any value of any table.
+# The contract fixes the order (NF35): argument 1 is the prefix,
+# argument 2 the suffix, argument 3 `n_affixed`. The code had the count
+# first, which is a different sentence shape from the one the contract
+# specifies and would have made a guard written from the contract
+# refuse every remark this producer writes.
+_BOUND_AFFIX_PLACES: "dict[str, tuple[int, ...]]" = {
+    EVIDENCE_AFFIXED: (0, 1),
+    REMARK_AFFIXED: (0, 1),
+    # THE JOINED-NUMBER SEPARATOR (plan P4-D21), admitted on the same
+    # terms as the two affixes and for the same reason: it is a
+    # spelling THE SAME BLOCK ALREADY PUBLISHES, under the `separator`
+    # key, so the sentence discloses nothing the document does not
+    # hold, and a sentence that could not name the character would not
+    # let anybody recognize their own column. It is one position, and
+    # naming it here rather than testing the value is what keeps
+    # widening this an edit somebody makes on purpose.
+    EVIDENCE_JOINED: (2,),
+}
+
+
+def takes_a_bound_affix(form: str, place: int) -> bool:
+    """Whether this form takes an affix spelling at this position.
+
+    Guarantees:
+
+    - Inputs: a form name and a zero-based argument position.
+    - Determinism: a lookup in a fixed table; nothing else is consulted.
+    - Boundary: this is the ONE place that decides where the fourth
+      argument class is admitted. Both the builder of a sentence and
+      the guard that re-checks one ask it, so neither can drift from
+      the other into admitting a spelling the other refuses.
+    """
+    if form not in _BOUND_AFFIX_PLACES:
+        return False
+    return place in _BOUND_AFFIX_PLACES[form]
+
+
+def _is_bound_affix(form: str, place: int) -> bool:
+    """True where this form takes an affix spelling at this position."""
+    return takes_a_bound_affix(form, place)
+
+
 def note(form: str, arguments: "tuple[object, ...]" = ()) -> Note:
     """Write one sentence of the profile, and say where it came from.
 
@@ -1110,7 +2004,19 @@ def note(form: str, arguments: "tuple[object, ...]" = ()) -> Note:
         raise ValueError(f"{UNKNOWN_NOTE_FORM} {form}")
     if len(arguments) != NOTE_ARITY[form]:
         raise ValueError(f"{WRONG_NOTE_ARGUMENTS} {form}")
-    for argument in arguments:
+    for place, argument in enumerate(arguments):
+        if _is_bound_affix(form, place):
+            # The fourth argument class (plan amendment A-P4-7): an
+            # affix spelling, admitted for exactly two forms and
+            # exactly two positions in each, because those sentences
+            # exist to let somebody recognize THEIR column and a
+            # sentence that could not name the pair would never do it.
+            # It is a spelling the same block already publishes, so it
+            # discloses nothing the document does not hold; the guard
+            # checks that identity, positionally.
+            if not isinstance(argument, str):
+                raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
+            continue
         if not argument_is_enumerated(argument):
             raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
     written = Note(rendered(form, arguments))
@@ -1138,7 +2044,7 @@ class Settings:
     `contradictory_declarations`, called by both.
     """
 
-    small_cell_floor: int = 11
+    small_cell_floor: int = 1
     # How different a column's values have to be before synthtwin SAYS
     # SO. This decides no role. Nothing decides the identifier role but
     # the person who owns the table, so this threshold governs one thing
@@ -1209,7 +2115,7 @@ class Settings:
     # FROM CONTRACT VERSION 5 THAT RULE HAS ONE STATED EXCEPTION, and it
     # is not the person's text (owner ruling 2026-08-17, plan amendment
     # A-P3-27 part 3, contract 5 section 6). The settings block also
-    # names WHICH MEMBERS of synthtwin's own thirteen published words a
+    # names WHICH MEMBERS of synthtwin's own twenty-three published words a
     # declaration named -- ten spellings and three stand-in numbers,
     # written in the vocabulary's own spelling, identical in every
     # installation, and computed from the command line without reading a
@@ -1232,6 +2138,27 @@ class Settings:
     # "close to the line", while one where a single extra bad value
     # would have changed its role is.
     near_threshold_slack: int = 1
+    # WHAT THE PERSON SAID ABOUT DATES WHOSE DAY AND MONTH ARE BOTH
+    # NUMBERS -- written with slashes, with dots, or with a two-figure
+    # year (plan P4-D4.6, widened by P4-D15) -- AND IT IS NOT AN ORDER
+    # SWAP. A swap can reverse a column against its own
+    # evidence: ninety-nine ambiguous slashed cells and one cell only
+    # the month-first reading can parse would be read backwards, with
+    # the column's ONLY evidence counted as unparsed. So where this is
+    # set, BOTH slashed readings are counted and the one that parses
+    # strictly more cells wins whatever the declaration said; the
+    # declaration decides a count tie and nothing else.
+    day_first: bool = False
+    # THE LONG-TAIL DETECTION LINE, RECORDED RATHER THAN ASSUMED
+    # (contract 4.x, plan P4-D5). It has exactly one permitted value,
+    # on the `declaration_matching` precedent, and a loader refuses any
+    # other -- because the line is a privacy boundary: a settings key
+    # that could move it downward would let a settings combination, a
+    # lowered floor included, widen which columns publish labels, which
+    # is exactly what the `max` against the floor exists to prevent.
+    # It is on the document's face so that a later phase can move it
+    # only in the open, by a change to that contract.
+    long_tail_minimum_level: int = LONG_TAIL_LINE
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -1562,15 +2489,17 @@ def _parts(value: float) -> "tuple[int, int]":
     fraction, exponent = math.frexp(value)
     return int(math.ldexp(fraction, SIGNIFICAND_BITS)), exponent
 
-def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
-    """The exact sums of the values, of their squares, and of their cubes.
+def _totals(numbers: list[float]) -> "tuple[int, int, int, int, int]":
+    """The exact sums of the values and of their squares, cubes and
+    fourth powers.
 
-    Returns ``(total, squares, cubes, base)``, where the values are
-    ``a_1 ... a_n`` measured in units of ``2 ** base``:
+    Returns ``(total, squares, cubes, fourths, base)``, where the values
+    are ``a_1 ... a_n`` measured in units of ``2 ** base``:
     ``sum(x) == total * 2 ** base``,
-    ``sum(x * x) == squares * 2 ** (2 * base)`` and
-    ``sum(x * x * x) == cubes * 2 ** (3 * base)``. All four are whole
-    numbers and all three sums are EXACT -- that is the whole point of
+    ``sum(x * x) == squares * 2 ** (2 * base)``,
+    ``sum(x * x * x) == cubes * 2 ** (3 * base)`` and
+    ``sum(x ** 4) == fourths * 2 ** (4 * base)``. All five are whole
+    numbers and all four sums are EXACT -- that is the whole point of
     the module docstring's one rule.
 
     Values are added up in groups sharing one power of two, and each
@@ -1595,6 +2524,7 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
     ones: dict[int, int] = {}
     squares: dict[int, int] = {}
     cubes: dict[int, int] = {}
+    fourths: dict[int, int] = {}
     smallest = SIGNIFICAND_BITS
     started = False
     for value in numbers:
@@ -1611,13 +2541,16 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
             ones[exponent] = ones[exponent] + significand
             squares[exponent] = squares[exponent] + square
             cubes[exponent] = cubes[exponent] + square * significand
+            fourths[exponent] = fourths[exponent] + square * square
         else:
             ones[exponent] = significand
             squares[exponent] = square
             cubes[exponent] = square * significand
+            fourths[exponent] = square * square
     total = 0
     total_squares = 0
     total_cubes = 0
+    total_fourths = 0
     # Sorted, so that the order the groups are added in is a property of
     # the values and not of the rows -- the sum is the same either way,
     # and this way a reader can see that it is.
@@ -1628,7 +2561,16 @@ def _totals(numbers: list[float]) -> "tuple[int, int, int, int]":
         total_cubes = total_cubes + (
             cubes[exponent] << (shift + shift + shift)
         )
-    return total, total_squares, total_cubes, smallest - SIGNIFICAND_BITS
+        total_fourths = total_fourths + (
+            fourths[exponent] << (shift + shift + shift + shift)
+        )
+    return (
+        total,
+        total_squares,
+        total_cubes,
+        total_fourths,
+        smallest - SIGNIFICAND_BITS,
+    )
 
 
 def published(value: float) -> "float | None":
@@ -1663,15 +2605,68 @@ def _share(part: int, whole: int) -> float:
     return part / whole
 
 
+def _exact_ratio(share: float) -> "tuple[int, int]":
+    """One rate as the exact pair of whole numbers it really is.
+
+    A rate recorded as `0.01` is not one hundredth: the nearest
+    binary64 to one hundredth is a shade above it, and a line computed
+    by multiplying that value in binary64 rounds the product back down,
+    so a column holding exactly one value in a hundred cleared a line
+    the contract says it misses. The contract asks for the EXACT
+    product of the recorded rate and the count (its section 4.5.2), and
+    a product is only exact if the rate is carried as the whole numbers
+    it stands for.
+
+    Every binary64 is a whole number times a power of two, which is
+    what `frexp` hands back: the fraction it returns has at most
+    fifty-three significant bits, so multiplying it by two to the
+    fifty-third is exact and gives that whole number outright.
+
+    Guarantees: accepts a rate of zero or more; returns a numerator and
+    a denominator whose quotient IS the rate, with no rounding
+    anywhere. Determinism: a function of the rate. Raises TypeError if
+    handed anything that is not a float instance, and ValueError for a
+    negative rate, which no setting of this tool carries. No I/O.
+    """
+    if not isinstance(share, float):
+        raise TypeError("a rate reached the count rule as something else")
+    if share < 0.0:
+        raise ValueError("a rate reached the count rule below zero")
+    fraction, power = math.frexp(share)
+    numerator = int(fraction * float(1 << 53))
+    place = power - 53
+    if place >= 0:
+        return numerator << place, 1
+    return numerator, 1 << -place
+
+
 def _needed(share: float, total: int) -> int:
     """The smallest whole number of values that reaches ``share``.
 
     Thresholds are applied as counts rather than as compared shares, so
     that no rounding of a division can decide a column's role.
+
+    AND THE PRODUCT IS EXACT, which the multiplication was not (review
+    item P4-DATE-F1). A rate recorded as `0.01` is not one hundredth:
+    the nearest binary64 to one hundredth sits a shade above it, so
+    against a hundred values the exact product is a shade above one and
+    the line is TWO. Multiplying in binary64 rounded that product back
+    down to exactly one and the line came out at ONE, so a column
+    holding a single value in a hundred cleared a line the contract
+    says it misses. The rate is turned into the whole numbers it stands
+    for and the ceiling is taken there, where no rounding is left to
+    happen: the contract asks for the exact product of the recorded
+    rate and the count (its section 4.5.2), and this is that product.
+
+    Guarantees: accepts a rate and a count; returns the smallest whole
+    number of values reaching the rate, never more than the count's own
+    exact answer. Determinism: a function of the two. Raises TypeError
+    if the rate is not a float instance. No I/O of any kind.
     """
-    exact = share * total
-    whole = int(exact)
-    if whole < exact:
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
+    if whole * denominator < exact:
         return whole + 1
     return whole
 
@@ -1681,12 +2676,17 @@ def _at_most(share: float, total: int) -> int:
 
     The ceiling counterpart of `_needed`, and a count for the same
     reason: `distinct <= 10% of the values` is decided by comparing two
-    whole numbers, so no rounding of a division decides a role.
+    whole numbers, so no rounding of a division decides a role. Its
+    product is exact for the same reason `_needed`'s is: a line built
+    by rounding is a line that moves.
+
+    Guarantees: accepts a rate and a count; returns the largest whole
+    number of values within the rate. Determinism: a function of the
+    two. Raises TypeError if the rate is not a float instance. No I/O.
     """
-    exact = share * total
-    whole = int(exact)
-    if whole > exact:
-        return whole - 1
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
     return whole
 
 
@@ -1763,6 +2763,33 @@ def _quantiles(numbers: list[float]) -> dict[str, "float | None"]:
     return ladder
 
 
+def _finer_quantiles(numbers: list[float]) -> dict[str, "float | None"]:
+    """The ninety rungs `_quantiles` does not name (plan P4-D4.10).
+
+    Computed by exactly the rule beside it, at the other ninety
+    percents, so the hundred and one rungs of the two together are one
+    ladder measured one way, and not two of them that might disagree.
+
+    WHY THIS EXISTS, in one measurement. An eleven-rung ladder says
+    nothing about how many cells lie INSIDE a gap between two rungs, so
+    a twin drawn from it puts too few values where the real column
+    crowded them. Reconstructing one dental-code column from its rungs
+    alone: from eleven rungs, 79 cells below 1000 against a true 97 --
+    the defect residual R-P4-30 opened over -- and from a hundred and
+    one rungs, 97 exactly.
+
+    Guarantees: accepts the numbers the statistics used; returns ninety
+    published values, each `None` exactly where the eleven-rung ladder
+    beside it would be. Determinism: a function of the multiset.
+    Raises nothing. No I/O of any kind.
+    """
+    ordered = sorted(numbers)
+    ladder: dict[str, float | None] = {}
+    for label, num, den in FINER_LADDER:
+        ladder[label] = published(_quantile(ordered, num, den))
+    return ladder
+
+
 def _ordinal_rung(ordered: list[str], num: int, den: int) -> str:
     """One rung of the ladder over values that cannot be averaged.
 
@@ -1789,6 +2816,119 @@ def _date_ladder(ordered: list[str]) -> dict[str, str]:
     return ladder
 
 
+
+
+def moments_of(
+    numbers: "list[float]",
+) -> "tuple[float | None, float | None, float | None, float | None]":
+    """The four moments of ``numbers``, exactly (plan P1-D11).
+
+    THE ONE IMPLEMENTATION OF THESE FOUR STATISTICS, published so that
+    nothing in this package writes a second (review items P4-G6-R5-F1
+    and P4-G6-R5-F2). The generator's twin report used to recount them
+    from the finished cells with a compensated sum in binary64, which
+    agrees with this on ordinary columns and has no answer at either
+    end of the range:
+
+    - four zeroes beside one `5e-324` have a skew of 1.5 and a tail
+      weight of 3.25, and every square of a deviation that small
+      UNDERFLOWS to nothing, so the recount returned no spread, no
+      shape and no tails at all;
+    - one value at the bottom of the range beside a hundred and
+      nineteen near the top has a finite mean and a finite spread, and
+      `value - mean` on the first of them OVERFLOWS, so the recount
+      returned the same three nothings.
+
+    In both cases the report then said nothing whatever about three
+    facts the description publishes, which is the defect four separate
+    review rounds of this landing kept turning up in other places.
+    `_moments` forms neither the square nor the difference: it works
+    over whole numbers scaled by a shared power of two.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: mean, sample standard deviation, skewness and tail
+      weight, each the correctly rounded binary64 value of the exact
+      statistic, or None where that statistic is undefined -- an empty
+      list, a spread the format cannot hold, fewer values than the
+      statistic needs, or a column whose values are all one number.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if not numbers:
+        return (None, None, None, None)
+    found = _moments(list(numbers))
+    spread = found["std"]
+    if found["std_unrepresentable"]:
+        spread = None
+    return (found["mean"], spread, found["skew"], found["kurtosis"])
+
+
+def average_of(numbers: "list[float]") -> "float | None":
+    """The mean of ``numbers``, exactly (plan P1-D11).
+
+    THE COMPANION OF `spread_of`, AND FOR THE SAME REASON (review item
+    P4-G6-R2-F2). `math.fsum` is exact until its final rounding and
+    still raises `OverflowError` where the RUNNING TOTAL leaves the
+    representable range, which sixty values near 1e308 do although
+    their mean is an ordinary number. `_moments` never forms that
+    total: it works over whole numbers scaled by a shared power of
+    two, where there is no range to leave.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: the correctly rounded binary64 mean, or None for an
+      empty list. A mean is representable whenever the values are, so
+      there is no unrepresentable case to report here.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if not numbers:
+        return None
+    return _moments(list(numbers))["mean"]
+
+
+def spread_of(numbers: "list[float]") -> "float | None":
+    """The sample standard deviation of ``numbers``, exactly (P1-D11).
+
+    THE ONE IMPLEMENTATION OF THIS STATISTIC, published as a function
+    so that nothing has to write a second one (review item
+    P4-G6-R1-F5). The validator draws its moment windows around the
+    spread of a reconstructed ladder, and it computed that spread with
+    `sum((x - mean) ** 2)` in binary64 -- which agrees with this on
+    ordinary columns and, on a column of values near 1e300, raises
+    `OverflowError` out of `synthtwin validate` instead. The square of
+    a large value has nowhere to go; `_moments` never forms one,
+    working over whole numbers scaled by a shared power of two.
+
+    Guarantees:
+
+    - Inputs: a list of finite numbers, in any order. The result
+      depends on the multiset and nothing else.
+    - Returns: the correctly rounded binary64 sample deviation, or
+      None where there is no such number -- fewer than two values, or
+      an exact spread larger than binary64 can hold.
+    - A column whose values are ALL ONE NUMBER returns 0.0 and not
+      None, which is the one place this differs from the published
+      `std` field. That field is null there because the profile writes
+      null for "no shape to report", and the same test serves it for
+      the undefined skewness; but the DEVIATION of a column of
+      identical values is not undefined, it is zero, and a caller
+      drawing a window around it needs the zero. Returning None here
+      withheld every moment window on a flat ladder.
+    - Errors raised: none. No I/O of any kind.
+    """
+    if len(numbers) < 2:
+        return None
+    moments = _moments(list(numbers))
+    if moments["std_unrepresentable"]:
+        return None
+    spread = moments["std"]
+    if spread is None:
+        return 0.0
+    return spread
 
 
 def _moments(numbers: list[float]) -> dict[str, "float | None"]:
@@ -1857,9 +2997,10 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
         "mean": None,
         "std": None,
         "skew": None,
+        "kurtosis": None,
         "std_unrepresentable": False,
     }
-    total, squares, cubes, base = _totals(numbers)
+    total, squares, cubes, fourths, base = _totals(numbers)
     numerator, denominator = _over_two(total, count, base)
     moments["mean"] = published(_rounded_ratio(numerator, denominator))
     if count < 2:
@@ -1905,6 +3046,40 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
     )
     size = _rounded_root(shape * shape, spread * spread * spread)
     moments["skew"] = published(-size if shape < 0 else size)
+    if count < 4:
+        return moments
+
+    # n to the fourth times the fourth central moment, cleared of its
+    # denominator, and the kurtosis is its ratio to the spread squared
+    # (plan P4-D4.8, owner instruction 2026-08-26).
+    #
+    # THE k-TH MOMENT ASKS FOR k VALUES, which is why this waits for
+    # four where the skewness waits for three. Over three points a
+    # fourth moment cannot tell a heavy tail from a light one: it is
+    # pinned inside a span narrower than the difference the fact is
+    # published to report.
+    #
+    # WHAT IS PUBLISHED IS THE MOMENT RATIO AND NOT THE EXCESS, so the
+    # normal curve reads 3 here rather than 0. That is the same choice
+    # the skewness beside it makes -- both are the plain moment
+    # measures -- and a reader who wants the excess subtracts three.
+    #
+    # NO OVERFLOW GUARD, and that is a measurement rather than an
+    # oversight. The standard deviation carries `std_unrepresentable`
+    # because a spread can be larger than this format holds. A moment
+    # RATIO cannot: for any n values the kurtosis lies between 1 and
+    # `n - 2 + 1 / (n - 1)`, so it is bounded by the row count and no
+    # column can push it out of range. The exact arithmetic above never
+    # rounds on the way, so nothing overflows in the middle either.
+    tails = (
+        count * count * count * fourths
+        - 4 * count * count * total * cubes
+        + 6 * count * total * total * squares
+        - 3 * total * total * total * total
+    )
+    moments["kurtosis"] = published(
+        _rounded_ratio(tails, spread * spread)
+    )
     return moments
 
 
@@ -1933,82 +3108,7 @@ def _moments(numbers: list[float]) -> dict[str, "float | None"]:
 # of digits, and building the whole number it denotes would cost time
 # quadratic in that length, while comparing two tuples costs its length.
 
-_EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
-
-_ASCII_ZERO = ord("0")
-
-
-def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
-    """The canonical triple of a spelling ALREADY READ AS A NUMBER.
-
-    Asked only about text the reader of record has classified as a
-    number this format can hold, which is what lets the scan below be
-    arithmetic over the characters rather than a second opinion about
-    what the cell is: nothing here decides whether a spelling is a
-    number, so nothing here can disagree with the answer already given.
-
-    Guarantees: accepts text the reader has accepted; returns the
-    canonical triple denoting exactly that number; raises TypeError if
-    handed anything that is not a string instance. No I/O of any kind.
-    """
-    body = parsing.trimmed(text)
-    negative = False
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        # Accounting parentheses mean negative, and the reader has
-        # already refused a sign inside them, so nothing can say
-        # "negative" twice here.
-        negative = True
-        body = parsing.trimmed(body[1 : len(body) - 1])
-    if body[:1] == "-":
-        negative = True
-        body = body[1:]
-    elif body[:1] == "+":
-        body = body[1:]
-    # One pass over the characters. The digits are collected in order
-    # with the leading zeros left out, the decimal places are counted,
-    # and the exponent is added up after the `e`. A thousands separator
-    # is none of those things and contributes nothing to the value, so
-    # it falls through every branch, which is exactly right.
-    digits: list[str] = []
-    places = 0
-    after_point = False
-    in_exponent = False
-    exponent_negative = False
-    magnitude = 0
-    for character in body:
-        if in_exponent:
-            if character == "-":
-                exponent_negative = True
-            elif "0" <= character <= "9" and len(digits):
-                # The exponent is added up only while a digit that is
-                # not a leading zero has been seen. That keeps `0e`
-                # followed by a thousand nines cheap -- such a spelling
-                # is zero whatever its exponent says -- and it is why
-                # the magnitude below stays small: a spelling this
-                # format can hold, whose digits are not all zeros, has
-                # an exponent within a few hundred of the number of
-                # digits written.
-                magnitude = magnitude * 10 + (ord(character) - _ASCII_ZERO)
-        elif "0" <= character <= "9":
-            if after_point:
-                places = places + 1
-            if character != "0" or len(digits):
-                digits += [character]
-        elif character == ".":
-            after_point = True
-        elif character == "e" or character == "E":
-            in_exponent = True
-    if not len(digits):
-        return _EXACTLY_ZERO
-    if exponent_negative:
-        power = -places - magnitude
-    else:
-        power = -places + magnitude
-    kept = len(digits)
-    while kept > 0 and digits[kept - 1] == "0":
-        kept = kept - 1
-        power = power + 1
-    return (-1 if negative else 1, tuple(digits[:kept]), power)
+_EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = parsing.EXACTLY_ZERO
 
 
 def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
@@ -2043,9 +3143,15 @@ def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
       number this format can hold, which is the reader of record's own
       answer and never a second reading of it. No I/O of any kind.
     """
-    if parsing.classify_number(text) != parsing.NUMBER:
-        return None
-    return _exact_digits(text)
+    # ONE RULE WITH ONE NAME, AND IT LIVES WHERE EVERY SIDE CAN REACH
+    # IT (review item P4-DATE3-F2). The scan itself moved to `parsing`,
+    # which every module imports, because the generator may not import
+    # this one and was left comparing two spellings after rounding them
+    # both to binary64 -- a second opinion about what a number is,
+    # which is exactly what this function exists to prevent. The name
+    # stays here so that every caller that already asks this module
+    # goes on asking it.
+    return parsing.exact_of_spelling(text)
 
 
 def exact_of_number(value: float) -> "tuple[int, tuple[str, ...], int]":
@@ -2122,6 +3228,23 @@ class _Cell:
     """
 
     text: str
+    # THE SPELLING THE NUMBER RULES READ, which is `text` itself on
+    # every undeclared column and the swapped spelling on one declared
+    # `--decimal-comma` (plan P4-D26). The two are separate fields
+    # because they answer different questions and a single field got
+    # one of them wrong: `text` is what the FILE holds, and the label
+    # roles publish it, so a declaration about numbers must never
+    # rewrite a level, a code or a note; this is how the NUMBER is
+    # written, and every census of numeric spelling reads it.
+    #
+    # Reading the censuses off `text` on a declared column made the
+    # twin lose the fraction altogether. `1,5` carries no point, so its
+    # style counted as `plain`, the whole column published `plain` and
+    # `integer_valued: false` together, and the twin wrote `222` for a
+    # column running from 2.89 to 300.23 -- the defect P4-D26 exists to
+    # prevent, arriving through the census rather than through the
+    # reading.
+    numeric_text: str
     # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
     # NOT_A_NUMBER.
     kind: str
@@ -2170,8 +3293,16 @@ def _written_negative(text: str) -> bool:
     return negative
 
 
-def _classify(text: str) -> _Cell:
+def _classify(text: str, decimal_comma: bool = False) -> _Cell:
     """Classify one present cell, once, into the record every rule reads.
+
+    ``decimal_comma`` says this column was DECLARED as writing its
+    numbers with a comma for the point (plan P4-D26). Only the NUMERIC
+    reading is taken from the swapped text; `text`, `folded` and the
+    two alphabet tests keep the cell exactly as the file wrote it,
+    because a declaration about numbers must not rewrite a level, a
+    code or a note. Undeclared columns pass `False` and nothing about
+    them moves.
 
     The parser is asked what the cell is exactly once. Everything else
     is derived from that answer:
@@ -2195,14 +3326,17 @@ def _classify(text: str) -> _Cell:
     if handed anything that is not a string instance. The record depends
     on the text and nothing else. No I/O of any kind.
     """
-    kind = parsing.classify_number(text)
+    # THE TEXT THE NUMBER RULES READ, which is the cell itself on every
+    # undeclared column and the swapped spelling on a declared one.
+    read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
+    kind = parsing.classify_number(read)
     value: float | None = None
     exact: tuple[int, tuple[str, ...], int] | None = None
     sign = parsing.SIGN_UNKNOWN
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
-        value = parsing.parse_number(text)
-        exact = _exact_digits(text)
+        value = parsing.parse_number(read)
+        exact = parsing.exact_of_accepted_number(read)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -2215,17 +3349,18 @@ def _classify(text: str) -> _Cell:
             else:
                 whole = parsing.WHOLE_NO
     elif kind == parsing.NUMBER_OUT_OF_RANGE:
-        if parsing.overflowed(text):
+        if parsing.overflowed(read):
             whole = parsing.WHOLE_YES
         else:
             whole = parsing.WHOLE_NO
-        if _written_negative(text):
+        if _written_negative(read):
             sign = parsing.SIGN_NEGATIVE
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
     return _Cell(
         text=text,
+        numeric_text=read,
         kind=kind,
         value=value,
         exact=exact,
@@ -2254,6 +3389,20 @@ class _Cells:
     present: list[str]
     n_rows: int
     settings: Settings
+    # WHETHER THIS COLUMN WAS DECLARED `--decimal-comma`, carried on
+    # the tally for the same reason `_Cell` carries `numeric_text`: the
+    # rules below read this record and never the column, so a rule that
+    # has to interpret a DECLARATION as a number -- the kept values of
+    # the stand-in judgement, above all -- can only get the reading
+    # right if the record hands it over (review item P4-G3-R6-F1).
+    #
+    # Without it `--decimal-comma amount --keep-value -999,0` read the
+    # cells as the sentinel minus nine hundred and ninety-nine and the
+    # KEPT declaration under the ordinary grammar, where it is no
+    # number at all and matches nothing -- so the outlier pass carried
+    # off forty cells the person had explicitly said to keep, and the
+    # column's presence, statistics and role moved with them.
+    decimal_comma: bool
     numbers: list[float]
     n_out_of_range: int
     n_contradictory: int
@@ -2264,6 +3413,15 @@ class _Cells:
     n_whole: int
     n_fraction: int
     n_whole_unknown: int
+    # Cells whose writer MEANT a number and whose text still settles no
+    # sign -- notation that conflicts with itself, and nothing else.
+    # This is deliberately narrower than `n_sign_unknown`, which counts
+    # every present cell the text leaves unsettled, ordinary text
+    # included, because U2 is a margin over `n_present`. The role rule
+    # below wants the narrow one: a straggler of ordinary text is a
+    # cell the parse line already tolerates, and it says nothing about
+    # whether this column counts things.
+    n_sign_unsettled_numeric: int
     n_negative_unrepresentable: int
     raw_distinct: int
     folded_counts: dict[str, int]
@@ -2281,13 +3439,18 @@ class _Cells:
     code_alphabet: int
 
 
-def _classify_all(present: list[str]) -> list[_Cell]:
+def _classify_all(
+    present: list[str], decimal_comma: bool = False
+) -> list[_Cell]:
     """Classify every present cell exactly once, in row order."""
-    return [_classify(value) for value in present]
+    return [_classify(value, decimal_comma) for value in present]
 
 
 def _tally(
-    classified: list[_Cell], n_rows: int, settings: Settings
+    classified: list[_Cell],
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> _Cells:
     """Count the one classification of each cell, in one pass.
 
@@ -2305,6 +3468,7 @@ def _tally(
     negative = 0
     positive = 0
     sign_unknown = 0
+    sign_unsettled_numeric = 0
     whole = 0
     fraction = 0
     whole_unknown = 0
@@ -2324,24 +3488,47 @@ def _tally(
             contradictory = contradictory + 1
         else:
             not_a_number = not_a_number + 1
-        if cell.kind != parsing.NOT_A_NUMBER:
-            if cell.sign == parsing.SIGN_NEGATIVE:
-                negative = negative + 1
-                if cell.kind != parsing.NUMBER:
-                    negative_unrepresentable = negative_unrepresentable + 1
-            elif (
-                cell.sign == parsing.SIGN_POSITIVE
-                or cell.sign == parsing.SIGN_ZERO
-            ):
-                positive = positive + 1
-            else:
-                sign_unknown = sign_unknown + 1
-            if cell.whole == parsing.WHOLE_YES:
-                whole = whole + 1
-            elif cell.whole == parsing.WHOLE_NO:
-                fraction = fraction + 1
-            else:
-                whole_unknown = whole_unknown + 1
+        # EVERY present cell is counted here, ordinary text included.
+        # The sign and whole-number families are two MARGINS over the
+        # present cells, and the contract states them that way: U1 and
+        # U2 both sum to `n_present`, and the three key meanings all
+        # read "present cells whose notation settles ..." (contract v4
+        # section 6.2). A cell of ordinary text settles neither
+        # question, so it answers for `n_whole_unknown` and
+        # `n_sign_unknown` -- which is exactly what the generation
+        # method's construction table ties it to (generation method
+        # G10.5 step 1, the "ordinary text" row), and exactly what
+        # `_classify` already gives it: SIGN_UNKNOWN and WHOLE_UNKNOWN.
+        #
+        # This line used to read `if cell.kind != parsing.NOT_A_NUMBER`,
+        # which left a text cell out of both families while `n_present`
+        # counted it. The producer then wrote a description its own
+        # loader refused, and the refusal told the reader their file had
+        # been changed since it was written -- blaming a person who had
+        # done nothing. Found while transcribing this rule for the
+        # version 6 contract, reproduced end to end, and fixed here
+        # rather than in the invariant, because the contract, the sealed
+        # generation method and the shipped loader all three agree with
+        # each other and against this line.
+        if cell.sign == parsing.SIGN_NEGATIVE:
+            negative = negative + 1
+            if cell.kind != parsing.NUMBER:
+                negative_unrepresentable = negative_unrepresentable + 1
+        elif (
+            cell.sign == parsing.SIGN_POSITIVE
+            or cell.sign == parsing.SIGN_ZERO
+        ):
+            positive = positive + 1
+        else:
+            sign_unknown = sign_unknown + 1
+            if cell.kind != parsing.NOT_A_NUMBER:
+                sign_unsettled_numeric = sign_unsettled_numeric + 1
+        if cell.whole == parsing.WHOLE_YES:
+            whole = whole + 1
+        elif cell.whole == parsing.WHOLE_NO:
+            fraction = fraction + 1
+        else:
+            whole_unknown = whole_unknown + 1
         if cell.all_digits:
             all_digits = all_digits + 1
         if cell.code_alphabet:
@@ -2357,6 +3544,7 @@ def _tally(
         else:
             spellings[cell.text] = 1
     return _Cells(
+        decimal_comma=decimal_comma,
         classified=classified,
         present=present,
         n_rows=n_rows,
@@ -2371,6 +3559,7 @@ def _tally(
         n_whole=whole,
         n_fraction=fraction,
         n_whole_unknown=whole_unknown,
+        n_sign_unsettled_numeric=sign_unsettled_numeric,
         n_negative_unrepresentable=negative_unrepresentable,
         raw_distinct=len(set(present)),
         folded_counts=folded_counts,
@@ -2378,6 +3567,186 @@ def _tally(
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
+
+
+# The characters a number this format holds can be written with. Used
+# only to narrow the search for a cell's core: a substring the
+# classifier accepts is made of these, so a span that contains none of
+# them cannot hold one. Getting this wrong makes the search slower or
+# makes it miss a core, and the second is why the set is generous --
+# every character any accepted numeric form uses is in it, and the
+# classifier, not this set, decides what parses.
+_CORE_CHARACTERS = frozenset("0123456789+-.,()eE")
+
+
+def _core_character(character: str) -> bool:
+    """Whether a number this format holds could be written with it.
+
+    Whitespace is admitted WHATEVER kind it is, because the classifier
+    trims before it reads and therefore accepts a core wearing any of
+    it. Listing three spellings of a space -- and missing the em space,
+    the no-break space and the line separator -- made the core of
+    `5<em space>mg` come out as `5` with the suffix ` mg`, so two cells
+    of one column wore two different pairs over a difference the
+    classifier cannot see.
+
+    The whitespace test goes through `parsing.trimmed`, which is this
+    package's own allowlisted answer to "what counts as space here",
+    rather than through a method call on a value this module cannot
+    trace. It also keeps ONE answer: the splitter and the classifier
+    must agree about what a space is, and asking the same function is
+    how that is guaranteed rather than hoped for.
+    """
+    if not isinstance(character, str):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if character in _CORE_CHARACTERS:
+        return True
+    return parsing.trimmed(character) == ""
+
+
+def _core_spans(text: str) -> "list[tuple[int, int]]":
+    """Maximal runs of characters a number could be written with."""
+    spans: "list[tuple[int, int]]" = []
+    start = None
+    for index, character in enumerate(text):
+        if _core_character(character):
+            if start is None:
+                start = index
+        elif start is not None:
+            spans += [(start, index)]
+            start = None
+    if start is not None:
+        spans += [(start, len(text))]
+    return spans
+
+
+def affixed_split(text: str) -> "tuple[str, str, str] | None":
+    """Split a cell into prefix, core and suffix, or None if it is not one.
+
+    Guarantees:
+
+    - Inputs: one cell's text, exactly as the file held it.
+    - Determinism: the split is a function of the text alone. Where
+      more than one substring parses as a number this format can hold,
+      the core is the LONGEST, and of equal-length candidates the
+      LEFTMOST -- a total order, so two producers reading one cell
+      cannot disagree about where its number begins.
+    - Returns None when no substring parses, and when the whole trimmed
+      cell is the core: a bare number wears no affix and is not an
+      affixed number. At least one side must carry text.
+    - The classifier TRIMS, so whitespace between the number and the
+      text around it belongs to the CORE and never to the pair. `5mg`,
+      `5 mg` and `5  mg` therefore wear the ONE pair -- empty prefix,
+      suffix `mg` -- and differ only in their cores. A reader will
+      assume the opposite, which is why it is written down here and in
+      the contract: a column mixing spaced and unspaced units is a
+      one-pair column, not a mixed-affix column that declines.
+    - The pair is the EXACT text on either side of the core, with no
+      case folding and no inner trimming: `mg` and `MG` are two pairs,
+      and so are `$` and `EUR`.
+    """
+    trimmed = parsing.trimmed(text)
+    best_start = -1
+    best_length = 0
+    for span_start, span_stop in _core_spans(trimmed):
+        for begin in range(span_start, span_stop):
+            if span_stop - begin <= best_length:
+                # Nothing from here on can be longer than what is held.
+                break
+            for end in range(span_stop, begin + best_length, -1):
+                if parsing.classify_number(trimmed[begin:end]) == (
+                    parsing.NUMBER
+                ):
+                    best_start, best_length = begin, end - begin
+                    break
+    if best_length <= 0:
+        return None
+    prefix = trimmed[:best_start]
+    core = trimmed[best_start : best_start + best_length]
+    suffix = trimmed[best_start + best_length :]
+    # THE SPACE BETWEEN THE NUMBER AND ITS UNIT BELONGS TO THE UNIT,
+    # not to the core, and this was wrong until 2026-09-04. The walk
+    # above takes the LONGEST span that reads as a number, and
+    # `classify_number` trims its own argument -- so `14.2 g/dL` split
+    # into a core of `14.2 ` and a suffix of `g/dL`. The core is then
+    # rewritten as a NUMBER by the value stage, which has no space to
+    # write, and the twin came back `12.7g/dL` where every real cell
+    # read `14.2 g/dL`. A person splitting the twin on a space got one
+    # field where their own table gives two.
+    #
+    # Moving the space into the wrapper is the whole repair: the core
+    # still reads as the same number, and the wrapper is the text the
+    # twin writes back character for character.
+    #
+    # WHICH CHARACTERS ARE SPACE IS ASKED OF `parsing.trimmed`, and the
+    # first writing of this repair listed two of them instead (review
+    # round 1 of this landing, item 7). `_core_character` above admits
+    # WHATEVER kind of whitespace that function admits -- which is the
+    # only way the splitter and the classifier can agree about where a
+    # number begins -- so a repair that knew about the plain space and
+    # the tab and nothing else left the others where they were:
+    # `14.2<no-break space>g/dL` split into a core of `14.2<no-break
+    # space>` and the value stage wrote the space away again, which is
+    # the very defect this loop exists to close. One question, one
+    # answer, asked of the one function that gives it.
+    while core and parsing.trimmed(core[:1]) == "":
+        prefix = prefix + core[:1]
+        core = core[1:]
+    while core and parsing.trimmed(core[-1:]) == "":
+        suffix = core[-1:] + suffix
+        core = core[:-1]
+    if not core:
+        return None
+    if not prefix and not suffix:
+        return None
+    return prefix, core, suffix
+
+
+def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
+    """The shortest and longest NUMERIC-LOOKING cell, in characters.
+
+    Producer obligation U-P: both are measured over the cells whose
+    writer meant a number -- the ones `_numeric_looking` counts -- and
+    never over the whole present population. This role tolerates a
+    slack of cells that are not numeric notation at all, and such a
+    straggler's length published as a bound would be read as magnitude
+    by anybody who trusted the pair.
+
+    Each is a count of characters of the cell's text AS THE NUMBER IS
+    SPELLED, so a padded cell counts its zeros and a signed one counts
+    its sign. On every column but a declared `--decimal-comma` one that
+    is the file's own text, character for character.
+
+    ON A DECLARED COLUMN IT IS THE SPELLING THE DESCRIPTION IS MADE
+    FROM, and this clause used to say "as the file spells it" while
+    measuring exactly that (review item P4-G3-R2-F2). The two differ:
+    `1.234,5e-400` is twelve characters in the file and eleven once the
+    grouping mark is dropped. ELEVEN is the number this pair owes,
+    because the twin writes `1234,5e-400` -- the width a person meets
+    is the twin's, and a bound measured on a spelling the twin never
+    writes is a bound it cannot hold.
+
+    Guarantees: accepts the tally; returns a pair with the smaller
+    first, both at least 1. Where the role is reached with no
+    numeric-looking cell at all -- which the detection line makes
+    impossible, and which is answered here rather than left to raise --
+    both come back as 1. Raises nothing. No I/O.
+    """
+    widths: "list[int]" = []
+    for cell in cells.classified:
+        if cell.kind == parsing.NOT_A_NUMBER:
+            continue
+        widths = widths + [len(cell.numeric_text)]
+    if not widths:
+        return (1, 1)
+    shortest = widths[0]
+    longest = widths[0]
+    for width in widths:
+        if width < shortest:
+            shortest = width
+        if width > longest:
+            longest = width
+    return (max(shortest, 1), max(longest, 1))
 
 
 def _numeric_looking(cells: _Cells) -> int:
@@ -2414,20 +3783,44 @@ class _Declaration:
     exact: "tuple[int, tuple[str, ...], int] | None"
 
 
-def _declarations(spellings: tuple[str, ...]) -> "list[_Declaration]":
+def _declarations(
+    spellings: tuple[str, ...], decimal_comma: bool = False
+) -> "list[_Declaration]":
     """Read each declared value once, into the record the rules compare.
 
-    Guarantees: accepts the spellings a person typed; returns one record
-    per spelling, in the order given. Raises TypeError if handed
-    anything that is not text. No I/O of any kind.
+    ``decimal_comma`` says this COLUMN was declared as writing its
+    numbers with a comma. Only the NUMBER a declaration denotes is read
+    that way; `text` and `folded` keep the spelling the person typed,
+    because the spelling half of the matching rule compares a
+    declaration with a cell as the file writes it.
+
+    THE TWO HALVES USED TO BE READ UNDER DIFFERENT GRAMMARS (review
+    item P4-G3-R5-F1). `--decimal-comma amount --missing-value 1,234`
+    read the cells with the comma, making `1,234` one and
+    two-hundred-and-thirty-four thousandths, and read the DECLARATION
+    ordinarily, making it one thousand two hundred and thirty-four.
+    The rule is `exact_number_when_it_reads_as_one_else_spelling`, so a
+    declaration that reads as a number is matched BY NUMBER and never
+    by spelling -- and those two numbers are not equal. Every cell the
+    person had explicitly called "no value" was counted as a
+    measurement instead, and the column's presence, ladder, moments and
+    role all moved with them, in silence.
+
+    Guarantees: accepts the spellings a person typed and whether this
+    column was declared; returns one record per spelling, in the order
+    given. Raises TypeError if handed anything that is not text. No I/O
+    of any kind.
     """
     made: list[_Declaration] = []
     for spelling in spellings:
+        read = spelling
+        if decimal_comma:
+            read = parsing.written_with_a_decimal_comma(spelling)
         made += [
             _Declaration(
                 text=spelling,
                 folded=parsing.folded(spelling),
-                exact=exact_of_spelling(spelling),
+                exact=exact_of_spelling(read),
             )
         ]
     return made
@@ -2492,7 +3885,9 @@ def declarations_named(spellings: "tuple[str, ...]") -> int:
 
 
 def contradictory_declarations(
-    kept_values: "tuple[str, ...]", declared_missing_values: "tuple[str, ...]"
+    kept_values: "tuple[str, ...]",
+    declared_missing_values: "tuple[str, ...]",
+    decimal_comma: bool = False,
 ) -> "list[str]":
     """Every value named BOTH as data and as "no value", said in words.
 
@@ -2510,19 +3905,52 @@ def contradictory_declarations(
     reported as one: the pair reported here is a pair that is equal, not
     a pair that rounds to one binary64 value (review item P1-R7-F3).
 
-    Guarantees: accepts the two lists of declared values; returns one
-    plain sentence per clashing pair, in the order the kept values were
-    given, and an empty list when nothing clashes. Raises TypeError if
-    handed anything that is not text. No I/O of any kind.
+    ``decimal_comma`` says the table has at least one column declared
+    that way, and then the pair is tested under BOTH readings -- the
+    ordinary one and the comma one -- because a clash under either is a
+    clash (review item P4-G3-R6-F2). `--decimal-comma amount
+    --keep-value 1,234 --missing-value 1,2340` names one number twice
+    on that column and two different numbers everywhere else; tested
+    under the ordinary grammar alone the pair looks innocent, the
+    command is accepted, and the missing declaration then quietly
+    defeats the keep declaration on the very column the person
+    declared. A refusal is the only honest answer, because no order of
+    precedence turns two opposite instructions into one.
+
+    Guarantees: accepts the two lists of declared values and whether
+    any column is declared; returns one plain sentence per clashing
+    pair, in the order the kept values were given, and an empty list
+    when nothing clashes. Raises TypeError if handed anything that is
+    not text. No I/O of any kind.
     """
     kept = _declarations(kept_values)
     missing = _declarations(declared_missing_values)
+    swapped_kept = _declarations(kept_values, decimal_comma)
+    swapped_missing = _declarations(declared_missing_values, decimal_comma)
     named: list[str] = []
-    for one in kept:
-        for other in missing:
-            if not _same_declaration(one, other):
+    for place in range(len(kept)):
+        one = kept[place]
+        for seat in range(len(missing)):
+            other = missing[seat]
+            clashes = _same_declaration(one, other)
+            # WHICH READING FOUND THE CLASH DECIDES HOW IT IS NAMED
+            # (review item P4-G3-R7-F5). A pair caught only under the
+            # comma reading was described with the ORDINARY parse of
+            # the kept value, so `1,2340` beside `1,234` -- two visibly
+            # different spellings, one number on a declared column --
+            # was refused with the words "the same spelling", and a
+            # refusal whose reason is visibly untrue is a refusal a
+            # person cannot act on.
+            one_said = one
+            if decimal_comma and not clashes:
+                clashes = _same_declaration(
+                    swapped_kept[place], swapped_missing[seat]
+                )
+                if clashes:
+                    one_said = swapped_kept[place]
+            if not clashes:
                 continue
-            if one.exact is None:
+            if one_said.exact is None:
                 how = "the same spelling"
             else:
                 how = "the same number"
@@ -2537,16 +3965,18 @@ def contradictory_declarations(
 
 def built_in_values_named(
     spellings: "tuple[str, ...]",
-) -> "tuple[tuple[str, ...], tuple[float, ...]]":
+) -> "tuple[tuple[str, ...], tuple[float, ...], tuple[str, ...]]":
     """Which of synthtwin's OWN published words a declaration named.
 
     Contract 5 section 6, invariants C5-16, C5-17 and C5-K1 to C5-K5;
     plan amendment A-P3-27 part 3.
 
-    THE WHOLE OF WHAT THIS MAY WRITE is a member of the thirteen the
-    contract publishes in its own appendix: the ten spellings
-    `parsing.MISSING_TEXTS` reads as "no value" and the three stand-in
-    numbers `parsing.NUMERIC_SENTINELS` judges. They are synthtwin's
+    THE WHOLE OF WHAT THIS MAY WRITE is a member of the twenty-three
+    the contract publishes in its own appendix: the eighteen spellings
+    `parsing.MISSING_TEXTS` and `parsing.MISSING_TEXTS_EXACT` read as
+    "no value", the three stand-in numbers
+    `parsing.NUMERIC_SENTINELS` judges, and the two placeholder days
+    `parsing.CALENDAR_PLACEHOLDERS` judges. They are synthtwin's
     vocabulary, identical in every installation, and they contain no
     text of anybody's table. A declared value that is not one of them
     reaches NEITHER LIST, and the settings block keeps counting it and
@@ -2593,10 +4023,21 @@ def built_in_values_named(
     """
     texts: dict[str, int] = {}
     numbers: dict[float, int] = {}
+    days: dict[str, int] = {}
     for spelling in spellings:
-        folded = parsing.folded(spelling)
-        for member in parsing.MISSING_TEXTS:
-            if folded == member:
+        # THE THIRD LIST, and it is the placeholder days (plan
+        # amendment A-P4-1 item 3). Its shape and its identity rules
+        # are the numeric list's: a member is recorded when the
+        # declaration names it, whether or not the table holds it, and
+        # the person's own spelling never travels.
+        for day in parsing.calendar_placeholders():
+            if parsing.folded(spelling) == parsing.folded(day):
+                days[day] = 1
+        for member in parsing.built_in_missing_texts():
+            # ASKED THROUGH THE ONE RULE, so the vocabulary's exact
+            # member and its folded members are matched here exactly as
+            # they are matched when a cell is read (plan P4-D6.2).
+            if parsing.missing_text_matches(spelling, member):
                 texts[member] = 1
         exact = exact_of_spelling(spelling)
         if exact is None:
@@ -2604,16 +4045,16 @@ def built_in_values_named(
         for candidate in parsing.NUMERIC_SENTINELS:
             if exact == exact_of_number(candidate):
                 numbers[candidate] = 1
-    return tuple(sorted(texts)), tuple(sorted(numbers))
+    return tuple(sorted(texts)), tuple(sorted(numbers)), tuple(sorted(days))
 
 
 def is_published_vocabulary(spelling: str) -> bool:
-    """Whether this spelling is one of synthtwin's own thirteen words.
+    """Whether this spelling is one of synthtwin's own twenty-three words.
 
     The question every surface that talks about a declared word has to
     answer the same way: is this word OURS -- one of the ten spellings
     `parsing.MISSING_TEXTS` reads as "no value" or one of the three
-    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all thirteen
+    stand-in numbers `parsing.NUMERIC_SENTINELS` judges, all twenty-three
     printed in the contract's own appendix and identical in every
     installation -- or is it a word out of somebody's table?
 
@@ -2638,8 +4079,9 @@ def is_published_vocabulary(spelling: str) -> bool:
       through `parsing.folded`.
     - Boundary: no I/O of any kind.
     """
-    if parsing.folded(spelling) in parsing.MISSING_TEXTS:
-        return True
+    for member in parsing.built_in_missing_texts():
+        if parsing.missing_text_matches(spelling, member):
+            return True
     exact = exact_of_spelling(spelling)
     if exact is None:
         return False
@@ -2658,6 +4100,40 @@ def _declared_spelling(
         if declaration.exact is None and folded == declaration.folded:
             return True
     return False
+
+
+def _rescues_a_vocabulary_cell(
+    text: str, declarations: "list[_Declaration]"
+) -> bool:
+    """Whether a declaration reaches a cell THIS PACKAGE'S OWN LIST claims.
+
+    THE RESCUE TEST, NAMED EXPLICITLY BY THE CONTRACT (C6-32) because
+    leaving it to be inferred is how a completeness proof came to be
+    carried with one of its ways unproved. A cell this package would
+    read as absent is rescued only by a declaration that names the
+    member claiming it, under THAT MEMBER'S OWN rule -- so a person who
+    types `--keep-value nat` does not rescue cells spelled `NaT`, whose
+    member is matched byte for byte.
+
+    Without this, the declaration took effect on the cells while the
+    settings block recorded no member as named: the person's own word
+    was recorded as a word of their own, the count of members named
+    stayed at zero, and the reading rule the description was written
+    under could not be rebuilt from it -- which is the defect amendments
+    A-P3-34 and A-P3-37 closed twice for the numeric list.
+
+    Guarantees: accepts a cell's text and the declarations of one side;
+    returns a truth value. Raises TypeError if handed anything that is
+    not text. No I/O of any kind.
+    """
+    for member in parsing.MISSING_TEXTS_EXACT:
+        if text != member:
+            continue
+        for declaration in declarations:
+            if declaration.exact is None and declaration.text == member:
+                return True
+        return False
+    return _declared_spelling(text, declarations)
 
 
 def _declared_number(
@@ -2684,8 +4160,10 @@ def _declared_number(
     return False
 
 
-def _split_missing(
-    values: list[str], settings: Settings
+def split_missing(
+    values: list[str],
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> "tuple[list[str], list[tuple[str, str]]]":
     """Split values into (present, [(exact spelling, named class), ...]).
 
@@ -2709,14 +4187,20 @@ def _split_missing(
     that are present and the pairs that are not, in row order. Raises
     TypeError if a value is not text. No I/O of any kind.
     """
-    kept = _declarations(settings.kept_values)
-    declared_missing = _declarations(settings.declared_missing_values)
+    kept = _declarations(settings.kept_values, decimal_comma)
+    declared_missing = _declarations(
+        settings.declared_missing_values, decimal_comma
+    )
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
-        if _declared_spelling(value, kept):
+        # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A
+        # cell this package's own list claims is reached only by a
+        # declaration that names the member claiming it, and for the
+        # one exact-spelling member that means byte for byte.
+        if _rescues_a_vocabulary_cell(value, kept):
             present += [value]
-        elif _declared_spelling(value, declared_missing):
+        elif _rescues_a_vocabulary_cell(value, declared_missing):
             missing += [(value, parsing.MISSING_DECLARED)]
         elif not parsing.trimmed(value):
             missing += [(value, parsing.MISSING_BLANK)]
@@ -2728,7 +4212,9 @@ def _split_missing(
 
 
 def _declared_numbers_removed(
-    classified: "list[_Cell]", settings: Settings
+    classified: "list[_Cell]",
+    settings: Settings,
+    decimal_comma: bool = False,
 ) -> "tuple[list[_Cell], list[tuple[str, str]]]":
     """Take out the cells whose NUMBER the person declared to be missing.
 
@@ -2754,7 +4240,9 @@ def _declared_numbers_removed(
     returns the cells that survive, in row order, and the pairs that
     left. Raises nothing. No I/O of any kind.
     """
-    declared_missing = _declarations(settings.declared_missing_values)
+    declared_missing = _declarations(
+        settings.declared_missing_values, decimal_comma
+    )
     numeric = [
         declaration
         for declaration in declared_missing
@@ -2916,7 +4404,7 @@ def _sentinel_verdicts(
     Returns candidate -> (is missing, reason code, occurrences).
     """
     settings = cells.settings
-    kept = _declarations(settings.kept_values)
+    kept = _declarations(settings.kept_values, cells.decimal_comma)
     verdicts: dict[float, tuple[bool, str, int]] = {}
     candidates: list[float] = []
     # The exact number of each candidate this column actually holds,
@@ -2961,7 +4449,9 @@ def _sentinel_verdicts(
         spread = upper - lower
         distance = settings.sentinel_outlier_iqr_multiple * spread
         is_outlier = candidate < lower - distance or candidate > upper + distance
-        frequent = _share(occurrences, n_present) >= settings.sentinel_minimum_share
+        frequent = occurrences >= _needed(
+            settings.sentinel_minimum_share, n_present
+        )
         if is_outlier and frequent:
             verdicts[candidate] = (
                 True,
@@ -2973,6 +4463,135 @@ def _sentinel_verdicts(
         else:
             verdicts[candidate] = (False, REASON_NOT_AN_OUTLIER, occurrences)
     return verdicts
+
+
+# -- calendar placeholders --------------------------------------------
+
+
+def _placeholder_verdicts(
+    present: "list[str]",
+    format_name: str,
+    settings: Settings,
+    decimal_comma: bool = False,
+) -> "dict[str, tuple[bool, str, int]]":
+    """Decide, for each placeholder day present, whether it means "missing".
+
+    THE NUMERIC RULE, TRANSPOSED TO DAY ORDINALS (plan amendment A-P4-1
+    item 3). Every property of `_sentinel_verdicts` carries over and is
+    carried over deliberately, because a second rule that merely
+    resembles the first is a second rule:
+
+    * the REFERENCE POPULATION excludes EVERY candidate, not only the
+      one being judged, so a column holding both placeholders cannot
+      make either look ordinary;
+    * a candidate the person named with `--keep-value` is data, and
+      says so, before any arithmetic runs;
+    * fewer than four other values leaves the question unanswerable and
+      the candidate is kept with that reason;
+    * and the two recorded sentinel settings decide it -- an outlier by
+      the interquartile rule and a share reaching the recorded minimum,
+      applied as a COUNT.
+
+    The ordinal space is whole days from the same civil epoch the rest
+    of this package counts in, so no floating-point value is formed
+    anywhere near a calendar and the answer is the same on every
+    machine.
+
+    Returns placeholder -> (is missing, reason code, occurrences).
+    """
+    kept = _declarations(settings.kept_values, decimal_comma)
+    verdicts: dict[str, tuple[bool, str, int]] = {}
+    occurrences_of: dict[str, int] = {}
+    days: dict[str, int] = {}
+    others: list[float] = []
+    for value in present:
+        found = parsing.placeholder_day_of(value, format_name)
+        if found is not None:
+            if found in occurrences_of:
+                occurrences_of[found] = occurrences_of[found] + 1
+            else:
+                occurrences_of[found] = 1
+            continue
+        pair = parsing.parse_datetime(value, format_name)
+        if pair is None:
+            continue
+        others += [float(_day_ordinal(pair[0]))]
+    for candidate in parsing.calendar_placeholders():
+        if candidate not in occurrences_of:
+            continue
+        days[candidate] = _day_ordinal(candidate)
+    for candidate in sorted(days):
+        occurrences = occurrences_of[candidate]
+        # THE PERSON NAMES A SPELLING OF THEIR TABLE, NOT A CANONICAL
+        # DAY (review item P4-HOLE-F2). A month-first column writes the
+        # far placeholder as `12/31/9999`, and that is what somebody
+        # types after `--keep-value`; comparing their word against the
+        # canonical `9999-12-31` matched nothing and the cells were
+        # taken out over their instruction. So the declaration is asked
+        # of the CELLS that denote this candidate, and of the canonical
+        # spelling too, because a person may type either.
+        if _declared_spelling(candidate, kept):
+            verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
+            continue
+        if _kept_by_spelling(present, format_name, candidate, kept):
+            verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
+            continue
+        if len(others) < 4:
+            verdicts[candidate] = (
+                False,
+                REASON_TOO_FEW_OTHERS,
+                occurrences,
+            )
+            continue
+        ordered_others = sorted(others)
+        lower = _quantile(ordered_others, 25, 100)
+        upper = _quantile(ordered_others, 75, 100)
+        spread = upper - lower
+        distance = settings.sentinel_outlier_iqr_multiple * spread
+        ordinal = float(days[candidate])
+        is_outlier = (
+            ordinal < lower - distance or ordinal > upper + distance
+        )
+        frequent = occurrences >= _needed(
+            settings.sentinel_minimum_share, len(present)
+        )
+        if is_outlier and frequent:
+            verdicts[candidate] = (
+                True,
+                REASON_OUTLIER_AND_FREQUENT,
+                occurrences,
+            )
+        elif is_outlier:
+            verdicts[candidate] = (False, REASON_TOO_RARE, occurrences)
+        else:
+            verdicts[candidate] = (
+                False,
+                REASON_NOT_AN_OUTLIER,
+                occurrences,
+            )
+    return verdicts
+
+
+def _kept_by_spelling(
+    present: "list[str]",
+    format_name: str,
+    candidate: str,
+    kept: "list[_Declaration]",
+) -> bool:
+    """Whether a declaration names a CELL that denotes this candidate."""
+    for value in present:
+        if parsing.placeholder_day_of(value, format_name) != candidate:
+            continue
+        if _declared_spelling(value, kept):
+            return True
+    return False
+
+
+def _day_ordinal(canonical: str) -> int:
+    """One canonical date's day, counted from the civil epoch."""
+    return parsing.days_from_civil(
+        int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+    )
 
 
 def _published_verdicts(
@@ -2997,6 +4616,40 @@ def _published_verdicts(
         entries += [
             {
                 "candidate": f"{candidate:g}",
+                "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
+                "reason": reason,
+                "n_occurrences": occurrences,
+            }
+        ]
+    return entries, unpublished
+
+
+def _published_day_verdicts(
+    verdicts: "dict[str, tuple[bool, str, int]]", settings: Settings
+) -> "tuple[list[dict[str, object]], int]":
+    """The same publication rule, over the placeholder days.
+
+    The candidate is written as its canonical ISO day and the entries
+    are ordered as TEXT, which for these spellings is the same order as
+    by day. Below the floor a candidate is counted and not named, for
+    the reason the numeric half gives: naming it would publish a value
+    the levels are withholding at the same moment.
+
+    A DAY IS NOT A NUMBER AND IS NOT WRITTEN AS ONE. The numeric half
+    writes `f"{candidate:g}"`; a day written that way would not be a
+    day at all, and the two halves are two functions for exactly that
+    reason rather than one with a branch in it.
+    """
+    entries: list[dict[str, object]] = []
+    unpublished = 0
+    for candidate in sorted(verdicts):
+        missing, reason, occurrences = verdicts[candidate]
+        if occurrences < settings.small_cell_floor:
+            unpublished = unpublished + 1
+            continue
+        entries += [
+            {
+                "candidate": candidate,
                 "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
                 "reason": reason,
                 "n_occurrences": occurrences,
@@ -3068,6 +4721,51 @@ def _variants(
     return (named, _multiplicity_map(withheld))
 
 
+def shape_form_cells(spellings: dict[str, int]) -> int:
+    """How many cells of ONE level were written in a form (plan A-P4-47).
+
+    THE FACT THAT LETS A LEVEL'S STAND-IN SPELLINGS KEEP ITS SHAPE.
+    `shape_forms` beside it is a census of the whole COLUMN, and the
+    twin covers that census out of whatever cells it writes;
+    which of a level's held-back spellings wore the label's form is a
+    fact the column census cannot carry, so the twin guessed and was
+    wrong in both directions (residual R-P4-34). This is that fact,
+    published for each level of its own.
+
+    IT IS ONE NUMBER AND NOT A MAP, and that is a property rather than
+    a simplification. A spelling belongs to a level when trimming and
+    case folding it gives the label. A spelling that HAS a form holds
+    only ASCII letters, ASCII figures and the marks -- no space, so
+    trimming changes nothing -- and folding an ASCII letter leaves an
+    ASCII letter in the same place, so `parsing.shape_form` answers the
+    same string for the spelling and for its fold. Every form-bearing
+    spelling of a level therefore wears exactly `shape_form(label)`,
+    and a level's census can name at most that one form. A label with
+    no form of its own has no form-bearing spelling at all, so this
+    answers 0 for it.
+
+    WHAT IT DOES NOT PUBLISH. No spelling, and no form key: the form
+    this counts is `shape_form` of the level's own published label,
+    which the reader already holds. The floor governs which VALUES are
+    named and it still does; this names none.
+
+    Guarantees:
+
+    - Inputs: the exact spellings of ONE folded identity with how many
+      rows wrote each -- the same mapping `_variants` above is handed.
+    - Determinism: the answer depends only on that mapping, and the
+      spellings are walked in sorted order.
+    - Errors raised: none.
+    - Boundary: the answer is between 0 and the level's own row count,
+      and no character of any spelling reaches it.
+    """
+    shaped = 0
+    for spelling in sorted(spellings):
+        if parsing.shape_form(spelling):
+            shaped = shaped + spellings[spelling]
+    return shaped
+
+
 def _levels(
     counts: dict[str, int],
     spellings_by_folded: dict[str, dict[str, int]],
@@ -3090,6 +4788,13 @@ def _levels(
     carries neither, because it has no entry to carry them in: a
     spelling of a label the profile refuses to name may not appear
     beside its count under any other key.
+
+    **And `shape_form_cells`**, how many of the level's cells were
+    written in the label's own form (plan amendment A-P4-47).
+    `shape_form_cells` above states the rule and what it does and does
+    not disclose; it is what lets the twin give a level's made-up
+    spellings the shape the source's held-back spellings actually
+    wore, which the column-wide `shape_forms` census cannot say.
 
     `suppressed_counts` is the anonymous multiset of the withheld
     levels' sizes. Without it a binary column split 1/9 and one split
@@ -3122,6 +4827,16 @@ def _levels(
                     "count": count,
                     "variants": named,
                     "variants_withheld": withheld,
+                    # ...AND HOW MANY OF ITS CELLS WORE ITS OWN WRITTEN
+                    # FORM (plan amendment A-P4-47). Written on every
+                    # published level of every label role, including
+                    # the ones whose label has no form and whose answer
+                    # is therefore 0: this format has no optional keys,
+                    # and a key that appears only where the answer is
+                    # interesting is a key whose ABSENCE speaks.
+                    "shape_form_cells": shape_form_cells(
+                        spellings_by_folded[label]
+                    ),
                 }
             ]
         else:
@@ -3136,13 +4851,437 @@ def _levels(
     )
 
 
-def _level_details(levels: _Levels) -> dict[str, object]:
-    """The published block a label-publishing role carries."""
+@dataclasses.dataclass(frozen=True)
+class _Compound:
+    """The THREE populations of a `numbers_with_labels` column.
+
+    `numbers` are the cells that read as an ordinary number, `unusable`
+    the cells the number rules recognise as a numeral and this format
+    cannot hold -- one too large, or one whose notation contradicts
+    itself -- and `labels` everything else (residual R-P4-149, closed
+    by the owner's ruling of 2026-09-04).
+
+    THE THIRD POPULATION IS NOT A THIRD SUB-BLOCK. An unusable numeral
+    is a NUMBER, so it belongs to the numeric half's population and is
+    counted there the way a plain numeric column counts one: the half's
+    `n_out_of_range` and `n_contradictory`. What the split does is stop
+    calling it a word.
+    """
+
+    numbers: "list[_Cell]"
+    unusable: "list[_Cell]"
+    labels: "list[_Cell]"
+    folded_counts: "dict[str, int]"
+
+
+def _compound_reading(cells: "_Cells") -> "_Compound | None":
+    """Numbers and labels in one cell space, or None -- rule 7b.
+
+    Splits the present cells into the ones that read as ordinary
+    numbers and the ones that are not numbers at all, and answers only
+    where BOTH halves are what they need to be. The numbers must clear
+    the detection line in CELLS and in different values, and hold more
+    different values than a set of categories may. The words must be a
+    VOCABULARY: more than nine tenths of the half's cells wearing a
+    spelling that repeats, most of its identities repeating, and either
+    a SMALL SET of them or one that clears the detection line -- either
+    ground, not both. This paragraph said "at least one level that
+    reaches it" until review round 8 of this landing (item 6), which
+    is one of the two grounds and not the rule: a column of 295
+    readings beside five `NOT DETECTED` is admitted by the other, and a
+    maintainer following the sentence would have taken it away.
+
+    A CELL THAT IS A NUMBER THE FORMAT CANNOT HOLD GOES WITH THE
+    LABELS, and this paragraph said the opposite until review round 6
+    of this landing (item 6). The first writing of the RULE refused the
+    whole column on such a cell, on the ground that
+    `numeric_unrepresentable` describes it properly -- and that role is
+    decided by an earlier rule, so by the time this one runs it has
+    already declined. Refusing here sent the column nowhere better: 280
+    readings beside nineteen `POSITIVE` and ONE value too large for the
+    format fell to the long tail, which describes none of the 280. So
+    the rule changed and this sentence did not, which is a comment
+    telling a maintainer the opposite of what the code beside it does.
+    The comment below the signature has the whole reasoning; residual
+    R-P4-149 carries the open question, which is whether such a cell
+    should be described as a NUMBER rather than as a word.
+    """
+    # THE HALVES ARE "AN ORDINARY NUMBER" AND "EVERYTHING ELSE", and a
+    # cell the format cannot hold goes with the everything else. An
+    # earlier writing made such a cell REFUSE the whole rule, on the
+    # ground that its column belongs to `numeric_unrepresentable` --
+    # and that role is decided by an earlier rule, so by the time this
+    # one runs it has already declined. Refusing here therefore did not
+    # send the column anywhere better: 280 readings beside nineteen
+    # `POSITIVE` and ONE value too large for the format fell through to
+    # the long tail, which describes none of the 280. One stray cell
+    # undid the whole role.
+    numbers: "list[_Cell]" = []
+    unusable: "list[_Cell]" = []
+    labels: "list[_Cell]" = []
+    for cell in cells.classified:
+        if cell.kind == parsing.NUMBER:
+            numbers = numbers + [cell]
+        elif cell.kind in (
+            parsing.NUMBER_OUT_OF_RANGE, parsing.NUMBER_CONTRADICTORY
+        ):
+            # A NUMERAL THIS FORMAT CANNOT HOLD IS STILL A NUMERAL
+            # (residual R-P4-149, closed by the owner's ruling of
+            # 2026-09-04). It used to join the labels, so a lab column
+            # of 280 readings with one `9e999` published that cell as a
+            # WORD beside `positive` and reported nought cells left out
+            # of its statistics on a column that has one. Worse at a
+            # raised floor: one such cell does not clear it, so the
+            # spelling was suppressed and the cell came back as
+            # `group-N` -- a fake word where the source had a number.
+            unusable = unusable + [cell]
+        else:
+            labels = labels + [cell]
+    if not numbers or not labels:
+        return None
+    # AND THE NUMBERS MUST LOOK LIKE A QUANTITY RATHER THAN A CODE SET,
+    # which is the question this rule forgot to ask about its own half.
+    # `1`, `2`, `3` thirty times each beside five `unknown` is a coded
+    # field: the digits are labels, and a mean of 2.0 over them is a
+    # sentence about nothing. The suite holds that column and it is
+    # right to -- the test is named "a small set of numeric codes is
+    # still a set of categories".
+    #
+    # The line is the one already used on the other half: a numeric
+    # population holding no more different values than a set of
+    # categories may is a set of categories, whatever it is spelled
+    # with. So this rule asks the text half to look like LABELS and the
+    # numeric half to look like a QUANTITY, and declines when either
+    # half is not what it needs to be.
+    # The question is asked of the numeric half ON ITS OWN, over its own
+    # cell count and not the column's rows. The ceiling is a share of
+    # however many cells are being judged, so measuring a 3,000-cell
+    # numeric half against a 6,000-row column's ceiling asks the wrong
+    # question and called 400 different readings a code set.
+    #
+    # BY VALUE AND NOT BY SPELLING, which this counted wrongly at first
+    # and which decides whether a coded field is read as a quantity.
+    # Every cell already carries the exact number it denotes, and the
+    # column's own distinctness is counted from those -- so a merge
+    # that wrote `1` from one system and `1.0` from another holds SIX
+    # different ECOG codes and not twelve. Counting the spellings made
+    # the formatting decide the meaning: the same six codes crossed the
+    # line into "quantity" and the twin would have published a mean of
+    # a performance status.
+    distinct_numbers: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in numbers:
+        if cell.exact is None:
+            continue
+        seen = 0
+        if cell.exact in distinct_numbers:
+            seen = distinct_numbers[cell.exact]
+        distinct_numbers[cell.exact] = seen + 1
+    settings = cells.settings
+    # AND AN ABSOLUTE FLOOR BENEATH THE SHARE, because a share alone
+    # says the same six codes are a QUANTITY in a fifty-row column and
+    # a CODE SET in a hundred-row one -- the ceiling grows with the
+    # column and the meaning does not. Six values are six values.
+    #
+    # The floor is the smallest group this project will publish at all.
+    # A numeric population holding fewer different values than that is
+    # a code set however many rows wear it: `0` to `5` is a performance
+    # status, and a mean over it is a sentence about nothing. Above it,
+    # the share decides as before.
+    #
+    # WHAT THIS CANNOT DO is tell a six-point CODE from a six-point
+    # MEASUREMENT, and no count can -- the review that found this said
+    # so. Where the two are indistinguishable this rule declines and
+    # the column keeps the description it has today, which is the
+    # honest answer; `--code` is how a person says which it is.
+    # THE DETECTION LINE, AND IT IS THE FLOOR'S LINE AND NOT THE BARE
+    # ELEVEN (review round 2 of this landing, item 1). This read
+    # `settings.long_tail_minimum_level` -- the constant eleven -- so
+    # raising the floor did not raise this bar, and the guarantee every
+    # other rule of this taxonomy carries is that membership at ANY
+    # floor is a subset of membership at eleven. Measured: at a floor
+    # of twenty-five, eleven readings beside forty `POSITIVE` cells
+    # took the role and published a mean, a spread and a percentile
+    # rung over eleven cells -- to a person who had asked that nothing
+    # about a group smaller than twenty-five be published.
+    line = _long_tail_line(settings)
+    # THE TWIN OF A COLUMN THAT SITS ON THIS LINE MAY NOT BE ONE, and
+    # a margin is NOT the answer (review round 3 of this landing, item
+    # 4, measured twice). The numeric machinery reaches about nine
+    # tenths of a published count of different values on a hard column,
+    # so a half holding exactly the line's worth writes fewer, and
+    # re-describing the twin gives another role: over forty seeds, a
+    # half on the line kept the role on 31 of 40 seeds at floors 1 and
+    # 11 and on 13 of 40 at floor 25.
+    #
+    # A margin of a tenth was built and MEASURED and taken out again,
+    # because it raises the bar the TWIN must clear as well: with it,
+    # thirteen different numbers -- the first count that had been
+    # stable at floor 1 -- kept the role on 27 of 40 seeds instead of
+    # 40. Every margin does this, and each one costs real columns the
+    # description they exist to get.
+    #
+    # So the line stands where the plan puts it and the limit is
+    # NAMED instead: residual R-P4-151. The twin of such a column still
+    # HOLDS its numbers -- what a re-description does not do is call it
+    # the same kind of column, so `synthtwin validate` reports the
+    # role's facts as withheld rather than held.
+    if len(distinct_numbers) < line:
+        return None
+    # AND THE HALF ITSELF MUST CLEAR THE LINE, not only its count of
+    # different values. The two are the same number on a column whose
+    # readings never repeat and far apart on one whose readings do, and
+    # the plan states this rule over the CELLS: a numeric half smaller
+    # than the smallest publishable group is a group this description
+    # may not describe.
+    if len(numbers) < line:
+        return None
+    share = _at_most(settings.categorical_share, len(numbers))
+    ceiling = min(settings.categorical_ceiling, share)
+    if len(distinct_numbers) <= max(ceiling, settings.categorical_floor):
+        return None
+    folded_counts: "dict[str, int]" = {}
+    for cell in labels:
+        seen = 0
+        if cell.folded in folded_counts:
+            seen = folded_counts[cell.folded]
+        folded_counts[cell.folded] = seen + 1
+    # THE TEXT HALF IS JUDGED BY HOW MANY DIFFERENT WORDS IT HOLDS, NOT
+    # BY HOW OFTEN THEY REPEAT, and the first writing of this rule had
+    # it the other way about. It asked the words to clear the same
+    # detection line the numbers clear -- one word shared by eleven
+    # rows -- which reads plausibly and is backwards for the column
+    # this role exists for. MEASURED on 300-row columns of readings
+    # beside one marker: five markers and nine markers both declined
+    # and their readings went on being described by nothing, while
+    # eleven markers worked. A lab column is most often nearly all
+    # numeric with a HANDFUL below the detection limit, so the rule
+    # refused exactly the commonest shape.
+    #
+    # The words do not have to be publishable for the NUMBERS to
+    # deserve describing. What matters is that the text half LOOKS LIKE
+    # A COLUMN OF LABELS rather than prose -- and this project already
+    # has two rules for that and no third is invented here. The text
+    # half is label-shaped when EITHER:
+    #
+    #  - it holds no more different words than a set of categories may
+    #    (the categorical ceiling), which is a handful of markers --
+    #    one `NOT DETECTED`, or `POSITIVE` beside `NEGATIVE`; OR
+    #  - at least one of its words is shared by enough rows to be
+    #    published (the long-tail detection line), which is what a
+    #    LARGE but repeating vocabulary looks like.
+    #
+    # THE SECOND DISJUNCT IS THE OWNER'S CORRECTION, and without it
+    # this rule refused a real shape: a microbiology column naming
+    # sixty organisms across three thousand cells has far more than the
+    # ceiling's worth of different words and is not free text by any
+    # reading -- every one of those names repeats scores of times. The
+    # first writing of this rule had only the SECOND disjunct and
+    # refused a handful of markers; the second had only the FIRST and
+    # refused a large repeating vocabulary. Each was half of it.
+    #
+    # What falls outside both is prose: sixty notes in sixty cells, no
+    # word repeated, nothing publishable. Those decline here and stay
+    # free text exactly as today.
+    #
+    # AND A WORD THAT APPEARS ONCE IS A NOTE, NOT A LABEL. This is the
+    # third correction to this rule and it came from the suite: a
+    # policy test holds 98 numbers beside TWO all-different clinical
+    # notes -- `seen clinic with nurse unchanged` -- and two is a small
+    # set by any ceiling, so the rule above claimed the column and
+    # would have published those two notes as levels. Publishing
+    # somebody's free text verbatim is the thing the label roles exist
+    # to avoid, and a note is not a marker however few there are. So
+    # the text half must REPEAT somewhere: at least one of its words
+    # covering more than one row. Five `NOT DETECTED` repeat; five
+    # different notes do not.
+    # AND THE WORDS THAT REPEAT MUST COVER MOST OF THE TEXT HALF, not
+    # merely exist somewhere in it. Asking only that SOME word repeat
+    # let one duplicated phrase carry arbitrary prose in with it: a
+    # thousand rows holding 980 readings, TWO copies of `unable to
+    # obtain` and eighteen different narrative results satisfied it,
+    # and nineteen text values sit under a thousand-row column's
+    # ceiling -- so the column read as compound and the label block
+    # would have published those eighteen narratives verbatim. The
+    # numeric mass was making the text half look like labels.
+    #
+    # MORE than half is the line, and the word above is "most":
+    # `covered * 2 < len(labels)` refused fewer than half and admitted
+    # EXACTLY half, which review round 1 of this landing showed is a
+    # column of prose (item 4). Fifty numbers, `unable to obtain`
+    # twice, and two different narratives -- the repeating identity
+    # covers two of four text cells, the rule admitted it, and at a
+    # floor of one both narratives would have been published verbatim
+    # as levels.
+    covered = 0
+    singletons = 0
+    for key in sorted(folded_counts):
+        if folded_counts[key] > 1:
+            covered = covered + folded_counts[key]
+        else:
+            singletons = singletons + 1
+    # NINE TENTHS OF THE HALF'S CELLS, and "more than half" was not
+    # enough (review round 2, item 4). Two hundred and ninety-six
+    # readings, three `NOT DETECTED` and ONE narrative gives a half
+    # whose repeating cells are three of four -- a clear majority --
+    # and at a floor of one that narrative is published verbatim as a
+    # level. Nine tenths refuses it and still admits the shape this
+    # bar exists to protect: nineteen markers beside one MISSPELLED
+    # marker is ninety-five hundredths, and a lab column is not to be
+    # thrown to another role over one typing slip.
+    # STRICTLY MORE than nine tenths, because the boundary itself
+    # carries prose: two hundred readings beside ninety marker cells
+    # and TEN different one-off notes is exactly nine tenths, and the
+    # ten notes would each be published verbatim at a floor of one
+    # (review round 3 of this landing, item 3). The typing-slip column
+    # this bar protects is at ninety-five hundredths and is unaffected.
+    if covered * 10 <= len(labels) * 9:
+        return None
+    # AND MOST OF THE HALF'S IDENTITIES MUST REPEAT, not merely most of
+    # its cells. The cell test alone is carried by one big marker: a
+    # thousand-row column holding a hundred `NOT DETECTED` and
+    # ninety-nine different narratives has the marker covering more
+    # than half the cells, one identity clearing the detection line,
+    # and ninety-nine narratives that would each be published verbatim
+    # at a floor of one. A vocabulary is a set of words that recur; a
+    # set where most of the WORDS occur once is prose with a marker
+    # mixed into it, and it stays free text.
+    # AND MOST OF THE HALF'S IDENTITIES MUST REPEAT, which the cell
+    # test above does not settle on a LARGE half: a thousand markers
+    # beside ninety-nine different narratives is ninety-one hundredths
+    # of the cells and still ninety-nine narratives. A MAJORITY of
+    # singletons refuses; a tie does not, because the smallest half
+    # with a stray -- one marker and one typo -- is a tie and is the
+    # case the paragraph above admits on purpose.
+    if singletons * 2 > len(folded_counts):
+        return None
+    # AND A TIE IS ADMITTED ONLY WHERE ITS REPEATING WORD IS ITSELF
+    # PUBLISHABLE (review round 4 of this landing, item 4). The tie is
+    # the smallest interesting half: one word that repeats and one that
+    # occurs once. Whether admitting it publishes MORE of a person's
+    # text than refusing it depends on what the column falls to, and
+    # that turns on exactly this question:
+    #
+    # * 280 readings, nineteen `NOT DETECTED` and one stray -- the
+    #   marker covers nineteen rows, clears the detection line, and
+    #   REFUSING sends the column to `long_tail_labels`, which at a
+    #   floor of one publishes 282 levels: the stray and all 280
+    #   readings, each verbatim. Admitting publishes one.
+    # * 289 readings, ten `NOT DETECTED` and one stray -- the marker
+    #   covers ten rows, clears nothing, and refusing sends the column
+    #   to `free_text`, which publishes no cell at all. Admitting
+    #   publishes the stray for nothing.
+    #
+    # So the tie is admitted where a repeating word reaches the line
+    # and refused where none does, which is the same question the rule
+    # below asks for its OTHER branch and needs no new number.
+    if (
+        singletons * 2 == len(folded_counts)
+        and _levels_covering(folded_counts, cells.settings) < 1
+    ):
+        return None
+    a_small_set = len(folded_counts) <= _categorical_ceiling(cells)
+    a_repeating_one = _levels_covering(folded_counts, cells.settings) >= 1
+    if not a_small_set and not a_repeating_one:
+        return None
+    return _Compound(numbers, unusable, labels, folded_counts)
+
+
+def _long_tail_line(settings: Settings) -> int:
+    """How many rows a level must cover for the long-tail rule to fire.
+
+    The publication floor or the recorded minimum, whichever is LARGER
+    (plan P4-D5, contract 4.x). The max is the rule, not a safety
+    margin, and the guarantee it buys is exact: membership at ANY floor
+    is a subset of membership at eleven. Raising the floor can only
+    remove a column -- publishing a floor-clearing spelling is
+    constitutive of the role, so a level too small to be published must
+    not be the level that made the column label-publishing. Lowering
+    the floor widens which LEVELS of an admitted column are shown, and
+    admits no column that was not one at eleven.
+    """
+    if settings.small_cell_floor > settings.long_tail_minimum_level:
+        return settings.small_cell_floor
+    return settings.long_tail_minimum_level
+
+
+def _levels_covering(counts: "dict[str, int]", settings: Settings) -> int:
+    """How many folded levels reach the long-tail detection line."""
+    line = _long_tail_line(settings)
+    found = 0
+    for key in sorted(counts):
+        if counts[key] >= line:
+            found = found + 1
+    return found
+
+
+def _stand_in_level_remarks(levels: _Levels) -> "list[Note]":
+    """One remark per built-in stand-in number published as a level.
+
+    Contract NF37; plan P4-D4.7, withdrawn by amendment A-P4-30 item 1
+    and built now under residual R-P4-24. The stand-in judgement runs
+    only where a column's numbers reach the parse line, so a column of
+    LABELS publishes `-999` as an ordinary level with an ordinary
+    count, and nothing in the document told its owner that the same
+    number one column over would have been read as a gap.
+
+    IT ROUTES NOTHING. The role is already decided, the level is
+    already published at its own count, and `--missing-value` is the
+    person's to type or not. What the sentence adds is that they know
+    the choice exists.
+
+    THE MATCH IS BY NUMBER AND NOT BY SPELLING, which is the rule every
+    other declaration in this module is matched under: `-999`,
+    `-999.0` and `-999.00` are one number, and a column publishing any
+    of them publishes the stand-in. Only levels that were PUBLISHED are
+    looked at -- a level the floor held back is a level the remark may
+    not describe, since the sentence says "one of the values this
+    column publishes".
+
+    Guarantees: accepts the published levels of one label column;
+    returns a sentence for each built-in stand-in among them, in this
+    package's own order, so a column publishing two of them is told
+    about both. No spelling of the column reaches a sentence: each
+    carries the candidate's PLACE in the built-in list and nothing
+    else. Raises nothing. No I/O of any kind.
+    """
+    said: "list[Note]" = []
+    labels = [
+        entry["label"]
+        for entry in levels.published
+        if isinstance(entry["label"], str)
+    ]
+    exact = [exact_of_spelling(f"{label}") for label in labels]
+    for place, candidate in enumerate(parsing.NUMERIC_SENTINELS, start=1):
+        wanted = exact_of_number(candidate)
+        for held in exact:
+            if held is not None and held == wanted:
+                said = said + [note(REMARK_LABEL_IS_A_STAND_IN, (place,))]
+                break
+    return said
+
+
+def _level_details(levels: _Levels, cells: _Cells) -> dict[str, object]:
+    """The published block a label-publishing role carries.
+
+    ...AND THE FORMS ITS CELLS WERE WRITTEN IN, ON ALL FOUR OF THEM
+    (plan P4-D18, corrected). The census first stood on
+    `long_tail_labels` alone, on the reasoning that the other three
+    publish their levels so their twins hold them and have no stand-in
+    to shape. That reasoning was WRONG, and running the tool on a
+    patient table is what showed it: a diagnosis column of five common
+    codes and twenty-six rare ones is under the categorical ceiling, so
+    it takes `categorical` -- and the floor holds back all
+    twenty-six, whose twin cells came out `group-1` through
+    `group-24`. Every label role suppresses levels; whether it does is
+    a fact about the FLOOR and not about the role. So the census
+    stands wherever levels can be held back, which is here.
+    """
     return {
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
         "suppressed_level_counts": levels.suppressed_counts,
+        "shape_forms": _shape_forms(cells),
     }
 
 
@@ -3169,6 +5308,9 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         },
         "n_all_digits": cells.all_digits,
         "n_code_alphabet": cells.code_alphabet,
+        # ...and the forms its cells were written in, which is what
+        # lets a made-up cell look like one of them (plan P4-D18).
+        "shape_forms": _shape_forms(cells),
         # The shape of repetition, with no value attached to it (plan
         # P2-D4). A free-text column publishes no value, so without this
         # a column of a hundred different notes and one of fifty notes
@@ -3261,7 +5403,7 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        style = numeric_style(cell.text)
+        style = numeric_style(cell.numeric_text)
         if style in counts:
             counts[style] = counts[style] + 1
         else:
@@ -3280,12 +5422,786 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     return published_counts
 
 
+def fraction_width(text: str) -> int:
+    """How many figures one `decimal`-styled cell writes after its point.
+
+    THE RULE ITSELF IS `parsing.fraction_width`, and this is the name
+    the describing side calls it by, for the reason `numeric_style` is
+    reached the same way: the generator may not import this module and
+    must recount a twin's widths with the SAME reader rather than a
+    copy of it. Two readers of one width is how a census and the file
+    it describes come to disagree about a cell neither of them wrote
+    wrongly.
+    """
+    return parsing.fraction_width(text)
+
+
+def _fraction_widths(cells: _Cells) -> dict[str, int]:
+    """How many `decimal`-styled cells wrote each width, under the floor.
+
+    TWO COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN.
+    Eleven cells reading `1.00` and eleven reading `2.000` are both
+    `decimal` under the styles map, which says only that twenty-two
+    cells carried a point -- so a twin writing every one of them to one
+    place carried the published styles map exactly while writing a
+    column no reader of the real table would recognize. This census is
+    what the styles map cannot say: not that a point was written, but
+    how many figures followed it.
+
+    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM. A width used by
+    fewer than `small_cell_floor` cells has no key of its own and its
+    cells are counted into a `(withheld)` remainder, so one oddly
+    written cell cannot be singled out by its own width any more than
+    by its own form.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically: no leading
+    zero, no sign, no padding, so `2` and never `02`. A key grammar
+    left to be inferred is a key two producers spell differently and a
+    consumer reads as two widths.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that sum
+    to how many cells of this column were written in the `decimal`
+    form. Determinism: the answer depends only on the tally, and the
+    keys are built in ascending width order. Raises nothing. No I/O of
+    any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
+            continue
+        width = fraction_width(cell.numeric_text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
+def pad_width(text: str) -> int:
+    """How wide one zero-padded cell writes its figure field.
+
+    THE RULE ITSELF IS `parsing.pad_width`, and this is the name the
+    census reads it under, exactly as `fraction_width` is.
+    """
+    return parsing.pad_width(text)
+
+
+def _shape_forms(cells: _Cells) -> dict[str, int]:
+    """How many present cells wore each written form, under the floor.
+
+    THE FACT THAT LETS A HELD-BACK VALUE HAVE A STAND-IN THAT LOOKS
+    LIKE ONE. A column whose rare values the floor holds back publishes
+    nothing about them, so its twin writes `group-14`: not the right
+    length, not the right alphabet, and on a column of hyphenated codes
+    it even splits into two parts and passes for one. A form says a
+    letter, two figures, a point and a figure -- `A99.9` -- and says
+    nothing whatever about WHICH letter or WHICH figures.
+
+    THE FLOOR GOVERNS A FORM AS IT GOVERNS A LEVEL, and here it does
+    more work than anywhere else: a form shared by fewer than
+    `small_cell_floor` cells is pooled, so a column of prose, where
+    every cell's form is its own, publishes nothing but the pool. The
+    census therefore selects for STRUCTURE without anybody deciding
+    which columns are structured.
+
+    A cell with NO FORM AT ALL is counted NOWHERE -- not named and not
+    pooled. `(withheld)` means one thing in this format, a group too
+    small to name, and a cell this census does not describe is not a
+    small group. The docstring said the opposite of the code for one
+    landing; the code was right and this now says what it does.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    forms, plus possibly `(withheld)`, to counts that sum to the cells
+    that HAVE a form -- which is at most the column's present cells,
+    and fewer wherever a cell was too long to have one. Determinism: the answer depends only on the
+    tally, and the keys are built in sorted order. Raises nothing. No
+    I/O of any kind.
+    """
+    counts: dict[str, int] = {}
+    withheld = 0
+    for value in cells.present:
+        form = parsing.shape_form(value)
+        if not form:
+            # A CELL WITH NO FORM IS NOT COUNTED AT ALL, and it is not
+            # pooled either. `(withheld)` means ONE thing everywhere in
+            # this format -- a group too small to name -- and at a
+            # floor of one there is no such group, which is a rule the
+            # publication guard enforces. A cell too long to have a
+            # form is not a small group; it is a cell this census has
+            # nothing to say about. Pooling it there put a `(withheld)`
+            # key into a floor-one document that the guard, rightly,
+            # refused to write.
+            continue
+        if form in counts:
+            counts[form] = counts[form] + 1
+            continue
+        counts[form] = 1
+    # A FORM IS NAMED ON ITS COUNT ALONE, AND NEVER ON WHAT ELSE THE
+    # COLUMN HOLDS. That is a rule this census had for a landing, lost,
+    # and got back, so it is written down rather than left implied.
+    #
+    # The rule that was tried, twice, is "do not name a form spelled
+    # the same as a present cell". It looks like a privacy rule and it
+    # is the opposite of one. It makes suppression DATA-DEPENDENT, and
+    # a reader can run the dependency backwards: the published levels
+    # of a column wear a form and cover enough rows that SF1 REQUIRES
+    # that key; the key is absent; the only rule that removes it is the
+    # collision rule; therefore a cell is spelled exactly like the key.
+    # A floor-suppressed value, recovered EXACTLY, from published facts
+    # and no side knowledge.
+    #
+    # What it was meant to stop discloses nothing to begin with. The
+    # key `@%%.%` is what ANY letter-figure-figure-point-figure column
+    # publishes; a reader seeing it cannot tell whether some cell is
+    # also spelled that way, and `A99` had two thousand six hundred
+    # preimages when the placeholders were `9` and `A`. So the rule
+    # trades a coincidence that tells nobody anything for a channel
+    # that hands over a suppressed value.
+    #
+    # Round 2's verification refuted it. Round 3's read asked for it
+    # again, on the formless-cell case, and it was BUILT AND REVERTED
+    # -- measured: the same column with and without one odd cell gives
+    # two documents differing only in whether the census is pooled.
+    # A FORM WHOSE SUPPLY IS SMALL NAMES THE VALUES IT DESCRIBES, and
+    # that is the deepest thing five adversarial reads found here.
+    #
+    # `%-` has exactly TEN cells that could have worn it, `0-` through
+    # `9-`. A column holding all ten, nine of them often enough to
+    # publish, names nine and holds one back -- and a reader with the
+    # form and the nine knows the tenth exactly. Worse in free text: a
+    # hundred values `0-0` through `9-9` all wear `%-%`, which has
+    # exactly a hundred cells, so the census hands over the COMPLETE
+    # value set of a role that promises no value at all.
+    #
+    # THE TEST IS OVER PUBLISHED FACTS ONLY, and that is what makes it
+    # safe where the collision rule was not. `form_room` is a property
+    # of the FORM and `n_distinct` and the floor are already on the
+    # page, so a reader can work out for themselves which forms this
+    # rule would refuse -- and an absence they can predict tells them
+    # nothing. The rule the census refuses twice over, "do not name a
+    # form spelled like a present cell", tested a HIDDEN fact, which
+    # is why its absences spoke.
+    #
+    # `n_distinct` counts the whole column and is therefore at least
+    # the values wearing any one form, so the test errs toward
+    # refusing -- the safe direction.
+    room_needed = cells.raw_distinct + cells.settings.small_cell_floor
+    published_counts: dict[str, int] = {}
+    for form in sorted(counts):
+        if parsing.form_room(form) < room_needed:
+            continue
+        if counts[form] >= cells.settings.small_cell_floor:
+            published_counts[form] = counts[form]
+            continue
+        withheld = withheld + counts[form]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
+def _comma_remarks(cells: _Cells) -> "list[Note]":
+    """The comma remark, or nothing, for any column that can carry it.
+
+    ONE CALL SITE PER ROLE AND ONE RULE BEHIND THEM. The first
+    revision fired this only from the numeric verdict, which left the
+    two columns that need it most silent: a column wearing a currency
+    sign, whose cores are read as quantities exactly as a bare numeric
+    column's cells are; and a column whose European values reach a
+    thousand, which DECLINES to free text precisely because `1000,000`
+    is not a thousands-grouped number -- so the person was told
+    "synthtwin could not settle what this column holds" with no
+    mention of the reason sitting in every cell.
+    """
+    unsettled, settled = _group_comma_cells(cells)
+    if not unsettled and not settled:
+        return []
+    return [note(REMARK_GROUP_COMMAS, (unsettled, settled))]
+
+
+def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
+    """The cells a comma left unsettled, and the cells that settled it.
+
+    THE SECOND COUNT IS READ OVER EVERY PRESENT CELL and not only over
+    the numbers, which is the whole reason it exists. `1000,000` is not
+    a number this package reads -- a thousands group cannot be four
+    figures -- so it is a straggler, and a column of European values
+    that reaches a thousand carries its own proof in a cell the numeric
+    census never sees. Counting the proof only among the numbers would
+    have missed exactly the columns that settle the question.
+    """
+    unsettled = 0
+    settled = 0
+    for cell in cells.classified:
+        reading = parsing.comma_reading(cell.numeric_text)
+        if reading == parsing.COMMA_DECIMAL:
+            settled = settled + 1
+            continue
+        if cell.kind != parsing.NUMBER:
+            continue
+        if reading == parsing.COMMA_EITHER:
+            unsettled = unsettled + 1
+    return unsettled, settled
+
+
+def _padded_cells(cells: _Cells) -> int:
+    """How many cells of this column were written with a leading zero.
+
+    Counted off the CELLS rather than read back off the published
+    styles map, because the map may have pooled the form below the
+    floor -- and a column whose padding was too rare to name is still a
+    column whose padding a person should be told about.
+    """
+    counted = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
+            continue
+        counted = counted + 1
+    return counted
+
+
+def _pad_widths(cells: _Cells) -> dict[str, int]:
+    """How many `leading_zero`-styled cells wrote each field width.
+
+    TWO CODE COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN, which is
+    the argument `_fraction_widths` makes about the point and this one
+    makes about the padding. A styles map saying `leading_zero: 240`
+    says a redundant zero was written two hundred and forty times. It
+    does not say the field was five figures wide, so a twin carrying
+    that map exactly wrote fields two, three and four figures wide and
+    was not wrong by the map -- while a person reading a fixed-width
+    code, slicing it, or joining on it held a twin their own code could
+    not run against, and no report said a word.
+
+    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM, for the reason it
+    does there: a width fewer than `small_cell_floor` cells share has
+    no key of its own and its cells are counted into a `(withheld)`
+    remainder, so one oddly written cell cannot be singled out by its
+    width.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
+    leading zero, no sign, no padding -- which is the one grammar the
+    contract fixes for a width key, and it would be a poor joke for the
+    census of padding to write a padded key.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that sum
+    to how many cells of this column were written in the `leading_zero`
+    form. Determinism: the answer depends only on the tally, and the
+    keys are built in ascending width order. Raises nothing. No I/O of
+    any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
+            continue
+        width = pad_width(cell.numeric_text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
+POINT_FREE_STYLES = (
+    parsing.STYLE_PLAIN,
+    parsing.STYLE_LEADING_PLUS,
+    parsing.STYLE_LEADING_ZERO,
+)
+
+
+def _field_widths(cells: _Cells) -> dict[str, int]:
+    """How many figures each WHOLE-WRITTEN numeric cell wrote (P4-D30).
+
+    THE THIRD CENSUS, AND THE ONE THAT COVERS THE CELLS THE OTHER TWO
+    LEAVE OUT. `pad_widths` counts only the cells written with a
+    redundant zero and `fraction_widths` only the figures after a
+    point, so a cell written `199` -- no padding, no point -- has its
+    width published NOWHERE. A vaccine-code column running `000` to
+    `199` is the shape that shows it: the padded half is censused, the
+    hundred and three cells of the unpadded half are not, and a twin
+    honouring every published fact wrote some of them two figures wide
+    (residual R-P4-35). A plain code column is the same shape with no
+    padded half at all (residual R-P4-30).
+
+    WHICH CELLS IT COVERS IS THE STYLES MAP'S OWN QUESTION, ASKED
+    ONCE. Three of the six forms carry no point and no exponent --
+    `plain`, `leading_plus` and `leading_zero` -- and those three are
+    exactly the cells that HAVE a figure field to count. A `decimal`
+    cell's figures before the point are a different fact about a
+    different shape of cell, and counting them here would say a column
+    of `12.5` and a column of `12` were written alike.
+
+    IT OVERLAPS `pad_widths` DELIBERATELY rather than partitioning the
+    column with it. A padded cell is a whole-written cell, so it is
+    counted in both, and the pair then says two different things: the
+    padded census says how wide the PADDING was written, and this one
+    how wide the FIELD is however it was written. Subtracting one from
+    the other is what tells a generator how many cells must hold a
+    value of a given magnitude, which is what closes R-P4-30.
+
+    THE FLOOR GOVERNS A WIDTH AS IT DOES IN THE OTHER TWO CENSUSES,
+    and for the same reason: a width fewer than `small_cell_floor`
+    cells share has no key of its own and its cells are counted into a
+    `(withheld)` remainder.
+
+    THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
+    leading zero, no sign, no padding -- which is the one grammar the
+    contract fixes for a width key.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    canonical width keys, plus possibly `(withheld)`, to counts that
+    sum to how many cells of this column were written in one of the
+    three point-free forms. Determinism: the answer depends only on the
+    tally, and the keys are built in ascending width order. Raises
+    nothing. No I/O of any kind.
+    """
+    counts: dict[int, int] = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) not in POINT_FREE_STYLES:
+            continue
+        width = pad_width(cell.numeric_text)
+        if width in counts:
+            counts[width] = counts[width] + 1
+        else:
+            counts[width] = 1
+    published_counts: dict[str, int] = {}
+    withheld = 0
+    for width in sorted(counts):
+        if counts[width] >= cells.settings.small_cell_floor:
+            published_counts[f"{width}"] = counts[width]
+        else:
+            withheld = withheld + counts[width]
+    if withheld:
+        published_counts[SUPPRESSED_LABEL] = withheld
+    return published_counts
+
+
+def _bin_census(numbers: "list[float]") -> "dict[int, int] | None":
+    """How many of a column's numbers fall in each of the bins.
+
+    THE ONE PLACE THE BINS ARE COUNTED, and it is one place because two
+    published facts are read off the same count: the census of how many
+    values each bin holds, and the list of bins holding NONE. Counting
+    twice is how the two would come to disagree about a column, and a
+    description whose two shape facts contradict each other is worse
+    than either of them alone.
+
+    Returns None -- not an empty count -- where the column has no scale
+    to divide at all: no numbers, an end this format cannot hold, or
+    two finite ends whose WIDTH it cannot hold. The two callers answer
+    that case in their own words, because "there is no scale" and "the
+    scale has no empty bin" are different sentences and a reader has to
+    be able to tell them apart.
+
+    Guarantees: accepts the numbers the statistics used; returns a
+    mapping from bin number to a count of one or more, holding a key
+    only for the bins that hold something, or None. Determinism: the
+    answer depends only on the values. Raises nothing. No I/O of any
+    kind.
+    """
+    if not numbers:
+        return None
+    lowest = min(numbers)
+    highest = max(numbers)
+    for value in numbers:
+        if not math.isfinite(value):
+            return None
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return None
+    if not math.isfinite(highest - lowest):
+        return None
+    counts: dict[int, int] = {}
+    for value in numbers:
+        place = parsing.histogram_bin(value, lowest, highest)
+        if place in counts:
+            counts[place] = counts[place] + 1
+        else:
+            counts[place] = 1
+    return counts
+
+
+def _empty_edges(numbers: "list[float]") -> "list[list[float]]":
+    """The REAL boundaries of each stretch this column leaves empty.
+
+    RESIDUAL R-P4-138, CLOSED BY THE OWNER'S RULING OF 2026-09-04.
+    `empty_bins` divides the column's reach into thirty-two and names
+    the bins that hold nothing, and the bins a column leaves empty are
+    strictly INSIDE the stretch it really leaves empty -- so a twin
+    repaired to the edge of the nearest occupied bin still lands inside
+    the source's own gap. Measured on a 300-row column whose real gap
+    runs 26.9 to 74.0: five cells of three hundred sat in that gap at
+    every seed, each about one unit past the cluster edge.
+
+    THIS FACT IS THE TWO REAL VALUES, one per side: the largest value
+    below the gap and the smallest above it. The twin then has the
+    edge itself to keep out of rather than a bin edge inside it.
+
+    WHAT IT COSTS A READER TO KNOW, priced against the owner's ruling
+    of 2026-09-03 on the small-cell floor. Each edge IS a value of a
+    real cell -- the same kind of fact a percentile rung is, and a
+    ladder publishes eleven of them on every numeric column. It says
+    that some row holds 26.9 and some row holds 74.0, and nothing about
+    which rows, how many, or what those rows hold anywhere else. The
+    ruling that covers a rung covers this.
+
+    Guarantees: accepts the numbers the statistics used; returns one
+    ascending `[below, above]` pair per maximal run of empty bins, in
+    ascending order, and the empty list where the column has no scale
+    or leaves no bin empty. Determinism: a fixed function of the
+    values. Raises nothing. No I/O of any kind.
+    """
+    bins = _empty_bins(numbers)
+    if not bins:
+        return []
+    ordered = sorted(numbers)
+    edges: "list[list[float]]" = []
+    for run in _bin_runs(bins):
+        # The values on each side of this run of empty bins. A run
+        # never reaches an end -- the smallest value is in the first
+        # bin and the largest in the last -- so both sides exist.
+        below = None
+        above = None
+        for value in ordered:
+            place = parsing.histogram_bin(value, ordered[0], ordered[-1])
+            if place < run[0]:
+                below = value
+            if place > run[1] and above is None:
+                above = value
+        if below is None or above is None:
+            continue
+        if above <= below:
+            continue
+        edges = edges + [[below, above]]
+    return edges
+
+
+def _bin_runs(bins: "list[int]") -> "list[tuple[int, int]]":
+    """The maximal runs of consecutive bin numbers, ascending."""
+    runs: "list[tuple[int, int]]" = []
+    start = -1
+    last = -2
+    for place in bins:
+        if place != last + 1:
+            if start >= 0:
+                runs = runs + [(start, last)]
+            start = place
+        last = place
+    if start >= 0:
+        runs = runs + [(start, last)]
+    return runs
+
+
+def _empty_bins(numbers: "list[float]") -> "list[int]":
+    """Which of the bins hold NONE of this column's numbers (P4-D32).
+
+    THE FACT THAT NAMES NOBODY, and that is the whole of why it is
+    published where the census beside it is not. A bin holding one
+    value says a person is there and where they are; a bin holding
+    fewer than the smallest group size says a small group is there;
+    a bin holding NOTHING says nobody is there, and there is no
+    smaller group than nobody. The owner ruled on exactly that question
+    on 2026-08-31 and ruled that an empty bin may be published while
+    the bins holding one to one-below-the-floor stay hidden.
+
+    IT DOES NOT REOPEN THE ALL-OR-NOTHING RULE ON THE CENSUS, and the
+    reasoning that rule rests on comes through untouched. That rule
+    holds because a census with a pooled remainder cannot be read by
+    RANK: the pooled values are in bins nobody named, so the ranks the
+    named bins cover are unknown and a generator cannot build the map
+    it needs. This fact is not read by rank at all. It says where no
+    value is, which is the same sentence whatever the floor is and
+    whatever the other bins hold, and a generator reads it as a set of
+    stretches to keep out of rather than as a place to put a value.
+
+    WHAT IT COSTS A READER TO KNOW. The bins are fixed by the two ends
+    the ladder already publishes, so naming an empty one adds no edge a
+    reader could not already compute. What it adds is the sentence "no
+    cell of the real column lies between these two edges" -- a
+    statement about the absence of rows, not about any row.
+
+    THE FIRST BIN AND THE LAST ARE NEVER AMONG THEM. The scale runs
+    from the column's smallest value to its largest, so the smallest
+    lies in the first bin and the largest in the last, and a column
+    with a scale at all has both of them occupied.
+
+    Guarantees: accepts the numbers the statistics used; returns the
+    bin numbers holding none of them, ascending, and the empty list
+    where the column has no scale. Determinism: the answer depends only
+    on the values. Raises nothing. No I/O of any kind.
+    """
+    counts = _bin_census(numbers)
+    if counts is None:
+        return []
+    # AND A COLUMN WHOSE VALUES ARE ALL ONE NUMBER NAMES NOTHING. Its
+    # two ends are the same number, so there is no width to divide and
+    # `parsing.histogram_bin` puts every value in the first bin by its
+    # own total rule -- which makes the other thirty-one look empty
+    # while there is no division for them to be empty IN. Saying so
+    # would be saying something about a scale that does not exist, and
+    # the loader refuses exactly that: `_has_width` there asks the same
+    # question and this is the producer's side of it. A constant
+    # position inside a joined column is the shape that found it.
+    if max(numbers) <= min(numbers):
+        return []
+    return [
+        place
+        for place in range(parsing.HISTOGRAM_BINS)
+        if place not in counts
+    ]
+
+
+def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
+    """How many of this column's numbers fall in each bin.
+
+    THE BIN COUNTS ARE COUNTS AND FALL UNDER THE FLOOR, exactly as a
+    level or a field width does: a bin holding fewer than
+    `small_cell_floor` values has no key of its own and its values are
+    counted into a `(withheld)` remainder. That is what makes a
+    histogram cheaper in disclosure than a longer ladder -- a rung is
+    an exact value of a real cell and is floor-free, while a bin says
+    only how many cells lie between two edges the description already
+    implies.
+
+    Guarantees: accepts a tally and its numbers; returns a mapping from
+    bin number to count, plus possibly `(withheld)`, summing to how
+    many numbers the statistics used. Determinism: the answer depends
+    only on the values and the published ends, and the keys are built
+    in ascending bin order. Raises nothing. No I/O of any kind.
+    """
+    # A COLUMN WHOSE ENDS THIS FORMAT CANNOT HOLD PUBLISHES NO
+    # HISTOGRAM. Bins between infinite edges have no width and no
+    # meaning, and every value would land in one of them, so the honest
+    # answer is silence rather than a census nobody can read. The
+    # loader accepts an absent histogram, and the generator falls back
+    # to the ladder exactly as it did before this fact existed. The
+    # width has to be inside the format too, not only the ends: a
+    # column running from about -1e308 to about 1e308 has finite ends
+    # and a width this format cannot hold. `_bin_census` settles all
+    # three refusals in one place and answers None for them, so this
+    # rule and the empty-bin rule beside it cannot come to differ about
+    # which columns have a scale.
+    counts = _bin_census(numbers)
+    if counts is None:
+        return {}
+    # THIS CENSUS IS ALL OR NOTHING, which is not how its siblings
+    # behave and is the right rule for THIS fact.
+    #
+    # A field-width census with a pooled remainder still says something
+    # a twin can hold: the named widths are counts of cells, and a cell
+    # can be written at a named width whatever the pooled ones do. A
+    # histogram is read by RANK -- bin numbers ascend with the values
+    # they hold, and that is what lets a generator put its k-th
+    # smallest number where the source's k-th smallest sits. A pooled
+    # remainder does not say WHICH bins its values are in, so the ranks
+    # the named bins cover are unknown and the map cannot be built at
+    # all.
+    #
+    # Publishing it anyway would publish a fact the twin cannot hold.
+    # Measured on the every-role fixture at a raised floor: 169 of 240
+    # values pooled, seven bins named, and the twin missed all of them
+    # -- a description whose own twin fails its quality report, which
+    # is the one thing this product may not do. So a column that cannot
+    # publish EVERY bin publishes none, the disclosure question stays
+    # simple, and at the default floor of one nothing pools and every
+    # column gets its shape.
+    for place in sorted(counts):
+        if counts[place] < cells.settings.small_cell_floor:
+            return {}
+    published_counts: dict[str, int] = {}
+    for place in sorted(counts):
+        published_counts[f"{place}"] = counts[place]
+    return published_counts
+
+
+def _distinct_numbers(cells: _Cells) -> int:
+    """How many different NUMBERS this column's numeric cells hold.
+
+    Guarantees: accepts a tally of one column; returns a count of at
+    least zero, never more than the count of different spellings.
+    Determinism: the answer depends only on the multiset of cells.
+    Raises nothing. No I/O of any kind.
+    """
+    # READ OFF THE RECORD, never asked of the text again. Every cell
+    # already carries the exact number it denotes -- `_classify`
+    # computed it once, which is structural rule A's whole point -- so
+    # calling `exact_of_spelling` here would classify all over again.
+    # A test counts how often a numeric column is read that way, and
+    # it is right to: the first draft of this asked twice per cell.
+    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None:
+            continue
+        seen[cell.exact] = 1
+    return len(seen)
+
+
+def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
+    """The number this column held most often, and how many cells held it.
+
+    THE VALUE IS AN IDENTITY QUESTION AND THE ANSWER IS THE EXACT ONE.
+    Cells are grouped by the canonical triple each already carries --
+    the same key `_distinct_numbers` counts with, and the same one the
+    declared-value and sentinel rules compare by -- so two spellings of
+    one number are one value here, and two numbers that round to one
+    binary64 are two. Grouping by the rounded `value` would make one
+    mode out of two different numbers.
+
+    THE TIE RULE IS THE SMALLEST, and it is written down rather than
+    left to whatever a mapping iterates in. Where several numbers share
+    the largest count the smallest of them is the mode: it is
+    deterministic, it names no value the ladder does not already
+    publish one of, and it gives an independent implementer one answer
+    (plan P4-D4.11).
+
+    Guarantees: accepts a tally of one column; returns the mode's own
+    published value and its count, or `(None, 0)` where the column
+    holds no number at all. The floor is NOT applied here -- this
+    answers what the column held, and `_numeric_details` decides what
+    may be published. Determinism: the answer depends only on the
+    multiset of cells. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    values: "dict[tuple[int, tuple[str, ...], int], float]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None or cell.value is None:
+            continue
+        if cell.exact in counts:
+            counts[cell.exact] = counts[cell.exact] + 1
+        else:
+            counts[cell.exact] = 1
+        values[cell.exact] = cell.value
+    if not counts:
+        return None, 0
+    most = 0
+    for key in counts:
+        if counts[key] > most:
+            most = counts[key]
+    smallest: "float | None" = None
+    for key in counts:
+        if counts[key] != most:
+            continue
+        found = values[key]
+        if smallest is None or found < smallest:
+            smallest = found
+    return smallest, most
+
+
+def _mode_published(cells: _Cells, floor: int) -> dict[str, object]:
+    """The mode pair a column may publish, or the withheld pair.
+
+    Two bounds, and each is a rule rather than a preference. A mode
+    held by fewer cells than the SMALL-CELL FLOOR is a small group and
+    the floor exists for exactly that. A mode held by ONE cell is not a
+    mode at all: every value ties, and the tie rule would publish the
+    column's smallest number under a name that says it dominates.
+
+    Guarantees: accepts a tally and a floor of zero or more; returns
+    either both keys with a number and a count, or both keys withheld.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    value, count = _mode_of(cells)
+    if value is None or count < 2 or count < floor:
+        return {"mode": None, "mode_count": 0}
+    return {"mode": value, "mode_count": count}
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
     n_present = len(cells.present)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
+        # THE OTHER NINETY RUNGS (plan P4-D4.10). One key, one
+        # disposition, and the fidelity comes from the generator
+        # interpolating them rather than from checking each.
+        "percentiles_between": _finer_quantiles(numbers),
+        "value_histogram": _value_histogram(cells, numbers),
+        # ...AND WHICH OF THOSE BINS HOLD NOTHING AT ALL (plan P4-D32,
+        # the owner's ruling of 2026-08-31). The census above is all or
+        # nothing and vanishes at any floor above one; this fact
+        # survives it, because a bin holding nobody is a bin no floor
+        # protects. It is what stops a twin writing cells into a
+        # stretch the real column left empty -- a two-peak column
+        # publishes a middle rung no cell of it holds, and the value
+        # stage honoured that rung until this fact told it not to.
+        "empty_bins": _empty_bins(numbers),
+        # ...AND THE REAL EDGES OF EACH OF THOSE STRETCHES (residual
+        # R-P4-138, closed by the owner's ruling of 2026-09-04). The
+        # bins a column leaves empty sit strictly INSIDE the stretch it
+        # really leaves empty, so a twin repaired to a bin edge still
+        # lands in the source's own gap. These two values are the gap
+        # itself.
+        "empty_edges": _empty_edges(numbers),
+        # HOW MANY DIFFERENT NUMBERS, as distinct from how many
+        # different SPELLINGS (plan P4-D4.9, closing residual R-P4-20).
+        # `n_distinct` counts spellings and the contract defines it that
+        # way on every role, so `1` and `01` are two of them and one
+        # number. Nothing published bound the number count, and a twin
+        # could meet the spelling count with the leading-zero family
+        # while holding fewer numbers than the real column: measured on
+        # a 200-row column of tightly clustered values, the twin held
+        # all 166 published spellings and 163 numbers, with no
+        # deviation raised anywhere. A reader grouping rows by value
+        # met three groups that were not there.
+        #
+        # COUNTED BY THE EXACT NUMBER EACH CELL ALREADY CARRIES, which
+        # is how this module decides which cells are the same value.
+        # It is the exact number and not the rounded one, so two
+        # spellings that round together but denote different numbers
+        # count as two.
+        "n_distinct_values": _distinct_numbers(cells),
+        # THE NUMBER THIS COLUMN HELD MOST OFTEN, and how many cells
+        # held it (plan P4-D4.11, the owner's fifth numeric ask of
+        # 2026-08-26: "the mode, for columns where one value
+        # dominates").
+        #
+        # THE FLOOR GOVERNS THE COUNT AND NOT THE VALUE. An exact value
+        # is not a new disclosure class on this role -- the ladder
+        # already publishes eleven of them -- so what the floor is
+        # asked about is the new fact, "this number was held by N
+        # cells". Below the floor the PAIR is withheld whole rather
+        # than the count alone, because a value published without its
+        # count would say "this was the commonest number" and that is
+        # the same fact in fewer words.
+        #
+        # A COLUMN WHOSE VALUES ARE ALL DIFFERENT HAS NO MODE WORTH THE
+        # NAME, and publishing the smallest of three hundred ties would
+        # be an arbitrary real value dressed as a statistic. Measured:
+        # a 300-row continuous column's most frequent value was held by
+        # one cell, and a laboratory column's by four. Two is the least
+        # a mode can mean, and the floor is the other bound.
+        **_mode_published(cells, cells.settings.small_cell_floor),
         "n_zero": len([value for value in numbers if value == 0.0]),
         # Every cell whose sign the text settles, not only the ones the
         # statistics could use. The sign of `(1e999)` ruled the count
@@ -3307,6 +6223,28 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # same profile, and a reader of either twin would infer a type
         # the real table does not have for one of them.
         "numeric_styles": _numeric_styles(cells),
+        # ...and how many figures the ones written with a point wrote
+        # after it, which the forms map cannot say (plan P4-D4.5,
+        # amendments A-P4-5 and A-P4-6). It is a SIBLING of the forms
+        # map and not a key inside it: version 4 requires every value of
+        # that map to be an integer summing to the numeric count, so an
+        # object among them is a document no loader can read.
+        "fraction_widths": _fraction_widths(cells),
+        # ...and how wide the ones written with a redundant zero wrote
+        # their figure field, which the forms map cannot say either
+        # (P4-D14). A SIBLING for the same reason: version 6 requires
+        # every value of the forms map to be an integer summing to the
+        # numeric count.
+        "pad_widths": _pad_widths(cells),
+        # ...and how wide EVERY whole-written cell wrote its figure
+        # field, which neither of the other two censuses can say
+        # (P4-D30, closing R-P4-30 and R-P4-35). The padded census
+        # covers the cells wearing a redundant zero and the fraction
+        # census the figures after a point; a cell written `199` is in
+        # neither, so its width was published nowhere and a twin wrote
+        # it at whatever width its drawn value needed. A SIBLING for
+        # the reason both the others are.
+        "field_widths": _field_widths(cells),
     }
     moments = _moments(numbers)
     for key in sorted(moments):
@@ -3342,25 +6280,266 @@ def _offset_counts(
     return published_counts
 
 
+# The two slashed readings of one grammar, month-first named first
+# because that is the order the rule table tries them in. Each pair is
+# the two ways ONE column can be read, which is what makes the
+# declaration of P4-D4.6 a question about a pair rather than about a
+# member.
+# The month-first readings whose choice was a GUESS about a column
+# that could have been read either way, and which therefore carry the
+# standing warning. The textual pair is absent on purpose: a month name
+# settles the order, so nothing was guessed.
+_MONTH_FIRST_GUESSES = (
+    "month-first-date",
+    "month-first-datetime",
+    "dotted-month-first-date",
+    "two-digit-month-first-date",
+    "dotted-two-digit-month-first-date",
+)
+
+# Both readings of the two-figure-year family, either of which leaves
+# the century undecided by the cell.
+_TWO_DIGIT_YEAR_MEMBERS = (
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    # The dotted half of the same family (residual R-P4-4, landing
+    # L18). It leaves the century undecided by the cell for exactly
+    # the same reason, so it carries exactly the same sentence.
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+)
+
+SLASHED_PAIRS = (
+    ("month-first-date", "day-first-date"),
+    ("month-first-datetime", "day-first-datetime"),
+    # ...and the two families of P4-D15 that carry the same ambiguity in
+    # different punctuation. A dotted date and a two-figure year say no
+    # more about which field is the month than a slashed one does, so
+    # they are read by this same machinery rather than by a rule of
+    # their own: the evidence of a field above twelve first, then the
+    # person's declaration, then the ratified default.
+    ("dotted-month-first-date", "dotted-day-first-date"),
+    ("two-digit-month-first-date", "two-digit-day-first-date"),
+    ("dotted-two-digit-month-first-date",
+     "dotted-two-digit-day-first-date"),
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class _SlashedEvidence:
+    """What a column itself says about which way its slashes read.
+
+    Four counts, and the two `only` ones are the whole reason the
+    declaration is not a bare order swap: a column can hold a cell only
+    the month-first reading parses AND a cell only the day-first
+    reading parses, which is evidence in both directions and not a
+    thing any single reading can be right about.
+    """
+
+    used: str
+    reading: str
+    month_parsed: int
+    day_parsed: int
+    month_only: int
+    day_only: int
+
+
+def _reads(present: "list[str]", format_name: str) -> "list[bool]":
+    """Which of these cells one reading parses.
+
+    IT GREW ITS LIST THE COPYING WAY, and this module's own rule says
+    not to: `answers = answers + [item]` copies everything accumulated
+    so far, so the work grew as the SQUARE of the column's length --
+    the very defect review item P1-R6-F10 fixed for the numeric path
+    and wrote into this module's opening paragraph.
+
+    IT WAS INVISIBLE UNTIL LANDING L18, and that is the part worth
+    keeping. This function ran only under `--day-first`, which no
+    growth test declares, so a quadratic walk sat in the tree
+    unmeasured. Landing L18 made the column's own evidence decide
+    whether or not anybody declared anything, which put this walk on
+    every column that reaches the date pass -- and the growth guard
+    that has watched the numeric path since P1-R6-F10 turned red at
+    once, measuring 14.4 times the work for four times the values
+    where proportional growth is about 4.
+    """
+    answers: list[bool] = []
+    for value in present:
+        answers += [parsing.parse_datetime(value, format_name) is not None]
+    return answers
+
+
+def _slashed_evidence(
+    present: "list[str]", pair: "tuple[str, str]", day_first: bool
+) -> _SlashedEvidence:
+    """Which reading of one slashed pair this column's values choose.
+
+    EVIDENCE FIRST, AND THE DECLARATION ONLY BREAKS A TIE (plan
+    P4-D4.6). The reading that parses strictly more cells wins whatever
+    the person said, because a swap that ignored the count would read a
+    column backwards over its own single contrary cell and then count
+    that cell -- the column's only evidence -- as unparsed.
+    """
+    month = _reads(present, pair[0])
+    day = _reads(present, pair[1])
+    month_parsed = 0
+    day_parsed = 0
+    month_only = 0
+    day_only = 0
+    for place in range(len(present)):
+        if month[place]:
+            month_parsed = month_parsed + 1
+            if not day[place]:
+                month_only = month_only + 1
+        if day[place]:
+            day_parsed = day_parsed + 1
+            if not month[place]:
+                day_only = day_only + 1
+    used = pair[0]
+    reading = READING_MONTH_FIRST
+    if day_parsed > month_parsed:
+        used = pair[1]
+        reading = READING_DAY_FIRST
+    elif day_parsed == month_parsed and day_first:
+        used = pair[1]
+        reading = READING_DAY_FIRST
+    return _SlashedEvidence(
+        used=used,
+        reading=reading,
+        month_parsed=month_parsed,
+        day_parsed=day_parsed,
+        month_only=month_only,
+        day_only=day_only,
+    )
+
+
+def _remainder_reading(
+    present: "list[str]", settings: Settings
+) -> "str | None":
+    """The format the NON-PLACEHOLDER cells read under, or None.
+
+    THE ENTRY CONDITION OF THE PLACEHOLDER PASS, and the whole of what
+    keeps it from moving a column between roles (plan amendment A-P4-1
+    item 3). The candidates are taken out FIRST and the remainder is
+    asked to clear the datetime rule's own line by itself: a column
+    that is a column of dates without its placeholders is one this pass
+    may judge, and a column that is not is one it must leave alone.
+
+    The candidates are recognised under each format in turn, because
+    which cells ARE candidates depends on the reading -- `12/31/9999`
+    is a placeholder under one slashed member and unreadable under the
+    other.
+
+    Guarantees: accepts the present cells and the settings; returns a
+    format member or None. Determinism: a function of the two, in the
+    format table's own order. Raises nothing. No I/O of any kind.
+    """
+    for format_name in parsing.DATE_FORMATS:
+        remainder: list[str] = []
+        placeholders = 0
+        for value in present:
+            if parsing.placeholder_day_of(value, format_name) is not None:
+                placeholders = placeholders + 1
+                continue
+            remainder += [value]
+        if placeholders < 1:
+            continue
+        needed = _needed(settings.minimum_parse_rate, len(remainder))
+        parsed = 0
+        for value in remainder:
+            if parsing.parse_datetime(value, format_name) is not None:
+                parsed = parsed + 1
+        if parsed >= needed and parsed:
+            return format_name
+    return None
+
+
 def _matching_date_format(
     present: list[str], settings: Settings
-) -> "tuple[str, list[tuple[str, str]], list[str], int] | None":
+) -> (
+    "tuple[str, list[tuple[str, str]], list[str], int, "
+    "_SlashedEvidence | None] | None"
+):
     """The first date format that parses enough of the values.
 
     Returns (format name, parsed (canonical, offset) pairs, the source
-    cells that parsed, count of cells that did not), or None.
+    cells that parsed, count of cells that did not, and the slashed
+    evidence where a declaration put a pair in play), or None.
     """
     needed = _needed(settings.minimum_parse_rate, len(present))
+    # A DOTTED TRIPLE NAMING A ZERO FIELD IS A VERSION SAYING SO
+    # (review round 1 of landing L18, item 2). It is worked out once
+    # for the column rather than per format, because it is a fact about
+    # the column and not about a reading.
+    contradicted = False
+    for value in present:
+        if parsing.names_a_zero_field(value):
+            contradicted = True
+            break
     for format_name in parsing.DATE_FORMATS:
+        # THE GUARD IS THE NEW FAMILY'S ALONE, and that bound is
+        # deliberate. This landing gave the two-figure dotted spelling
+        # its first reader, so a column of `01.00.24` firmware moved
+        # from a set of categories to dates and back is a regression
+        # this landing owes. The FOUR-figure dotted family has admitted
+        # `01.00.2024` since P4-D15 and the slashed pair since before
+        # that; widening the guard to them would move columns that have
+        # read one way for weeks, which is a change to make on its own
+        # evidence rather than inside a repair. Carried as a residual.
+        if contradicted and format_name in (
+            "dotted-two-digit-month-first-date",
+            "dotted-two-digit-day-first-date",
+        ):
+            continue
+        evidence: "_SlashedEvidence | None" = None
+        reading = format_name
+        # THE COLUMN'S OWN EVIDENCE IS READ WHETHER OR NOT ANYBODY
+        # DECLARED ANYTHING (review round 1 of landing L18, item 1).
+        # `_slashed_evidence` has said since it was written that the
+        # reading parsing strictly more cells wins "whatever the person
+        # said", and this caller asked it only under `--day-first` --
+        # so undeclared, the member standing first in the format table
+        # won by ORDER and the column's own values were never counted.
+        #
+        # Measured on all four shipped pairs and the one this landing
+        # adds: 299 cells both readings accept beside ONE that only a
+        # day-first reading accepts came out month-first with that cell
+        # reported unparsed, on every family. The column had settled the
+        # question and the tool overruled it with a default.
+        #
+        # UNDECLARED, IT REACHES EXACTLY THE CASE THE ORDER GETS WRONG,
+        # and no other. Where month-first parses at least as many, the
+        # format table's own order already picks month-first and there
+        # is nothing to correct. Where DAY-first parses strictly more,
+        # the order picks the worse reading and this overrides it.
+        #
+        # THAT BOUND IS THE SENTENCE'S AS WELL AS THE READING'S, which
+        # is why it is drawn here rather than around the whole
+        # comparison. Contract NF36 gives the evidence remark three
+        # renderings and only ONE of them is true of a column nobody
+        # declared: "read day first, which parses N of these values
+        # against the month-first reading's M". The other two say
+        # "though you asked for day first" and "because you asked for
+        # it", and a first writing of this repair put those words on
+        # columns whose owner had asked for nothing. A sentence that
+        # makes up a declaration is worse than the reading it stands
+        # beside.
+        for pair in SLASHED_PAIRS:
+            if format_name != pair[0]:
+                continue
+            weighed = _slashed_evidence(present, pair, settings.day_first)
+            if settings.day_first or weighed.day_parsed > weighed.month_parsed:
+                evidence = weighed
+                reading = weighed.used
         good: list[tuple[str, str]] = []
         sources: list[str] = []
         for value in present:
-            pair = parsing.parse_datetime(value, format_name)
-            if pair is not None:
-                good += [pair]
+            pair_read = parsing.parse_datetime(value, reading)
+            if pair_read is not None:
+                good += [pair_read]
                 sources += [value]
         if len(good) >= needed and good:
-            return format_name, good, sources, len(present) - len(good)
+            return reading, good, sources, len(present) - len(good), evidence
     return None
 
 
@@ -3445,10 +6624,16 @@ def _datetime_details(
     for value in sources:
         digits = max(digits, parsing.subsecond_digits(value, format_name))
     resolution = RESOLUTION_DATE
-    if format_name == "iso-datetime":
+    if format_name == "iso-datetime" or format_name == FORMAT_ISO_MIXED:
+        resolution = RESOLUTION_DATETIME
+    if format_name == "month-first-datetime":
+        resolution = RESOLUTION_DATETIME
+    if format_name == "day-first-datetime":
         resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
         resolution = RESOLUTION_QUARTER
+    if format_name == "iso-month":
+        resolution = RESOLUTION_MONTH
     # An offset is NAMED only where at least `small_cell_floor` rows
     # carry it. Publishing the endpoint's offset unconditionally beside a
     # floored `utc_offsets` map named the one rare zone the map had just
@@ -3458,6 +6643,7 @@ def _datetime_details(
     offsets = _offset_counts(pairs, settings)
     return {
         "format": format_name,
+        "resolution_mix": _resolution_mix(format_name, sources),
         "resolution": resolution,
         "time_precision": _finest_precision(sources, format_name),
         "subsecond_digits": digits,
@@ -3476,6 +6662,40 @@ def _datetime_details(
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
     }
+
+
+# The joint ISO reading's own name, used where a rule has to tell it
+# from the two members it joins.
+FORMAT_ISO_MIXED = "iso-mixed"
+
+
+def _resolution_mix(
+    format_name: str, sources: "list[str]"
+) -> "dict[str, int]":
+    """How many parsed cells of this column wore each form (C6-25).
+
+    ONE KEY ON A SINGLE-FORMAT COLUMN -- its own form, carrying every
+    cell that parsed -- and exactly the two ISO members on a column the
+    joint reading claimed. No other key set conforms, and the counts
+    are exact with no floor: a two-member space beside the published
+    parsed total makes a pooled remainder recoverable by subtraction,
+    so a floor would withhold nothing, and what the fact carries is a
+    count of FORMS rather than any value of the table.
+
+    Guarantees: accepts a format member and the source cells that
+    parsed under it; returns a mapping whose values sum to how many
+    there were. Determinism: a function of the two, with the keys built
+    in the format table's own order. Raises nothing. No I/O of any kind.
+    """
+    if format_name != FORMAT_ISO_MIXED:
+        return {format_name: len(sources)}
+    counted = {"iso-date": 0, "iso-datetime": 0}
+    for value in sources:
+        if parsing.parse_datetime(value, "iso-datetime") is not None:
+            counted["iso-datetime"] = counted["iso-datetime"] + 1
+            continue
+        counted["iso-date"] = counted["iso-date"] + 1
+    return counted
 
 
 def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
@@ -3605,8 +6825,2078 @@ def _categorical_ceiling(cells: _Cells) -> int:
     return max(ceiling, settings.categorical_floor)
 
 
-def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
+@dataclasses.dataclass(frozen=True)
+class _Clock:
+    """One column's clock reading: the form, and the cells under it."""
+
+    form: str
+    # The text of every present cell the winning form accepted, in row
+    # order. The cells it did not accept -- the other form's among them
+    # -- are COUNTED and not listed: nothing of an unreadable cell is
+    # published, and `n_unparsed` is the whole of what is said about
+    # them.
+    values: "list[str]"
+    n_unparsed: int
+
+
+def clock_reach(cells: _Cells) -> int:
+    """How many present cells the BEST clock reading accepted.
+
+    The count the closer of the two forms reached, whether or not it
+    cleared the detection line -- so a column that declined can still
+    say how far this reading got. Zero where no cell wore either form.
+
+    A column that publishes nothing owes its owner the reason, and the
+    reason is a set of counts (contract C6-5): the competing-readings
+    remark already names how much of the column read as numbers, as
+    dates and as one shared piece of text, and without this one it
+    stayed silent about the reading that came closest on a column of
+    clock times.
+
+    Guarantees: accepts a tally of one column; returns a count of its
+    present cells. No spelling of the column travels out through it.
+    Determinism: a function of the cells alone. Raises nothing. No I/O
+    of any kind.
+    """
+    best = 0
+    for form in parsing.CLOCK_FORMS:
+        found = 0
+        for text in cells.present:
+            if parsing.clock_form(text) == form:
+                found = found + 1
+        if found > best:
+            best = found
+    return best
+
+
+# THE SEPARATORS A JOINED CELL MAY USE (plan P4-D21). Deliberately a
+# short fixed list, and deliberately NOT the shape alphabet: a character
+# that can join two numbers has to be one nobody writes INSIDE a number,
+# so the point and the comma are absent -- `1.5` and `1,795` are single
+# numbers this package already reads, and letting either join two would
+# turn every decimal column into a pair.
+JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
+
+# THE SPACINGS A JOINED CELL MAY PUT AROUND ITS MARK (plan P4-D24). A
+# pressure charted `120 / 80` is the same reading as `120/80` and was
+# read as free text, which publishes nothing: the mark alone did not
+# match and no rule looked further. The whole separator -- mark and
+# spaces together -- is what a cell is split on and what the
+# description publishes, so a twin writes back the spacing the table
+# used. Only these three: a mark with no spaces, with one on each side,
+# and with one after it, which is how a person writes a ratio.
+JOINED_SPACINGS = ("", " ", "")
+JOINED_TAILINGS = ("", " ", " ")
+
+
+@dataclasses.dataclass(frozen=True)
+class _Joined:
+    """One column's reading as numbers joined in a cell.
+
+    NOT *whole* numbers: a part may carry one decimal point, which is
+    what lets a ventilator ratio be read. Every surface said "whole"
+    until 2026-08-26, including the sentence a person reads.
+    """
+
+    separator: str
+    n_parts: int
+    # One list per position, in row order, holding the text of that
+    # position for every cell that wears the reading.
+    parts: "list[list[str]]"
+    n_joined: int
+    n_unparsed: int
+
+
+def _reads_as_one_number(text: str) -> bool:
+    """Whether one part of a joined cell is a plain number.
+
+    Figures, and at most one point with figures on both sides of it.
+    No sign, because a leading minus cannot be told from the mark a
+    cell might be split on. Figures are tested against fixed ASCII
+    rather than `str.isdigit`, for the reason `parsing._is_a_digit`
+    gives: five supported Pythons carry five Unicode databases, and
+    `str.isdigit` is true of characters this package must not read as
+    figures.
+    """
+    if not text:
+        return False
+    points = 0
+    for character in text:
+        if character == ".":
+            points = points + 1
+            continue
+        if not ("0" <= character <= "9"):
+            return False
+    if points > 1:
+        return False
+    if points == 1:
+        if text[0] == "." or text[len(text) - 1] == ".":
+            return False
+    return True
+
+
+def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
+    """The parts of one cell under one separator, or None.
+
+    ``separator`` is the WHOLE separator, mark and any spaces around
+    it, so `120 / 80` splits on `" / "` and its twin is written back
+    the same way (plan P4-D24).
+
+    A part may carry a decimal point, which an I:E ratio of `1:1.5`
+    needs and which the first build of this role refused, sending the
+    column to free text where it published nothing. **This function was
+    called `splits_into_wholes` until 2026-08-26**, and the name was
+    the origin of a false sentence on six surfaces: a reader who
+    trusted it wrote "whole numbers" into the profile, the front page,
+    the changelog and the contract, of a reading that accepts `1:1.5`.
+
+    The type gate is the offline audit's: it accepts no method call on
+    a value it cannot trace, and a cell arrives here from a list this
+    function did not build.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell must be text")
+    if not separator:
+        return None
+    parts: "list[str]" = []
+    current = ""
+    at = 0
+    while at < len(text):
+        matched = True
+        for step in range(len(separator)):
+            if at + step >= len(text) or text[at + step] != separator[step]:
+                matched = False
+                break
+        if matched:
+            parts = parts + [current]
+            current = ""
+            at = at + len(separator)
+            continue
+        current = current + text[at]
+        at = at + 1
+    parts = parts + [current]
+    if len(parts) < 2:
+        return None
+    for part in parts:
+        if not _reads_as_one_number(part):
+            return None
+    return parts
+
+
+def _joined_reading(cells: _Cells) -> "_Joined | None":
+    """The one joined-number reading this column wears, or None.
+
+    Guarantees:
+
+    - Determinism: separators are tried in a fixed order and every cell
+      is read by `_splits_into_numbers`, a function of the cell alone.
+    - The test is the contract's: at least the parse-line COUNT of
+      present cells split into the SAME number of parts under ONE
+      separator. A count, never a compared share, so no rounding of a
+      division decides a role.
+    - Boundary: reads the classified cells' text and nothing else.
+
+    THIS IS NEVER CONSULTED UNLESS THE PERSON NAMED THE COLUMN, and the
+    reason is a measurement rather than a caution (plan P4-D21). Asked
+    of the columns this project already tests, a rule that read the
+    VALUES would claim `visit_date` (`2023-02-12` is three whole
+    numbers joined by `-`), `seen_at` (`09:30` is two joined by `:`),
+    and -- past every rule order that could save the first two --
+    `lab_code` (`1923-1`) and `ndc_code` (`00052-0052-52`), which are
+    CODES. Claiming those would publish the smallest and largest of
+    their parts, which are fragments of real codes, and would undo the
+    round trip amendment A-P4-38 was built to guarantee. A blood
+    pressure and a lab code are both figures joined by a mark, and
+    nothing in either says which. So the caller asks only under the
+    declaration, exactly as `taxonomy._decide`'s RULE 5 has said since
+    review item P1-R6-F7 that such a thing must be.
+    """
+    present = cells.present
+    n_present = len(present)
+    if n_present == 0:
+        return None
+    needed = _needed(cells.settings.minimum_parse_rate, n_present)
+    tried: "list[str]" = []
+    for mark in JOINED_SEPARATORS:
+        for spacing in range(len(JOINED_SPACINGS)):
+            tried = tried + [
+                JOINED_SPACINGS[spacing] + mark + JOINED_TAILINGS[spacing]
+            ]
+    for separator in tried:
+        counted: "dict[int, int]" = {}
+        for value in present:
+            split = splits_into_numbers(value, separator)
+            if split is not None:
+                width = len(split)
+                counted[width] = counted[width] + 1 if width in counted else 1
+        for width in sorted(counted):
+            if counted[width] < needed:
+                continue
+            columns: "list[list[str]]" = [[] for _each in range(width)]
+            worn = 0
+            for value in present:
+                split = splits_into_numbers(value, separator)
+                if split is None or len(split) != width:
+                    continue
+                worn = worn + 1
+                for place in range(width):
+                    columns[place] = columns[place] + [split[place]]
+            return _Joined(
+                separator=separator,
+                n_parts=width,
+                parts=columns,
+                n_joined=worn,
+                n_unparsed=n_present - worn,
+            )
+    return None
+
+
+def _joined_details(
+    joined: _Joined, settings: Settings
+) -> "dict[str, object]":
+    """The published block of a joined-number column.
+
+    EACH POSITION GETS THE NUMERIC BLOCK EVERY QUANTITATIVE ROLE GETS,
+    computed by the same function over a `_Cells` built from that
+    position's text alone. Nothing here does arithmetic of its own: the
+    exactness of the ladder, the mean and the spread is the exactness
+    `_numeric_details` already carries, and a second implementation of
+    it would be a second thing to keep true.
+
+    `min_width` IS WHAT TELLS A PADDED COLUMN FROM A PLAIN ONE. A
+    systolic reading of 95 is written `95` and one of 133 is written
+    `133`, so widths differ because the NUMBERS differ; a padded column
+    writes `007` and `080` at one width whatever the number. Publishing
+    the smallest width each position was written at is enough for the
+    twin to write both correctly, and it is a width rather than a
+    spelling.
+    """
+    blocks: "list[dict[str, object]]" = []
+    widths: "list[int]" = []
+    for place in range(joined.n_parts):
+        text = joined.parts[place]
+        part_cells = _tally(_classify_all(text), len(text), settings)
+        # WHETHER THIS POSITION IS WHOLE IS ASKED, not assumed. It was
+        # assumed while a part could only be figures; a part may carry a
+        # point now (plan P4-D24), and an I:E ratio's second number is
+        # `1.5`.
+        whole_here = True
+        for spelling in text:
+            if "." in spelling:
+                whole_here = False
+        blocks = blocks + [_numeric_details(part_cells, whole_here)]
+        smallest = len(text[0])
+        for value in text:
+            if len(value) < smallest:
+                smallest = len(value)
+        widths = widths + [smallest]
+    # HOW THE POSITIONS MOVE TOGETHER (plan P4-D23). Two numbers per
+    # PAIR of positions, in the fixed order (1,2), (1,3), ... (2,3), ...
+    # so a reader can find a pair without being told the order:
+    #
+    #   `part_agreements` -- how strongly the two rise and fall
+    #     together, by rank. It is a fact about the PAIRING alone: each
+    #     position's own numbers are already published exactly, so this
+    #     repeats none of them and adds the one thing that was missing.
+    #   `part_above` -- in how many rows the earlier position held the
+    #     larger number. A blood pressure answers "all of them", and
+    #     that is what stops a twin writing a diastolic above its
+    #     systolic.
+    #
+    # Both are aggregates over every row and name no cell.
+    numbers: "list[list[float]]" = []
+    for place in range(joined.n_parts):
+        counted_here: "list[float]" = []
+        for spelling in joined.parts[place]:
+            counted_here = counted_here + [float(spelling)]
+        numbers = numbers + [counted_here]
+    agreements: "list[float]" = []
+    above: "list[int]" = []
+    for first in range(joined.n_parts):
+        for second in range(first + 1, joined.n_parts):
+            agreements = agreements + [
+                round(
+                    parsing.rank_agreement(numbers[first], numbers[second]),
+                    parsing.RANK_AGREEMENT_PLACES,
+                )
+            ]
+            counted = 0
+            for seat in range(joined.n_joined):
+                if numbers[first][seat] > numbers[second][seat]:
+                    counted = counted + 1
+            above = above + [counted]
+    return {
+        "separator": joined.separator,
+        "n_parts": joined.n_parts,
+        "n_joined": joined.n_joined,
+        "n_unparsed": joined.n_unparsed,
+        "parts": blocks,
+        "part_min_widths": widths,
+        "part_agreements": agreements,
+        "part_above": above,
+    }
+
+
+def _joined_verdict(
+    cells: _Cells,
+    joined: _Joined,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The verdict for a declared column of joined whole numbers."""
+    return _Verdict(
+        role=ROLE_JOINED,
+        evidence=note(
+            EVIDENCE_JOINED,
+            (joined.n_joined, joined.n_parts, joined.separator),
+        ),
+        details=_joined_details(joined, cells.settings),
+        notes=notes,
+        remarks=remarks,
+    )
+
+
+def _clock_reading(cells: _Cells) -> "_Clock | None":
+    """The one clock form this column wears, or None if it wears none.
+
+    Guarantees:
+
+    - Determinism: every cell is read by `parsing.clock_form`, which is
+      a function of the cell alone, and the two forms are tried in a
+      fixed order. Nothing here reads a clock or a random source.
+    - The test is the contract's: at least the parse-line COUNT of
+      present cells wear ONE form. It is a count and never a compared
+      share, so no rounding of a division decides a role.
+    - THE FINER FORM WINS where both clear the line, which can happen
+      only at a lowered parse rate -- no cell wears both, since the two
+      have different lengths, so both clearing needs twice the line to
+      fit inside the column. `hh-mm-ss` is tried first, which is that
+      rule.
+    - NO FLOOR IS READ HERE, and that is a decision rather than an
+      omission. Two rules of this phase consult `small_cell_floor` at
+      detection because publishing a floor-clearing SPELLING is what
+      makes them the role they are. This role publishes no spelling of
+      the column's own text -- its clock values are the column's, but
+      they are published as a range and a ladder, which is the ranges
+      class -- so the only threshold it reads is the parse rate.
+    - The winning form must have accepted at least ONE cell. At a parse
+      rate of zero the line is zero and the contract's T5 is vacuous;
+      this is what keeps a cell for the endpoints and the ladder to be
+      values of.
+    """
+    present = cells.present
+    if not present:
+        return None
+    needed = _needed(cells.settings.minimum_parse_rate, len(present))
+    for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
+        good: "list[str]" = []
+        for text in present:
+            if parsing.clock_form(text) == form:
+                # The CELL, not a tidied copy of it: what this role
+                # publishes are values some row wore, and the reader
+                # accepts nothing that needed tidying.
+                good = good + [text]
+        if len(good) >= needed and good:
+            return _Clock(
+                form=form,
+                values=good,
+                n_unparsed=len(present) - len(good),
+            )
+    return None
+
+
+def _compound_details(
+    cells: _Cells, compound: "_Compound"
+) -> "dict[str, object]":
+    """Both halves of a compound column, each described in its own terms.
+
+    THE TWO SUB-BLOCKS, and they are the whole point of the role. The
+    counts alone would say only that the column has two populations and
+    nothing about either -- which is the omission review item P1-R6-F7
+    deleted a rule for, wearing a different hat. What answers that item
+    is describing both.
+
+    EACH HALF IS DESCRIBED BY THE MACHINERY THAT ALREADY DESCRIBES ITS
+    KIND OF COLUMN, over a view of its own cells, on the precedent the
+    affixed role set with its cores (G6A.2): the numeric half goes
+    through the same tally and the same `_numeric_details` a column of
+    numbers goes through, and the label half through the same `_levels`
+    and `_level_details` a column of labels goes through. Nothing here
+    computes a statistic of its own, so the two halves cannot come to
+    disagree with the roles they are borrowed from.
+
+    THE COUNTS STAY, and they are what a reader checks the halves
+    against: `n_numeric_cells` and `n_label_cells` sum to `n_present`,
+    so every present cell is in exactly one of the two descriptions.
+    """
+    # THE HALF'S OWN CELL COUNT IS THE ROW COUNT ITS BLOCK ECHOES, not
+    # the table's. A joined position settled this first: that block
+    # describes only the cells that split, so it echoes `n_joined`, and
+    # comparing it against the table's count made the tool write files
+    # it then refused to read. A compound half is the same shape of
+    # thing -- it describes the numeric cells and no others -- and it
+    # echoed the table's count until review round 1 of this landing
+    # named the difference (item 7). Section 6.16 says this block
+    # carries what a joined position carries; now it does.
+    # READ THE WAY THE COLUMN WAS READ, declaration included. Both
+    # halves are re-classified here, and the first writing dropped the
+    # decimal-comma flag on the way -- so a DECLARED column of `1,5`
+    # cells was split into a numeric half by the rule that reads the
+    # comma and then re-read WITHOUT it, leaving a numeric half of no
+    # numbers at all and an IndexError out of the percentile walk
+    # (review round 4 of this landing, item 1). The tool crashed on a
+    # real table, which is the worst outcome any of these rounds found.
+    # THE HALF'S POPULATION IS ITS NUMBERS AND ITS UNUSABLE NUMERALS
+    # (residual R-P4-149). Read together, so the block this half
+    # publishes is a genuine numeric block: its four class counts are
+    # the real ones, `n_left_out_of_statistics` says how many cells
+    # the statistics could not use, and its count of different
+    # spellings covers every cell the half holds. Read apart, the
+    # column's own count of different cells was one more than the two
+    # halves added, and the loader refused the description.
+    half = compound.numbers + compound.unusable
+    numeric_cells = _tally(
+        _classify_all(
+            [cell.text for cell in half], cells.decimal_comma
+        ),
+        len(half),
+        cells.settings,
+        cells.decimal_comma,
+    )
+    looking = _numeric_looking(numeric_cells)
+    whole_everywhere = (
+        numeric_cells.n_whole == looking and looking > 0
+    )
+    label_cells = _tally(
+        _classify_all(
+            [cell.text for cell in compound.labels], cells.decimal_comma
+        ),
+        len(compound.labels),
+        cells.settings,
+        cells.decimal_comma,
+    )
+    levels = _levels(
+        label_cells.folded_counts,
+        label_cells.spellings_by_folded,
+        cells.settings,
+    )
+    unusable_out = 0
+    unusable_contradictory = 0
+    for cell in compound.unusable:
+        if cell.kind == parsing.NUMBER_OUT_OF_RANGE:
+            unusable_out = unusable_out + 1
+        else:
+            unusable_contradictory = unusable_contradictory + 1
+    details: "dict[str, object]" = {
+        "n_numeric_cells": len(compound.numbers),
+        # THE THIRD POPULATION (residual R-P4-149). Cells the number
+        # rules recognise as a numeral that this format cannot hold:
+        # one too large or small, and one whose notation contradicts
+        # itself. They are counted with the NUMERIC half -- an unusable
+        # numeral is a number -- and the two counts below are the same
+        # two a plain numeric column publishes, so the twin writes them
+        # back through the machinery that writes them there.
+        "n_numeric_out_of_range": unusable_out,
+        "n_numeric_contradictory": unusable_contradictory,
+        "n_label_cells": len(compound.labels),
+        # THE NUMERIC HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and
+        # they are here because a SPELLING is not a VALUE (review round
+        # 1 of this landing, item 1). The generator's layout spends
+        # these two as its budget of different spellings, and the only
+        # counts the block carried were the column's -- which count the
+        # markers too -- and the half's count of different NUMBERS,
+        # which counts `07` and `7` once between them.
+        #
+        # MEASURED on 300 cells holding sixty values each written twice,
+        # plainly and with a leading zero, beside twenty markers: the
+        # column publishes 113 different cells and the twin held 56 or
+        # 57 at every one of five seeds, so `compound.n_distinct` --
+        # which this landing registered EXACT-OBSERVABLE -- missed on
+        # every file. The first measurement of this fact used a column
+        # whose values were each written one way, where a count of
+        # numbers and a count of spellings are the same number.
+        "n_numeric_distinct": numeric_cells.raw_distinct,
+        "n_numeric_distinct_folded": len(numeric_cells.folded_counts),
+        "numbers": _numeric_details(numeric_cells, whole_everywhere),
+        "labels": _level_details(levels, label_cells),
+    }
+    # THE LABEL HALF'S OWN COUNT OF DIFFERENT VALUES, which invariant
+    # B2 is stated over: published levels and held-back levels together
+    # are all of them. The column's own `n_distinct_folded` counts the
+    # numbers too, so it cannot answer for this half, and a reader
+    # checking B2 against it would be checking the wrong sum.
+    labels_block = details["labels"]
+    if isinstance(labels_block, dict):
+        labels_block["n_distinct_folded"] = len(label_cells.folded_counts)
+        # AND ITS RAW COUNT BESIDE THE FOLDED ONE (review round 3 of
+        # this landing, item 5). The half's view carried the COLUMN's
+        # count of different cells -- two hundred and ninety-six on a
+        # half of five -- because the half published none, and a view
+        # that carries a number from another population is a number
+        # waiting to be read. With this the column's own count is the
+        # two halves' counts added, rather than a range between them.
+        labels_block["n_distinct"] = label_cells.raw_distinct
+        # AND HOW MANY CELLS THE HALF HOLDS, which the form census is
+        # stated over: a census of forms is a census of the cells that
+        # wore them, and the column's own `n_present` counts the
+        # numbers too.
+        labels_block["n_present"] = len(compound.labels)
+    return details
+
+
+def _compound_verdict(
+    cells: _Cells,
+    compound: "_Compound",
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The published block of a column of numbers beside labels.
+
+    TWO POPULATIONS AND TWO COUNTS THAT SUM TO `n_present`, which is
+    the whole answer to review item P1-R6-F7. That item deleted a rule
+    which published a distribution over SOME of a column's cells and
+    dropped the rest, because outcome principle 5 forbids describing a
+    column in part and saying nothing about the remainder. This role
+    publishes every present cell in exactly one of two populations and
+    says how many are in each, so nothing is dropped and a reader can
+    check the arithmetic.
+
+    THE COUNTS ARE THE FIRST THING BUILT because they are the thing
+    that makes the rest admissible. The numeric sub-block and the
+    label sub-block are added by the landing's later steps; a block
+    holding only the split is incomplete and is marked so in the
+    register rather than shipped as finished.
+    """
+    # WHICH GROUND ADMITTED THE LABEL HALF, and the sentence says the
+    # one that did. Rule 7b takes a half whose words are a small set OR
+    # whose words include one the detection line clears; the first
+    # writing of this had one sentence claiming the second ground on
+    # every column, so a column of five markers was published with a
+    # false statement about its own detection (review round 1, item 5).
+    # The repeating ground is the stronger evidence and is stated where
+    # it holds.
+    if _levels_covering(compound.folded_counts, cells.settings) >= 1:
+        evidence = note(
+            EVIDENCE_COMPOUND,
+            (
+                len(compound.numbers),
+                len(compound.labels),
+                _long_tail_line(cells.settings),
+                cells.n_rows,
+            ),
+        )
+    else:
+        evidence = note(
+            EVIDENCE_COMPOUND_SMALL_SET,
+            (
+                len(compound.numbers),
+                len(compound.labels),
+                len(compound.folded_counts),
+                cells.n_rows,
+            ),
+        )
+    return _Verdict(
+        role=ROLE_COMPOUND,
+        evidence=evidence,
+        details=_compound_details(cells, compound),
+        notes=notes,
+        remarks=remarks,
+    )
+
+
+def _clock_verdict(
+    cells: _Cells,
+    clock: _Clock,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The published block of a column of clock times (contract C6-10).
+
+    FIVE KEYS AND NO SIXTH: which form the cells wore, the earliest and
+    latest clock value, an eleven-rung ladder over the parsed values,
+    and how many present cells no clock reading accepted.
+
+    THE LADDER IS SELECTION, exactly as the date ladder is: eleven
+    order statistics of cells the column really holds, with no
+    interpolation anywhere in it. So every rung is a clock value some
+    row wore, and `min` and `max` are the endpoints themselves.
+
+    THE ORDER IS TEXT ORDER, and that is safe here rather than
+    convenient: both forms are fixed-width and zero-padded, so
+    comparing the written cells character by character puts them in
+    the same order their ordinals do. The contract states the same
+    equivalence and its own T3 is a text comparison for this reason.
+
+    ONE LIMIT STATED AT THE FACT THAT CARRIES IT. The ladder reads the
+    day as a LINE from `00:00` to the end of the day, as every ladder
+    reads its axis, so a column whose values cluster across midnight is
+    described as two clusters with an empty middle and a twin fills
+    that middle. The clock face's circular reading is not modeled, in
+    the same way a two-humped numeric column's valley is filled by the
+    same ladder model today. The rungs stay exact cells either way.
+    """
+    ordered = sorted(clock.values)
+    details: "dict[str, object]" = {
+        "clock_form": clock.form,
+        "earliest": ordered[0],
+        "latest": ordered[len(ordered) - 1],
+        "clock_percentiles": _date_ladder(ordered),
+        "n_unparsed": clock.n_unparsed,
+    }
+    if _all_different(cells):
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    return _Verdict(
+        role=ROLE_CLOCK,
+        evidence=note(
+            EVIDENCE_CLOCK,
+            (len(ordered), _clock_form_said(clock.form), clock.n_unparsed),
+        ),
+        details=details,
+        notes=notes,
+        remarks=remarks,
+    )
+
+
+def _clock_form_said(form: str) -> str:
+    """One clock form as the word a sentence names it by.
+
+    A word of this package's own, chosen from a closed pair, so a
+    sentence carrying it carries nothing of anybody's table.
+    """
+    if form == parsing.CLOCK_HH_MM:
+        return NOTE_CLOCK_HOURS_MINUTES
+    return NOTE_CLOCK_HOURS_MINUTES_SECONDS
+
+
+@dataclasses.dataclass(frozen=True)
+class _Affixed:
+    """One column's affixed reading: the pairs, and the cores under them.
+
+    THE COMMONEST PAIR AND ITS VARIANTS (plan P4-D36). A column wears
+    ONE pair on most tables and a SMALL SET of them on some that
+    matter: a laboratory column whose values carry an abnormal flag --
+    `13.5`, `4.2 H`, `9.8 L` -- wears three, and a column recorded in
+    two units wears two. Before this, no single pair reached the parse
+    line on such a column and the whole thing fell to free text, which
+    publishes no ladder, no mean and no distribution at all.
+
+    `prefix` and `suffix` are the COMMONEST pair, unchanged, so a
+    column wearing one pair is described exactly as it was. `variants`
+    holds the others with their counts.
+    """
+
+    prefix: str
+    suffix: str
+    variants: "list[tuple[str, str, int]]"
+    # The core text of every cell wearing the pair, in row order. The
+    # cells NOT wearing it are the stragglers the parse line tolerates,
+    # and they are counted rather than listed: nothing of a straggler
+    # is published.
+    cores: "list[str]"
+    # WHICH WRAPPER EACH OF THOSE CORES WORE, in the same order (plan
+    # P4-D37). The cores were a flat list until that ruling, so nothing
+    # downstream could tell a kilogram from a pound: one ladder was
+    # read over all of them and published as the column's own. Every
+    # wrapper carries its own numbers now, and this is what lets them
+    # be read apart.
+    wrappers: "list[tuple[str, str]]"
+    n_affixed: int
+
+
+def affixed_reach(cells: _Cells) -> int:
+    """How many present cells the BEST affix reading accounted for.
+
+    The count the winning pair reached, whether or not it cleared the
+    detection line -- so a column that declined can still say how far
+    this reading got. Zero where no cell proposed a pair at all.
+
+    A COLUMN THAT PUBLISHES NOTHING OWES ITS OWNER THE REASON, and the
+    reason is a set of counts (contract C6-5). The competing-readings
+    remark already names how much of the column read as numbers and how
+    much as dates; without this one it stayed silent about the reading
+    that came closest on a column of prices, which is the reading its
+    owner would recognize.
+
+    Guarantees: accepts a tally of one column; returns a count of its
+    present cells. No spelling of the column travels out through it.
+    Determinism: a function of the cells alone. Raises nothing. No I/O
+    of any kind.
+    """
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in cells.present:
+        split = affixed_split(text)
+        if split is None:
+            continue
+        prefix, _core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+            continue
+        proposing[key] = 1
+    best = 0
+    for key in sorted(proposing):
+        if proposing[key] > best:
+            best = proposing[key]
+    return best
+
+
+def _affixed_reading(
+    cells: _Cells, forced_measurement: bool = False
+) -> "_Affixed | None":
+    """The one affix pair this column wears, or None if it wears none.
+
+    This is `_affixed_before_the_address_test` with the address decline
+    applied, and the two are kept apart for one reason: so that "did
+    this column decline BECAUSE it was an address?" is answered from
+    the SAME computation rather than from a second copy of the pair
+    walk. A fact worked out twice in this project drifts, and the
+    remedy this repository has settled on is to work it out once
+    (`_declined_as_an_address` is the other caller).
+
+    Guarantees: as `_affixed_before_the_address_test`, and one more --
+    a pair that is an electronic address around its number is refused
+    unless the person declared the column a measurement. That refusal
+    is not silent: `_decide` asks `_declined_as_an_address` and the
+    column carries `REMARK_ADDRESS_NOT_A_QUANTITY` (contract NF50).
+    """
+    reading = _affixed_before_the_address_test(cells, forced_measurement)
+    if reading is None:
+        return None
+    if not forced_measurement and _wrapped_in_an_address(
+        (reading.prefix, reading.suffix)
+    ):
+        return None
+    return reading
+
+
+def _declined_as_an_address(cells: _Cells) -> bool:
+    """Whether the affix reading was refused for being an address.
+
+    TRUE only where every other test of the role PASSED and the winning
+    pair is an electronic address. A column that wears no pair, wears
+    two, or wears one too few cells wore did not decline for this
+    reason and gets no sentence about addresses.
+
+    It asks the same function `_affixed_reading` asks, so the two can
+    never disagree about which pair won; what it does not do is repeat
+    the walk. The declaration is deliberately NOT a parameter: where
+    `--measurement` is given there is no decline to speak about,
+    because `_affixed_reading` returns the reading and `_decide` never
+    reaches this question.
+
+    Guarantees: accepts a tally; returns a truth value depending on
+    that tally alone. No I/O, no randomness, and no value of the
+    column is published by anything here or by the sentence it leads
+    to -- the remark it raises carries no argument at all.
+    """
+    reading = _affixed_before_the_address_test(cells)
+    if reading is None:
+        return False
+    return _wrapped_in_an_address((reading.prefix, reading.suffix))
+
+
+def _pairs_of(reading: "_Affixed") -> "list[tuple[str, str]]":
+    """Every wrapper this reading would publish: the commonest and its set."""
+    pairs = [(reading.prefix, reading.suffix)]
+    for prefix, suffix, _count in reading.variants:
+        pairs = pairs + [(prefix, suffix)]
+    return pairs
+
+
+# THE MARKS THAT ARE NOT PART OF A WORD, enumerated rather than
+# derived (review round 1 of landing L16, item 1). The question this
+# governs is whether a wrapper is a WORD against a number -- a unit, a
+# laboratory flag, a code's category letter -- and the first writing
+# asked whether any character was an ASCII letter. That REMOVED a
+# warning the tree already gave: 280 readings beside twenty `10.50 α`
+# carried the question before this landing and carried nothing after
+# it, because a Greek letter is a letter and `_LETTERS` is ASCII.
+#
+# WHY A CLOSED SET OF SYMBOLS RATHER THAN `str.isalpha`. The five
+# supported Pythons carry five Unicode databases, so an alphabetic
+# test can answer differently on two of them, and which sentences a
+# profile carries is a published fact of the document (plan D12). The
+# refusal set is closed and platform-stable, and it errs the way the
+# owner's ruling errs: a symbol nobody listed is read as a word and
+# raises a question, which costs one question, where a missing letter
+# costs a person the warning entirely.
+_SYMBOL_MARKS = "<>=~+-*/\\|^%$#@&()[]{}.,:;'\"!?_"
+
+
+def _is_a_word_mark(mark: str) -> bool:
+    """Whether one character belongs to a word rather than to a symbol.
+
+    Guarantees: accepts one character; returns whether it is part of a
+    word. Determinism: a function of that character against a closed
+    set. Raises nothing. No I/O of any kind.
+    """
+    if parsing.trimmed(mark) == "":
+        return False
+    if mark in _DIGITS:
+        return False
+    if mark in _SYMBOL_MARKS:
+        return False
+    return True
+
+
+def _carries_a_word(prefix: str, suffix: str) -> bool:
+    """Whether one wrapper holds a word mark on either side."""
+    for mark in prefix + suffix:
+        if _is_a_word_mark(mark):
+            return True
+    return False
+
+
+def _wears_a_word(reading: "_Affixed") -> bool:
+    """Whether any wrapper this reading publishes holds a letter.
+
+    THE FILTER THAT KEEPS A QUESTION FROM BEING NOISE (landing L16).
+    The ambiguity this asks about is a WORD against a number -- a
+    laboratory flag, a stage, a code's category letter. A mark that is
+    no letter is not that ambiguity and never was: `<0.5` is a
+    detection limit, `$98` is money, `45%` is a proportion, and none of
+    them is a coding system. Measured before this filter existed: a
+    column of 280 readings beside twenty `<0.5` cells raised the
+    question and pointed at `--measurement`, which would then have
+    published a distribution over the detection limit itself.
+
+    Guarantees: accepts an affix reading; returns whether any wrapper
+    it would publish carries a letter. Determinism: a function of that
+    reading. Raises nothing. No I/O of any kind.
+    """
+    for prefix, suffix in _pairs_of(reading):
+        if _carries_a_word(prefix, suffix):
+            return True
+    return False
+
+
+def _wearing_a_word(reading: "_Affixed") -> int:
+    """How many cells hold a NUMBER with a word written beside it.
+
+    THE ARGUMENT BOTH QUESTION SENTENCES CARRY, and it is a count of
+    CELLS rather than of anything else. It read `len(compound.labels)`
+    until this landing, which is the whole text half: on 280 readings
+    beside seventeen `<0.5` and three `NOT DETECTED` the sentence said
+    twenty where seventeen wear text. The contract has always defined
+    the argument as the present cells holding a number with text beside
+    it, so this makes the producer match the contract rather than the
+    other way about.
+
+    **AND IT COUNTS BOTH HALVES OF THAT DEFINITION** (review round 1 of
+    landing L16, item 3). The first writing counted every cell whose
+    wrapper was not the bare one, which is neither half:
+
+    * ten `10.50 H` beside ten `<0.50` came out TWENTY, and `<` is a
+      comparison rather than a word -- the sentence names a word or a
+      letter and only ten cells hold one;
+    * seventeen `10.50 H` beside three `many H` came out TWENTY, and
+      `many` is not a number -- the sentence names a NUMBER with a word
+      beside it and only seventeen cells hold one.
+
+    So a cell is counted when its wrapper carries a word AND its core
+    reads as a number, which is exactly the population both sentences
+    describe.
+
+    Guarantees: accepts an affix reading; returns a count. Determinism:
+    a function of that reading. Raises nothing. No I/O of any kind.
+    """
+    total = 0
+    place = 0
+    for prefix, suffix in reading.wrappers:
+        if place >= len(reading.cores):
+            break
+        core = reading.cores[place]
+        place = place + 1
+        if not _carries_a_word(prefix, suffix):
+            continue
+        if parsing.classify_number(core) != parsing.NUMBER:
+            continue
+        total = total + 1
+    return total
+
+
+def _annotated_reading(cells: _Cells) -> "_Affixed | None":
+    """The affix reading a DECLARATION would admit, where one would.
+
+    RESIDUAL R-P4-157, AND THE PLACE IT IS ANSWERED FROM. A column of
+    numbers beside figure-ending labels satisfies rule 7b and rule 9
+    both, and which one claimed it depended on the values drawn.
+    Amendment A-P4-58 rules that such a column is ASKED about rather
+    than guessed at, and asks it BEFORE both numeric-bearing routes --
+    so the question cannot be answered from inside either rule, and
+    this is the one computation both of them consult.
+
+    IT ASKS THE AFFIX WALK AS IF THE COLUMN WERE DECLARED. The letter
+    guard `_stands_apart` is the only test that reads the declaration,
+    and it is precisely the test that hides this column: a rear letter
+    flush against the digits is refused undeclared, so asking the walk
+    undeclared answers "no reading fits" and the tie is never seen.
+    Asking it as if declared sees the reading the person could have,
+    which is what the question is about.
+
+    TWO REFUSALS ARE KEPT rather than inherited. An electronic address
+    is not this question -- it has its own sentence, contract NF50 --
+    and a wrapper carrying no letter is not this question either
+    (`_wears_a_word`).
+
+    IT ROUTES NOTHING AND IT IS NOT A READING. No rule takes a column
+    because of this function: rule 7b still decides by
+    `_compound_reading` and rule 9 still decides by `_affixed_reading`
+    with the person's own declaration. What this answers is whether a
+    SENTENCE is owed.
+
+    Guarantees: accepts a tally; returns the reading a declaration
+    would admit, or None. Determinism: a function of that tally.
+    Raises nothing. No I/O of any kind, and no value of the column
+    leaves it -- its callers publish only a count.
+    """
+    reading = _affixed_before_the_address_test(cells, forced_measurement=True)
+    if reading is None:
+        return None
+    if _wrapped_in_an_address((reading.prefix, reading.suffix)):
+        return None
+    if not _wears_a_word(reading):
+        return None
+    return reading
+
+
+def _affixed_before_the_address_test(
+    cells: _Cells, forced_measurement: bool = False
+) -> "_Affixed | None":
+    """The one affix pair this column wears, address or not.
+
+    Every rule of the role except the address decline. Two callers ask
+    it and each applies that last rule for itself, which is what keeps
+    the reading and the reason for refusing it one computation.
+
+    Guarantees:
+
+    - Determinism: every cell is split by `affixed_split`, which is a
+      function of the cell alone, and the winning pair is chosen by
+      count with ties broken by the pair's own text. Nothing here reads
+      a clock or a random source, and no dictionary order reaches the
+      result.
+    - The test, and both halves are the contract's: at least the
+      parse-line COUNT of present cells wear ONE pair, and that pair's
+      cell count is at least `small_cell_floor`. Both are counts and
+      neither is a compared share, so no rounding of a division decides
+      a role.
+    - The floor is read HERE, at detection, deliberately. The pair is
+      PUBLISHED, so being able to publish a floor-clearing spelling is
+      constitutive of the role: a column that could not publish one
+      under the recorded settings takes the next rule instead of taking
+      this one and then withholding the thing that makes it this role.
+    - A column whose cells wear more than one pair past the line's
+      slack returns None -- a recorded decline, not a partial reading.
+      Publishing a distribution over the `$` cells of a column that
+      also holds `EUR` cells would describe part of a column and drop
+      the rest.
+    """
+    present = cells.present
+    if not present:
+        return None
+    settings = cells.settings
+    needed = _needed(settings.minimum_parse_rate, len(present))
+    # PASS ONE: which pair. Only cells whose core is a number this
+    # format can hold propose a pair, because the role exists to
+    # describe a distribution and a pair proposed by cells holding no
+    # number would describe none.
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in present:
+        split = affixed_split(text)
+        if split is None:
+            # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
+            # P4-D36), proposed by a cell that reads as a number
+            # wearing nothing at all. A laboratory column of `13.5`,
+            # `4.2 H` and `9.8 L` wears three wrappers and one of them
+            # is empty; without it the two flagged thirds could never
+            # reach the line between them and the column was described
+            # as free text.
+            #
+            # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
+            # is asked first: a column most of whose cells are bare
+            # numbers is a column of numbers and never reaches here.
+            if parsing.classify_number(
+                parsing.trimmed(text)
+            ) == parsing.NUMBER:
+                key = ("", "")
+                proposing[key] = (
+                    proposing[key] + 1 if key in proposing else 1
+                )
+            continue
+        prefix, core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+        else:
+            proposing[key] = 1
+    if not proposing:
+        return None
+    # WHICH PAIRS ARE PUBLISHABLE (plan P4-D36). A pair worn by fewer
+    # cells than the smallest group size cannot be published, so its
+    # cells are STRAGGLERS -- the population the parse line already
+    # tolerates and the straggler construction already writes. That is
+    # what keeps this rule from needing a held-back pool of its own.
+    #
+    # Walked over SORTED keys throughout, so nothing here depends on
+    # the order a dictionary happened to fill.
+    speaking: "list[tuple[str, str]]" = []
+    for key in sorted(proposing):
+        if proposing[key] >= settings.small_cell_floor:
+            speaking = speaking + [key]
+    if not speaking:
+        return None
+    # EVERY WRAPPER OF A SET STANDS APART FROM THE NUMBER (plan
+    # P4-D36), and this guard is what keeps a set of CODE SCHEMES and
+    # a set of markers from being read as a quantity.
+    #
+    # A LETTER WRITTEN FLUSH AGAINST A NUMBER IS NOT A UNIT. A unit or
+    # an annotation is either separated from the number -- `13.5 H`,
+    # `70 kg` -- or is a mark that is no letter at all -- `$98`, `45%`.
+    # Two shapes were read as quantities without this and neither is
+    # one: a diagnosis column of `E10.0`, `I11.2`, `J44.9` published a
+    # LADDER over its code numbers, and a column of a hundred ages
+    # beside twenty `refused3` markers put the marker's own digit into
+    # the ladder with them.
+    #
+    # ASKING IT OF EVERY WRAPPER RATHER THAN OF ONE is what the second
+    # of those settled: the bare wrapper stands apart by itself, so a
+    # column of numbers beside ANY flush marker would have been
+    # admitted on the numbers' own account.
+    #
+    # THE PRICE, and it is small: a column of `$98` beside `EUR99` --
+    # a currency written flush -- is not read as a quantity. It was
+    # free text before this landing and stays that way, so nothing is
+    # lost that anybody had.
+    #
+    # ASKED OF A SET ONLY. A column wearing ONE wrapper is read exactly
+    # as it was, so `D0140` is still whatever it was before.
+    if len(speaking) > 1:
+        # SOME CELL OF THIS COLUMN IS A PLAIN NUMBER, which is what
+        # lets a flag be written flush against the digits (review round
+        # 1, item 6). See `_stands_apart`: the front of the number is
+        # where a code scheme puts its letter, and the back is where an
+        # abnormal flag puts one -- but only a column that holds
+        # unwrapped numbers is a column of numbers with annotations.
+        # A LETTER FLUSH BEHIND THE DIGITS IS AMBIGUOUS AND THE PERSON
+        # SETTLES IT (review round 3, item 2). Round 1 relaxed this
+        # where the vocabulary held the bare wrapper, on the ground
+        # that a column holding unwrapped numbers is a column of
+        # numbers with annotations; round 2 then found a register of
+        # procedure codes wearing exactly that shape, and round 3 found
+        # that the width test written to separate them does neither
+        # job. Measured, both ways:
+        #
+        #   100 bare two-digit readings beside 50 ending `H` and 50
+        #   ending `L` -- an ordinary laboratory column -- was REFUSED,
+        #   because its cores are all two digits;
+        #
+        #   50 bare four-digit codes beside 50 five-digit ones and 100
+        #   ending `F` -- a register whose leading zeros a spreadsheet
+        #   ate -- was ADMITTED, because its bare cores are of two
+        #   widths.
+        #
+        # Nothing in the text tells a flagged measurement from a code
+        # register: both are figures with a letter behind them. So the
+        # question goes to whoever holds the table, which is this
+        # project's own answer where a guess is not confident, and
+        # `--measurement` is the flag that carries it. Undeclared, such
+        # a column is what it was before this landing.
+        for key in speaking:
+            if not _stands_apart(key[0], key[1], forced_measurement):
+                return None
+        # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
+        # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
+        # `$` -- and a sentence is not. A column of `free comment
+        # number 03 written out` beside its upper-case variants
+        # proposes two wrappers of four words each; both clear the
+        # floor, and the column published a LADDER over what is a
+        # sequence number inside prose.
+        #
+        # ASKED OF A SET ONLY, so a column wearing ONE wrapper is read
+        # exactly as it was: `note 3 of the batch` was this role
+        # before this landing and still is.
+        for key in speaking:
+            if not _one_word(key[0]) or not _one_word(key[1]):
+                return None
+    # A SET OF WRAPPERS MAY NOT DIFFER BY ITS DIGITS (plan P4-D36),
+    # and this guard was written against a false reading the set rule
+    # created. A column of feet and inches, `4'5"`, `5'11"` proposes one pair per
+    # inches value -- prefix nothing, suffix `'5"` -- and a dozen of
+    # them clear the floor and the ceiling together. The column then
+    # published a ladder over the FEET of some cells and the inches of
+    # others: a description saying something false, where before it
+    # said nothing at all.
+    #
+    # A WRAPPER IS SHARED TEXT. Where a column wears ONE, it may carry
+    # digits -- `mL/min/1.73m2` is a real unit and this rule read it
+    # before -- so the guard is asked only of a SET, where a digit is
+    # the mark of a split that cut through a number.
+    if len(speaking) > 1:
+        for key in speaking:
+            for side in key:
+                for mark in side:
+                    if mark in "0123456789":
+                        return None
+    # THE SET IS A VOCABULARY AND NOT PROSE, on the categorical rule's
+    # own ceiling. A column proposing dozens of different pairs is a
+    # column of text that happens to hold digits, and describing it as
+    # a quantity in many wrappers would be describing something else.
+    if len(speaking) > _categorical_ceiling(cells):
+        return None
+    # THE DETECTION LINE is over the cells wearing a PUBLISHABLE pair,
+    # together. The contract's test is that at least the parse-line
+    # count of present cells are affixed numbers; before plan P4-D36 it
+    # asked that of ONE pair, so a laboratory column of `13.5`,
+    # `4.2 H` and `9.8 L` -- where no pair carries a third of the
+    # column -- reached no rule at all and was described as free text.
+    covered = 0
+    for key in speaking:
+        covered = covered + proposing[key]
+    if covered < needed:
+        return None
+    # THE COMMONEST PAIR IS THE ONE THE BLOCK NAMES, ties broken by the
+    # pair's own text so two implementations pick the same one.
+    pair = speaking[0]
+    best = 0
+    for key in speaking:
+        if proposing[key] > best:
+            pair = key
+            best = proposing[key]
+    if len(speaking) > 1:
+        # AND EVERY WRAPPER'S CELLS ARE WRITTEN THE WAY THE COMMONEST
+        # WRAPPER'S ARE (plan P4-D36). A unit or a flag does not change
+        # how a value is SPELLED: a column of `13.5`, `4.2 H` and
+        # `9.8 L` writes one figure after the point whichever wrapper a
+        # cell wears. A NOUN in front of an index does: a column of 240
+        # readings written to one figure beside sixty `note 3` cells
+        # proposes two wrappers that both stand apart and are both one
+        # word, and reading it as a quantity puts the notes' own
+        # sequence numbers into the ladder with the readings.
+        #
+        # THE TEST IS AN OVERLAP AND NOT AN IDENTITY, because a real
+        # flagged column may carry a whole value beside its fractional
+        # ones: each wrapper's cells must share at least one fraction
+        # width with the commonest wrapper's.
+        if not _written_alike(present, speaking, pair, cells):
+            return None
+
+    # PASS TWO: which cells WEAR it. This is a different population and
+    # a larger one, and keeping them apart is the whole of C6-7. A
+    # column of `5 mg`, `7 mg` and `many mg` wears the pair three
+    # times: `n_affixed` is 3 and one core is not numeric at all. The
+    # first pass alone would have said 2, and the three non-holdable
+    # core classes would have been unreachable -- no producer could
+    # ever have written `n_core_not_numeric` above zero.
+    prefix, suffix = pair
+    cores: "list[str]" = []
+    wrappers: "list[tuple[str, str]]" = []
+    counts: "dict[tuple[str, str], int]" = {}
+    for text in present:
+        trimmed = parsing.trimmed(text)
+        chosen = _pair_worn(trimmed, speaking)
+        if chosen is None:
+            continue
+        core = trimmed[
+            len(chosen[0]) : len(trimmed) - len(chosen[1])
+        ]
+        if not core:
+            # `mg` on its own wears no pair: it IS the suffix, with
+            # nothing between the two sides for a number to be.
+            continue
+        cores = cores + [core]
+        # ...AND WHICH WRAPPER IT WORE (plan P4-D37), kept beside it so
+        # the blocks below can be read one wrapper at a time.
+        wrappers = wrappers + [chosen]
+        counts[chosen] = counts[chosen] + 1 if chosen in counts else 1
+    # A WRAPPER IS FILTERED ON WHAT WEARS IT, NOT ON WHAT PROPOSED IT
+    # (found while building plan P4-D37). `speaking` holds the wrappers
+    # that cleared the floor at PROPOSAL -- pass one, over the cells
+    # that read as a number wearing them -- and the count published is
+    # the count that WEARS them, which is a different population and
+    # can be far smaller. A column of `$1` to `$99` beside eleven cells
+    # spelled `1` and one spelled `7`, with `1` DECLARED a hole,
+    # proposes the bare wrapper twelve times and is worn by it ONCE:
+    # the eleven holes are not present cells. The bare wrapper was
+    # published with the count 1, which is a group of one named in a
+    # description under a floor of eleven.
+    #
+    # So the floor is applied again here, where the published count
+    # exists, and a wrapper that fails it is not published at all: its
+    # cells become STRAGGLERS, which is the population this role
+    # already has and already writes.
+    kept: "dict[tuple[str, str], int]" = {}
+    for key in counts:
+        if key == pair or counts[key] >= settings.small_cell_floor:
+            kept[key] = counts[key]
+    if len(kept) != len(counts):
+        held: "list[str]" = []
+        wearing: "list[tuple[str, str]]" = []
+        for place in range(len(cores)):
+            if wrappers[place] in kept:
+                held = held + [cores[place]]
+                wearing = wearing + [wrappers[place]]
+        cores = held
+        wrappers = wearing
+        counts = kept
+    n_affixed = len(cores)
+    # THE COMMONEST WRAPPER IS CHOSEN FROM WHAT WEARS IT, and it was
+    # chosen from what PROPOSED it (review round 5, item 1). The
+    # proposal pass counts cells that read as a NUMBER wearing a
+    # wrapper; the wear pass counts every cell that wears it, cores
+    # that are no number included, and the two orders can differ. AF17
+    # then refused what this function had just written: a hundred
+    # distinct ` kg` numerals beside ninety-eight ` aa` numerals and
+    # two `many aa` cells proposes ` kg` as commonest and WEARS both a
+    # hundred times, so the loader's tie rule wants ` aa` -- and
+    # `synthtwin profile` wrote a file `synthtwin generate` refused,
+    # which is the defect amendment A-P3-11 exists to keep closed.
+    #
+    # THE TIE RULE IS THE LOADER'S, character for character: most cells
+    # first, and where two wrappers wear the same number of cells the
+    # pair that sorts first.
+    for key in sorted(counts):
+        if counts[key] > counts[pair] or (
+            counts[key] == counts[pair] and key < pair
+        ):
+            pair = key
+    prefix, suffix = pair
+    variants: "list[tuple[str, str, int]]" = []
+    for key in sorted(counts):
+        if key == pair:
+            continue
+        variants = variants + [(key[0], key[1], counts[key])]
+    # The floor is read HERE, at detection, deliberately: the pair is
+    # PUBLISHED, so being able to publish a floor-clearing spelling is
+    # constitutive of the role.
+    if n_affixed < settings.small_cell_floor:
+        return None
+    if pair not in counts:
+        return None
+    return _Affixed(
+        prefix=prefix,
+        suffix=suffix,
+        variants=variants,
+        cores=cores,
+        wrappers=wrappers,
+        n_affixed=n_affixed,
+    )
+
+
+def _written_alike(
+    present: "list[str]",
+    speaking: "list[tuple[str, str]]",
+    pair: "tuple[str, str]",
+    cells: "_Cells",
+) -> bool:
+    """Whether every wrapper's cores are written like the commonest one's.
+
+    A unit or a flag qualifies a value and does not respell it, so the
+    cells wearing one carry cores written the way the rest are -- with
+    a point where the rest have one. A noun in front of an index is a
+    different thing wearing the same shape, and its cores are whole
+    numbers whatever the rest of the column does.
+
+    THE TEST IS AN OVERLAP AND NOT AN IDENTITY, because a real flagged
+    column may carry a whole value beside its fractional ones: what
+    each wrapper's cores must do is share a written form with the
+    commonest wrapper's, not match its whole census.
+
+    Guarantees: accepts the present cells, the publishable wrappers,
+    the commonest one and the tally; returns whether every wrapper's
+    cores are written with a point where the commonest wrapper's are,
+    or without one where they are without. A
+    wrapper whose cells carry no readable number at all is passed over
+    rather than refused -- the class counts describe those cells and
+    this question is about the ones that hold a value. Determinism: a
+    function of those inputs. Raises nothing. No I/O of any kind.
+    """
+    widths: "dict[tuple[str, str], dict[bool, int]]" = {}
+    for text in present:
+        chosen = _pair_worn(parsing.trimmed(text), speaking)
+        if chosen is None:
+            continue
+        trimmed = parsing.trimmed(text)
+        core = trimmed[
+            len(chosen[0]) : len(trimmed) - len(chosen[1])
+        ]
+        if not core:
+            continue
+        seen = _classify_all([core], cells.decimal_comma)
+        for one in seen:
+            if one.kind != parsing.NUMBER:
+                continue
+            # THE WRITTEN FORM AND NOT THE VALUE'S WHOLENESS. A cell
+            # spelled `23.0` holds a whole number and is written with
+            # a point, and it is the WRITING that a unit leaves alone:
+            # asking the value instead let a column of readings
+            # spelled to one figure share a form with a column of
+            # bare indexes, because some of those readings landed on
+            # a whole number.
+            mark = "," if cells.decimal_comma else "."
+            pointed = False
+            for letter in core:
+                if letter == mark:
+                    pointed = True
+            found = widths[chosen] if chosen in widths else {}
+            found[pointed] = 1
+            widths[chosen] = found
+    if pair not in widths:
+        return False
+    common = widths[pair]
+    for key in widths:
+        shared = False
+        for width in widths[key]:
+            if width in common:
+                shared = True
+        if not shared:
+            return False
+    return True
+
+
+def _one_word(side: str) -> bool:
+    """Whether one side of a wrapper is a single word.
+
+    The space that SEPARATES a unit from its number is part of the
+    wrapper -- `13.5 H` wears ` H` -- so that one space is taken off
+    before the question is asked. What is left must hold no space at
+    all: `kg`, `months`, `EUR` and `$` do, and `written out` does not.
+
+    WHICH CHARACTERS ARE SPACE IS ASKED OF `parsing.trimmed`, and this
+    knew about the plain space and the tab alone until review round 8
+    (item 4). `affixed_split` moves EVERY kind of whitespace into the
+    wrapper -- that repair was itself review round 1's item 7 -- so a
+    wrapper could arrive here holding a no-break space, and a no-break
+    space is not in a two-character list. Measured: 120 cells reading
+    `Clinical Stage 001` to `120` and 120 reading `Followup Stage 121`
+    to `240`, with a no-break space between the words, were admitted
+    as a quantity and published a distribution over sequence numbers
+    inside two-word text; the same cells written with an ordinary
+    space were free text. One question, one answer, asked of the one
+    function that gives it -- the same repair, in the second of the two
+    places that needed it.
+
+    Guarantees: accepts one side of a wrapper; returns whether it is a
+    single word. Determinism: a function of that input. Raises
+    nothing. No I/O of any kind.
+    """
+    rest = side
+    while rest and parsing.trimmed(rest[:1]) == "":
+        rest = rest[1:]
+    while rest and parsing.trimmed(rest[len(rest) - 1 :]) == "":
+        rest = rest[: len(rest) - 1]
+    for mark in rest:
+        if parsing.trimmed(mark) == "":
+            return False
+    return True
+
+
+def _stands_apart(prefix: str, suffix: str, declared: bool) -> bool:
+    """Whether a wrapper is a unit or an annotation rather than a scheme.
+
+    THE CHARACTER TOUCHING THE NUMBER is what says which, and the two
+    sides are not the same risk.
+
+    IN FRONT, a letter flush against the digits is USUALLY a code
+    scheme -- `E10.0`, `I11.2`, `J44.9`, `D0140` -- where the letter
+    says which register the number belongs to. Reading the rest as a
+    quantity publishes a ladder over code numbers and writes codes
+    nobody issued, so undeclared it is refused.
+
+    **AND THE DECLARATION REACHES THIS SIDE TOO** (review round 6, item
+    2). It did not, and the cost was a person answering the question
+    and getting nothing for it: a hundred readings of `7.000` to
+    `7.099` beside a hundred written `pH7.000` to `pH7.099` -- a real
+    unit, written in front, flush -- stayed free text WITH
+    `--measurement` given. A declaration the tool then ignores is worse
+    than no declaration, because the person has done the one thing
+    asked of them.
+
+    BEHIND, a letter flush against the digits is AMBIGUOUS and the
+    person settles it. `13.5H` is an abnormal flag on a laboratory
+    result; `1234F` is a category of procedure code. Nothing in the
+    text tells them apart, and two rules written to try were both
+    measured wrong: refusing the shape outright sent every laboratory
+    column whose flags are written flush to free text (round 1, item
+    6), and admitting it where the cores are not all one width refused
+    an ordinary two-digit laboratory column while admitting a register
+    whose bare codes had lost their leading zeros (round 3, item 2).
+    So `--measurement` carries the answer, which is this project's own
+    way with a question it cannot settle for somebody.
+
+    A letter that STANDS APART -- `13.5 H`, `70 kg` -- is a unit or an
+    annotation and needs no declaration: a code register does not put a
+    space before its category letter. A mark that is no letter at all
+    (`$98`, `45%`) stands apart too, and the bare wrapper -- nothing on
+    either side -- always does, because a cell wearing it IS a plain
+    number.
+
+    Guarantees: accepts the two sides of a wrapper and whether the
+    person declared this column a measurement; returns whether the
+    wrapper stands apart from the number it wraps. Determinism: a
+    function of those inputs. Raises nothing. No I/O of any kind.
+    """
+    if not prefix and not suffix:
+        return True
+    if prefix:
+        for mark in prefix[len(prefix) - 1 :]:
+            if mark in _LETTERS and not declared:
+                return False
+    if suffix:
+        for mark in suffix[:1]:
+            if mark in _LETTERS and not declared:
+                return False
+    return True
+def _wears(text: str, prefix: str, suffix: str) -> bool:
+    """Whether one cell wears one wrapper with something between.
+
+    THE CELL IS TRIMMED HERE rather than handed in already trimmed,
+    which is what `_core_of` below does and what the offline audit
+    asks for: a method call is accepted on a value the audit watched
+    being made, and `parsing.trimmed` is such a maker while a
+    parameter is not.
+
+    Guarantees: accepts a cell and the two sides; returns whether the
+    cell starts with the one, ends with the other, and has at least
+    one character between them. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix):
+        return False
+    if not trimmed.endswith(suffix):
+        return False
+    return len(trimmed) > len(prefix) + len(suffix)
+
+
+def _pair_worn(
+    trimmed: str, speaking: "list[tuple[str, str]]"
+) -> "tuple[str, str] | None":
+    """Which of the publishable pairs this cell wears, or none.
+
+    THE LONGEST WRAPPER WINS, and the tie is broken by the pair's own
+    text. A cell of `13.5 H` wears both `('', ' H')` and `('', '')`,
+    and reading it as the second would put ` H` inside the CORE, where
+    no number rule can read it -- so the column would publish a core
+    class count of "not a number" for a cell that plainly holds one.
+    Taking the longest wrapper is what makes the split of a cell into
+    a wrapper and a core the same split a person would make.
+
+    Guarantees: accepts a trimmed cell and the publishable pairs;
+    returns the pair it wears or None. Determinism: a function of those
+    inputs, with a fixed order. Raises `TypeError` where the cell is
+    not text, which is the offline audit's own gate. No I/O of any
+    kind.
+    """
+    # THE CELL READS AS TEXT BEFORE A METHOD TOUCHES IT, in the exact
+    # gate the offline audit names: this function's caller hands it a
+    # value and a method call on an untraced value is refused.
+    if not isinstance(trimmed, str):
+        raise TypeError("a cell is text")
+    found: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(speaking):
+        # THE TWO SIDES GO THROUGH A FUNCTION THAT DECLARES THEM AS
+        # TEXT. The offline audit accepts a parameter annotated `str`
+        # and does not accept a tuple's member, which is how
+        # `_core_of` below already writes the same comparison.
+        front = key[0]
+        back = key[1]
+        if not _wears(trimmed, front, back):
+            continue
+        # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING ELSE,
+        # which is the rule it was PROPOSED under. It is a prefix and a
+        # suffix of every cell there is, so without this a cell of
+        # `9.9 CRITICAL` would wear it -- with the whole cell as its
+        # core -- and the straggler population would vanish from every
+        # column that publishes the bare wrapper.
+        if not front and not back:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
+        width = len(front) + len(back)
+        if width > reach:
+            found = key
+            reach = width
+    return found
+
+
+# The characters an address may be spelled with, as literal constants
+# rather than as method calls: the offline audit accepts membership
+# tests on gated text and does not carry `isalpha` or `isalnum`.
+_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# The ten figures, written out for the same reason the letters are: the
+# code-family test asks whether a core is written in figures alone, and
+# a membership check against a literal is an operator rather than a
+# method call on a value the offline audit cannot trace.
+_DIGITS = "0123456789"
+_HOST_CHARACTERS = _LETTERS + _DIGITS + "-."
+
+
+def _wrapped_in_an_address(pair: "tuple[str, str]") -> bool:
+    """Whether this pair is an electronic address around its number.
+
+    RESIDUAL R-P4-39, and this is the THIRD attempt. Both earlier ones
+    are written out, because what they got wrong is worth more than
+    what this one gets right.
+
+    THE DEFECT. A column of `user12345@example.org` was claimed by the
+    affixed role: prefix `user`, suffix `@example.org`, numeric core.
+    The block published a ladder, a mean and a spread over the cores --
+    real numbers out of real addresses. Measured on 400 rows: the mean
+    was 53,574.055, the average of the real identifiers.
+
+    THE FIRST ATTEMPT was a deleted rule resurrected. It declined when
+    the cores were all whole, all different, and the pair carried
+    letters on the LEFT -- which reads `code1` as a token and `1mg` as
+    a quantity, and review item P1-R6-F8 pins those two together
+    because nothing in their values tells them apart. Seventeen tests
+    refused it.
+
+    THE SECOND ATTEMPT declined on `@` anywhere in the pair, over a
+    claim that no unit of measurement uses that character. **The claim
+    was false and was refuted the same day**: `100 ms @ ambient` and
+    `$100@close` are ordinary quantities whose suffix carries `@`,
+    which means "at" -- at a condition, at a price. Both would have
+    lost their distribution.
+
+    WHAT THIS ONE DOES DIFFERENTLY, and it is a different KIND of rule
+    rather than a narrower version of the same one. The two failures
+    above were both negative claims -- "no quantity looks like this" --
+    and a negative claim over every column anybody might hold is a
+    claim nobody can check. This rule makes a POSITIVE identification
+    instead: the suffix is an electronic address, which has a shape of
+    its own -- an `@`, then a host, then a dot, then a top label of
+    letters. `@close` is not one. `ms @ ambient` is not one.
+    `@example.org` is.
+
+    It is still a rule about values, so it is still capable of being
+    wrong about a column nobody has shown me. What it is not is a
+    guess about which of two indistinguishable shapes a column meant.
+
+    WHAT IT DOES NOT CLOSE. `ACC00012345` still reads as a quantity and
+    cannot be told from `USD100` by any property of the values; that
+    half of R-P4-39 stays open and its answer is a declaration, which
+    is P1-R6-F8's own conclusion.
+
+    Guarantees: accepts the winning affix pair; returns a truth value
+    depending on that pair alone. Raises nothing. No I/O, no
+    randomness, and no value of the column is published by anything
+    here.
+    """
+    prefix, suffix = pair
+    # THE TYPE GATE THE OFFLINE AUDIT ASKS FOR, in the exact form and
+    # at the exact place it names: the top of the function, before any
+    # method call. A call on a value the audit cannot trace is refused
+    # whatever the method is called, because a caller-supplied object
+    # may define one of any name. This is the second repair in this
+    # landing to trip that rule, and the remedy is the one
+    # `splits_into_numbers` already carries.
+    if not isinstance(prefix, str):
+        raise TypeError("an affix must be text")
+    if not isinstance(suffix, str):
+        raise TypeError("an affix must be text")
+    return _is_an_address(prefix) or _is_an_address(suffix)
+
+
+def _is_an_address(side: str) -> bool:
+    """Whether one affix is an electronic address around a number.
+
+    The shape, checked rather than guessed: an `@`, then a host of
+    ordinary host characters, then a dot, then a top label of at least
+    two letters. `@close` fails at the dot. `ms @ ambient` fails at the
+    label. `@example.org` passes.
+
+    WRITTEN IN A SMALLER VOCABULARY THAN CAME NATURALLY, and that is
+    the offline audit's doing rather than a style choice. It accepts
+    method calls on gated text only from an enumerated set -- the exact
+    set the source tree already calls -- and `rfind`, `isalpha` and
+    `isalnum` are not in it. Widening that set to suit one function
+    would be changing the scanner to make the text pass, which the
+    charter forbids in as many words. So the letter and host tests are
+    membership checks against literal constants, which are operators
+    rather than method calls, and the search runs on `find`.
+
+    Guarantees: accepts text; returns a truth value depending on that
+    text alone. Raises TypeError for anything else. No I/O, no
+    randomness.
+    """
+    if not isinstance(side, str):
+        raise TypeError("an affix must be text")
+    at = side.find("@")
+    if at < 0:
+        return False
+    host = side[at + 1 :]
+    # The last dot of the host, found by walking rather than by
+    # `rfind`, which the audit's enumeration does not carry.
+    dot = -1
+    place = 0
+    for character in host:
+        if character == ".":
+            dot = place
+        place = place + 1
+    if dot <= 0:
+        return False
+    label = host[dot + 1 :]
+    if len(label) < 2:
+        return False
+    for character in label:
+        if character not in _LETTERS:
+            return False
+    body = host[:dot]
+    if not body:
+        return False
+    for character in body:
+        if character not in _HOST_CHARACTERS:
+            return False
+    return True
+
+
+def _variant_blocks(
+    affixed: _Affixed, cells: _Cells
+) -> "list[dict[str, object]]":
+    """Every wrapper beside the commonest, with its own numbers (P4-D37).
+
+    FOUR CLASS COUNTS PER WRAPPER, and they are not decoration. The
+    block beside them is loaded the way any block of a subset is, and a
+    loader cannot check a block without knowing how many of the cores
+    under it read as numbers, how many are numerals this format cannot
+    hold, how many contradict themselves and how many are not numbers
+    at all. The column's own four are the sums; each wrapper's four
+    close on its own count, exactly as AF4 closes the column's on
+    `n_affixed`.
+
+    Guarantees: accepts the column's affixed reading and the cells it
+    was read from; returns one entry per wrapper beside the commonest,
+    in the order those wrappers were published. Determinism: a function
+    of those inputs. Raises nothing this module does not raise for any
+    tally. No I/O of any kind.
+    """
+    blocks: "list[dict[str, object]]" = []
+    for prefix, suffix, count in affixed.variants:
+        tally = _wrapper_tally(affixed, (prefix, suffix), cells)
+        looking = _numeric_looking(tally)
+        blocks = blocks + [
+            {
+                "prefix": prefix,
+                "suffix": suffix,
+                "count": count,
+                "n_core_numeric": len(tally.numbers),
+                "n_core_out_of_range": tally.n_out_of_range,
+                "n_core_contradictory": tally.n_contradictory,
+                "n_core_not_numeric": tally.n_not_numeric,
+                # ...AND HOW MANY DIFFERENT CORES THIS WRAPPER HOLDS.
+                # The generator lays each wrapper's cores out from its
+                # own block now, and a layout is divided by a count of
+                # different things: handed the COLUMN's count, a
+                # wrapper worn by fifty cells was asked for the
+                # spellings of two hundred.
+                "n_core_distinct": tally.raw_distinct,
+                "n_core_distinct_folded": len(tally.folded_counts),
+                "numbers": _numeric_details(
+                    tally, tally.n_whole == looking and looking > 0
+                ),
+            }
+        ]
+    return blocks
+
+
+def _wrapper_details(
+    affixed: _Affixed,
+    wrapper: "tuple[str, str]",
+    cells: _Cells,
+) -> "dict[str, object]":
+    """The quantitative block of ONE wrapper, over its own cores.
+
+    PLAN P4-D37, AND THE MEASUREMENTS THAT RULED IT IN. One block over
+    every core of a column wearing a SET is a statistic of no quantity
+    where the wrappers are units -- a hundred weights written `60.0 kg`
+    to `69.9 kg` beside a hundred written `132.3 lb` to `153.8 lb`
+    published mean 104.722, an average of nothing, with the column's
+    ends running from 60 to 153.8 -- and a wrong one where a wrapper
+    marks a different population: 240 readings written to one figure
+    beside sixty markers reading `note 0.0` to `note 59.0` published
+    mean 17.511, where the readings alone average 14.514.
+
+    THE BLOCK ANSWERS FOR ITS OWN WRAPPER AND SAYS SO IN ITS OWN ROW
+    COUNT. `_numeric_details` reads every population key off the tally
+    it is handed, so a tally built over one wrapper's cores, with that
+    wrapper's count as its row count, yields a block whose
+    `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share`
+    and echoed `n_rows` are all that wrapper's. That is the arrangement
+    a JOINED column's positions already have, word for word: a block
+    describing a subset of a column's cells answers for that subset.
+
+    Guarantees: accepts the column's affixed reading, one wrapper of
+    it, and the cells it was read from; returns that wrapper's block.
+    Determinism: a function of those inputs; the cores are taken in row
+    order. Raises nothing this module does not raise for any tally. No
+    I/O of any kind.
+    """
+    tally = _wrapper_tally(affixed, wrapper, cells)
+    looking = _numeric_looking(tally)
+    return _numeric_details(
+        tally, tally.n_whole == looking and looking > 0
+    )
+
+
+def _wrapper_tally(
+    affixed: _Affixed,
+    wrapper: "tuple[str, str]",
+    cells: _Cells,
+) -> _Cells:
+    """The cores ONE wrapper's cells hold, classified (plan P4-D37).
+
+    ONE TALLY, TWO READERS. The block above is read off it and so are
+    the four class counts beside that block, because a wrapper's cores
+    are classified once and a second pass over the same cells is a
+    second answer waiting to differ from the first.
+
+    Guarantees: accepts the column's affixed reading, one wrapper of
+    it, and the cells it was read from; returns the tally of that
+    wrapper's cores, in row order, with that wrapper's own count as its
+    row count. Determinism: a function of those inputs. Raises nothing
+    this module does not raise for any tally. No I/O of any kind.
+    """
+    worn: "list[str]" = []
+    for place in range(len(affixed.cores)):
+        if affixed.wrappers[place] == wrapper:
+            worn = worn + [affixed.cores[place]]
+    return _tally(_classify_all(worn), len(worn), cells.settings)
+
+
+def _affixed_verdict(
+    cells: _Cells,
+    affixed: _Affixed,
+    notes: "list[Note]",
+    remarks: "list[Note]",
+) -> _Verdict:
+    """The `affixed_number` block: a distribution over the CORES.
+
+    TWO POPULATIONS run through this function and they are never the
+    same one. The column's CELLS answer for `n_present`, `n_rows` and
+    everything the universal keys count. The CORES those cells hold
+    answer for the quantitative block and for the four `n_core_*`
+    counts. Conflating them was a defect twice in review, so every line
+    below says which it is reading.
+
+    The cores are classified by the SAME classifier every other role
+    reads cells with, so a core too large to hold, or written in a form
+    that conflicts with itself, is counted exactly as it would be on a
+    plain numeric column -- and the statistics are computed over the
+    cores that hold, never over the cells.
+    """
+    core_cells = _tally(
+        _classify_all(affixed.cores), cells.n_rows, cells.settings
+    )
+    n_core_numeric = len(core_cells.numbers)
+    # `whole_everywhere` over the CORES, on the same test the numeric
+    # roles use over their cells.
+    core_looking = _numeric_looking(core_cells)
+    # THE COLUMN'S OWN QUANTITATIVE BLOCK IS THE COMMONEST WRAPPER'S
+    # (plan P4-D37). It was read over ALL the cores, and on a column
+    # wearing a SET that is a statistic of no quantity: a hundred
+    # weights in kilograms beside a hundred in pounds published mean
+    # 104.722, an average of nothing, presented as the column's own.
+    # Every published wrapper carries its own numbers now, this block
+    # is the commonest wrapper's, and each of the others is beside its
+    # own entry.
+    #
+    # A COLUMN WEARING ONE WRAPPER IS UNTOUCHED, which is the point of
+    # writing it this way round: its commonest wrapper is its only one,
+    # its cores are all of them, and `_cores_wearing` returns the same
+    # list `affixed.cores` already held.
+    n_present = len(cells.present)
+    if not affixed.variants:
+        # ONE WRAPPER, AND EVERY LINE OF THIS BRANCH IS WHAT SHIPPED.
+        # Its commonest wrapper is its only one and its cores are all
+        # of them, so there is nothing to read apart and nothing here
+        # moves.
+        whole_everywhere = (
+            core_cells.n_whole == core_looking and core_looking > 0
+        )
+        details = _numeric_details(core_cells, whole_everywhere)
+        # The two keys whose population the core substitution does NOT
+        # reach. Version 4 defines them over PRESENT CELLS -- "how many
+        # present cells the statistics were computed from", "the share
+        # of present cells whose writer meant a number" -- so reading
+        # them over the cores would leave a straggler in NEITHER count
+        # and make both answer for a narrower population than their own
+        # published meaning.
+        details["n_left_out_of_statistics"] = n_present - n_core_numeric
+        details["numeric_share"] = _share(core_looking, n_present)
+        common_distinct = core_cells
+    else:
+        # A SET, SO THIS BLOCK IS THE COMMONEST WRAPPER'S AND ITS
+        # POPULATION KEYS ARE THAT WRAPPER'S TOO (plan P4-D37). Reading
+        # them over the whole column instead would leave the block
+        # saying its statistics were computed from two hundred cells
+        # and its ladder covering a hundred.
+        #
+        # This is the arrangement a JOINED column's positions already
+        # have, in the same words: a block describing a SUBSET of the
+        # column's cells answers for that subset, and echoes its count
+        # rather than the table's row count.
+        common = _wrapper_tally(
+            affixed, (affixed.prefix, affixed.suffix), cells
+        )
+        common_looking = _numeric_looking(common)
+        details = _numeric_details(
+            common, common.n_whole == common_looking and common_looking > 0
+        )
+        common_distinct = common
+    details["affix_prefix"] = affixed.prefix
+    details["affix_suffix"] = affixed.suffix
+    # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36). A laboratory
+    # column of `13.5`, `4.2 H` and `9.8 L` wears three, and until this
+    # key existed no single one of them reached the detection line, so
+    # the whole column was described as free text -- no ladder, no
+    # mean, no distribution at all. Each entry names a wrapper and how
+    # many cells wear it; the commonest one is the pair above and is
+    # not repeated here. Every wrapper published clears the smallest
+    # group size, and a wrapper worn by fewer cells than that is not
+    # published: its cells are STRAGGLERS, which is the population
+    # this role already has and already writes.
+    # ...AND EACH OF THEM CARRIES ITS OWN NUMBERS (plan P4-D37). One
+    # ladder over every core was a statistic of no quantity where the
+    # wrappers were units -- a hundred weights in kilograms beside a
+    # hundred in pounds published mean 104.722 -- and it was a wrong
+    # one where they were markers: 240 readings beside sixty `note N.0`
+    # cells published mean 17.511 where the readings alone average
+    # 14.514. Every wrapper is published only where its count clears the
+    # smallest group size, so every block below is read over at least
+    # that many cores and is governed by the floor like any other.
+    details["affix_variants"] = _variant_blocks(affixed, cells)
+    details["n_affixed"] = affixed.n_affixed
+    # HOW MANY DIFFERENT CORES, as distinct from how many different
+    # CELLS (plan P4-D36). On a column wearing ONE wrapper the two are
+    # the same number, which is why this key was not needed until a
+    # column could wear several: with three wrappers, a hundred
+    # different cores make up to three hundred different cells, and the
+    # generator laid its cores out from the CELL count. Measured on a
+    # laboratory column of 200 cells, 141 different cells and about a
+    # hundred different cores: the core stage was asked for 141
+    # different cores, spent the leading-zero family reaching for them
+    # and wrote `0011.9 H` where every real cell read `11.9 H`.
+    # ...AND THEY ARE THE COMMONEST WRAPPER'S, LIKE THE BLOCK THEY
+    # BELONG TO (plan P4-D37). A count of different cores is the budget
+    # of core spellings ONE layout is laid out from, and each wrapper
+    # has its own layout now, so the column's pair belongs to the
+    # column's block -- which is the commonest wrapper's. Every other
+    # wrapper's pair is beside its own block. On a column wearing ONE
+    # wrapper the commonest is the only one and these are what they
+    # always were.
+    #
+    # The two counts CANNOT be left column-wide beside a per-wrapper
+    # block: a count of different things does not subtract, so a
+    # commonest wrapper's budget could not be recovered from the
+    # column's total and the wrappers' -- and a layout handed a total
+    # asks a wrapper worn by fifty cells for the spellings of two
+    # hundred.
+    details["n_core_distinct"] = common_distinct.raw_distinct
+    details["n_core_distinct_folded"] = len(common_distinct.folded_counts)
+    details["n_core_numeric"] = n_core_numeric
+    details["n_core_out_of_range"] = core_cells.n_out_of_range
+    details["n_core_contradictory"] = core_cells.n_contradictory
+    details["n_core_not_numeric"] = core_cells.n_not_numeric
+    # Carried by EVERY column of this role, without condition: no test
+    # of the values separates an opaque token family from a
+    # measurement, so the choice is between telling every such column's
+    # owner and telling none.
+    # THE COUNT NAMED BESIDE A SPELLING IS THE COUNT THAT WEARS IT
+    # (review round 8, item 3). It was `n_affixed` -- every counted
+    # cell -- and the sentence names ONE wrapper, so a column of a
+    # hundred kilograms beside a hundred pounds published "200 of this
+    # column's values are written as a number followed by ` kg`" when
+    # a hundred are. The role's evidence line made the same false
+    # claim and the loader required it, so the description, its
+    # summary and its warning all said it together.
+    #
+    # On a column wearing ONE wrapper the two counts are the same
+    # number, so nothing about such a column moves.
+    worn_elsewhere = 0
+    for _prefix, _suffix, count in affixed.variants:
+        worn_elsewhere = worn_elsewhere + count
+    pair = (
+        affixed.prefix,
+        affixed.suffix,
+        affixed.n_affixed - worn_elsewhere,
+    )
+    # ...AND THE ALL-DIFFERENT REMARK IS THE NUMBERS ONE, NOT THE FREE
+    # TEXT ONE. The observation reaches this role and must: a column of
+    # `R1` to `R240` wearing one prefix is exactly the shape somebody
+    # meant as record numbers, and the sentence that says so, with the
+    # `--identifier` route beside it, is what makes them look. What may
+    # NOT reach it is the free-text form's account of what was done
+    # about it. That form says "Nothing from this column is published
+    # either way -- no value of it, and no distribution", and then
+    # tells the reader to write the values as plain numbers so that
+    # "their distribution will be described" -- three clauses that are
+    # false, in the plainest-language part of the document, of a block
+    # publishing a full ladder and every moment. The plan's word
+    # "verbatim" cannot mean a sentence that misdescribes the block it
+    # stands in; the contract assigns this role the NUMBERS form, and
+    # that is the one a column of `$1` to `$100` now carries.
+    if _all_different(cells):
+        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    return _Verdict(
+        role=ROLE_AFFIXED,
+        evidence=note(EVIDENCE_AFFIXED, pair),
+        details=details,
+        notes=notes,
+        remarks=(
+            remarks
+            + [note(REMARK_AFFIXED, pair)]
+            + _comma_remarks(core_cells)
+        ),
+    )
+
+
+def _cores_judged(
+    cells: _Cells,
+    classified: "list[_Cell]",
+    missing: "list[tuple[str, str]]",
+    verdicts: "dict[float, tuple[bool, str, int]]",
+    forced_measurement: bool = False,
+) -> "tuple[list[_Cell], list[tuple[str, str]], dict[float, tuple[bool, str, int]]]":
+    """Judge this column's stand-ins over its CORES, and remove them.
+
+    The numeric pass asks its question of whole cells. On this role the
+    numbers live inside the affix pair, so the question has to be asked
+    of the cores -- and the answer removes the CELL, because a cell
+    whose core means "no value" holds no value whatever it wears.
+
+    Returns the surviving records, the absences with the removed cells
+    added, and the verdicts to publish. The candidates are published
+    exactly as they are on a numeric column: as the number, through the
+    standing verdict machinery.
+
+    IT TAKES THE DECLARATION BECAUSE ITS CALLER DECIDED THE ROLE WITH
+    ONE, and asking the reading a different question than the caller
+    asked was a defect. `--measurement` carries an address-shaped
+    column past the address decline, so it holds the affixed role --
+    and this function re-derived the reading WITHOUT the declaration,
+    got the decline, and returned every cell unjudged. Measured on 200
+    cells of `user<core>@example.org`, 189 cores between 50 and 70
+    beside eleven spelled `-999`: no verdict published, `-999` kept as
+    the column's smallest reading, and the mean 1.785 where the same
+    column wearing an ordinary pair reads 60.03 and publishes
+    `read_as_missing` / `outlier_and_frequent`. That is the silent
+    statistical wrongness C6-5's core pass exists to prevent, reached
+    through the one declaration that says the numbers are real.
+    """
+    reading = _affixed_reading(cells, forced_measurement)
+    if reading is None:
+        return classified, missing, verdicts
+    # A DECLARATION MATCHES A WHOLE CELL, HERE AS EVERYWHERE, and the
+    # core pass has to be told so in the only language it speaks. It
+    # reads a column of CORES, and a rule that compared a declaration
+    # against a core got both directions wrong at once: the spelling
+    # the contract tells an owner to name -- `-999 mg`, the whole cell
+    # -- matched no core and was ignored, so eleven cells the owner
+    # declared to be data were published as holes on the same page that
+    # said the owner had named them; and `-999`, which matches no cell
+    # of that column at all and must therefore be inert on it, matched
+    # every core and kept the stand-in in the statistics with no
+    # verdict published anywhere (C6-117).
+    #
+    # So the declarations are TRANSLATED before the pass: a cell whose
+    # whole trimmed text a `--keep-value` names hands its own core to
+    # the pass as kept, and a declaration matching no cell hands over
+    # nothing. What is compared is still a whole cell; what the pass
+    # sees is the core of the cell that matched.
+    settings = _cores_settings(cells, reading)
+    cores = _tally(_classify_all(reading.cores), cells.n_rows, settings)
+    if _numeric_looking(cores) < _needed(
+        settings.minimum_parse_rate, len(cores.present)
+    ):
+        return classified, missing, verdicts
+    judged = _sentinel_verdicts(cores, len(cores.present))
+    withheld = sorted(
+        candidate for candidate in judged if judged[candidate][0]
+    )
+    if not withheld:
+        # NOTHING IS REMOVED, AND THE VERDICTS ARE STILL THE PASS'S
+        # OWN. Returning the verdicts this pass never made threw away
+        # every `kept_as_a_number` answer it did make -- so a column
+        # whose owner protected its stand-in was described as though
+        # nobody had asked, and the one line that would have told them
+        # their instruction was honoured never appeared.
+        return classified, missing, judged
+    removed = [exact_of_number(candidate) for candidate in withheld]
+    kept: "list[_Cell]" = []
+    for cell in classified:
+        split = _core_of(cell.text, reading.prefix, reading.suffix)
+        core = _classify(split) if split is not None else None
+        if core is not None and core.exact in removed:
+            missing = missing + [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
+        else:
+            kept = kept + [cell]
+    return kept, missing, judged
+
+
+def _cores_settings(cells: _Cells, reading: "_Affixed") -> Settings:
+    """This column's settings with its declarations read over the cores.
+
+    A `--keep-value` names a whole cell. The pass this feeds reads a
+    column of cores, so the declaration is carried across the pair: a
+    cell whose whole trimmed text the declaration names contributes its
+    own CORE, and a declaration no cell matches contributes nothing and
+    is inert, which is what a spelling that names no value of a column
+    has always been.
+
+    Guarantees: accepts one column's tally and its affix reading;
+    returns a `Settings` differing from the column's own in
+    `kept_values` alone. No value of the table travels anywhere but
+    into that field, which the caller uses to compare against cores of
+    the same column. Determinism: a function of the two inputs, with
+    the cores gathered in the column's own order and de-duplicated by a
+    sorted walk. Raises nothing. No I/O of any kind.
+    """
+    settings = cells.settings
+    if not settings.kept_values:
+        return settings
+    declarations = _declarations(settings.kept_values)
+    carried: "dict[str, int]" = {}
+    for text in cells.present:
+        trimmed = parsing.trimmed(text)
+        if not _declared_spelling(trimmed, declarations):
+            continue
+        core = _core_of(text, reading.prefix, reading.suffix)
+        if core is None:
+            continue
+        carried[core] = 1
+    return dataclasses.replace(
+        settings, kept_values=tuple(sorted(carried))
+    )
+
+
+def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
+    """The core of one cell under a known pair, or None if it wears none."""
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        return None
+    core = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+    return core if core else None
+
+
+def _decide(
+    cells: _Cells,
+    forced_identifier: bool,
+    removed: int = 0,
+    after_removal: bool = False,
+    after_days: bool = False,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    probing: bool = False,
+) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
+
+    ``probing`` says this run is the recoverable-distribution advice
+    asking what a smaller version of this column would be described as
+    (contract NF29 argument 9). It suppresses the advice itself and
+    nothing else, so the question is asked exactly once and this
+    function cannot call itself without end. Every other caller leaves
+    it false and gets the ordinary reading.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -3617,6 +8907,20 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     THE ORDER, and there is only one:
 
     0. the person's own declaration -- `identifier`;
+    0b. the person's OTHER declaration -- `--code`, which decides no
+       role by itself and instead SILENCES rules 2, 5, 6, 8 and 9, the
+       five that read a cell as something other than a label. What is
+       left is exactly the five label roles -- `constant`, `binary`,
+       `categorical`, `long_tail_labels`, `free_text` -- which are
+       exactly the five that carry a written-form census, so a declared
+       code column always records the shapes its codes were written in
+       (plan P4-D19). Rule 5's own comment below has asked for this
+       since review item P1-R6-F7: it deleted a rule that guessed codes
+       from width, said that only the owner of the table knows, and
+       named `--identifier` as the way to declare one. `--identifier`
+       publishes NOTHING, which is right for a record number and wrong
+       for a vaccine code, whose distribution is the point. This is the
+       declaration that comment was missing;
     1. no present value at all -- `empty`, settled by the caller;
     2. written as numbers, too few of them holdable -- the
        `numeric_unrepresentable` role;
@@ -3625,7 +8929,23 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     5. dates, under one documented format, at the parse rate;
     6. numbers, at the parse rate -- `count` or `continuous`;
     7. at most the ceiling of different values -- `categorical`;
-    8. everything else -- `free_text`, which publishes nothing.
+    7b. NUMBERS BESIDE WORDS in one cell space -- `numbers_with_labels`
+       (residual R-P4-13, plan P4-D33). It was missing from this list
+       while the rule shipped, so a maintainer reading the one place
+       that states the order was told of fourteen rules where there
+       are fifteen (review round 8 of landing L8, item 6);
+    8. clock times, in one of two forms, at the parse rate --
+       `time_of_day`;
+    9. a number wearing one shared piece of text -- `affixed_number`;
+    10. everything else -- `free_text`, which publishes nothing.
+
+    RULES 8 AND 9 SIT WHERE THEY DO ON PURPOSE. Both are tested last
+    before the fallback, so each claims only a column every earlier
+    rule declined: no column an earlier rule can claim is diverted into
+    one of them, and no earlier rule's reach depends on them. Between
+    the two, the clock reading is first because it is the more specific
+    claim -- clock text rarely splits as an affixed number, and where
+    both could fire the time is what the column holds.
 
     Two rules that stood in this list through round 6 are gone (review
     item P1-R6-F7): a fixed-width digit-code rule that ran ahead of the
@@ -3644,196 +8964,608 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     folded_distinct = len(cells.folded_counts)
     ceiling = _categorical_ceiling(cells)
 
-    # RULE 0 -- the person who knows the table has the last word, and
-    # since review item P1-R6-F8 it is also the ONLY word: this is the
-    # one route to the identifier role, and every rule below can only
-    # send a column somewhere else. A declared identifier beats every
-    # rule, including the ones that publish. Eleven identical values
-    # used to take the constant branch and publish the value while the
-    # user had asked for exactly the opposite (review item P1-R1-F10).
-    if forced_identifier:
-        return _identifier_verdict(cells, notes=notes, remarks=remarks)
+    # AFTER THE CORE PASS, ONLY THE RULES THE CONTRACT LETS RUN AGAIN.
+    # The affix-based stand-in pass runs only once every rule THROUGH
+    # `categorical` has declined the un-removed column, and then only
+    # the rules after them run over what remains (C6-5). Re-running the
+    # whole ladder is not the same thing and is not a smaller mistake:
+    # a column of eleven `-999 mg` cells beside eighty-nine cycling
+    # `1 mg` to `10 mg` declines to the affixed rule with eleven
+    # different spellings, has its stand-ins removed, and then -- with
+    # the ladder run again -- comes back as a set of ten CATEGORIES.
+    # Its numbers are gone, the type a consumer routes on has changed
+    # under it, and nothing on the page says why. The removed cells are
+    # what made the earlier rules decline, so letting them decide again
+    # lets a removal claim a column no rule would have given it.
+    # AND AFTER THE PLACEHOLDER PASS, ONLY RULES 5 ONWARD (plan
+    # amendment A-P4-1 item 3, review item P4-HOLE-F1). That pass's
+    # gate is narrower than the core pass's: it runs where rules 0
+    # through 4 declined, so those four are the ones that may not
+    # decide again -- and the datetime rule, which is the whole reason
+    # the pass ran, must still be asked. Two hundred and twenty-eight
+    # dates over two days beside twelve placeholder cells is a column
+    # of dates; re-asking rule 4 made it a two-valued column of labels
+    # once the placeholders were gone, which is a column changing role
+    # because cells LEFT it.
+    if not after_removal:
+        # RULE 0 -- the person who knows the table has the last word, and
+        # since review item P1-R6-F8 it is also the ONLY word: this is the
+        # one route to the identifier role, and every rule below can only
+        # send a column somewhere else. A declared identifier beats every
+        # rule, including the ones that publish. Eleven identical values
+        # used to take the constant branch and publish the value while the
+        # user had asked for exactly the opposite (review item P1-R1-F10).
+        if forced_identifier and not after_days:
+            return _identifier_verdict(cells, notes=notes, remarks=remarks)
 
-    # RULE 2 -- numeric intent that nothing can hold. Tested before any
-    # rule that publishes a value, because the alternative is a column
-    # of huge numbers published as free-text lengths or, worse, three
-    # repeated spellings published as categorical labels (review items
-    # P1-R3-F3, P1-R4-F2, P1-R5-F2). RULE 1, the empty column, is
-    # settled before this function is called.
-    #
-    # This rule and the numeric rule share ONE line, and it is the
-    # plan's 0.99. The test is on how much of the column can be HELD,
-    # not merely on how much of it was written as a number:
-    # `numeric_looking` counts cells that contribute nothing to a
-    # percentile, so deciding the numeric roles on it alone let a ladder
-    # be built from a single representable cell out of a hundred -- one
-    # row's exact value published as eleven statistics. The population
-    # that decides the role and the population the statistics are
-    # computed from are one population, which is what STRUCTURAL RULE A
-    # already promises.
-    if numeric_looking >= strict_needed and (
-        len(cells.numbers) < strict_needed
-    ):
-        remarks = remarks + [
-            note(
-                REMARK_UNREPRESENTABLE,
-                (len(cells.numbers), numeric_looking),
-            )
-        ]
-        notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
-        return _Verdict(
-            role=ROLE_UNREPRESENTABLE,
-            # "all N of the M values" was false whenever N < M, and the
-            # review's own complaint was a detection_evidence sentence
-            # that stated something the column did not show.
-            evidence=note(
-                EVIDENCE_UNREPRESENTABLE,
-                (numeric_looking, n_present, len(cells.numbers)),
-            ),
-            details={
-                "n_negative": cells.n_negative,
-                "n_positive": cells.n_positive,
-                "n_sign_unknown": cells.n_sign_unknown,
-                "n_whole": cells.n_whole,
-                "n_fraction": cells.n_fraction,
-                "n_whole_unknown": cells.n_whole_unknown,
-                # The same repetition fact free text and declared record
-                # numbers carry (plan P2-D4), for the same reason: this
-                # column publishes no value either, so its shape of
-                # repetition is otherwise unrecorded, and two columns
-                # with different ones would be one description.
-                "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                    cells.present
-                ),
-            },
-            notes=notes,
-            remarks=remarks,
-        )
+        # RULE 0c -- the person's OTHER other declaration (plan P4-D21).
+        # `--measurement` says a column holds quantities, including ones
+        # written as two or more numbers in one cell. Where the
+        # column really is written that way it takes the
+        # `joined_numbers` role; where it is not, the declaration
+        # decides nothing and every rule below runs untouched, because a
+        # column of plain numbers is already read as numbers and needs
+        # no help.
+        #
+        # IT IS ASKED ONLY UNDER THE DECLARATION, and `_joined_reading`
+        # carries the measurement that says why: a rule reading the
+        # values would claim this project's own date, clock, lab-code
+        # and drug-code columns.
+        if forced_measurement and not after_days:
+            reading = _joined_reading(cells)
+            if reading is not None:
+                return _joined_verdict(cells, reading, notes, remarks)
 
-    # RULE 3 -- one value, repeated.
-    if folded_distinct == 1:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
-        if levels.suppressed_levels:
-            notes = notes + [
-                note(
-                    NOTE_ONE_VALUE_BELOW_FLOOR,
-                    (settings.small_cell_floor,),
-                )
-            ]
-        return _Verdict(
-            role=ROLE_CONSTANT,
-            evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
-            details=_level_details(levels),
-            notes=notes,
-            remarks=remarks,
-        )
-
-    # RULE 4 -- two values. Decided on the SAME key the levels are
-    # counted with, so the role and the published list can never
-    # disagree about how many values there are.
-    if folded_distinct == 2:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
-        if levels.suppressed_levels:
-            notes = notes + [
-                note(
-                    NOTE_ONE_OF_TWO_BELOW_FLOOR,
-                    (levels.suppressed_levels, settings.small_cell_floor),
-                )
-            ]
-        if cells.raw_distinct != 2:
-            remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
-        if numeric_looking >= strict_needed or _matching_date_format(
-            present, settings
+        # RULE 2 -- numeric intent that nothing can hold. Tested before any
+        # rule that publishes a value, because the alternative is a column
+        # of huge numbers published as free-text lengths or, worse, three
+        # repeated spellings published as categorical labels (review items
+        # P1-R3-F3, P1-R4-F2, P1-R5-F2). RULE 1, the empty column, is
+        # settled before this function is called.
+        #
+        # This rule and the numeric rule share ONE line, and it is the
+        # plan's 0.99. The test is on how much of the column can be HELD,
+        # not merely on how much of it was written as a number:
+        # `numeric_looking` counts cells that contribute nothing to a
+        # percentile, so deciding the numeric roles on it alone let a ladder
+        # be built from a single representable cell out of a hundred -- one
+        # row's exact value published as eleven statistics. The population
+        # that decides the role and the population the statistics are
+        # computed from are one population, which is what STRUCTURAL RULE A
+        # already promises.
+        if (
+            not after_days
+            and not forced_code
+            and numeric_looking >= strict_needed
+            and (len(cells.numbers) < strict_needed)
         ):
-            remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
-        return _Verdict(
-            role=ROLE_BINARY,
-            evidence=note(EVIDENCE_TWO_VALUES),
-            details=_level_details(levels),
-            notes=notes,
-            remarks=remarks,
-        )
+            remarks = remarks + [
+                note(
+                    REMARK_UNREPRESENTABLE,
+                    (len(cells.numbers), numeric_looking),
+                )
+            ]
+            notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
+            return _Verdict(
+                role=ROLE_UNREPRESENTABLE,
+                # "all N of the M values" was false whenever N < M, and the
+                # review's own complaint was a detection_evidence sentence
+                # that stated something the column did not show.
+                evidence=note(
+                    EVIDENCE_UNREPRESENTABLE,
+                    (numeric_looking, n_present, len(cells.numbers)),
+                ),
+                details={
+                    # THE TWO WIDTH FACTS, at last (residual R-P4-37).
+                    # The contract has stated them on this role in four
+                    # places since version 6 -- the added-keys table,
+                    # invariant U5, producer obligation U-P and the
+                    # forbidden-key matrix -- and the producer never
+                    # wrote either, so a producer written to the
+                    # contract emitted a block the shipped loader
+                    # refused. The role-topology guard carried the
+                    # disagreement as a NAMED exception; that exception
+                    # is deleted with this.
+                    #
+                    # MEASURED OVER THE NUMERIC-LOOKING CELLS ONLY,
+                    # which is what U-P requires and why they are not
+                    # taken off `cells.present`: this role tolerates a
+                    # slack of stragglers that are not numeric notation
+                    # at all, and a straggler's length published as a
+                    # bound would be read as magnitude.
+                    "min_length": _numeric_looking_widths(cells)[0],
+                    "max_length": _numeric_looking_widths(cells)[1],
+                    "n_negative": cells.n_negative,
+                    "n_positive": cells.n_positive,
+                    "n_sign_unknown": cells.n_sign_unknown,
+                    "n_whole": cells.n_whole,
+                    "n_fraction": cells.n_fraction,
+                    "n_whole_unknown": cells.n_whole_unknown,
+                    # The same repetition fact free text and declared record
+                    # numbers carry (plan P2-D4), for the same reason: this
+                    # column publishes no value either, so its shape of
+                    # repetition is otherwise unrecorded, and two columns
+                    # with different ones would be one description.
+                    "n_distinct_by_occurrences": _n_distinct_by_occurrences(
+                        cells.present
+                    ),
+                },
+                notes=notes,
+                remarks=remarks,
+            )
 
-    # RULE 5 -- dates, under one documented format, at the parse rate.
+        # RULE 3 -- one value, repeated.
+        if folded_distinct == 1 and not after_days:
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            if levels.suppressed_levels:
+                notes = notes + [
+                    note(
+                        NOTE_ONE_VALUE_BELOW_FLOOR,
+                        (settings.small_cell_floor,),
+                    )
+                ]
+            # A CONSTANT COLUMN OF `-999` IS THE LOUDEST CASE OF ALL
+            # (contract NF37): every row of it is the number this
+            # package would have called a gap, and the description says
+            # only that the column holds one value.
+            remarks = remarks + _stand_in_level_remarks(levels)
+            return _Verdict(
+                role=ROLE_CONSTANT,
+                evidence=note(EVIDENCE_ONE_VALUE, (n_present,)),
+                details=_level_details(levels, cells),
+                notes=notes,
+                remarks=remarks,
+            )
+
+        # RULE 4 -- two values. Decided on the SAME key the levels are
+        # counted with, so the role and the published list can never
+        # disagree about how many values there are.
+        if folded_distinct == 2 and not after_days:
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            if levels.suppressed_levels:
+                notes = notes + [
+                    note(
+                        NOTE_ONE_OF_TWO_BELOW_FLOOR,
+                        (levels.suppressed_levels, settings.small_cell_floor),
+                    )
+                ]
+            if cells.raw_distinct != 2:
+                remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
+            if numeric_looking >= strict_needed or _matching_date_format(
+                present, settings
+            ):
+                remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
+            remarks = remarks + _stand_in_level_remarks(levels)
+            return _Verdict(
+                role=ROLE_BINARY,
+                evidence=note(EVIDENCE_TWO_VALUES),
+                details=_level_details(levels, cells),
+                notes=notes,
+                remarks=remarks,
+            )
+
+        # RULE 5 -- dates, under one documented format, at the parse rate.
+        #
+        # A rule stood ahead of this one until review item P1-R6-F7: a
+        # column of same-width all-digit values, at least one carrying a
+        # leading zero, was read as codes rather than as quantities. It is
+        # deleted. Nothing may be routed by the WIDTH of its text: the
+        # padding says how the value was WRITTEN, and a rule that reads a
+        # writing convention as a meaning claims something the values do not
+        # carry -- the identical text is a clock time, a padded account
+        # number and a postal code, and only the person who owns the table
+        # knows which. Such a column now lands where the ordinary rules put
+        # it, and `--identifier` is how a column of codes is declared.
+        matched = (
+            None if forced_code else _matching_date_format(present, settings)
+        )
+        if matched is not None:
+            format_name, pairs, sources, unparsed, evidence = matched
+            details = _datetime_details(
+                format_name, pairs, sources, unparsed, settings
+            )
+            if numeric_looking >= strict_needed:
+                # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE
+                # (contract NF25, plan P4-D4.7). `pairs` is what the
+                # chosen format parsed and `numeric_looking` is the
+                # count the numeric line was compared against three
+                # lines up, so the sentence states the two readings'
+                # own numbers rather than a third measurement of them.
+                remarks = remarks + [
+                    note(
+                        REMARK_DATES_ALSO_NUMBERS,
+                        (len(pairs), numeric_looking),
+                    )
+                ]
+            # THE STAMP MEMBER CARRIES THE SAME QUESTION AS THE DATE
+            # MEMBER, so it carries the same remark (plan amendment
+            # A-P4-1 item 2, which says ambiguity handling is
+            # untouched). `03/05/2024 14:05` is as ambiguous as
+            # `03/05/2024` is, and a column of the first that said
+            # nothing while a column of the second spoke would be
+            # telling a reader the question had gone away.
+            #
+            # UNDER THE DECLARATION IT IS THE OTHER REMARK, AND EXACTLY
+            # ONE OF THEM (plan P4-D4.6). The standing remark says the
+            # profile may have the month and day the wrong way round,
+            # which is a warning about a guess; a column read under the
+            # declaration was not guessed at, so it gets the remark
+            # that says what decided it and whether its own values
+            # disagree with each other.
+            if evidence is not None:
+                remarks = remarks + [
+                    note(
+                        REMARK_SLASHED_EVIDENCE,
+                        (
+                            evidence.day_parsed,
+                            evidence.month_parsed,
+                            evidence.day_only,
+                            evidence.month_only,
+                            evidence.reading,
+                        ),
+                    )
+                ]
+            elif format_name in _MONTH_FIRST_GUESSES:
+                remarks = remarks + [note(REMARK_MONTH_FIRST)]
+            # THE CENTURY REMARK IS NOT AN ALTERNATIVE TO EITHER, so it
+            # stands outside the chain above. A two-figure year is a
+            # guess about the century whichever way the month and day
+            # were settled -- by evidence, by a declaration, or by the
+            # default -- so the column says so in every one of those
+            # cases (plan P4-D15).
+            if format_name in _TWO_DIGIT_YEAR_MEMBERS:
+                remarks = remarks + [note(REMARK_TWO_DIGIT_YEAR)]
+            return _Verdict(
+                role=ROLE_DATETIME,
+                evidence=note(
+                    EVIDENCE_DATES, (len(pairs), n_present, format_name)
+                ),
+                notes=notes,
+                remarks=remarks,
+                details=details,
+            )
+
+        # RULE 6 -- numbers, at the one parse rate there is. A column that
+        # reads as numbers in essentially every cell is a quantity however
+        # many different values it holds.
+        #
+        # Falling short here decides nothing but this rule: the column goes
+        # on to RULE 7 and may still be a set of categories. Below the line
+        # is not a synonym for free text.
+        if numeric_looking >= strict_needed and not forced_code:
+            return _numeric_verdict(cells, notes, remarks)
+
+        # RULE 7 -- a set of categories: at most the ceiling of different
+        # values, counted after trimming and case folding. Tested after the
+        # numeric rule, so a column of measurements is described as
+        # measurements and a small set of labels that happen to be digits is
+        # described as labels.
+        #
+        # IT STANDS ASIDE FOR A COLUMN WITH A REAL NUMERIC HALF, which is
+        # the one exception it makes and the owner's decision of
+        # 2026-09-03. A result column recorded coarsely -- readings at one
+        # decimal beside a handful of markers -- can hold few enough
+        # different values to pass the ceiling above, and this rule would
+        # then claim it and describe every reading as a LABEL. That is the
+        # defect rule 7b exists to repair, arriving one rule earlier: the
+        # numbers are published as a list of words with counts and nothing
+        # records that they are a distribution.
+        #
+        # Measured: 3,000 readings at four decimals beside 60 organism
+        # names take rule 7b, and the SAME readings at one decimal are
+        # claimed here instead -- the same column, described two ways,
+        # decided by how finely the laboratory recorded it.
+        #
+        # THE TEST IS RULE 7b'S OWN and not a second one written here, so
+        # the two rules cannot come to disagree about what a compound
+        # column is. Where it answers, this rule declines and the column
+        # falls to 7b below; a column with no numeric half, or whose text
+        # half is prose, is untouched and lands here exactly as it did.
+        if folded_distinct <= ceiling and (
+            forced_code or _compound_reading(cells) is None
+        ):
+            levels = _levels(
+                cells.folded_counts, cells.spellings_by_folded, settings
+            )
+            details = _level_details(levels, cells)
+            details["level_ceiling"] = ceiling
+            if levels.suppressed_levels:
+                notes = notes + [_pooled_note(levels, settings)]
+            if cells.raw_distinct != folded_distinct:
+                remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+            if ceiling - folded_distinct <= settings.near_threshold_slack:
+                remarks = remarks + [
+                    note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
+                ]
+            remarks = remarks + _stand_in_level_remarks(levels)
+            return _Verdict(
+                role=ROLE_CATEGORICAL,
+                evidence=note(
+                    EVIDENCE_CATEGORIES,
+                    (folded_distinct, ceiling, cells.n_rows),
+                ),
+                details=details,
+                notes=notes,
+                remarks=remarks,
+            )
+
+    # RULE 7b -- numbers and labels in ONE cell space: the
+    # `numbers_with_labels` role. `7.2` beside `POSITIVE`, `0.9` beside
+    # `NOT DETECTED` -- the long-format panel export (residual
+    # R-P4-13, landing L8).
     #
-    # A rule stood ahead of this one until review item P1-R6-F7: a
-    # column of same-width all-digit values, at least one carrying a
-    # leading zero, was read as codes rather than as quantities. It is
-    # deleted. Nothing may be routed by the WIDTH of its text: the
-    # padding says how the value was WRITTEN, and a rule that reads a
-    # writing convention as a meaning claims something the values do not
-    # carry -- the identical text is a clock time, a padded account
-    # number and a postal code, and only the person who owns the table
-    # knows which. Such a column now lands where the ordinary rules put
-    # it, and `--identifier` is how a column of codes is declared.
-    matched = _matching_date_format(present, settings)
-    if matched is not None:
-        format_name, pairs, sources, unparsed = matched
-        details = _datetime_details(
-            format_name, pairs, sources, unparsed, settings
-        )
-        if numeric_looking >= strict_needed:
-            remarks = remarks + [note(REMARK_DATES_ALSO_NUMBERS)]
-        if format_name == "month-first-date":
-            remarks = remarks + [note(REMARK_MONTH_FIRST)]
-        return _Verdict(
-            role=ROLE_DATETIME,
-            evidence=note(
-                EVIDENCE_DATES, (len(pairs), n_present, format_name)
-            ),
-            notes=notes,
-            remarks=remarks,
-            details=details,
-        )
-
-    # RULE 6 -- numbers, at the one parse rate there is. A column that
-    # reads as numbers in essentially every cell is a quantity however
-    # many different values it holds.
+    # WHY THE COLUMN NEEDS A ROLE OF ITS OWN, measured before it was
+    # built. Such a column declines to `long_tail_labels` today, and
+    # that decline is wrong in BOTH directions. On a 300-row column of
+    # 222 readings beside two markers: at the default floor of one
+    # every reading clears the line and is published as its own LEVEL,
+    # 177 of them, so the description carries the readings themselves;
+    # at a floor of eleven the levels fall to two and the twin holds NO
+    # numeric cell at all. The protective setting destroys the numeric
+    # population and the permissive one carries it verbatim. Neither
+    # DESCRIBES it.
     #
-    # Falling short here decides nothing but this rule: the column goes
-    # on to RULE 7 and may still be a set of categories. Below the line
-    # is not a synonym for free text.
-    if numeric_looking >= strict_needed:
-        return _numeric_verdict(cells, notes, remarks)
+    # WHERE IT SITS, and it is the one placement that is not free.
+    # After categorical, before the clock rule -- so ABOVE the long
+    # tail and free text, and it therefore MOVES columns those two hold
+    # today. That is an exception to this phase's no-regression rule
+    # and is named as one rather than discovered: the columns it moves
+    # are exactly the ones whose numeric mass nothing describes, and
+    # the transition is exercised both ways in the battery.
+    #
+    # WHAT IT ASKS, and each half must earn its own publication:
+    #
+    #  - the numeric cells fall SHORT of the numeric line, or rule 6
+    #    took the column already and this rule never sees it;
+    #  - the numeric cells number at least the detection line, the
+    #    publication floor or eleven whichever is larger -- the same
+    #    line the long tail uses, so lowering the floor cannot widen
+    #    which columns take this role;
+    #  - and the cells that are NOT numbers hold at least one level
+    #    that clears that same line. This is the half the close plan
+    #    left open: "every other present cell folds to a label level"
+    #    is true of any column, so it cannot be what tells a lab
+    #    column from numbers beside free comments. Asking the text
+    #    half to be label-publishing IN ITS OWN RIGHT is what does,
+    #    and it is the rule the long tail already applies to a whole
+    #    column, applied here to a part of one.
+    #
+    # A column failing any of the three declines to the rules below
+    # exactly as it does today.
+    # A COLUMN BOTH RULES CAN READ IS AN AMBIGUOUS COLUMN, AND AN
+    # AMBIGUOUS COLUMN IS ASKED ABOUT RATHER THAN GUESSED AT
+    # (amendment A-P4-58, owner ruling 2026-09-09; residual R-P4-157).
+    #
+    # A column of readings beside `H` and `L` flags satisfies this rule
+    # and the affix rule both, and WHICH IT REACHED DEPENDED ON THE
+    # VALUES DRAWN -- `affixed_number` on thirty of forty draws and
+    # `numbers_with_labels` on ten. Three rules were written over the
+    # TEXT to separate the two readings and all three were measured
+    # wrong; the last turned `Stage 1` and `Stage 2` labels into a
+    # quantity. The text does not carry the answer.
+    #
+    # SO THE DRAW NO LONGER DECIDES IT. Where both readings are
+    # available the CAUTIOUS one is taken -- this rule, which describes
+    # the unmarked values as numbers and the marked ones as labels --
+    # and the column carries a remark saying what was not settled and
+    # which flag settles it. The two errors are not the same size: read
+    # as labels, a measurement column publishes fewer numbers than it
+    # holds and every number it publishes is true; read as
+    # measurements, a label column publishes a mean of stage numbers,
+    # which is a quantity that does not exist.
+    #
+    # AND `--measurement` IS THE ANSWER, not a bypass: the person who
+    # holds the table says it is a quantity, and rule 9 then reads it.
+    # THE ARBITRATION ASKS ONE COMPUTATION, AND IT IS NOT THE ONE THAT
+    # DECIDES THE ROLE (landing L16, closing round 8's first item).
+    #
+    # The question used to be put to `_affixed_reading` with the
+    # person's own declaration, which cannot see the tie it was meant
+    # to find: undeclared, the letter guard refuses a rear letter
+    # flush against the digits, so `both_fit` came out false and a
+    # register of 280 five-digit procedure codes beside fifteen
+    # `3074F` and five `3075F` took this role in silence, publishing an
+    # average of 54,239 over the bare codes and carrying no sentence at
+    # all. `_annotated_reading` asks the walk AS IF DECLARED, which is
+    # what makes the tie visible, and refuses an address or a wrapper
+    # holding no letter so the question stays a real one.
+    #
+    # WHAT READS WHAT, because the three must not blur. Rule 7b decides
+    # by `_compound_reading`. Rule 9 decides by `_affixed_reading` with
+    # the person's own declaration, untouched, so no undeclared column
+    # moves role and the no-regression rule is not disturbed. Only the
+    # SENTENCE is decided here.
+    compound = None if forced_code else _compound_reading(cells)
+    if compound is not None and not forced_code:
+        if forced_measurement:
+            # The person has answered. Fall through to rule 9, on the
+            # same test as before this landing: whether the declaration
+            # gives them an affixed reading at all.
+            if _affixed_reading(cells, True) is not None:
+                compound = None
+        else:
+            annotated = _annotated_reading(cells)
+            if annotated is not None:
+                remarks = remarks + [
+                    note(
+                        REMARK_TWO_READINGS_FIT,
+                        (_wearing_a_word(annotated),),
+                    )
+                ]
+    if compound is not None:
+        return _compound_verdict(cells, compound, notes, remarks)
 
-    # RULE 7 -- a set of categories: at most the ceiling of different
-    # values, counted after trimming and case folding. Tested after the
-    # numeric rule, so a column of measurements is described as
-    # measurements and a small set of labels that happen to be digits is
-    # described as labels.
-    if folded_distinct <= ceiling:
+    # RULE 8 -- a column of clock times: the `time_of_day` role.
+    # `09:30`, `14:05:00`.
+    #
+    # Before the affixed rule and after every rule that already reads a
+    # column well. Its place in front of the affix reading is the
+    # contract's and has a reason: clock text rarely splits as an
+    # affixed number, but where both could fire the time reading is the
+    # more specific claim.
+    clock = None if forced_code else _clock_reading(cells)
+    if clock is not None:
+        return _clock_verdict(cells, clock, notes, remarks)
+
+    # RULE 9 -- one shared piece of text around a number: the
+    # `affixed_number` role. `$1,200`, `45%`, `5 mg`, `170cm`.
+    #
+    # It is tested HERE, after every rule that already reads a column
+    # well, and that placement is the whole of its safety: it can claim
+    # only a column the earlier rules declined, so no column that reads
+    # as a number, a date, a label or a category today is diverted into
+    # it. A rule added earlier would have moved columns between roles,
+    # which is the one thing this phase's no-regression rule forbids.
+    affixed = (
+        None
+        if forced_code
+        else _affixed_reading(cells, forced_measurement)
+    )
+    if affixed is not None:
+        return _affixed_verdict(cells, affixed, notes, remarks)
+
+    # ...AND WHERE THE RULE DECLINED BECAUSE THE PAIR IS AN ADDRESS,
+    # THE COLUMN SAYS SO (contract NF50, residual R-P4-39). The decline
+    # itself is right and is not touched here: publishing a mean over
+    # the numbers inside `user12345@example.org` is publishing the
+    # average of real identifiers, which was measured at 53,574.055 on
+    # 400 rows. What was missing is the second half of principle 5 --
+    # a column is either handled or DECLINED WITH A PLAIN-LANGUAGE
+    # EXPLANATION -- and this decline had none: the column stopped
+    # being described as numbers and every surface was silent about it.
+    #
+    # IT ROUTES NOTHING. The remark is added to the list the rules
+    # below carry into whatever role they give this column, so no role,
+    # no published fact and no cell moves because of it. The three
+    # declarations it names are the only things that move any of those,
+    # and each of them is made by whoever holds the table.
+    #
+    # `forced_code` is asked because rule 9 was never run under it: a
+    # declared code column is already being described as labels, and a
+    # sentence proposing three declarations to somebody who has just
+    # made one of them is noise.
+    if not forced_code and _declined_as_an_address(cells):
+        remarks = remarks + [note(REMARK_ADDRESS_NOT_A_QUANTITY)]
+
+    # ...AND WHERE IT DECLINED BECAUSE A LETTER IS WRITTEN FLUSH
+    # AGAINST THE DIGITS, THE COLUMN SAYS THAT TOO (landing L16,
+    # residual R-P4-157, amendment A-P4-58). This is the address
+    # remark's sibling and it is owed for the same reason: the decline
+    # is right and it was silent. `13.5H` is a flagged laboratory
+    # result and `1234F` is a category of procedure code; the guard at
+    # `_stands_apart` refuses the shape undeclared BECAUSE the values
+    # cannot tell them apart, and a person meeting that refusal was
+    # told by the competing-readings remark to rewrite their data --
+    # while two declarations that read the column correctly already
+    # shipped and neither was named.
+    #
+    # IT ROUTES NOTHING, exactly as the address remark routes nothing:
+    # no role, no published fact and no cell moves. `--measurement` is
+    # excluded because under it rule 9 read the column and there is no
+    # decline to speak about; `forced_code` is excluded for the reason
+    # the address remark gives -- proposing declarations to somebody
+    # who has just made one is noise.
+    #
+    # AND IT CANNOT COLLIDE WITH THE ADDRESS REMARK: an address is
+    # refused inside `_annotated_reading`, so a column carrying that
+    # sentence never carries this one.
+    if not forced_code and not forced_measurement:
+        letter_bound = _annotated_reading(cells)
+        if letter_bound is not None:
+            remarks = remarks + [
+                note(
+                    REMARK_A_LETTER_NEEDS_A_DECLARATION,
+                    (_wearing_a_word(letter_bound),),
+                )
+            ]
+
+    # RULE 9b -- a LONG TAIL of labels (plan P4-D5). Past the
+    # ceiling, and at least one folded level covers the detection
+    # line, which is the publication floor or eleven, whichever is
+    # larger.
+    #
+    # WHY THE LINE HAS A LOWER BOUND OF ITS OWN, and it is the whole
+    # of what keeps the free-text promise floor-invariant: lowering
+    # the publication floor must not widen WHICH columns publish
+    # labels. A column of names or free comments has no eleven-row
+    # level at any floor, so it stays free text at every floor and
+    # goes on publishing no value at all. Raising the floor raises
+    # the line with it, because a level nobody may name is not a
+    # level this rule can count.
+    #
+    # IT SITS LAST BUT ONE, AND THAT IS THE WHOLE OF ITS SAFETY. Every
+    # rule above reads a column BETTER: a column of clock times with a
+    # repeated time is a column of clock times, and a column of `5 mg`
+    # readings with one repeated reading is a column of those. A long
+    # tail is what a column is when nothing else fits AND it still
+    # holds repeated labels worth publishing -- so it claims only what
+    # would otherwise have been free text, which is the one thing this
+    # phase's no-regression rule allows.
+    # THE DECLARATION LIFTS THE LINE, AND ONLY THE DECLARATION (plan
+    # P4-D22). The lower bound above is doing one job: keeping a column
+    # of names, addresses or free comments out of the label roles, so
+    # that lowering the publication floor never widens WHICH columns
+    # publish. That job is a stand-in for a judgement nobody had made.
+    # Where the person has said `--code`, they have made it, and the
+    # stand-in has nothing left to stand in for.
+    #
+    # WHAT IT COSTS TO LEAVE IT IN PLACE, measured on a 400-row table.
+    # A laboratory-code column of 228 different codes, none repeated
+    # more than six times, clears neither door: it is past the
+    # categorical ceiling and no level reaches eleven rows. So it fell
+    # to free text and published NOTHING -- not one code, not one count
+    # -- and its twin held not one real code. `--code` could not help
+    # it, because `--code` silences the rules that read a cell as a
+    # NUMBER and this column was never being read as one; it was
+    # already at the bottom.
+    #
+    # WHAT IT BUYS. With the codes published at their counts, the twin
+    # holds the same codes in the same proportions -- and then EVERY
+    # rollup of that column reproduces exactly, including ones this
+    # package knows nothing about. Measured on a diagnosis column: the
+    # exact codes, the three-character prefixes, the chapter letters
+    # and the code lengths all come back identical, and synthtwin has
+    # no idea what a chapter is. Hierarchy is not modelled; it is a
+    # consequence of holding the right values the right number of
+    # times.
+    covering = _levels_covering(cells.folded_counts, settings)
+    if covering > 0 or forced_code:
         levels = _levels(
             cells.folded_counts, cells.spellings_by_folded, settings
         )
-        details = _level_details(levels)
-        details["level_ceiling"] = ceiling
+        details = _level_details(levels, cells)
         if levels.suppressed_levels:
             notes = notes + [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:
             remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
-        if ceiling - folded_distinct <= settings.near_threshold_slack:
-            remarks = remarks + [
-                note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
-            ]
+        remarks = remarks + _stand_in_level_remarks(levels)
         return _Verdict(
-            role=ROLE_CATEGORICAL,
+            role=ROLE_LONG_TAIL,
             evidence=note(
-                EVIDENCE_CATEGORIES,
-                (folded_distinct, ceiling, cells.n_rows),
+                EVIDENCE_LONG_TAIL,
+                (
+                    folded_distinct,
+                    ceiling,
+                    cells.n_rows,
+                    _long_tail_line(settings),
+                    covering,
+                ),
             ),
             details=details,
             notes=notes,
             remarks=remarks,
         )
 
-    # RULE 8 -- everything else is free text, which publishes nothing.
+    # RULE 10 -- everything else is free text, which publishes nothing.
     #
-    # There is no rule between RULE 7 and this one. Two rules used to
-    # stand here. One read all-different single tokens as record
+    # The rules between RULE 7 and this one all read a column BETTER
+    # than free text does, and each was added by a ratified decision:
+    # the clock, the affix pair and the long tail. Two rules used to
+    # stand here as well, and both are gone. One read all-different single tokens as record
     # numbers, and three revisions of it were each defeated by the
     # column next door: `0930` (a clock), `000042` (a padded count),
     # `1mg` (a dose). The last of those is why it is gone rather than
@@ -3859,7 +9591,30 @@ def _decide(cells: _Cells, forced_identifier: bool) -> _Verdict:
     numbers_said = _read_as_numbers(numeric_looking, n_present)
     dates_said = _read_as_dates(present)
     remarks = remarks + [
-        _competing_readings(cells, ceiling, numbers_said, dates_said)
+        _competing_readings(
+            cells,
+            ceiling,
+            numbers_said,
+            dates_said,
+            removed,
+            # THE FOURTH READING, WHICH THIS COLUMN USED TO BE SILENT
+            # ABOUT (contract NF29 argument 8). The remark named the
+            # numeric reading, the date reading and the affix reading;
+            # a column of clock times in a shape this version does not
+            # describe was told that nothing fitted and never told
+            # which reading came closest.
+            clock_reach(cells),
+            # ...AND THE ONE DECLARATION THAT WOULD CHANGE THE ANSWER
+            # (contract NF29 argument 9, amendment A-P4-1 item 4). The
+            # DECLARATIONS ARE PASSED IN because the advice is false
+            # under `--code`: that declaration silences every rule that
+            # reads a cell as a number, so no `--missing-value` can
+            # give this column a distribution, and a sentence promising
+            # one would send its reader to a command that cannot help.
+            _recoverable_reach(
+                cells, forced_code, forced_measurement, probing
+            ),
+        )
     ]
     return _free_text_verdict(
         cells,
@@ -3907,11 +9662,95 @@ def _read_as_dates(present: list[str]) -> "tuple[str, tuple[object, ...]]":
     return (SAID_READ_AS_DATES, (best_count, best_name))
 
 
+def _removed_said(arguments: "tuple[object, ...]", place: int) -> str:
+    """What stand-in judging took out of this column, or nothing at all.
+
+    A clause rather than a sentence of its own, because it belongs to
+    the count beside it: a column can be moved across a line by having
+    its stand-ins removed, and a reader told only the count that
+    remained would be told a number that no longer describes the file
+    they are holding. Where nothing was removed the clause is empty --
+    naming a removal of none says something happened.
+    """
+    removed = _whole(arguments, place)
+    if removed == 0:
+        return ""
+    return (
+        f", after {removed} of them were read as stand-ins for "
+        f"'no value' and taken out -- which is what moved this column "
+        f"across a line, so the counts above are of what was left"
+    )
+
+
+def _later_clauses(
+    arguments: "tuple[object, ...]", clock_place: int, advice_place: int
+) -> str:
+    """NF29's last two clauses, composed exactly as the contract says.
+
+    Argument 8 is how far a CLOCK reading got. The competing-readings
+    remark named the numeric reading, the date reading and the affix
+    reading, and stayed silent about the fourth -- so a column of clock
+    times in a shape this version does not describe was told that no
+    reading fitted it and never told which reading came closest.
+
+    Argument 9 is the recoverable-distribution advice (amendment A-P4-1
+    item 4). Where a declined column's repeated non-numeric spellings
+    are what held it below the parse line, one `--missing-value`
+    brings its distribution back, and the remark said nothing about it.
+    IT IS ADVISORY AND ROUTES NOTHING: the count is the rows those
+    spellings cover and the declaration is the person's own to make.
+    Its trigger is a PRODUCER obligation and is stated where the
+    producer computes it (`_recoverable_reach`), not here.
+
+    THE COMPOSITION IS THE CONTRACT'S AND IT IS WRITTEN ONCE. 4.5.1
+    says a clause is written if and only if its own argument is
+    nonzero, in argument order, each ending in a full stop and
+    separated from the next by ONE space, with a full stop and one
+    space after what came before. Two functions each prefixing their
+    own ". " wrote `describe.. 9 more` the first time this was built,
+    which is why the join lives in one place: a guard rebuilding the
+    sentence has one candidate string to compare, not a family of
+    them.
+    """
+    written: "list[str]" = []
+    reach = _whole(arguments, clock_place)
+    if reach:
+        written += [
+            f"{reach} of these values read as a clock time, in a shape "
+            f"synthtwin does not describe."
+        ]
+    covered = _whole(arguments, advice_place)
+    if covered:
+        written += [
+            f"{covered} more are written one of a few ways that repeat "
+            f"often enough to name. If those {covered} mean 'no "
+            f"value', run the command again with --missing-value and "
+            f"this column's distribution will be described."
+        ]
+    if not written:
+        return ""
+    # BUILT BY ADDITION AND NOT BY `join`. The offline audit refuses a
+    # data method handed a value it cannot resolve under its own eyes,
+    # because the receiver's protocol then runs on that value -- and a
+    # list built here is not one of the shapes it can trace. Adding
+    # strings has no such reach, and the separator is still stated once.
+    tail = ""
+    for clause in written:
+        if tail:
+            tail = tail + " " + clause
+        else:
+            tail = clause
+    return ". " + tail
+
+
 def _competing_readings(
     cells: _Cells,
     ceiling: int,
     numbers_said: "tuple[str, tuple[object, ...]]",
     dates_said: "tuple[str, tuple[object, ...]]",
+    removed: int,
+    clock_said: int,
+    recoverable: int,
 ) -> Note:
     """Why no reading fitted this column, with the rate each one reached.
 
@@ -3939,8 +9778,181 @@ def _competing_readings(
             strict_needed,
             folded_distinct,
             ceiling,
+            affixed_reach(cells),
+            removed,
+            clock_said,
+            recoverable,
         ),
     )
+
+
+# THE ROLES THE RECOVERABLE-DISTRIBUTION ADVICE MAY PROMISE. The advice
+# tells its reader that one `--missing-value` will get "this column's
+# distribution described", so the roles that make that sentence TRUE
+# are the ones that publish an average, a spread and a ladder over
+# numbers. Written out rather than derived from a wider predicate on
+# purpose: `numeric_unrepresentable` publishes no statistic at all,
+# `constant` and `binary` publish labels and counts, and residual
+# R-P4-16 was opened because the plan's arithmetic promised a
+# distribution on exactly those three.
+# THE ROLES THAT PUBLISH A DISTRIBUTION, which is what the
+# recoverable-distribution advice promises a re-run would produce. The
+# compound role belongs here (residual R-P4-13, landing L8): its
+# numeric half carries the same quantitative block a column of numbers
+# does, so a declaration that turns a column into one HAS given its
+# reader the distribution the sentence offered.
+_ROLES_WITH_A_DISTRIBUTION = (
+    ROLE_COUNT,
+    ROLE_CONTINUOUS,
+    ROLE_AFFIXED,
+    ROLE_COMPOUND,
+)
+
+
+def _recoverable_reach(
+    cells: _Cells,
+    forced_code: bool,
+    forced_measurement: bool,
+    probing: bool,
+) -> int:
+    """Rows one `--missing-value` would recover a distribution from.
+
+    Contract NF29 argument 9; amendment A-P4-1 item 4, under the
+    TIGHTENED trigger residual R-P4-16 asked for and the owner
+    accepted. Zero means no advice is written, and the remark then says
+    nothing about a declaration.
+
+    THE TRIGGER IS A RE-RUN AND NOT AN ARITHMETIC, and that is the
+    whole of what R-P4-16 settles. The plan's original trigger was
+    "removing the floor-clearing non-numeric folded spellings lifts the
+    survivors past the parse line", which is whole-number arithmetic
+    over counts this remark already carries -- and it does not deliver
+    the clause's own promise. Survivors can clear the line on cells
+    that merely LOOK numeric without one of them being a number this
+    format can hold, in which case the column takes
+    `numeric_unrepresentable` and publishes no statistic; or they can
+    collapse to one or two different values, which `constant` and
+    `binary` claim ahead of every numeric rule. In both cases the
+    advice promised a distribution the re-run would not describe.
+
+    So the producer RE-READS the column over the survivors and writes
+    the sentence only where that reading lands on a role that publishes
+    a distribution. **A loader cannot check this** -- it holds a
+    description and not the cells -- which is why R-P4-16 records it as
+    a producer obligation and not as a wire invariant, and why this
+    function is where the rule lives.
+
+    THE DECLARATIONS ARE ASKED, because they decide whether the advice
+    is true at all. Under `--code` every rule that reads a cell as a
+    number is silenced, so no `--missing-value` can give this column a
+    distribution and the advice must stay quiet.
+
+    ``probing`` is the re-run asking this same question one level down.
+    It answers zero, which is what bounds the recursion at one step:
+    the advice is decided by the FIRST reading of the survivors, and a
+    survivor column that would itself have carried advice is a column
+    the reader will meet after making the declaration this sentence
+    proposes.
+
+    Guarantees: accepts the tally of one column that fell to free text,
+    the two declarations that were in force, and whether this is the
+    probe; returns a count of that column's present cells, or zero.
+    Determinism: a function of those arguments alone. Raises nothing.
+    No I/O of any kind, and no spelling of the column travels out
+    through it -- the answer is a count.
+
+    ONE LIMIT, STATED WHERE IT LIVES. The re-run is this module's role
+    reading. The stand-in and placeholder judgements sit ABOVE it in
+    `profile_column` and are not repeated here, so a column whose
+    survivors those passes would collapse to two values could still be
+    given hopeful advice. It is recorded with R-P4-16 rather than
+    argued away: closing it means re-running those passes too, and the
+    two shapes R-P4-16 names are both closed by this reading.
+    """
+    if probing or forced_code:
+        return 0
+    settings = cells.settings
+    offending = _floor_clearing_non_numeric(cells)
+    if not offending:
+        return 0
+    survivors = [
+        cell for cell in cells.classified if cell.folded not in offending
+    ]
+    covered = len(cells.classified) - len(survivors)
+    if not survivors or covered == 0:
+        return 0
+    reading = _decide(
+        _tally(survivors, cells.n_rows, settings, cells.decimal_comma),
+        False,
+        forced_measurement=forced_measurement,
+        probing=True,
+    )
+    if reading.role in _ROLES_WITH_A_DISTRIBUTION:
+        return covered
+    return 0
+
+
+def _floor_clearing_non_numeric(cells: _Cells) -> "tuple[str, ...]":
+    """Folded spellings that repeat often enough to name and hold no number.
+
+    "Often enough to name" is the publication floor and not a rule of
+    this remark's own: a spelling the floor would hold back is a
+    spelling the advice may not describe, so the two lines are the same
+    line. "Holds no number" is asked of the CELLS rather than of the
+    folded key, because the key is a trimmed and case-folded string and
+    asking it a second time would be a second reading of a cell this
+    module reads once.
+
+    TWO THINGS ARE NARROWER THAN THE FLOOR, and both are here so the
+    contract's own sentence is TRUE of the column it is written on.
+    NF29's clause 9 says the covered cells "are written one of a few
+    ways that repeat often enough to name", and neither half of that
+    survives the floor alone:
+
+    * **A spelling has to REPEAT**, which at the default floor of one
+      it need not (amendment A-P4-37 lowered the floor to 1, four
+      amendments after A-P4-1 wrote this trigger against it). Without
+      this, a column of a hundred numbers beside a hundred ALL
+      DIFFERENT words would have every word counted as a "way that
+      repeats", and the sentence would call a hundred one-off
+      spellings a few repeated ones.
+    * **There have to be A FEW WAYS**, which is the categorical
+      ceiling -- this document's own line for "a small set of values in
+      this column", computed and not invented. Without it a column
+      whose gaps wear fifty different spellings is told they are "a
+      few".
+
+    Both narrow the advice rather than widening it, so no column gains
+    a sentence by them; some columns that would have been told
+    something loosely true are told nothing, which is the direction an
+    advisory remark should err in.
+
+    Guarantees: accepts the tally of one column; returns the folded
+    identities in sorted order, which is the order every walk over them
+    is taken in, and returns none at all where there are more of them
+    than the ceiling admits. Raises nothing. No I/O of any kind.
+    """
+    # A MAPPING RATHER THAN A SET, and the offline audit is why: a set
+    # is filled by a METHOD CALL on a value that audit cannot trace to
+    # an allowlisted API, and no method call on an untraced value is
+    # accepted. Subscript assignment is what `_tally` above builds its
+    # own folded map with, for the same reason.
+    numeric_somewhere: "dict[str, bool]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NOT_A_NUMBER:
+            numeric_somewhere[cell.folded] = True
+    floor = cells.settings.small_cell_floor
+    if floor < 2:
+        floor = 2
+    found = tuple(
+        folded
+        for folded in sorted(cells.folded_counts)
+        if cells.folded_counts[folded] >= floor
+        and folded not in numeric_somewhere
+    )
+    if len(found) > _categorical_ceiling(cells):
+        return ()
+    return found
 
 
 def _free_text_verdict(
@@ -3990,6 +10002,7 @@ def _free_text_verdict(
     notes = notes + [note(NOTE_FREE_TEXT_WITHHELD)]
     if _all_different(cells):
         remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
+    remarks = remarks + _comma_remarks(cells)
     return _Verdict(
         role=ROLE_TEXT,
         evidence=evidence,
@@ -4110,13 +10123,18 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
 def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     """How many of these groups have one member, two members, and so on.
 
-    THE ONE SHAPE, BUILT IN ONE PLACE. Three published mappings are this
-    same fact about three different things -- how many different values
+    THE ONE SHAPE, BUILT IN ONE PLACE. TWO published mappings are this
+    same fact about two different things -- how many different values
     cover exactly n rows (`n_distinct_by_occurrences`), and how many
     different spellings of one published label cover exactly n rows
     (`variants_withheld`) -- and they must not drift apart in key form,
     in padding or in order, because a consumer reads them with one
-    routine. `_n_distinct_by_occurrences` above states what this class
+    routine. This said THREE and then named two; the miscount came from
+    the contract's own section heading and was found while transcribing
+    that section for the self-contained version 6. There is no third:
+    this function has exactly two callers, and the only candidate --
+    `suppressed_level_counts` -- is a sorted array of integers rather
+    than a mapping. `_n_distinct_by_occurrences` above states what this class
     of fact does and does not disclose; that statement holds for every
     caller, because none of them passes anything but group sizes.
 
@@ -4214,6 +10232,79 @@ def _identifier_verdict(
     )
 
 
+# How many of each unit a day holds. The seconds figure is the one
+# `parsing` already counts a day in; the milliseconds figure is that
+# one a thousand times over, computed here rather than typed.
+_SECONDS_IN_A_DAY = 24 * 60 * 60
+_EPOCH_BAND_UNITS_IN_A_DAY = {
+    EPOCH_BAND_SECONDS: _SECONDS_IN_A_DAY,
+    EPOCH_BAND_MILLISECONDS: _SECONDS_IN_A_DAY * 1000,
+}
+
+
+def _epoch_band_reading(cells: _Cells) -> "tuple[object, ...] | None":
+    """This column read as moments in time, or None if it cannot be.
+
+    Residual R-P4-9, contract NF51. Returns the arguments NF51 takes --
+    which band, then the year, month and day of the smallest value and
+    of the largest, read in that band -- or None where the column is
+    not in either band.
+
+    THE WALK IS OVER EVERY VALUE, AND WHAT THAT DOES AND DOES NOT BUY
+    IS MEASURED RATHER THAN CLAIMED. A band is one interval, so on the
+    role this is asked of -- where every value is a whole number by the
+    role's own rule -- asking `min` and `max` answers the same question
+    as asking every value. Rewriting the walk that way was run as a
+    mutation and turned nothing red, which is the honest result: it is
+    an equivalent rewrite and not an escaped defect. The walk stays
+    because it makes this function right on ITS OWN terms rather than
+    on its caller's -- a band ever written as two intervals, or a
+    caller that ever asks this of a role admitting a value whose text
+    does not settle it as whole, breaks the equivalence and not the
+    walk. What the walk DOES rule out, on any role, is a column holding
+    a number this format cannot hold: `len(numbers) != numeric_looking`
+    above refuses it, because a cell too large to hold has no place in
+    a band at all.
+
+    WHY THE BAND STARTS IN THE YEAR 2000 rather than at zero is written
+    where `EPOCH_BAND_FROM` is set: zero is the 1st of January 1970, so
+    a band beginning there covers every ordinary count.
+
+    Guarantees: accepts the tally of one column; returns NF51's
+    arguments or None. Determinism: a function of the tallied numbers
+    alone, and the bands are worked out from two calendar years by
+    `parsing.days_from_civil`. Raises nothing. No I/O of any kind.
+    """
+    numbers = cells.numbers
+    if not numbers or len(numbers) != _numeric_looking(cells):
+        return None
+    first_day = parsing.days_from_civil(EPOCH_BAND_FROM, 1, 1)
+    last_day = parsing.days_from_civil(EPOCH_BAND_UNTIL, 1, 1)
+    for band in (EPOCH_BAND_SECONDS, EPOCH_BAND_MILLISECONDS):
+        each_day = _EPOCH_BAND_UNITS_IN_A_DAY[band]
+        low = first_day * each_day
+        high = last_day * each_day
+        inside = True
+        for value in numbers:
+            # WHOLENESS BY ARITHMETIC, NOT BY `is_integer`, which is a
+            # method call the offline audit refuses on a value it
+            # cannot trace. The remainder is also the safer test at the
+            # ends of the format: anything that is not a finite whole
+            # number leaves a remainder that is not zero, so the same
+            # line refuses it.
+            if value % 1 != 0:
+                inside = False
+                break
+            if value < low or value >= high:
+                inside = False
+                break
+        if inside:
+            smallest = parsing.civil_from_days(int(min(numbers)) // each_day)
+            largest = parsing.civil_from_days(int(max(numbers)) // each_day)
+            return (band,) + smallest + largest
+    return None
+
+
 def _numeric_verdict(
     cells: _Cells, notes: list[Note], remarks: list[Note]
 ) -> _Verdict:
@@ -4253,6 +10344,24 @@ def _numeric_verdict(
         settings.identifier_uniqueness, n_present
     ):
         remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    # ...AND A COLUMN WRITTEN WITH LEADING ZEROS SAYS SO TOO. The
+    # all-different remark reaches a column whose every value differs,
+    # which a column of codes is not: codes repeat, so that sentence
+    # never fires on one. The affixed role has carried its own
+    # `--identifier` pointer since P4-D4.1. Between the two, a column
+    # of `00100` -- a procedure code, a vaccine code, a zip -- got no
+    # pointer at all while being described as a quantity with an
+    # average and a spread.
+    padded = _padded_cells(cells)
+    if padded:
+        remarks = remarks + [note(REMARK_PADDED_NUMBERS, (padded,))]
+    # ...AND A COMMA INSIDE A NUMBER IS A CHOICE, NOT A READING. This
+    # is the one place the package can be wrong by a factor rather than
+    # by a rounding, and it was silent about it: a column of European
+    # lab values written `1,795` was published with an average a
+    # thousand times too large, described as "whole numbers that count
+    # things", and nothing anywhere said so.
+    remarks = remarks + _comma_remarks(cells)
     # A column of counts must be whole and non-negative in EVERY cell
     # whose writer meant a number -- including the ones no format can
     # hold. `(1e999)` is visibly negative and `1e-999` is visibly a
@@ -4264,11 +10373,24 @@ def _numeric_verdict(
         cells.n_whole == numeric_looking and numeric_looking > 0
     )
     counts_things = (
-        whole_everywhere and cells.n_negative == 0 and cells.n_sign_unknown == 0
+        whole_everywhere
+        and cells.n_negative == 0
+        and cells.n_sign_unsettled_numeric == 0
     )
     role = ROLE_COUNT if counts_things else ROLE_CONTINUOUS
     if role == ROLE_COUNT:
         evidence = note(EVIDENCE_COUNTS, (numeric_looking,))
+        # ...AND A COLUMN OF WHOLE NUMBERS THAT ARE ALL MOMENTS IN TIME
+        # SAYS SO (residual R-P4-9, contract NF51). It is asked only of
+        # this role because the band is a band of whole non-negative
+        # numbers, which is what this role means. The remark ROUTES
+        # NOTHING and there is nothing for it to route to: no rule here
+        # reads a number as a time and no declaration makes one, so the
+        # column stays a count either way and every published fact of
+        # it is the same fact. What changes is that its owner is told.
+        band = _epoch_band_reading(cells)
+        if band is not None:
+            remarks = remarks + [note(REMARK_EPOCH_BAND, band)]
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)
@@ -4279,6 +10401,15 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks = remarks + [note(REMARK_SPREAD_OUT_OF_RANGE)]
+    # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
+    # histogram is all or nothing, so a column whose values spread too
+    # thinly for the floor publishes an EMPTY object -- and an empty
+    # object beside a column full of numbers is exactly the silence
+    # this file's other withheld-census notes exist to break. Without
+    # it the only sign is an absence, and a reader cannot tell a shape
+    # that was held back from a column that never had one.
+    if numeric_looking > 0 and not details["value_histogram"]:
+        notes = notes + [note(NOTE_HISTOGRAM_WITHHELD)]
     return _Verdict(
         role=role,
         evidence=evidence,
@@ -4448,6 +10579,9 @@ def profile_column(
     n_rows: int,
     settings: Settings,
     forced_identifier: bool = False,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    forced_decimal_comma: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -4493,23 +10627,29 @@ def profile_column(
       two rows and so on -- and keeps not one spelling of a value.
     """
     clashes = contradictory_declarations(
-        settings.kept_values, settings.declared_missing_values
+        settings.kept_values,
+        settings.declared_missing_values,
+        forced_decimal_comma,
     )
     if clashes:
         raise ValueError(f"{CONTRADICTORY_DECLARATION}: {clashes[0]}")
-    present, missing = _split_missing(values, settings)
+    present, missing = split_missing(
+        values, settings, forced_decimal_comma
+    )
     # THE one classification of this column's cells. Everything below
     # reads these records; not one line of it reads the column again.
-    classified = _classify_all(present)
+    classified = _classify_all(present, forced_decimal_comma)
     # The second half of what the person declared, and the half that has
     # to wait for the classification: a declared NUMBER is compared with
     # the number a cell holds, not with the way the file spells it
     # (review item P1-R6-F9). It runs before the cells are counted, so
     # no rule and no statistic ever sees a value the person called "no
     # value".
-    classified, declared = _declared_numbers_removed(classified, settings)
+    classified, declared = _declared_numbers_removed(
+        classified, settings, forced_decimal_comma
+    )
     missing = missing + declared
-    cells = _tally(classified, n_rows, settings)
+    cells = _tally(classified, n_rows, settings, forced_decimal_comma)
     # One list of what is present, rebuilt from the surviving records.
     # Keeping the pre-declaration list here would have counted values
     # the person removed towards every share below it.
@@ -4551,9 +10691,130 @@ def profile_column(
             # Reading the column a second time here was the last place
             # where two readings of one cell could have differed
             # (review item P1-R6-F10).
-            cells = _tally(classified, n_rows, settings)
+            cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
             present = cells.present
+    # THE SAME JUDGEMENT, OVER THE PLACEHOLDER DAYS (plan amendment
+    # A-P4-1 item 3). A column whose open-ended rows are filled with
+    # `9999-12-31` publishes that day as its exact last value, drags
+    # its whole ladder toward it, and seeds the twin with decades the
+    # source never held -- the one audited shape where the ratified
+    # plan published wrong numbers with no warning at all. It is the
+    # calendar's `-999`, one space over.
+    #
+    # ITS ORDERING IS TIGHTER THAN THE AFFIX PASS'S, and the decision
+    # says why: taking cells out changes every count, so a column no
+    # rule has trouble with today might be claimed by a different one
+    # afterwards. There are two conditions, and both must hold.
+    #
+    # The first is that rules 0 through 4 declined the UN-REMOVED
+    # column, which is what the trial below asks. So a constant column
+    # of one placeholder day keeps today's claim, and a two-valued
+    # column whose one value is a placeholder stays binary.
+    #
+    # The second is that the NON-CANDIDATE REMAINDER itself clears the
+    # datetime rule's line. Otherwise no cell is judged, no cell is
+    # removed, and the column lands exactly where today's rules put
+    # it -- so an existing datetime column can never fall out of the
+    # role by this pass, and a column that was never a column of dates
+    # cannot be turned into one by taking cells out of it.
+    day_verdicts: dict[str, tuple[bool, str, int]] = {}
+    removed_by_days = 0
+    judged_over_days = False
+    if present and not forced_identifier:
+        trial = _decide(
+            cells,
+            forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+        )
+        if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
+            reading = _remainder_reading(present, settings)
+            if reading is not None:
+                day_verdicts = _placeholder_verdicts(
+                    present, reading, settings, forced_decimal_comma
+                )
+                withheld_days = sorted(
+                    candidate
+                    for candidate in day_verdicts
+                    if day_verdicts[candidate][0]
+                )
+                if withheld_days:
+                    kept_cells: list[_Cell] = []
+                    for cell in classified:
+                        found = parsing.placeholder_day_of(
+                            cell.text, reading
+                        )
+                        if found is not None and found in withheld_days:
+                            missing += [
+                                (cell.text, parsing.MISSING_DATE_SENTINEL)
+                            ]
+                            removed_by_days = removed_by_days + 1
+                        else:
+                            kept_cells += [cell]
+                    classified = kept_cells
+                    cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
+                    present = cells.present
+                    judged_over_days = True
+
+    # THE SAME JUDGEMENT, OVER THE CORES. A column of `-999 mg` beside
+    # real amounts is the shape a trial file actually has, and the pass
+    # above never sees it: the CELLS are not numeric-looking, so the
+    # question is never asked, and `-999` is published as the column's
+    # smallest dose with nothing complaining. That is the silent
+    # statistical wrongness this project treats as its worst failure,
+    # and the contract says plainly that stand-ins are judged over the
+    # CORES once the earlier rules decline (C6-5).
+    #
+    # It runs only where an affixed reading is what the column reaches,
+    # which is why the role is decided first and then decided again:
+    # removing cells changes every count, so nothing may be built from
+    # the first answer.
+    removed_by_cores = 0
+    judged_over_cores = False
+    if present and not forced_identifier:
+        trial = _decide(
+            cells,
+            forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+        )
+        if trial.role == ROLE_AFFIXED:
+            before = len(present)
+            classified, missing, verdicts = _cores_judged(
+                cells,
+                classified,
+                missing,
+                verdicts,
+                forced_measurement,
+            )
+            cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
+            present = cells.present
+            # HOW MANY THE CORE PASS TOOK, carried to the verdict below.
+            # Removal can move a column across the detection line -- a
+            # pair whose count is eaten below the floor lands on a later
+            # rule -- and the remark of the role it lands on has to say
+            # so, or the reader is told a count of a column that no
+            # longer exists (contract C6-5).
+            removed_by_cores = before - len(present)
+            judged_over_cores = True
     entries, unpublished = _published_verdicts(verdicts, settings)
+    # THE DAY VERDICTS FOLLOW THE NUMBER VERDICTS, and the order is the
+    # contract's own (invariant V4): every numeric candidate, ascending
+    # by number, then every placeholder day, ascending as text. Two
+    # kinds of candidate in one list need an order somebody can check,
+    # and sorting the two together as text would put `1900-01-01`
+    # between `-999` and `9999`.
+    day_entries, day_unpublished = _published_day_verdicts(
+        day_verdicts, settings
+    )
+    entries = entries + day_entries
+    unpublished = unpublished + day_unpublished
 
     n_present = len(present)
     n_missing = n_rows - n_present
@@ -4578,7 +10839,24 @@ def profile_column(
             remarks=[],
         )
     else:
-        verdict = _decide(cells, forced_identifier)
+        # AFTER EITHER JUDGED PASS, rules 0 through 4 are not asked
+        # again (review item P4-HOLE-F1). They already declined the
+        # un-removed column, and asking them of the remainder is how a
+        # column changes role because cells LEFT it: two hundred and
+        # twenty-eight dates over two days beside twelve placeholder
+        # cells is a column of dates, and re-asking made it a
+        # two-valued column of labels once the placeholders were gone.
+        # The plan's gate promises no such move, and this is what makes
+        # the promise true rather than argued.
+        verdict = _decide(
+            cells,
+            forced_identifier,
+            removed_by_cores,
+            after_removal=judged_over_cores,
+            after_days=judged_over_days,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+        )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
         missing, settings

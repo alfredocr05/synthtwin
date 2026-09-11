@@ -594,7 +594,10 @@ two-sided envelope; `n_zero`, `n_negative`, `std_unrepresentable`,
 `n_negative_unrepresentable`, `n_used_in_statistics`,
 `n_left_out_of_statistics`, `numeric_share` EXACT-OBSERVABLE;
 `integer_valued` EXACT-OBSERVABLE, routed by the published FACT and not
-by role; `mean`, `std`, `skew` APPROXIMATED with fixed formula and
+by role, falling back to REPORT-ONLY only where no stratum that may take a
+value has a share holding a number a double can represent with anything
+after the point, which the report then names (owner ruling, amendment
+A-P4-48); `mean`, `std`, `skew` APPROXIMATED with fixed formula and
 two-sided bound; `n_distinct` and `n_distinct_folded` EXACT-OBSERVABLE
 using the spellings of owner decision 7, falling back to the two-sided
 envelope only where even those cannot supply the count, which the report

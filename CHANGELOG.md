@@ -6,6 +6,1111 @@ exists).
 
 ## [Unreleased]
 
+### Phase 4 is closed (2026-09-11)
+
+**Every column type a real table holds is read, or declined with an
+explanation you can act on.** Fourteen column roles instead of six:
+numbers wearing a unit or a currency mark, two numbers in one cell,
+clock times, dates written with dots or a two-figure year or day
+first, and long tails of labels where a handful repeat and the rest do
+not. Your own word for "no value" reaches the twin at its count.
+Leading zeros survive at their field width. The twin says which of its
+cells synthtwin made up. And where the values cannot settle what a
+column IS, synthtwin asks you in a file instead of guessing.
+
+**What closing does NOT mean.** Sixty-six entries of the phase's own
+register are **carried to Phase 5 by name rather than built**, grouped
+in the plan's closure section by what a reader would do about them.
+Eight of the ten acceptance criteria are met; one is met on a rule
+whose own report was false until this phase repaired it; and **one is
+unmet and named** — the reference vectors for two generation branches
+were not written, so those branches are pinned by tests rather than by
+a frozen case with a mutant.
+
+**And closing is an owner decision, not a review verdict.** Nothing in
+this repository describes Phase 4 as review-ratified.
+
+**Phase 5 is next, and it is the one that matters most for
+statistics:** the twin still carries no structure that crosses two
+columns — no correlation, no formula between two columns, no shared
+pattern of empty cells, no ordering between two event dates.
+
+### Changed: the documents say what is true today
+
+- **`docs/STATE.md` is one page again.** It is the file a person or an
+  assistant reads first to find out where the project stands, and it
+  had reached 3,814 lines by gaining a section per landing --
+  narrative that belongs in this changelog. At that size nobody read
+  it, so every session measured the project from scratch, which is the
+  exact failure the page exists to prevent. It is 223 lines now, and it
+  carries a rule of its own: **a landing adds nothing to that page
+  except by changing a fact already stated there.**
+
+- **Three facts on it had gone stale and are corrected.** It said
+  review ran up to five rounds with a model that is no longer used; it
+  said ten lint errors stood after the commit that repaired them; and
+  it stated its own length as "~200 lines" while running to thousands.
+  Each was a fact written in more than one place with one copy updated,
+  which is now stated as the page's own rule: state a fact where it is
+  measured and point at it from everywhere else.
+
+- **`SECURITY.md` records what profile version 6 publishes.** That
+  document tells an institution, version by version, what a description
+  carries off the machine, and its entries stopped at version 5 --
+  understating what travels, by omission rather than by a wrong
+  sentence. Version 6's additions are now written out and priced by
+  family: the censuses of written form, the per-label form count, the
+  empty stretches of a numeric range, the distribution additions, and
+  the two column types Phase 4 added whose affix pair and separator are
+  text of your table. The questions file has an entry of its own.
+
+- **`STATUS.md` describes the tool that exists.** It said the new
+  column types, the long-tail categories and the missing-value
+  reproduction were "planned and ratified but not built"; all of them
+  are built. It now lists what Phase 4 actually gives you, names the
+  sixth file, and documents `--code` and `--answers` beside the other
+  options.
+
+### Fixed: the twin's report told you your 'no value' spelling stayed behind
+
+- **It did not.** For every column with an empty cell, the report said
+  "the twin writes every one of them as an empty cell, so how your
+  table wrote them is here rather than in the twin", and the heading
+  above listed those spellings among the things "no twin can carry".
+  Both were true once. They stopped being true when the twin started
+  writing your own `NA`, `-9.99` or `Not recorded` into its cells at
+  the published count -- and the sentences did not move with it.
+  Measured on four twins: a declared `-9.99` column came out with 0
+  blank cells and 20 wearing `-9.99`, and printed the sentence anyway.
+
+- **Now it says which, spelling by spelling.** Each published spelling
+  carries its own mark -- `-9.99: 20 cell(s) -- the twin writes this
+  spelling in all of them`, or `the twin leaves these cells empty` --
+  and the paragraph above says how many of the cells travel and what
+  that buys you: code that filters on your own word for "no value" does
+  the same thing on the twin as on your table. This matters for where
+  the files may go, because the twin is carrying that word out of the
+  run with it.
+
+### Fixed: one number is no longer both 'not met' and 'inside its range'
+
+- **The same page said both.** A column's `n_distinct` appeared among
+  the facts the twin could not meet and, a few lines later, among the
+  approximate facts with "inside the range" beside it. A fact that
+  lands inside the range the method promises is a fact the twin held,
+  so it is not listed as missed any more. It is still printed, with
+  the published value, the achieved value and both ends of the bound.
+
+- **And a fact whose range does not cover the published value is still
+  listed.** Not every range is a margin around the number printed
+  beside it: one column of the demonstration table publishes 84
+  different values, its twin holds 224, and the range runs 106 to 240.
+  The twin landed where the method said it would and nowhere near your
+  table, so that stays in the list of facts it could not meet.
+
+### Fixed: the advice for a column of codes wearing a unit named the wrong option
+
+- **It said `--identifier` where it meant `--code`.** A column of
+  values like `12 mg` carries a note saying synthtwin described the
+  numbers as quantities, and offering a way out if they are really
+  codes. It named `--identifier`, which publishes no value of the
+  column at all -- so following it exactly threw away the distribution
+  of codes you were trying to keep. It names `--code` first now, with
+  what that publishes, and `--identifier` after it for a column that
+  really is a record number.
+
+### Added: the questions come back in a file you can fill in
+
+- **Every `synthtwin profile` run now writes a third file beside your
+  description**, named for your table and ending `-questions.json`. It
+  lists the columns synthtwin could read more than one way, says what
+  it SAW in each one -- how many figures, how many padded, what
+  separates them -- and what it read each one as, and offers you the
+  answers you can give with what each one would publish. It carries no
+  value of your table. It is written on every run, whether there were
+  questions or not, so a rule about where synthtwin's files may go
+  never has to say "and sometimes a sixth".
+
+- **`--answers FILE` hands it back.** Write an answer beside
+  `your_answer` for the columns you want to correct, save the file, and
+  run `synthtwin profile` on the same table naming that file. Your
+  answers become the declarations -- exactly as if you had typed
+  `--code`, `--identifier` or `--measurement` for each -- and the
+  description records them as such, so it says who decided. Columns you
+  leave blank keep the reading synthtwin made. It is the way to answer
+  the questions when nobody is at the keyboard, which is most runs.
+
+- **An answer that was not offered is refused rather than ignored.** If
+  you write `codes` where the question offers `code`, synthtwin stops,
+  names the column, shows you what you wrote and lists what you can
+  write instead. Dropping a word nobody could read would have described
+  your table the old way while your file said otherwise.
+
+### Changed: synthtwin asks about your codes without showing your data
+
+- **The list of columns to check now appears whoever is running the
+  command.** It was printed only in a scripted run, and only when some
+  other column had already raised a question of its own -- so a table
+  whose only finding was this list showed you nothing at all. It is
+  shown once, every run.
+
+- **Every answer now says what it would really publish for YOUR
+  column.** A column of numbers too large for the file format to hold
+  publishes no average at all, and the "measurements" answer used to
+  promise one anyway. If you have asked for groups of eleven, the
+  "codes" answer no longer promises that every value is kept, because
+  values held by fewer than eleven rows are not. Both sentences are
+  worked out from your column and your settings now.
+
+- **A column of two numbers in one cell says what pressing Enter
+  actually does.** It said Enter would keep it read as two readings; it
+  would not, because reading it that way is a change you have to ask
+  for. Enter keeps it as text, and the question says so.
+
+- **And a count of cells is never named below your smallest-group
+  size.** A column with a single leading-zero value used to say "1 of
+  them", which is a count of one on a surface that names no group
+  smaller than you allowed. It says "some of them" now, and the count
+  itself once it is at or above your floor.
+
+- **Every column read as a number is now listed for you, under one
+  question.** synthtwin has always asked about a column whose values
+  gave it a signal -- figures with a leading zero, or every value the
+  same width. It could never ask about the rest, because there is
+  nothing to see: a register of drug concept identifiers six and seven
+  figures wide is written exactly the way a column of ages is written,
+  and a rule that guessed between them was removed from this tool years
+  of work ago for guessing wrongly. So they are not guessed at and not
+  singled out either. They are listed, once, with one question over
+  them: which of these hold codes or record numbers? A person who holds
+  the table answers it in a minute; nothing else can answer it at all.
+
+- **The questions no longer print your values.** They used to show four
+  real cells from the column, on the reasoning that you cannot answer a
+  question about a column without seeing it. You can: what you need is
+  what synthtwin saw, and it now says that instead -- "every value is
+  written in figures alone, all 5 characters wide", or "and 167 of them
+  carry a leading zero". That describes the column exactly as well and
+  carries none of it, which matters because these questions are about
+  to become a file you can save, hand to a colleague and send back.
+
+- **Each answer says what it would publish.** "Codes" and
+  "measurements" are labels; the choice is really between "an average,
+  a spread, a smallest and a largest" and "every value exactly as
+  written, with the number of rows that carried it". The questions say
+  that now, and the reading that stands if you answer nothing is named
+  and listed first.
+
+
+### Fixed: a European date is read as a date, not as a quantity
+
+- **A column of dates written `19.08.24` was described as a
+  measurement.** It was read as the number 19.08 wearing the text
+  `.24`, so the description published an average and a ladder over
+  day-and-month numbers, and nothing said so. Measured on 300 rows:
+  the profile's smallest and largest came out 1.01 and 28.12, and
+  **151 of the 300 cells in the twin were not dates at all** -- months
+  74, 85 and 62 among them. Analysis code that read your real column
+  could not read its twin, which is the one thing the twin exists to
+  allow.
+
+- **It is a date column now.** The same 300 rows describe as dates
+  running 2024-01-01 to 2024-12-28, the twin holds 300 real dates, and
+  `synthtwin validate` on that twin misses nothing. Which field is the
+  day is decided the way it already was for slashed dates: your own
+  values first, then `--day-first`, then the stated default; and
+  because the year has two figures, the column says out loud which
+  century it was read in.
+
+- **`--day-first` now reaches what its help text always promised.** The
+  option said it reaches dates "written with dots, and written with a
+  two-figure year". Until this release the two together were the one
+  shape it did not reach.
+
+- **A column of version numbers is still a column of version numbers.**
+  `1.2.24` is how a version is written and, character for character,
+  how an unpadded dotted date would be. Only the padded spelling is
+  read as a date, which is the same rule the four-figure dotted dates
+  have always used. The cost is written down rather than left to be
+  met: a padded column whose every value is also a real date IS read as
+  dates, exactly as `01/02/24` already was.
+
+- **Your own values now decide which field is the day, even when you
+  have not said.** A column of 300 dates where 299 could be read either
+  way and ONE can only be a day-first date was read month first, and
+  that one cell was reported as unreadable. The column had answered the
+  question and the tool overruled it with a default. This was true of
+  every shape whose day and month are both numbers, not only the new
+  one. Where your values point one way, that way is used; where they do
+  not, `--day-first` decides and the stated default stands.
+
+- **A firmware version column stays a version column.** Values like
+  `01.02.24`, `01.03.24` and one `01.00.24` were read as dates once the
+  dotted two-figure shape had a reader: there is no zeroth month, but
+  one odd cell in three hundred slipped under the tolerance for stray
+  cells. A dotted value naming a zeroth month or day is now taken as
+  the column telling you it holds versions. An ordinary stray cell, or
+  a typo like `32.08.24`, is still tolerated exactly as before.
+
+### Fixed: `--day-first` was quadratic, and nobody could see it
+
+- **Describing a column under `--day-first` did work that grew as the
+  SQUARE of the column's length.** The helper that counts how many
+  cells each reading accepts built its answer by copying everything it
+  had accumulated so far, one cell at a time -- the exact defect that
+  was found and fixed for numeric columns long ago, and written into
+  this module's own rules. It survived here because this helper only
+  ran when you passed `--day-first`, and no growth test passes that
+  option, so the walk sat unmeasured.
+
+- **It was found by making the tool better at something else.** Once
+  your own values decide the day-first question whether or not you
+  declare anything, that helper runs on every column that could be
+  dates -- and the growth guard that has watched numeric columns for
+  months turned red immediately, measuring 14.4 times the work for four
+  times the values where proportional growth is about 4. The list is
+  extended in place now, and that guard is what pins it from here.
+
+### Fixed: the decimal-comma message names the option that exists
+
+- **A person whose file writes `1,795` for one and three-quarters was
+  told to rewrite their own file.** The message said to write the
+  column with a decimal point and run the command again. It said that
+  for a fortnight after `--decimal-comma` shipped, and never named it.
+
+- **Both messages name the declaration first now**, and the rewrite
+  second, because rewriting still works and changes your file where the
+  declaration does not.
+
+
+### Fixed: a column of codes is no longer averaged in silence
+
+- **A register of procedure codes, most of them bare figures and a few
+  ending in a letter, was described as a quantity and said nothing
+  about it.** Measured on 300 rows -- 280 five-digit codes beside
+  fifteen `3074F` and five `3075F` -- the description published an
+  average of 54,239 over the codes, a smallest, a largest and nine
+  points between, every one of them a real code, and the profile
+  carried no remark at all. Nothing on the screen, in the description
+  or in the plain-language summary said a choice had been made.
+
+- **The tool asks about that column now, instead of guessing.** Where
+  a column can be read as a measurement carrying markers, as numbers
+  beside labels, or as a coding system whose codes end in a letter,
+  the description says so and names both of the options that settle
+  it: `--measurement NAME` describes every number, and `--code NAME`
+  keeps every value exactly as written and publishes no average at all.
+  The sentence used to name only the first of those, which is the one
+  that publishes MORE of your codes.
+
+- **A column whose letter is written hard against the digits is
+  declined out loud.** `13.5H` is a flagged laboratory result and
+  `1234F` is a category of procedure code, and nothing in the values
+  tells them apart, so the tool does not read such a column as a
+  quantity unless you say so. Until now it simply fell to free text,
+  and the message you met told you to rewrite your column as plain
+  numbers -- while both options that read it correctly already
+  existed and neither was named.
+
+- **Two messages that were plainly wrong are fixed.** A column of
+  hyphenated laboratory codes, which publishes no average at all, was
+  told on screen that it was "being described with an average, a
+  smallest and a largest"; that text now depends on what was actually
+  read. And a column of zero-padded numbers was told in one place to
+  use `--code` and in another to use `--identifier`, which are opposite
+  things: `--code` keeps every code with the rows that carried it,
+  `--identifier` publishes nothing at all. One answer per page now.
+
+- **A question that should never have been asked is not asked.** 280
+  readings beside twenty `<0.5` cells raised the question and pointed
+  at `--measurement`, which would then have published a distribution
+  over the detection limit itself. A mark that is no letter -- `<`,
+  `$`, `%` -- is not this ambiguity, and raises nothing.
+
+- **A marker written in another alphabet asks the same question.** The
+  first version of this repair tested for English letters, which would
+  have taken the warning away from a column of readings marked with a
+  Greek letter -- a warning that column already had. The test is a
+  closed list of symbols now, so a mark nobody listed is treated as a
+  word and asks.
+
+- **The counts in those sentences are the counts they name.** "How many
+  of this column's values are a number with a word beside it" now
+  counts exactly that: a cell whose marker is `<` is a comparison and
+  not a word, and a cell reading `many H` holds no number, and neither
+  is counted any more.
+
+- **And the advice no longer promises more than your settings allow.**
+  Both sentences said `--code` keeps every value exactly as written.
+  That is true at the default, where nothing is held back, and not true
+  when you ask for a larger smallest-group size, which pools rare codes
+  away. They now say what is published under the size in force.
+
+- **What is still true and is written down:** which of the two
+  readings a flagged laboratory column reaches still depends on how
+  often its flagged values repeat, so one column can be described two
+  ways. Neither description is wrong -- both are now said out loud --
+  but the choice is not predictable, and it is recorded rather than
+  quietly left (residual R-P4-157, narrowed). A column that reaches a
+  set-of-categories reading before the number rules is not reached by
+  the new decline sentence at all, which is recorded too (R-P4-158).
+  And the message on a column wearing a unit still points at
+  `--identifier` where it should point at `--code`, for the same reason
+  the padded-number message did; it moves with the next piece of this
+  work, and is recorded rather than left to be found (R-P4-72).
+
+### Added: a lab column of readings and markers is now described as both
+
+- **A column that holds numbers AND words -- `4.2`, `7.8`,
+  `NOT DETECTED` -- is no longer read as words alone** (closing
+  residual R-P4-13). Until now a lab result with even a handful of
+  `NOT DETECTED` cells fell to the free-text role or the long-tail
+  role: the readings were counted but never described, so the twin
+  carried no range, no middle, no ladder for them, and analysis code
+  written against the twin met a column of text where the real one
+  held a quantity.
+
+- **The description now states both halves and the split between
+  them.** A compound column publishes how many cells read as numbers
+  and how many do not, and then a full quantitative description of the
+  numeric half beside a full label description of the other -- the same
+  two blocks the numeric and label roles have always written, each read
+  over its own cells. The two counts add up to the number of present
+  cells, so the description never speaks about part of a column
+  without saying what the rest is.
+
+- **The twin holds both.** Measured on a three-hundred-row column of
+  295 readings and 5 markers: the twin writes 295 cells across the
+  real range and 5 marker cells, and re-describing the twin re-detects
+  the role with the same split. The count of different cells was
+  measured on four shapes and four seeds each -- readings that almost
+  never repeat, a numeric half of forty values over 280 cells, a coarse
+  half of twenty-five, and markers differing only in case -- and was
+  reached exactly every time.
+
+- **A column of free comments is still free text, and a code column is
+  still codes.** The rule asks whether the numeric half is a real
+  quantity rather than a set of codes, and whether the words repeat
+  like a vocabulary rather than reading like prose; a column that fails
+  either question keeps the role it had. No column that already read
+  well moved.
+
+- **And if your table uses a comma for the decimal point, this works
+  too.** A column declared `--decimal-comma` whose cells read `1,5`
+  beside a marker used to end the run with an internal error; it is
+  described, built and checked now, its numbers written with commas
+  and its markers left exactly as they are -- a marker spelled `E11.9`
+  keeps its dot.
+
+- **What this role cannot do is written down rather than left to be
+  found.** A number too large for the format is described as a word
+  (R-P4-149); a set of a dozen numeric CODES just above the size where
+  a set of categories stops being one is read as a quantity, and
+  `--code` is how you say otherwise (R-P4-150); and a column whose
+  numbers hold exactly the smallest publishable number of different
+  values has a twin that may be described as a different kind of
+  column -- the twin still holds the numbers (R-P4-151).
+
+### Fixed: your twin no longer puts values where your column had none
+
+- **A column with two clusters and a gap between them now gets a twin
+  that keeps out of the gap** (closing residual R-P4-136). If your
+  readings sit around 20 and around 80 with nothing in between, the
+  middle value of that column is about 50 -- a number none of your
+  cells holds -- and the twin honoured it, writing four to six cells of
+  three hundred into the empty middle. Anybody plotting the twin met a
+  third group of readings that is not in your table. The description
+  now records which stretches of a column's range held no value at all,
+  and the twin reads it: measured over forty seeds on three such
+  columns, cells in a stretch your column left empty went from four to
+  six, two to three, and three to six, to NONE at every seed.
+
+- **And that fact survives a raised smallest-group size.** The shape
+  record beside it is all or nothing, so it disappears entirely on
+  exactly these columns as soon as you ask for groups larger than one.
+  The new record says only where NOBODY is, so no group size hides it,
+  and it names no value, no count and no cell.
+
+- Where the twin cannot get out of a stretch -- a column of whole
+  numbers whose steps are barely wider than one, or a value whose sign
+  leaves it nowhere to go -- it stays, and the report beside the twin
+  names the stretch and the value rather than saying nothing.
+
+### Fixed: two numbers in one cell now repeat the way your own readings did
+
+- **A column of readings like `120/80` now holds as many different
+  readings as your table did** (closing residuals R-P4-40, R-P4-51 and
+  R-P4-112). Each number of such a cell is built by the same machinery
+  a plain column of numbers uses -- and it was told how many different
+  values to make from the count of different whole CELLS, not from a
+  count of its own numbers. So a 400-row blood pressure whose first
+  numbers take thirteen different values got a twin whose first numbers
+  took thirty-four to forty-one, and the column held a hundred and
+  fifty-seven to a hundred and sixty-nine different readings where the
+  description says a hundred and ten. Somebody grouping rows by the
+  first number found three times as many groups as their real table
+  had, and the quality report said so on every run.
+
+  Measured end to end through all three commands over ten seeds, that
+  column now holds exactly thirteen first numbers, nine second numbers
+  and a hundred and ten different readings at all forty seeds sampled,
+  and
+  `synthtwin validate` reports nothing missed at all.
+
+- **And a cell holding THREE or more numbers now reproduces how every
+  pair of them moves together, not just the last one's.** The step that
+  decides which numbers meet in a row moved the last number of a cell
+  and no other, so on a column like `1/4/10` the relationship between
+  the first two numbers was never aimed at: a column whose first two
+  move in exact opposition -- published as -1.0 -- got a twin holding
+  +1.0, the exact opposite. Every number but the first moves now.
+  Measured over a battery of twelve three- and four-number columns at
+  ten seeds, 540 pairs in all: of the 240 pairs between two earlier
+  numbers, every one used to land outside the range this tool promises
+  and ninety-one do now, and the count of rows holding one above the
+  other went from 236 missed to none.
+
+  **And measured again at forty seeds, because ten is not a scope for
+  this claim**: of 2,160 pairs, 550 land outside the promised range,
+  367 of the 960 between two earlier numbers -- and the count of rows
+  holding one above the other is met at every pair of every seed. Ten
+  seeds is not a scope for that last one in particular: it is met at
+  all ten under a build where forty finds a column that misses it.
+
+  Holding the first number still loses no arrangement at all, and it
+  is why a column of exactly two numbers -- every blood pressure, every
+  ratio -- still has exactly one number moved, by the same rule as
+  before. Such a column's cells DO change in this release, for the
+  first reason above rather than this one.
+
+- **What is still short is reported and named.** A column of three or
+  four numbers sets three or six relationships that pull against each
+  other inside one bounded search, and a hundred and thirty-six of
+  those 540 pairs still land outside the promised range -- 550 of 2,160
+  at forty seeds -- reported as misses by both the twin's own report
+  and `synthtwin validate`, with the achieved value beside the
+  published one.
+
+- **And the count of rows holding one number above another is no
+  longer given up to buy a relationship.** The step that chooses which
+  numbers meet in a row weighed every count it had to meet in ONE
+  total, and a total cannot tell one count being lost from another
+  being gained at the same price: a four-number column came out having
+  traded a count it held for a hundredth of a relationship it did not,
+  and `synthtwin validate` reported the count as missed. Each count is
+  weighed by its own name now, and a count the twin already holds is
+  never given up. The same step also aims at an outstanding count
+  directly, every other attempt, which is what a two-number column
+  needed: a 400-row blood pressure of 379 different readings missed its
+  count at four seeds of six and misses it at none. Measured over the
+  same battery of twelve columns at forty seeds, all 2,160 counts are
+  met where one was missed before.
+
+  **Which twins change.** A column whose every such count the walk had
+  already met writes the same cells it wrote before, to the byte -- a
+  repeating blood pressure, a correlated one and a 240-row column of
+  all-different readings are unchanged here. A column where a count was
+  still outstanding gets a different twin, and that includes columns of
+  exactly two numbers.
+
+- **And that direct attempt reaches every number of the cell, not half
+  of them.** "Every other attempt" was counted on the search's own
+  attempt number -- and the search takes the numbers of a cell in turn
+  from that same counter, so on a cell holding an ODD number of values
+  the two counters locked: half the numbers were aimed at on every turn
+  they got and half on none of theirs. The first number, the one paired
+  with the number that never moves, was among the starved half on such
+  a cell, so that pair could not reach its count at all. The attempt is
+  counted per number now. Measured over forty described columns of two
+  to five numbers at forty seeds, 9,640 pairs: 44 counts land short of
+  their published value, where counting the attempts on the search's
+  own clock leaves 120 and counting them on the opposite turns leaves
+  153. On eight five-number columns, 3,200 pairs: 12, against 71 and
+  96.
+
+  **Which twins change.** A column holding an even number of values in
+  a cell -- every blood pressure, every ratio, every four-number
+  reading -- writes exactly the cells the previous build wrote, to the
+  byte, at all forty seeds measured. A column holding three or five
+  gets a different twin, and a better one.
+
+### Fixed: a column of very large or very small numbers keeps its width
+
+- **A column whose numbers are written compactly -- `1e400`, `-1e400`,
+  `2e400` -- now gets a twin written the same width** (closing
+  residuals R-P4-68 and R-P4-48; generation method G10.5 revision 5).
+  Values too large or too small for a computer's ordinary number format
+  to hold are described with the width of the narrowest and the widest
+  cell in your table, and the twin could write them only as long runs
+  of figures. So a column whose cells were five and six characters wide
+  got a twin whose cells were three hundred and ten and three hundred
+  and eleven characters wide: the description was right and the report
+  said the two widths were missed, but anybody who had written
+  `len(x) == 5`, a fixed-width read or a slice against the twin met a
+  value sixty times wider than anything their real column held.
+
+  The twin can write these values in scientific notation now, which
+  says the same magnitude in five characters. Measured on the column
+  above, end to end through all three commands: five and six characters
+  published, five and six written, and no fact of that column missed at
+  all where two were missed before. A column of thirty very small
+  fractions all three hundred and twenty-seven characters wide is now
+  written at that width throughout, where its widest cells used to come
+  out one character over.
+
+  Nothing about a column already written as long runs of figures moves:
+  the twin still writes those the way it did, and the frozen reference
+  cells for that shape are unchanged byte for byte.
+
+- **And a column of many such values no longer stops the command.**
+  While this was being built, the first version wrote every one of
+  these numbers with the same exponent, which left it nine different
+  five-character values to spend -- and a real column of sixteen made
+  `synthtwin generate` refuse to build a twin at all, saying the
+  description asked for more different values than it could write.
+  A column that had generated before, wrongly wide, would have stopped
+  instead. The exponent moves now, so what the twin can write at a
+  width is what a real column of that width can hold: six thousand two
+  hundred and twenty-seven different five-character values rather than
+  nine.
+
+- **And it stopped eight values short of that, which stopped the
+  command on a bigger column.** The walk gave up at the first spelling
+  it worked out was a number this format CAN hold -- and for a value
+  too large, the ones just past that point are exactly the ones it
+  cannot. So a real column holding six thousand two hundred and twenty
+  different such values, every one of them five characters wide, made
+  `synthtwin generate` refuse again. The walk steps past such a
+  spelling now and carries on, and that column gets a twin with all six
+  thousand two hundred and twenty values at the published width and
+  nothing missed.
+
+### Fixed: a twin no longer writes a value you told it means "no value"
+
+- **A value named with `--missing-value` is left alone by every column
+  of the table, including the columns that publish nothing.** A column
+  of numbers too large or too small for the format to hold publishes no
+  value of your table anywhere -- that is what its role means -- so it
+  had no way to know which spellings you had declared, and it was never
+  given the list the rest of the run uses. Measured on a two-column
+  table where `1e400` was declared missing: the second column's twin
+  was handed `1e400` as a real value, its own report said nothing about
+  it, and `synthtwin validate` reported eight of that column's counts
+  missed. It leaves those spellings alone now, on both of the ways it
+  writes such numbers, and counts them out when it works out how many
+  different values it can write.
+
+### Fixed: a column of one width whose values repeat keeps that width
+
+- **Where a column of very large or very small numbers is all one width
+  and two of its cells are the same value written differently, the twin
+  now holds both at that width** (closing residual R-P4-47). Two cells
+  spelled with a space -- one at the end, one at the front -- are the
+  same value to a spreadsheet and to this tool, and they are the same
+  number of characters long. The twin used to write the first at the
+  published width and the second one character longer, and its report
+  said the widest cell was missed. It writes the value with room for
+  the space now, exactly as your own two cells did, so both come out at
+  the published width and nothing is missed. Measured end to end on
+  eight such columns: five that missed the width now hold it, and the
+  three that already held it are written exactly as before.
+
+
+### Fixed: a twin's invented codes now wear the shape the real ones wore
+
+- **Every published label of a category column records how many of its
+  rows were written in that label's own SHAPE** (`shape_form_cells`;
+  owner ruling of 2026-08-31, plan amendment A-P4-47, closing residual
+  R-P4-34). A column of clinical codes publishes how many of its cells
+  were written in each shape -- a letter, two figures, a point and a
+  figure -- so that the values the disclosure floor holds back get
+  stand-ins of the right shape rather than `group-14`. Where the floor
+  held back more than one spelling of a published label, the
+  description did not say which of them wore the label's shape, and the
+  twin had to guess: measured over 120 built columns, 57 met the
+  published census, 31 wrote too few cells in the shape and 32 wrote
+  too many. It is a single number per label, because every spelling of
+  a label that has a shape wears exactly that label's shape. Given it,
+  the generator writes the shape onto exactly the held-back groups that
+  add up to the number, and the census is met exactly. The
+  reproduction that could not be told apart before now publishes 25
+  against 23, produces two different twins, and both hold their own
+  census.
+
+  What this means for a person reading a description: a category
+  column's entries carry one more whole number each. It publishes no
+  spelling and no shape KEY -- the shape it counts is the shape of the
+  label already printed beside it -- and the floor still decides which
+  values are named. What a reader can take from it is that one of a
+  label's held-back spellings was written in the label's own shape,
+  which is presence and shape and not content.
+
+  The twin's cells for the demonstration table are byte-identical, and
+  its quality report carries nine obligations more than it did and not
+  one fewer.
+
+- **A description asking for more than the spelling supply can write is
+  told so.** A label of one letter has one alternative spelling that
+  keeps its shape. Where a description asks more of its held-back
+  groups to keep the shape than that, the twin writes what it can and
+  the report beside it names the shortfall with both numbers.
+
+### Fixed: the contract said a rule narrowed a shortfall that it also widens
+
+- **The census of written forms misses in BOTH directions, and two
+  passages of the format contract said it misses in one** (residual
+  R-P4-34, measured). A column of codes publishes how many of its cells
+  were written in each shape. Where the disclosure floor holds back
+  more than one spelling of a published label, the description does not
+  say which of them wore that shape -- so the twin has to guess.
+  Measured over 120 built columns of that family: 57 met the published
+  census, 31 wrote too few cells in the shape and 32 wrote too many.
+  What that trial covers is that family and nothing else. The contract
+  named the rule that offers a label's own spelling to its largest
+  held-back group as one of two things that
+  "narrow" the shortfall; measurement says that rule is what produces
+  the overshoot, so it narrows in one direction and widens in the
+  other, and both passages now say so. No published number moves, no
+  twin cell is different and no obligation changes: what changes is
+  that the document states the bound the tool already had.
+
+### Added: the shortfall was a witness, and the witnesses have gone
+
+- **Both directions were pinned at their exact counts**
+  (`tests/test_p4r34_form_census_per_level.py`), and the repair above
+  turned all four of those tests red, which is when a witness should
+  go. The file is rewritten to the repaired behaviour and keeps every
+  measured number -- the same two columns, the same 206 and 204 -- so
+  it reads as a repair of what was reported rather than as a fresh case
+  built to pass. The fifth test stands unchanged: every spelling of a
+  label that has a shape wears exactly that label's shape, which was a
+  property rather than a defect and is what the repair rests on.
+
+### Added: four columns that were described correctly and silently now speak
+
+Each of these adds a SENTENCE and nothing else. No role changes, no
+published number moves, and no cell of any twin is different -- which
+is measured, block for block, and not promised.
+
+- **A column of whole numbers that are all moments in time is told so**
+  (residual R-P4-9). A column of `1600000000` is a column of counts
+  and stays one; what was missing was anybody saying that read as
+  seconds since the 1st of January 1970 it runs from one calendar day
+  to another. The remark says which unit the numbers are counted in --
+  seconds or milliseconds, which matters by a factor of a thousand --
+  and says the twin is unaffected, because reading them as plain
+  numbers keeps the range and the spacing, so converting the twin
+  gives the same span. It names no flag, because there is none: nothing
+  in synthtwin reads a number as a time.
+- **A declined column says how far a CLOCK reading got.** The sentence
+  that says why no reading fitted named the numeric reading, the
+  date reading and the affix reading, and was silent about the fourth
+  -- so a column of clock times in a shape synthtwin does not describe
+  was told nothing fitted it and never told which reading came
+  closest.
+- **A declined column whose gaps are a few repeated words is told one
+  declaration would recover its distribution.** It is written only
+  where it is TRUE: synthtwin reads the column again over what is left
+  and writes the sentence only when that reading really publishes a
+  distribution. Where the survivors are numbers too large to hold, or
+  collapse to two values, nothing is said -- those columns publish no
+  distribution and a promise of one would be false.
+- **A column of dates that also read as numbers states both counts.**
+  Eight digits are a date and a whole number at once; a sentence
+  saying only which reading won left no way to see how close the other
+  came.
+- **A label column publishing `-999` as one of its values is told
+  `--missing-value` exists for it.** synthtwin reads that number as
+  "no value" on a column of numbers and cannot on a column of labels,
+  so it was published as an ordinary value with an ordinary count and
+  nothing said so. All three of the built-in stand-in numbers are
+  covered, and a column publishing two of them is told about both.
+
+### Fixed: a column that stops being read as numbers is told why
+
+- **The address decline was silent** (residual R-P4-39, contract
+  NF50). synthtwin refuses to read a column of `user12345@example.org`
+  as a number wrapped in text, and that refusal is right: the average
+  of a column of real addresses is the average of whatever numbers
+  those addresses were given. But it said NOTHING. The column simply
+  stopped carrying an average, a spread, its ends and its ladder, and
+  no sentence in the profile, in the summary beside it or in the
+  twin's report told its owner why. It carries one now, naming the
+  shape it declined for -- an at sign, a host, a dot label -- so a
+  person recognizes their own column.
+- **And it names all three declarations, not one.** The remark beside
+  it offered `--identifier`, which publishes no value at all and is
+  the wrong answer for somebody who wants the column's distribution.
+  All three are named with what each publishes: `--identifier` no
+  value, `--code` each spelling with how many rows carried it,
+  `--measurement` the distribution over the numbers inside. **It
+  decides nothing** -- no role, no published fact and no cell of the
+  twin moves because of it, which is measured rather than promised.
+- **A declared measurement wearing an address had its stand-ins
+  ignored.** The pass that judges "no value" numbers inside an affixed
+  column's cells re-derived that column's reading WITHOUT the person's
+  declaration, while the role had been decided WITH it -- so on a
+  column carried past the address rule by `--measurement`, not one
+  cell was judged. Measured on 200 readings between 50 and 70 with
+  eleven cells spelled `-999`: no verdict was published, `-999` stood
+  as the column's smallest reading, and the average came out 1.785
+  where the same column written any other way reads 60.03.
+
+### Fixed: a blood-pressure column's own facts are checked and named
+
+- **The role that carries a blood pressure was the one role no
+  completeness surface reached** (residual R-P4-62). Three guards each
+  proved their own completeness against a table that does not contain
+  it, so each passed by never looking. The disposition registry now
+  carries the role's ten facts, the completeness walk reaches it, and
+  the red battery has a fixture for it with ninety-nine registered
+  cases, every one measured.
+- **A joined column's distinctness was reported under the wrong
+  name.** The validator had no branch for this role, so it fell
+  through to the one for empty columns and a blood-pressure column's
+  count of different readings was reported as an empty column's. It is
+  named correctly now, and the contract disposes it -- which nothing
+  did before.
+- **Each position's report-only facts are named in the report.** A
+  two-number column published a count of different numbers and a
+  finer ladder per position, and the quality report carried neither a
+  check nor a line saying it could not check them.
+
+### Changed: the governance checks read the contract that governs
+
+- **The disposition machinery reads profile contract version 6.** Both
+  matrix readers took version 4's tables merged with version 5's
+  delta -- the record of what two superseded versions required -- while
+  the version every description is written to has been 6. Nothing was
+  wrong in what they compared; a governance surface pointed at a
+  document that governs nothing shipped is one whose agreement is luck
+  rather than design (residual R-P4-25).
+- Two role groups and seven facts that had to stand outside a matrix
+  are read from the contract's own tables now, and the clock role's
+  approximated inventory is read rather than written out by hand.
+- The loader's own module documentation said version 5 was normative
+  and that a description must carry version 5, with the code requiring
+  6. A contributor following it would have prepared a file the shipped
+  loader refuses (residual R-P4-63).
+
+### Added: two more ways a reading can be written
+
+- **`120 / 80`, with spaces around the mark**, is now read as the same
+  reading as `120/80`. It used to be treated as free text, which
+  publishes nothing. The twin writes the spacing your table used.
+- **`1:1.5`, with a decimal in one of the numbers** -- an I:E ratio --
+  is now read. A number in a cell could only be whole before.
+- **A signed number is still not read this way**, deliberately: a
+  leading minus cannot be told from the mark the cell might be split
+  on, so `-3/-4` is left alone rather than split on its own signs.
+
+### Changed: the two numbers of a reading now move together
+
+- **A blood pressure's two numbers were drawn separately**, so the twin
+  held cells like `111/105` -- a diastolic above its systolic -- and the
+  two numbers had no relationship at all. Measured on 400 readings whose
+  real numbers moved together at 0.83, the twin's moved together at
+  -0.01.
+- **The description now records how the numbers move together** and in
+  how many rows the first sits above the second, and the twin is built
+  to both. On the same 400 readings: 0.8342 against a real 0.8343, 400
+  of 400 rows with the systolic on top, and **no impossible readings**.
+- **Every number in the column is unchanged.** Only which numbers share
+  a cell moves, so each position's smallest, largest, average, spread
+  and widths are exactly what they were.
+- **One thing it can cost, and the twin says so.** The count of
+  different readings was always exact before and is not always exact
+  now, because a twin's numbers repeat more evenly than real ones do and
+  fewer different pairs can be made from them. Where that happens the
+  twin's own report names it.
+
+### Changed: a column you name with `--code` now always publishes its codes
+
+- **A code column with many different codes, none repeated much, used to
+  publish nothing at all.** A laboratory-code column of 228 different
+  codes over 400 rows was read as free text -- too many codes to be a
+  set of categories, none repeated often enough to be a long tail -- so
+  the description named none of them and the twin held none of them.
+- **Named with `--code`, it now publishes every code with its row
+  count**, and the twin holds the same codes in the same proportions.
+  On the demonstration table: 228 of 228 laboratory codes and 221 of 221
+  drug codes, at exactly the right counts, where both were zero before.
+- **Why that is worth having: every rollup then comes out right.**
+  Because the twin holds the same codes the same number of times, any
+  grouping of them reproduces exactly -- the leading letters of a
+  diagnosis code, the segment before a dash, the code length. synthtwin
+  knows no coding system and models no hierarchy; it does not have to.
+- **What it discloses.** The twin holds the REAL codes, redistributed
+  across rows, and the description names them. That follows the ruling
+  that nothing is held back for being rare. If you need the old
+  behaviour for a column, do not name it with `--code`.
+- **Nothing changes for a column you do not name.** A column of prose is
+  still read as free text at every setting.
+
+### Added: blood pressures, and anything else written as two numbers in one cell
+
+- **`--measurement COLUMN` tells synthtwin that a column holds readings
+  written as two or more numbers joined by a mark** -- `120/80`.
+  It reads each number separately and publishes a range and an average
+  for each, so the twin's cells hold believable readings.
+- **What it fixes.** Such a column was described as text, which
+  publishes no value at all, so its twin held cells like `632/20`: the
+  right shape and an impossible reading. Measured on 400 rows, the twin
+  now reproduces systolic 95 / 133.5 / 175 against a real 95 / 133.5 /
+  175, diastolic 55 / 80 / 105 against 55 / 80 / 105, and the same
+  number of different readings the real column held.
+- **synthtwin asks about these columns too**, with one more answer
+  offered. The same question that separates a code column from a
+  measurement separates a blood pressure from a lab code.
+- **Why you have to say so.** `120/80` and a lab code `1923-1` are
+  written identically, so nothing in the values can tell them apart. A
+  rule that guessed would have claimed lab codes and drug codes and
+  published fragments of them as numeric ranges.
+- **One limit, stated plainly:** the two numbers are drawn
+  independently, so a twin cell is believable one number at a time. The
+  description publishes no link between them, and this version invents
+  none.
+
+### Changed: nothing is held back for being rare, unless you ask for it
+
+- **The smallest group size now defaults to 1 instead of 11** (owner
+  ruling 2026-08-25). Every value your table holds is named in the
+  profile, together with how many rows shared it, so a rare finding
+  reaches your twin instead of being pooled away. The reason is that
+  synthtwin publishes nothing that crosses two columns -- so a named
+  rare value says that somebody in your table had it, and nothing else
+  about them.
+- **`--smallest-group 11` restores the old behaviour in full**, and
+  every rule about what the floor protects still binds at whatever
+  number your description carries. If a review board or a data-use
+  agreement needs groups kept above a size, that is the option.
+- **What to check if you relied on the old default:** a profile made
+  before this release is unaffected -- the floor lives in the document,
+  and every command runs on the number it finds there.
+
+### Added: `--code`, for coding systems written in digits
+
+- **`--code COLUMN` tells synthtwin that a column holds codes rather
+  than measurements.** Vaccine codes, procedure codes, revenue codes,
+  provider numbers, risk-group codes. Its values are still published,
+  because which codes are common is the point of the column; what
+  changes is that synthtwin stops reading them as numbers.
+- **What it fixes.** A column of `08`, `20`, `213` was read as a
+  quantity: the profile published an average, a smallest and a largest
+  -- meaningless for a code, and real codes besides -- and the twin
+  wrote `8` where your table wrote `08`, so code that splits on width
+  broke. Declared, every spelling is kept exactly and counted.
+- **You need it only for a column written in digits alone.** One
+  written with a letter or a dash -- `E11.9`, `0002-8215-01`,
+  `HGNC:5`, `NM_000546.6:c.215C>G` -- is already read as codes.
+- **Measured across eighteen coding systems** -- NDC, CVX, MVX, UDI,
+  MS-DRG, APC, UB-04, NPI, the clinical grouper codes, Elixhauser, Charlson, CMS-HCC, CDPS,
+  HGNC ID, HGVS, OMIM, ClinVar, GA4GH -- all eighteen now survive
+  profile, generate and validate with their written shapes intact. Two
+  of them, CVX and UB-04, lost their leading zeros before this release.
+
+### Added: synthtwin asks you about columns it cannot read
+
+- **A column of digits is a coding system or it is measurements, and
+  the two are written identically.** synthtwin does not guess. When it
+  meets a column of digits that could be codes -- some value padded
+  with a leading zero, or every value the same width -- it stops and
+  asks you, showing you a few of the values.
+- **Your answers are recorded in the profile**, and the exact options
+  to repeat the run without the questions are printed at the end.
+- **It never stops a script.** Where nobody is at the keyboard, it
+  names those columns on screen, says what it assumed, and prints the
+  `--code` line that corrects it. A run whose output is piped to a
+  file counts as scripted even from a terminal.
+- **What it does not reach**, said so silence is not read as
+  clearance: a column of one-to-three digits with no padding, like
+  the clinical grouper codes, are written exactly like a count and raises no question --
+  `--code` still describes it correctly when you say the word.
+
+### Changed: Phase 3 is closed, without the release it asked for
+
+- **Phase 3 was closed by owner decision on 2026-08-19, and the release
+  it named as its own earliest-possible deliverable did not happen.**
+  The product it set out to build is done and in your hands -- the
+  three commands, the quality report, the repository going public. The
+  release is not: there is no tag and nothing is published. Everything
+  that rests on release evidence stays unmet and is named as unmet,
+  including Phase 1's residual about verifying the wheel's own digest,
+  which this project had recorded as closed "on the first release's
+  evidence" before that evidence existed. That line is struck rather
+  than deleted, in the plan, where a reader of the register meets it.
+- **What changes for you: nothing about the tool, and one thing about
+  what it says of itself.** The project now describes itself as being
+  in Phase 4, because it is. It does not describe itself as released,
+  because it is not, and no wording anywhere says otherwise.
+- **The order this was done in is recorded rather than tidied away**
+  (plan amendment A-P4-4). Phase 4's first piece was built on a branch
+  before Phase 3's closing state was settled, which is not the order
+  the plan required. Nothing was merged and nothing was published in
+  that window, so the contradiction reached no reader outside the
+  branch -- but it was real, an adversarial review raised it at every
+  round, and the amendment authorizes that one interval, prices it, and
+  leaves the rule at full strength for every stage that follows.
+
+### Added in Phase 4: a twin of a column of codes now holds things shaped like codes
+
+- **A column whose rare values the disclosure floor holds back used to
+  put `group-1`, `group-2`, `group-3` in the twin.** On a column of
+  clinical codes that stand-in is wrong every way a stand-in can be: it
+  is the wrong length, it is lower-case where the codes are not, and on
+  a hyphenated scheme it carries a hyphen of its own -- so it passes a
+  "looks segmented" check, crashes a split into a fixed number of
+  parts, and, the word being exactly five characters, makes a width
+  check on the leading segment answer plausibly and wrongly. You found
+  all three at once against the real file.
+- **A long-tail column and a free-text column now publish the WRITTEN
+  FORMS their cells were written in, and the twin wears them** (plan
+  P4-D18, contract 7.9, on the owner's ruling A-P4-36). A form is the
+  cell with every figure replaced by `9` and every letter by `A`, the
+  marks standing as themselves: `E11.9` has the form `A99.9`, a
+  laboratory code `4548-4` has `9999-9`, a dispensed-drug code
+  `0002-8215-01` has `9999-9999-99`. Your twin's cells are written in
+  those forms, so a split, a width check and a pattern match all answer
+  the way they will on the real table.
+- **A form says the shape and nothing else, and that is CHECKED rather
+  than promised.** A key holds two placeholder characters -- `%` for a
+  figure, `@` for a letter -- and thirteen marks synthtwin names, and
+  nothing else, whatever wrote it, including a file edited by hand.
+  `E11.9` is `@%%.%`, and `E11.9` and `Z99.1` are one key that tells
+  them apart from nothing.
+- **The placeholders are characters no code of yours can contain, and
+  that is the whole reason they are those two.** They were `9` and
+  `A`, which read far better and were WRONG: a form built from
+  figures and letters is a string a cell can also be spelled with, so
+  a form could BE one of your values. `A99` is a real diagnosis code.
+  On a column with three patients coded `A99` -- held back by the
+  small-cell floor, exactly as it should be -- the shape census
+  published `A99` straight back into the description file. That is
+  fixed: no cell that has a shape can ever be spelled the same as any
+  shape, and synthtwin refuses a description whose key breaks it.
+- **A shape is read over `0`-`9` and `a`-`z` only, and a cell holding
+  anything else has none.** Reading letters the way Python reads them
+  made the answer depend on which version of Python you ran: the same
+  table gave a different description, a different twin, and a quality
+  report that called a good twin BROKEN, purely from where it ran.
+- **A column of prose publishes nothing here.** A cell holding a space
+  has no form, and neither does one longer than twenty-four
+  characters, or one holding any mark outside the thirteen. So a note,
+  an address or a typed comment puts nothing in the census -- and
+  neither does a short sentence written to a template, which was a
+  real hole: two hundred and forty of those share one form, and that
+  form would have named every word's length and where the punctuation
+  fell.
+- **A form that says nothing new is not published.** Four region names
+  would say `AAAA` and `AAAAA`, and the description already publishes
+  their lengths exactly and which alphabet they came from. A cell has
+  a form only where at least two of the three kinds -- figure, letter,
+  mark -- appear in it, so `J1200` keeps `A9999` and `north` publishes
+  nothing.
+- **No rule anywhere decides which of your columns are codes.** The
+  same small-cell floor that governs everything else does, together
+  with those three limits, so there is no code detector here that can
+  get it wrong.
+- **Measured across the ten clinical coding schemes the owner named**,
+  each written twice: as a column of all-different codes and as a long
+  tail. Every one of the twenty twins is shaped like its own scheme and
+  splits into the number of parts that scheme has. A blood-pressure
+  column reaches `152/90`-shaped cells the same way.
+- **What this LOWERS is said plainly**: two roles that published
+  nothing about their values' writing now publish the forms those
+  values were written in. What it buys is the thing the owner asked
+  for: a rare finding represented in the twin, at its real count, in
+  the shape of the thing it stands for -- and code developed against
+  the twin that runs on the real table.
+
+### Fixed in Phase 4: a number written two ways is written two ways again
+
+- **A column that wrote the same number with both `1e+15` and `1E+15`
+  lost one of the two in its twin.** The count of different spellings
+  your file publishes then came out one short, every time, and your
+  twin's report named the miss. Everything else about the column was
+  right, which is why it took a second implementation of the written
+  method to find at all: both columns met every other published count.
+- **What it needs to have happened to you**: a numeric column whose
+  cells carry exponents, where your file spelled one value's exponent
+  in upper case somewhere and lower case somewhere else. If your file
+  is consistent about the case -- almost all are -- nothing here
+  changes for you.
+- Measured over 140 built columns at three seeds each: the twin is now
+  closer to your published counts on every column that moved, and
+  further on none.
+
+### Fixed in Phase 4: your twin's report no longer accuses a twin that is fine
+
+- **A column whose empty cells were written with a word -- `-999`,
+  `N/A`, anything you named with `--missing-value` -- had those cells
+  counted as values by the report written beside the twin.** On a
+  column of ages with twenty `-999` holes, the report said the twin's
+  average was -40.4 where your table's is 39.5, its spread 277 where
+  yours is 11.6, and its smallest percentile -999. **Thirteen
+  complaints about a twin that `synthtwin validate` calls correct.**
+- **The check was always right; only the report was wrong.** Nine
+  places in the generator asked "is this cell blank" where they meant
+  "is this cell a value". A twin writes your absent cells the way your
+  file wrote them, so a hole spelled `-999` looks like a number. They
+  all ask the same question now, and it is the question
+  `synthtwin validate` was already asking.
+- **What this changes for you:** if you saw a twin report full of
+  alarming numbers on a column with coded missing values, it was the
+  report and not the twin. Real shortfalls are still named -- the
+  twin holding fewer different values than your table does is still
+  reported, because that one is true.
+
+### Fixed in Phase 4: two older defects the form census turned up
+
+- **A held-back spelling of a published label could be written in a
+  form the column never had.** The twin makes up spellings for the
+  spellings below the floor, by flipping case and then by appending
+  spaces -- and a trailing space is a different written form. Where a
+  label had few letters and its flips were already published, the twin
+  wrote `E11.9 ` and `E11.9  ` for cells the real column wrote `e11.9`.
+  The label's own spelling is now offered where nothing else of the
+  level needs it, and it is offered to the largest held-back group.
+- **The order of a multiplicity map's keys read the figures as text**,
+  so a spelling covering ten rows was written before one covering two.
+  The method says ascending numeric order and now the code does too. It
+  changes nothing until a spelling covers ten rows or more.
+
+### Added in Phase 4: the twin now tells you which of its cells synthtwin made up
+
+- **Every column whose cells synthtwin invented says so, in its own
+  block, on every run** (plan P4-D2, the loud decline). Until now the
+  only place the report called a cell invented was the spreadsheet
+  warning, and only when such a cell happened to begin with `=`, `+`,
+  `-` or `@`. So a column synthtwin could not read -- a column of
+  prices, of clock times, of anything it has no reading for -- became
+  free text, the twin filled it with made-up characters, and you could
+  read the whole report without meeting one sentence saying so. Now the
+  sentence is a property of the column, not of what its cells happen to
+  look like. Three of them, because one would be false somewhere:
+  a column that publishes no value of your table is told that **every**
+  present value in its twin is invented; a column of categories is told
+  how many of its cells are neutral stand-ins for the labels the
+  smallest-group floor held back; and a column whose description counts
+  cells it carries no value for -- the ones that were not numbers, or
+  did not read as dates -- is told how many stand-ins it holds. A
+  column that invented nothing is told nothing, and a column with no
+  values at all is not told its zero values were invented.
+- **The count is on the screen and at the foot of the report**, whatever
+  it is: how many columns hold nothing but made-up values, and how many
+  more hold some beside values your description publishes. Both halves
+  are counted, because a line counting only the first would have read
+  "0 of 1" over a twin whose one column carries invented labels.
+- **The description's own summary now says it too**: if a description
+  publishes no value of a column, a twin built from it will hold
+  invented values there. You see that before you generate anything.
+- **What did not move:** no wire format, no generation rule, no twin
+  byte, and no exit code. A declined column is not a failure and
+  `synthtwin generate` still exits 0 on it -- the loudness is in what
+  you read, not in what a script checks. The report's golden hash was
+  re-recorded in the same commit, with the four blocks that moved named
+  in the comment beside it.
+
 ### Fixed in Phase 3: a failed check now tells you what your file holds, or why it cannot
 
 - **A missed obligation could print your description's request and

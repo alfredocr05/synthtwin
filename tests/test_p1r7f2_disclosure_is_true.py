@@ -55,7 +55,14 @@ import fixtures
 from synthtwin import profile, taxonomy
 from synthtwin.cli import main
 
-FLOOR = taxonomy.Settings().small_cell_floor
+# THE FLOOR THIS FILE ASKS ITS QUESTIONS AT, NAMED RATHER THAN ASSUMED.
+# Every sentence checked below is about what a description holds back,
+# and holding back is a function of the floor: since the owner's ruling
+# (plan amendment A-P4-37) the DEFAULT floor is 1, at which nothing is
+# withheld at all and the paragraph has no work to do. So each run made
+# here declares the floor of eleven these cases were written against,
+# and `_run` passes it to the command with every profile.
+FLOOR = taxonomy.Settings(small_cell_floor=11).small_cell_floor
 SENTINEL = "-999"
 
 
@@ -68,7 +75,9 @@ def _run(
     """Profile one column through the command; return document, JSON, summary."""
     text = fixtures.single_column_table(name, values)
     table = fixtures.write(tmp_path, f"{name}.csv", text)
-    assert main(["profile", f"{table}"] + options) == 0
+    assert main(
+        ["profile", f"{table}", "--smallest-group", f"{FLOOR}"] + options
+    ) == 0
     written = (tmp_path / f"{name}-profile.json").read_text(encoding="utf-8")
     summary_text = (tmp_path / f"{name}-profile.txt").read_text(
         encoding="utf-8"
@@ -155,12 +164,14 @@ def test_only_a_member_of_synthtwins_own_list_is_ever_written(
     )
     capsys.readouterr()
     assert document["settings"]["kept_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [-999.0],
         "built_in_texts": ["n/a"],
         "n_declared": 2,
         "values_recorded": False,
     }
     assert document["settings"]["declared_missing_values"] == {
+        "built_in_dates": [],
         "built_in_numbers": [],
         "built_in_texts": [],
         "n_declared": 1,
@@ -328,7 +339,7 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    narrative = [f"a sentence number {index} in words" for index in range(60)]
+    narrative = fixtures.prose(60)
     token = "withheld-token-417"
     document, written, summary_text = _run(
         tmp_path,

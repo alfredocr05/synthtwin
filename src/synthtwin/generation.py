@@ -140,10 +140,113 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
+from synthtwin import contract, errors, parsing, taxonomy
 
 import numpy.random
 
-from synthtwin import contract, errors, parsing
+
+# ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
+#
+# The universal bounds a moment is held to -- the largest skew a sample
+# of this size can take, the largest tail weight -- are stated as exact
+# expressions and computed in binary64, where two roundings can land the
+# endpoint one place INSIDE the true limit. `(3 - 2) / sqrt(3 - 1)`
+# comes out 0.7071067811865475 while the true limit rounds to
+# ...76, so a column whose skew IS the maximum is outside a bound it
+# exactly meets. Reproduced on the three cells `-1e20`, `0` and `1`:
+# the description publishes -0.7071067811865476, the twin holds
+# -0.7071067811865476, and the report said OUTSIDE and told the reader
+# to treat the fact as not reproduced.
+#
+# A bound stated as a limit must therefore be widened by one place
+# before it is compared against anything. The direction is always
+# outward, so the widening can never turn a real miss into a pass: it
+# admits exactly the values the limit itself admits.
+#
+# `math.nextafter` is not among the names this package's offline audit
+# allows, and widening the audit to admit one is the wrong way round --
+# `frexp` and `ldexp` are allowed and say the same thing.
+# The smallest positive number this format holds, which is also the gap
+# between any two neighbouring subnormals.
+_SMALLEST = math.ldexp(1.0, -1074)
+
+
+def _stepped(bound: float, upward: bool) -> float:
+    """The number this format holds next to ``bound``, in one direction.
+
+    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE, and the first
+    version of this function assumed it was (review item P4-G6-R7-F2).
+    It added a fixed `2 ** -53` to the fraction `frexp` returns, which
+    is the gap ABOVE a value whose fraction is exactly one half and
+    twice the gap BELOW it -- so `_lowered(1.0)` returned
+    0.9999999999999998 where the number next to 1.0 is
+    0.9999999999999999, stepping two places instead of one. It also
+    moved no subnormal at all, because the gap it computed there
+    underflows to nothing, and it raised `OverflowError` on the largest
+    number the format holds.
+
+    Two of those three only ever widened a bound further than intended,
+    which weakens a check without breaking it; the third was a crash
+    and the second left the very smallest bounds unwidened, which is
+    the case the widening exists for.
+
+    So the gap is worked out on the side being moved toward: `2 ** (e -
+    53)` going away from zero, and half of that going toward zero from
+    a value sitting exactly on the edge of its binade. Subnormals take
+    the one gap they have. A bound already at the edge of the range is
+    returned unchanged, since there is no number beyond it to widen to
+    and it already admits everything this format can write.
+
+    `math.nextafter` says all of this in one call and is not among the
+    names this package's offline audit allows. Widening that audit to
+    admit one would be the wrong way round; `frexp` and `ldexp` are
+    allowed and say the same thing. `tests/` checks this against
+    `math.nextafter` over the whole range, which is what an audit's
+    allowlist costing a line of arithmetic is supposed to look like.
+    """
+    if not math.isfinite(bound):
+        return bound
+    if bound == 0.0:
+        return _SMALLEST if upward else -_SMALLEST
+    magnitude = abs(bound)
+    growing = (bound > 0.0) == upward
+    fraction, exponent = math.frexp(magnitude)
+    gap = math.ldexp(1.0, exponent - 53)
+    if not growing and fraction == 0.5:
+        gap = math.ldexp(1.0, exponent - 54)
+    if gap < _SMALLEST:
+        gap = _SMALLEST
+    stepped = magnitude + gap if growing else magnitude - gap
+    if not math.isfinite(stepped):
+        return bound
+    if bound < 0.0:
+        return -stepped
+    return stepped
+
+
+def _raised(bound: float) -> float:
+    """The smallest number this format holds above ``bound``.
+
+    An UPPER limit is widened with this, so a value that is correctly
+    rounded onto the limit itself cannot fall outside it.
+    """
+    return _stepped(bound, True)
+
+
+def _lowered(bound: float) -> float:
+    """The largest number this format holds below ``bound``.
+
+    A LOWER limit is widened with this, for the same reason -- and the
+    direction is what makes it a widening rather than a shift. Moving
+    an upper limit away from zero and a lower limit away from zero are
+    the same thing only when the pair straddles zero, which the skew
+    bound does and the tail weight's does not: its two ends are both
+    positive, and widening its low end AWAY from zero moved that end
+    UP, past the very value the window was drawn to admit.
+    """
+    return _stepped(bound, False)
+
+
 
 # The one draw form of method G3.2, written out so the numbers are
 # checkable against the specification: the whole of 0 .. 2**64 - 1,
@@ -157,6 +260,62 @@ _WORD_SCALE = 18446744073709551616
 # binary spelling and the nearest one moves a rung onto the wrong pair
 # of neighbours in a large column (method G5.1).
 _PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
+
+# THE HUNDRED AND ONE PERCENTS OF THE FINER LADDER (plan P4-D4.10).
+# The named eleven above are what a DATE or CLOCK column's ladder
+# stands at, and what the report walks when it names a rung; a column
+# of numbers interpolates over all hundred and one, because that is
+# where the fidelity comes from -- an eleven-rung ladder says nothing
+# about how many cells lie inside a gap.
+_PCT_FINE = tuple(range(101))
+
+# Which percents a ladder stands at is decided by HOW MANY RUNGS IT
+# HAS, so the seventeen places that interpolate need no argument added
+# and cannot be given a ladder and the wrong percents for it.
+_PERCENTS_BY_LENGTH = {len(_PCT): _PCT, len(_PCT_FINE): _PCT_FINE}
+
+
+def _percents_of(rungs: "tuple[float, ...]") -> "tuple[int, ...]":
+    """The percents a ladder of this many rungs stands at."""
+    if len(rungs) not in _PERCENTS_BY_LENGTH:
+        # `errors.ProfileError` and not `AssertionError`, which the
+        # offline audit refuses: it cannot trace a built-in it does not
+        # carry, and every internal check in this package is raised
+        # this way so a person meets one sentence and not two kinds.
+        raise errors.ProfileError(
+            f"synthtwin internal check: a ladder of {len(rungs)} rungs "
+            "stands at no percents this method knows -- it is eleven "
+            "rungs or a hundred and one. This means a mistake in "
+            "synthtwin; please report it. Nothing has been written."
+        )
+    return _PERCENTS_BY_LENGTH[len(rungs)]
+
+# The eleven rungs by name, in ladder order, which is the order `_PCT`
+# is in. A ladder read out of a document is a MAPPING, so a walk over
+# it needs the order written down; taking the mapping's own order would
+# make the twin depend on how a document happened to be serialised.
+_LADDER_NAMES = (
+    "min",
+    "p01",
+    "p05",
+    "p10",
+    "p25",
+    "p50",
+    "p75",
+    "p90",
+    "p95",
+    "p99",
+    "max",
+)
+
+# What is said when a published clock value the loader already checked
+# cannot be read back. No document a person can write reaches it.
+_INTERNAL_CLOCK = (
+    "synthtwin internal check: a clock time this description publishes "
+    "could not be read back in the form the same description names. "
+    "This means a mistake in synthtwin; please report it. Nothing has "
+    "been written."
+)
 
 # The three alphabets of method G9.1. The ORDER is part of the
 # specification, because it decides which spellings are produced first.
@@ -195,7 +354,7 @@ _FORMULA_LEADERS = ("=", "+", "-", "@")
 _SPACE = " "
 
 # The four classes every present cell of every role belongs to, in the
-# order method G6.5 shares a distinctness budget out among them.
+# order method G6.6 shares a distinctness budget out among them.
 _CLASS_NUMBER = "number"
 _CLASS_OUT_OF_RANGE = "out_of_range"
 _CLASS_CONTRADICTORY = "contradictory"
@@ -228,6 +387,128 @@ _FIRST_TWO = (0, 1)
 # publishes none, two columns four hundred and four thousand characters
 # wide publish identically, and the report says so in those words.
 _CANONICAL_WIDTH = 400
+
+# THE FEWEST FIGURES THAT KEEP A VALUE OUT OF BINARY64 (residual
+# R-P4-37). This role exists for numbers the format cannot hold, so a
+# twin cell written narrow enough to BE holdable would reprofile as an
+# ordinary numeric column -- the description would be describing a
+# different kind of column from the one the twin holds. Binary64's
+# largest finite value is about 1.8e308, so a whole numeral needs three
+# hundred and ten figures to be certain of passing it; the smallest
+# positive subnormal is about 5e-324, so a fraction needs three hundred
+# and twenty-five places to be certain of falling under it.
+#
+# THESE ARE FLOORS AND NOT THE WIDTH. Where the description publishes a
+# wider one, the published width is used and these do not bind.
+# THE TWO SHAPE FLOORS, MEASURED AND NOT ASSUMED. Both are counts of
+# the ROOM a value has after its sign, because a minus sign buys no
+# magnitude: a value written 310 characters wide with a leading minus
+# carries 309 figures and 1e309 is the first that leaves binary64's
+# range, so a floor applied to the whole cell rather than to its room
+# writes a holdable value into a column described as holding none.
+#
+# 309 figures is the first whole number past the largest binary64
+# (about 1.8e308) and 326 characters is the first `0.`-and-zeros
+# fraction below the smallest subnormal (about 4.9e-324); each floor
+# here carries one character past its measured edge. The fraction floor
+# was 325 while the fraction spelling ran two characters wider than the
+# width it was given, and correcting that arithmetic without correcting
+# this number wrote representable values at the floor.
+_OVERFLOW_FIGURES = 310
+_UNDERFLOW_PLACES = 327
+
+# THE EXPONENT SPELLING FAMILY AND ITS OWN TWO FLOORS (method G10.5
+# revision 5, closing residuals R-P4-48 and R-P4-68). The two floors
+# above are the floors of the DIGIT-STRING family, and until revision 5
+# that was the only family either out-of-range shape had -- so a real
+# column of `1e400` and `-1e400`, five and six characters, publishing
+# `min_length` 5 and `max_length` 6 exactly right, got a twin of
+# 310- and 311-character numerals. A person developing `len(x) == 5`, a
+# fixed-width read or a slice against that twin met a value sixty times
+# wider than anything their table held.
+#
+# A mantissa, the letter `e` and a signed exponent says the same
+# magnitude in five characters. `1e400` is the narrowest too-large
+# spelling -- one figure, `e`, and three exponent figures, because an
+# exponent that certainly leaves binary64's range needs three -- and
+# `1e-400` the narrowest too-small one, which is the same plus the
+# exponent's sign. These are counts of the ROOM after the value's own
+# sign, exactly as the two floors above are.
+#
+# `400` IS FIXED RATHER THAN MEASURED, and does not have to be
+# measured: it is past every magnitude either shape can reach at any
+# width this method writes, and fixing it is what lets two
+# implementations agree on the cell rather than on a search. What IS
+# asked of each candidate is the question itself -- the shipped parser
+# reads it back, and a spelling it does not read as this shape is not
+# written.
+_EXPONENT_LARGE_ROOM = 5
+_EXPONENT_SMALL_ROOM = 6
+
+# THE EXPONENT ITSELF IS A THREE-FIGURE FIELD AND IT MOVES, which the
+# first build of this family got wrong and a measurement caught. Fixing
+# the exponent at 400 gave the family nine spellings at five characters
+# -- and a REAL column holds thousands there, `1e309` through `9e999`.
+# Measured: a 160-row column of sixteen distinct five-character values
+# made `synthtwin generate` REFUSE with the domain-too-small message,
+# on a description the profiler had just written from a real table.
+# Before this family existed the same column generated -- three hundred
+# characters wide, with both widths missed -- so a repair that met the
+# width had turned a reported miss into a stopped command. A repair can
+# move a hazard.
+#
+# So the walk spends the MANTISSA first at one exponent and then steps
+# the exponent OUTWARD from 400 -- up to 999, then down from 399 -- and
+# the tail stays four characters (`e400`) or five (`e-400`) throughout,
+# because every exponent it visits has three figures. Where it stops is
+# not written here: it is where the shipped parser stops reading the
+# spelling as this shape, which is the question this family asks of
+# every candidate anyway.
+_EXPONENT_HOME = 400
+_EXPONENT_CEILING = 999
+_EXPONENT_FLOOR = 100
+
+# The two spelling families a wide value may be written in. Four of the
+# six shapes have only the first; the two out-of-range shapes have both,
+# and which one writes a group is settled by the asked width and then by
+# capacity, in that order (G10.5 revision 5).
+_WIDE_PLAIN = "plain"
+_WIDE_EXPONENT = "exponent"
+
+# AND THE ZERO RUN ITSELF TAKES A FLOOR, which the width floor above
+# does NOT imply. The fraction spelling spends its width on `0.`, a run
+# of zeros and a FIGURE BODY that grows as the walk enumerates distinct
+# values -- so a zero run sized as "whatever is left of the asked
+# width" shrinks as that body grows, and the value climbs back up.
+# Written at 327 characters, the twenty-fifth distinct fraction comes
+# out 5e-324: the smallest subnormal there is, a value binary64 HOLDS,
+# inside a column described as holding none.
+#
+# **THIS IS A REPAIR, AND THE CLAIM THAT IT WAS ONLY A GUARD WAS
+# WRONG.** It was written here first as a precaution, on the strength
+# of a randomised trial over 300 built columns holding at most 40
+# distinct values each, in which the state was never reached. A
+# reviewer then supplied the column that trial was too shallow to
+# contain: 271 distinct fractions at widths 327 and 328, which a real
+# table holds perfectly well. Without this floor that column's twin
+# holds 48 cells binary64 DOES represent against a published count of
+# zero, and reprofiles with `n_out_of_range` down from 542 to 494.
+#
+# The measurement that produced the wrong conclusion is worth keeping
+# beside the one that corrected it: a randomised trial shows a defect
+# present and never shows one absent, and the shape it does not build
+# is the shape it tells you nothing about.
+#
+# **AND THE REPAIR IS NOT A CONSTANT, which the first two attempts at
+# it both were.** 324 zeros is where the largest body of every length
+# underflows, so a constant of 324 is safe -- and it writes every
+# BETTER body a character wider than the description asks, because what
+# decides is the value and so the figures decide it too: behind 323
+# zeros the body `10` underflows and the body `9` does not, and a
+# six-figure body needs only 319. The rule at the spelling below is
+# therefore the question itself, asked of each candidate, which is also
+# the only form two implementations can agree on without sharing a
+# number.
 
 # The three bands a stratum of a column of numbers sits in, in the fixed
 # order of method G5.2, which is the sorted order of the column's own
@@ -269,6 +550,35 @@ class Deviation:
     fact: str
     published: str
     achieved: str
+    note: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Remark:
+    """One thing the twin's own cells HOLD, where no published fact was
+    missed to produce it.
+
+    THIS TYPE EXISTS BECAUSE THE OTHER TWO WOULD BOTH LIE (review item
+    P4-G2-R4-F1). A `Deviation` says a published fact could not be met
+    and an `Approximation` says one was met within its bound; a twin
+    can also hold something a reader must know about that is NEITHER --
+    a property of the finished cells that every published fact being
+    met exactly does nothing to prevent. Filing such a thing as a
+    deviation names a fact that WAS met and prints it beside a
+    different quantity, so the report tells a reader an exact fact
+    failed when it succeeded.
+
+    `subject` names what was measured IN THE TWIN, in the twin's own
+    terms, and is deliberately not a description key: nothing here is a
+    published fact, so borrowing a published fact's name is the defect
+    this type was added to remove. `held` is what the cells hold and
+    `note` is one plain sentence saying what it means for somebody
+    developing code against the twin.
+    """
+
+    column: str
+    subject: str
+    held: str
     note: str
 
 
@@ -354,6 +664,9 @@ class ColumnOutcome:
     placement_words: int
     deviations: "tuple[Deviation, ...]"
     approximations: "tuple[Approximation, ...]"
+    # WHAT THIS COLUMN'S TWIN HOLDS THAT IS NEITHER (item P4-G2-R4-F1).
+    # Not a missed fact and not an approximated one -- see `Remark`.
+    remarks: "tuple[Remark, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -389,13 +702,14 @@ class Twin:
     outcomes: "tuple[ColumnOutcome, ...]"
     deviations: "tuple[Deviation, ...]"
     approximations: "tuple[Approximation, ...]"
+    remarks: "tuple[Remark, ...]"
     words_drawn: int
     seed: int
 
 
 @dataclasses.dataclass(frozen=True)
 class _NumericLayout:
-    """How the cells of a column of numbers divide (method G5.2, G6.5).
+    """How the cells of a column of numbers divide (method G5.2, G6.6).
 
     `sizes` and `starts` are the strata in the fixed order negatives
     ascending, then the zero stratum, then positives ascending; `bands`
@@ -437,6 +751,7 @@ class _ColumnPlan:
     layout: "_NumericLayout | None"
     cells: "tuple[str, ...]"
     notes: "tuple[Deviation, ...]"
+    remarks: "tuple[Remark, ...]" = ()
     # WHICH TWO GROUPS CARRY THE PUBLISHED LENGTH AND WORD ENDS. On a
     # column of free text the allocation settles this rather than
     # inheriting it (review item P2-C4-F2), and the two ends of every
@@ -444,6 +759,15 @@ class _ColumnPlan:
     # filled the groups AROUND those two. So the answer is recorded here
     # rather than assumed again where the bounds are measured.
     carriers: "tuple[int, int]" = _FIRST_TWO
+    # EVERY SPELLING ANY COLUMN OF THIS DOCUMENT CALLS ABSENT. A
+    # declaration made on the command line reaches the WHOLE table, so
+    # a spelling one column publishes among its absent cells means "no
+    # value" in every column -- and the validator reads it that way
+    # (review round 5 finding 3). A stand-in walk that knew only its
+    # own column's holes wrote `group-1` into a second column while a
+    # first published `group-1` as absent, and ten obligations missed
+    # on a twin whose own report said nothing about it.
+    all_holes: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -541,6 +865,11 @@ def _deviation(
     )
 
 
+def _remark(column: str, subject: str, held: str, note: str) -> Remark:
+    """One thing the twin holds that no published fact was missed for."""
+    return Remark(column=column, subject=subject, held=held, note=note)
+
+
 def _flipped_case(character: str) -> str:
     """``character`` with its case turned over, or unchanged.
 
@@ -594,7 +923,7 @@ def _case_variant(spelling: str, order: int) -> "str | None":
 
 
 def _budget_split(total: int, counts: "tuple[int, ...]") -> "tuple[int, ...]":
-    """Share a distinctness budget out among the classes (method G6.5).
+    """Share a distinctness budget out among the classes (method G6.6).
 
     Every non-empty class receives one spelling, then the remainder is
     offered to the classes in the fixed order of `_CLASSES`, each taking
@@ -1532,9 +1861,36 @@ def _groups_of(pattern: "dict[str, int]") -> "tuple[int, ...]":
     return tuple(sizes)
 
 
-def _recounted(cells: "list[str]") -> "tuple[int, int, int, int]":
-    """Recount a written column: present, absent, different, folded."""
-    present = [cell for cell in cells if cell != ""]
+def _recounted(
+    cells: "list[str]", holes: "tuple[str, ...]",
+    decimal_comma: bool = False,
+) -> "tuple[int, int, int, int]":
+    """Recount a written column: present, absent, different, folded.
+
+    COUNTED THE WAY THE TWIN'S OWN DESCRIPTION WILL COUNT IT (review
+    item P4-DATE-F2). A cell is present when it holds something the
+    description does not read as absent -- not merely when it is not
+    empty. A run that wrote a cell wearing a spelling the column
+    publishes among its absent ones has written a cell its own reader
+    will not count, and a recount that called it present would report
+    a count the twin does not hold.
+    """
+    # THE SAME IDENTITY THE REST OF THIS MODULE USES (review item
+    # P4-G3-R8-F1). A comment beside `_wears_this_hole` claimed three
+    # callers shared one rule and only two of them did -- this was the
+    # third, still asking the ordinary grammar. A declared column that
+    # publishes the hole `-999` and writes a present cell `-999,0`
+    # then had that cell counted PRESENT here and ABSENT by a
+    # re-description: the collision was detected, the recount was
+    # unchanged, and the presence lines below -- which need both --
+    # stayed silent while the quality report named the loss.
+    present = [
+        cell
+        for cell in cells
+        if cell != "" and not _wears_any_published_hole(
+            cell, holes, decimal_comma
+        )
+    ]
     folded = {parsing.folded(cell) for cell in present}
     return (
         len(present),
@@ -1547,8 +1903,50 @@ def _recounted(cells: "list[str]") -> "tuple[int, int, int, int]":
 # -- the ladder (method G5.3) -----------------------------------------
 
 
+def _merged_rungs(
+    facts: contract.NumericFacts,
+) -> "tuple[float, ...] | None":
+    """A column of numbers' ladder at its full hundred and one rungs.
+
+    The eleven the description NAMES and the ninety beside them are one
+    ladder measured one way (contract Q19), and this is where the two
+    are put back together, in percent order, before G5.1's filling rule
+    is applied to the whole of it.
+
+    WHY THE GENERATOR USES ALL OF THEM. An eleven-rung ladder says
+    nothing about how many cells lie inside a gap between two rungs, so
+    a twin drawn from it puts too few values where the real column
+    crowded them. Measured on one dental-code column: from eleven
+    rungs, 79 cells below 1000 against a true 97 -- residual R-P4-30 --
+    and from a hundred and one, 97 exactly. No new mechanism was needed
+    for it, which is the whole reason this fact works where the
+    histogram did not: placing values by interpolating a ladder is
+    already what the value construction does, and this hands it a
+    longer list.
+
+    Guarantees: accepts a numeric block; returns a hundred and one
+    non-decreasing rungs, or None where the ladder holds nothing
+    anywhere. Determinism: a function of the published rungs. Raises
+    nothing. No I/O of any kind.
+    """
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[index]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    whole: "list[float | None]" = []
+    for percent in range(101):
+        if percent in named:
+            whole = whole + [named[percent]]
+        else:
+            whole = whole + [finer[percent]]
+    return _filled_rungs(tuple(whole))
+
+
 def _filled_rungs(
-    rungs: "tuple[float | None, ...]",
+    rungs: "tuple[float | None, ...] | None",
 ) -> "tuple[float, ...] | None":
     """The eleven rungs with every empty one filled in, or None.
 
@@ -1563,6 +1961,19 @@ def _filled_rungs(
     the caller falls back to the sign counts. Nothing is read but the
     rungs given.
     """
+    # A LADDER THAT IS NOT THERE AT ALL, which is not the same as one
+    # whose rungs are all null and reaches here the same way (review
+    # item P4-G6-R3, found while building a witness for F2). This
+    # function and `_merged_rungs` BOTH document returning None where
+    # the ladder holds nothing anywhere, and the unified-ladder landing
+    # composed them -- `_filled_rungs(_merged_rungs(facts))` -- without
+    # guarding the join. On a description whose rungs are null at every
+    # one of the hundred and one, which the loader accepts,
+    # `synthtwin generate` came out as `TypeError: object of type
+    # 'NoneType' has no len()`. The caller already handles the None
+    # this returns; it was only the way in that had no answer.
+    if rungs is None:
+        return None
     holds = [place for place in range(len(rungs)) if rungs[place] is not None]
     if not holds:
         return None
@@ -1579,19 +1990,26 @@ def _filled_rungs(
     return tuple(filled)
 
 
-def _segment(numerator: int, denominator: int) -> int:
+def _segment(
+    numerator: int, denominator: int, percents: "tuple[int, ...]" = _PCT
+) -> int:
     """The ladder segment a stratum's share falls in (method G5.3).
 
     The unique step with ``PCT[j] * D <= 100 * N < PCT[j+1] * D``,
     scanning upward from zero and stopping at the first that holds. The
     probabilities strictly increase, so the answer is unique.
+
+    ``percents`` is the eleven of a date or clock ladder by default and
+    the hundred and one of a numeric one where that is passed; the
+    scan is the same either way and only its length changes.
     """
     scaled = 100 * numerator
-    for step in range(10):
-        below = _PCT[step] * denominator <= scaled
-        if below and scaled < _PCT[step + 1] * denominator:
+    last = len(percents) - 2
+    for step in range(last + 1):
+        below = percents[step] * denominator <= scaled
+        if below and scaled < percents[step + 1] * denominator:
             return step
-    return 9
+    return last
 
 
 def _interpolated(
@@ -1612,11 +2030,12 @@ def _interpolated(
     segment by one unit in the last place, and the published ends are
     facts a recount would catch.
     """
-    step = _segment(numerator, denominator)
+    percents = _percents_of(rungs)
+    step = _segment(numerator, denominator, percents)
     low = rungs[step]
     high = rungs[step + 1]
-    above = 100 * numerator - _PCT[step] * denominator
-    span = (_PCT[step + 1] - _PCT[step]) * denominator
+    above = 100 * numerator - percents[step] * denominator
+    span = (percents[step + 1] - percents[step]) * denominator
     share = math.ldexp((above << 53) // span, -53)
     rest = 1 - share
     first = rest * low
@@ -1723,6 +2142,90 @@ def _fixed_point(sign: str, figures: str, place: int) -> str:
     return f"{sign}{figures[:place]}.{figures[place:]}"
 
 
+def _incremented(digits: str) -> str:
+    """One string of figures with one added to it, carrying to the left."""
+    carried = "1"
+    built = ""
+    for place in range(len(digits) - 1, -1, -1):
+        step = int(digits[place]) + int(carried)
+        carried = "1" if step > 9 else "0"
+        built = f"{step % 10}{built}"
+    if carried == "1":
+        return f"1{built}"
+    return built
+
+
+def _at_width(sign: str, figures: str, place: int, width: int) -> str:
+    """The figures written with EXACTLY ``width`` of them after the point.
+
+    THE CENSUS OF WIDTHS IS A PUBLISHED FACT AND THIS IS HOW A TWIN
+    CARRIES IT (contract C6-27 to C6-30). A column of eleven `1.00`
+    cells and eleven `2.000` cells publishes both widths, and a twin
+    writing every cell at whatever width its own value happened to need
+    carried the forms map exactly while writing a column no reader of
+    the real one would recognize.
+
+    SHORT OF THE WIDTH THE VALUE IS PADDED, WHICH COSTS NOTHING: a zero
+    on the end changes no value. PAST it the value is ROUNDED, which
+    costs something real and is stated rather than hidden -- the value
+    moves by less than half of the last place the width can hold, and
+    `_width_notes` recounts the finished text so the report says which
+    width the column actually came out at.
+
+    TIES GO TO EVEN, which is the plan's own word for this snap
+    (P4-D4.5) and is NOT the tie rule the rest of this method uses.
+    Every other rounding here places ONE value and a bias in it moves
+    that value; this one places a whole column of them, and a bias
+    toward positive infinity applied to every tie would walk the
+    column's own mean up with it. The difference is stated here because
+    a second implementer reading this function is owed one answer and
+    this docstring gave the other one.
+
+    A width of zero writes the point with nothing after it, which is
+    what a cell reading `12.` is: the forms ladder counts it `decimal`
+    and its width is none.
+    """
+    if place <= 0:
+        whole = "0"
+        fraction = ("0" * (-place)) + figures
+    elif place >= len(figures):
+        whole = figures + ("0" * (place - len(figures)))
+        fraction = ""
+    else:
+        whole = figures[:place]
+        fraction = figures[place:]
+    if len(fraction) <= width:
+        return f"{sign}{whole}.{fraction}{'0' * (width - len(fraction))}"
+    kept = fraction[:width]
+    following = fraction[width]
+    rest = fraction[width + 1 :]
+    trailing = False
+    for character in rest:
+        if character != "0":
+            trailing = True
+    if following > "5":
+        up = True
+    elif following < "5":
+        up = False
+    elif trailing:
+        up = True
+    else:
+        # HALF TO EVEN, which is the plan's own word for this snap
+        # (P4-D4.5). It is not the tie rule the rest of this method
+        # uses, and that is deliberate rather than an oversight: every
+        # other rounding here places ONE value and a bias in it moves
+        # that value; this one places a whole column of them, and a
+        # bias toward positive infinity applied to every tie would walk
+        # the column's own mean up with it.
+        last = kept[len(kept) - 1 :] if kept else whole[len(whole) - 1 :]
+        up = last in "13579"
+    digits = whole + kept
+    if up:
+        digits = _incremented(digits)
+    cut = len(digits) - width
+    return f"{sign}{digits[:cut]}.{digits[cut:]}"
+
+
 def _exponent_form(sign: str, figures: str, place: int, marker: str) -> str:
     """The figures written in exponent notation, `d[.ddd]e+XX`."""
     power = place - 1
@@ -1761,6 +2264,27 @@ def _canonical_number(value: float, whole_column: bool) -> str:
 # 7.5.4). So a cell can be counted in one of them only where the value
 # it holds can be written with neither mark.
 _WHOLE_STYLES = ("plain", "leading_zero", "leading_plus")
+
+# HOW FAR THE WALK FOR WHOLE NUMBERS MAY CHAIN, AND HOW MUCH IT MAY LOOK
+# AT (round 1, item 4). A chain nests one call per stratum it steps
+# through, and a column may be allotted more strata than the interpreter
+# will nest calls for; the search also asks every holder for its cheapest
+# answer, so the strata it examines is not linear in their number. Both
+# are capped, and a search that reaches either cap gives back what it
+# has -- a stratum keeping a value with a point in it, which the report
+# names -- rather than a wrong answer or a crash.
+_CHAIN_DEPTH = 16
+_CHAIN_WORK = 4096
+
+
+# THE ONE PAIR OF STYLES THAT DIFFER BY CASE ALONE. `1e+15` and `1E+15`
+# are two RAW spellings of one value and one FOLDED identity, and a
+# column publishes both counts. Every other pair of styles changes a
+# figure or a mark, so it costs one of each; naming this pair is what
+# lets a split be charged to the right count. They are folded the way
+# `parsing.folded` folds them: the upper answers to the lower.
+_CASE_ONLY_STYLE = "exponent_upper"
+_FOLDS_ONTO = "exponent_lower"
 
 
 def _point_free(value: float, canonical: str) -> str:
@@ -1849,7 +2373,12 @@ def _with_zeros(spelling: str, order: int) -> str:
 
 
 def _styled_number(
-    value: float, style: str, order: int, whole_column: bool
+    value: float,
+    style: str,
+    order: int,
+    whole_column: bool,
+    width: int = -1,
+    pad: int = -1,
 ) -> str:
     """One value written in one of the six permitted styles (G6.1, G6.3).
 
@@ -1867,7 +2396,16 @@ def _styled_number(
     if style == "plain":
         return _point_free(value, canonical)
     if style == "leading_zero":
-        return _with_zeros(_point_free(value, canonical), max(order, 1))
+        plain = _point_free(value, canonical)
+        # A PUBLISHED FIELD WIDTH OUTRANKS THE ORDER, because the order
+        # is a count of zeros and the width is the fact a person sees.
+        # `pad` of -1 is "no census reached this cell", which is the
+        # pooled remainder's rule and the behaviour of every profile
+        # written before the census existed.
+        if pad >= 0:
+            carried = len(plain) - 1 if plain[:1] == "-" else len(plain)
+            return _with_zeros(plain, max(order, pad - carried))
+        return _with_zeros(plain, max(order, 1))
     if style == "leading_plus":
         plain = _point_free(value, canonical)
         if plain[0] == "-":
@@ -1875,8 +2413,15 @@ def _styled_number(
         return _with_zeros(f"+{plain}", order)
     figures = _digits_and_point(value)
     if style == "decimal":
+        # A width of -1 is "whatever this value needs", which is what a
+        # column publishing no census of widths asks for. Any other
+        # width is one the census named, and the cell is written at it.
+        if width < 0:
+            return _with_zeros(
+                _fixed_point(figures[0], figures[1], figures[2]), order
+            )
         return _with_zeros(
-            _fixed_point(figures[0], figures[1], figures[2]), order
+            _at_width(figures[0], figures[1], figures[2], width), order
         )
     if style == "exponent_lower":
         return _with_zeros(
@@ -1887,6 +2432,875 @@ def _styled_number(
             _exponent_form(figures[0], figures[1], figures[2], "E"), order
         )
     return canonical
+
+
+def _pinned_cells(
+    layout: "_NumericLayout", values: "list[float]"
+) -> "list[int]":
+    """Which cells hold a value no snap may move, in the plan's order.
+
+    The minimum, then the maximum, then every cell of the zero stratum
+    (plan P4-D4.5). Each is an EXACT-OBSERVABLE fact of its own -- two
+    rungs the ladder pins and a published count of zeros -- so a width
+    census may never be met by moving one of them.
+
+    The indexes are into the COLUMN'S CELLS, which is what the width
+    walk holds: a stratum can cover several cells, and the zero stratum
+    covers all of its own.
+
+    A CELL IS PINNED BY THE VALUE IT HOLDS AND NOT BY WHERE IT STANDS.
+    An endpoint stratum can cover several cells and two strata can hold
+    the same number, so pinning the first cell of each and leaving its
+    twins free let a snap move a copy of the published minimum: at one
+    figure after the point a column whose smallest value is -745.75
+    wrote -745.8 into a second cell holding that same value, and the
+    file's own smallest value was then a number the description does
+    not publish. Every cell holding a pinned value is pinned.
+    """
+    starts: list[int] = []
+    at = 0
+    for place in range(len(layout.sizes)):
+        starts = starts + [at]
+        at = at + layout.sizes[place]
+    total = len(layout.sizes)
+    kept: list[float] = []
+    if total >= 1:
+        kept = kept + [values[0]]
+    if total >= 2:
+        kept = kept + [values[total - 1]]
+    found: list[int] = []
+    for value in kept:
+        for place in range(total):
+            if values[place] != value:
+                continue
+            for step in range(layout.sizes[place]):
+                found = found + [starts[place] + step]
+    for place in range(total):
+        if layout.bands[place] != _BAND_ZERO:
+            continue
+        for step in range(layout.sizes[place]):
+            found = found + [starts[place] + step]
+    settled: list[int] = []
+    seen: dict[int, int] = {}
+    for index in found:
+        if index in seen:
+            continue
+        seen[index] = 1
+        settled = settled + [index]
+    return settled
+
+
+def _fraction_need(value: float) -> int:
+    """How many figures after the point this value's own spelling needs."""
+    sign, figures, place = _digits_and_point(value)
+    if place <= 0:
+        return (-place) + len(figures)
+    if place >= len(figures):
+        return 1
+    return len(figures) - place
+
+
+def _published_ends(
+    facts: contract.NumericFacts, values: "list[float]"
+) -> "tuple[float, float]":
+    """The two rungs no cell of this column may be carried outside.
+
+    The published ladder's own ends where it has them, and the drawn
+    values' ends where a rung is null -- a null rung carries no
+    obligation at that rung (contract L3), so nothing is bounded by it
+    and the column's own spread is what remains.
+    """
+    rungs = facts.percentiles.rungs
+    low = rungs[0]
+    high = rungs[-1]
+    if low is None or high is None:
+        found = sorted(values)
+        if not found:
+            return (0.0, 0.0)
+        return (found[0], found[len(found) - 1])
+    return (low, high)
+
+
+def _segment_of(
+    value: float, bounds: "dict[float, tuple[float, float]]"
+) -> "tuple[float, float]":
+    """The stretch of the ladder one value's cells were drawn from."""
+    if value in bounds:
+        return bounds[value]
+    return (value, value)
+
+
+def _segment_bounds(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout | None",
+    values: "list[float]",
+) -> "dict[float, tuple[float, float]]":
+    """Where on the ladder each drawn value came from, by value.
+
+    A stratum covers a stretch of the ladder and its value was
+    interpolated inside that stretch, so the stretch is what a snap of
+    that value may not leave. The two ENDPOINT strata are pinned and
+    their stretch is the single published rung, which is what keeps a
+    snap off `min` and `max`.
+
+    Keyed by VALUE rather than by cell, because that is what the width
+    walk holds and because two strata carrying the same number are one
+    number however many stretches drew it: where that happens the
+    widest stretch would be too generous, so the tightest is kept.
+
+    A null rung carries no obligation at that rung (contract L3), so a
+    ladder with one is bounded by the drawn values' own ends instead.
+    """
+    rungs = facts.percentiles.rungs
+    found: dict[float, tuple[float, float]] = {}
+    # ANY null rung, not only an end. A rung that is not a finite
+    # binary64 carries no obligation at that rung (contract L3), and
+    # interpolating THROUGH it is arithmetic on nothing -- which is a
+    # crash rather than a wrong answer, and was one.
+    settled = True
+    for rung in rungs:
+        if rung is None:
+            settled = False
+    if layout is None or not settled:
+        held = sorted(values)
+        if not held:
+            return found
+        whole: "tuple[float, float]" = (held[0], held[len(held) - 1])
+        for value in values:
+            found[value] = whole
+        return found
+    total = len(layout.sizes)
+    # BOUNDED BY THE LADDER THE VALUES WERE BUILT FROM, which is the
+    # merged hundred and one and not the named eleven (plan P4-D4.10).
+    # A stretch taken from the coarse line is wider than the segment a
+    # value actually came from, so a snap the fine segment forbids was
+    # permitted: with a named `p25` of 0.6 and `p50` of 100.6 but a
+    # fine `p26` of 0.7, a value drawn from `[0.6, 0.7]` was bounded by
+    # roughly `[0.6, 4.6]` and could be written `1.` -- moving a value
+    # across a bend, which is the one thing the finer ladder exists to
+    # get right. The named ladder stands in only where the merged one
+    # holds nothing anywhere.
+    settled_rungs = _merged_rungs(facts)
+    if settled_rungs is None:
+        settled_rungs = tuple(rung for rung in rungs if rung is not None)
+    for place in range(total):
+        value = values[place]
+        span: "tuple[float, float]" = (value, value)
+        if not (place == 0 or (place == total - 1 and total >= 2)):
+            span = (
+                _interpolated(
+                    settled_rungs, layout.starts[place], column.n_numeric
+                ),
+                _interpolated(
+                    settled_rungs,
+                    layout.starts[place] + layout.sizes[place],
+                    column.n_numeric,
+                ),
+            )
+        if value in found:
+            seen = found[value]
+            span = (max(seen[0], span[0]), min(seen[1], span[1]))
+        found[value] = span
+    return found
+
+
+def _snaps_away(
+    value: float,
+    width: int,
+    bounds: "dict[float, tuple[float, float]]",
+    ends: "tuple[float, float]",
+) -> bool:
+    """Whether writing this value at this width would erase what it is.
+
+    A SNAP MAY NEVER CHANGE A CELL'S ZERO-NESS OR ITS SIGN CLASS
+    (P4-D4.5). `n_zero` and `n_negative` are EXACT published counts, so
+    a value rounded onto zero would buy a published width with a
+    published count -- and the plan's repair, "the nearest same-class
+    value at that width inside the cell's segment", has no answer at
+    WIDTH ZERO: the nearest non-zero whole number is a whole unit away
+    and lands outside the segment the ladder gave the cell.
+
+    So the width is refused for that value instead, and A-P4-15's route
+    carries it: the value keeps its own width, the quota goes unmet,
+    and the report names the width that went unplaced. The alternative
+    was silent, and it fired on an ordinary column -- eighty-nine cells
+    written `1.` through `11.` beside eleven written `0.01` to `0.11`
+    publishes eighty-nine cells at width zero, and the twin wrote four
+    of its own positive values as `0.` while its description published
+    no zero at all.
+    """
+    sign, figures, place = _digits_and_point(value)
+    written = _at_width(sign, figures, place, width)
+    read = parsing.parse_number(written)
+    if read is None:
+        return True
+    # ...AND ITS REACH MAY NOT EXCEED THE STRETCH OF LADDER THE CELL
+    # WAS DRAWN FROM. A snap at width w moves a value by less than half
+    # of the last place that width holds; the stratum it came from
+    # covers a stretch of the published ladder. Where the reach is
+    # smaller than the stretch, the cell stays in the neighbourhood the
+    # ladder put it in and every rung window absorbs it -- which is
+    # what the plan means by landing "in the same G12 envelopes".
+    # Where the reach is BIGGER, the snap is not an adjustment inside a
+    # neighbourhood, it is the neighbourhood being erased.
+    #
+    # That case is not hypothetical and it is loud. Thirty cells
+    # written `5.` beside thirty written `5.01` to `5.30` publish a
+    # width of zero for half the column; the drawn values hold every
+    # window before the snap, and after it twenty-six of them read
+    # `5.` -- p50, p75, p90, p95, the mean and the spread all MISSED,
+    # at every seed tried, on a description a real table produced.
+    # G12.2 grants this method exactly one widening and says so, and it
+    # is not this one, so the answer cannot be a wider window.
+    #
+    # The two pinned rungs come through this rule rather than beside
+    # it: their stretch is the single published value, so no reach at
+    # all fits inside it and no snap may touch them.
+    low, high = _segment_of(value, bounds)
+    reach = 0.5
+    for _step in range(width):
+        reach = reach / 10.0
+    if reach > high - low:
+        return True
+    # AND NEVER OUTSIDE THE COLUMN'S OWN TWO ENDS, which are exact.
+    # The stretch test above keeps a cell in its neighbourhood; this
+    # keeps the whole column inside the two rungs the ladder pins, for
+    # the cell whose neighbourhood touches one of them.
+    if read < ends[0] or read > ends[1]:
+        return True
+    if value == 0.0:
+        return False
+    if read == 0.0:
+        return True
+    return (read < 0.0) != (value < 0.0)
+
+
+def _width_places(
+    widths: "dict[str, int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    pinned: "list[int]",
+    bounds: "dict[float, tuple[float, float]]",
+    ends: "tuple[float, float]",
+    whole_column: bool,
+) -> "list[int]":
+    """Which width each cell is written at, or -1 for the value's own.
+
+    THE PINNED CELLS ARE SERVED FIRST AND ARE NEVER SNAPPED (plan
+    P4-D4.5). The two endpoints and the zero stratum are
+    EXACT-OBSERVABLE facts of their own, so a snap that moved one of
+    them would buy a published width with a published rung. A pinned
+    cell counts toward a width only where its value ALREADY fits it,
+    and where it fits several it takes the largest still-unfilled one,
+    walked in the plan's stated order -- minimum, maximum, zero -- so
+    that no byte is left to an implementation's taste.
+
+    THE REST ARE SERVED LARGEST WIDTH FIRST, against the cells whose
+    drawn values need the most figures. A wide value put into a narrow
+    width loses figures it needed; a narrow value put into a wide width
+    is padded and loses nothing. So the cells that need the most are
+    matched to the widths that hold the most, and what rounding remains
+    is as little as the census allows.
+
+    A cell the census does not reach is written at whatever width its
+    own value needs -- the pooled remainder's rule of G6.4, unchanged.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    places = [-1 for _index in range(len(styles))]
+    served = {index: 1 for index in pinned}
+    # THE PINNED CELLS ARE SERVED BY VALUE TOO, not one cell at a time.
+    # The plan fixes the ORDER a pinned value takes its width in --
+    # minimum, maximum, zero, each taking the largest still-unfilled
+    # width its value fits -- and that order is kept. What is not kept
+    # is doing it per CELL: a pinned value can cover a dozen cells, and
+    # a quota that holds eleven of them handed the twelfth to another
+    # width, so one number came out as `9.50` eleven times and `9.5`
+    # once. That is two spellings of one value, which spends the
+    # column's published count of different values -- and it buys
+    # nothing, because the quotas close either way. A pinned value now
+    # takes a width only where the width can hold its whole group.
+    pinned_order: "list[float]" = []
+    pinned_groups: "dict[float, list[int]]" = {}
+    for index in pinned:
+        if index >= len(styles) or styles[index] != "decimal":
+            continue
+        value = holds[index]
+        if value in pinned_groups:
+            pinned_groups[value] = pinned_groups[value] + [index]
+            continue
+        pinned_order = pinned_order + [value]
+        pinned_groups[value] = [index]
+    for value in pinned_order:
+        members = pinned_groups[value]
+        need = _fraction_need(value)
+        for width in sorted(quotas, reverse=True):
+            if quotas[width] < len(members) or need > width:
+                continue
+            quotas[width] = quotas[width] - len(members)
+            for index in members:
+                places[index] = width
+            break
+    # ONE WIDTH PER VALUE WHERE THE QUOTAS ALLOW IT, which is the width
+    # walk's form of the rule the style walk already keeps. A value
+    # written at two widths is TWO spellings of one number, so a walk
+    # that handed a value's cells to different widths spent a published
+    # spelling count to meet a published width count -- one exact fact
+    # bought with another, which is the trade this method refuses
+    # everywhere else. A real column's cells wear one width per value
+    # because that is what a person writing them does.
+    groups: dict[float, list[int]] = {}
+    order: list[tuple[int, float]] = []
+    for index in range(len(styles)):
+        if styles[index] != "decimal" or index in served:
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        order = order + [(-_fraction_need(value), value)]
+    # HOW MANY CELLS EACH VALUE HOLDS IN ALL, not just how many of them
+    # the style step made decimal. A snap moves the VALUE, so snapping
+    # the decimal cells of a value some of whose cells were written
+    # another way splits one number into two -- and the count of
+    # different values is a published fact of its own. Such a value may
+    # still be PADDED, which changes nothing about it, so the rule is
+    # written over the two cases separately rather than refusing the
+    # value outright.
+    everywhere: dict[float, int] = {}
+    for index in range(len(styles)):
+        value = holds[index]
+        if value in everywhere:
+            everywhere[value] = everywhere[value] + 1
+            continue
+        everywhere[value] = 1
+    for _need, value in sorted(order):
+        members = groups[value]
+        alone = everywhere[value] == len(members)
+        need = _fraction_need(value)
+        whole = None
+        for width in sorted(quotas, reverse=True):
+            if quotas[width] < len(members):
+                continue
+            if not alone:
+                # A VALUE SOME OF WHOSE CELLS WERE WRITTEN ANOTHER WAY
+                # TAKES NO WIDTH AT ALL, and that covers padding as
+                # well as snapping. Snapping such a value splits the
+                # NUMBER; padding it splits its SPELLING, because the
+                # cells the style step wrote plainly keep the value's
+                # own canonical text -- one column came out holding
+                # `0.500` beside `0.5`, two spellings of one number
+                # bought with a width quota that closed either way.
+                continue
+            if _snaps_away(value, width, bounds, ends):
+                continue
+            whole = width
+            break
+        if whole is None:
+            # NO WIDTH HOLDS THE WHOLE GROUP, so this group takes none.
+            # Splitting it would write ONE value at two widths, which is
+            # two spellings of one number -- a published spelling count
+            # spent to buy a published width count, and that trade is
+            # refused here as it is refused for the forms map. The
+            # group's cells are written at their own value's width
+            # instead, and `_width_notes` names the width that went
+            # unplaced so a reader is told rather than left to recount.
+            continue
+        quotas[whole] = quotas[whole] - len(members)
+        for index in members:
+            places[index] = whole
+    return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _pad_need(value: float, whole_column: bool) -> int:
+    """How many figures this value's own point-free spelling writes.
+
+    The sign is not a figure, for the reason `parsing.pad_width` gives:
+    the width a person sees in a code column is the field.
+    """
+    plain = _point_free(value, _canonical_number(value, whole_column))
+    return len(plain) - 1 if plain[:1] == "-" else len(plain)
+
+
+def _can_wear(style: str, value: float, whole_column: bool) -> bool:
+    """Whether one value may be written in one style at all.
+
+    Two rules, and the styles impose both: there is no leading-plus
+    spelling of a negative value, and no point-free spelling of a value
+    that has none.
+    """
+    if style == "leading_plus" and value < 0.0:
+        return False
+    if style in _WHOLE_STYLES and not _carries_plainly(value, whole_column):
+        return False
+    return True
+
+
+def _first_giver(
+    moved: "list[str]",
+    holds: "list[float]",
+    reserved: "dict[int, int]",
+    taken: "dict[int, int]",
+    width: int,
+    taking: str,
+    whole_column: bool,
+) -> int:
+    """The first padded cell free to give the style up, or -1.
+
+    Written outside the walk so a whole value's exchange can be tried
+    before any of it is applied: ``taken`` holds the cells this trial
+    has already spoken for, which the walk's own bookkeeping does not
+    know about until the trial is accepted.
+
+    IT TAKES THE VALUES AND NOT TWO FUNCTIONS. Handing a callable to a
+    helper is a call this repository's offline audit cannot read, and
+    the audit is right to refuse it: a function passed as a value is a
+    function nobody can check by reading the source.
+    """
+    for other in range(len(moved)):
+        if moved[other] != "leading_zero":
+            continue
+        if other in reserved or other in taken:
+            continue
+        if _pad_need(holds[other], whole_column) < width:
+            continue
+        if not _can_wear(taking, holds[other], whole_column):
+            continue
+        return other
+    return -1
+
+
+def _eligible_groups(
+    eligible: "list[int]",
+    moved: "list[str]",
+    holds: "list[float]",
+    spent: "dict[int, int]",
+) -> "list[list[int]]":
+    """The eligible cells, gathered into one group per value.
+
+    The walk that fills a published field width takes a WHOLE group or
+    none of it, so a value never ends up wearing the padded style on
+    some of its cells and another style on the rest. Groups are walked
+    largest first, and the value itself breaks every tie, so the order
+    is a function of the description rather than of the order a mapping
+    happens to hold.
+    """
+    groups: "dict[float, list[int]]" = {}
+    seen: "list[float]" = []
+    for index in eligible:
+        if index in spent or moved[index] == "leading_zero":
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        seen = seen + [value]
+    ranked: "list[tuple[int, float]]" = []
+    for value in seen:
+        ranked = ranked + [(-len(groups[value]), value)]
+    ordered: "list[list[int]]" = []
+    for _size, value in sorted(ranked):
+        ordered = ordered + [groups[value]]
+    return ordered
+
+
+def _padded_style_swaps(
+    styles: "list[str]",
+    holds: "list[float]",
+    widths: "dict[str, int]",
+    pinned: "list[int]",
+    whole_column: bool,
+) -> "list[str]":
+    """Move the padded style onto values a published field width can hold.
+
+    THE STYLE WALK CHOOSES CELLS AND THE CENSUS CHOOSES WIDTHS, and
+    before this pass the two never spoke. A description publishing
+    fifteen padded cells all two figures wide is met only by padding
+    fifteen SINGLE-FIGURE values: a two-figure value wearing a leading
+    zero is three figures wide, and no amount of padding makes it two.
+    The style walk, which knows nothing of the census, handed the style
+    to values needing two figures, so the twin wrote fourteen cells at
+    width three, missed a census it could have met, and the report
+    accused a twin whose description was perfectly satisfiable.
+
+    THE EXCHANGE IS BETWEEN TWO CELLS, so every published style count is
+    the same afterwards as before: one cell gives up `leading_zero` and
+    takes the partner's style, and the partner takes `leading_zero`.
+    Nothing is invented and no quota moves.
+
+    WHAT GUARDS IT. A pinned cell -- an endpoint or the zero stratum --
+    is never a partner, because those are exact-observable positions
+    the style walk placed deliberately. A partner must be able to WEAR
+    the padded style, which the whole-value test decides; and the cell
+    giving it up must be able to wear what it receives, which is the
+    same test wherever the partner's own style carries no point. A
+    value already fitting a published width is left alone, so a twin
+    that was already meeting the census is not stirred.
+
+    Guarantees: accepts the assigned styles, the drawn values, the
+    published census, the pinned positions and whether the column is
+    whole; returns one style per cell, a permutation of the styles
+    handed in. Determinism: every walk is over an ascending index
+    order. Raises nothing. No I/O of any kind.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    if not quotas:
+        return styles
+    moved = list(styles)
+
+    def need_of(index: int) -> int:
+        return _pad_need(holds[index], whole_column)
+
+    def receivable(index: int, other: str) -> bool:
+        """Whether the cell giving up the padded style can wear ``other``."""
+        return _can_wear(other, holds[index], whole_column)
+
+    # Every cell that could WEAR the padded style but is not wearing it,
+    # in ascending index order so the partner chosen is the same on
+    # every run.
+    # A PINNED CELL IS NOT SPECIAL HERE, EITHER WAY ROUND, and that is
+    # the whole rule rather than an exception to one. What pins a cell
+    # is its VALUE -- it is a published endpoint or the zero stratum --
+    # and a style carries no value: `1` and `01` read back as the same
+    # number, so neither taking the padding off a pinned cell nor
+    # putting it on moves a published fact. Guarding pinned cells left
+    # the census unmeetable on a real column whose ONLY value narrow
+    # enough for the published field was the endpoint: eleven `+1`,
+    # eleven `-99` and eleven `-02` publish one field of two figures,
+    # and the twin wrote three-figure fields because the one cell that
+    # could have worn it was refused.
+    eligible: "list[int]" = []
+    for index in range(len(moved)):
+        if moved[index] == "leading_zero":
+            continue
+        if not _carries_plainly(holds[index], whole_column):
+            continue
+        eligible = eligible + [index]
+
+    # THE CENSUS ASKS FOR WIDTHS, NOT FOR A WIDTH, and this walk is the
+    # difference. An earlier pass asked only whether a value fitted the
+    # WIDEST published field, which on a column publishing several
+    # widths is barely a question at all: a six-figure value "fits" a
+    # width of eight and is still hopeless for the width of three that
+    # the census also asks for. So the narrow widths went unfilled, the
+    # cells that could have filled them sat in another style, and the
+    # twin missed most of a census it could largely have met.
+    #
+    # Narrow fields first, because they are the hard ones: a value that
+    # can wear a field of three can wear every wider field too, so
+    # spending it on a wide field is what makes a narrow one
+    # unfillable.
+    reserved: "dict[int, int]" = {}
+    spent: "dict[int, int]" = {}
+
+    def give_up(width: int, taking: str) -> int:
+        """A padded cell this width cannot hold, free to give the style up."""
+        for other in range(len(moved)):
+            if moved[other] != "leading_zero" or other in reserved:
+                continue
+            # A PINNED CELL MAY GIVE THE STYLE UP, though it may never
+            # be handed it. What pins a cell is its VALUE -- it is a
+            # published endpoint or the zero stratum -- and a style
+            # carries no value: `27` and `027` read back as the same
+            # number, so taking the padding off the maximum moves no
+            # published fact. Refusing it left the census unmeetable on
+            # every column whose widest value was also its endpoint.
+            if need_of(other) < width:
+                continue
+            if not receivable(other, taking):
+                continue
+            return other
+        return -1
+
+    def hand_over(index: int, width: int) -> bool:
+        """Swap the padded style onto ``index``; say whether it happened."""
+        partner = give_up(width, moved[index])
+        if partner < 0:
+            return False
+        moved[partner] = moved[index]
+        moved[index] = "leading_zero"
+        spent[index] = 1
+        reserved[index] = width
+        return True
+
+    for width in sorted(quotas):
+        owing = quotas[width]
+        for index in range(len(moved)):
+            if owing < 1:
+                break
+            if moved[index] != "leading_zero" or index in reserved:
+                continue
+            if need_of(index) >= width:
+                continue
+            reserved[index] = width
+            owing = owing - 1
+        # A WHOLE VALUE AT A TIME, AND ONLY WHERE THE WHOLE OF IT FITS.
+        # Taking SOME of a value's cells leaves that value wearing the
+        # padded style on those and another style on the rest: `0185`
+        # beside `185` in one column is one number written two ways,
+        # and on a column of codes it is worse than that, because the
+        # two are different LENGTHS and somebody checking how long a
+        # code is meets both. An earlier version of this walk ordered
+        # the cells so a value's travelled together but still stopped
+        # mid-value when the count ran out, which is the same defect
+        # arrived at more tidily.
+        for group in _eligible_groups(eligible, moved, holds, spent):
+            if owing < 1:
+                break
+            if len(group) > owing:
+                continue
+            if need_of(group[0]) >= width:
+                continue
+            # ALL OF IT OR NONE OF IT. Handing the style over one cell
+            # at a time and stopping when the givers run out splits the
+            # value just as surely as stopping when the count does, so
+            # the exchange is tried first and applied only if every
+            # cell of the group found a partner.
+            trial: "list[tuple[int, int]]" = []
+            taken: "dict[int, int]" = {}
+            for index in group:
+                partner = _first_giver(
+                    moved, holds, reserved, taken, width,
+                    moved[index], whole_column,
+                )
+                if partner < 0:
+                    trial = []
+                    break
+                taken[partner] = 1
+                trial = trial + [(index, partner)]
+            if not trial:
+                continue
+            for index, partner in trial:
+                moved[partner] = moved[index]
+                moved[index] = "leading_zero"
+                spent[index] = 1
+                reserved[index] = width
+                owing = owing - 1
+        # ...and cell by cell for a count no whole value fits. This
+        # SPLITS a value -- `0185` beside `185` is one number in two
+        # spellings at two lengths -- and it is kept because the
+        # alternative is worse rather than because it is good. Leaving
+        # the count short sends the cells to the identity walk instead,
+        # which spends leading zeros to make spellings differ and wrote
+        # one number at FOUR widths on the same column. One split is
+        # the smaller harm, and the shortfall it avoids is the one a
+        # person measuring a code's length would meet everywhere
+        # rather than once.
+        for index in eligible:
+            if owing < 1:
+                break
+            if index in spent or moved[index] == "leading_zero":
+                continue
+            if need_of(index) >= width:
+                continue
+            if not hand_over(index, width):
+                break
+            owing = owing - 1
+    return moved
+
+
+def _pad_places(
+    widths: "dict[str, int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[int]":
+    """Which field width each padded cell is written at, or -1 for none.
+
+    THE SIMPLER OF THE TWO WIDTH WALKS, and it is worth saying why it
+    is allowed to be. A fraction width MOVES THE VALUE: writing 9.53 at
+    one place makes it 9.5, so that walk has to protect the published
+    endpoints, the zero stratum and every pinned rung from being bought
+    with a width. Padding moves nothing -- `000123` and `123` read back
+    as the same number -- so no rung, no endpoint and no statistic is
+    at stake here, and the walk has only one published fact to keep
+    faith with besides the census itself.
+
+    THAT ONE FACT IS THE COUNT OF DIFFERENT VALUES. A value written at
+    two field widths is TWO spellings of one number, so a width is
+    taken only where it holds a value's WHOLE group of cells -- the
+    same rule the fraction walk keeps, for the same reason, and the
+    reason the identity walk downstream is left its own room.
+
+    A WIDTH NARROWER THAN THE VALUE IS NOT A WIDTH. Nine figures cannot
+    be written in a field of five without losing figures the value
+    needs, and losing them would move the value -- which is the one
+    thing padding must never do. Such a pairing is skipped, and the
+    cells fall to the pooled remainder's rule.
+
+    SERVED NARROWEST FIRST, CELL BY CELL, IN INDEX ORDER. A value that
+    can wear a field of three can wear every wider field too, so a walk
+    that spends it on a wide field is the walk that leaves a narrow one
+    unfillable. Serving the narrow quotas first is what makes a census
+    of several widths reachable at all.
+
+    IT IS A WALK AND NOT AN OPTIMUM, and that is stated rather than
+    implied: filling counted quotas from cells of differing capacities
+    is the shape of problem packing bins is, and no rule of this size
+    settles every case. What makes that safe is that a width the walk
+    cannot fill is RECOUNTED off the finished cells and named in the
+    twin's report by `_pad_notes`, rather than passed over in silence.
+
+    Guarantees: accepts the published census, the assigned styles, the
+    drawn values and whether the column is whole; returns one entry per
+    cell, either a published width or -1. Determinism: the answer
+    depends only on those inputs, and every walk is over a sorted
+    order. Raises nothing. No I/O of any kind.
+    """
+    quotas: dict[int, int] = {}
+    for key in sorted(widths):
+        if key == contract.WITHHELD:
+            continue
+        quotas[int(key)] = widths[key]
+    places = [-1 for _index in range(len(styles))]
+    if not quotas:
+        return places
+    # THE CELLS THIS WALK MAY PLACE, GROUPED BY THE VALUE THEY HOLD.
+    groups: "dict[float, list[int]]" = {}
+    seen: "list[float]" = []
+    for index in range(len(styles)):
+        if styles[index] != "leading_zero":
+            continue
+        value = holds[index]
+        if value in groups:
+            groups[value] = groups[value] + [index]
+            continue
+        groups[value] = [index]
+        seen = seen + [value]
+    # NARROW FIELDS FIRST, because a value that fits a field of three
+    # fits every wider one, so spending it on a wide field is what
+    # makes a narrow field unfillable.
+    #
+    # WHOLE VALUES FIRST WITHIN EACH FIELD, AND A VALUE IS SPLIT ONLY
+    # AS FAR AS THE CENSUS FORCES IT. Both halves of that sentence were
+    # learned from a defect. Holding every value to ONE field collapsed
+    # a column publishing `01`, `001` and `0001` -- one number written
+    # three ways -- onto a single spelling, meeting none of its three
+    # published counts. Splitting freely did the opposite: a column of
+    # seventeen `01`, seventeen `002` and eleven `3` came out wearing
+    # six spellings where three were published, because the walk cut
+    # values across fields it had no need to cut. So a field is filled
+    # from WHOLE value groups while whole groups still fit it, and one
+    # group is divided only to finish a count that nothing else can.
+    for width in sorted(quotas):
+        owing = quotas[width]
+        ranked: "list[tuple[int, float]]" = []
+        for value in seen:
+            waiting = 0
+            for index in groups[value]:
+                if places[index] < 0:
+                    waiting = waiting + 1
+            if waiting < 1 or _pad_need(value, whole_column) >= width:
+                continue
+            ranked = ranked + [(-waiting, value)]
+        for _size, value in sorted(ranked):
+            if owing < 1:
+                break
+            unplaced: "list[int]" = []
+            for index in groups[value]:
+                if places[index] < 0:
+                    unplaced = unplaced + [index]
+            if len(unplaced) > owing:
+                continue
+            for index in unplaced:
+                places[index] = width
+            owing = owing - len(unplaced)
+        # ...and then, and only then, one value is divided.
+        for _size, value in sorted(ranked):
+            if owing < 1:
+                break
+            for index in groups[value]:
+                if owing < 1:
+                    break
+                if places[index] >= 0:
+                    continue
+                places[index] = width
+                owing = owing - 1
+    # A cell no count could hold takes the narrowest PUBLISHED width
+    # its value can still wear, over that width's count rather than
+    # outside the census altogether. A cell left to its own value
+    # writes a field the census never named -- a seventh figure where
+    # the census names three and six -- so the twin would carry a field
+    # width the source column never had. Over-filling a published width
+    # is a miss the recount names; writing an unpublished width is a
+    # shape that was never there to begin with.
+    for index in range(len(styles)):
+        if styles[index] != "leading_zero" or places[index] >= 0:
+            continue
+        need = _pad_need(holds[index], whole_column)
+        for width in sorted(quotas):
+            if need >= width:
+                continue
+            places[index] = width
+            break
+    return places
+
+
+def _some_fraction_survives(
+    places: "list[int]",
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[int]":
+    """Give one width back where the snap would make every value whole.
+
+    `integer_valued` is a fact about the COLUMN -- "every value it
+    holds is a whole number" -- and it is the fact a consumer routes on
+    (AF6), recounted from the written cells. A column publishing FALSE
+    whose every value the snap rounded onto a whole number is
+    re-profiled as `count` rather than `continuous`, so the twin's own
+    type is not the type its description publishes: twenty-six cells
+    written `1.`, twenty-five `2.` and twenty-nine at one figure
+    published a width of zero for fifty-one of them, the twin came back
+    a column of counts, and `validate` reported the ROLE missed.
+
+    THE GRAIN IS THE COLUMN AND NOT THE CELL. Refusing every snap that
+    makes one value whole is far too strong -- a column of halves may
+    round one of them to `2.0` and still hold plenty that are not --
+    and it spends published width quotas for nothing. So the walk runs,
+    and only where NOTHING non-whole survived does one group give its
+    width back: the one that needed the most figures, which is the one
+    the snap took the most from.
+    """
+    if whole_column:
+        return places
+    widest = -1
+    biggest = -1
+    for index in range(len(styles)):
+        value = holds[index]
+        if value == int(value):
+            continue
+        if places[index] < 0:
+            return places
+        sign, figures, place = _digits_and_point(value)
+        written = _at_width(sign, figures, place, places[index])
+        read = parsing.parse_number(written)
+        if read is not None and read != int(read):
+            return places
+        need = _fraction_need(value)
+        if need > biggest:
+            biggest = need
+            widest = index
+    if widest < 0:
+        return places
+    kept = holds[widest]
+    given: list[int] = []
+    for index in range(len(places)):
+        if styles[index] == "decimal" and holds[index] == kept:
+            given = given + [-1]
+            continue
+        given = given + [places[index]]
+    return given
 
 
 def _style_quotas(styles: "dict[str, int]") -> "dict[str, int]":
@@ -1904,6 +3318,19 @@ def _style_quotas(styles: "dict[str, int]") -> "dict[str, int]":
         else:
             quotas[name] = quotas[name] + styles[name]
     return quotas
+
+
+def _style_named(styles: "dict[str, int]", wanted: str) -> int:
+    """The count this description NAMED for one style, or zero.
+
+    Read by walking the keys rather than asking the mapping for one,
+    which is the shape the offline audit accepts and the shape
+    `_style_pool` beside it already uses.
+    """
+    for name in sorted(styles):
+        if name == wanted:
+            return styles[name]
+    return 0
 
 
 def _style_pool(styles: "dict[str, int]") -> int:
@@ -2115,6 +3542,11 @@ def _ordinal_of(canonical: str, resolution: str) -> int:
     """
     if resolution == "quarter":
         return 4 * (int(canonical[0:4]) - 1970) + int(canonical[6]) - 1
+    if resolution == "month":
+        # TWELVE MONTHS TO THE YEAR, counted from the same origin the
+        # quarter counts from, so a month is a whole number of months
+        # and no calendar is consulted to place it (plan P4-D4.3).
+        return 12 * (int(canonical[0:4]) - 1970) + int(canonical[5:7]) - 1
     days = parsing.days_from_civil(
         int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
     )
@@ -2144,6 +3576,9 @@ def _cell_of_ordinal(
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
         return f"{year:04d}-Q{(ordinal % 4) + 1}"
+    if resolution == "month":
+        year = 1970 + (ordinal // 12)
+        return f"{year:04d}-{(ordinal % 12) + 1:02d}"
     if resolution == "date":
         year, month, day = parsing.civil_from_days(ordinal)
         return f"{year:04d}-{month:02d}-{day:02d}"
@@ -2326,19 +3761,32 @@ def _contradictory_spelling(order: int) -> str:
     return f"(-{order})"
 
 
-def _text_spelling(order: int, used: "dict[str, int]") -> str:
+def _text_spelling(
+    order: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+) -> str:
     """Ordinary text that reads as no number and no date (G10.3, G10.4).
 
     `text-1`, `text-2` and so on, stepped past any spelling that means
-    "no value", any spelling already used in this column, and any
-    spelling that would read as a date under one of the formats the
-    profiler tries -- so a stand-in can never quietly change a count.
+    "no value", any spelling already used in this column, any spelling
+    that would read as a date under one of the formats the profiler
+    tries, and any spelling THIS COLUMN publishes among its absent
+    cells -- so a stand-in can never quietly change a count.
+
+    THE LAST OF THOSE FOUR WAS MISSING, and the argument that every
+    invention site guards itself was false because of it (review item
+    P4-DATE3-F3). A column publishing `missing_by_source {"text-1":
+    11}` got `text-1` invented for its one ordinary-text stand-in, and
+    describing the twin again then found twelve absent cells and no
+    unparsed one -- an EXACT-OBSERVABLE count gone, with the class-
+    preserving construction the method promises already broken by the
+    time any recount could name it. Asking here rather than at each
+    caller is what makes the guard total.
     """
     step = order
     while True:
         candidate = f"text-{step}"
         if (
-            not parsing.is_missing_text(candidate)
+            not _is_a_hole_spelling(candidate, holes)
             and _unused(candidate, used)
             and not _reads_as_a_date(candidate)
         ):
@@ -2361,11 +3809,12 @@ def _class_spellings(
     raw_budget: int,
     negatives: int,
     used: "dict[str, int]",
+    holes: "tuple[str, ...]",
 ) -> "list[str]":
     """Every cell of one straggler class, in one fixed order (G10.3).
 
     Distinctness inside a class is supplied by stepping the order on
-    from one; the budget of method G6.5 says how many different
+    from one; the budget of method G6.6 says how many different
     spellings the class may use, and a class that has spent its budget
     repeats its last spelling. A class whose raw budget is above its
     folded budget spends the difference on case variants, which is the
@@ -2384,7 +3833,7 @@ def _class_spellings(
         room = len(made) < folded_budget or side not in last
         if room:
             order = order + 1
-            spelling = _base_spelling(kind, order, negative, used)
+            spelling = _base_spelling(kind, order, negative, used, holes)
             made = made + [spelling]
             _take(spelling, used)
         elif len(made) + len(extra) < raw_budget:
@@ -2403,14 +3852,18 @@ def _class_spellings(
 
 
 def _base_spelling(
-    kind: str, order: int, negative: bool, used: "dict[str, int]"
+    kind: str,
+    order: int,
+    negative: bool,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
 ) -> str:
     """The ``order``-th base spelling of one straggler class."""
     if kind == _CLASS_OUT_OF_RANGE:
         return _out_of_range_spelling(order, negative)
     if kind == _CLASS_CONTRADICTORY:
         return _contradictory_spelling(order)
-    return _text_spelling(order, used)
+    return _text_spelling(order, used, holes)
 
 
 def _first_variant(
@@ -2445,35 +3898,345 @@ def _first_variant(
 # -- columns of numbers (method G5, G6) -------------------------------
 
 
+def _runs_of(
+    values: "list[float]",
+) -> "tuple[list[int], list[float]]":
+    """The runs of equal values: how long each is, and what it holds.
+
+    A run is a PLATEAU of the ladder -- consecutive ranks the ladder
+    gives the same value -- and its length is how many cells of the
+    column hold that value.
+    """
+    lengths: "list[int]" = []
+    held: "list[float]" = []
+    for place in range(len(values)):
+        if place > 0 and values[place] == values[place - 1]:
+            lengths[len(lengths) - 1] = lengths[len(lengths) - 1] + 1
+            continue
+        lengths = lengths + [1]
+        held = held + [values[place]]
+    return lengths, held
+
+
+def _split_widest(
+    lengths: "list[int]", held: "list[float]"
+) -> "tuple[list[int], list[float]]":
+    """Divide the longest run in two, leftmost on a tie.
+
+    Used where the ladder distinguishes fewer values than the
+    distinctness facts allow: the twin may hold more different values
+    than the ladder's plateaus name, and the extra ones come from
+    inside the longest plateau, where there is most room.
+    """
+    widest = 0
+    for place in range(len(lengths)):
+        if lengths[place] > lengths[widest]:
+            widest = place
+    lower = lengths[widest] // 2
+    return (
+        lengths[:widest]
+        + [lower, lengths[widest] - lower]
+        + lengths[widest + 1 :],
+        held[: widest + 1] + held[widest:],
+    )
+
+
+def _merge_nearest(
+    lengths: "list[int]", held: "list[float]"
+) -> "tuple[list[int], list[float]]":
+    """Join the adjacent pair whose VALUES are closest, leftmost on a tie.
+
+    NOT the pair whose cells are fewest, and the difference decides
+    whether a column keeps its own values. Interpolating a ladder over
+    a column's ranks puts a one-rank TRANSITION between each pair of
+    real plateaus -- a value the column does not hold, sitting between
+    two it does. Merging by SIZE joins two transitions, because they
+    are the smallest pair; they are two different values and neither is
+    spurious, so a value the column holds is lost, and the twin then
+    needs a manufactured spelling to make its distinctness count up.
+    Merging by VALUE takes each transition into the plateau it is
+    nearest to, which is where its cells belong and what the ladder was
+    saying about them.
+
+    The gap is compared RELATIVELY, against the pair's own size, so a
+    column of thousands and a column of thousandths are judged the same
+    way. Leftmost wins a tie, which is what makes this an answer rather
+    than an implementation's habit.
+    """
+    #
+    # AND IT WILL NOT MERGE A WHOLE NUMBER INTO A FRACTION while any
+    # pair of the same kind is left. Which cells can be written without
+    # a point is `numeric_styles`, an EXACT-OBSERVABLE fact, and a
+    # whole value's nearest neighbour is very often the fraction just
+    # below it -- 4 and 3.875 are closer than 4 and 5 -- so a merge
+    # that looked only at distance took the column's whole-number
+    # plateaus into fractional ones and left the published `plain`
+    # count unwritable. Measured on one crowded column: 28 plain cells
+    # written against a published 38.
+    # THE ORDER OF PREFERENCE, and all three parts of it earn their
+    # place. A merge is chosen by, in this order:
+    #
+    #   1. the SMALLER side being smallest -- absorb the least. A
+    #      transition is one rank wide and a plateau is many, so this
+    #      takes the artifact into the real value beside it and never
+    #      the reverse. Without it the walk merged a column's thirteen
+    #      cells of -49 into its four of -57.5 and left the one-cell
+    #      transition standing on its own, which cost ten of the
+    #      thirty-eight point-free cells the style map publishes;
+    #   2. both sides being whole or both fractional. Which cells can
+    #      be written without a point is `numeric_styles`, an
+    #      EXACT-OBSERVABLE fact, and a whole value's nearest
+    #      neighbour is very often the fraction just below it -- 4 and
+    #      3.875 are closer than 4 and 5 -- so distance alone walks
+    #      the whole numbers away;
+    #   3. the values being closest, measured RELATIVELY against the
+    #      pair's own size so a column of thousands and a column of
+    #      thousandths are judged the same way.
+    #
+    # Leftmost wins a tie, which is what makes this an answer rather
+    # than an implementation's habit.
+    best = 0
+    best_key: "tuple[int, int, float] | None" = None
+    for place in range(len(lengths) - 1):
+        low = held[place]
+        high = held[place + 1]
+        # SCALED DOWN BEFORE ANYTHING IS ADDED, AND DIVIDED BEFORE IT
+        # IS SUBTRACTED (review items P4-G5-O4 and P4-G6-R1-F1).
+        #
+        # Taking `|high - low|` first overflows to an infinity where the
+        # two rungs sit at opposite ends of the representable range --
+        # the same hazard G5.3 spends two paragraphs on -- and `inf /
+        # inf` is a NaN, which makes every `<` below false and hands the
+        # choice to iteration order instead of to the key. So the
+        # division comes first.
+        #
+        # THAT ALONE MOVED THE OVERFLOW RATHER THAN REMOVING IT, which
+        # is what the first round of review on this landing caught. The
+        # divisor used to be `|high| + |low|`, and two LARGE rungs of the
+        # SAME sign overflow that sum: on `1e308` beside `1.1e308` the
+        # divisor is an infinity, both quotients are zero, every gap ties
+        # at zero and the leftmost pair wins a comparison it should have
+        # lost. A column of very large numbers is not an exotic case and
+        # it was decided by iteration order after all.
+        #
+        # So where that sum is not representable, and ONLY there, both
+        # rungs are scaled by the larger of the two magnitudes first.
+        # That divisor is one of the numbers themselves, so it cannot
+        # overflow; each quotient is then at most one in magnitude and
+        # their sum at most two.
+        #
+        # THE BRANCH IS THE POINT, AND IT WAS MEASURED. The scaled form
+        # computes the same quantity in real arithmetic but not the same
+        # BINARY64: over 400000 random pairs whose plain sum was finite
+        # the two agree on 97.8 percent and part by one unit in the last
+        # place on the rest, which moves this function's choice on about
+        # 7 merges in every 10000. Every one of those is a pair of gaps
+        # already equal to within representation, so neither answer is
+        # the better one -- but a ratified rule should not shift under a
+        # repair aimed at something else. Taking the scaled form only
+        # where the plain one has no answer at all leaves every column
+        # that already worked writing exactly the bytes it wrote.
+        span = abs(high) + abs(low)
+        gap = 0.0
+        if not math.isfinite(span):
+            scale = max(abs(high), abs(low))
+            if math.isfinite(scale) and scale > 0.0:
+                near = low / scale
+                far = high / scale
+                span = abs(far) + abs(near)
+                if span > 0.0:
+                    gap = abs(far / span - near / span)
+        elif span > 0.0:
+            gap = abs(high / span - low / span)
+        alike = parsing.is_whole_number(low) == parsing.is_whole_number(
+            high
+        )
+        key = (
+            min(lengths[place], lengths[place + 1]),
+            0 if alike else 1,
+            gap,
+        )
+        if best_key is None or key < best_key:
+            best = place
+            best_key = key
+    return (
+        lengths[:best]
+        + [lengths[best] + lengths[best + 1]]
+        + lengths[best + 2 :],
+        held[: best + 1] + held[best + 2 :],
+    )
+
+
+def _shape_sizes(
+    start: int,
+    cells: int,
+    strata: int,
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    whole_valued: bool,
+) -> "list[int]":
+    """One band's stratum sizes, following the shape the ladder publishes.
+
+    **THIS IS RESIDUAL R-P4-49, AND IT IS THE HALF THE FINER LADDER
+    COULD NOT BUY ON ITS OWN.** A ladder decides WHICH values a twin
+    holds; an allotment decides HOW MANY CELLS each of them gets. The
+    even split of G5.2 gave every stratum the same share, so a column
+    of two hundred and thirty cells holding twenty-seven numbers --
+    five of them about forty cells each, the rest about one -- came out
+    as twenty-seven strata of eight or nine, a shape that can represent
+    neither. The hundred-and-one-rung ladder made the twin land on the
+    column's real values and could not give them their real
+    multiplicities, so `numeric_styles`' one-form-per-stratum rule ran
+    short and named style counts stopped coming out exactly.
+
+    **The ladder already knows the shape.** A value that occupies
+    seventeen of the hundred and one rungs occupies seventeen per cent
+    of the column, because the rungs stand at the percentiles. So the
+    sizes are read off it: the value the ladder gives at each RANK of
+    this band, the runs of equal values, and one stratum per run sized
+    to its run. A stratum whose rank range lies inside one plateau then
+    takes that plateau's value whatever word is drawn for it, which is
+    what makes the count exact rather than approximate.
+
+    The strata COUNT is not decided here and is not changed by this:
+    it comes from the distinctness facts and the eleven named rungs,
+    which is the line plan P4-D4.10 draws and this keeps. Where the
+    ladder's plateaus and that count disagree, the runs are split or
+    merged until they agree, by a fixed rule with the leftmost pair
+    winning a tie, so the count the description publishes is the count
+    the twin holds.
+
+    Guarantees: accepts the band's first rank, how many cells it holds,
+    how many strata it is to have, the ladder, the column's numeric
+    cell count and whether its values are whole; returns that many
+    sizes, each at least one, summing to `cells`. Determinism: a fixed
+    function of those six. Raises nothing. No I/O of any kind.
+    """
+    if strata <= 0:
+        return []
+    if cells <= 0:
+        return [0] * strata
+    if strata > cells:
+        # ASSERTED RATHER THAN ASSUMED. This function's guarantee is
+        # that every size it returns is at least one, and the even
+        # split below returns zeros the moment there are more strata
+        # than cells. The band share is clamped by the cell count so
+        # this cannot be reached; it is checked because the clamp is
+        # twenty lines away in another function and a later hand could
+        # move it (review item P4-G5-O1).
+        raise errors.ProfileError(
+            f"synthtwin internal check: a band of {cells} cell(s) was "
+            f"asked for {strata} strata, and a stratum with no cell in "
+            f"it is not a value. This means a mistake in synthtwin; "
+            f"please report it. Nothing has been written."
+        )
+    if rungs is None or strata >= cells:
+        return [
+            (step + 1) * cells // strata - step * cells // strata
+            for step in range(strata)
+        ]
+    held: "list[float]" = []
+    for step in range(cells):
+        found = _interpolated(
+            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
+        )
+        if whole_valued:
+            found = _whole_valued(found)
+        held = held + [found]
+    lengths, values = _runs_of(held)
+    while len(lengths) > strata:
+        lengths, values = _merge_nearest(lengths, values)
+    while len(lengths) < strata:
+        lengths, values = _split_widest(lengths, values)
+    return lengths
+
+
+def _band_plateaus(
+    start: int,
+    cells: int,
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    whole_valued: bool,
+) -> int:
+    """How many different values the ladder gives one band of cells.
+
+    The count the SHARE of strata should follow, and the second half of
+    residual R-P4-49. The first half sized each stratum by its plateau;
+    this decides how many strata a band gets at all, which the sizes
+    cannot fix from underneath.
+
+    THE SHARE USED TO FOLLOW CELLS, and cells are the wrong thing to
+    follow. A column whose thirteen negative cells hold TWO values and
+    whose forty-eight positive cells hold five got one negative stratum
+    out of seven, because thirteen of sixty-one cells is a seventh --
+    so its ten cells of `-30` and its three of `-55.5` collapsed into
+    one value, and ten of the eighteen point-free cells the style map
+    publishes went with them. Following the ladder gives the negatives
+    two of the seven, which is what the column holds.
+
+    Guarantees: accepts the band's first rank, its cell count, the
+    ladder, the column's numeric cell count and whether its values are
+    whole; returns how many different values the ladder gives that
+    band, at least one where it holds a cell. Determinism: a fixed
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    if cells <= 0:
+        return 0
+    if rungs is None:
+        return cells
+    held: "list[float]" = []
+    for step in range(cells):
+        found = _interpolated(
+            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
+        )
+        if whole_valued:
+            found = _whole_valued(found)
+        held = held + [found]
+    lengths, _values = _runs_of(held)
+    return len(lengths)
+
+
 def _band_sizes(
     negatives: int,
     zeros: int,
     positives: int,
     negative_strata: int,
     positive_strata: int,
+    rungs: "tuple[float, ...] | None" = None,
+    numbers: int = 0,
+    whole_valued: bool = False,
 ) -> "tuple[list[int], list[str]]":
-    """The even split of method G5.2, band by band.
+    """How the cells of each band divide between its strata (G5.2).
 
     Negatives ascending, then the zero stratum, then positives
     ascending, because that is the sorted order of the column's own
     values and the ladder is a statement about sorted order.
+
+    THE SIZES FOLLOW THE LADDER'S OWN SHAPE where one is handed over
+    (residual R-P4-49; `_shape_sizes` carries the reasoning), and fall
+    back to the even split where it is not -- which is what every
+    caller that does not place values wants, and what a column with no
+    ladder gets.
     """
     sizes: list[int] = []
     bands: list[str] = []
-    for step in range(negative_strata):
-        sizes = sizes + [
-            (step + 1) * negatives // negative_strata
-            - step * negatives // negative_strata
-        ]
+    for size in _shape_sizes(
+        0, negatives, negative_strata, rungs, numbers, whole_valued
+    ):
+        sizes = sizes + [size]
         bands = bands + [_BAND_NEGATIVE]
     if zeros > 0:
         sizes = sizes + [zeros]
         bands = bands + [_BAND_ZERO]
-    for step in range(positive_strata):
-        sizes = sizes + [
-            (step + 1) * positives // positive_strata
-            - step * positives // positive_strata
-        ]
+    for size in _shape_sizes(
+        negatives + zeros,
+        positives,
+        positive_strata,
+        rungs,
+        numbers,
+        whole_valued,
+    ):
+        sizes = sizes + [size]
         bands = bands + [_BAND_POSITIVE]
     return sizes, bands
 
@@ -2516,7 +4279,7 @@ def _carrier_flags(
         if not pinned or rungs is None:
             flags = flags + [True]
             continue
-        end = rungs[0] if place == 0 else rungs[10]
+        end = rungs[0] if place == 0 else rungs[-1]
         flags = flags + [_carries_plainly(end, whole_column)]
     return flags
 
@@ -2795,7 +4558,7 @@ def _free_whole(
     the starting point settle the question.
     """
     lowest = max(low, float(rungs[0]))
-    highest = min(high, float(rungs[10]))
+    highest = min(high, float(rungs[-1]))
     if band == _BAND_POSITIVE:
         lowest = max(lowest, 1.0)
     if band == _BAND_NEGATIVE:
@@ -2932,7 +4695,7 @@ def _reach_held(
             flags = flags + [True]
             continue
         if pinned:
-            end = rungs[0] if place == 0 else rungs[10]
+            end = rungs[0] if place == 0 else rungs[-1]
             held[end] = 1
             flags = flags + [_carries_plainly(end, whole_column)]
             continue
@@ -3232,7 +4995,9 @@ def _reach_sizes(
 
 
 def _numeric_layout(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    grain_values: "int | None",
 ) -> "tuple[_NumericLayout, list[Deviation], int]":
     """How a column of numbers divides, and what it costs (G5.2, G4.3).
 
@@ -3242,6 +5007,17 @@ def _numeric_layout(
     positives ascending, because that is the sorted order of the
     column's own values and the ladder is a statement about sorted
     order.
+
+    `grain_values` IS HOW MANY DIFFERENT NUMBERS THIS GRAIN HOLDS, and
+    it is the third argument rather than a default because a caller
+    that forgets it gets residual R-P4-112 back (landing L7, method
+    G5.2). A plain numeric column passes `None`: there the count on the
+    block IS the column's own, and `n_distinct_folded` divides it. A
+    grain INSIDE a role -- one position of a joined column, the cores
+    of an affixed one -- passes `facts.n_distinct_values`, because the
+    counts on the block it is handed answer for the CELLS around it: a
+    36-row column of `N/M` publishes 36 different cells while its first
+    position holds 11 different numbers, and a stratum holds a value.
     """
     numbers = column.n_numeric
     counts = (
@@ -3258,9 +5034,40 @@ def _numeric_layout(
             _counts_contradict(column.name, zeros, negatives, numbers)
         )
     notes: list[Deviation] = []
+    # THE SPELLING BUDGETS STAY ON THE BLOCK'S OWN COUNTS, AND LANDING
+    # L7 MOVED THEM TO THE GRAIN'S BEFORE REVIEW ROUND 1 SENT THEM BACK
+    # (item 1). They bound how many different SPELLINGS the twin may
+    # write, and a count of NUMBERS is not a count of spellings: a
+    # column whose every value is written two ways holds twice as many
+    # spellings as numbers, and a budget of the numbers alone cannot
+    # buy the second way.
+    #
+    # MEASURED, on 300 cells holding sixty values each written plainly
+    # and again with a leading zero -- 120 different spellings, 60
+    # different numbers -- through the real path at forty seeds. With
+    # the budget at the grain's 60 the twin held **55 to 60** of the
+    # 120 published spellings: on the JOINED role, where both counts
+    # are EXACT-OBSERVABLE (P4-D29), `distinct.n_distinct` and
+    # `distinct.n_distinct_folded` missed at forty seeds of forty, and
+    # on the AFFIXED role the twin's own report named the same
+    # shortfall. It is not one role's corner: an affixed core has no
+    # pairing stage that could recover the variants, and a joined
+    # position's variants are the CELL's spellings just as much.
     raw_budgets = _budget_split(column.n_distinct, counts)
     folded_budgets = _budget_split(column.n_distinct_folded, counts)
-    values = min(numbers, max(folded_budgets[0], 1))
+    # HOW MANY STRATA IS A DIFFERENT QUESTION FROM HOW MANY SPELLINGS,
+    # AND ONLY THE FIRST TAKES THE GRAIN'S COUNT (residual R-P4-112,
+    # closed by landing L7; narrowed by review round 1, item 1). For a
+    # grain inside another role the two answer differently -- a 36-row
+    # column of `N/M` publishes 36 different CELLS while its first
+    # position holds 11 different NUMBERS, and a stratum holds a VALUE,
+    # not a spelling. So the DIVISION takes the grain's own count of
+    # numbers where it has one. The budgets above do NOT, and moving
+    # them was the defect review round 1 found: a spelling budget is
+    # what buys the second way of writing one number, and a count of
+    # numbers cannot pay for it.
+    divided = folded_budgets[0] if grain_values is None else grain_values
+    values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
     needed = 0
@@ -3292,9 +5099,52 @@ def _numeric_layout(
             )
         ]
     if negatives > 0 and positives > 0:
+        # THE SHARE FOLLOWS THE LADDER'S OWN VALUES WHERE THERE IS ONE,
+        # and the cells only where there is not (residual R-P4-49;
+        # `_band_plateaus` carries the reasoning). Two bands holding
+        # the same number of cells need not hold the same number of
+        # values, and it is the values a stratum count is about.
+        shape = _filled_rungs(_merged_rungs(facts))
+        negative_share = negatives
         share = negatives + positives
-        negative_strata = (2 * rest * negatives + share) // (2 * share)
-        negative_strata = max(1, min(negative_strata, rest - 1))
+        if shape is not None:
+            negative_share = _band_plateaus(
+                0, negatives, shape, numbers, facts.integer_valued
+            )
+            share = negative_share + _band_plateaus(
+                negatives + zeros,
+                positives,
+                shape,
+                numbers,
+                facts.integer_valued,
+            )
+        if share <= 0:
+            negative_share = negatives
+            share = negatives + positives
+        negative_strata = (
+            2 * rest * negative_share + share
+        ) // (2 * share)
+        # THE LADDER DECIDES THE SHARE AND THE CELLS DECIDE THE
+        # CEILING (review item P4-G5-O1). The cell-ratio formula this
+        # replaces could never ask a band for more strata than it has
+        # cells -- `rest <= negatives + positives` makes
+        # `rest * negatives / (negatives + positives) <= negatives` an
+        # identity -- and the run ratio has no such bound, because a
+        # run count has nothing to do with a cell count. Measured: a
+        # 102-cell column with two negative cells over two plateaus and
+        # a hundred positive cells over four asked seventeen strata of
+        # the two-cell band, and `_shape_sizes` returned FIFTEEN STRATA
+        # OF NO CELLS -- which G5.2 forbids by name, because a stratum
+        # with no cell in it is not a value (P2-C1-F5), and each of
+        # them would still take an end of the ladder in G5.3 and still
+        # have its sign repaired in G5.5.
+        negative_strata = max(
+            1, min(negative_strata, negatives, rest - 1)
+        )
+        # And the other side of it: what is left for the positives can
+        # be no more than the positives have cells.
+        if rest - negative_strata > positives:
+            negative_strata = rest - positives
     elif negatives > 0:
         negative_strata = rest
     else:
@@ -3311,7 +5161,29 @@ def _numeric_layout(
     # which cells the cell step can then reach.
     quotas = _style_quotas(facts.numeric_styles)
     demand = min(_whole_demand(facts), numbers)
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    # THE WHOLE LAYOUT READS ONE LADDER, AND IT IS THE FINER ONE
+    # (review item P4-G5-O2). This read the eleven NAMED rungs, on a
+    # measurement taken before R-P4-49: handing the finer ladder to the
+    # carrier-band decision was said to change the strata counts, so a
+    # column came out a different shape rather than the same shape more
+    # finely placed.
+    #
+    # THAT MEASUREMENT NO LONGER HOLDS, and it was re-taken rather than
+    # trusted: over 120 columns of six shapes -- gaussian, heavily
+    # repeated, bimodal, whole numbers, a narrow band around zero, and
+    # a column of mostly zeros -- the layout is IDENTICAL either way,
+    # 0 of 120 differing. What changed is that the sizes and the band
+    # share now read the finer ladder themselves, so the carrier steps
+    # are no longer the only thing standing between the two.
+    #
+    # It is unified because one fact read from two different ladder
+    # lengths is one fact written twice: the shipped generator read the eleven here and the
+    # independent oracle read the hundred and one, and the frozen
+    # vectors agreed only because no committed case separates them.
+    # One ladder cannot be got wrong in two places.
+    rungs = _filled_rungs(_merged_rungs(facts))
+    if rungs is None:
+        rungs = _filled_rungs(facts.percentiles.rungs)
     if demand > 0:
         negative_strata, positive_strata = _carrier_bands(
             negatives,
@@ -3324,8 +5196,21 @@ def _numeric_layout(
             demand,
             min(quotas["leading_plus"], zeros + positives),
         )
+    # AND THE SIZES FOLLOW THE FINER LADDER, which is the other half of
+    # residual R-P4-49. The COUNTS above come from the named eleven,
+    # which is the line P4-D4.10 draws and this keeps; the SHAPE comes
+    # from the hundred and one, because that is what knows how many
+    # cells sit on each of a column's values.
+    fine = _merged_rungs(facts)
     sizes, bands = _band_sizes(
-        negatives, zeros, positives, negative_strata, positive_strata
+        negatives,
+        zeros,
+        positives,
+        negative_strata,
+        positive_strata,
+        _filled_rungs(fine) if fine is not None else rungs,
+        numbers,
+        facts.integer_valued,
     )
     if demand > 0:
         flags = _carrier_flags(sizes, bands, rungs, facts.integer_valued)
@@ -3377,6 +5262,2414 @@ def _numeric_layout(
     return layout, notes, max(total - pinned - zeroed, 0)
 
 
+def _core_view(column: "contract.ColumnBlock") -> "contract.ColumnBlock":
+    """The affixed column as the numeric machinery needs to see it.
+
+    An affixed column has TWO populations and the numeric machinery is
+    written over one of them. Its universal counts answer for the
+    CELLS -- and a cell reading `$100` is not itself a number, so those
+    counts say a column of prices holds no numbers at all. The
+    quantitative block answers for the CORES.
+
+    So the cores are handed over as a column in their own right: the
+    same block, with the core counts standing where the cell counts
+    were and the quantitative facts standing alone. Every rule of G5
+    and G6 then applies unchanged, which is the point -- the numbers
+    inside an affixed column are built by exactly the code that builds
+    a plain numeric column, and the pair is put on afterwards.
+
+    THE COUNT OF DIFFERENT VALUES IS THE CORES' OWN, AND IT WAS THE
+    CELL'S UNTIL LANDING L7 (residual R-P4-112). `_numeric_layout`
+    divides a column into strata by a count of different things, and
+    the counts on this block are counts of whole CELLS -- a cell
+    reading `$1` and a cell reading `$01` are two of them and one
+    number -- so the cores were divided into more strata than they have
+    values. The caller hands `_numeric_layout` the quantitative block's
+    own `n_distinct_values` for that division.
+
+    THE SPELLING BUDGETS ARE STILL THE CELL'S, and that is deliberate
+    (review round 1, item 1). A budget bounds how many different
+    SPELLINGS the twin may write, an affixed cell's spelling is its
+    core's spelling with fixed text around it, and a count of NUMBERS
+    cannot buy a second way of writing one number. Measured on 300
+    cells holding sixty values each written two ways: with the budget
+    at the cores' 60 the twin held 55 to 60 of the 120 published
+    spellings, and with it on the cells' 120 it holds 81 to 97. An
+    affixed core has no pairing stage that could recover them.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        raise _wrong_facts(column.name)
+    # THE COMMONEST WRAPPER'S OWN POPULATION, AND NOT THE COLUMN'S
+    # (plan P4-D37). This block is that wrapper's, so the counts it is
+    # viewed through are that wrapper's: the column's totals less every
+    # other wrapper's. A column wearing ONE wrapper has nothing to
+    # subtract and is viewed exactly as it was.
+    worn_elsewhere = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    text_elsewhere = 0
+    for one in facts.affix_variants:
+        worn_elsewhere = worn_elsewhere + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=facts.n_affixed - worn_elsewhere,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
+        n_numeric=facts.n_core_numeric - numeric_elsewhere,
+        n_not_numeric=facts.n_core_not_numeric - text_elsewhere,
+        n_out_of_range=facts.n_core_out_of_range - out_elsewhere,
+        n_contradictory=(
+            facts.n_core_contradictory - contradictory_elsewhere
+        ),
+        # THE CORES' OWN COUNTS OF DIFFERENT SPELLINGS, and NOT the
+        # column's (plan P4-D36). The layout spends these as a budget
+        # of different core spellings; a column wearing three wrappers
+        # makes up to three cells out of one core, so its count of
+        # different CELLS asks the core stage for spellings it does not
+        # need and cannot reach. Measured on a laboratory column of 200
+        # cells: asked for 141, the core stage spent the leading-zero
+        # family and wrote `0011.9 H` for a source cell of `11.9 H`.
+        n_distinct=facts.n_core_distinct,
+        n_distinct_folded=facts.n_core_distinct_folded,
+        facts=facts.numbers,
+    )
+
+
+# The two counts a core view carries under a NUMERIC name and the
+# affixed role publishes under its own (review round 4, item 4). A
+# report naming `n_distinct` on such a column names a key that column
+# does not have: what it published is `n_core_distinct`, and a wrapper
+# publishes its own beside its own block rather than inside it.
+_CORE_COUNT_KEYS = {
+    "n_distinct": "n_core_distinct",
+    "n_distinct_folded": "n_core_distinct_folded",
+}
+
+
+def _affixed_key(place: int, fact: str) -> str:
+    """The key a record about ONE wrapper names in the description.
+
+    `place` is -1 for the COMMONEST wrapper, whose block IS the
+    column's, and 0 upward for the entries of `affix_variants`.
+
+    THE TWO CORE COUNTS SIT BESIDE A WRAPPER'S BLOCK AND NOT INSIDE IT,
+    so they take the wrapper's own path and not the block's; every
+    other key here is a field of that block and takes `numbers.`. A
+    report that wrote `affix_variants[0].numbers.n_distinct` named a
+    field of neither (review round 4, item 4).
+
+    BOTH PATHS ARE WRITTEN AS f-STRINGS AT A `fact=` KEYWORD, because
+    that is what `test_every_deviation_key_is_one_the_method_authorizes`
+    reads to hold the method's key index and this module to each other.
+    A helper returning the finished path hides the family from it, and
+    the index then named a shape nothing produced.
+    """
+    named = _CORE_COUNT_KEYS[fact] if fact in _CORE_COUNT_KEYS else fact
+    if place < 0:
+        return named
+    if fact in _CORE_COUNT_KEYS:
+        return _named_beside(place, named)
+    return _named_inside(place, named)
+
+
+def _named_beside(place: int, named: str) -> str:
+    """One wrapper's own key, beside its block."""
+    return _keyed(fact=f"affix_variants[{place}].{named}")
+
+
+def _named_inside(place: int, named: str) -> str:
+    """One key of the block a wrapper carries."""
+    return _keyed(fact=f"affix_variants[{place}].numbers.{named}")
+
+
+def _keyed(fact: str) -> str:
+    """The identity, unchanged -- the two writers above name it here."""
+    return fact
+
+
+def _vocabulary_of(
+    facts: "contract.AffixedFacts",
+) -> "list[tuple[str, str]]":
+    """Every wrapper this column wears, commonest first (plan P4-D37)."""
+    worn = [(facts.affix_prefix, facts.affix_suffix)]
+    for one in facts.affix_variants:
+        worn = worn + [(one.prefix, one.suffix)]
+    return worn
+
+
+def _worn_here(
+    trimmed: str, vocabulary: "list[tuple[str, str]]"
+) -> "tuple[str, str] | None":
+    """Which wrapper a written cell wears, by the LONGEST-WRAPPER rule.
+
+    THE SAME RULE THE PRODUCER AND THE VALIDATOR USE, and writing a
+    different one here was a defect of its own (review round 3, item
+    3): a recount that asked only whether a cell begins with the
+    commonest prefix and ends with its suffix gave every `12.0  kg`
+    cell to the ` kg` wrapper as well, because the one suffix is a
+    suffix of the other. The primary population then held both, and
+    the report named a mean of 51.151 for a wrapper whose cells average
+    15.95 and called it outside its own window.
+
+    Guarantees: accepts one trimmed cell and the column's vocabulary;
+    returns the longest wrapper the cell wears with something between
+    its two sides, or None. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind.
+    """
+    chosen: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(vocabulary):
+        ahead = key[0]
+        behind = key[1]
+        if len(trimmed) <= len(ahead) + len(behind):
+            continue
+        if trimmed[: len(ahead)] != ahead:
+            continue
+        if behind and trimmed[len(trimmed) - len(behind) :] != behind:
+            continue
+        # THE BARE WRAPPER IS WORN BY A NUMBER AND BY NOTHING ELSE,
+        # which is the rule the producer proposes it under and the
+        # validator recounts it under (review round 4, item 5). An
+        # empty pair is a prefix and a suffix of every cell, so without
+        # this a rare ` CRITICAL` straggler wore it and the report
+        # claimed 73 core identities where the producer's own split
+        # gives 71.
+        if not ahead and not behind:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
+        if len(ahead) + len(behind) > reach:
+            chosen = key
+            reach = len(ahead) + len(behind)
+    return chosen
+
+
+def _cores_worn(
+    facts: "contract.AffixedFacts", written: "list[str]"
+) -> "dict[tuple[str, str], list[str]]":
+    """The cores the written cells hold, one list per wrapper (P4-D37).
+
+    Every cell is assigned ONCE, to the longest wrapper it wears, so no
+    core is counted for two populations and none is left out of all of
+    them.
+    """
+    vocabulary = _vocabulary_of(facts)
+    held: "dict[tuple[str, str], list[str]]" = {}
+    for key in vocabulary:
+        held[key] = []
+    for cell in written:
+        trimmed = parsing.trimmed(cell)
+        chosen = _worn_here(trimmed, vocabulary)
+        if chosen is None:
+            continue
+        core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+        if core:
+            held[chosen] = held[chosen] + [core]
+    return held
+
+
+def _wrapper_notes(
+    place: int, notes: "list[Deviation]"
+) -> "list[Deviation]":
+    """Name the wrapper every one of these notes is about (P4-D37).
+
+    `place` is -1 for the COMMONEST wrapper, whose block is the
+    column's own and whose facts keep their bare keys, and 0 upward for
+    the entries of `affix_variants`. Written against the joined role's
+    `_position_notes`, which does the same for a position.
+    """
+    if place < 0:
+        return notes
+    named: "list[Deviation]" = []
+    for step in range(len(notes)):
+        named = named + [
+            dataclasses.replace(
+                notes[step], fact=_affixed_key(place, notes[step].fact)
+            )
+        ]
+    return named
+
+
+def _wrapper_view(
+    column: "contract.ColumnBlock", wrapper: "contract.AffixWrapper"
+) -> "contract.ColumnBlock":
+    """ONE wrapper of a set, as a numeric column of its own (P4-D37).
+
+    The same trick `_core_view` plays for a column wearing one wrapper
+    and `_part_view` plays for one position of a joined column, and for
+    the same reason: the numeric machinery is written over ONE
+    population, and a column wearing a set has one per wrapper.
+
+    WHY IT IS NOT THE COLUMN'S VIEW WITH A DIFFERENT COUNT. A wrapper's
+    cores are a population in their own right, so every count this view
+    carries is that wrapper's: its class counts, its counts of
+    different cores, and the block itself. Handed the column's, a
+    hundred pounds were laid out against a ladder running from sixty
+    kilograms to a hundred and fifty-three pounds, and the twin wrote a
+    pound where the source holds none.
+    """
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=wrapper.count,
+        # A SUBSET VIEW HOLDS NO ABSENT CELLS (review round 7, item
+        # 3). The blanks belong to the COLUMN, not to a wrapper:
+        # carrying the outer count in meant a style ceiling drawn
+        # for 200 rows on a wrapper whose population is 100, so a
+        # canonical-style check covered every cell that wrapper
+        # can hold and could not turn red at its published length.
+        n_missing=0,
+        n_missing_blank=0,
+        n_missing_withheld=0,
+        n_numeric=wrapper.n_core_numeric,
+        n_not_numeric=wrapper.n_core_not_numeric,
+        n_out_of_range=wrapper.n_core_out_of_range,
+        n_contradictory=wrapper.n_core_contradictory,
+        n_distinct=wrapper.n_core_distinct,
+        n_distinct_folded=wrapper.n_core_distinct_folded,
+        facts=wrapper.numbers,
+    )
+
+
+def _wrappers_of(
+    facts: "contract.AffixedFacts", column: "contract.ColumnBlock"
+) -> "list[tuple[tuple[str, str], contract.ColumnBlock, contract.NumericFacts]]":
+    """Every wrapper this column wears, each as a column of its own.
+
+    THE COMMONEST ONE FIRST AND THEN THE OTHERS IN THE ORDER THE
+    DESCRIPTION STATES THEM, so the cells a wrapper wears are a
+    function of the description and the seed alone.
+
+    A COLUMN WEARING ONE WRAPPER YIELDS EXACTLY THE VIEW IT ALWAYS
+    HAD -- `_core_view` -- because its commonest wrapper is its only
+    one and its cores are all of them.
+    """
+    walk: "list[tuple[tuple[str, str], contract.ColumnBlock, contract.NumericFacts]]" = [
+        (
+            (facts.affix_prefix, facts.affix_suffix),
+            _core_view(column),
+            facts.numbers,
+        )
+    ]
+    for one in facts.affix_variants:
+        walk = walk + [
+            (
+                (one.prefix, one.suffix),
+                _wrapper_view(column, one),
+                one.numbers,
+            )
+        ]
+    return walk
+
+
+def _position_notes(
+    place: int, notes: "list[Deviation]"
+) -> "list[Deviation]":
+    """Name the position every one of these notes is about (R3 item 4).
+
+    A joined column publishes its quantitative facts under
+    `parts[i].<fact>`, and the numeric stages that produce these notes
+    are handed one position as a column of its own, so they name the
+    bare key. Carried up unqualified, a reader is told a fact moved and
+    not which of the numbers it moved for.
+    """
+    named: list[Deviation] = []
+    for step in range(len(notes)):
+        note = notes[step]
+        named = named + [
+            dataclasses.replace(
+                note,
+                fact=f"parts[{place}].{note.fact}",
+                note=(
+                    f"Number {place + 1} of each cell: {note.note}"
+                ),
+            )
+        ]
+    return named
+
+
+def _part_view(
+    column: "contract.ColumnBlock", place: int
+) -> "contract.ColumnBlock":
+    """One position of a joined column, as a numeric column of its own.
+
+    The same trick `_core_view` plays for the affixed role, and for the
+    same reason: a joined column has one population PER POSITION, and
+    the numeric machinery is written over one population. A cell
+    reading `120/80` is not itself a number, so the universal counts
+    say the column holds none; the quantitative block for position one
+    answers for the first numbers alone.
+
+    Handing each position over as a column in its own right means the
+    ladder, the mean, the spread, the styles and the widths of every
+    number in the twin are built by exactly the code that builds a
+    plain numeric column. Nothing about the arithmetic is written twice.
+
+    THE COUNT OF DIFFERENT VALUES IS THE POSITION'S OWN, AND IT WAS
+    THE CELL'S UNTIL LANDING L7 -- which is residual R-P4-112. A 36-row
+    column of `N/M` holds 36 different CELLS while its first position
+    holds 11 different numbers, and `_numeric_layout` divided by the
+    column's count: the position was laid out in 36 strata where a
+    plain column carrying the same numeric facts gets 11. That is why
+    the same walk reached its point-free count on a plain column and
+    fell short through a joined position -- and NOT the pairing step,
+    which the first diagnosis blamed. The caller hands
+    `_numeric_layout` `facts.parts[place].n_distinct_values`.
+
+    THE SPELLING BUDGETS ARE STILL THE COLUMN'S, and that is deliberate
+    (review round 1, item 1). Moving them with the division was a
+    defect of its own: a budget buys the second way of writing one
+    number, and a count of numbers cannot pay for it. A column of
+    `01/5` and `1/5` publishes two different cells whose first position
+    holds one number, and a budget of one can write only one of them.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        raise _wrong_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        n_present=facts.n_joined,
+        n_numeric=facts.n_joined,
+        n_not_numeric=0,
+        n_out_of_range=0,
+        n_contradictory=0,
+        facts=facts.parts[place],
+    )
+
+
+def _padded_to(text: str, width: int) -> str:
+    """One number written at least `width` characters wide.
+
+    A position whose smallest published width is wider than the number
+    needs was WRITTEN padded -- `007` beside `080` -- so the twin pads
+    it back. A position whose widths differ because its numbers differ
+    publishes the width of its smallest number, and nothing is added.
+    """
+    out = text
+    while len(out) < width:
+        out = "0" + out
+    return out
+
+
+def _joined_written(
+    drawn: "list[list[str]]", facts: "contract.JoinedFacts", row: int
+) -> str:
+    """One cell of a joined column, from the numbers each position drew."""
+    written = ""
+    for place in range(facts.n_parts):
+        if place:
+            written = written + facts.separator
+        held = drawn[place]
+        text = held[row] if row < len(held) else "0"
+        written = written + _padded_to(text, facts.part_min_widths[place])
+    return written
+
+
+def _ranks_of(values: "list[float]") -> "list[float]":
+    """The rank of each value, ties sharing the average of their ranks."""
+    pairs: "list[tuple[float, int]]" = []
+    for seat in range(len(values)):
+        pairs = pairs + [(values[seat], seat)]
+    pairs = sorted(pairs)
+    ranks = [0.0 for _each in values]
+    at = 0
+    while at < len(pairs):
+        last = at
+        while last + 1 < len(pairs) and pairs[last + 1][0] == pairs[at][0]:
+            last = last + 1
+        shared = (at + last) / 2.0
+        for seat in range(at, last + 1):
+            ranks[pairs[seat][1]] = shared
+        at = last + 1
+    return ranks
+
+
+def _pair_seats(n_parts: int) -> "tuple[list[int], list[int]]":
+    """The two positions of every pair, in the order `part_agreements` runs.
+
+    Seat `k` of `part_agreements` and `part_above` is the pair
+    `(firsts[k], seconds[k])`, and the seats run `(0,1), (0,2), ...
+    (1,2), ...` -- the order the profiler writes them in.
+    """
+    # PREALLOCATED AND ASSIGNED BY INDEX, not grown by concatenation
+    # (review round 2). The pair count is quadratic in the positions --
+    # 402 positions make 80,601 pairs -- and growing a list of that
+    # length one entry at a time copies it every time, which is
+    # quadratic AGAIN. Measured at 402 positions: 2.17 seconds to build
+    # one such list by concatenation against 0.0021 to fill a
+    # preallocated one, a thousandfold.
+    count = n_parts * (n_parts - 1) // 2
+    firsts: "list[int]" = [0 for _each in range(count)]
+    seconds: "list[int]" = [0 for _each in range(count)]
+    seat = 0
+    for first in range(n_parts):
+        for second in range(first + 1, n_parts):
+            firsts[seat] = first
+            seconds[seat] = second
+            seat = seat + 1
+    return firsts, seconds
+
+
+def _joined_would_write(
+    held: "list[list[str]]",
+    facts: "contract.JoinedFacts",
+    row: int,
+    place: int,
+    text: str,
+) -> str:
+    """The cell row `row` would hold if position `place` held `text`.
+
+    Built without touching `held`, because the proposal step asks this
+    question of candidate after candidate and a swap-and-undo for each
+    of them is the cost the whole carried-quantity design exists to
+    avoid.
+    """
+    written = ""
+    for step in range(facts.n_parts):
+        if step:
+            written = written + facts.separator
+        spelling = text if step == place else held[step][row]
+        written = written + _padded_to(spelling, facts.part_min_widths[step])
+    return written
+
+
+# HOW FAR THE PROPOSAL STEP LOOKS for a row worth swapping (method
+# G6B.4a). It is a fixed small number and not the whole column because
+# the scan runs inside a walk whose ceiling is already `200 * rows`, so
+# an unbounded scan makes the walk quadratic in the rows.
+#
+# SIXTEEN, AND THE CHOICE IS A MEASUREMENT recorded in the plan's
+# decision P4-D31 and in method G6B.4a: over the four columns of
+# `tools/measurements/r_p4_40_l7_joined.py` at forty seeds each the count
+# of different cells held is flat from sixteen upward, while a reach of
+# sixty-four costs three times the running time.
+_PROPOSAL_REACH = 16
+
+# HALF A UNIT AT THE PRECISION AN AGREEMENT IS PUBLISHED TO (review
+# round 1, item 2). `parsing.RANK_AGREEMENT_PLACES` is 4, so a
+# published agreement carries at most this much uncertainty, and this
+# is the whole of the margin the walk keeps inside G12.9's window --
+# where it once kept half the window itself, which is two hundred
+# times larger and was bought with exactly-checked facts.
+_AGREEMENT_ROUNDING = 0.5 * 10.0 ** (-parsing.RANK_AGREEMENT_PLACES)
+
+
+def _aims_at_above(turn: int, place: int) -> bool:
+    """WHICH OF A POSITION'S OWN TURNS AIM AT AN ABOVE-COUNT.
+
+    `turn` is how many turns position `place` has already had, NOT the
+    walk's own try counter, and amendment A-P4-52 is that distinction.
+    The walk takes its positions in turn, so try `t` belongs to
+    position `1 + t % movers` and a gate on `t` reads `turn * movers +
+    place` -- which carries ONE parity for every turn a given position
+    ever gets wherever `movers` is even. Half the positions then aimed
+    on all of their turns and half on none, and position 1 is the only
+    mover of the pair it makes with the anchor, so where position 1
+    was the starved half that pair had no route to its published
+    `part_above` at all.
+
+    Reading the position's OWN turn count alternates for every
+    position at every mover count, which is the property this rule
+    exists for and the property
+    `test_every_position_aims_at_an_above_count_on_half_its_own_turns`
+    pins.
+
+    `place` staggers neighbouring positions onto opposite turns, and
+    IT IS NOT LOAD-BEARING. Measured across three families of columns
+    built three different ways -- 15,560 pairs at forty seeds each --
+    the four phases of this rule, `turn + place`, `turn + place + 1`,
+    `turn` and `turn + 1`, miss 716, 709, 709 and 717 above-counts.
+    That is a spread of eight pairs in 15,560. `turn + place + 1` has
+    FEWER misses than this rule in every one of the three families,
+    and this rule has fewer agreement excursions in aggregate, 5,513
+    against 5,527: no phase dominates across BOTH metrics, which is
+    all the measurement supports. The two are a trade of seven
+    above-counts against fourteen agreement excursions.
+
+    So the rule is kept as it stands because CHANGING it is what the
+    measurement does not support -- not because it reproduces any
+    earlier tree's bytes. Review round 4 of L7 was right to refuse
+    that argument: the tree whose bytes were being preserved is the
+    tree that carried the defect. R-P4-131 holds the four-phase
+    numbers and R-P4-144 holds the thing that dwarfs them.
+    """
+    return (turn + place) % 2 == 0
+
+
+def _swap_allowed(
+    before: "list[bool]",
+    after: "list[bool]",
+    above_before: "list[int]",
+    above_after: "list[int]",
+    cells_before: int,
+    cells_after: int,
+) -> bool:
+    """May a swap be taken, given what it did to the published facts?
+
+    THE RULE, ONCE AND BY NAME, in the order the code applies it.
+
+    ONE. A swap that takes any pair's above-count from HELD to missed
+    is refused, whatever else it does. `part_above` is an exact count a
+    pairing can meet whenever the twin's own numbers admit it, and one
+    row out of it is one cell holding a reading that cannot happen --
+    so no amount of agreement and no other above-count buys it. (Not
+    always: R-P4-144 measures counts the twin's drawn numbers cannot
+    express under any arrangement. The rule is the same either way --
+    a swap that gives one up is refused.)
+
+    TWO. A swap that takes an above-count FURTHER from its published
+    value is refused, unless the moved pairs' above-counts fall as a
+    whole or unless some other above-count reaches its published value
+    in the same swap. Without that second half the rule would refuse
+    the walk its own progress: a swap taking one seat to its count
+    while another dips is movement towards the very fact rule one
+    protects, and rule one is absolute, so a column whose remaining
+    debt needs one seat to dip would have no route to it at all. THE
+    ESCAPE IS NOT THERE BECAUSE IT MEASURED BETTER -- it measured one
+    agreement WORSE over 2,160 pairs (550 outside their window against
+    549 without it, no above-count missed either way), and it is kept
+    because a rule that refuses progress towards the fact it protects
+    is the wrong rule however that one pair lands.
+
+    THREE. A swap that takes any pair OUT of the window method G12.9
+    publishes is refused, unless it brings an exactly-checked fact
+    closer: the moved above-counts as a whole, or the count of
+    different cells. The exception is A-P4-49's and it is measured --
+    refusing without it cost ten above-counts of forty seeds where none
+    had been missed. The two exact facts are asked SEPARATELY here
+    rather than added together, because "an exactly-checked fact" is
+    singular and netting a row of `part_above` against a different cell
+    is the arithmetic this rule was repaired to stop.
+
+    RULES ONE AND TWO RUN ON EVERY TRY, ahead of the window test, and
+    that is the load-bearing shape rather than a detail of order.
+    Review round 3's defect arrived on the branch where NO pair left
+    its window: the guard returned True there without reading its exact
+    arguments at all, and the decision fell to `_away`, which sums the
+    same per-pair term into a single float. Because one and two are
+    unconditional they dominate that comparison, so `_away` keeps the
+    weights its own docstring records and is not re-weighted here.
+
+    WHAT RULE ONE GUARANTEES ACROSS A WALK, and it is a statement about
+    the walk and not only about this function: the set of pairs holding
+    their published `part_above` never shrinks. A pair the swap cannot
+    touch keeps its count, a refused swap is put back exactly, and a
+    moved pair cannot go from held to missed. Measured on `battery-11`
+    of `tools/measurements/r_p4_40_l7_joined.py` at seed 27, that count
+    fell four times over the 149 accepted swaps before this repair and
+    falls at none of the 146 after it.
+
+    THE COUNT OF DIFFERENT CELLS IS IN NEITHER RULE ONE NOR RULE TWO,
+    deliberately. It cannot always be met (R-P4-40), a walk that
+    insists on it wrecks everything else, and keeping the two exact
+    facts apart is what stops either being spent on the other. It
+    enters at rule three alone, as its own term beside the rows.
+
+    IT IS A FUNCTION RATHER THAN A LINE IN THE WALK because a rule
+    inside a closure can only be tested through a finished twin, and a
+    twin cannot show which swaps were TAKEN. Review round 2 asked for a
+    witness against the acceptance decision itself; this is the thing
+    that decision is. Round 3 measured what that is worth: with the
+    retargeted proposal in place, collapsing this rule back to a summed
+    distance leaves BOTH outcome witnesses green, and only a spy on
+    these arguments tells the two apart.
+
+    `before` and `after` are the per-seat conformance masks;
+    `above_before` and `above_after` are the per-seat above-count gaps.
+    All four are in the order of the walk's `moved` list, so entry `k`
+    is the same pair on both sides -- nothing but that shared list
+    enforces it, so a caller must build `moved` ONCE per try and pass
+    the same one to both readings. Comparing COUNTS was the defect
+    review round 2 found on the masks and comparing SUMS was the defect
+    review round 3 found on the above-counts: either way one seat
+    leaving while another entered held the number still, and the guard
+    let through exactly the swap it exists to refuse. Measured on
+    `battery-11` at seed 27, accepted swap 57 -- the walk's try 350 --
+    took the per-pair gaps from `(0, 3, 0, 0, 0, 0)` to
+    `(0, 2, 0, 1, 0, 0)`, `part_above[3]` lost while `part_above[1]`
+    gained, the total 3 either way, and `away` fell from
+    3.256434912989342 to 3.2564112096671862. Accepted swap 59, try 377,
+    moved the miss back the same way.
+
+    `cells_before` and `cells_after` are that other exact fact, how far
+    the count of different cells stands from what is published.
+
+    Guarantees: pure, total, and a fixed function of its six
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    sold = False
+    worsened = False
+    entered = False
+    was = 0
+    now = 0
+    for index in range(len(above_before)):
+        was = was + above_before[index]
+        if index < len(above_after):
+            now = now + above_after[index]
+            if above_before[index] == 0 and above_after[index] != 0:
+                sold = True
+            if above_after[index] > above_before[index]:
+                worsened = True
+            if above_before[index] != 0 and above_after[index] == 0:
+                entered = True
+    # ONE -- A HELD ABOVE-COUNT IS NEVER SOLD, to anything at all.
+    if sold:
+        return False
+    # TWO -- A SEAT DRIFTS ONLY WHERE THE WALK GAINS BY IT: the moved
+    # pairs' above-counts fall as a whole, or another seat reaches its
+    # published count in the same swap.
+    if worsened and now >= was and not entered:
+        return False
+    # THREE -- THE DRIFT REFUSAL, seat by seat since review round 2.
+    left = False
+    for index in range(len(before)):
+        if index < len(after) and before[index] and not after[index]:
+            left = True
+    if not left:
+        return True
+    # A DISJUNCTION AND NOT A RE-MIXED TOTAL. "Brings an exactly-checked
+    # fact closer" is singular in A-P4-49 and in the method; netting
+    # rows against cells is the collapse this landing removes, so it may
+    # not be written back in here. Measured cost of the separated form
+    # over the total, again against it: one agreement of 2,160 outside
+    # its window (550 against 549) and one of the 960 early pairs, with
+    # no above-count missed either way.
+    return now < was or cells_after < cells_before
+
+
+def _repaired_pairing(
+    drawn: "list[list[str]]",
+    facts: "contract.JoinedFacts",
+    wanted: int,
+    words: "list[int]",
+) -> "list[list[str]]":
+    """Choose WHICH numbers meet in a row, to the facts published.
+
+    WHAT EACH POSITION HOLDS IS ALREADY EXACT when this is reached, and
+    nothing here changes it. Every step swaps two rows' numbers within
+    ONE position, so each position keeps its multiset to the last cell
+    and every published number about it -- ladder, mean, spread, styles,
+    widths -- is untouched. What moves is only the pairing, which is the
+    one thing `parts` does not describe.
+
+    EVERY POSITION BUT THE FIRST MOVES, AND EVERY PAIR IS SCORED
+    (residual R-P4-51, closed by landing L7). This walk moved the LAST
+    position alone, so on a column of three or more positions the pairs
+    among the earlier ones were neither moved nor scored and came out
+    at `+1` whatever was published -- measured, a column whose first two
+    positions are perfectly anti-correlated published -1.0 and its twin
+    held +1.0, the exact opposite. The first position is held still
+    because a pairing is only ever relative: permuting every position
+    the same way writes the same cells in a different order, so one
+    position may be anchored without losing a single arrangement, and
+    anchoring the FIRST is what leaves the two-position case -- every
+    blood pressure, every ratio -- the same walk it was: the same
+    position moves under the same start rule, so nothing about such a
+    column changes on account of the anchor. Its cells do move in this
+    landing, and G5.2's grain rule and the rescored distance are why.
+
+    IT STARTS RANK FOR RANK, largest with largest, where the agreement
+    is 1 and the earlier position is above the later one as often as it
+    can be -- EXCEPT where the published agreement is strongly negative
+    or near zero, which G6B.2 starts reversed and shuffled instead. The
+    unconditional wording here stood until review round 8 of L7. Both are usually ABOVE what the description publishes, and
+    swaps bring them down to it. Starting from a shuffle was built
+    first and was worse: it begins far from every target at once.
+
+    WHY THIS IS NEEDED. Drawn independently, the two numbers of a blood
+    pressure agreed at -0.02 where the real column agreed at 0.83, and
+    a twin cell could hold a diastolic above its systolic. The numbers
+    were right one at a time and the pairs were not readings.
+
+    EVERY STEP COSTS THE SAME, however long the column. Scoring a
+    pairing from scratch is a sort and a walk, and a walk that scored
+    every attempt that way spent fourteen seconds on four hundred rows.
+    Nothing about a swap needs it: two cells change, so the count of
+    different cells moves by what those two were and are; two rows
+    change, so the above-count moves by those two; and the two ranks
+    trade places, which moves the agreement's numerator by exactly
+    `(a_i - a_j) * (b_j - b_i)` and moves its divisor not at all,
+    because neither position's ranks have changed as a MULTISET. So
+    every quantity here is carried and adjusted, never recomputed.
+    """
+    total = facts.n_joined
+    if total < 2 or facts.n_parts < 2:
+        return drawn
+    firsts_all, seconds_all = _pair_seats(facts.n_parts)
+    # WHERE EACH POSITION STARTS IS CHOSEN BY WHAT IT IS WALKING
+    # TOWARDS, and the pair it is chosen by is the pair it makes with
+    # the ANCHOR. Rank for rank is where the agreement is 1; it is the
+    # right place to start for a blood pressure, whose numbers agree at
+    # 0.83, and the WORST place to start for a column whose numbers
+    # agree at zero -- measured, a pulmonary-artery column publishing
+    # -0.009 was left at 0.216, because the walk could not travel the
+    # whole way inside its try ceiling. So a low target starts from a
+    # shuffle, which is already near it, and a strongly negative one
+    # starts from rank against rank.
+    #
+    # IT IS THE PAIR WITH THE ANCHOR AND NOT AN AVERAGE OVER PAIRS
+    # (review item P4-G3-R2-F6, restated for the walk that moves every
+    # position). This read the mean of every scored pair, which was the
+    # right answer while one position moved and every scored pair had
+    # that position in it. Now each position starts where its own
+    # target says, and a target another position owns cannot decide it.
+    # On two positions the two rules are the same rule: the only pair
+    # is the pair with the anchor.
+    held: "list[list[str]]" = []
+    for column in drawn:
+        pairs: "list[tuple[float, str]]" = []
+        for spelling in column:
+            pairs = pairs + [(float(spelling), spelling)]
+        pairs = sorted(pairs)
+        held = held + [[pair[1] for pair in pairs]]
+    for place in range(1, facts.n_parts):
+        seat = place - 1
+        anchored = 0.0
+        if seat < len(facts.part_agreements):
+            anchored = facts.part_agreements[seat]
+        # EACH SHUFFLING POSITION TAKES ITS OWN SLICE OF THE RESERVE.
+        # The word budget of G4.3 sets aside `rows - 1` words for every
+        # position after the first for exactly this, and two positions
+        # drawing the same slice would arrange alike.
+        taken = words[(place - 1) * max(total - 1, 0):]
+        if anchored < -0.4:
+            held[place] = [
+                held[place][total - 1 - seat_at] for seat_at in range(total)
+            ]
+        elif anchored < 0.4 and len(taken) >= max(total - 1, 0):
+            order = _arrangement(taken, total)
+            held[place] = [held[place][seat_at] for seat_at in order]
+    numbers: "list[list[float]]" = []
+    ranks: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        counted_here: "list[float]" = []
+        for spelling in held[place]:
+            counted_here = counted_here + [float(spelling)]
+        numbers = numbers + [counted_here]
+        ranks = ranks + [_ranks_of(counted_here)]
+    middle = (total - 1) / 2.0
+    # The divisor of every agreement, which no swap can move.
+    spread: "list[float]" = []
+    for place in range(facts.n_parts):
+        summed = 0.0
+        for row in range(total):
+            away = ranks[place][row] - middle
+            summed = summed + away * away
+        spread = spread + [summed]
+    # EVERY PAIR IS SCORED, because every pair has a member this walk
+    # moves: the anchor is position 0, and a pair with two members is a
+    # pair with at least one of them numbered 1 or more.
+    #
+    # EVERY LIST HERE IS PREALLOCATED AND FILLED BY INDEX, because all
+    # four are as long as the PAIR count and that is quadratic in the
+    # positions: at 402 positions there are 80,601 of them, and growing
+    # such a list by concatenation copies it every time. Measured, one
+    # such build costs 2.17 seconds against 0.0021 preallocated.
+    scored = len(firsts_all)
+    if len(facts.part_agreements) < scored:
+        scored = len(facts.part_agreements)
+    if len(facts.part_above) < scored:
+        scored = len(facts.part_above)
+    seats: "list[int]" = [0 for _each in range(scored)]
+    firsts: "list[int]" = [0 for _each in range(scored)]
+    seconds: "list[int]" = [0 for _each in range(scored)]
+    for seat in range(scored):
+        seats[seat] = seat
+        firsts[seat] = firsts_all[seat]
+        seconds[seat] = seconds_all[seat]
+    tops: "list[float]" = [0.0 for _each in range(scored)]
+    aboves: "list[int]" = [0 for _each in range(scored)]
+    for index in range(len(seats)):
+        first = firsts[index]
+        second = seconds[index]
+        summed = 0.0
+        counted = 0
+        for row in range(total):
+            summed = summed + (ranks[first][row] - middle) * (
+                ranks[second][row] - middle
+            )
+            if numbers[first][row] > numbers[second][row]:
+                counted = counted + 1
+        tops[index] = summed
+        aboves[index] = counted
+    cells: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for row in range(total):
+        text = _joined_written(held, facts, row)
+        cells = cells + [text]
+        seen[text] = seen[text] + 1 if text in seen else 1
+
+    def _room() -> float:
+        """How far an agreement may sit from its target and cost nothing.
+
+        THE WHOLE WINDOW METHOD G12.9 PUBLISHES, less half a unit at
+        the precision the agreement is published to -- and it was HALF
+        that window until review round 1 (item 2). Half was chosen for
+        a rounding that is far smaller than half a window: an agreement
+        published to four decimal places carries at most `0.00005` of
+        uncertainty, not `0.01`. Sizing the margin at the rounding
+        instead is what the round asked for and what this returns.
+
+        WHY IT MATTERS THAT THE MARGIN IS SMALL. Anything inside this
+        distance is a fact the validator already accepts, so the walk
+        owes it nothing more -- and every unit of room BELOW the
+        published window is room the walk will buy with something else.
+        At half the window a swap moving an agreement from 0.019 to
+        0.015 cut the score by 0.004, which on a 400-row column is
+        worth more than one different CELL at 0.0025: the walk spent an
+        exactly-checked fact on margin nobody asked for. It cannot now,
+        because both of those agreements score zero.
+        """
+        return parsing.RANK_AGREEMENT_WINDOW - _AGREEMENT_ROUNDING
+
+    def _away() -> float:
+        """How far this pairing is from every pairing fact published.
+
+        THE THREE ARE SCALED TO THEIR OWN SIZES, and the reason is a
+        measurement rather than a preference. Weighting the count of
+        different cells in ROWS -- one row out costing a whole unit --
+        was built and was worse at everything: the agreement fell from
+        0.834 to 0.559, two cells came out impossible, and the count it
+        was chasing STILL stopped short, at 317 of 324. That count is
+        scaled against the column's rows, where it competes fairly.
+
+        AND AN AGREEMENT IS SCORED BY HOW FAR IT LIES OUTSIDE THE
+        WINDOW PUBLISHED FOR IT, not by how far it lies from its
+        target (landing L7). The three facts are not held to the same
+        standard by the tool that checks them, and scoring them as
+        though they were is what stopped the walk: `part_above` and the
+        count of different cells are EXACT-OBSERVABLE, checked value
+        for value by `synthtwin validate` (P4-D29), while an agreement
+        is APPROXIMATED inside G12.9's window. Scored as an exactness,
+        an agreement already four ten-thousandths from its target
+        outbid every remaining different cell on a 240-row column --
+        each of them worth a 240th -- and the twin held 185 to 231 of
+        240 published readings with a fact it was never held to
+        exactly already met a fiftieth of its window over.
+
+        THE WINDOW IS THE WHOLE ONE, and it was half of it until review
+        round 1 found the trade that leaves (item 2): any margin the
+        walk keeps below the published window is margin it will buy
+        with an exactly-checked fact. `_room` carries that reasoning.
+
+        SO THE RAW GAP IS KEPT AS A TIE-BREAK AND NOTHING MORE. Inside
+        the window the walk still prefers the closer agreement, because
+        near-exactness is free where nothing is bought with it -- but
+        the whole tie-break, over every pair at once, is worth less
+        than one different cell, so it can never be spent on one.
+        """
+        out = abs(len(seen) - wanted) / float(total)
+        room = _room()
+        # THE TIE-BREAK IS SCALED TO THE WINDOW, NOT TO THE WHOLE RANGE
+        # an agreement can take (review round 1, item 2, second pass).
+        # Its job is to steer INSIDE the window, where the term above
+        # is flat, and a tie-break spread over the full range from -1
+        # to 1 is a hundred times too shallow to do it: measured on a
+        # forged three-position column at forty seeds, flattening the
+        # interior without rescaling took the pairs landing outside the
+        # window from 87 of 120 to 115.
+        #
+        # THE BOUND IS WHAT MAKES IT SAFE, and it is exact: each pair
+        # contributes at most `tip`, so every pair together contributes
+        # less than `pairs / (T * (pairs + 1))`, which is strictly less
+        # than the `1 / T` one different CELL is worth. So the walk can
+        # prefer a closer agreement and can never buy one with a cell.
+        tip = 1.0 / float(total * (len(seats) + 1)) if seats else 0.0
+        for index in range(len(seats)):
+            place = seats[index]
+            first = firsts[index]
+            second = seconds[index]
+            # A ROW OF THIS ONE OUTWEIGHS THE WHOLE AGREEMENT, and it
+            # should: `part_above` is an exact count that a pairing
+            # can meet whenever the twin's own numbers admit it
+            # (R-P4-144 measures where they do not), and one row out of
+            # it is one cell holding a
+            # reading that cannot happen -- a diastolic at or above its
+            # systolic. Measured at the same weight as the others, the
+            # walk sold a row of it for a thousandth of agreement and a
+            # blood-pressure twin came out with one impossible cell.
+            out = out + float(abs(aboves[index] - facts.part_above[place]))
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            gap = abs(agreed - facts.part_agreements[place])
+            out = out + (gap - room if gap > room else 0.0)
+            inside = gap if gap < room else room
+            out = out + (inside / room) * tip if room > 0.0 else out
+        return out
+
+    def _proposed(
+        one: int, two: int, place: int, turn: int
+    ) -> "tuple[int, int]":
+        """The two rows this try really swaps, given the two it drew.
+
+        THE SCALING IN `_away` IS WHY THIS EXISTS. A row of `part_above`
+        is worth a whole unit and the count of different cells is worth
+        one row of the column -- a four-hundredth on a four-hundred-row
+        column -- so a walk drawing its two rows at random spends its
+        ceiling on swaps that move the count by nothing at all. It was
+        measured: with the draw retargeted so that the numbers to make
+        the count out of exist, a 240-row column publishing 240
+        different readings reached 158 to 184 of them across ten
+        seeds, and 176 to 211 across forty.
+        The objective is NOT re-weighted here, because weighting the
+        count in rows was built and measured and was worse at
+        everything (see `_away`); what changes is which swaps are put
+        to it.
+
+        SHORT OF THE COUNT the walk wants a row whose cell is repeated
+        and a partner that gives it one nothing holds -- and that is
+        not enough on its own, because the partner's OWN cell changes
+        too and can go from unique to repeated, leaving the count
+        where it was. So the partner must also either gain a cell
+        nothing holds or give up one another row already holds.
+
+        OVER THE COUNT it wants the opposite, and the mirror image is
+        not "a row whose cell is unique": on a column holding six
+        different cells over a hundred rows there may be no such row at
+        all, and the scan would find nothing every time. It is the
+        RAREST cell in reach, whose last few rows are what the count
+        comes down by.
+
+        Both scans are bounded by `_PROPOSAL_REACH` and both fall back
+        to the rows as drawn, so a try always has something to put to
+        the acceptance rule.
+
+        `place` is the position this try moves and `turn` is HOW MANY
+        TURNS THAT POSITION HAS ALREADY HAD -- the remainder and the
+        quotient of one division of the try index, which the caller
+        owes as two numbers because either alone says less than the
+        pair. Handing the try index itself as `turn` puts back the
+        defect amendment A-P4-52 repairs, and it puts it back SILENTLY:
+        the gate goes on alternating on every column with an even
+        number of positions and stops alternating entirely on the rest.
+        """
+        if len(seen) == wanted:
+            # THE COUNT IS MET AND AN ABOVE-COUNT MAY NOT BE. Where the
+            # distinct count is right, the walk's remaining exact debt
+            # is a row of `part_above`, and a row is what this proposes
+            # -- the same shape as the branch below, aimed at the other
+            # exact fact. It matters because the acceptance rule now
+            # refuses to trade one above-count for another, so the walk
+            # can no longer stumble onto the repair sideways.
+            #
+            # EVERY OTHER TURN OF THIS POSITION, because an
+            # above-count is not the only thing left: aiming every try
+            # at it starves the agreement, which is the other fact the
+            # walk is still improving. Measured on a 300-row blood
+            # pressure, aiming every try left the twin agreeing at
+            # 0.8232 against a published 0.8343 where alternating
+            # reaches it exactly.
+            #
+            # WHICH turns those are is `_aims_at_above`, which is
+            # amendment A-P4-52 and carries its own reasons.
+            if not _aims_at_above(turn, place):
+                return one, two
+            for index in range(len(seats)):
+                place_seat = seats[index]
+                gap = aboves[index] - facts.part_above[place_seat]
+                if gap == 0:
+                    continue
+                if firsts[index] != place and seconds[index] != place:
+                    continue
+                # Too many rows hold the earlier above the later, so
+                # a row that does is the one to move; too few, and it
+                # is a row that does not.
+                over = gap > 0
+                found = one
+                step = 0
+                while step < _PROPOSAL_REACH:
+                    row = (one + step) % total
+                    higher = numbers[firsts[index]][row] > (
+                        numbers[seconds[index]][row]
+                    )
+                    if higher == over:
+                        found = row
+                        break
+                    step = step + 1
+                partner = two
+                step = 0
+                while step < _PROPOSAL_REACH:
+                    row = (two + step) % total
+                    if row != found and (
+                        held[place][row] != held[place][found]
+                    ):
+                        partner = row
+                        break
+                    step = step + 1
+                return found, partner
+            return one, two
+        short = len(seen) < wanted
+        found = one
+        if short:
+            step = 0
+            while step < _PROPOSAL_REACH:
+                row = (one + step) % total
+                if seen[cells[row]] > 1:
+                    found = row
+                    break
+                step = step + 1
+        else:
+            fewest = 0
+            step = 0
+            while step < _PROPOSAL_REACH:
+                row = (one + step) % total
+                holding = seen[cells[row]]
+                if step == 0 or holding < fewest:
+                    fewest = holding
+                    found = row
+                step = step + 1
+        partner = two
+        step = 0
+        while step < _PROPOSAL_REACH:
+            row = (two + step) % total
+            if row != found and held[place][row] != held[place][found]:
+                made_here = _joined_would_write(
+                    held, facts, found, place, held[place][row]
+                )
+                made_there = _joined_would_write(
+                    held, facts, row, place, held[place][found]
+                )
+                if short:
+                    if made_here not in seen and (
+                        made_there not in seen or seen[cells[row]] > 1
+                    ):
+                        partner = row
+                        break
+                elif made_here in seen and (
+                    made_there in seen or made_there == made_here
+                ):
+                    partner = row
+                    break
+            step = step + 1
+        return found, partner
+
+    def _cells_gap() -> int:
+        """How far the count of DIFFERENT CELLS is from what is published.
+
+        Its own reading, returned on its own, because it is a different
+        kind of obligation from an above-count: it belongs to no pair,
+        it is licensed to yield (R-P4-40), and until review round 3 it
+        was added to the above-counts in one integer -- so a gained
+        cell could buy a lost row of `part_above` and nothing at the
+        acceptance rule could see the trade.
+        """
+        return abs(len(seen) - wanted)
+
+    def _above_marks(where: "list[int]") -> "list[int]":
+        """One above-count gap PER MOVED PAIR, in the order `where` gives.
+
+        By identity, and it was a summed distance until review round 3.
+        The order is `where`'s, which is the walk's `moved` list, so
+        entry `k` is the same pair here as in the conformance mask and
+        as in the reading taken after the swap -- a caller that rebuilt
+        `moved` between the two readings would mis-refuse silently, so
+        the walk builds it once a try.
+
+        Over the moved pairs only, for the reason `_conforming` gives:
+        a pair the swap cannot touch has the same above-count before
+        and after, so it cannot change the comparison.
+        """
+        marks: "list[int]" = [0 for _each in range(len(where))]
+        for step in range(len(where)):
+            index = where[step]
+            place = seats[index]
+            marks[step] = abs(aboves[index] - facts.part_above[place])
+        return marks
+
+    def _conforming(where: "list[int]") -> "list[bool]":
+        """WHICH scored pairs sit inside the window G12.9 publishes.
+
+        A MASK, SEAT BY SEAT, AND IT WAS A COUNT UNTIL REVIEW ROUND 2
+        (item 1). A count cannot express the rule it was written for: a
+        swap that takes one conforming pair OUT while another comes IN
+        leaves the count where it was, so the guard let through exactly
+        the swap it exists to refuse. Measured on an 80-row
+        three-position column at the reviewer's own seed, two accepted
+        swaps did that -- at one of them the count held at 1 and at the
+        other at 2, and no exact fact improved at either.
+        """
+        room = _room()
+        # OVER THE PAIRS THIS TRY CAN HAVE MOVED, AND NO OTHERS, and
+        # that is exact rather than a shortcut: a swap changes one
+        # position, so a pair without that position in it has the same
+        # agreement before and after and cannot change its conformance.
+        # Comparing the two masks over the moved pairs therefore answers
+        # the same question as comparing them over all of them.
+        #
+        # IT MATTERS BECAUSE THE PAIR COUNT IS QUADRATIC IN THE
+        # POSITIONS. At 402 positions there are 80,601 pairs and 401 of
+        # them contain any one position; this runs twice per try. Built
+        # over every pair and grown by concatenation, one twin of that
+        # column did not finish inside ten minutes; preallocated over
+        # every pair it took 27.3 seconds; over the moved pairs it takes
+        # under a second.
+        inside: "list[bool]" = [False for _each in range(len(where))]
+        for step in range(len(where)):
+            index = where[step]
+            place = seats[index]
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            inside[step] = (
+                abs(agreed - facts.part_agreements[place]) <= room
+            )
+        return inside
+
+    def _owed() -> bool:
+        """Is any published pairing fact still unmet?
+
+        THE STOPPING RULE IS THE OBLIGATIONS THEMSELVES, and it was a
+        fixed distance of `0.0005` until review round 1 (item 2). A
+        distance cannot serve: one different cell is worth `1 / T`, so
+        above about two thousand rows a whole missed cell costs LESS
+        than that threshold and the walk stopped with an exactly-checked
+        fact still missed -- at four thousand rows it could stop before
+        its first try. What the walk owes is not a small number; it is
+        three named facts, so it asks after each of them by name.
+
+        `part_above` and the count of different cells are exact; an
+        agreement is owed only where it lies outside the window G12.9
+        publishes, because inside it the validator holds the twin to
+        nothing more.
+        """
+        if len(seen) != wanted:
+            return True
+        for index in range(len(seats)):
+            place = seats[index]
+            if aboves[index] != facts.part_above[place]:
+                return True
+            first = firsts[index]
+            second = seconds[index]
+            divisor = (spread[first] * spread[second]) ** 0.5
+            agreed = tops[index] / divisor if divisor > 0.0 else 0.0
+            # AT THE PRECISION THE AGREEMENT IS PUBLISHED TO, not at
+            # the window. Stopping at the window is not a trade -- the
+            # score is what could trade a cell for margin, and it does
+            # not -- but it leaves the walk idle while it could still
+            # be improving a fact a reader reads. Measured on a
+            # correlated 300-row blood pressure, stopping at the window
+            # left the twin agreeing at 0.8174 against a published
+            # 0.8343 where continuing reaches 0.8343.
+            if abs(agreed - facts.part_agreements[place]) > (
+                _AGREEMENT_ROUNDING
+            ):
+                return True
+        return False
+
+    away = _away()
+    tries = 0
+    at = 0
+    restarts = 0
+    # EVERY POSITION THIS WALK MOVES GETS AT LEAST ONE TRY (review
+    # round 1, item 3). `n_parts` may reach `n_present + 2`, and a
+    # column admitted at a lowered parse rate can hold few joined cells
+    # beside many positions -- so `200 * total` tries could be fewer
+    # than the positions taken in turn, and a tail position would get
+    # no try at all while its pairs were still counted in the score.
+    # Claiming every pair is aimed at is only true if every position is
+    # reached, so the ceiling is at least the number of movers.
+    movers = facts.n_parts - 1
+    ceiling = max(200 * total, movers)
+    while _owed() and tries < ceiling and len(words) >= 2:
+        # WHICH POSITION THIS TRY MOVES, taken in turn and costing no
+        # word. Drawing it would consume the reserve at a different
+        # rate and rewrite every two-position column's cells for a
+        # choice that has only one answer there.
+        place = 1 + tries % movers
+        # AND HOW MANY TURNS THAT POSITION HAS ALREADY HAD, read
+        # BEFORE the counter moves and handed to `_proposed` rather
+        # than read off the counter inside it. `place` and `turn` are
+        # the remainder and the quotient of one division, so the two
+        # together say everything the counter says while either alone
+        # says less -- and reading one counter for both is the defect
+        # amendment A-P4-52 repairs.
+        turn = tries // movers
+        tries = tries + 1
+        if at + 1 >= len(words):
+            # THE CURSOR RESTARTS ONE WORD FURTHER ALONG THAN LAST
+            # TIME, and until landing L7 it restarted at zero. The
+            # reserve holds `rows - 1` words for each position after
+            # the first and the ceiling is `200 * rows` tries, so a
+            # cursor returning to zero drew the same `rows / 2` pairs
+            # of rows two hundred times over: measured on a 240-row
+            # column publishing 240 different readings, the walk spent
+            # 48,000 tries on 119 distinct draws and stopped between
+            # 193 and 235 of them. Stepping the restart along walks
+            # the reserve against itself instead, which costs no word
+            # and no draw.
+            restarts = restarts + 1
+            at = restarts % max(len(words) - 1, 1)
+        one = _bounded(words[at], total)
+        two = _bounded(words[at + 1], total)
+        at = at + 2
+        one, two = _proposed(one, two, place, turn)
+        if one == two or held[place][one] == held[place][two]:
+            continue
+        kept_tops = [value for value in tops]
+        kept_aboves = [value for value in aboves]
+        keep = True
+        moved: "list[int]" = [
+            index
+            for index in range(len(seats))
+            if firsts[index] == place or seconds[index] == place
+        ]
+        # ONE `moved` LIST, READ THREE WAYS AND TWICE OVER. The mask
+        # and the above-count marks are both aligned to it, so entry
+        # `k` names the same pair in every one of the six arguments
+        # below.
+        conforming = _conforming(moved)
+        above_marks = _above_marks(moved)
+        cells_gap = _cells_gap()
+        for index in moved:
+            first = firsts[index]
+            second = seconds[index]
+            other = first if second == place else second
+            tops[index] = tops[index] + (
+                ranks[other][one] - ranks[other][two]
+            ) * (ranks[place][two] - ranks[place][one])
+            for row in (one, two):
+                if numbers[first][row] > numbers[second][row]:
+                    aboves[index] = aboves[index] - 1
+        held[place][one], held[place][two] = held[place][two], held[place][one]
+        numbers[place][one], numbers[place][two] = (
+            numbers[place][two],
+            numbers[place][one],
+        )
+        ranks[place][one], ranks[place][two] = (
+            ranks[place][two],
+            ranks[place][one],
+        )
+        for index in moved:
+            first = firsts[index]
+            second = seconds[index]
+            for row in (one, two):
+                if numbers[first][row] > numbers[second][row]:
+                    aboves[index] = aboves[index] + 1
+        made_one = _joined_written(held, facts, one)
+        made_two = _joined_written(held, facts, two)
+        for gone in (cells[one], cells[two]):
+            seen[gone] = seen[gone] - 1
+            if seen[gone] < 1:
+                del seen[gone]
+        for made in (made_one, made_two):
+            seen[made] = seen[made] + 1 if made in seen else 1
+        now = _away()
+        # AND A SWAP NEVER TAKES A PAIR OUT OF ITS OWN WINDOW (review
+        # round 1, item 2, third pass). Scoring an agreement only
+        # BEYOND the published window is what stops the walk buying
+        # margin with an exactly-checked cell -- but it leaves the
+        # inside of that window flat, and a walk that is indifferent
+        # there lets a pair drift across the edge and out. Measured on
+        # a forged three-position column at forty seeds, 120 pair
+        # measurements: flattening the interior took the pairs landing
+        # OUTSIDE the window from 87 to 110, and the count of different
+        # cells it was meant to protect was already met at every seed
+        # both ways -- so the trade bought nothing and cost 23.
+        #
+        # This refuses the drift directly instead of pricing it: a swap
+        # that takes ANY conforming pair out of conformance is refused
+        # -- UNLESS it brings an exactly-checked fact closer, because an
+        # exact fact outranks a windowed one and refusing without that
+        # exception cost ten above-counts of forty seeds where none had
+        # been missed.
+        #
+        # SEAT BY SEAT, AND IT COMPARED COUNTS UNTIL REVIEW ROUND 2.
+        # One pair leaving while another entered left the count equal
+        # and the swap was taken, so the guarantee was false of the
+        # thing it names.
+        #
+        # AND THE EXACT FACTS WERE ONE SUMMED DISTANCE UNTIL ROUND 3,
+        # which is the same defect on the other vector: an above-count
+        # going from held to MISSED while another improved by one left
+        # the total standing still. Worse, on that path no pair had
+        # left its window, so the rule returned True without reading
+        # the exact arguments at all and `_away`'s own sum was the only
+        # thing left to judge the swap. The rule now reads each pair by
+        # name, and reads them on every try.
+        if not _swap_allowed(
+            conforming, _conforming(moved),
+            above_marks, _above_marks(moved),
+            cells_gap, _cells_gap(),
+        ):
+            keep = False
+        # AN EQUAL SWAP IS TAKEN, NOT ONLY A BETTER ONE. Three facts are
+        # being met at once and they pull against each other: a swap
+        # that breaks a repeated cell often costs a little agreement and
+        # gains it back two swaps later. Taking only strict improvements
+        # stops on the first ridge -- measured, it left a column of 324
+        # different readings at 276 while the agreement was already
+        # right. Equal moves let the walk cross the ridge, and the try
+        # ceiling is what stops it wandering.
+        if keep and now <= away:
+            away = now
+            cells[one] = made_one
+            cells[two] = made_two
+            continue
+        # Put every carried quantity back, exactly as it was.
+        for made in (made_one, made_two):
+            seen[made] = seen[made] - 1
+            if seen[made] < 1:
+                del seen[made]
+        for back in (cells[one], cells[two]):
+            seen[back] = seen[back] + 1 if back in seen else 1
+        held[place][one], held[place][two] = held[place][two], held[place][one]
+        numbers[place][one], numbers[place][two] = (
+            numbers[place][two],
+            numbers[place][one],
+        )
+        ranks[place][one], ranks[place][two] = (
+            ranks[place][two],
+            ranks[place][one],
+        )
+        tops = kept_tops
+        aboves = kept_aboves
+    return held
+
+
+def _joined_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a joined-number column (contract 6.13).
+
+    Each position is built first, by the numeric rules, over that
+    position's view of this column. The separator goes on afterwards,
+    character for character as the description publishes it, and each
+    number is padded back to the smallest width its position was
+    written at.
+
+    THE POSITIONS ARE DRAWN INDEPENDENTLY AND THEN PAIRED ON PURPOSE.
+    This docstring said the opposite for a landing -- that the format
+    publishes no structure between one position and another, so the
+    pairs are believable one number at a time -- and `_repaired_pairing`
+    below it has always contradicted that. The format DOES publish
+    structure between positions: `part_agreements` says how strongly
+    two positions rise and fall together by rank, and `part_above` how
+    often the earlier stands above the later. Both are facts of the
+    real column and both are walked toward here.
+
+    So the limit worth stating is the true one: EVERY pair's agreement
+    is APPROXIMATED against the window of method G12.9 rather than met.
+    The walk moved the LAST position and no other until landing L7, so
+    a pair between two earlier positions of a three-or-more-position
+    cell was moved by nothing and no window was promised for it
+    (residual R-P4-51, closed; review item P4-G3-R7-F4). Every position
+    but the first moves now, so every pair is aimed at and every pair
+    takes the window -- and aiming is not reaching: a pair outside the
+    window is a MISS named on both pages with the achieved value beside
+    the published one, which is what R-P4-121 records.
+
+    Both are named on both pages: the twin's own report and the quality
+    report (R-P4-42 and R-P4-44, closed 2026-08-27). This is also the
+    one place structure between two quantities is reproduced at all,
+    and it lives inside a cell: it says nothing about any other column,
+    so the one-column-wide bound stated in the brief is unaffected.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        raise _wrong_facts(column.name)
+    notes: "list[Deviation]" = []
+    drawn: "list[list[str]]" = []
+    # EACH POSITION DRAWS ITS OWN WORDS, and that is what makes the
+    # pairs pairs. Handing every position the same list was measured
+    # first and is wrong twice: each drew the same words, so position
+    # two moved in lockstep with position one -- a 400-row column whose
+    # real cells hold 387 different readings came out with 117, in runs
+    # like `105/63`, `104/63`. The marginals were right either way; the
+    # PAIRING was an artefact of the word stream. The plan's word budget
+    # is the sum of what the positions need, so this walks it.
+    at = 0
+    for place in range(facts.n_parts):
+        view = _part_view(column, place)
+        layout, layout_notes, part_content = _numeric_layout(
+            view, facts.parts[place], facts.parts[place].n_distinct_values
+        )
+        part_words: "list[int]" = []
+        step = 0
+        while step < part_content and at + step < len(words):
+            part_words = part_words + [words[at + step]]
+            step = step + 1
+        at = at + part_content
+        part_plan = dataclasses.replace(plan, column=view, layout=layout)
+        values, part_notes = _numeric_content(part_plan, part_words)
+        # AND A POSITION'S NOTE NAMES THE POSITION (round 3, item 4).
+        # `Deviation.fact` is the description's own key, and a joined
+        # column publishes `parts[0].integer_valued`, not
+        # `integer_valued`: a report carrying the bare key leaves a
+        # reader unable to tell WHICH position changed, and two
+        # positions changing the same fact produce two entries nothing
+        # tells apart.
+        notes = notes + _position_notes(place, layout_notes + part_notes)
+        # EVERY POSITION AFTER THE FIRST IS SHUFFLED AGAINST IT, and
+        # this is the step that makes a pair a pair. `_numeric_content`
+        # places its values by rule, not by chance -- the words decide
+        # arrangement, not which numbers come out -- so two positions
+        # built from it come out in the SAME order and pair up in
+        # lockstep. Measured: a column whose real cells hold 387
+        # different readings came out with 117, in runs like `105/63`,
+        # `104/63`, while each position's own distribution was right to
+        # the digit.
+        #
+        # A shuffle keeps every position's MULTISET exactly, so every
+        # published number about it -- ladder, mean, spread, styles,
+        # widths -- is untouched, and only the pairing moves. It is the
+        # honest choice among the pairings the description admits, and
+        # a pairing IS asked for: `part_agreements` and `part_above`
+        # publish how the positions moved together, so the walk in
+        # `_repaired_pairing` has targets rather than a free choice,
+        # and among pairings that reach them the one also meeting the
+        # published `n_distinct` is better than one that does not. A
+        # fixed reversal would meet the count too and would invent a
+        # strong negative agreement the description contradicts.
+        drawn = drawn + [values]
+    # WHICH NUMBERS MEET IN A ROW. The words the shuffle used to spend
+    # are spent here instead: the pairing is chosen to the facts the
+    # description publishes about it rather than left to chance.
+    spare: "list[int]" = []
+    step = at
+    while step < len(words):
+        spare = spare + [words[step]]
+        step = step + 1
+    # WHAT THE PAIRING IS ASKED FOR IS NOT THE WHOLE COLUMN'S COUNT,
+    # where any cell did not split. Those cells are replaced by
+    # stand-ins built after the pairing, and they are all ONE spelling
+    # (`_class_spellings` at a budget of one), which no joined cell
+    # wears -- so they add exactly one to the count of different cells,
+    # however many of them there are.
+    #
+    # Handing the pairing the whole-column figure compared unlike
+    # quantities and made the report say a fact was missed when the
+    # column met it: 99 paired cells that are necessarily all different,
+    # plus one stand-in, meet a published 100, and the twin was
+    # nevertheless told it had reached 99 of 100. The recount at the end
+    # of generation, which measures the FINISHED cells, said 100 in the
+    # same report.
+    invented = 1 if column.n_present > facts.n_joined else 0
+    wanted = column.n_distinct - invented
+    if wanted < 0:
+        wanted = 0
+    drawn = _repaired_pairing(drawn, facts, wanted, spare)
+    # WHAT THE PAIRING COULD NOT REACH IS SAID, not swallowed. The count
+    # of different cells is a fact of the real column that a pairing of
+    # THESE numbers may be unable to meet (residual R-P4-40), and a twin
+    # that quietly holds fewer is a twin whose own report should say so.
+    made_cells: "dict[str, int]" = {}
+    for row in range(facts.n_joined):
+        text = _joined_written(drawn, facts, row)
+        made_cells[text] = 1
+    if len(made_cells) != wanted:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{wanted} different value(s)",
+                f"{len(made_cells)} different value(s)",
+                "Each number in this column's cells follows the "
+                "description exactly. Which numbers meet in a cell is "
+                "chosen to the facts the description publishes about "
+                "that, and those cannot always be met together: numbers "
+                "drawn to a published ladder repeat more evenly than the "
+                "real ones did, so fewer different pairs can be made.",
+            )
+        ]
+    cells: "list[str]" = []
+    for row in range(facts.n_joined):
+        cells = cells + [_joined_written(drawn, facts, row)]
+    # THE CELLS THAT SPLIT NO SUCH WAY -- the stragglers the parse line
+    # tolerated. The description says how MANY there were and nothing
+    # else about them, so they are invented, and invention is what they
+    # are reported as.
+    stragglers = column.n_present - facts.n_joined
+    if stragglers > 0:
+        used: "dict[str, int]" = {cell: 1 for cell in cells}
+        cells = cells + _class_spellings(
+            _CLASS_TEXT,
+            stragglers,
+            1,
+            1,
+            0,
+            used,
+            _hole_spellings(column),
+        )
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_unparsed",
+                f"{stragglers} value(s) that are not numbers joined this "
+                "way",
+                "made-up text stands in for them",
+                "This column holds some cells that do not split into "
+                "whole numbers. The description records how many and "
+                "nothing else about them, so the twin invents them.",
+            )
+        ]
+    return cells, notes
+
+
+def _affixed_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of an affixed column (contract 6.12).
+
+    The cores are built first, by the numeric rules, over the core
+    view of this column. The pair goes on afterwards, character for
+    character as the description publishes it. The cells that wore no
+    pair -- the stragglers the parse line tolerated -- are invented
+    last, and are marked as invention because nothing about them is
+    published: the description says how MANY there were and nothing
+    else.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.AffixedFacts):
+        raise _wrong_facts(column.name)
+    notes: "list[Deviation]" = []
+    cells: "list[str]" = []
+    if not facts.affix_variants:
+        # ONE WRAPPER, AND EVERY CELL WEARS IT. This branch is what
+        # shipped, to the line: the plan carries the layout, the cores
+        # are built from it, and the pair goes on afterwards.
+        core_plan = dataclasses.replace(plan, column=_core_view(column))
+        cores, notes = _numeric_content(core_plan, words)
+        for step in range(len(cores)):
+            cells = cells + [
+                f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
+            ]
+    else:
+        # A SET, SO EACH WRAPPER'S CELLS ARE BUILT FROM ITS OWN BLOCK
+        # (plan P4-D37). This is where that ruling is paid for. The
+        # cores were built from ONE block over every wrapper's numbers
+        # and the wrappers were handed out afterwards to meet their
+        # counts, so nothing tied a wrapper to the values it wore: `H`
+        # landed on a low reading, `L` on a high one, and a column of
+        # kilograms beside pounds had a kilogram written on a core of
+        # 150. Drawing each wrapper's cells from that wrapper's own
+        # ladder ties them by construction, and no order has to be
+        # arranged at all.
+        at = 0
+        # -1 is the COMMONEST wrapper, whose facts are the column's own
+        # and are named bare; 0 upward are the entries of
+        # `affix_variants`, in the order the description states them.
+        step_of_wrapper = -1
+        for pair_view in _wrappers_of(facts, column):
+            wrapper_layout, layout_notes, wrapper_content = _numeric_layout(
+                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+            )
+            mine: "list[int]" = []
+            step = 0
+            while step < wrapper_content and at + step < len(words):
+                mine = mine + [words[at + step]]
+                step = step + 1
+            at = at + wrapper_content
+            wrapper_plan = dataclasses.replace(
+                plan, column=pair_view[1], layout=wrapper_layout
+            )
+            drawn, drawn_notes = _numeric_content(wrapper_plan, mine)
+            # AND A WRAPPER'S NOTE NAMES ITS WRAPPER (review round 2,
+            # item 7), on the joined role's precedent in
+            # `_position_notes`. `Deviation.fact` is the description's
+            # own key, and a column wearing a set publishes
+            # `affix_variants[0].numbers.empty_edges`, not
+            # `empty_edges`: carried up bare, a reader is told a fact
+            # moved and not which wrapper's, and two wrappers moving
+            # the same fact make two entries nothing tells apart.
+            notes = notes + _wrapper_notes(
+                step_of_wrapper, layout_notes + drawn_notes
+            )
+            step_of_wrapper = step_of_wrapper + 1
+            for step in range(len(drawn)):
+                cells = cells + [
+                    f"{pair_view[0][0]}{drawn[step]}{pair_view[0][1]}"
+                ]
+    # WHICH WRAPPER EACH CELL WEARS (plan P4-D36). Most columns of
+    # this role wear ONE and every cell gets it. Where the description
+    # names others, their published counts are honoured first, in the
+    # order the description states them, and the rest wear the
+    # commonest pair -- which is what the block's own `n_affixed`
+    # minus those counts says it holds.
+    #
+    # TAKEN FROM THE FRONT IN ORDER, so the wrapper a cell wears is a
+    # function of the description and the seed alone: the cores are
+    # already in the order the value stage put them, and shuffling
+    # them here would spend randomness on a fact nothing publishes.
+
+    # THE STRAGGLERS: the cells wearing no pair. Their count is
+    # `n_present - n_affixed`, and their CLASSES are published -- the
+    # universal census counts cells, and an affixed cell is not a
+    # number, so every numeric, out-of-range and contradictory cell of
+    # this column is a straggler and the rest of `n_not_numeric` is the
+    # ordinary text among them.
+    #
+    # Writing them all as text was wrong twice over: it lost the
+    # published class of a plain number sitting beside the affixed
+    # cells, and it reported the loss as a deviation instead of not
+    # committing it (review item P4-AFX-F6). G10.2 requires the
+    # construction to preserve the class, not to apologize for it.
+    layout = plan.layout
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    pair = (facts.affix_prefix, facts.affix_suffix)
+    # WHAT THE AFFIXED CELLS ALREADY PAID, class by class. The two
+    # populations OVERLAP and the earlier arithmetic assumed they could
+    # not: a cell wearing the pair is still a cell, so it lands in one
+    # of the four universal classes like any other, and a column whose
+    # pair is `1` holds cells such as `12` that wear it AND read as
+    # numbers. Subtracting `n_affixed` from the text class alone and
+    # clamping the result at zero swallowed that overlap in a class
+    # that did not hold it, then wrote the number class again on top --
+    # so a hundred-row column came out with a hundred and one cells and
+    # `generate` stopped with an internal-check message telling its
+    # user that synthtwin has a bug. It has one; this is it.
+    #
+    # The classes the written cells already fill are RECOUNTED here
+    # rather than assumed, by the same classifier the description was
+    # built with, and only the shortfall is written. What the twin
+    # cannot then reach is named by `_class_notes`, which recounts all
+    # four from the finished text.
+    worn = {name: 0 for name in _CLASSES}
+    for cell in cells:
+        found = parsing.classify_number(cell)
+        worn[found] = worn[found] + 1
+    stragglers = column.n_present - facts.n_affixed
+    if stragglers < 0:
+        stragglers = 0
+    owed: "dict[str, int]" = {}
+    room = stragglers
+    for kind, published in (
+        (_CLASS_NUMBER, column.n_numeric),
+        (_CLASS_OUT_OF_RANGE, column.n_out_of_range),
+        (_CLASS_CONTRADICTORY, column.n_contradictory),
+    ):
+        short = published - worn[kind]
+        if short < 0:
+            short = 0
+        if short > room:
+            short = room
+        owed[kind] = short
+        room = room - short
+    # Whatever the three named classes did not claim is ordinary text,
+    # which is the class the contract gives every cell no other class
+    # names.
+    owed[_CLASS_TEXT] = room
+    holes = _hole_spellings(column)
+    if owed[_CLASS_NUMBER]:
+        cells = cells + _unaffixed_numbers(
+            owed[_CLASS_NUMBER], pair, used, holes
+        )
+    for kind, count, place in (
+        (_CLASS_OUT_OF_RANGE, owed[_CLASS_OUT_OF_RANGE], 1),
+        (_CLASS_CONTRADICTORY, owed[_CLASS_CONTRADICTORY], 2),
+        (_CLASS_TEXT, owed[_CLASS_TEXT], 3),
+    ):
+        if not count:
+            continue
+        cells = cells + _unaffixed_spellings(
+            kind,
+            count,
+            layout.folded_budgets[place] if layout else 1,
+            layout.raw_budgets[place] if layout else 1,
+            pair,
+            used,
+            holes,
+        )
+    return cells, notes
+
+
+def _wears(text: str, pair: "tuple[str, str]") -> bool:
+    """Whether this cell would be read as wearing the published pair.
+
+    A straggler that wears it is counted as affixed when the twin is
+    described again, so `n_affixed` comes out higher than the
+    description published and the collision is silent (review item
+    P4-AFX-F7). The invented spelling `text-1` wearing the published
+    prefix `text-` is exactly that case.
+    """
+    prefix, suffix = pair
+    trimmed = parsing.trimmed(text)
+    if not trimmed.startswith(prefix) or not trimmed.endswith(suffix):
+        return False
+    return bool(trimmed[len(prefix) : len(trimmed) - len(suffix)])
+
+
+def _unaffixed_spellings(
+    kind: str,
+    count: int,
+    folded_budget: int,
+    raw_budget: int,
+    pair: "tuple[str, str]",
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]" = (),
+) -> "list[str]":
+    """One straggler class, with nothing in it wearing the pair.
+
+    THE FILTER USED TO REJECT EVERY CANDIDATE, and the two published
+    classes it feeds were unreachable because of it. `_class_spellings`
+    RECORDS each spelling it builds before handing it back, so testing
+    `spelling in used` after the call was testing whether the builder
+    had just done its own bookkeeping -- always true. Every cell fell
+    through to the last resort below, so a thousand-row column of
+    prices beside five cells too large to hold and five of
+    contradictory notation wrote `(no pair 0)` through `(no pair 4)`
+    for all ten: two exact published counts missed, the count of
+    different values missed with them, and the deviation note blamed
+    group granularity for cells that were never built at all.
+    What must be refused is a spelling used BEFORE this walk began, so
+    the snapshot is taken at entry. A repeat WITHIN the walk is not a
+    collision: a class whose spelling budget is spent repeats its last
+    spelling on purpose (G6.6).
+    """
+    built: list[str] = []
+    already = {spelling: 1 for spelling in used}
+    step = 0
+    while len(built) < count and step < count * 8 + 64:
+        wanted = count - len(built)
+        batch = _class_spellings(
+            kind, wanted + step, folded_budget, raw_budget, 0, used, holes
+        )
+        for spelling in batch:
+            if len(built) >= count:
+                break
+            if _wears(spelling, pair):
+                continue
+            if spelling in already:
+                continue
+            if _is_a_hole_spelling(spelling, holes):
+                continue
+            built = built + [spelling]
+            used[spelling] = 1
+        step = step + wanted + 1
+    seat = 0
+    while len(built) < count:
+        # A last resort, reached only where the walk above exhausts its
+        # ceiling: a spelling of this package's own, made distinct by
+        # its place.
+        #
+        # IT OWES THE HOLE REFUSAL THE WALK ABOVE OWES, and it was not
+        # keeping it. A spelling this column publishes as a HOLE is
+        # read back as no value at all, so writing one as a PRESENT
+        # cell moves the twin's own missing counts against the
+        # description it was built from -- the same defect
+        # `_unaffixed_numbers` records having been repaired for, in the
+        # same class of cell and for the same reason. Reaching this
+        # branch needs a column whose every candidate wears the pair,
+        # and no such column was built from the profiler while the
+        # refusal was added, so it is recorded as a GUARD rather than
+        # as a demonstrated repair.
+        #
+        # WEARING THE PAIR IS PREFERRED AGAINST AND NOT REFUSED, and
+        # that is deliberate. A pair can be any text -- a column of
+        # `(1)` and `(2)` wears `(` and `)` -- so a rule that refused
+        # every spelling wearing it would refuse every spelling this
+        # branch can make and never finish. The first spelling that
+        # avoids all three is taken; past a bound, the pair alone is
+        # conceded, because a repeated cell and a cell read as absent
+        # are both worse than a cell counted in the wrong class.
+        made = f"(no pair {seat})"
+        conceded = seat >= count * 4 + 64
+        seat = seat + 1
+        if made in used or _is_a_hole_spelling(made, holes):
+            continue
+        if _wears(made, pair) and not conceded:
+            continue
+        used[made] = 1
+        built = built + [made]
+    return built
+
+
+def _wears_any_published_hole(
+    cell: str, holes: "tuple[str, ...]", decimal_comma: bool
+) -> bool:
+    """Whether one written cell wears ANY of this column's hole
+    spellings, under this column's own reading.
+
+    The plural of `_wears_this_hole`, kept beside it so no caller has
+    to write the loop and get the identity subtly different -- which is
+    exactly what happened while there were three loops and two rules.
+    """
+    # THE BUILT-IN WORDS ARE DELIBERATELY NOT CONSULTED, and adding
+    # them here broke a rescued spelling: `--keep-value NA` makes `NA`
+    # a real value of a real column, and a twin that writes it writes a
+    # PRESENT cell. `_wears_a_published_hole` says so in its own
+    # docstring and this helper was written past it -- forty cells of a
+    # rescued spelling were recounted absent, and the column reported
+    # 80 present against a published 120.
+    for hole in holes:
+        if _wears_this_hole(cell, hole, decimal_comma):
+            return True
+    return False
+
+
+def _wears_this_hole(
+    cell: str, hole: str, decimal_comma: bool
+) -> bool:
+    """Whether one written cell wears one published hole spelling.
+
+    ONE IDENTITY FOR A QUESTION THREE PLACES WERE ASKING THREE WAYS
+    (review item P4-G3-R7-F2). The described-domain view asked `cell ==
+    hole`; the excess count asked the same; and `_recounted` asked
+    `_wears_a_published_hole`, which folds and compares NUMBERS. On an
+    ordinary column those agree often enough to hide the difference. On
+    a declared one they do not: a column publishing the hole `7,50`
+    whose generated value 7.5 is written `7,5` has the two recognised
+    as one number by a re-description and as two different texts by the
+    exact guards -- so the quality report reported lost presence and
+    the twin's report stayed silent.
+
+    The rule is the one the profiler uses to decide what a declaration
+    matches: the same NUMBER where the spelling reads as one under this
+    column's grammar, and the same folded spelling otherwise.
+
+    Guarantees: accepts a cell, a published hole spelling and whether
+    the column was declared; returns whether the cell wears that hole.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if cell == hole:
+        return True
+    read_cell = cell
+    read_hole = hole
+    if decimal_comma:
+        read_cell = parsing.written_with_a_decimal_comma(cell)
+        read_hole = parsing.written_with_a_decimal_comma(hole)
+    held = parsing.exact_of_spelling(read_hole)
+    if held is not None:
+        return parsing.exact_of_spelling(read_cell) == held
+    return parsing.folded(parsing.trimmed(cell)) == parsing.folded(
+        parsing.trimmed(hole)
+    )
+
+
+def _declared_a_decimal_comma(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> bool:
+    """Whether this column was named `--decimal-comma`.
+
+    Asked in four places and written once, which is the rule this whole
+    landing kept learning: the writeback, the described-domain view,
+    the judged-candidate identity and the hole guard must agree, and
+    four copies of one loop would not.
+    """
+    for name in profile.settings.forced_decimal_commas:
+        if name == column.name:
+            return True
+    return False
+
+
+def _read_as_described(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    spelled: "list[str]",
+) -> "list[str]":
+    """One column's finished cells, in the reading its description used.
+
+    The inverse of what the profiler did to the real file, applied to
+    the twin: on a column named `--decimal-comma` every point is
+    dropped and every comma becomes one, so the cells read here are
+    numbers in the same sense the published facts are. On every other
+    column this returns the cells unchanged.
+
+    IT ASKS ONLY WHETHER THE COLUMN WAS DECLARED, and not what role it
+    took (review item P4-G3-R5-F2). The profiler translates before it
+    chooses a role, so a declared column reads with the comma whatever
+    role it ends up with -- including `constant` and `binary`, which
+    are chosen BEFORE the numeric roles and which
+    `a_decimal_comma_reaches` deliberately excludes, because that
+    predicate answers a different question: whether the generator has
+    to SPELL this column's numbers, which it does only where it wrote
+    them as numbers in the first place.
+
+    Guarantees: accepts one column's block, the loaded description and
+    the cells as they leave; returns as many cells in the same order.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if not _declared_a_decimal_comma(column, profile):
+        return spelled
+    # A HOLE IS NOT A NUMBER AND IS LEFT ALONE (review item
+    # P4-G3-R6-F3), which is the order the profiler works in and the
+    # rule the writeback beside this one already follows. Translating a
+    # hole turns `-9,99` -- a spelling this column publishes among its
+    # ABSENT cells -- into `-999`, which reads as a number; the twin
+    # then reported 200 numeric cells against a published 180, with
+    # eleven false deviations after it, including moments and rungs
+    # computed over twenty values the column does not have.
+    holes = _hole_spellings(column)
+    read: "list[str]" = []
+    for cell in spelled:
+        keep = not cell
+        for hole in holes:
+            if _wears_this_hole(cell, hole, True):
+                keep = True
+        if keep:
+            read = read + [cell]
+            continue
+        swapped = parsing.written_with_a_decimal_comma(cell)
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED HERE EITHER,
+        # and this was the one of the three sides that still was
+        # (review round 7 of this landing, item 1). The writeback and
+        # the validator both translate a cell of this role only where
+        # the translation makes it a number; this read every cell, so a
+        # twin holding the labels `AB.1` and `AB1` was MEASURED as
+        # holding `AB1` twice -- and the report carried four deviations
+        # that were false of the file it had just written: both label
+        # counts and both outer counts, each one short.
+        if _labels_beside_numbers(column):
+            if parsing.classify_number(swapped) != parsing.NUMBER:
+                read = read + [cell]
+                continue
+        read = read + [swapped]
+    return read
+
+
+def _spelled_with_a_decimal_comma(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    content: "list[str]",
+) -> "list[str]":
+    """Write a declared column's numbers with a comma for the point.
+
+    THE INVERSE OF THE READING, and exact rather than approximately so.
+    The profiler read this column by dropping every `.` and turning
+    every `,` into a point; a twin's numeric cell carries no thousands
+    separator at all -- the forms the method writes are the plain, the
+    decimal and the leading-zero ones -- so turning its single point
+    back into a comma restores exactly what the reading consumed. The
+    grouping marks of the real column are NOT restored, because nothing
+    published says where they fell, and making them up would be a
+    spelling the description never claimed.
+
+    WHY ONLY THE PLAIN NUMERIC ROLES. The swap is applied where the
+    cells were written by the numeric machinery and are therefore
+    numbers this method spelled. A declared column that fell short of
+    the parse line is described by a label or text role, its cells are
+    spellings rather than numbers, and rewriting a character inside one
+    of those would corrupt a value the description publishes exactly.
+    The affixed and joined roles are excluded for the same reason and
+    are named as residual R-P4-52: their cells carry a number inside a
+    larger spelling, and which of that spelling's marks is a decimal
+    point is a question this declaration does not answer.
+
+    Guarantees: accepts one column's block, the loaded description and
+    the cells just written; returns the cells, unchanged unless the
+    column was named in `settings.forced_decimal_commas`. Determinism:
+    a fixed function of those three. Raises nothing. No I/O.
+    """
+    if not _declared_a_decimal_comma(column, profile):
+        return content
+    if not contract.a_decimal_comma_reaches(column):
+        return content
+    # A CELL THAT IS NOT A NUMBER IS LEFT EXACTLY AS IT WAS (review
+    # item P4-G3-R3-F1). The swap runs over the finished column, which
+    # carries this column's ABSENT cells as well as its numbers, and
+    # `_absent_cells` promises to reproduce each published
+    # `missing_by_source` spelling character for character. A hole
+    # spelled `.` is not a decimal point in a number; turning it into
+    # `,` writes a twin whose two hundred cells are all present against
+    # a published one hundred and eighty, re-describes as
+    # `long_tail_labels` rather than `continuous`, and misses seven
+    # obligations -- while the twin's own report, which recounts the
+    # cells BEFORE this swap, says nothing at all. The two pages of one
+    # run disagreeing is the shape this whole round keeps finding.
+    holes = _hole_spellings(column)
+    spelled: "list[str]" = []
+    for cell in content:
+        if not isinstance(cell, str):
+            raise errors.ProfileError(_INTERNAL_NOT_TEXT)
+        keep = not cell
+        for hole in holes:
+            if cell == hole:
+                keep = True
+        if keep:
+            spelled = spelled + [cell]
+            continue
+        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED. The swap
+        # runs over the finished column, and half of this role's cells
+        # are words the description publishes exactly: a marker spelled
+        # `E11.9` would leave as `E11,9`, which is not the spelling the
+        # description carries. Only cells that ARE numbers in the form
+        # the numeric machinery just wrote them in are swapped.
+        if _labels_beside_numbers(column):
+            if parsing.classify_number(cell) != parsing.NUMBER:
+                spelled = spelled + [cell]
+                continue
+        swapped = ""
+        for letter in cell:
+            swapped = swapped + ("," if letter == "." else letter)
+        spelled = spelled + [swapped]
+    return spelled
+
+
+def _labels_beside_numbers(column: "contract.ColumnBlock") -> bool:
+    """Whether this column holds words beside its numbers.
+
+    Asked where a rule written for a column of numbers meets a column
+    that is half numbers, so the rule can be applied to that half and
+    to nothing else.
+    """
+    return isinstance(column.facts, contract.CompoundFacts)
+
+
+def _absent_cells(
+    column: contract.ColumnBlock, decimal_comma: bool = False
+) -> "list[str]":
+    """Every absent cell of one column, as the text it is written with.
+
+    THE VERSION 6 WRITE RULE (contract C6-115, plan P4-D6.1). Version 5
+    wrote every absent cell empty and said so in a sealed sentence
+    (C5-9); a person's own `NA`, `#N/A` or `Not recorded` was recorded
+    in the description and then thrown away by the twin, so code that
+    filtered on it -- `df[df.status != "NA"]`, or a `na_values=` list
+    handed to a reader -- did something on the real table and nothing
+    at all on the twin.
+
+    Three parts, and the exception is the whole of the second:
+
+    1. each `missing_by_source` spelling at exactly its published
+       count, EXCEPT a spelling a judged pass put there;
+    2. every other absent cell empty -- the blank count, the withheld
+       remainder, and every judged-pass-sourced cell;
+    3. in a fixed sorted order, so the permutation that places
+       everything else places these too and the bytes stay a pure
+       function of the description and the seed.
+
+    WHY A JUDGED PASS'S CELLS STAY BLANK (C6-116). A reproduced TEXT
+    spelling reads back as absence by a fixed rule of the description
+    alone -- it is a member of the published vocabulary, or a value the
+    person named -- and that reading does not depend on the twin's own
+    values. A stand-in NUMBER and a calendar PLACEHOLDER are that
+    rule's named exclusions: the absence reading of both runs through
+    the producer's outlier-and-share judgement over the measured file's
+    own values, which a twin's generated distribution is not
+    guaranteed to re-fire. Reproducing them would make the twin's own
+    measurement contingent on a re-judgement. Nothing is lost by it:
+    the twin's report names those cells, per column.
+
+    Guarantees: accepts one loaded column block; returns exactly
+    `n_missing` cells. Determinism: a fixed function of the block.
+    Raises nothing. No I/O of any kind.
+    """
+    written: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
+            continue
+        for _each in range(column.missing_by_source[spelling]):
+            written = written + [spelling]
+    while len(written) < column.n_missing:
+        written = written + [""]
+    return written[: column.n_missing]
+
+
+def spellings_the_twin_reproduces(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """Which absent spellings the twin WRITES, and which it leaves blank.
+
+    THE SPLIT THE TWIN'S OWN REPORT NEEDS (residual R-P4-70). Version 5
+    wrote every absent cell empty, and the report said so in one
+    sentence. Version 6 writes each published `missing_by_source`
+    spelling at its count and keeps only the judged passes' cells blank
+    (C6-115, C6-116) -- and that sentence was not moved with the rule,
+    so the report told a researcher their own `NA`, `-9.99` or
+    `Not recorded` had stayed behind in the description while the twin
+    they were about to move held it, character for character, at its
+    published count.
+
+    It is published here rather than recomputed in the renderer because
+    it is the WRITE rule: `_absent_cells` decides what the twin holds,
+    and a report that worked the same question out a second way could
+    disagree with the file it describes. One rule, two readers.
+
+    Guarantees:
+
+    - Inputs: one loaded column block and the description it came from.
+    - Determinism: a fixed function of the two, both tuples sorted, so
+      the report's bytes stay a pure function of the description.
+    - Errors raised: none.
+    - Boundary: reads the description only. No table, no file, no
+      clock, no random source.
+
+    Returns the reproduced spellings first and the ones left blank
+    second. A spelling in neither tuple does not exist: every key of
+    `missing_by_source` is in exactly one of them.
+    """
+    comma = _declared_a_decimal_comma(column, profile)
+    reproduced: list[str] = []
+    left_blank: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        if _a_judged_pass_put_it_there(column, spelling, comma):
+            left_blank += [spelling]
+        else:
+            reproduced += [spelling]
+    return tuple(reproduced), tuple(left_blank)
+
+
+def _a_judged_pass_put_it_there(
+    column: contract.ColumnBlock,
+    spelling: str,
+    decimal_comma: bool = False,
+) -> bool:
+    """Whether a judged pass is what made cells of this spelling absent.
+
+    The two passes this version has are the stand-in number pass and
+    the calendar placeholder pass, and each records its decision as a
+    verdict naming the candidate. A published hole spelling that
+    denotes a candidate this column read as missing is that pass's
+    doing, and C6-116 keeps it blank.
+    """
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        if _is_the_same_candidate(
+            spelling, verdict.candidate, decimal_comma
+        ):
+            return True
+    return False
+
+
+def _is_the_same_candidate(
+    spelling: str, candidate: str, decimal_comma: bool = False
+) -> bool:
+    """Whether a hole spelling denotes one judged candidate.
+
+    A day is compared as its canonical spelling and a number as the
+    NUMBER it denotes, which is how the producer counted the
+    candidate's own rows in the first place -- AND THEREFORE UNDER THE
+    COLUMN'S OWN GRAMMAR (review item P4-G3-R7-F3). A declared column
+    whose forty outlier cells are spelled `-999,0` has them read as
+    minus nine hundred and ninety-nine and publishes a verdict naming
+    that number; asked ordinarily, `-999,0` is no number at all, the
+    spelling matched no candidate, and `_absent_cells` reproduced
+    `-999,0` where the contract's write rule asks for empty cells --
+    which then makes a later stand-in judgement contingent on the
+    twin's own distribution, the very thing the rule exists to
+    prevent.
+    """
+    if candidate in parsing.calendar_placeholders():
+        for name in parsing.DATE_FORMATS:
+            if parsing.placeholder_day_of(spelling, name) == candidate:
+                return True
+        return False
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    held = parsing.exact_of_spelling(read)
+    if held is None:
+        return False
+    return held == parsing.exact_of_spelling(candidate)
+
+
+def _every_hole_spelling(
+    profile: contract.Profile,
+) -> "tuple[str, ...]":
+    """Every spelling ANY column of this document calls absent.
+
+    A `--missing-value` declaration is made once and reaches the whole
+    table, so a spelling one column publishes among its absent cells
+    means "no value" wherever it appears. The validator reconstructs it
+    that way; a walk that invented spellings knowing only its own
+    column's holes did not, and wrote one column's hole into another
+    column as a present value (review round 5 finding 3).
+
+    Used where a spelling is CHOSEN, never where one is recounted: a
+    recount asks what THIS column's description says, which is the
+    narrower question `_wears_a_published_hole` answers.
+    """
+    found: "list[str]" = []
+    for column in profile.columns:
+        for spelling in _hole_spellings(column):
+            if spelling not in found:
+                found = found + [spelling]
+    return tuple(sorted(found))
+
+
+def _hole_spellings(
+    column: contract.ColumnBlock,
+) -> "tuple[str, ...]":
+    """Every spelling this column publishes among its absent cells.
+
+    The keys of `missing_by_source`, which are the spellings the column
+    ACTUALLY held where the floor let it name them. What is NOT here is
+    anything the floor pooled: those spellings the description does not
+    publish, so a generator cannot avoid them and does not pretend to.
+    The blank spelling is not here either, for the same reason it is
+    not a key of that map -- a twin's absent cells are written empty
+    and no present cell of one is blank.
+    """
+    found: list[str] = []
+    for spelling in sorted(column.missing_by_source):
+        found = found + [spelling]
+    return tuple(found)
+
+
+def _holes_reserved(
+    column: contract.ColumnBlock, everywhere: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """Every hole spelling this column's own walks must not INVENT.
+
+    The column's own published hole spellings and every other column's
+    together, because a `--missing-value` declaration is made once and
+    reaches the whole table -- and because a role in
+    `taxonomy.ROLES_PUBLISHING_NOTHING` publishes an empty map of its
+    own however many of its cells wore a declared spelling, so its own
+    map alone reserves nothing at all (review item P4-A2-R3, item 2).
+
+    ``everywhere`` may be empty, which is what a caller holding no
+    document hands over; the column's own map then stands alone,
+    exactly as it did before.
+
+    Guarantees: accepts a loaded column and the document's own hole
+    spellings; returns them together, sorted and without repeats.
+    Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    for spelling in _hole_spellings(column):
+        if spelling not in found:
+            found = found + [spelling]
+    for spelling in everywhere:
+        if spelling not in found:
+            found = found + [spelling]
+    return tuple(sorted(found))
+
+
+def _unaffixed_numbers(
+    count: int,
+    pair: "tuple[str, str]",
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> "list[str]":
+    """Plain numbers standing beside the affixed cells.
+
+    A cell of an affixed column that IS a number wears no pair -- the
+    detection rule requires one side to carry text -- so these are
+    stragglers, and the description publishes how many. Written as
+    whole numbers because nothing else about them is published: the
+    ladder and every moment belong to the CORES.
+
+    THREE SPELLINGS ARE REFUSED, and the third was missing. A spelling
+    already written would repeat a cell; one that WEARS the pair would
+    be counted affixed when the twin is described again; and one this
+    column publishes as a HOLE SPELLING is read back as no value at
+    all. A column of prices beside eleven cells spelled `1`, declared
+    with `--missing-value 1`, published `missing_by_source {"1": 11}`
+    and its twin then wrote a present cell spelled `1` -- so the twin's
+    own description read it as absent, and five exact counts moved
+    against a description the twin was built from.
+    """
+    built: list[str] = []
+    value = 1
+    while len(built) < count:
+        spelling = f"{value}"
+        if (
+            spelling not in used
+            and not _wears(spelling, pair)
+            and not _is_a_hole_spelling(spelling, holes)
+        ):
+            used[spelling] = 1
+            built = built + [spelling]
+        value = value + 1
+    return built
+
+
+def _is_a_hole_spelling(text: str, holes: "tuple[str, ...]") -> bool:
+    """Whether a spelling is one this run must not INVENT.
+
+    Three ways, and all three are the reader's own: the spelling is one
+    this format always reads as "no value"; the person named it when
+    the description was written; or this column publishes it among the
+    spellings its absent cells wore.
+
+    THIS IS THE CONSERVATIVE HALF OF THE QUESTION, and it is asked
+    where a spelling is being CHOSEN -- an invented straggler, a
+    stand-in, a withheld variant. There the safe answer is to avoid
+    anything a reader might call absent, so the built-in vocabulary
+    counts even where no cell of this column ever wore it.
+
+    It is NOT the question a recount asks (review item P4-DATE2-F2).
+    `--keep-value NA` makes `NA` a real label of a real column, and a
+    twin that writes it writes a present cell; a recount that used this
+    predicate called forty such cells absent and reported distinctness
+    deviations no file has. `_wears_a_published_hole` is that other
+    half.
+    """
+    if parsing.is_missing_text(text):
+        return True
+    return _wears_a_published_hole(text, holes)
+
+
+def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
+    """Whether the twin's own description reads this WRITTEN cell as absent.
+
+    The honest half of the question above, and the one a recount asks:
+    not "might a reader call this absent" but "does this column's own
+    description". What answers it is what the column PUBLISHES among
+    the spellings its absent cells wore -- facts of this column, not of
+    the vocabulary.
+
+    The built-in words are deliberately not consulted here. A twin cell
+    can only wear one of them where the description publishes it as a
+    VALUE, which happens only where a `--keep-value` rescued it, and
+    such a cell is present; every place that INVENTS a spelling asks
+    the conservative predicate above instead, so no cell reaches a
+    recount wearing a built-in word by accident.
+    """
+    body = parsing.trimmed(text)
+    folded = parsing.folded(body)
+    held = parsing.exact_of_spelling(body)
+    for spelling in holes:
+        # A PUBLISHED HOLE THAT IS A VOCABULARY MEMBER IS MATCHED THE
+        # MEMBER'S OWN WAY (contract C6-32, review item P4-HOLE-F3).
+        # This predicate folded every hole spelling, so a column
+        # publishing the exact member `NaT` had its sixty ordinary
+        # `nat` cells counted as holes by the recount -- and the twin
+        # report then said the column held sixty values where the file
+        # holds a hundred and twenty.
+        if spelling in parsing.MISSING_TEXTS_EXACT:
+            if text == spelling:
+                return True
+            continue
+        other = parsing.trimmed(spelling)
+        if parsing.folded(other) == folded:
+            return True
+        # ...AND A NUMBER IS MATCHED AS A NUMBER, which is how the
+        # description's own reader matches a declared value: `1` and
+        # `1.0` are one value and one of them being published as a hole
+        # makes the other one a hole too. Comparing spellings alone let
+        # the straggler walk write `1` into a column publishing
+        # `missing_by_source {"1.0": 11}`, and the twin's own
+        # description then counted that present cell absent. The same
+        # holds for `01`, `1.00` and `1e0`.
+        #
+        # MATCHED EXACTLY, and it was matched after rounding (review
+        # item P4-DATE3-F2). The producer's rule is that two spellings
+        # are one number when they denote one number, however close the
+        # binary64 values they round to -- so `-999` and
+        # `-999.00000000000001` are two numbers, and a comparison made
+        # in binary64 called them one and counted a present cell
+        # absent. This asks the producer's own rule, by its own name.
+        if held is None:
+            continue
+        found = parsing.exact_of_spelling(other)
+        if found is not None and found == held:
+            return True
+    return False
+
+
 def _numeric_content(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -3394,7 +7687,7 @@ def _numeric_content(
     if not isinstance(facts, contract.NumericFacts) or layout is None:
         raise _wrong_facts(column.name)
     notes: list[Deviation] = []
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    rungs = _merged_rungs(facts)
     if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
         notes = notes + [
             _deviation(
@@ -3409,8 +7702,54 @@ def _numeric_content(
     values, endpoint_notes = _stratum_values(column, facts, layout, rungs, words)
     notes = notes + endpoint_notes
     values = _whole_enough(column, facts, layout, rungs, values)
+    # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (residual R-P4-56).
+    # After the carrier walk, because that walk moves values onto whole
+    # numbers and could itself land two strata on one text.
+    values = _apart_enough(column, facts, layout, rungs, values)
+    # AND THE POOLED CELLS ARE HELD BACK LAST (residual R-P4-69), after
+    # the walk that would otherwise write every one of them point-free
+    # and after the step that pulls two strata apart, because the values
+    # it hands out are fresh and no later step may take them away again.
+    layout, values, pool_notes = _pool_enough(
+        column, facts, layout, rungs, values
+    )
+    notes = notes + pool_notes
+    # AND THE VALUES ARE WIDE ENOUGH FOR THE FIELDS THE CENSUS NAMES
+    # (residuals R-P4-30, R-P4-35 and R-P4-27). LAST, because it moves
+    # a whole value onto another whole value that no stratum holds, so
+    # every guarantee the three passes above just established -- the
+    # point-free count, the strata being apart, the held-back pool --
+    # comes through it untouched, and none of them has to be re-argued
+    # against a value this pass chose.
+    values = _wide_enough(column, facts, layout, rungs, values)
+    # AND NO VALUE STANDS WHERE THE DESCRIPTION SAYS THERE IS NONE
+    # (plan P4-D32, residual R-P4-136). LAST, and it takes that place
+    # from `_wide_enough` above on purpose: this is the only one of the
+    # five obligations a later mover could break OUTRIGHT rather than
+    # leave unmet. A width the values cannot wear is a shortfall the
+    # report names; a cell in a stretch the real column left empty is
+    # the twin showing a cluster nobody has. What this pass takes back
+    # from the four before it is bounded by its own rules -- it keeps
+    # each value's written form, lands on no value another stratum
+    # holds, and moves neither pinned end nor any stratum in the zero
+    # band -- so the only one of them it can cost is a field width, and
+    # that census is REPORT-ONLY with its shortfalls named.
+    values, clear_notes = _clear_enough(column, facts, layout, values)
+    notes = notes + clear_notes
+    # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
+    # second report was written here and withdrawn on measurement: the
+    # style recount already names exactly this, as "at least 34 cell(s)
+    # written in the plain form" against the 31 a run wrote, so the twin
+    # was never silent about it and a note beside that one would be the
+    # same fact said twice.
     cells, style_notes = _number_cells(column, facts, layout, values)
     notes = notes + style_notes
+    # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
+    # here because it is a fact about the finished TEXT: which width a
+    # cell is written at is decided inside `_number_cells`, and a
+    # value a thousandth outside a stretch is written back inside it
+    # at one width and not at another.
+    notes = notes + _gap_notes(column, facts, cells)
     used: dict[str, int] = {cell: 1 for cell in cells}
     if column.n_out_of_range:
         cells = cells + _class_spellings(
@@ -3420,6 +7759,7 @@ def _numeric_content(
             layout.raw_budgets[1],
             facts.n_negative_unrepresentable,
             used,
+            _hole_spellings(column),
         )
         notes = notes + [
             _deviation(
@@ -3441,6 +7781,7 @@ def _numeric_content(
             layout.raw_budgets[2],
             0,
             used,
+            _hole_spellings(column),
         )
     if column.n_not_numeric:
         cells = cells + _class_spellings(
@@ -3450,6 +7791,7 @@ def _numeric_content(
             layout.raw_budgets[3],
             0,
             used,
+            _hole_spellings(column),
         )
     return cells, notes
 
@@ -3473,7 +7815,7 @@ def _stratum_values(
         if band == _BAND_ZERO:
             values = values + [0.0]
             if pinned and rungs is not None:
-                published = rungs[0] if place == 0 else rungs[10]
+                published = rungs[0] if place == 0 else rungs[-1]
                 if published != 0.0:
                     notes = notes + [
                         _deviation(
@@ -3491,7 +7833,7 @@ def _stratum_values(
             if rungs is None:
                 values = values + [_sign_fallback(band, None)]
             else:
-                values = values + [rungs[0] if place == 0 else rungs[10]]
+                values = values + [rungs[0] if place == 0 else rungs[-1]]
             continue
         if rungs is None:
             values = values + [_sign_fallback(band, None)]
@@ -3500,6 +7842,15 @@ def _stratum_values(
         word = words[taken]
         taken = taken + 1
         numerator = layout.starts[place] * _WORD_SCALE + layout.sizes[place] * word
+        # THE LADDER FIXES THE SEGMENT AND THE VALUE INSIDE IT
+        # (method G5.3). This comment used to say the histogram shaped
+        # the value and to cite a "G5.4a" that was never written, and
+        # it was wrong on both counts: `_interpolated` reads the rungs
+        # and the drawn word and nothing else, and G5.4 is the integer
+        # rule. `value_histogram` is REPORT-ONLY precisely BECAUSE
+        # nothing consumes it -- a comment saying it shapes a value
+        # here would send the next implementer looking for a
+        # dependency the twin does not have.
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
@@ -3517,7 +7868,7 @@ def _sign_fallback(band: str, rungs: "tuple[float, ...] | None") -> float:
     if band == _BAND_POSITIVE:
         if rungs is None:
             return 1.0
-        return min(rungs[10], 1.0)
+        return min(rungs[-1], 1.0)
     return 0.0
 
 
@@ -3687,6 +8038,951 @@ def _held_later(
     return False
 
 
+def _pinned_fraction(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The one width every numeric cell is written at, or -1 (R-P4-56).
+
+    `fraction_widths` is a census: how many cells carry each count of
+    figures after the point. Where it names ONE width and that width
+    covers every numeric cell, the column is written on a fixed grid --
+    tenths, hundredths -- and two values a tenth apart are two different
+    cells while two values a hundredth apart are one. That is the case
+    a fixed-shape code column is. It is not the only one: the integer
+    grid below is the other.
+
+    Where the census names several widths, which cell gets which is
+    settled later by `_width_places`, after the styles; a value cannot
+    know here what grid it will be written on, and -1 says so.
+
+    AND A WHOLE-NUMBER COLUMN IS ON THE INTEGER GRID, which is the
+    branch below and which this docstring denied -- it said the pinned
+    fractional case was "the only case this rule acts on", and that
+    stopped being true when the integer branch landed. The two cases
+    are one rule: a column every cell of which is written at one width,
+    whether that width is two figures or none.
+    """
+    census = facts.fraction_widths
+    if len(census) != 1:
+        # A WHOLE-NUMBER COLUMN IS ON A GRID TOO, and it is the
+        # integers. Its census is EMPTY -- no cell carries a figure
+        # after the point, so there is no width to count -- which read
+        # as "no grid" and turned the separation below off for every
+        # such column, and every whole-valued column is one.
+        #
+        # MEASURED through the real reader, producer, loader and
+        # generator, twelve seeds each, published against held:
+        # 300 ages between 18 and 89 publishing 70 different numbers
+        # held 56 to 66 with the separation off and 67 to 70 with it
+        # on; a tight 200-row column publishing 74 held 61 to 68
+        # against 69 to 71; a wide one publishing 194 held 193 to 194
+        # against 194 at every seed. A column whose values repeat --
+        # seven numbers over 200 rows -- is exact either way, so the
+        # rule costs nothing where there was nothing to win.
+        if facts.integer_valued and not census:
+            return 0
+        return -1
+    for figures in census:
+        # THE POOLED KEY IS NOT A WIDTH (review item P4-R56-R1-F2). A
+        # census whose every width is used by fewer cells than the
+        # publication floor names none of them: it publishes one
+        # withheld total instead, under this package's own word. Reading
+        # that word as a number raised `ValueError` out of
+        # `synthtwin generate` on a column of 110 decimal cells spread
+        # over eleven widths -- a crash, on a description the loader
+        # accepts.
+        # Asked without a method call, because the offline audit cannot
+        # trace a census key to an allowlisted API and refuses one --
+        # rightly: a caller-supplied object may define a method of any
+        # name to do anything.
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        if census[figures] != column.n_numeric:
+            return -1
+        return int(figures)
+    return -1
+
+
+def _finest_fraction(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The FINEST grid any numeric cell of this column is written on.
+
+    AMENDMENT A-P4-55. `_pinned_fraction` answers -1 where the census
+    names several widths, because which cell gets which is settled
+    after the styles are and a value cannot know here what grid it will
+    land on. That turned the separation pass off for every such column,
+    and the measurement says what it cost: a 200-row column publishing
+    two hundred different numbers over two fraction widths held **185
+    to 194** of them, where single-width columns of the same shapes
+    hold 80 of 82, 40 of 40 and 200 of 200.
+
+    THE COARSEST GRID WAS TRIED FIRST AND IT IS DESTRUCTIVE. Two values
+    a coarse step apart do stay apart at any finer width, so the coarse
+    grid is safe in that direction -- but the converse is false, and
+    that is what matters: on a column of ten values at two figures
+    beside fifty at one, `2.11` and `2.12` are DIFFERENT numbers and
+    both read as `2.1` on the coarse grid. The walk saw a collision
+    that was not there and moved one of them onto a coarse point,
+    losing the very value it was protecting. Measured: the affixed
+    role's snap case came back missing its count of different values.
+
+    THE FINEST GRID IS THE ONE THAT TELLS TWO VALUES APART. Two strata
+    that read the same at the finest width ARE the same number, so
+    every collision the walk sees is a real one and every move it makes
+    is one the column needed. What this cannot see is a pair that the
+    LATER width stage merges by writing one of them at a coarser
+    width; that residue is the envelope's, and it is far smaller than
+    the damage the coarse grid did.
+
+    -1 where the census cannot be read at all: a pooled `(withheld)`
+    key names no width, and a key that is not a run of digits is not a
+    width either. Where the census leaves cells unaccounted for, those
+    cells carry NO figure after the point and the integers are coarser
+    than anything the census names, so the answer is 0.
+    """
+    census = facts.fraction_widths
+    if not census:
+        return -1
+    counted = 0
+    coarsest = -1
+    for figures in census:
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        counted = counted + census[figures]
+        width = int(figures)
+        if width > coarsest:
+            coarsest = width
+    # THE CENSUS MUST ACCOUNT FOR EVERY NUMERIC CELL, and where it does
+    # not this pass stays off. The cells it leaves out carry NO figure
+    # after the point: they are written plain, which a cell can only be
+    # if its value is whole, so moving a value off a whole number takes
+    # a plain cell away from the style census.
+    #
+    # BOTH ANSWERS WERE BUILT AND MEASURED before this one. Reading the
+    # uncovered cells as the INTEGER grid cost a 200-row column of
+    # three widths its exact count -- 200 of 200 became 199 to 200,
+    # because separating values a quarter apart onto whole numbers
+    # moves nearly every stratum. Reading them as the coarsest NAMED
+    # width was worse and in a way no count could show: the pooled
+    # fixture of the entry table, 47 numeric cells of which 12 carry a
+    # figure, came back MISSING three style obligations -- 34 plain
+    # cells published against 21 written. A green witness that misses
+    # is a battery that proves nothing, which is how it was found.
+    return coarsest
+
+
+def _some_cells_carry_no_figure(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> bool:
+    """Whether this column writes some of its cells with no point at all.
+
+    Such a cell is written PLAIN, which a cell can only be if its value
+    is whole -- so on a column like this the separation may move a
+    stratum only where the move keeps every whole value where it is.
+    """
+    counted = 0
+    for figures in facts.fraction_widths:
+        counted = counted + facts.fraction_widths[figures]
+    return counted < column.n_numeric
+
+
+def _grid_text(value: float, figures: int) -> str:
+    """One value as the writer will write it at ``figures`` (R-P4-56).
+
+    THE WRITER'S OWN FUNCTION AND NOT A SECOND ONE. `_styled_number`
+    settles a `decimal` cell at a published width through `_at_width`,
+    so this asks `_at_width`. A rule that predicts what another function
+    will write, by writing it a second way, is the shape five review
+    rounds of this landing kept finding.
+    """
+    parts = _digits_and_point(value)
+    return _at_width(parts[0], parts[1], parts[2], figures)
+
+
+def _grid_units(text: str, figures: int) -> "int | None":
+    """A grid text as a whole number of grid units, exactly.
+
+    The walk counts SIXTY-FOUR GRID STEPS and the method says so, so
+    the steps have to be taken on the grid. Adding `10 ** -figures` to
+    a double instead accumulates: at eleven figures the sum drifts, and
+    a candidate the method requires to be at most sixty-four units out
+    came back seventy units out and was taken (review round 4 of the
+    integer-grid landing). Counting in units cannot drift, because a
+    unit is one.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a grid text reached the unit count as something else")
+    body = text
+    sign = 1
+    if body[:1] == "-":
+        sign = -1
+        body = body[1:]
+    point = -1
+    for index in range(len(body)):
+        if body[index] == ".":
+            point = index
+            break
+    if point < 0 or len(body) - point - 1 != figures:
+        return None
+    digits = body[:point] + body[point + 1:]
+    if not digits:
+        return None
+    for character in digits:
+        if character < "0" or character > "9":
+            return None
+    return sign * int(digits)
+
+
+def _grid_at(units: int, figures: int) -> str:
+    """The grid text a whole number of grid units names."""
+    sign = "-" if units < 0 else ""
+    digits = str(abs(units))
+    if figures == 0:
+        return f"{sign}{digits}."
+    if len(digits) < figures + 1:
+        digits = ("0" * (figures + 1 - len(digits))) + digits
+    cut = len(digits) - figures
+    return f"{sign}{digits[:cut]}.{digits[cut:]}"
+
+
+def _apart_inside(
+    value: float,
+    figures: int,
+    band: str,
+    share: "tuple[float, float] | None",
+    ends: "tuple[float, float] | None",
+    written: "dict[str, int]",
+    reach: int = 0,
+    whole: "bool | None" = None,
+) -> "float | None":
+    """The nearest free point of the grid inside this stratum's share.
+
+    THE ANALOGUE OF `_whole_inside`, ONE PLACE FURTHER DOWN. That walk
+    moves a stratum onto a whole number inside its own share so a
+    published point-free count can be written; this one moves a stratum
+    onto a free point of the PUBLISHED WIDTH'S OWN GRID so that two
+    strata holding different numbers are not written as one cell.
+
+    Walked outward a grid step at a time, the LOWER of two equally
+    distant candidates first, so two implementations reading this text
+    choose the same point. FROM THE VALUE'S OWN GRID TEXT READ BACK and
+    not from the value: a stratum holding `1.25` on a grid of one
+    figure is written `1.2`, so its candidates are `1.1` and `1.3`.
+    This docstring said "from the value" until review round 2 of the
+    integer-grid landing, which is the wrong anchor. A candidate is refused where its
+    text is already written, where it leaves the stratum's own share of
+    the ladder, where it leaves the published ends, or where it would
+    cross into another sign band -- the counts of negative, zero and
+    positive cells are published facts and no repair may move one.
+
+    None where no candidate inside `_GRID_REACH` steps survives the
+    refusals, which leaves the twin exactly as it was. That is NOT the
+    same as "the share holds no free point", which this docstring used
+    to say: the walk stops at sixty-four steps, so a share whose only
+    free point is the sixty-fifth answers None with a point still in
+    it.
+    """
+    unit = math.ldexp(1.0, 0)
+    for _step in range(figures):
+        unit = unit / 10.0
+    if unit <= 0.0 or not math.isfinite(unit):
+        return None
+    # THE ANCHOR IS WHAT THE WRITER WILL WRITE, and not a second
+    # rounding of the same value (review item P4-R56-R1-F4). This
+    # rounded with `_whole_valued`, which takes a tie upward, while the
+    # writer's `_at_width` takes a tie the way the format does; on 1.25
+    # at one figure the two part company, the walk anchored on 1.3 and
+    # stepped to 1.2 and 1.4, and 1.3 -- the free point the rule asks
+    # for -- was never tried. Reading the anchor back off the writer's
+    # own text cannot disagree with the writer.
+    anchor = _grid_text(value, figures)
+    units = _grid_units(anchor, figures)
+    if units is None:
+        return None
+    # HOW FAR THE WALK MAY GO, in grid steps. The default is the
+    # method's own sixty-four; a caller that has taken the SHARE bound
+    # off passes the stratum's own share width instead, so a stratum
+    # may move by as much ground as it owns and no more (amendment
+    # A-P4-55).
+    limit = _GRID_REACH
+    if reach > 0:
+        limit = reach
+    steps = 1
+    while steps <= limit:
+        for step in (-steps, steps):
+            spelt = _grid_at(units + step, figures)
+            # THE CANDIDATE IS THE GRID POINT, NOT THE SUM THAT REACHED
+            # IT (review round 3 of the integer-grid landing). Stepping
+            # by a tenth accumulates in binary: `0.2 + 0.1` is
+            # `0.30000000000000004`, which is GREATER than a share
+            # whose inclusive upper end is `0.3` -- so a candidate
+            # whose grid text is exactly the endpoint was refused by
+            # the endpoint it sits on, and the pass left a column with
+            # two strata written as one cell. The text is what the twin
+            # will hold, so the text read back is what the bounds and
+            # the sign are asked about, and it is what the stratum
+            # takes.
+            try:
+                candidate = float(spelt)
+            except ValueError:
+                continue
+            if not math.isfinite(candidate):
+                continue
+            # AND THE TEXT MUST SURVIVE THE ROUND TRIP. The grid point
+            # is named by its text, but the stratum carries a double,
+            # and the caller re-spells that double to book the text it
+            # took. Where the two disagree the walk would record one
+            # text and write another, so such a point is passed over.
+            if _grid_text(candidate, figures) != spelt:
+                continue
+            if spelt in written:
+                continue
+            # THE CANDIDATE KEEPS THE STRATUM'S OWN KIND where the
+            # caller asks for it (amendment A-P4-55): on a column that
+            # writes some cells with no point, a whole stratum may move
+            # only onto another whole number and a fractional one only
+            # onto a fractional point, so the column holds as many
+            # whole values as its plain cells need. Asked HERE and not
+            # of the answer, because a caller that rejects the walk's
+            # answer ends the attempt -- the nearest free point on a
+            # tenths grid is a tenth away and never whole, so a whole
+            # stratum was handed `-999.1`, refused it, and stayed on
+            # the number another stratum already held.
+            if whole is not None:
+                if (_whole_valued(candidate) == candidate) != whole:
+                    continue
+            if band == _BAND_NEGATIVE and candidate >= 0.0:
+                continue
+            if band == _BAND_POSITIVE and candidate <= 0.0:
+                continue
+            if band == _BAND_ZERO:
+                return None
+            if share is not None:
+                low = min(share[0], share[1])
+                high = max(share[0], share[1])
+                if candidate < low or candidate > high:
+                    continue
+            if ends is not None:
+                if candidate < ends[0] or candidate > ends[1]:
+                    continue
+            return candidate
+        steps = steps + 1
+    return None
+
+
+# HOW FAR THE GRID WALK LOOKS. A stratum's share of the ladder is the
+# room it has, and a share wider than this many grid steps has a free
+# point within the first few of them or holds none at all -- every
+# point in between is another stratum's, and there are not more strata
+# than cells. The bound is stated rather than left to the share so the
+# walk cannot run long on a column whose published width is very fine.
+_GRID_REACH = 64
+
+
+def _apart_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """Two strata are two cells, so they are written two ways (R-P4-56).
+
+    THE COUNT OF DIFFERENT NUMBERS IS A PUBLISHED FACT AND THE WIDTH IS
+    A VISIBLE ONE, and before this rule a column could lose both at
+    once. On a fixed-shape code column -- 240 cells of `NNN.N`, 99
+    different values -- the ladder hands back 99 different numbers and
+    two of them, 252.96704532913995 and 253.02741326459255, are six
+    hundredths apart where the real values near there are more than a
+    unit apart. Written at the published one figure they are both
+    `253.0`, so the twin holds 98 numbers against a published 99. The
+    leading-zero rule of G6.6 then supplies the 99th SPELLING the only
+    way it can, by writing one number a second way: `0250.4`, four
+    figures before the point where no source cell had more than three.
+    The count of different values was still missed, and the width was
+    broken to miss it.
+
+    So a stratum whose text another stratum has already written is
+    moved to the nearest free point of the grid the published width
+    fixes, inside its own share of the ladder. Nothing published is
+    traded for it: the two pinned ends and the zero stratum never move,
+    a candidate that would change a sign count is refused, and a
+    candidate outside the stratum's own share is refused, so the rung
+    windows of G12.2 are as good as they were.
+
+    ONLY WHERE ONE WIDTH COVERS THE WHOLE COLUMN. Where the census
+    names several, which cell is written at which is settled after the
+    styles are, and a value cannot know here what grid it will land on
+    (`_pinned_fraction` says so with -1). Those columns keep the
+    behaviour above and R-P4-56 stays open for them.
+    """
+    figures = _pinned_fraction(column, facts)
+    if figures < 0:
+        # AND A COLUMN OF SEVERAL WIDTHS SEPARATES ON THE COARSEST OF
+        # THEM (amendment A-P4-55). This pass used to stop here, so the
+        # count of different values was unmet on exactly the columns a
+        # real table is full of -- a mix of `10.1` and `10.05` in one
+        # column -- and the owner ruled the count an obligation rather
+        # than a report line. Two values a coarse step apart stay apart
+        # at every finer width, so the coarse grid is the one this
+        # stage can act on without knowing which width each cell will
+        # be written at.
+        figures = _finest_fraction(column, facts)
+    # ZERO IS A WIDTH, NOT AN ABSENCE. This read `< 1` and so declined
+    # the integer grid along with the unknown one; `-1` is the only
+    # answer that means "no grid this stage can act on".
+    if figures < 0:
+        return values
+    total = len(values)
+    if total < 2:
+        return values
+    # A COLUMN THAT WRITES SOME CELLS WITH NO POINT KEEPS ITS WHOLE
+    # VALUES WHERE THEY ARE (amendment A-P4-55). Such a cell is written
+    # PLAIN, and a cell can only be plain if its value is whole, so a
+    # stratum moved off a whole number takes a plain cell away from the
+    # style census. MEASURED, and that is how it was found: the entry
+    # table's pooled witness -- 47 numeric cells of which 12 carry a
+    # figure -- came back missing three style obligations, 34 plain
+    # cells published against 21 written.
+    #
+    # So on such a column the walk moves only strata whose value is NOT
+    # whole, and never onto a whole number. The wholes are left to the
+    # plain cells and the fractions separate among themselves, which is
+    # what lets a column of decimals beside a whole-number stand-in --
+    # a shape a real table is full of -- reach its published count.
+    keep_whole = _some_cells_carry_no_figure(column, facts)
+    moved = [value for value in values]
+    # EVERY TEXT THE WHOLE COLUMN WOULD WRITE, COUNTED BEFORE ANYTHING
+    # MOVES (review item P4-R56-R2-F2). This counted only the texts the
+    # walk had reached so far -- the two ends, the zero stratum, and
+    # whatever prefix it had already passed -- and compared THAT against
+    # the published count of different numbers. A column whose later
+    # strata hold values the prefix had not reached yet was separated
+    # past its own ceiling: four spellings of three numbers came out as
+    # four numbers, and the twin reported `n_distinct_values` 4 against
+    # a published 3, a miss made by the repair for another.
+    #
+    # Counting every stratum's text up front is what makes `count` the
+    # column's own number rather than the walk's progress, and it
+    # removes the reservation loop with it: a text held by more than one
+    # stratum is the collision, and the two pinned ends and the zero
+    # stratum are simply never the ones that move.
+    texts = [_grid_text(value, figures) for value in moved]
+    held: dict[str, int] = {}
+    for text in texts:
+        seen = 0
+        if text in held:
+            seen = held[text]
+        held[text] = seen + 1
+    # HOW MANY DIFFERENT TEXTS THE COLUMN HOLDS IS `len(held)` AND NOT A
+    # TALLY BESIDE IT. A stratum only moves while its own text has two
+    # or more holders, so a key here never falls to nought and the
+    # size of the map IS the count of different numbers. Keeping a
+    # separate counter meant the stopping rule believed an addition
+    # rather than the column: with the walk's round-trip refusal
+    # removed, review round 5 measured 26 of 600 moves coming back on a
+    # text already held, each one counted as a fresh value. Deriving it
+    # cannot drift from what is there (review round 6).
+    wanted = facts.n_distinct_values
+    # WALKED AGAIN UNTIL NOTHING MORE MOVES (amendment A-P4-55). One
+    # walk takes the strata in order, and a stratum it could not place
+    # may have a free point by the time a later one has moved -- the
+    # walk frees a text every time it takes a fresh one. Measured: a
+    # 300-row column publishing 178 different numbers held 177 on one
+    # seed of three with a single walk. Three walks is the bound: a
+    # walk that moves nothing ends it, and a column still moving after
+    # three is one this pass does not settle.
+    for _round in range(3):
+        before_round = len(held)
+        moved, texts, held = _apart_walk(
+            column,
+            facts,
+            layout,
+            rungs,
+            moved,
+            texts,
+            held,
+            figures,
+            wanted,
+            keep_whole,
+        )
+        if wanted is not None and len(held) >= wanted:
+            break
+        if len(held) == before_round:
+            break
+    return moved
+
+
+def _apart_walk(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    moved: "list[float]",
+    texts: "list[str]",
+    held: "dict[str, int]",
+    figures: int,
+    wanted: "int | None",
+    keep_whole: bool = False,
+) -> "tuple[list[float], list[str], dict[str, int]]":
+    """One walk of the separation (amendment A-P4-55).
+
+    Split out of `_apart_enough` so the walk can be taken more than
+    once: a stratum passed over early may have a free point once a
+    later one has moved off the text it wanted.
+    """
+    total = len(moved)
+    for place in range(total):
+        if wanted is not None and len(held) >= wanted:
+            break
+        text = texts[place]
+        if held[text] <= 1:
+            continue
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if layout.bands[place] == _BAND_ZERO:
+            continue
+
+        share = None
+        ends = None
+        if rungs is not None:
+            share = (
+                _interpolated(rungs, layout.starts[place], column.n_numeric),
+                _interpolated(
+                    rungs,
+                    layout.starts[place] + layout.sizes[place],
+                    column.n_numeric,
+                ),
+            )
+            ends = (rungs[0], rungs[-1])
+        kind = None
+        if keep_whole:
+            kind = _whole_valued(moved[place]) == moved[place]
+        want = _apart_inside(
+            moved[place],
+            figures,
+            layout.bands[place],
+            share,
+            ends,
+            held,
+            0,
+            kind,
+        )
+
+        if want is None and share is not None:
+            # AND WHERE ITS OWN SHARE HOLDS NO FREE POINT, THE STRATUM
+            # LOOKS BEYOND IT (amendment A-P4-55). The share is what
+            # keeps a moved stratum near the rung the ladder put it on,
+            # and on a crowded column it can be a stretch of the grid
+            # with no free point in it at all -- so the stratum stayed
+            # where it was, written as another stratum's cell, and the
+            # published count of different values went unmet. The owner
+            # ruled that count an obligation, so the second attempt is
+            # made: the same walk between the PUBLISHED ENDS, which
+            # still refuses a text another stratum holds and still
+            # never crosses a sign band.
+            #
+            # AND THE SECOND ATTEMPT IS BOUNDED, because the
+            # unbounded one was built first and MEASURED: allowed
+            # anywhere between the published ends, a 200-row column of
+            # two fraction widths held 198 of 200 different values and
+            # its ladder went from **72 of 72 rungs inside their
+            # windows to 32 of 72**. That is the trade the owner's
+            # amendment predicted, and half a ladder is too much to pay
+            # for two values.
+            #
+            # So the second attempt is bounded by DISTANCE and not by
+            # position: the stratum may move by as many grid steps as
+            # its own share is wide, in either direction, and no
+            # further. A share bound one width either side was built
+            # first and does not work -- a stratum in a dense part of
+            # the ladder owns a share with no free grid point in it and
+            # none in its neighbours' either, and it stayed put. The
+            # distance bound lets it walk out of a crowded
+            # neighbourhood while keeping every move proportional to
+            # the ground the stratum owns.
+            #
+            # ONE WIDTH IS THE BOUND BECAUSE IT WAS SCANNED, not
+            # because it is round: at one, two, three and five share
+            # widths on six columns at eight seeds each, every reach
+            # keeps the ladder at 72 rungs of 72 inside their windows,
+            # and ONE is the only one where a 300-row column of ages
+            # holds its published 71 different values at every seed --
+            # two and beyond hold 70 to 71. A wider reach gains nothing
+            # here and costs that, so the smallest reach that works is
+            # the one taken.
+            width = abs(share[1] - share[0])
+            # FIRST the neighbours' ground, which is where a stratum
+            # should land if it can: the move stays near the rung the
+            # ladder put it on.
+            want = _apart_inside(
+                moved[place],
+                figures,
+                layout.bands[place],
+                (share[0] - width, share[1] + width),
+                ends,
+                held,
+                0,
+                kind,
+            )
+
+        if want is None and share is not None:
+            width = abs(share[1] - share[0])
+            unit = math.ldexp(1.0, 0)
+            for _each in range(figures):
+                unit = unit / 10.0
+            steps = 1
+            if unit > 0.0:
+                steps = int(width / unit) + 1
+            if steps > _GRID_REACH:
+                steps = _GRID_REACH
+            want = _apart_inside(
+                moved[place],
+                figures,
+                layout.bands[place],
+                None,
+                ends,
+                held,
+                steps,
+                kind,
+            )
+
+        if want is None:
+            continue
+        fresh = _grid_text(want, figures)
+        held[text] = held[text] - 1
+        before = 0
+        if fresh in held:
+            before = held[fresh]
+        held[fresh] = before + 1
+        texts[place] = fresh
+        moved[place] = want
+        # Nothing is counted here: the map above IS the count.
+    return (moved, texts, held)
+
+
+def _fraction_inside(
+    share: "tuple[float, float] | None",
+    taken: "dict[float, int]",
+    band: str,
+) -> "float | None":
+    """A value with a point in it inside this stratum's own share (G6.4).
+
+    Strictly inside, so the stratum stays where the ladder put it, and
+    no number another stratum holds, so no value is written twice. The
+    search is fixed rather than drawn, because a held-back form has to
+    land in the same place for two implementations reading one
+    description.
+
+    IT NEVER CROSSES ZERO, which is the bound the share alone does not
+    give. A stratum's share is interpolated from the ladder, and the
+    rung above a column's last negative value is a positive number, so
+    the share of the stratum just under zero STRADDLES it: a column of
+    four `-4.5` cells had its negative stratum handed `2.097` and came
+    out holding one negative cell against a published four. The share is
+    cut back to the stratum's own side of zero before anything is
+    chosen, so a straddling share still yields a value rather than none.
+
+    AND THE SEARCH GOES BOTH WAYS, WHICH HALVING UPWARD DID NOT (round
+    1 item 3, round 2 item 1). Eight halvings of a share whose width is
+    a power of two land on eight whole numbers: `(1, 257)` gave `129,
+    65, 33, 17, 9, 5, 3, 2` and this answered None though `1.5` was
+    there to be had, and the stratum was passed over in silence. The
+    middle of the share is tried first, and where the middle is whole
+    the step of at most half a unit added to it is not -- WHEREVER THAT
+    STEP IS REPRESENTABLE, which the paragraph below is the exception
+    to; the steps then halve, and each is tried ABOVE the middle and
+    BELOW it, because
+    probing one side only exhausts on a share whose upper half is taken
+    while its lower half is free -- `(1, 2)` with the middle and every
+    upper step held answered None with `1.25` available.
+
+    WHAT IT CANNOT DO IS FIND A VALUE THAT IS NOT THERE, and above about
+    two to the fifty-third there are none: the gap between one
+    representable number and the next is more than a whole unit -- at
+    two to the fifty-fifth it is eight -- so every double in that region
+    IS whole and a share up there holds no value with a point in it at
+    all. A column of 995 such numbers beside one `0.5` publishes
+    `integer_valued: false` and has nowhere to put the half. This
+    answers None, `_pool_enough` names the miss, and the twin says what
+    it could not do rather than changing type in silence (round 2, item
+    1).
+    """
+    if share is None:
+        return None
+    low = share[0]
+    high = share[1]
+    if band == _BAND_ZERO:
+        return None
+    if band == _BAND_NEGATIVE and high > 0.0:
+        high = 0.0
+    if band == _BAND_POSITIVE and low < 0.0:
+        low = 0.0
+    if not low < high:
+        return None
+    middle = low + (high - low) / 2.0
+    above = (high - middle) / 2.0
+    if above > 0.5:
+        above = 0.5
+    below = (middle - low) / 2.0
+    if below > 0.5:
+        below = 0.5
+    tries = [middle]
+    step = 0
+    while step < 16:
+        tries = tries + [middle + above, middle - below]
+        above = above / 2.0
+        below = below / 2.0
+        step = step + 1
+    # AND IT WALKS IN FROM THE ENDS, BECAUSE THE MIDDLE IS THE WORST
+    # PLACE TO LOOK ON A WIDE SHARE (round 5, item 1). Values with
+    # anything after the point exist only at SMALL magnitudes -- the gap
+    # between one double and the next reaches a whole unit at two to the
+    # fifty-second -- so a share running from three thousand six hundred
+    # million million to twice that holds them in its LOWER part and
+    # nowhere near its midpoint. Probing the middle answered None on
+    # exactly such a share while `4000000000000000.5` sat inside it,
+    # unused, and the twin then named a type it could have kept. The
+    # walk halves in from `low` and from `high` as well, so the small
+    # end of a wide share is reached.
+    reach = high - low
+    step = 0
+    while step < 60:
+        reach = reach / 2.0
+        tries = tries + [low + reach, high - reach]
+        step = step + 1
+    for order in range(len(tries)):
+        pick = tries[order]
+        if not (pick > low and pick < high) or pick in taken:
+            continue
+        if band == _BAND_NEGATIVE and not pick < 0.0:
+            continue
+        if band == _BAND_POSITIVE and not pick > 0.0:
+            continue
+        if not _carries_plainly(pick, False):
+            return pick
+    return None
+
+
+def _share_of(
+    place: int,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+) -> "tuple[float, float] | None":
+    """One stratum's own share of the ladder (method G5.6)."""
+    if rungs is None:
+        return None
+    return (
+        _interpolated(rungs, layout.starts[place], numbers),
+        _interpolated(
+            rungs, layout.starts[place] + layout.sizes[place], numbers
+        ),
+    )
+
+
+def _sole_holder(moved: "list[float]", value: float) -> bool:
+    """True where exactly one stratum is holding this value."""
+    seen = 0
+    for place in range(len(moved)):
+        if moved[place] == value:
+            seen = seen + 1
+    return seen == 1
+
+
+def _rehomed(
+    place: int,
+    moved: "list[float]",
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    taken: "dict[float, int]",
+    ends: "tuple[float, float] | None",
+    reach: int,
+    locked: "dict[int, int]",
+    seen: "dict[int, int]",
+    budget: "list[int]",
+) -> "list[tuple[int, float]] | None":
+    """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
+
+    THE POINT-FREE DEBT IS COUNTED IN CELLS, AND A STRATUM MEETS IT
+    WITH EVERY CELL IT COVERS. Only so many whole numbers lie between a
+    column's published ends, so where the ladder asks for more strata
+    than there are whole numbers to give them, some stratum keeps a
+    value with a point in it whatever the walk does. WHICH stratum is
+    then the whole question, and the plain walk answers it by arrival
+    order, which is not an answer at all: a 36-cell column holding
+    thirty-four whole numbers and two halves publishes `plain: 34` and a
+    pool of 2, and its two single-cell strata took `2` and `8` before
+    the four-cell strata either side of them could, so the twin wrote 28
+    point-free cells against a published 34 and reported a form it could
+    have written.
+
+    A NUMBER ANOTHER STRATUM HOLDS IS ASKED FOR RATHER THAN PASSED OVER.
+    Where the holder can move to a whole number of its own it does, and
+    the chain repeats -- the stratum sitting on `6` steps to the `7` its
+    share also covers and nothing is given up at all. Where it cannot,
+    it hands the number over only if it is NARROWER, and takes a value
+    with a point in it drawn from ITS OWN share of the ladder, so it
+    stays exactly where the ladder put it and the cells that keep a
+    point are the fewest the ladder can leave.
+
+    NOTHING IS SPENT BY EITHER MOVE. The count of different values is
+    the same afterwards, because the number handed over is still written
+    and the value replacing it is one no stratum held; every value stays
+    inside the share that already bounded it, so the rung window of
+    G5.6 is untouched; and no candidate is accepted that `_whole_inside`
+    itself would refuse, which is how the three things a form may never
+    cost stay uncosted.
+
+    THE GUARD THE PLAIN WALK CARRIES IS CARRIED HERE TOO. Every
+    `_whole_inside` question this chain asks passes `_shares_after`, so a
+    stratum reaching OUTSIDE its own share still never takes the one
+    number a stratum further on could ever be given -- the seed
+    dependence review item P2-C5-F3 repaired stays repaired. What this
+    chain adds is only the numbers already HELD, which that guard never
+    reserved for anyone.
+
+    `seen` stops a chain revisiting a stratum, so the search ends;
+    `locked` holds the strata that have already given a number up, so a
+    later one cannot undo the trade.
+
+    THE CHEAPEST ANSWER, NOT THE FIRST ONE. Every holder that could
+    give the number up is asked, and the answer costing the fewest CELLS
+    is the one taken, ties going to the lower stratum. Stopping at the
+    first workable answer took whichever holder came first by position,
+    and on a 36-cell column that ended a chain at a three-cell stratum
+    while a single-cell one stood two steps further along: three cells
+    kept a point where one would have done, on 85 seeds in 200.
+
+    IT IS BOUNDED IN DEPTH AND IN WORK, and neither bound is tidiness
+    (round 1, item 4). `seen` alone makes the search finite over finitely
+    many strata, which is not the same as safe: a column may be allotted
+    more strata than the interpreter will nest calls for, and a chain
+    through all of them would end in a crash rather than an answer.
+    `_CHAIN_DEPTH` caps the nesting well under that. `budget` caps the
+    strata examined across the whole search, because asking every holder
+    for its cheapest answer explores every simple chain and that count is
+    not linear in the strata. Both give up by returning what they have,
+    which is a stratum keeping a value with a point in it -- a cost the
+    report names -- and never a wrong answer.
+
+    A number two strata are BOTH holding is never asked for, because
+    moving one of them frees nothing. The plain walk reaches such a pair
+    on its own and `_apart_enough` settles them afterwards.
+    """
+    total = len(layout.sizes)
+    band = layout.bands[place]
+    share = _share_of(place, layout, rungs, numbers)
+    later = _shares_after(place, layout, rungs, numbers)
+    want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
+    if want is not None:
+        return [(place, want)]
+    if len(seen) >= _CHAIN_DEPTH:
+        return None
+    best_moves: "list[tuple[int, float]] | None" = None
+    best_cost = 0
+    for other in range(total):
+        budget[0] = budget[0] - 1
+        if budget[0] < 0:
+            return best_moves
+        if other == place or other in seen or other in locked:
+            continue
+        if other == 0 or (other == total - 1 and total >= 2):
+            continue
+        if layout.bands[other] == _BAND_ZERO:
+            continue
+        offered = moved[other]
+        if not _carries_plainly(offered, False):
+            continue
+        if not _sole_holder(moved, offered):
+            continue
+        probe: dict[float, int] = {}
+        for value in taken:
+            if value != offered:
+                probe[value] = taken[value]
+        mine = _whole_inside(
+            moved[place], band, share, ends, reach, probe, later
+        )
+        if mine is None or mine != offered:
+            continue
+        ahead: dict[int, int] = {}
+        for step in seen:
+            ahead[step] = seen[step]
+        ahead[place] = 1
+        # THE HOLDER IS ASKED WITH THE NUMBER STILL HELD, and `probe` is
+        # not what to ask it with. `probe` is `taken` WITHOUT the number
+        # being asked for, so a holder asked with it is free to answer
+        # by taking that same number straight back: measured, every one
+        # of 246 chains over 200 seeds came back handing one number to
+        # BOTH strata, and `_apart_enough` pulled them apart afterwards
+        # so no published count ever showed it. The holder must find a
+        # number of its OWN, which is a question only `taken` asks.
+        onward = _rehomed(
+            other,
+            moved,
+            layout,
+            rungs,
+            numbers,
+            taken,
+            ends,
+            reach,
+            locked,
+            ahead,
+            budget,
+        )
+        if onward is not None:
+            best_moves, best_cost = _cheaper(
+                best_moves, best_cost, onward + [(place, mine)], layout
+            )
+            continue
+        if layout.sizes[other] < layout.sizes[place]:
+            fraction = _fraction_inside(
+                _share_of(other, layout, rungs, numbers),
+                taken,
+                layout.bands[other],
+            )
+            if fraction is not None:
+                best_moves, best_cost = _cheaper(
+                    best_moves,
+                    best_cost,
+                    [(other, fraction), (place, mine)],
+                    layout,
+                )
+    return best_moves
+
+
+def _pointed_cost(
+    layout: "_NumericLayout", moves: "list[tuple[int, float]]"
+) -> int:
+    """How many CELLS this set of moves leaves carrying a point."""
+    spent = 0
+    for step in range(len(moves)):
+        if not _carries_plainly(moves[step][1], False):
+            spent = spent + layout.sizes[moves[step][0]]
+    return spent
+
+
+def _cheaper(
+    held: "list[tuple[int, float]] | None",
+    cost: int,
+    offer: "list[tuple[int, float]]",
+    layout: "_NumericLayout",
+) -> "tuple[list[tuple[int, float]] | None, int]":
+    """The cheaper of two answers, the one already held on a tie."""
+    price = _pointed_cost(layout, offer)
+    if held is None or price < cost:
+        return offer, price
+    return held, cost
+
+
 def _whole_enough(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -3704,7 +9000,11 @@ def _whole_enough(
     numbers publishes forty `plain` cells, and its own values prove
     those forty are reachable, so the twin puts whole values on as many
     strata as the map asks for -- the FEWEST it needs, in stratum order
-    -- rather than reporting a form it could have written.
+    -- rather than reporting a form it could have written. Where no
+    whole number is left free for a stratum, `_traded_whole` asks a
+    NARROWER one for the number it holds and gives it a value with a
+    point in it from its own share instead, so the cells that keep a
+    point are the fewest the ladder can leave (residual R-P4-69).
 
     Three things are never traded for a style. The two pinned strata
     hold the published ends of the ladder and are left alone; a stratum
@@ -3734,6 +9034,17 @@ def _whole_enough(
     quotas = _style_quotas(facts.numeric_styles)
     taken = {value: 1 for value in values}
     moved = [value for value in values]
+    locked: dict[int, int] = {}
+    # ONE BUDGET FOR THE WHOLE COLUMN, not one for each question asked
+    # (round 2, item 4). A budget spent per call bounds one search and
+    # not the walk, and the walk asks once per stranded stratum per
+    # round: measured on a 482-cell column of 242 strata, the chain took
+    # 15.8 seconds against 5.2 with it withdrawn, and the cost grew
+    # faster than the strata did. Shared, the work the chain can do is
+    # bounded by the column rather than by its own recursion, and a
+    # column that spends it gets the walk without the chain -- and the
+    # recount names whatever that leaves short.
+    budget = [_CHAIN_WORK]
     # THE LEADING-PLUS SHARE IS SERVED FIRST, AND ONLY WHERE IT CAN BE
     # WRITTEN (review item P2-C4-F3). A plus needs a value that is not
     # negative as well as one with no point, so a walk that stopped as
@@ -3751,46 +9062,85 @@ def _whole_enough(
                 continue
             if _carries_plainly(moved[place], False):
                 carried = carried + layout.sizes[place]
-        for place in range(total):
-            if carried >= wanted:
-                break
-            if place == 0 or (place == total - 1 and total >= 2):
-                continue
-            if layout.bands[place] not in reachable:
-                continue
-            if _carries_plainly(moved[place], False):
-                continue
-            band = layout.bands[place]
-            if band == _BAND_ZERO:
-                continue
-            share = None
-            ends = None
-            if rungs is not None:
-                share = (
-                    _interpolated(
-                        rungs, layout.starts[place], column.n_numeric
-                    ),
-                    _interpolated(
-                        rungs,
-                        layout.starts[place] + layout.sizes[place],
-                        column.n_numeric,
-                    ),
+        # AND THE WALK SETTLES RATHER THAN SWEEPING ONCE (residual
+        # R-P4-69). Giving one stratum a whole number frees the one
+        # it was holding, so a stratum passed over earlier in the
+        # sweep may have an answer by the end of it. One sweep left
+        # three cells carrying a point where one would have done;
+        # the rounds are bounded by the strata, because a round that
+        # moves nothing is the last.
+        for _round in range(total):
+            settled = carried
+            for place in range(total):
+                if carried >= wanted:
+                    break
+                if place == 0 or (place == total - 1 and total >= 2):
+                    continue
+                if place in locked:
+                    continue
+                if layout.bands[place] not in reachable:
+                    continue
+                if _carries_plainly(moved[place], False):
+                    continue
+                band = layout.bands[place]
+                if band == _BAND_ZERO:
+                    continue
+                share = None
+                ends = None
+                if rungs is not None:
+                    share = (
+                        _interpolated(
+                            rungs, layout.starts[place], column.n_numeric
+                        ),
+                        _interpolated(
+                            rungs,
+                            layout.starts[place] + layout.sizes[place],
+                            column.n_numeric,
+                        ),
+                    )
+                    ends = (rungs[0], rungs[-1])
+                want = _whole_inside(
+                    moved[place],
+                    band,
+                    share,
+                    ends,
+                    total + 1,
+                    taken,
+                    _shares_after(place, layout, rungs, column.n_numeric),
                 )
-                ends = (rungs[0], rungs[10])
-            want = _whole_inside(
-                moved[place],
-                band,
-                share,
-                ends,
-                total + 1,
-                taken,
-                _shares_after(place, layout, rungs, column.n_numeric),
-            )
-            if want is None:
-                continue
-            taken[want] = 1
-            moved[place] = want
-            carried = carried + layout.sizes[place]
+                if want is None:
+                    moves = _rehomed(
+                        place,
+                        moved,
+                        layout,
+                        rungs,
+                        column.n_numeric,
+                        taken,
+                        ends,
+                        total + 1,
+                        locked,
+                        {},
+                        budget,
+                    )
+                    if moves is None:
+                        continue
+                    for step in range(len(moves)):
+                        seat = moves[step][0]
+                        value = moves[step][1]
+                        moved[seat] = value
+                        if not _carries_plainly(value, False):
+                            locked[seat] = 1
+                    taken = {value: 1 for value in moved}
+                    carried = 0
+                    for seat in range(total):
+                        if _carries_plainly(moved[seat], False):
+                            carried = carried + layout.sizes[seat]
+                    continue
+                taken[want] = 1
+                moved[place] = want
+                carried = carried + layout.sizes[place]
+            if carried == settled:
+                break
     return moved
 
 
@@ -3847,6 +9197,7 @@ def _style_strata(
     values: "list[float]",
     whole_column: bool,
     wanted: int,
+    raw: int,
     styles: "list[str]",
 ) -> "list[str]":
     """One form per stratum, where two forms would cost a spelling.
@@ -3878,13 +9229,40 @@ def _style_strata(
     # written one way is one spelling however many strata wrote it. A
     # count over strata would see three claims where the column holds
     # three spellings and pack a map that was already exact.
+    # AND THE TWO COUNTS ARE COUNTED APART, because a split does not
+    # always cost both. `exponent_lower` and `exponent_upper` write one
+    # value with the same digits and a different CASE -- the only pair
+    # among the six styles that does -- so that pair is two raw
+    # spellings and one folded identity, while a `decimal` beside a
+    # `plain` is two of each. Measured against one ceiling they are one
+    # quantity, and this function repacked a column that had room --
+    # see the paragraph above.
+    #
+    # BOTH NUMBERS ARE ESTIMATES TAKEN BEFORE ANY WIDTH IS APPLIED, and
+    # they are upper bounds rather than the counts the finished column
+    # holds (review item P4-G6-R1-F3). A pair of value and style is one
+    # spelling only until `_width_places` writes it: two strata holding
+    # DIFFERENT numbers can round onto one text at a published fraction
+    # width, and then two pairs here are one spelling there. That is
+    # residual R-P4-56 and it is open. What this guard owes is only
+    # that it not repack a column whose walk already fits, and an upper
+    # bound is the right side to be wrong on for that: it can decline
+    # to repack a column the writer later crowds, which the recount
+    # names, and it cannot repack one that had room, which is the
+    # defect it was built to stop.
     spent: dict[tuple[float, str], int] = {}
+    folded: dict[tuple[float, str], int] = {}
     at = 0
     for place in range(total):
         for _step in range(layout.sizes[place]):
-            spent[(values[place], styles[at])] = 1
+            style = styles[at]
+            kind = style
+            if kind == _CASE_ONLY_STYLE:
+                kind = _FOLDS_ONTO
+            spent[(values[place], style)] = 1
+            folded[(values[place], kind)] = 1
             at = at + 1
-    if len(spent) <= wanted:
+    if len(spent) <= raw and len(folded) <= wanted:
         return styles
     counts = [quotas[name] for name in contract.NUMERIC_STYLES]
     allowed = [
@@ -3900,13 +9278,1537 @@ def _style_strata(
     return settled
 
 
+def _carrier_cell(
+    layout: "_NumericLayout",
+    place: int,
+) -> "_NumericLayout | None":
+    """Narrow this stratum to ONE cell, its neighbour taking the rest.
+
+    THE HOLD-BACK MOVES A STRATUM, AND A STRATUM IS NOT A CELL (round 2,
+    item 2). A 200-row column of two `0`, one `0.5` and 197 `2` is
+    allotted strata of 2, 2 and 196, and its pool is one cell: no
+    single-cell stratum exists, so keeping the column's TYPE meant
+    giving the two-cell middle stratum a value with a point in it and
+    missing an exactly achievable `plain: 199` by one. Both obligations
+    are reachable together, and the source itself proves it -- its own
+    `0.5` covers exactly one row.
+
+    A CELL IS MOVED, NOT A VALUE ADDED. Dividing the stratum in place
+    and keeping both values would buy the style floor with the count of
+    different values, which is published too: measured, `n_distinct` 3
+    against an achieved 4. So the stratum gives its spare cells to the
+    neighbour it already touches, which writes a value the twin was
+    writing anyway, and the count of different values does not move at
+    all. Cells go to the neighbour ABOVE where there is one in the same
+    band, otherwise the one below; where there is no neighbour in the
+    band at all the answer is None and the caller takes the wider
+    stratum whole.
+
+    A PINNED END MAY TAKE THEM, and that is not a contradiction of the
+    rule that leaves the pinned ends alone. What is pinned is a pinned
+    stratum's VALUE -- it holds the published `min` or `max`, and both
+    are EXACT-OBSERVABLE -- and not how many cells hold it. On a column
+    of three strata the two ends are the only neighbours there are, and
+    refusing them left the very shape this rule exists for unrepaired.
+
+    What it costs is a rank: up to this stratum's own width, which is
+    the width G5.6's window already bounds a rank by.
+    """
+    total = len(layout.sizes)
+    if layout.sizes[place] <= 1:
+        return layout
+    band = layout.bands[place]
+    taker = -1
+    for step in (place + 1, place - 1):
+        if step < 0 or step >= total:
+            continue
+        if layout.bands[step] != band:
+            continue
+        taker = step
+        break
+    if taker < 0:
+        return None
+    sizes: list[int] = []
+    for step in range(total):
+        size = layout.sizes[step]
+        if step == place:
+            size = 1
+        if step == taker:
+            size = size + layout.sizes[place] - 1
+        sizes = sizes + [size]
+    starts: list[int] = []
+    running = 0
+    for size in sizes:
+        starts = starts + [running]
+        running = running + size
+    return dataclasses.replace(
+        layout, sizes=tuple(sizes), starts=tuple(starts)
+    )
+
+
+def _no_fraction_said(rungs: "tuple[float, ...] | None") -> str:
+    """Why no value with a point in it was placed (round 4, item 2).
+
+    The sentence has to be true in every state it can be said in, and a
+    description whose rungs are ALL empty is one of them: the strict
+    loader accepts it, every share is then None, and a sentence naming
+    "this column's ladder and its published ends" would name two things
+    that do not exist. The reason branches; the claim -- that the twin
+    could not place one -- does not, and stays the weaker claim that a
+    bounded search can honestly make.
+    """
+    if rungs is None:
+        return (
+            "This column's description carries no ladder to place a "
+            "value with anything after the point inside, so every cell "
+            "holds a whole number and the twin re-describes as a column "
+            "of counts."
+        )
+    return (
+        "The twin could not place a value with anything after the point "
+        "that this column's ladder and its published ends both allow, "
+        "so every cell holds a whole number and the twin re-describes "
+        "as a column of counts."
+    )
+
+
+def _pool_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
+    """Keep back the cells the description POOLED (residual R-P4-69).
+
+    A style used by fewer rows than the smallest group size is held back
+    and pooled, exactly as a rare label is, so the description says how
+    MANY cells it covered and never which form they took. On a column
+    publishing `integer_valued: false` that pool is where the values
+    with a point in them went: a 36-cell column of thirty-four whole
+    numbers and two halves publishes `plain: 34` and a pool of 2, and
+    the two are the halves.
+
+    `_whole_enough` asks for the plain count AND the pool, because a
+    held-back form is written plainly wherever it can be, and it is now
+    good enough at asking to be given every one of them -- which on that
+    column writes thirty-six point-free cells, publishes `plain: 36`
+    against a published 34, and loses the two halves so completely that
+    the twin reads back as a column of counts. This is the other half of
+    the same rule: the pool is held back HERE, on the narrowest strata
+    the ladder has, so the cells that carry a point are as few as the
+    description said they were and land where a rare value lands.
+
+    ONLY WHERE `plain` IS A NAMED COUNT, and that condition is the
+    whole of the rule's reach. A held-back cell is one the twin must not
+    write in any style the description NAMED; `_style_quotas` folds the
+    pool into `plain`, so every cell the twin can write point-free it
+    writes plainly, and where `plain` is named that makes the count of
+    cells carrying a point exactly the pooled count. Where `plain` is
+    NOT named the arithmetic is a different one -- a pooled cell may
+    perfectly well be point-free, as `060` and `11` are in a column
+    whose only named style is `leading_plus`, and what binds there is
+    that no unnamed style may reach the floor. This rule says nothing
+    about such a column and leaves it alone.
+
+    Exactly the pooled count or nothing: a stratum wider than the pool
+    still wants is passed over rather than overshot, because a cell
+    written with a point that the description did not pool is a `plain`
+    count missed just as surely as one written without. The value it
+    takes comes from its OWN share of the ladder and is one no stratum
+    holds, so the rung window of G5.6 does not move. WHAT IT DOES TO THE
+    COUNT OF DIFFERENT VALUES DEPENDS ON WHO ELSE HELD THE NUMBER, and
+    an earlier draft of this said otherwise (round 1, item 2). Where the
+    whole number given up was that stratum's alone, the value replacing
+    it stands in its place one for one and the count is unchanged. Where
+    another stratum was writing it too, that number is still there to be
+    read and a value is ADDED, so the count rises by one. Neither
+    direction breaks a published obligation -- `n_distinct_values` is
+    REPORT-ONLY and the spelling budgets are met by the style stage
+    downstream -- but the count is not untouched, and a rule claiming to
+    spend nothing should be right about what it spends.
+    """
+    if facts.integer_valued:
+        return layout, values, []
+    pool = _style_pool(facts.numeric_styles)
+    # THE ROLE IS OWED ONE CELL WHATEVER THE CENSUS SAYS (round 1, items
+    # 1 and 5). A column publishing `integer_valued: false` whose twin
+    # holds whole numbers in every cell re-describes as `count`, and the
+    # pooled count is only ONE of the roads there: a description with no
+    # pool at all can name a `decimal` quota its twin then writes as
+    # `1.0`, whole-valued in every cell with the form map still met. So
+    # one cell is owed always, and the pooled count is what is owed on
+    # top of it where `plain` is a named count and the fold makes every
+    # point-free cell a plain one.
+    owed = 1
+    if _style_named(facts.numeric_styles, "plain") >= 1 and pool >= 1:
+        owed = pool
+    total = len(values)
+    pointed = 0
+    widest = 0
+    for place in range(total):
+        if not _carries_plainly(values[place], False):
+            pointed = pointed + layout.sizes[place]
+        if layout.sizes[place] > widest:
+            widest = layout.sizes[place]
+    if pointed >= owed:
+        return layout, values, []
+    taken = {value: 1 for value in values}
+    moved = [value for value in values]
+    for width in range(1, widest + 1):
+        for place in range(len(moved)):
+            if pointed >= owed:
+                return layout, moved, []
+            if layout.sizes[place] != width:
+                continue
+            if place == 0 or (place == len(moved) - 1 and len(moved) >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if not _carries_plainly(moved[place], False):
+                continue
+            fraction = _fraction_inside(
+                _share_of(place, layout, rungs, column.n_numeric),
+                taken,
+                layout.bands[place],
+            )
+            if fraction is None:
+                continue
+            if pointed + width > owed:
+                # WIDER THAN THE COUNT STILL WANTED, SO IT IS PASSED
+                # OVER HERE. Narrowing it would meet the pooled count in
+                # cells while moving as many ranks as the stratum is
+                # wide, and this loop is spending a count it can spend
+                # exactly. The rule below narrows, because what it is
+                # buying there is the column's TYPE and there is nothing
+                # else to buy it with.
+                continue
+            taken[fraction] = 1
+            moved[place] = fraction
+            pointed = pointed + width
+    if pointed >= 1:
+        return layout, moved, []
+    # AND THE ROLE IS NOT TRADED FOR AN EXACT FIT. Above, a stratum
+    # wider than the count still wanted is passed over rather than
+    # overshot, because a cell written with a point the description did
+    # not pool is a `plain` count missed. That is a COUNT; this is the
+    # column's TYPE, and a twin of the wrong type is read wrongly by
+    # everything downstream. Where no stratum fits exactly, the
+    # narrowest one there is takes the value anyway.
+    for width in range(1, widest + 1):
+        for place in range(len(moved)):
+            if pointed >= 1:
+                return layout, moved, []
+            if layout.sizes[place] != width:
+                continue
+            if place == 0 or (place == len(moved) - 1 and len(moved) >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if not _carries_plainly(moved[place], False):
+                continue
+            fraction = _fraction_inside(
+                _share_of(place, layout, rungs, column.n_numeric),
+                taken,
+                layout.bands[place],
+            )
+            if fraction is None:
+                continue
+            narrowed = _carrier_cell(layout, place)
+            if narrowed is not None:
+                layout = narrowed
+            taken[fraction] = 1
+            moved[place] = fraction
+            pointed = pointed + 1
+            return layout, moved, []
+    # AND WHERE NO STRATUM TAKES ONE, THE TWIN SAYS SO (round 2, item
+    # 1). Above about two to the fifty-third the gap between one
+    # representable number and the next is more than a whole unit -- at
+    # two to the fifty-fifth it is eight -- so a share up there holds NO
+    # value with a point in it, and a column of 995 such numbers beside
+    # one `0.5` has nowhere to put the half. The twin then writes a
+    # column of whole numbers whatever this rule does, and a silent role
+    # is the worst way for a reader to meet that.
+    #
+    # WHAT IT SAYS IS WHAT HAPPENED, NOT THAT IT WAS IMPOSSIBLE (round
+    # 3, item 3). The search each stratum makes is bounded, so a share
+    # whose every probed value is already taken answers None while a
+    # free one remains, and a description whose ladder is all empty
+    # rungs has no share to probe at all. Saying "no value can be
+    # written" would be false in both, and would turn a shortfall this
+    # tool could later repair into a claim that there was nothing to
+    # repair.
+    return layout, moved, [
+        _deviation(
+            column.name,
+            "integer_valued",
+            "no",
+            "yes",
+            _no_fraction_said(rungs),
+        )
+    ]
+
+
+# HOW FAR THE FIGURE SEARCH REACHES, and why it stops there. Whole
+# numbers are exact in binary64 up to 2**53, which is sixteen figures
+# with the last one only partly covered, so fifteen is the widest field
+# every value of which the twin can write and read back unchanged. A
+# census naming a wider field is left to the report rather than served
+# with a value that is not the value it looks like.
+_FIGURE_REACH = 15
+# ...and how many whole numbers the walk examines around its start
+# before giving the width up. The same bound the exchange chain uses,
+# for the same reason: a search over a share holding 1e15 candidates
+# has to stop somewhere, and stopping is reported rather than silent.
+_FIGURE_WORK = 4096
+
+
+def _figure_count(value: float, whole_column: bool) -> int:
+    """How many figures this value's own point-free spelling writes."""
+    return _pad_need(value, whole_column)
+
+
+def _under(value: float) -> int:
+    """The largest whole number at or below this one.
+
+    Written out rather than taken from the running library: the import
+    allowlist enumerates the five names this package may use from
+    `math`, and rounding downward is not one of them (plan D6). `int`
+    truncates TOWARD ZERO, which is the same answer above zero and one
+    too high below it, so the correction is applied by comparison
+    rather than assumed.
+    """
+    whole = int(value)
+    if float(whole) > value:
+        whole = whole - 1
+    return whole
+
+
+def _over(value: float) -> int:
+    """The smallest whole number at or above this one."""
+    whole = int(value)
+    if float(whole) < value:
+        whole = whole + 1
+    return whole
+
+
+def _figured_inside(
+    share: "tuple[float, float] | None",
+    taken: "dict[float, int]",
+    band: str,
+    figures: int,
+    near: float,
+    whole_column: bool,
+) -> "float | None":
+    """A whole value of exactly this many figures for this stratum (G6.6).
+
+    WHICH WHOLE NUMBERS A STRATUM MAY HOLD IS NOT "the ones strictly
+    inside its share", and getting that wrong left a floor-one column
+    two cells short of a width it could reach. G5.3 draws a position
+    inside the stratum's share and G5.4 rounds it to the NEAREST whole
+    number, so every whole number within half a unit of the share is
+    one an ordinary run could have produced for this stratum -- a share
+    of `(9.18, 11.55)` yields 9, 10, 11 and 12, not 10 and 11. The
+    half unit is the one G5.4 already spends and G12.2 already widens
+    the rung window by, so this rule buys nothing the method had not
+    already granted.
+
+    IT IS NOT A WIDENING OF AMENDMENT A-P4-18 either, and the
+    difference is what that amendment measures. A-P4-18 bounds a
+    snap's REACH by the stratum's stretch; the reach here is half a
+    unit, and a stratum whose stretch is narrower than that gets the
+    two whole numbers its own rounding could have reached and no
+    others. A share of `(99.23, 99.79)` holds no whole number at all
+    and yields exactly 99 and 100 -- which is the case the ladder
+    itself does not settle, the crossing of a decade falling between
+    two rungs, and the census is what settles it.
+
+    NEVER ACROSS ZERO, so the counts of negative and zero values stay
+    exactly what they were, and never onto a value another stratum
+    holds unless the caller has established that the value being given
+    up is shared. Both are the rules `_whole_inside` and
+    `_fraction_inside` keep.
+
+    THE NEAREST CANDIDATE TO WHERE THE STRATUM ALREADY IS, so the move
+    is the smallest one that buys the width, and the walk is outward
+    from that point rather than drawn, because two implementations
+    reading one description have to land on the same value.
+
+    Guarantees: accepts a share, the values other strata hold, the
+    stratum's band, a figure count of one or more, the value the
+    stratum holds now and whether the column is whole; returns a value
+    with exactly that many figures that this stratum's own share and
+    rounding could have reached, held by no other stratum -- or None
+    where there is no such value. Determinism: the answer depends only
+    on those inputs. Raises nothing. No I/O of any kind.
+    """
+    if share is None or figures < 1 or figures > _FIGURE_REACH:
+        return None
+    if band == _BAND_ZERO:
+        return None
+    low = share[0]
+    high = share[1]
+    if band == _BAND_NEGATIVE and high > 0.0:
+        high = 0.0
+    if band == _BAND_POSITIVE and low < 0.0:
+        low = 0.0
+    if not low < high:
+        return None
+    smallest = 0 if figures == 1 else 10 ** (figures - 1)
+    largest = 10 ** figures - 1
+    first = smallest
+    last = largest
+    if band == _BAND_NEGATIVE:
+        first = -largest
+        last = -smallest
+    # THE WHOLE NUMBERS THIS STRATUM'S OWN ROUNDING CAN REACH: every
+    # one within half a unit of the share, which is every one some
+    # position inside the share rounds to.
+    reach_low = _under(low - 0.5) + 1
+    reach_high = _over(high + 0.5) - 1
+    if first < reach_low:
+        first = reach_low
+    if last > reach_high:
+        last = reach_high
+    if first > last:
+        return None
+    start = int(round(near))
+    if start < first:
+        start = first
+    if start > last:
+        start = last
+    for step in range(_FIGURE_WORK):
+        below = start - step
+        above = start + step
+        if below < first and above > last:
+            return None
+        for pick in (above, below):
+            if pick < first or pick > last:
+                continue
+            value = float(pick)
+            if value in taken:
+                continue
+            if band == _BAND_NEGATIVE and not value < 0.0:
+                continue
+            if band == _BAND_POSITIVE and not value > 0.0:
+                continue
+            if not _carries_plainly(value, whole_column):
+                continue
+            if _figure_count(value, whole_column) != figures:
+                continue
+            return value
+    return None
+
+
+def _field_demands(facts: contract.NumericFacts) -> "list[tuple[int, int, int]]":
+    """What the two width censuses ask of the VALUES (method G6.6).
+
+    THIS IS THE ARITHMETIC R-P4-30 NAMES, written out. `field_widths`
+    says how many cells were written at each field width and
+    `pad_widths` how many of those wore a leading zero, so subtracting
+    one from the other says how many cells at that width wore NO
+    leading zero -- and a cell with no padding is exactly as wide as
+    its value. Two demands come out of the pair:
+
+    * a padded cell at field width *w* needs a value of AT MOST *w*
+      minus one figures, because the zero in front of it is a figure
+      of the field and not of the value;
+    * an unpadded cell at field width *w* needs a value of EXACTLY *w*
+      figures, there being nothing else to make up the difference.
+
+    A dental-code column publishing `pad_widths {4: 97}` beside
+    `field_widths {4: 300}` therefore asks for 97 values below a
+    thousand and 203 at four figures, which is the magnitude constraint
+    residual R-P4-30 says the description was already carrying and the
+    draw was not reading.
+
+    Each entry is (figures, exact, cells): `exact` is 1 where the value
+    must have that many figures and 0 where that is a ceiling. The list
+    is sorted narrowest first, because a value that fits a narrow
+    ceiling fits every wider one and spending it on a wide one is what
+    leaves the narrow one unfillable -- the rule `_pad_places` keeps
+    over the cells, kept here over the values.
+
+    Guarantees: accepts one numeric block's facts; returns a sorted
+    list of demands, possibly empty. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    named: dict[int, int] = {}
+    for key in sorted(facts.field_widths):
+        if key == contract.WITHHELD:
+            continue
+        named[int(key)] = facts.field_widths[key]
+    if not named:
+        return []
+    padded: dict[int, int] = {}
+    for key in sorted(facts.pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        padded[int(key)] = facts.pad_widths[key]
+    demands: "list[tuple[int, int, int]]" = []
+    for width in sorted(padded):
+        if width - 1 < 1:
+            continue
+        demands = demands + [(width - 1, 0, padded[width])]
+    for width in sorted(named):
+        spare = named[width] - (padded[width] if width in padded else 0)
+        if spare > 0:
+            demands = demands + [(width, 1, spare)]
+    return sorted(demands)
+
+
+def _fields_served(
+    demands: "list[tuple[int, int, int]]",
+    values: "list[float]",
+    layout: "_NumericLayout",
+    whole_column: bool,
+) -> "tuple[tuple[int, int, int] | None, list[int], list[int]]":
+    """Serve every demand from the values already drawn (method G6.6).
+
+    Returns the NARROWEST demand the drawn values cannot cover, with
+    the cells it is still owed, and how many cells of each stratum no
+    demand claimed.
+
+    WHOLE STRATA FIRST, ONE SPLIT AT THE END, which is `_pad_places`'
+    rule and is kept here for a second reason of its own: a stratum
+    holds one value, so a stratum that is only PARTLY spare cannot be
+    moved without breaking a demand it is half serving. Filling from
+    whole strata is what leaves the surplus in strata that can move.
+    """
+    total = len(values)
+    figures = [0 for _place in range(total)]
+    left = [0 for _place in range(total)]
+    for place in range(total):
+        if not _carries_plainly(values[place], whole_column):
+            figures[place] = -1
+            continue
+        figures[place] = _figure_count(values[place], whole_column)
+        left[place] = layout.sizes[place]
+    short: "tuple[int, int, int] | None" = None
+    for exact in (1, 0):
+        for wanted, kind, cells in demands:
+            if kind != exact:
+                continue
+            owed = cells
+            reach = [wanted] if exact else list(range(1, wanted + 1))
+            for round_ in (0, 1):
+                for width in reach:
+                    for place in range(total):
+                        if owed < 1:
+                            break
+                        if figures[place] != width or left[place] < 1:
+                            continue
+                        if round_ == 0 and left[place] > owed:
+                            continue
+                        take = left[place]
+                        if take > owed:
+                            take = owed
+                        left[place] = left[place] - take
+                        owed = owed - take
+            if owed > 0 and (short is None or wanted < short[0]):
+                short = (wanted, exact, owed)
+    return short, left, figures
+
+
+def _wide_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """Draw values the published field widths can be worn by (G6.6).
+
+    THE VALUE STAGE READS THE WIDTH CENSUSES, which is what residual
+    R-P4-27 asks for and what closes R-P4-30 and R-P4-35 with it. Until
+    this pass the value stage ran first and read neither census: it
+    drew from the ladder alone and handed the width stages whatever it
+    had. Where the drawn values could not wear the fields the census
+    named -- and they often could not, a ladder of eleven rungs saying
+    nothing about how many cells lie below a point INSIDE a gap -- the
+    width stages did the best they could and the twin came out at two
+    lengths. A dental-code column of `D0120`, `D1110` and `D2740`, all
+    four figures, published `pad_widths {4: 97}`; the twin drew 78
+    values below a thousand where 97 were needed, and no assignment of
+    78 small values fills 97 narrow fields.
+
+    NOTHING NEW IS PUBLISHED FOR THE PADDED HALF OF THAT. `pad_widths`
+    already said 97 cells hold values of at most three figures; what
+    was missing is a rule that read it. `field_widths` is what the
+    UNPADDED half needed, and it is the key this landing adds.
+
+    THREE RULES ARE NEVER TRADED FOR A WIDTH, and they are the three
+    the sibling passes keep. The two pinned strata hold the published
+    ends of the ladder and are left alone. A stratum in the zero band
+    is left alone, so the count of zero values does not move. And no
+    stratum takes a value another stratum holds, so the count of
+    different values does not fall.
+
+    A STRATUM MOVES ONLY WHERE ITS CELLS ARE SERVING NOTHING, and only
+    where it fits inside what the demand is still owed. A stratum whose
+    cells are half-claimed cannot move without breaking the demand it
+    is half serving, and a stratum wider than the shortfall would
+    overshoot the width it moves to -- which is the same miss in the
+    other direction, and just as visible to somebody checking how long
+    a code is.
+
+    WHERE THE LADDER CANNOT SUPPLY THE WIDTH, THE WIDTH IS GIVEN UP AND
+    `_field_notes` NAMES IT. That is amendment A-P4-18's rule: a value
+    may move no further than the stretch of the ladder its own stratum
+    covers, and a description asking for a width no stratum's stretch
+    holds is one the twin reports rather than buys with a value the
+    windows would then miss.
+    """
+    demands = _field_demands(facts)
+    if not demands:
+        return values
+    total = len(values)
+    moved = [value for value in values]
+    for _round in range(total + 1):
+        short, left, figures = _fields_served(
+            demands, moved, layout, facts.integer_valued
+        )
+        if short is None:
+            return moved
+        wanted, exact, owed = short
+        reach = [wanted]
+        if not exact:
+            reach = list(range(wanted, 0, -1))
+        # HOW MANY CELLS AT EACH FIGURE COUNT NO DEMAND CLAIMED. A
+        # stratum whose cells are half claimed can still move, provided
+        # its whole size is covered by cells of its own figure count
+        # that are serving nothing -- those cells take its place in
+        # whatever it was serving, cell for cell, because a cell serves
+        # a demand by its figure count and by nothing else. Requiring
+        # the STRATUM to be wholly spare instead is the rule this
+        # started with, and it left a 230-row code column one cell
+        # short at every seed the surplus happened to straddle.
+        spare: "dict[int, int]" = {}
+        for place in range(total):
+            if left[place] < 1:
+                continue
+            count = figures[place]
+            spare[count] = (spare[count] if count in spare else 0) + left[place]
+        # WHO ELSE IS HOLDING EACH VALUE. A stratum giving up a value
+        # ANOTHER stratum is also holding takes nothing away from the
+        # count of different values, so it may land on a value already
+        # held: what it vacates stays behind and what it lands on was
+        # there or is new. A stratum holding a value alone may land
+        # only on a fresh one, which is the rule the sibling passes
+        # keep. Drawn values ARE shared -- two strata either side of a
+        # rung can round onto one whole number -- so this is a case
+        # that arises rather than one imagined for it.
+        holders: "dict[float, int]" = {}
+        for value in moved:
+            holders[value] = (holders[value] if value in holders else 0) + 1
+        taken = {value: 1 for value in moved}
+        chosen = -1
+        picked = 0.0
+        for place in range(total):
+            if place == 0 or (place == total - 1 and total >= 2):
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if figures[place] < 1 or layout.sizes[place] > owed:
+                continue
+            held = spare[figures[place]] if figures[place] in spare else 0
+            if held < layout.sizes[place]:
+                continue
+            mine = taken
+            if holders[moved[place]] > 1:
+                mine = {}
+            for count in reach:
+                if figures[place] == count:
+                    break
+                share = _share_of(place, layout, rungs, column.n_numeric)
+                found = _figured_inside(
+                    share,
+                    mine,
+                    layout.bands[place],
+                    count,
+                    moved[place],
+                    facts.integer_valued,
+                )
+                if found is None:
+                    continue
+                chosen = place
+                picked = found
+                break
+            if chosen >= 0:
+                break
+        if chosen < 0:
+            return moved
+        moved[chosen] = picked
+    return moved
+
+
+# HOW FINELY THE WALK DIVIDES THE BIN IT MOVES INTO, and why it stops
+# there. The walk starts at the edge of the empty stretch and steps
+# inward across exactly ONE bin -- the occupied bin next to the
+# stretch, and no further, which is this move's whole reach -- so
+# sixty-four steps put every landing within a sixty-fourth of a bin,
+# or a two-thousandth of the column's reach, of the edge it was sent
+# to. Sixty-four rather than a handful because several strata can land
+# in one stretch and each takes the next free slot: six did on the
+# two-peak column this rule was measured on, and a slot is spent
+# whenever a candidate is written the same way as a cell already
+# there.
+_CLEAR_STEPS = 64
+
+
+def _bin_ends(facts: contract.NumericFacts) -> "tuple[float, float] | None":
+    """The two ends the bins of a description are measured between.
+
+    THE SAME TWO THE PRODUCER USED, read from the ladder rather than
+    recomputed, which is what makes a bin number mean one thing in the
+    producer, the loader and here. The producer counts its bins between
+    the smallest and largest values the statistics used, and those two
+    are the ladder's own ends.
+
+    Returns None where there is no scale to divide: an end this format
+    cannot hold, or two finite ends whose width it cannot hold. That is
+    the same refusal the producer makes and the loader checks, written
+    once more here because this module may not import either of them.
+
+    Guarantees: accepts one numeric block's facts; returns the two ends
+    with the lower first, or None. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    lowest = facts.percentiles.minimum
+    highest = facts.percentiles.maximum
+    if lowest is None or highest is None:
+        return None
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return None
+    reach = highest - lowest
+    if not math.isfinite(reach) or not reach > 0.0:
+        return None
+    return (lowest, highest)
+
+
+def _empty_runs(bins: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The stretches of consecutive bins a description says are empty.
+
+    A run rather than a bin at a time because the move is out of the
+    WHOLE stretch: a value in the middle of nineteen empty bins has to
+    reach the occupied bin below the first of them or the one above the
+    last, and the bin it happens to be standing in says nothing about
+    how far that is.
+
+    Guarantees: accepts the ascending bin numbers of one block; returns
+    the runs as (first, last) pairs, ascending and not touching.
+    Determinism: a function of the list. Raises nothing. No I/O.
+    """
+    runs: "list[tuple[int, int]]" = []
+    for place in bins:
+        if runs and place == runs[-1][1] + 1:
+            runs[-1] = (runs[-1][0], place)
+            continue
+        runs = runs + [(place, place)]
+    return runs
+
+
+def _census_widths(facts: contract.NumericFacts) -> "tuple[int, ...]":
+    """Every width after the point this column's cells may be written at.
+
+    The named widths of the fraction census, and -1 for "no width was
+    assigned", which is what a cell the census did not reach gets and
+    what every cell of a column publishing no census gets.
+
+    Guarantees: accepts one numeric block's facts; returns the widths
+    ascending with -1 first. Determinism: a function of the facts.
+    Raises nothing. No I/O of any kind.
+    """
+    widths = [-1]
+    for key in sorted(facts.fraction_widths):
+        if key == contract.WITHHELD:
+            continue
+        widths = widths + [int(key)]
+    return tuple(sorted(widths))
+
+
+def _reads_outside(
+    value: float,
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> bool:
+    """Whether this value stays out of the empty stretches AS WRITTEN.
+
+    THE VALUE IS NOT WHAT A READER OF THE TWIN MEETS -- the SPELLING
+    is, and the two are not the same number. A column whose cells are
+    written to one figure after the point has its values rounded to one
+    figure when they are written, and a value chosen a thousandth of
+    the reach outside an empty stretch is written back inside it. That
+    is exactly what happened on the two-peak column this rule was
+    measured on: the value 71.625 was placed in the first occupied bin
+    above the stretch and the cell came out `71.6`, which is in the
+    last bin of it. One cell of three hundred, at every seed, and the
+    only sign of it was the recount.
+    
+    So the question is asked of the SPELLINGS, at every width the
+    fraction census could write this cell at, with this module's own
+    writer rather than a rule restated here.
+
+    Guarantees: accepts a value, the two ends, the barred bins, the
+    widths and whether the column is whole; returns True only where
+    every spelling of it reads back outside every barred bin.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    for width in widths:
+        spelling = _styled_number(
+            value, "decimal", 0, whole_column, width, -1
+        )
+        read = parsing.parse_number(spelling)
+        if read is None:
+            return False
+        if parsing.histogram_bin(read, ends[0], ends[1]) in barred:
+            return False
+    return True
+
+
+def _cleared_value(
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    run: "tuple[int, int]",
+    edges: "tuple[float, float]",
+    every: "tuple[tuple[float, float], ...]",
+    value: float,
+    band: str,
+    sole: bool,
+    spoken: "dict[str, int]",
+    taken: "dict[float, int]",
+    whole_column: bool,
+    widths: "tuple[int, ...]",
+) -> "float | None":
+    """A value outside the empty stretch this one landed in (G6.7).
+
+    THE NEARER EDGE, AND NO FURTHER THAN THE BIN BEYOND IT. The stretch
+    has an occupied bin below its first and an occupied bin above its
+    last -- both always exist, because the smallest value of the column
+    is in the first bin of the scale and the largest is in the last, so
+    neither end bin is ever empty -- and the value goes into whichever
+    of those two it is closer to. That is the bound this move has, and
+    it is written in the published fact's own terms: a value moves out
+    of the stretch the description says holds nothing, into the bin
+    next to it, and stops there.
+
+    THE WALK RUNS FROM THE EDGE INWARD AND THE FIRST FREE SLOT WINS,
+    which is what keeps several strata in one stretch apart and in the
+    order the ladder gave them. The caller walks the strata nearest the
+    edge first, so each takes a slot nearer the edge than the one
+    after it.
+
+    A SLOT IS FREE ONLY IF NOTHING ALREADY READS THAT WAY. `taken`
+    holds the values other strata hold and `spoken` every spelling
+    those values can be written with, at every width the fraction
+    census could reach them at. Testing the value alone is not enough
+    and the difference is measurable: two values a thousandth apart are
+    two values and one cell, so a walk that checked only the numbers
+    handed the column two identical cells and took back the count of
+    different values that `_apart_enough` had just met.
+
+    AND A STRATUM THAT DOES NOT HOLD ITS VALUE ALONE DOES NOT MOVE.
+    `sole` is that rule and a witness in the suite is what put it here.
+    Moving costs nothing only when the stratum VACATES what it leaves:
+    then one value goes and one arrives and the count stands. A stratum
+    sharing its value vacates nothing -- the other holder keeps it --
+    so whatever it does adds. A fresh value adds a NUMBER. Joining
+    another stratum's value adds a SPELLING, because the writing stage
+    then has two strata on one number and the leading-zero family
+    splits them. Both were measured on the floored witness of review
+    item P3-V7-F4, a column of nine different spellings at a floor of
+    eleven: the twin wrote TEN either way and `distinct.n_distinct`
+    fell from HELD to an authorized deviation.
+
+    SO THE EXACT FACT WINS AND THIS ONE GIVES WAY, which is the
+    ordering this repository takes everywhere: `n_distinct` is
+    EXACT-OBSERVABLE and `empty_bins` is REPORT-ONLY, so a move that
+    would cost the first is not made and the report names the stretch
+    instead.
+
+    THE WRITTEN FORM IS KEPT, AND SO IS THE FIGURE COUNT. A value that
+    carries no point moves to a value that carries no point, and one
+    that carries a point moves to one that carries a point;
+    `_pool_enough` puts the pooled cells of a column on the strata
+    whose values carry a point and `_whole_enough` puts the point-free
+    count on the ones that do not, so a move that changed which was
+    which would take back the count those two passes just met.
+
+    THE FIGURE COUNT IS THE SECOND HALF OF THAT, and the suite is what
+    put it here. A point-free cell is exactly as wide as its value, so
+    moving a stratum from one figure to two takes a carrier away from
+    the padded-width census: a value of 9 can be written `09` at a
+    published width of two and a value of 10 cannot. Measured on the
+    floored witness of review item P3-V7-F4, that is what a single
+    move cost -- the writing stage had one fewer cell able to wear a
+    leading zero at the published width, took one from another
+    stratum, and wrote one number two ways. The twin held ten
+    different spellings against a published nine and
+    `distinct.n_distinct` fell from HELD to an authorized deviation.
+    `n_distinct` and `pad_widths` are EXACT-OBSERVABLE and this fact is
+    REPORT-ONLY, so where they meet this one gives way and the report
+    names the stretch instead.
+
+    NEVER ACROSS ZERO, which is the rule every sibling pass in this
+    file keeps, so the counts of negative and zero values stand.
+
+    Guarantees: accepts the two ends, the bins barred as empty, the run
+    the value is in, the value, its sign band, the spellings and values
+    already spoken for, whether the column is whole and the widths its
+    cells may be written at; returns a value inside the occupied bin
+    nearer to it, written in the same form and reading as nothing
+    already there -- or None where there is no such value.
+    Determinism: the answer depends only on those inputs. Raises
+    nothing. No I/O of any kind.
+    """
+    lowest = ends[0]
+    highest = ends[1]
+    reach = highest - lowest
+    width = reach / parsing.HISTOGRAM_BINS
+    if not math.isfinite(width) or not width > 0.0:
+        return None
+    # THE STRETCH'S REAL EDGES, WHICH THE DESCRIPTION PUBLISHES
+    # (residual R-P4-138, closed by the owner's ruling of 2026-09-04).
+    # This walk once took the edges of the empty BINS, and those lie
+    # strictly INSIDE the stretch the source really leaves empty, so a
+    # value moved to one of them still landed in the source's own gap
+    # -- measured on a 300-row column whose real gap runs 26.6 to 72.7:
+    # one cell of three hundred sat inside it at every seed, 15.7 to
+    # 23.0 units from the nearest real value. `empty_edges` names the
+    # two values each stretch really lies between and the walk starts
+    # from those, which put the same cell within 1.3 units.
+    #
+    # BOTH WALKS START ON THE EDGE ITSELF, because each published edge
+    # is a value the source really holds and so a target in its own
+    # right; the lower BIN edge belonged to the empty bin, so that walk
+    # had to start a step below it.
+    under = edges[0]
+    over = edges[1]
+    downward = value - under <= over - value
+    step = width / _CLEAR_STEPS
+    if not math.isfinite(step) or not step > 0.0:
+        return None
+    if not sole:
+        return None
+    plainly = _carries_plainly(value, whole_column)
+    figures = _figure_count(value, whole_column) if plainly else 0
+    # FOUR WALKS, IN ORDER OF HOW MUCH THEY ASK FOR: the nearer edge
+    # then the further one refusing every published stretch, and then
+    # the same two refusing only the BARRED BINS.
+    #
+    # THE NEARER SIDE FIRST AND THE FURTHER SIDE AFTER IT. Both edges
+    # of a stretch are edges of the SAME stretch, so a value that
+    # reaches either one has left the stretch; the near side is walked
+    # first because that is the smaller move, and the far side is
+    # walked only where the near one has nothing free.
+    #
+    # AND A LOOSE WALK AFTER BOTH, because STAYING IS NEVER BETTER THAN
+    # MOVING (residual R-P4-156, closed 2026-09-04). A stratum that
+    # cannot reach a slot outside every published stretch used to stay
+    # where it was -- inside its own stretch AND inside the barred bin
+    # it stood in. A slot inside some stretch but outside every barred
+    # bin is better on one count and no worse on the other, so it is
+    # taken where nothing cleaner is free. Measured on the committed
+    # battery, forty columns at forty seeds: runs leaving a cell in a
+    # named bin 240 -> 130, and runs leaving one inside a stretch the
+    # source really leaves empty 213, against 135 and 1058 before the
+    # stretch edges landed at all.
+    #
+    # THIS IS WHAT THE PUBLISHED EDGES MADE NECESSARY. A bin edge has a
+    # whole occupied bin behind it and a published edge may have a
+    # single value: the `closer` witness of this file publishes a
+    # stretch whose lower edge is 47.0, one value alone in its bin with
+    # ANOTHER empty stretch below it, so the downward walk had a
+    # twelfth of a bin to work in and gave up. Walking the other edge
+    # afterwards moved that cell and cost the near-side answers
+    # nothing, because the near side is still tried first.
+    for strict, side in (
+        (True, downward), (True, not downward),
+        (False, downward), (False, not downward),
+    ):
+        for inward in range(_CLEAR_STEPS):
+            if side:
+                found = under - step * inward
+            else:
+                found = over + step * inward
+            if not math.isfinite(found):
+                continue
+            if whole_column:
+                found = _whole_valued(found)
+            # THE REACH IS A DISTANCE FROM THE EDGE, and it is tested
+            # after the rounding (review rounds 7 item 2 and 8 item 1).
+            # One bin's WIDTH past the published edge, which is the
+            # bound G6.7.5 states in the terms a published edge is in:
+            # the edge is a VALUE, not a bin boundary, so the reach is
+            # measured from it rather than counted in bins. Round 8
+            # asked for the ADJACENT BIN instead and it was measured:
+            # on the committed battery that reading takes runs leaving
+            # a cell in a named bin from 130 to 190 and runs leaving
+            # one inside a stretch the source really leaves empty from
+            # 213 to 285, because it refuses slots that violate no
+            # published fact at all. The distance bound is kept and
+            # G6.7.5 states it.
+            if found < under - width or found > over + width:
+                continue
+            # NEVER PAST A PUBLISHED END, and the suite is what put this
+            # line here. A BIN edge always had a whole occupied bin
+            # between it and the end of the scale; a published edge may
+            # be the second value of the column, so a walk that ran a
+            # bin's width past it ran off the bottom of the ladder. An
+            # affixed column of sixty readings then missed `ladder.min`
+            # and `ladder.p01` at every seed. The ends are
+            # EXACT-OBSERVABLE and this fact is REPORT-ONLY, so where
+            # they meet this one gives way.
+            if found < lowest or found > highest:
+                continue
+            if not _reads_outside(
+                found, ends, barred, widths, whole_column
+            ):
+                continue
+            # AND OUTSIDE EVERY OTHER PUBLISHED STRETCH, not only the
+            # bins. Review round 1 item 2: a column with two stretches
+            # sharing the one value between them lets the further-edge
+            # walk step past that value into the FIRST stretch's real
+            # gap -- outside every barred bin, because a bin is coarser
+            # than the gap, and so accepted. The stratum is not queued
+            # again and nothing names it. Each pair is an OPEN interval:
+            # its two edges are values the source really holds.
+            wanted = every if strict else ()
+            if not _outside_every(found, wanted, widths, whole_column):
+                continue
+            if band == _BAND_NEGATIVE and not found < 0.0:
+                continue
+            if band == _BAND_POSITIVE and not found > 0.0:
+                continue
+            if _carries_plainly(found, whole_column) != plainly:
+                continue
+            if plainly and _figure_count(found, whole_column) != figures:
+                continue
+            if found in taken:
+                continue
+            clear = True
+            for spelling in _spellings_of(found, widths, whole_column):
+                if spelling in spoken:
+                    clear = False
+                    break
+            if not clear:
+                continue
+            return found
+    return None
+
+
+def _stretch_holding(
+    value: float,
+    every: "tuple[tuple[float, float], ...]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> int:
+    """The published stretch this value stands inside, or -1.
+
+    Read by the value and by every spelling of it, in the order
+    `_census_widths` fixes, so two implementations pick the same one.
+    The pairs are OPEN intervals: an edge is a value the source really
+    holds, so standing ON one is not standing in the gap.
+
+    Guarantees: accepts a value, every published pair, the widths and
+    whether the column is whole; returns the index of the first pair
+    that holds it, or -1. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind.
+    """
+    readings = [value]
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is not None:
+            readings = readings + [read]
+    for index in range(len(every)):
+        below = every[index][0]
+        above = every[index][1]
+        for reading in readings:
+            if below < reading < above:
+                return index
+    return -1
+
+
+def _outside_every(
+    value: float,
+    every: "tuple[tuple[float, float], ...]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> bool:
+    """True when no published stretch holds this value or its spellings.
+
+    THE PAIRS ARE OPEN INTERVALS. `empty_edges` names the two values a
+    stretch really lies between, and both are values the source holds,
+    so landing ON an edge is landing on a real value and landing
+    between them is landing where the source has nobody.
+
+    AND THE TEST IS APPLIED TO THE SPELLING as well as to the value,
+    for the reason `_reads_outside` applies it: a value a thousandth
+    outside a stretch is written back inside it at the width the
+    fraction census gives that cell, and what a reader of the twin
+    meets is the CELL.
+
+    Guarantees: accepts a value, every published pair, the widths and
+    whether the column is whole; returns whether the value and all its
+    spellings lie outside every pair. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    readings = [value]
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is not None:
+            readings = readings + [read]
+    for below, above in every:
+        for reading in readings:
+            if below < reading < above:
+                return False
+    return True
+
+
+def _spellings_of(
+    value: float, widths: "tuple[int, ...]", whole_column: bool
+) -> "list[str]":
+    """Every text one value's cell could be written with (G6.7).
+
+    The fraction census decides which width a cell is written at and
+    that decision is made after the values are drawn, so a value that
+    must read as nothing else has to read as nothing else at ALL of
+    them. The leading-zero family and the sign styles are left out on
+    purpose: they change the text a cell wears and not the number it
+    reads back as, and what this list is compared against is what a
+    cell reads back as.
+
+    Guarantees: accepts a value, the widths and whether the column is
+    whole; returns one text per width. Determinism: a function of those
+    inputs. Raises nothing. No I/O of any kind.
+    """
+    return [
+        _styled_number(value, "decimal", 0, whole_column, width, -1)
+        for width in widths
+    ]
+
+
+def _barred_bin(
+    value: float,
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    widths: "tuple[int, ...]",
+    whole_column: bool,
+) -> int:
+    """The barred bin this value stands in, by value or by spelling.
+
+    The value's own bin where that is barred; otherwise the bin of the
+    first spelling of it that is, taking the widths in the order
+    `_census_widths` fixes so two implementations pick the same one.
+    Returns -1 where neither is barred.
+
+    Guarantees: accepts a value, the two ends, the barred bins, the
+    widths and whether the column is whole; returns a bin number or -1.
+    Determinism: a function of those inputs. Raises nothing. No I/O.
+    """
+    place = parsing.histogram_bin(value, ends[0], ends[1])
+    if place in barred:
+        return place
+    for spelling in _spellings_of(value, widths, whole_column):
+        read = parsing.parse_number(spelling)
+        if read is None:
+            continue
+        place = parsing.histogram_bin(read, ends[0], ends[1])
+        if place in barred:
+            return place
+    return -1
+
+
+def _clear_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+) -> "tuple[list[float], list[Deviation]]":
+    """Put no value where the description says there is none (G6.7).
+
+    THE DEFECT THIS CLOSES. A column with two clusters and nothing
+    between them publishes a middle rung BETWEEN the clusters -- the
+    median of a hundred and fifty values around twenty and a hundred
+    and fifty around eighty is forty-nine and a half, a number no cell
+    of that column holds -- and `_stratum_values` interpolates the
+    rungs and honours it. Measured over forty seeds at the default
+    floor, the twin of such a column put four to six of its three
+    hundred cells in a stretch the real column left completely empty.
+    Anybody plotting the twin met a third cluster that is not there.
+
+    WHAT MAKES THE REPAIR AVAILABLE is the fact this landing publishes.
+    The census of bin counts could not carry it: that census is all or
+    nothing and vanishes at every floor above one, and on these very
+    columns -- whose empty middle is what makes them worth describing
+    -- it vanishes first. `empty_bins` says only which bins hold
+    NOBODY, so no floor reaches it, and it is read here as a set of
+    stretches to keep out of rather than as a place to put a value.
+
+    THE LADDER AND THIS FACT DISAGREE, AND THIS FACT IS THE MORE
+    SPECIFIC ONE. Between the rungs the ladder says nothing, and the
+    method fills the silence by interpolating; the interpolation is an
+    inference, while "no cell of the real column lies between these two
+    edges" is a measurement. Where the two meet, the measurement wins
+    and the inference gives way -- which is the direction this plan
+    takes everywhere a published count meets a published curve.
+
+    IT IS THE LAST PASS OVER THE VALUES, and that is a change from
+    `_wide_enough` holding the position. Last because this is the only
+    obligation among them that a later mover can BREAK OUTRIGHT rather
+    than merely leave unmet: a width the values cannot wear is a
+    shortfall the report names, while a cell in an empty stretch is the
+    twin saying a person is somewhere the real column says nobody is.
+    What it takes back from the passes before it is bounded and is
+    measured rather than argued: it keeps every value's written form,
+    so the point-free count and the pool come through untouched; it
+    lands on no value another stratum holds, so the count of different
+    numbers does not fall; and it moves neither pinned end nor any
+    stratum in the zero band, so the ladder's ends and the count of
+    zero values are exactly what they were. What it can take back is a
+    field width, and the width census is REPORT-ONLY and its shortfalls
+    are named in the twin's own report.
+
+    WHERE THE MOVE CANNOT BE MADE THE VALUE STAYS AND IS NAMED. A
+    stratum in the negative band with no room below zero, a column
+    whose bins are narrower than the whole numbers it must write, an
+    occupied bin already full of values other strata hold: the value is
+    left where the ladder put it and a deviation says so, because a
+    twin that quietly failed here would be exactly the silent
+    statistical wrongness this fact exists to end.
+
+    Guarantees: accepts one numeric block, its facts, its layout and
+    the values drawn for its strata; returns the values with every one
+    that could be moved out of an empty stretch moved to the nearer
+    occupied bin, and one deviation per value that could not be.
+    Determinism: the answer depends only on those inputs, and the
+    strata are walked in a fixed order. Raises nothing. No I/O.
+    """
+    if not facts.empty_bins:
+        return values, []
+    ends = _bin_ends(facts)
+    if ends is None:
+        return values, []
+    barred = {place: 1 for place in facts.empty_bins}
+    runs = _empty_runs(facts.empty_bins)
+    widths = _census_widths(facts)
+    total = len(values)
+    moved = [value for value in values]
+    notes: list[Deviation] = []
+    # WHAT IS ALREADY SPOKEN FOR, GATHERED ONCE. Every value the strata
+    # hold and every text those values could be written with. A value
+    # this pass hands out is added; the one it vacates is NOT taken
+    # back out, which is deliberate rather than an oversight -- the
+    # cell that stood there has gone, so nothing needs the text, and
+    # leaving it in costs one slot of the walk and buys a rule with no
+    # order in it. Rebuilding the whole set for every stratum that
+    # moves is the other way to write this, and it makes the pass cost
+    # the square of the strata on a column where nothing needs moving
+    # at all.
+    taken: "dict[float, int]" = {}
+    spoken: "dict[str, int]" = {}
+    for value in moved:
+        taken[value] = taken[value] + 1 if value in taken else 1
+        for spelling in _spellings_of(value, widths, facts.integer_valued):
+            spoken[spelling] = 1
+    # WHICH STRATA ARE IN WHICH STRETCH, gathered before anything moves
+    # so that a stratum's queue position is fixed by where the LADDER
+    # put it and not by which of its neighbours moved first.
+    #
+    # A STRATUM IS IN A STRETCH IF ANY SPELLING OF IT IS, which is the
+    # same rule `_reads_outside` applies to a candidate and is applied
+    # here for the same reason: what a reader of the twin meets is the
+    # CELL, and a value a thousandth outside a stretch is written back
+    # inside it at the width the fraction census gives that cell.
+    # Asking the question of the value alone would have left this pass
+    # blind to exactly the cells it exists to move.
+    queued: "dict[int, list[int]]" = {}
+    # WHICH FACT PUT EACH STRATUM IN THE QUEUE, kept so that a move
+    # that cannot be made names the fact it really missed (review
+    # round 2 item 3). A stratum standing in a barred BIN is missing
+    # `empty_bins`; one standing in a bin that holds plenty while its
+    # value is inside the published PAIR is missing `empty_edges`, and
+    # a report that named the bins there would send a reader to a fact
+    # the twin did not break.
+    #
+    # KEYED BY THE STRATUM AND NOT BY THE STRETCH (review round 3 item
+    # 2). One stretch can be reached BOTH ways -- some of its strata
+    # standing in its barred bins and others only inside its published
+    # pair -- and a note per stretch gave every one of them whichever
+    # route the first arrival took.
+    came: "dict[int, str]" = {}
+    for place in range(total):
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if layout.bands[place] == _BAND_ZERO:
+            continue
+        # WHICH STRETCH THIS STRATUM IS IN, ASKED OF THE PUBLISHED
+        # PAIRS FIRST and of the bins only where the pairs say nothing.
+        # A bin is a thirty-second of the column's reach and the pair
+        # is the gap itself, so a value can sit INSIDE the gap and
+        # still stand in a bin that holds plenty -- and a queue built
+        # from the bins alone never saw it. That is where the cells
+        # this pass used to leave behind came from: measured on the
+        # three two-cluster witnesses at forty seeds, 8, 4 and 27 of
+        # 12,000 cells sat inside a source's own gap with the bins
+        # asked and none with the pairs asked.
+        index = _stretch_holding(
+            moved[place],
+            facts.empty_edges,
+            widths,
+            facts.integer_valued,
+        )
+        by_pair = "empty_edges"
+        if index >= 0 and _barred_bin(
+            moved[place], ends, barred, widths, facts.integer_valued
+        ) >= 0:
+            by_pair = "empty_bins"
+        if index < 0:
+            by_pair = "empty_bins"
+            if _reads_outside(
+                moved[place], ends, barred, widths, facts.integer_valued
+            ):
+                continue
+            where = _barred_bin(
+                moved[place], ends, barred, widths, facts.integer_valued
+            )
+            if where < 0:
+                continue
+            for one in range(len(runs)):
+                if runs[one][0] <= where <= runs[one][1]:
+                    index = one
+                    break
+        if index < 0 or index >= len(runs):
+            continue
+        came[place] = by_pair
+        if index in queued:
+            queued[index] = queued[index] + [place]
+        else:
+            queued[index] = [place]
+    for index in sorted(queued):
+        run = runs[index]
+        # THE REAL EDGES OF THIS STRETCH where the description
+        # publishes them (residual R-P4-138). One pair per run, in the
+        # same order the runs are in, which is what the loader's Q21
+        # holds the description to.
+        edges = facts.empty_edges[index]
+        under = edges[0]
+        over = edges[1]
+        places = queued[index]
+        # EACH GROUP IS WALKED FURTHEST FROM ITS OWN EDGE FIRST, which
+        # is what keeps the values in the order the ladder gave them.
+        # The walk hands out positions from the edge INWARD, so the
+        # first stratum walked gets the position nearest the edge: the
+        # down group is therefore walked from its LARGEST value
+        # downward and the up group from its SMALLEST value upward,
+        # and both come out in their original order.
+        down = [
+            place
+            for place in places
+            if moved[place] - under <= over - moved[place]
+        ]
+        up = [place for place in places if place not in down]
+        for step in range(len(down)):
+            notes = notes + _cleared_into(
+                column, facts, layout, moved, ends, barred, run, edges,
+                facts.empty_edges,
+                came[down[len(down) - 1 - step]],
+                down[len(down) - 1 - step], widths, taken, spoken,
+            )
+        for place in up:
+            notes = notes + _cleared_into(
+                column, facts, layout, moved, ends, barred, run, edges,
+                facts.empty_edges, came[place],
+                place, widths, taken, spoken,
+            )
+    return moved, notes
+
+
+def _cleared_into(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    moved: "list[float]",
+    ends: "tuple[float, float]",
+    barred: "dict[int, int]",
+    run: "tuple[int, int]",
+    edges: "tuple[float, float]",
+    every: "tuple[tuple[float, float], ...]",
+    origin: str,
+    place: int,
+    widths: "tuple[int, ...]",
+    taken: "dict[float, int]",
+    spoken: "dict[str, int]",
+) -> "list[Deviation]":
+    """Move one stratum out of an empty stretch, or name why not (G6.7).
+
+    `taken` and `spoken` are the caller's and are ADDED TO here, so a
+    value this pass has just handed out is one the next stratum may not
+    take -- which is what keeps the count of different numbers, and the
+    count of different cells, where the passes before this one left
+    them. The deviation is RETURNED rather than appended to a list the
+    caller owns: this package builds every list by joining rather than
+    by calling a method on a value, so that the offline audit can trace
+    every call it sees to an allowlisted name.
+    """
+    # WHETHER THIS STRATUM HOLDS ITS VALUE ALONE, read from the tally
+    # the caller keeps: `taken` counts holders, so one means this
+    # stratum and nobody else.
+    sole = taken[moved[place]] <= 1
+    found = _cleared_value(
+        ends,
+        barred,
+        run,
+        edges,
+        every,
+        moved[place],
+        layout.bands[place],
+        sole,
+        spoken,
+        taken,
+        facts.integer_valued,
+        widths,
+    )
+    if found is None:
+        # NO NOTE IS WRITTEN HERE, and that is the repair of review
+        # round 7 items 1 and 3. This stage knows a STRATUM and not a
+        # CELL: a stratum stands for as many cells as the layout gives
+        # it, the width each cell is written at is decided later, and a
+        # value a thousandth outside a stretch is written back inside
+        # it at one width and not at another -- so a count taken here
+        # is a count of the wrong things. And a stratum that DID move,
+        # to a slot the looser walk found inside some other published
+        # stretch, left no note at all. `_gap_notes` recounts the
+        # FINISHED CELLS against the published stretches instead, which
+        # is what every other count in this report is taken from.
+        return []
+    was = moved[place]
+    moved[place] = found
+    taken[was] = taken[was] - 1
+    if taken[was] < 1:
+        del taken[was]
+    taken[found] = taken[found] + 1 if found in taken else 1
+    for spelling in _spellings_of(found, widths, facts.integer_valued):
+        spoken[spelling] = 1
+    return []
+
+
+def _gap_notes(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Name every finished cell standing where the source holds none.
+
+    RECOUNTED FROM THE TWIN'S OWN TEXT, one note per stretch, which is
+    the treatment every other count in this report has. The value
+    stage's own attempt named a STRATUM -- a group of cells whose size
+    the layout fixes and whose widths are chosen later -- so it could
+    report two cells where one was inside and one outside, and it said
+    nothing at all about a stratum that MOVED into a stretch other
+    than its own (review round 7 items 1 and 3).
+
+    WHICH FACT A STRETCH NAMES follows from where the cell stands: a
+    cell in a bin the description says holds nothing misses
+    `empty_bins`, and one standing only inside the published pair
+    misses `empty_edges`. A stretch holding both kinds gets a note for
+    each, because they are two different facts about it.
+
+    Guarantees: accepts one numeric block, its facts and the cells
+    written for it; returns one deviation per stretch and fact that a
+    cell stands in, carrying the published pair, the count of cells and
+    the values they read as. Determinism: the answer depends only on
+    those inputs and the notes are built in stretch order. Raises
+    nothing. No I/O of any kind.
+    """
+    if not facts.empty_bins:
+        return []
+    ends = _bin_ends(facts)
+    if ends is None:
+        return []
+    barred = {place: 1 for place in facts.empty_bins}
+    runs = _empty_runs(facts.empty_bins)
+    inside: "dict[tuple[int, str], list[float]]" = {}
+    for cell in cells:
+        if cell == "":
+            continue
+        value = parsing.parse_number(cell)
+        if value is None:
+            continue
+        where = parsing.histogram_bin(value, ends[0], ends[1])
+        for index in range(len(runs)):
+            if index >= len(facts.empty_edges):
+                break
+            below = facts.empty_edges[index][0]
+            above = facts.empty_edges[index][1]
+            if not below < value < above:
+                continue
+            key = "empty_bins" if where in barred else "empty_edges"
+            seat = (index, key)
+            held = inside[seat] if seat in inside else []
+            inside[seat] = held + [value]
+            break
+    notes: "list[Deviation]" = []
+    for seat in sorted(inside):
+        index = seat[0]
+        found = inside[seat]
+        # THE VALUES IN VALUE ORDER and each named once, four of them
+        # at most, with the rest counted rather than dropped: a report
+        # line a person reads is a sentence and not a listing, and a
+        # line that trailed off without saying it had would be telling
+        # them there were four.
+        apart: "list[float]" = []
+        for one in sorted(found):
+            if one not in apart:
+                apart = apart + [one]
+        # BUILT BY JOINING RATHER THAN BY A METHOD ON A VALUE, which
+        # is this package's rule everywhere and what the offline audit
+        # holds it to: a `join` over a comprehension hands the method a
+        # value the audit cannot follow.
+        shown = ""
+        for step in range(len(apart)):
+            if step >= 4:
+                break
+            if shown:
+                shown = f"{shown}, {apart[step]}"
+            else:
+                shown = f"{apart[step]}"
+        if len(apart) > 4:
+            shown = f"{shown} and {len(apart) - 4} more"
+        notes = notes + [
+            _deviation(
+                column.name,
+                seat[1],
+                # STRICTLY BETWEEN, and the word is load-bearing
+                # (review round 8 item 6). Both edges are values the
+                # source really holds; only what lies between them is
+                # empty. "from 9.9 to 13.1" reads as a closed range,
+                # so an analyst filtering inclusively would count two
+                # real rows as violations.
+                f"no value strictly between "
+                f"{facts.empty_edges[index][0]} and "
+                f"{facts.empty_edges[index][1]}",
+                f"{len(found)} cell(s) hold {shown}",
+                "The description says the real column holds no value "
+                "in that stretch, and this twin could find no value "
+                "beside it that its own signs, its written forms and "
+                "the values its other cells hold all leave free. The "
+                "count and the values are recounted from the cells "
+                "this twin actually wrote.",
+            )
+        ]
+    return notes
+
+
 def _number_cells(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     layout: "_NumericLayout",
     values: "list[float]",
 ) -> "tuple[list[str], list[Deviation]]":
-    """Write every cell that reads as a number (method G6.4, G6.5).
+    """Write every cell that reads as a number (method G6.4, G6.6).
 
     Styles are shared out over the cells in stratum order by largest
     remaining quota, narrowed to the styles each cell's own value can
@@ -3942,7 +10844,42 @@ def _number_cells(
         quotas, holds, facts.integer_valued, _style_pool(facts.numeric_styles)
     )
     styles = _style_strata(
-        quotas, layout, values, facts.integer_valued, wanted, styles
+        quotas,
+        layout,
+        values,
+        facts.integer_valued,
+        wanted,
+        min(layout.raw_budgets[0], column.n_numeric),
+        styles,
+    )
+    # THE PADDED EXCHANGE RUNS BEFORE ANY WIDTH IS ASSIGNED, and the
+    # order is the whole of the rule. `_width_places` assigns a
+    # FRACTION width to each cell it finds wearing `decimal`; the
+    # exchange then moves styles between cells. Run the other way round
+    # those assignments end up on cells that are no longer decimal,
+    # while the cells that now are carry none -- a column publishing
+    # forty-four cells at three figures after the point kept twenty-two
+    # of them and wrote the rest at one, having met the padding census
+    # exactly. One census was bought with another. Choosing the styles
+    # first and the widths afterwards is what makes both reachable.
+    styles = _padded_style_swaps(
+        styles,
+        holds,
+        facts.pad_widths,
+        _pinned_cells(layout, values),
+        facts.integer_valued,
+    )
+    widths = _width_places(
+        facts.fraction_widths,
+        styles,
+        holds,
+        _pinned_cells(layout, values),
+        _segment_bounds(column, facts, layout, values),
+        _published_ends(facts, values),
+        facts.integer_valued,
+    )
+    pads = _pad_places(
+        facts.pad_widths, styles, holds, facts.integer_valued
     )
     base: list[str] = []
     for index in range(len(holds)):
@@ -3952,6 +10889,8 @@ def _number_cells(
                 styles[index],
                 1 if styles[index] == "leading_zero" else 0,
                 facts.integer_valued,
+                widths[index],
+                pads[index],
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -3974,8 +10913,24 @@ def _number_cells(
         if (
             style != "plain"
             and owed > 0
+            and pads[index] < 0
             and parsing.folded(spelling) in identities
         ):
+            # A PUBLISHED FIELD WIDTH IS NOT SPENT ON AN IDENTITY, and
+            # the ratified text is what says which way this goes. Every
+            # order of the family writes ONE MORE FIGURE, so a column
+            # whose census pins the field at five has exactly one
+            # leading-zero spelling of each value and the family cannot
+            # supply a second without leaving the width. That is the
+            # case owner decision 11's authorization already names --
+            # raw distinctness falls to the two-sided envelope "only
+            # where even those cannot supply" -- so the shortfall is an
+            # authorized approximation the report prints, while a
+            # broken width would be a silent miss on the one fact a
+            # person reading a code column actually depends on: a
+            # width check, a slice, or a join against a five-figure
+            # code fails on a six-figure cell, and nothing said a word.
+            #
             # NO CEILING, BY OWNER DECISION 8. `0`, `00`, `000` and so
             # on supply as many different spellings of one value as a
             # description can ask for, and that unbounded supply is the
@@ -3998,7 +10953,12 @@ def _number_cells(
             while parsing.folded(spelling) in identities:
                 order = order + 1
                 spelling = _styled_number(
-                    holds[index], style, order, facts.integer_valued
+                    holds[index],
+                    style,
+                    order,
+                    facts.integer_valued,
+                    widths[index],
+                    pads[index],
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
@@ -4019,6 +10979,154 @@ def _number_cells(
 
 
 # -- columns of dates and times (method G7) ---------------------------
+
+
+def _clock_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a column of clock times.
+
+    TWO POPULATIONS AND ONE SUBTRACTION. `n_present - n_unparsed` cells
+    parsed as clock times and are built first in rank order; exactly
+    `n_unparsed` stand-ins follow. Nothing else divides the column.
+
+    THE TWO ENDS ARE THE PUBLISHED TEXT, character for character, and
+    neither draws a word. Every rank between them travels through the
+    ordinal space the PUBLISHED FORM sets -- minutes of day for
+    `hh-mm`, seconds of day for `hh-mm-ss` -- by the same floor-division
+    interpolation the date rule uses, so no interpolated value is ever
+    truncated or widened to fit its cell.
+
+    WHY THE INTERPOLATION ALWAYS HAS AN ANSWER, written down rather than
+    assumed. Each interior ordinal is computed inside one segment of
+    the ladder, so it lies between that segment's two rungs; the ladder
+    never goes backwards (T3), so no segment is inverted; and its two
+    ends ARE the column's endpoints (T2), so every ordinal lies between
+    them. Both endpoints are real cells of a closed finite space, so
+    every ordinal is inside that space and has exactly one spelling in
+    the column's form.
+
+    THIS ROLE HAS NO OFFSET MACHINERY AND MAY NOT INVENT ANY. The clock
+    role publishes none of the datetime role's ten offset and
+    resolution keys, so there is no zone to carry, no reading to
+    convert and no endpoint field surgery: a clock time is a place in
+    the day and nothing else.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        raise _wrong_facts(column.name)
+    form = facts.clock_form
+    parsed = column.n_present - facts.n_unparsed
+    ladder = [
+        _clock_ordinal_of(facts.clock_percentiles[name], form)
+        for name in _LADDER_NAMES
+    ]
+    # WHETHER THIS COLUMN'S VALUES WERE ALL DIFFERENT. The description
+    # says so when its count of different values, net of the cells that
+    # are stand-ins, is the count of cells that parsed -- and that
+    # obligation is EXACT: the plan keeps it for this case even though
+    # every other shape's distinctness falls to an envelope, because a
+    # closed finite space of times has a place for each of them and the
+    # construction can simply take the next one.
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    ceiling = _clock_ordinal_of(facts.latest, form)
+    last = _clock_ordinal_of(facts.earliest, form)
+    cells: "list[str]" = []
+    taken = 0
+    for rank in range(parsed):
+        if rank == 0:
+            cells = cells + [facts.earliest]
+            continue
+        if rank == parsed - 1 and parsed >= 2:
+            cells = cells + [facts.latest]
+            continue
+        word = words[taken]
+        taken = taken + 1
+        numerator = rank * _WORD_SCALE + word
+        denominator = parsed * _WORD_SCALE
+        step = _segment(numerator, denominator)
+        above = 100 * numerator - _PCT[step] * denominator
+        span = (_PCT[step + 1] - _PCT[step]) * denominator
+        ordinal = ladder[step] + (
+            above * (ladder[step + 1] - ladder[step])
+        ) // span
+        if apart:
+            # WHERE THE COLUMN'S OWN VALUES WERE ALL DIFFERENT, so are
+            # the twin's. The interpolation is non-decreasing across
+            # ranks -- each rank's share is larger than the last -- so
+            # two ranks land on one time only where the ladder is
+            # tighter than the ranks are numerous, and stepping the
+            # later one up by a minute is what the source column itself
+            # did. Bounded by the last rank, which is pinned to the
+            # published latest.
+            #
+            # WHAT GUARANTEES A PLACE FOR EVERY ONE OF THEM IS THE
+            # SPAN, and not `_clock_room` -- that check is the FORM's
+            # capacity, which is a different quantity and a weaker one.
+            # On any description the profiler wrote the span is enough:
+            # every parsed cell lies between the two published ends, so
+            # the different parsed cells number at most `hi - lo + 1`,
+            # and `n_unparsed` counts unparsed CELLS while `n_distinct`
+            # counts each unparsed spelling once, so
+            # `n_distinct - n_unparsed` cannot exceed that width. A
+            # HAND-WRITTEN description can break it -- ends eleven
+            # minutes apart asking for a hundred different values -- and
+            # then the clamp below binds, the twin holds fewer times
+            # than published, and the recount reports the shortfall
+            # against `n_distinct` rather than passing it over.
+            # Measured on exactly that column: 11 different times
+            # written, `n_distinct` reported at 11, 8 of the 11 rungs
+            # reported moved. See method G7A.3.
+            if ordinal <= last:
+                ordinal = last + 1
+            if ordinal > ceiling:
+                ordinal = ceiling
+        last = ordinal
+        cells = cells + [parsing.clock_spelling(ordinal, form)]
+    # THE STAND-INS, which are outside the obligation to reproduce a
+    # clock value and are counted rather than described. Each is
+    # stepped past four things: a spelling this column already wrote, a
+    # word this format reads as "no value", a spelling that would read
+    # as a clock time in EITHER form -- which would quietly move
+    # `n_unparsed` -- and a spelling this column publishes as a hole.
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    holes = _hole_spellings(column)
+    step = 1
+    while len(cells) < column.n_present:
+        candidate = _text_spelling(step, used, holes)
+        step = step + 1
+        if _reads_as_a_clock(candidate):
+            continue
+        if _is_a_hole_spelling(candidate, holes):
+            continue
+        cells = cells + [_take(candidate, used)]
+    return cells, []
+
+
+def _reads_as_a_clock(text: str) -> bool:
+    """Whether this spelling would be read as a clock time at all.
+
+    Either form, because a stand-in that reads as one under the form
+    the column did NOT publish is still a cell the twin's own
+    description counts differently from the description it was built
+    from.
+    """
+    return parsing.clock_form(text) is not None
+
+
+def _clock_ordinal_of(text: str, form: str) -> int:
+    """One published clock value as its place in the form's own unit.
+
+    The loader has already held every published clock value to that
+    form (invariant T1), so the reader answers; a None here would be an
+    internal contradiction rather than a document a person can write,
+    and it is raised as one.
+    """
+    found = parsing.clock_ordinal(text, form)
+    if found is None:
+        raise errors.ProfileError(_INTERNAL_CLOCK)
+    return found
 
 
 def _datetime_content(
@@ -4042,6 +11150,9 @@ def _datetime_content(
     first = _ordinal_of(facts.earliest, facts.resolution)
     last = _ordinal_of(facts.latest, facts.resolution)
     offsets, notes = _offset_allocation(column, facts, parsed)
+    # The spellings this column publishes among its absent cells, so
+    # that no cell this run writes wears one (review item P4-DATE-F2).
+    holes = _hole_spellings(column)
     cells: list[str] = []
     taken = 0
     for rank in range(parsed):
@@ -4086,18 +11197,18 @@ def _datetime_content(
         text = written
         if _is_real_offset(offset) and offset:
             text = f"{text}{offset}"
-        cells = cells + [text]
+        cells = cells + [_kept_datetime_cell(text, holes)]
     if parsed >= 1:
         notes = notes + _endpoint_notes(
-            column, facts, "earliest", facts.earliest, cells[0]
+            column, facts, "earliest", facts.earliest, cells[0], holes
         )
     if parsed >= 2:
         notes = notes + _endpoint_notes(
-            column, facts, "latest", facts.latest, cells[parsed - 1]
+            column, facts, "latest", facts.latest, cells[parsed - 1], holes
         )
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
-        cells = cells + [_take(_text_spelling(step + 1, used), used)]
+        cells = cells + [_take(_text_spelling(step + 1, used, holes), used)]
     carried = [offset for offset in offsets if offset]
     if facts.datetimes_read_at == "utc" and len(set(carried)) < 2:
         notes = notes + [
@@ -4120,6 +11231,8 @@ def _parser_family(resolution: str) -> str:
         return "iso-date"
     if resolution == "quarter":
         return "year-quarter"
+    if resolution == "month":
+        return "iso-month"
     return "iso-datetime"
 
 
@@ -4144,12 +11257,52 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     return found[0]
 
 
+def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
+    """The same instant, spelled so the twin's own reader still sees it.
+
+    THE COLLISION IS THE TWIN'S OWN DOING, WHICH IS WHY IT CAN BE
+    UNDONE (review item P4-DATE-F2). A real table can hold a present
+    cell at midnight written `2024-01-01` and, in the same column,
+    eleven absent cells the person declared as `2024-01-01T00:00:00`.
+    Those are two spellings and the description carries both facts
+    honestly. The twin then writes every parsed cell at the column's
+    finest precision, reaches for the second spelling, and hands back a
+    cell its OWN description reads as absent -- so an exact endpoint
+    walks out of the twin over a separator nobody chose.
+
+    The date reader accepts three separators between the day and the
+    time. The fixed one is `T`, and it stays fixed: this is asked only
+    where that spelling is one the column publishes among its absent
+    cells, and then the space form is offered, which reads back as the
+    same instant at the same precision on the same clock. Where BOTH
+    spellings are declared absent, nothing here can help and the
+    original is returned so that the recount names the loss rather than
+    hiding it behind a third spelling.
+
+    Guarantees: accepts a written cell and the column's own absent
+    spellings; returns that cell or an equivalent one. Determinism: a
+    function of the two. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a twin cell reached the spelling rule as something else")
+    if not _is_a_hole_spelling(text, holes):
+        return text
+    if len(text) < 11 or text[10] != "T":
+        return text
+    other = f"{text[0:10]} {text[11:]}"
+    if _is_a_hole_spelling(other, holes):
+        return text
+    return other
+
+
 def _endpoint_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     key: str,
     published: str,
     written: str,
+    holes: "tuple[str, ...]",
 ) -> "list[Deviation]":
     """Catch an end of a column of dates this run failed to write back.
 
@@ -4172,11 +11325,19 @@ def _endpoint_notes(
     evidence of its own defect is the worse of the two failures.
     """
     found = _instant_written(written, facts)
-    if found == published:
+    absent = _wears_a_published_hole(written, holes)
+    if found == published and not absent:
         return []
     achieved = "a value that does not read as a date at all"
     if found is not None:
         achieved = found
+    if absent:
+        # ASKED THE WAY THE TWIN WILL BE READ (review item P4-DATE-F2).
+        # A cell wearing a spelling this column publishes among its
+        # absent ones is not a value at all when the twin is described
+        # again, whatever instant its text would otherwise read as, so
+        # the end is gone even though the bytes look right.
+        achieved = "no value: the twin's own description reads that cell as absent"
     return [
         _deviation(
             column.name,
@@ -4286,15 +11447,61 @@ def _label_content(
     made_up = 0
     for entry in facts.levels:
         covered = 0
+        # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
+        # WRITTEN FORM. The published spellings are written byte for
+        # byte, so what they wear is read rather than reasoned about --
+        # the same rule `_forms_owed` follows for the column census.
+        covered_in_form = 0
         for spelling in sorted(entry.variants):
             cells = cells + [spelling for _each in range(entry.variants[spelling])]
             covered = covered + entry.variants[spelling]
+            if parsing.shape_form(spelling):
+                covered_in_form = covered_in_form + entry.variants[spelling]
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
-        for key in sorted(entry.variants_withheld):
+        # WHICH HELD-BACK GROUPS KEEP THE LABEL'S WRITTEN FORM (method
+        # G8.1a, plan amendment A-P4-47). The level publishes how many
+        # of its cells wore that form; the published spellings written
+        # just above pay what they can, and the rest is a DEBT that
+        # whole held-back groups have to cover between them. Before
+        # this fact existed the walk guessed -- it handed the scarce
+        # form-keeping spelling to the LARGEST held-back group -- and
+        # missed in both directions, which is residual R-P4-34.
+        own_form = parsing.shape_form(entry.label)
+        keeping = _form_keeping_groups(entry, covered_in_form)
+        # WHETHER THE LABEL'S OWN SPELLING IS SPOKEN FOR. A level whose
+        # published and held-back spellings do not reach its count is
+        # finished below by writing the label itself, so that spelling
+        # is reserved and a variant may not take it. Where they DO
+        # reach the count nothing is left to write and the label's own
+        # spelling is free -- and it is worth having, because it is the
+        # one further spelling that folds onto the label while KEEPING
+        # ITS WRITTEN FORM, where a trailing space does not (P4-D18).
+        #
+        # It goes to the LARGEST group whose target form it wears --
+        # which is the largest form-keeping group where the label has a
+        # form of its own, and the largest group of all where it has
+        # none, because then every group's target is "no form" and so
+        # is the label's. Where the label has a form and NO group keeps
+        # it, the spelling is not spent at all: spending it there is
+        # exactly the overshoot this amendment repairs.
+        spare = _spare_variant_group(entry, keeping)
+        left: "dict[str, int]" = {}
+        for key in keeping:
+            left[key] = keeping[key]
+        for key in _withheld_keys(entry.variants_withheld):
             rows = int(key)
             for _each in range(entry.variants_withheld[key]):
-                variant = _variant_spelling(entry.label, used, owners)
+                wanted = ""
+                if key in left and left[key] > 0:
+                    wanted = own_form
+                    left[key] = left[key] - 1
+                take = key == spare
+                variant = _variant_spelling(
+                    entry.label, used, owners, wanted, take
+                )
+                if take:
+                    spare = ""
                 made_up = made_up + 1
                 cells = cells + [variant for _row in range(rows)]
                 covered = covered + rows
@@ -4318,17 +11525,65 @@ def _label_content(
             )
         ]
     number = 0
-    for size in facts.suppressed_level_counts:
-        number, label = _made_up_label(number, used, owners)
+    # THE FORMS THIS COLUMN WAS WRITTEN IN, IF IT PUBLISHED ANY (plan
+    # P4-D18). A long tail publishes a census of them, and it is the
+    # role whose twin is mostly stand-ins; the sibling label roles
+    # publish none, so the debt is empty for them and the neutral
+    # `group-N` spelling stands as before.
+    owing = _forms_owed(facts, cells)
+    # NAMED FOR ITSELF rather than reusing `wanted`, which this module
+    # already binds to a COUNT and to a STYLE NAME elsewhere: the strict
+    # type check reads one name as one type per scope, and three
+    # meanings under one spelling is a reading nobody should have to
+    # hold in their head either.
+    shared: "list[str]" = _shared_out(
+        facts.suppressed_level_counts,
+        owing,
+        used,
+        owners,
+        _hole_spellings(column),
+    )
+    # Each form's place in its own supply, carried across the whole
+    # column so no spelling is walked twice.
+    walked: "dict[str, int]" = {}
+    shaped = 0
+    for place in range(len(facts.suppressed_level_counts)):
+        size = facts.suppressed_level_counts[place]
+        form = shared[place]
+        number, label = _made_up_label(
+            number, used, owners, form, plan.all_holes, walked
+        )
+        # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
+        # (review round 2 finding 12). The walk gives a form up when
+        # its supply is spent or every spelling of it is refused, and
+        # this counted the ASKING -- so a report said thirty-three
+        # stand-ins were written in a published form when five of them
+        # were `group-N`.
+        if form and parsing.shape_form(label) == form:
+            shaped = shaped + 1
         cells = cells + [label for _row in range(size)]
     if facts.suppressed_levels:
+        # WHAT THE STAND-INS WERE WRITTEN IN IS PART OF THE NOTE (plan
+        # P4-D18). A column publishing a census of written forms has
+        # its stand-ins written in them, and a column publishing none
+        # has the neutral spelling as before -- and a column can have
+        # both, where the forms the held-back cells wore were
+        # themselves too rare to name, so the count is given rather
+        # than the reader left to guess which happened.
+        made = (
+            f"{facts.suppressed_levels} neutral labels made up in their place"
+        )
+        if shaped:
+            made = (
+                f"{facts.suppressed_levels} labels made up in their place, "
+                f"{shaped} of them written in a form this column published"
+            )
         notes = notes + [
             _deviation(
                 column.name,
                 "suppressed_levels",
                 f"{facts.suppressed_levels} labels that were held back",
-                f"{facts.suppressed_levels} neutral labels made up in their "
-                f"place",
+                made,
                 "Those labels covered too few rows to publish, so the twin "
                 "keeps their number and their sizes but not the labels.",
             )
@@ -4336,8 +11591,223 @@ def _label_content(
     return cells, notes
 
 
+def _withheld_keys(withheld: "dict[str, int]") -> "list[str]":
+    """The keys of a multiplicity map in ASCENDING NUMERIC order (G8.1).
+
+    Method G8.1 step 2 says ascending numeric order; the code sorted
+    the key STRINGS, which in general puts `10` before `2`.
+
+    ON A CONFORMING DOCUMENT THE TWO ORDERS AGREE, and this changes no
+    twin's bytes (review round 1, test weakening 8). Section 5.3 of the
+    contract pads a multiplicity key with leading zeros to a uniform
+    width, and section 3.1 gives THIS as the reason for the padding:
+    padded, the canonical key order and the numeric order coincide. So
+    the string sort was right on every document a loader accepts.
+
+    It is written this way anyway, and stated rather than left implied:
+    the method says numeric, so the code says numeric, and a reader
+    checking one against the other finds them agreeing on the words as
+    well as on the answer. It costs one integer conversion per key.
+    """
+    ordered = [(int(key), key) for key in withheld]
+    return [pair[1] for pair in sorted(ordered)]
+
+
+# How much arithmetic the form-debt search below will do before it
+# settles for what the plain walk already found. The plain walk
+# covers the debt exactly on nearly every level, and the search runs only
+# where it did not; the bound is here so a level with thousands of
+# held-back rows cannot spend an unbounded time on an arrangement the
+# report would name either way.
+_FORM_DEBT_NODES = 250000
+
+
+def _form_keeping_groups(
+    entry: "contract.LevelEntry", covered_in_form: int
+) -> "dict[str, int]":
+    """Which held-back groups of a level keep its written form (G8.1a).
+
+    THE FACT THE DESCRIPTION NOW CARRIES, SPENT. `shape_form_cells`
+    says how many of the level's cells wore the label's own form
+    (7.4.8); the published spellings written already pay
+    ``covered_in_form`` of it, and the rest is a DEBT that whole
+    held-back groups have to cover between them, because a group is one
+    made-up spelling and every cell of it wears that spelling's form.
+
+    THE ANSWER IS A SUB-MULTISET OF THE GROUP SIZES SUMMING TO THE
+    DEBT, and one always exists on a description the producer wrote --
+    the debt IS a sum of those very sizes there, by construction. This
+    returns how many groups of each size keep the form; the walk gives
+    the first that many of each size a form-keeping spelling and the
+    rest a trailing space, which has no form at all.
+
+    **THE LARGEST GROUPS ARE OFFERED FIRST**, in two passes. The plain
+    walk takes each size in turn, largest first, and takes as many of
+    it as fit under what is still owed; on nearly every level that
+    covers the debt exactly and nothing further runs. Where it does not -- a
+    debt of 6 against groups of 4, 3 and 3 is the smallest case -- a
+    reachability walk over the sums decides it exactly, still reaching
+    each sum by the largest size that can, and it is bounded by
+    `_FORM_DEBT_NODES` because its cost is a product of the debt and
+    the number of different sizes and neither is bounded by the
+    document. Past the bound the plain walk's own partial answer
+    stands, and `_level_form_notes` NAMES what it left unpaid, which is
+    what this package does with every other bounded search.
+
+    Guarantees:
+
+    - Inputs: one published level entry and how many of its cells the
+      published spellings already write in the label's form.
+    - Determinism: the answer depends only on those two.
+    - Errors raised: none.
+    - Boundary: the sizes it names are the entry's own held-back group
+      sizes and it never names more groups of a size than the entry
+      holds, so a caller can spend it without checking.
+    """
+    debt = entry.shape_form_cells - covered_in_form
+    keeping: "dict[str, int]" = {}
+    if debt <= 0:
+        return keeping
+    keys = _withheld_keys(entry.variants_withheld)
+    largest_first = [keys[place] for place in range(len(keys) - 1, -1, -1)]
+    owed = debt
+    for key in largest_first:
+        take = min(entry.variants_withheld[key], owed // int(key))
+        if take > 0:
+            keeping[key] = take
+            owed = owed - take * int(key)
+    if owed == 0:
+        return keeping
+    exact = _debt_reached(entry, largest_first, debt)
+    if exact is None:
+        return keeping
+    return exact
+
+
+def _debt_reached(
+    entry: "contract.LevelEntry", largest_first: "list[str]", debt: int
+) -> "dict[str, int] | None":
+    """A sub-multiset of the held-back sizes summing to ``debt`` (G8.1a).
+
+    THE WALK THE PLAIN ONE ABOVE DOES NOT REACH. Taking the largest
+    size that fits at each step misses arrangements that exist: a debt
+    of 6 against groups of 4, 3 and 3 takes the 4 and is left with a 2
+    no group covers, while 3 and 3 pay it exactly. This walks every
+    sum from 0 up to the debt and records the FIRST size that reaches
+    it, the sizes being offered largest first, so a sum is reached the
+    same way every run and by the largest size that can reach it.
+
+    ``entry`` supplies how many groups of each size there are, and no
+    size is used along one chain more often than that. Returns None
+    when the debt is not reachable at all, and when the walk would cost
+    more than `_FORM_DEBT_NODES` steps -- the caller keeps the plain
+    walk's partial answer either way and the report names the rest.
+    """
+    if not largest_first or len(largest_first) * (debt + 1) > _FORM_DEBT_NODES:
+        return None
+    # `reached[total]` is the size whose group closed that total, or 0
+    # for a total nothing has reached yet. Total 0 is reached by taking
+    # nothing, which no size closes, so it carries -1 to tell "reached
+    # by nothing" from "not reached".
+    reached = [0 for _each in range(debt + 1)]
+    reached[0] = -1
+    for key in largest_first:
+        size = int(key)
+        # How many groups of THIS size the chain to each total has
+        # already spent. A total reached before this size began was
+        # reached without it, so its entry stays 0.
+        spent = [0 for _each in range(debt + 1)]
+        for total in range(size, debt + 1):
+            if reached[total]:
+                continue
+            below = total - size
+            if not reached[below]:
+                continue
+            if spent[below] >= entry.variants_withheld[key]:
+                continue
+            reached[total] = size
+            spent[total] = spent[below] + 1
+    if not reached[debt]:
+        return None
+    keeping: "dict[str, int]" = {}
+    total = debt
+    while total > 0:
+        size = reached[total]
+        key = ""
+        for candidate in largest_first:
+            if int(candidate) == size:
+                key = candidate
+                break
+        if not key:
+            return None
+        keeping[key] = keeping[key] + 1 if key in keeping else 1
+        total = total - size
+    return keeping
+
+
+def _spare_variant_group(
+    entry: "contract.LevelEntry",
+    keeping: "dict[str, int]",
+) -> str:
+    """Which held-back group takes the label's own spelling, or "" (G8.1).
+
+    THE LABEL'S OWN SPELLING IS ONE MORE SPELLING, and where nothing
+    else of the level needs it, it is the only further one that folds
+    onto the label while KEEPING ITS WRITTEN FORM -- a case flip may
+    already be published and a trailing space changes the form. So it
+    is worth spending where it covers most: on the LARGEST group that
+    can use it.
+
+    WHICH GROUPS CAN USE IT is the half amendment A-P4-47 adds. The
+    spelling wears the label's own form, so it suits a group whose
+    TARGET form is that one. Where the label has a form of its own,
+    that is the form-keeping groups, and where it has none every
+    group's target is "no form" and so is the label's -- so on a
+    formless label this is the largest group of all, exactly as it was
+    before this fact existed. Where the label HAS a form and no group
+    keeps it, the spelling is not spent at all: spending it there wrote
+    one more cell in the form than the source ever held, which is the
+    overshoot half of residual R-P4-34.
+
+    It is spare only when the published and held-back spellings already
+    cover the level's count. A level they do not cover is finished by
+    writing the label itself, so that spelling is spoken for and a
+    variant may not take it. Invariant W4 makes them cover it on every
+    description a loader accepts; this is the rule for the entry that
+    reaches here another way.
+
+    Guarantees: accepts one level entry and the answer of
+    `_form_keeping_groups` over it; returns one key of
+    `variants_withheld` or "". Determinism: the answer depends only on
+    those two. Raises nothing. It counts the entry's own coverage
+    rather than taking a caller's running total, because the caller's
+    total at the moment it asks is the PUBLISHED spellings alone and
+    reading it there reserved the label's spelling on every level that
+    holds one back at all.
+    """
+    covered = 0
+    for spelling in sorted(entry.variants):
+        covered = covered + entry.variants[spelling]
+    for key in _withheld_keys(entry.variants_withheld):
+        covered = covered + int(key) * entry.variants_withheld[key]
+    if covered < entry.count:
+        return ""
+    formless = not parsing.shape_form(entry.label)
+    best = ""
+    for key in _withheld_keys(entry.variants_withheld):
+        if not formless and not (key in keeping and keeping[key] > 0):
+            continue
+        if not best or int(key) > int(best):
+            best = key
+    return best
+
+
 def _variant_spelling(
-    parent: str, used: "dict[str, int]", owners: "dict[str, str]"
+    parent: str,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    wanted: str,
+    spare: bool = False,
 ) -> str:
     """One made-up spelling of a published label (method G8.2).
 
@@ -4346,7 +11816,31 @@ def _variant_spelling(
     stepped past when it is already used in this column, or when it
     would fold onto a DIFFERENT label -- so the published counts of
     folded identities stay exactly what the description says.
+
+    ``wanted`` IS THE WRITTEN FORM THIS SPELLING MUST WEAR, "" for none
+    (method G8.2a, plan amendment A-P4-47). A case flip of the label
+    wears the label's own form and a trailing space wears none, so the
+    two halves of the supply are the two answers, and a candidate
+    wearing the other one is stepped past. That is what lets the walk
+    give a level exactly the number of form-bearing cells its
+    `shape_form_cells` publishes instead of as many as the supply
+    happened to reach. Where the case flips run out with the form still
+    wanted, the trailing space is written and `_level_form_notes` names
+    the shortfall.
+
+    ``spare`` OFFERS THE LABEL'S OWN SPELLING FIRST where nothing else
+    of the level needs it. `E11.9` published beside three rows of
+    `e11.9` held back is a level with exactly two spellings and one of
+    them is the label; without this the walk skipped the label -- the
+    binary counter calls it order zero and starts at one -- found its
+    single case flip already published, and fell through to `E11.9 `,
+    which is a DIFFERENT WRITTEN FORM. The form census then went
+    unpaid, which is how this was found (P4-D18).
     """
+    if spare and parent not in used and parsing.shape_form(parent) == wanted:
+        used[parent] = 1
+        owners[parsing.folded(parent)] = parent
+        return parent
     order = 0
     while order < 4096:
         order = order + 1
@@ -4354,6 +11848,8 @@ def _variant_spelling(
         if candidate is None:
             break
         if candidate in used or parsing.folded(candidate) != parent:
+            continue
+        if parsing.shape_form(candidate) != wanted:
             continue
         taken = parsing.folded(candidate) in owners
         if taken and owners[parsing.folded(candidate)] != parent:
@@ -4372,24 +11868,947 @@ def _variant_spelling(
         return candidate
 
 
-def _made_up_label(
-    number: int, used: "dict[str, int]", owners: "dict[str, str]"
-) -> "tuple[int, str]":
-    """One neutral label standing in for one that was held back (G8.3).
+def _forms_owed(
+    facts: "contract.LabelFacts", written: "list[str]"
+) -> "dict[str, int]":
+    """Cells each published form still owes after what is already written.
 
-    `group-1`, `group-2`, `group-3` and so on, stepped past any spelling
-    already used in this column, raw or folded. They are neutral by
-    construction: they carry no fragment of any real value, they are not
-    one of the spellings that mean "no value", they read as neither a
-    number nor a date, they hold no comma or quote so they need no
-    quoting, and they do not begin with a character a spreadsheet reads
-    as the start of a formula.
+    THE CELLS ALREADY WRITTEN PAY FIRST, and they are read rather than
+    reasoned about. A twin writes the published spellings byte for byte
+    and makes up the held-back ones, and every one of those cells wears
+    a form -- so a debt taken from the census alone would be paid twice
+    over and the census missed by exactly the cells the walk forgot it
+    had written. This counts the column's own cells.
+
+    Only the NAMED forms are here: the pooled key names no form, and a
+    stand-in cannot be written in a form nobody published.
     """
+    if not isinstance(facts, contract.LabelFacts):
+        return {}
+    owing: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form == contract.WITHHELD:
+            continue
+        owing[form] = facts.shape_forms[form]
+    for cell in written:
+        form = parsing.shape_form(cell)
+        if form not in owing:
+            continue
+        if owing[form] > 0:
+            owing[form] = owing[form] - 1
+    return owing
+
+
+# How many assignments the search below will look at before it settles
+# for the greedy answer. A column with one published form settles at
+# the first node; the bound is here so a column with many forms and
+# many held-back levels cannot spend an unbounded time on an
+# arrangement the report would name either way.
+_SHARE_OUT_NODES = 20000
+
+# How many held-back levels the search will walk at all. Past this the
+# budget above runs out before an answer does, and the greedy walk is
+# what the search would settle for -- so it is taken directly, which
+# also keeps the walk's own bookkeeping small on a long tail.
+_SHARE_OUT_PLACES = 256
+
+
+def _shared_out(
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> "list[str]":
+    """Which published form each stand-in is written in, one per size.
+
+    LARGEST DEBT FIRST IS NOT ENOUGH, and the case that breaks it is
+    ordinary (review round 1 finding 4). Two forms owing 76 and 164
+    cells, and twenty-five stand-ins covering five levels of eight rows
+    and twenty of ten: the source's own arrangement is exact -- two
+    eights and six tens make 76, three eights and fourteen tens make
+    164 -- and paying the largest debt first hands every eight to the
+    larger form and reaches neither count.
+
+    So the arrangement is SEARCHED, over the sizes in descending order,
+    trying the forms in descending order of what they still owe. The
+    first arrangement that settles every debt exactly is taken; where
+    none is found inside the node bound, the greedy walk's answer is
+    taken instead and the twin's own report names whatever it missed.
+
+    The search is a function of the description alone -- the sizes come
+    from `suppressed_level_counts`, the debts from the census and the
+    cells already written -- so two implementations reading one
+    document reach the same arrangement.
+    """
+    names = [form for form in sorted(owing) if owing[form] > 0]
+    if not names:
+        return ["" for _each in sizes]
+    order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
+    places = [pair[1] for pair in order]
+    left = {form: owing[form] for form in names}
+    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
+    # round 2 finding 5). The debt is in CELLS and the supply is in
+    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
+    # cells and can spell 260 of them, but a form of one figure owes 31
+    # and can spell ten. An arrangement that settles every debt
+    # arithmetically and asks a form for more distinct stand-ins than
+    # it HAS is not an arrangement at all -- the walk exhausts the form
+    # and writes neutral spellings, and the census is missed by the
+    # cells it was built to meet.
+    supply = {
+        form: _usable_room(form, len(sizes), used, owners, holes)
+        for form in names
+    }
+    chosen: "dict[int, str]" = {}
+    # SETTLE EACH DEBT EXACTLY BY ARITHMETIC BEFORE SEARCHING FOR IT
+    # (review round 3 finding 7). The walk below is a search over
+    # arrangements and a search needs a bound; bounded at twenty
+    # thousand nodes it missed an arrangement the SOURCE ITSELF
+    # exhibits -- twelve levels whose debts of 31 and 74 are reached
+    # only at node 67,208 -- and settled for 41 and 83 instead.
+    #
+    # Which sizes make one debt exactly is a question with an answer,
+    # not a thing to hunt for: it is reachable-sums over the sizes,
+    # and this walks the debts largest first, takes an exact subset
+    # for each and hands the rest on. Where every debt is settled that
+    # way the search is never entered.
+    # THE SIZE GUARD COMES FIRST, BEFORE ANY ARRANGEMENT IS WORKED OUT
+    # (review round 4 finding 5). It stood after the arithmetic pass,
+    # so a long tail of a hundred thousand held-back levels reached
+    # four thousand sums and then rescanned them for every remaining
+    # group -- some four hundred million visits -- before the guard
+    # that exists to stop exactly that was consulted. Past this many
+    # places the greedy walk is what either pass would settle for
+    # anyway, so it is taken directly.
+    if len(places) > _SHARE_OUT_PLACES:
+        return _greedily(sizes, places, owing, names, used, owners, holes)
+    # BOTH WAYS ROUND BEFORE GIVING UP (review round 4 finding 4). One
+    # debt taking an exact subset can leave another unreachable where
+    # a different subset would not: debts of four and two, with sizes
+    # three, two, two and one, are settled by `3+1` and `2` -- and
+    # taking the larger debt first picks `2+2` and strands the other.
+    # Trying the smaller debt first costs one more pass and reaches
+    # the arrangement the source itself had.
+    for biggest_first in (True, False):
+        settled = _settled_by_sums(
+            sizes, places, owing, names, supply, biggest_first
+        )
+        if settled is not None:
+            return settled
+    budget = [_SHARE_OUT_NODES]
+    # SEARCHING ONLY THE SMALL CASES. Past this many places the search
+    # would spend its budget without reaching an answer, and the greedy
+    # walk below is what it would settle for anyway.
+    if len(places) > _SHARE_OUT_PLACES:
+        names = []
+    if names and _settles(
+        places, sizes, left, names, chosen, budget, supply
+    ):
+        return [
+            chosen[place] if place in chosen else ""
+            for place in range(len(sizes))
+        ]
+    return _greedily(sizes, places, owing, names, used, owners, holes)
+
+
+def _greedily(
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    owing: "dict[str, int]",
+    names: "list[str]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> "list[str]":
+    """The one-pass arrangement, settling the largest debt first.
+
+    Taken where no exact arrangement was found, and taken DIRECTLY on
+    a column with more held-back levels than the search will walk. It
+    is the arrangement this walk had before either the search or the
+    arithmetic was written, and it leaves the smallest remainder a
+    one-pass rule can.
+
+    IT OWES THE SUPPLY RULE TOO, and its own comment promised it
+    before the code did: a form of twenty-six spellings must not be
+    handed a twenty-seventh place.
+    """
+    # NO EXACT ARRANGEMENT WAS FOUND, so the greedy one stands. It is
+    # the arrangement this walk had before the search was written, and
+    # it leaves the smallest remainder a one-pass rule can.
+    #
+    # IT OWES THE SUPPLY RULE TOO. The search learned that a form can
+    # be asked for more distinct stand-ins than it can spell (review
+    # round 2 finding 5); the fallback is reached on exactly the large
+    # arrangements where that is most likely, so it counts spellings as
+    # well as cells. Without this the fallback handed a form of
+    # twenty-six spellings thirty-one places.
+    _unused = names
+    every = [form for form in sorted(owing) if owing[form] > 0]
+    left = {form: owing[form] for form in every}
+    spare = {
+        form: _usable_room(form, len(sizes), used, owners, holes)
+        for form in every
+    }
+    taken: "list[str]" = ["" for _each in sizes]
+    for place in places:
+        form = _neediest_form(_within_supply(left, spare))
+        if not form:
+            break
+        taken[place] = form
+        left[form] = max(0, left[form] - sizes[place])
+        spare[form] = spare[form] - 1
+    return taken
+
+
+def _within_supply(
+    left: "dict[str, int]", spare: "dict[str, int]"
+) -> "dict[str, int]":
+    """The debts of the forms that can still spell one more stand-in."""
+    open_still: "dict[str, int]" = {}
+    for form in sorted(left):
+        if spare[form] > 0:
+            open_still[form] = left[form]
+    return open_still
+
+
+def _settled_by_sums(
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    owing: "dict[str, int]",
+    names: "list[str]",
+    supply: "dict[str, int]",
+    biggest_first: bool,
+) -> "list[str] | None":
+    """An arrangement settling every debt exactly, or None.
+
+    Each debt in turn, largest first, takes an exact subset of the
+    sizes still going spare. `_subset_making` answers which sizes make
+    one total, by reachable sums rather than by search, so a debt no
+    subset can make is known at once instead of hunted for.
+
+    Not complete, and said so plainly: an exact subset taken for an
+    early debt can leave a later one unreachable where another subset
+    would not have. Where that happens this answers None and the
+    search below runs exactly as it did. What it buys is every case
+    where the debts are settled one at a time, which is the shape a
+    real column has.
+    """
+    spare = [sizes[place] for place in places]
+    where = list(places)
+    taken: "dict[int, str]" = {}
+    ordered = sorted([(0 - owing[form], form) for form in names])
+    if not biggest_first:
+        ordered = sorted([(owing[form], form) for form in names])
+    for pair in ordered:
+        form = pair[1]
+        picked = _subset_making(spare, owing[form], supply[form])
+        if picked is None:
+            return None
+        for slot in sorted(picked, reverse=True):
+            taken[where[slot]] = form
+            del spare[slot]
+            del where[slot]
+    answer = ["" for _each in sizes]
+    for place in taken:
+        answer[place] = taken[place]
+    return answer
+
+
+def _subset_making(
+    spare: "list[int]", total: int, most: int
+) -> "list[int] | None":
+    """Which of ``spare`` sum to ``total`` in at most ``most`` parts.
+
+    Reachable sums, walked once per size: `made[sum]` remembers which
+    size was laid down to reach that sum and which smaller sum it was
+    laid on, so the answer is read back rather than searched for.
+
+    TWO RULES KEEP THE CHAIN HONEST, and the first version had neither
+    (review round 4 finding 3). Each size is offered against the sums
+    reachable WITHOUT it -- a snapshot taken before it is laid down --
+    so no size is used twice. And a sum once reached is NEVER
+    rewritten: rewriting it improved `3+3+3` to `8+1` after a larger
+    sum had already been recorded as resting on it, and reading that
+    chain back returned the same slot twice. It returned `[4, 4, 0]`
+    for `[8,3,3,3,1]` making ten, which crashed the caller outright on
+    one arrangement of sizes and silently underpaid on another.
+
+    Both rules together make the chain strictly decreasing in slot, so
+    a slot cannot repeat -- which is the property the caller needs and
+    the one it did not have.
+    """
+    if total < 1:
+        return []
+    if most < 1:
+        return None
+    made: "dict[int, tuple[int, int]]" = {}
+    reached: "dict[int, int]" = {0: 0}
+    for slot in range(len(spare)):
+        size = spare[slot]
+        before = [(sum_so_far, reached[sum_so_far]) for sum_so_far in reached]
+        for pair in before:
+            sum_so_far = pair[0]
+            parts = pair[1] + 1
+            step = sum_so_far + size
+            if step > total or step in reached or parts > most:
+                continue
+            reached[step] = parts
+            made[step] = (slot, sum_so_far)
+    if total not in made:
+        return None
+    picked: "list[int]" = []
+    at = total
+    while at:
+        slot, before_sum = made[at]
+        picked = picked + [slot]
+        at = before_sum
+    return picked
+
+
+def _settles(
+    places: "list[int]",
+    sizes: "tuple[int, ...]",
+    left: "dict[str, int]",
+    names: "list[str]",
+    chosen: "dict[int, str]",
+    budget: "list[int]",
+    supply: "dict[str, int]",
+) -> bool:
+    """Whether the sizes can settle every debt exactly, walked ITERATIVELY.
+
+    IT RECURSED, AND A PRODUCER-VALID COLUMN CRASHED (review round 2
+    finding 6). One frame per suppressed level, and a long tail can
+    hold twelve hundred of them: a column of `steady` beside twelve
+    hundred singleton codes raised a bare `RecursionError` before ever
+    reaching the greedy fallback this function documents. The node
+    budget bounded the WORK and could not bound the STACK.
+
+    So the walk carries its own stack. Each entry is one place and how
+    many of that place's forms have been tried; stepping forward pushes,
+    exhausting a place's forms pops and undoes what that place took.
+    The answer, the order and the budget are exactly what the recursive
+    walk gave, so no arrangement moves.
+    """
+    depth = 0
+    tried: "list[int]" = [0 for _each in places]
+    while True:
+        if depth >= len(places):
+            settled = True
+            for form in names:
+                if left[form] != 0:
+                    settled = False
+            if settled:
+                return True
+            depth = depth - 1
+            if depth < 0:
+                return False
+            place = places[depth]
+            _given_back(left, supply, sizes, chosen, place)
+            continue
+        budget[0] = budget[0] - 1
+        if budget[0] < 0:
+            return False
+        place = places[depth]
+        size = sizes[place]
+        # A PLACE MAY BE LEFT NEUTRAL, and the empty string is how
+        # (review round 2 finding 4). Without it the search had to give
+        # every held-back level a form, so a column owing six cells
+        # with levels of three, three and four could not reach the
+        # arrangement its own source had -- two threes and the four
+        # left alone -- and overshot by one. The neutral choice is
+        # offered LAST, so an arrangement that uses a form is preferred
+        # to one that does not.
+        offers = [(0 - left[form], form) for form in names]
+        taken = False
+        for step in range(tried[depth], len(offers) + 1):
+            if step == len(offers):
+                tried[depth] = step + 1
+                chosen[place] = ""
+                taken = True
+                break
+            form = sorted(offers)[step][1]
+            if left[form] < size:
+                continue
+            if supply[form] < 1:
+                continue
+            tried[depth] = step + 1
+            left[form] = left[form] - size
+            supply[form] = supply[form] - 1
+            chosen[place] = form
+            taken = True
+            break
+        if taken:
+            depth = depth + 1
+            if depth < len(places):
+                tried[depth] = 0
+            continue
+        # THIS PLACE IS SPENT: undo the place before it and try its
+        # next form. Where there is no place before it, no arrangement
+        # settles every debt and the caller falls back.
+        tried[depth] = 0
+        depth = depth - 1
+        if depth < 0:
+            return False
+        _given_back(left, supply, sizes, chosen, places[depth])
+
+
+def _given_back(
+    left: "dict[str, int]",
+    supply: "dict[str, int]",
+    sizes: "tuple[int, ...]",
+    chosen: "dict[int, str]",
+    place: int,
+) -> None:
+    """Undo what one place took, so the walk can try its next choice."""
+    form = chosen[place]
+    if form:
+        left[form] = left[form] + sizes[place]
+        supply[form] = supply[form] + 1
+    del chosen[place]
+
+
+def _usable_room(
+    form: str,
+    wanted: int,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> int:
+    """How many spellings of one form this walk could still write.
+
+    `_form_room` counts the spellings the form HAS; this counts the
+    ones a stand-in may still wear HERE. Three differences, and each
+    was a defect in turn:
+
+    - a spelling may be refused outright -- `-@%%` has two thousand
+      six hundred spellings and NOT ONE of them usable, every one
+      opening with the character a spreadsheet reads as the start of a
+      formula (review round 2 finding 5);
+    - a spelling may already be TAKEN by a published label or an
+      earlier stand-in, or fold onto one, so a form whose supply is
+      twenty-six can have one left when twenty-five are spent (review
+      round 3 finding 5);
+    - and a spelling may be one this column reads as absent.
+
+    IT STOPS AT `wanted`. The caller never needs a number larger than
+    the places it has to fill, so a form of many letters costs this the
+    number of stand-ins and not four thousand candidates -- which is
+    what made it a cost on a wide table (round 3 finding 8).
+    """
+    room = min(_form_room(form), _STAND_IN_STEPS)
+    usable = 0
+    for step in range(room):
+        if usable >= wanted:
+            return usable
+        candidate = _filled_form(form, step)
+        if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        if not _is_a_usable_stand_in(candidate, holes):
+            continue
+        usable = usable + 1
+    return usable
+
+
+def _neediest_form(owing: "dict[str, int]") -> str:
+    """The published form owing the most cells, or "" where none owes any.
+
+    Largest debt first, ties broken by the form's own spelling
+    ascending, so the walk is a function of the description and of
+    nothing else. A stand-in covers a fixed number of rows -- its
+    level's size, which the description gives -- so the walk cannot
+    choose HOW MUCH to pay, only WHERE, and paying the largest debt
+    first is what leaves the smallest remainder when the sizes do not
+    divide the debts evenly.
+    """
+    ordered = [(0 - owing[form], form) for form in sorted(owing)
+               if owing[form] > 0]
+    if not ordered:
+        return ""
+    return sorted(ordered)[0][1]
+
+
+def _filled_form(form: str, step: int) -> str:
+    """One spelling of one published form, stepped by ``step``.
+
+    THE FORM SAYS THE SHAPE AND THE STEP SAYS WHICH ONE. Every `9` of
+    the form takes a figure and every `@` takes a letter; every other
+    character stands as itself, because the marks ARE the form. The
+    step is taken apart into those positions by plain mixed-radix
+    arithmetic, LEFTMOST FIRST, so consecutive steps differ and the
+    form's whole supply is reachable: `@%%.%` at step 0 is `A00.0`, at
+    step 1 `B00.0`, and the form holds 26 x 10 x 10 x 10 spellings
+    before any repeats. Past that the spellings come round again, and
+    the caller steps past what it has already written.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE. The form is built by
+    replacing every figure and letter of a cell before it is published,
+    and the figures and letters put back here come from the step, which
+    is a count of made-up values and not a reading of anything.
+    """
+    figures = "0123456789"
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    spelling = ""
+    place = _stepped_around(step, _form_room(form))
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            spelling = spelling + figures[place % 10]
+            place = place // 10
+            continue
+        if character == parsing.SHAPE_LETTER:
+            spelling = spelling + letters[place % 26]
+            place = place // 26
+            continue
+        spelling = spelling + character
+    return spelling
+
+
+# How many spellings of one form a stand-in walk will try before it
+# gives the form up and writes the neutral spelling instead. A form of
+# many letters holds more spellings than any run needs, and a walk that
+# insisted on finding a usable one could spend an unbounded time on a
+# document the loader accepted.
+_STAND_IN_STEPS = 4096
+
+
+def _form_room(form: str) -> int:
+    """How many different spellings one form holds."""
+    room = 1
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            room = room * 10
+        elif character == parsing.SHAPE_LETTER:
+            room = room * 26
+    return room
+
+
+def _stepped_around(step: int, room: int) -> int:
+    """``step`` moved around ``room`` so that every position varies.
+
+    WHY THE PLAIN COUNTER WAS WRONG, and it was wrong in a way that
+    changed a twin's ROLE. Two hundred and forty values taken in order
+    out of a form holding a hundred thousand leave every position but
+    the lowest at zero, so every cell ended `-0` -- and a column whose
+    cells all end in the same three characters is not free text to the
+    describer, it is a column of numbers wearing an affix. The twin's
+    role no longer matched the source's.
+
+    A STRIDE COPRIME TO THE ROOM IS A BIJECTION ON IT, so no two steps
+    below the room collide and consecutive steps land far apart. The
+    stride is taken near the golden section of the room, which spreads
+    a short run about as evenly as a single multiplier can, and then
+    walked up to the first value sharing no factor with the room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while _shares_a_factor(stride, room):
+        stride = stride + 1
+    return (step * stride) % room
+
+
+def _shares_a_factor(one: int, other: int) -> bool:
+    """Whether two whole numbers have any divisor above one."""
+    left = one
+    right = other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def _form_words(form: str) -> int:
+    """How many whitespace-separated words a form's spellings hold.
+
+    Read off the FORM, because a space in a cell survives into its form
+    unchanged -- only figures and letters are replaced -- so the word
+    count of every spelling of a form is the form's own.
+
+    Counted character by character rather than by splitting, because a
+    census key comes off a document a loader read and the offline audit
+    accepts no method call on a value it cannot trace to a string.
+    """
+    if not isinstance(form, str):
+        raise TypeError("a written form is text")
+    words = 0
+    inside = False
+    for character in form:
+        if character == _SPACE or character == "\t":
+            inside = False
+            continue
+        if not inside:
+            words = words + 1
+        inside = True
+    return words
+
+
+def _length_budget(
+    facts: "contract.TextFacts",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+) -> "list[int]":
+    """How far this column's total length may move, each way, in cells.
+
+    ONE CHARACTER EACH WAY, AND THE ONE IS MEASURED RATHER THAN
+    CHOSEN. G12.6 holds the achieved mean inside a window narrower than
+    a hundredth of a character on an ordinary column -- four
+    thousandths on the case that found this defect -- so a budget
+    stated as a fraction of the column is not a budget at all. Swept
+    against two real columns: at a budget of half the rows, a fiftieth
+    and a hundredth, a column whose census asks for lengths its average
+    does not want misses `length.mean` outright; at ONE character each
+    way it holds, and a blood-pressure column -- whose census asks for
+    exactly the lengths its own values had -- still meets all four of
+    its forms and its average.
+
+    That is the precedence rule made arithmetic. An exact count
+    outranks an approximated average (method G9.5), and here it spends
+    the average's own slack to the last character and no further.
+
+    The budget opens at whatever the packing's own lengths already
+    spend, so a swap is measured against the walk that would have
+    happened, not against a perfect one. Both halves are clamped at
+    zero: a packing that already overspends buys no room by it.
+    """
+    total = 0
+    for place in range(len(groups)):
+        total = total + lengths[place] * groups[place]
+    rows = 0
+    for size in groups:
+        rows = rows + size
+    if rows < 1:
+        return [0, 0]
+    average = facts.length.mean
+    if average is None:
+        # NO PUBLISHED AVERAGE MEANS NO BUDGET TO KEEP, so the length a
+        # form asks for costs nothing and every admitted one is open.
+        return [total, total]
+    wanted = int(round(average * rows))
+    room = 1
+    return [max(wanted + room - total, 0), max(total - (wanted - room), 0)]
+
+
+def _spend_length(budget: "list[int]", moved: int, size: int) -> None:
+    """Take one group's length swap out of the budget, both ways."""
+    if moved == 0:
+        return
+    cost = moved * size
+    if cost > 0:
+        budget[0] = max(budget[0] - cost, 0)
+        budget[1] = budget[1] + cost
+        return
+    budget[1] = max(budget[1] + cost, 0)
+    budget[0] = budget[0] - cost
+
+
+def _text_debt(facts: "contract.TextFacts") -> "dict[str, int]":
+    """Cells each published form still owes, before anything is written."""
+    owing: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form == contract.WITHHELD:
+            continue
+        owing[form] = facts.shape_forms[form]
+    return owing
+
+
+def _settle(owing: "dict[str, int]", spelling: str, cells: int) -> None:
+    """Take one group's cells off the debt of the form it wears."""
+    form = parsing.shape_form(spelling)
+    if form not in owing:
+        return
+    owing[form] = max(0, owing[form] - cells)
+
+
+def _wanted_form(
+    owing: "dict[str, int]",
+    length: int,
+    words: int,
+    carrier: bool,
+    shortest: int,
+    longest: int,
+    budget: "list[int]",
+    covering: int = 1,
+) -> str:
+    """Which published form this group is offered, or "" for none.
+
+    A FORM FIXES A LENGTH -- every cell that wore one was exactly as
+    long as it -- so which lengths a group may be offered is the whole
+    question here, and the answer is not the one length the packing
+    gave it.
+
+    A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly,
+    because `length.min` and `length.max` are EXACT-OBSERVABLE and a
+    twin that moved one would miss a fact it could have met. EVERY
+    OTHER GROUP may take a form of another length, but ONLY WHILE THAT
+    LEAVES THE PUBLISHED AVERAGE NO WORSE THAN IT FOUND IT.
+
+    THE SECOND CLAUSE IS THE PRICE OF THE FIRST, and it was missing
+    (review round 2 finding 9). Holding every group to its assigned
+    length was how a blood-pressure column met the ONE form its middle
+    length carried and missed the two beside it -- the packing had put
+    almost every group at six characters, so nothing was left to write
+    `%%/%%` or `%%%/%%%` and sixty cells came out of the wide alphabet.
+    But letting every group move freely cost the average outright: a
+    column publishing `length.mean` 4.8333 within a band four
+    thousandths wide had a twin at 5.4875, which its own quality report
+    called MISSED. An exact count outranks an approximated average
+    (method G9.5) -- it does not get to spend one without limit.
+
+    So a swap is offered only where the projected total length, taken
+    over the groups already written and the groups still to come at the
+    lengths the packing gave them, ends no further from the published
+    total than it would have without the swap. The census is then paid
+    out of the slack the average actually has, and no further. Where
+    there is no slack the form is not offered and `_form_notes` says
+    which counts went unmet.
+
+    A space survives into a form unchanged, so the form's own word
+    count must equal the group's either way.
+
+    The debt is over CELLS and a group covers its own number of them,
+    so the walk chooses only WHERE to settle: the form owing the most
+    cells this group can be written in, ties broken by the form's own
+    spelling. A group no form fits is written the way every free-text
+    value was written before this rule, and the empty string says so.
+    """
+    fits: "list[tuple[int, int, str]]" = []
+    for form in sorted(owing):
+        if owing[form] < 1:
+            continue
+        if _form_words(form) != max(words, 1):
+            continue
+        if carrier:
+            if len(form) != length:
+                continue
+        elif len(form) < shortest or len(form) > longest:
+            continue
+        elif not _length_affords(len(form) - length, budget):
+            continue
+        # A GROUP COVERS ITS OWN NUMBER OF CELLS AND GIVES THEM ALL TO
+        # ONE FORM, so a form owing FEWER cells than this group covers
+        # is overpaid by the difference. Such a form is offered LAST
+        # rather than refused: refusing it outright was built and
+        # measured WORSE -- the debt went unpaid AND the group fell out
+        # of the form alphabet into ordinary text (residual R-P4-38).
+        snug = 0 if owing[form] >= covering else 1
+        fits = fits + [(snug, 0 - owing[form], form)]
+    if not fits:
+        return ""
+    return sorted(fits)[0][2]
+
+
+def _form_asks(
+    owing: "dict[str, int]",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    carriers: "tuple[int, int]",
+    shortest: int,
+    longest: int,
+    budget: "list[int]",
+) -> "list[str]":
+    """One form asked of each group, decided LARGEST GROUP FIRST.
+
+    WHY THE ORDER IS THE WHOLE RULE, and it is the lesson `_shared_out`
+    already carries for a label column's stand-ins (review round 1
+    finding 4): largest debt first is not enough. A group is a
+    REPETITION group -- every cell of it holds the same value, so every
+    cell of it wears one form -- and a walk that spends its single-cell
+    groups early arrives at the last debts holding only groups too big
+    to pay them.
+
+    THE ORDINARY CASE IS A BLOOD PRESSURE COLUMN (residual R-P4-38).
+    The demonstration table's has 374 groups of one cell and 13 of two,
+    against form debts of 339, 32, 24 and 5. Taken in file order the
+    walk reached `%%/%%` owing 1 and `%%/%%%` owing 1 while holding a
+    group of TWO, which can pay neither, and paid one of them twice --
+    a published census of 24 met with 25, at every seed. Taken largest
+    group first the thirteen twos go to the 339, whose remainder 313
+    and the debts 32, 24 and 5 come to exactly the 374 single-cell
+    groups left over, and every count is met.
+
+    THIS DECIDES THE ASK ONLY. The debt and the length budget are still
+    settled in the walk against the spelling actually WRITTEN, because
+    a form is an ask and not a promise, and a cell that comes back
+    wearing something else must be counted as what it wears.
+    """
+    total = len(groups)
+    asks = ["" for _each in range(total)]
+    left = dict(owing)
+    spare = list(budget)
+    order = sorted([(0 - groups[place], place) for place in range(total)])
+    for pair in order:
+        place = pair[1]
+        form = _wanted_form(
+            left,
+            lengths[place],
+            counts[place],
+            place in carriers,
+            shortest,
+            longest,
+            spare,
+            groups[place],
+        )
+        asks[place] = form
+        if form:
+            left[form] = max(0, left[form] - groups[place])
+            _spend_length(spare, len(form) - lengths[place], groups[place])
+    return asks
+
+
+def _length_affords(moved: int, budget: "list[int]") -> bool:
+    """Whether the published average can still afford one length swap.
+
+    ``budget`` carries how far the twin's total length may still move
+    from the total the published average asks for, in each direction:
+    `budget[0]` is how much it may still grow and `budget[1]` how much
+    it may still shrink. A swap that costs nothing -- the same length
+    -- is always afforded and spends nothing.
+    """
+    if moved == 0:
+        return True
+    if moved > 0:
+        return budget[0] >= moved
+    return budget[1] >= 0 - moved
+
+
+def _is_a_usable_stand_in(
+    candidate: str, holes: "tuple[str, ...]" = ()
+) -> bool:
+    """Whether a made-up spelling may stand in a twin cell at all.
+
+    The four properties `group-N` had by construction, asked of a
+    spelling that no longer has them for free: it must not be one of
+    the words that mean "no value", must read as neither a number nor a
+    date, must carry no comma or quote, and must not begin with a
+    character a spreadsheet reads as the start of a formula.
+
+    AND A FIFTH THE GLOBAL VOCABULARY DOES NOT COVER (review round 2
+    finding 8). `holes` is what THIS COLUMN publishes among its absent
+    cells: the keys of its own `missing_by_source`, which this format
+    writes character for character wherever the floor lets the column
+    name them. Such a spelling means "no value" in THIS column and in
+    no other. A shaped stand-in walked straight onto one: a diagnosis
+    column whose absent cells were written `A00.0` had
+    thirteen twin cells spelled `A00.0`, so the twin read back with two
+    hundred and forty-one present cells where the description published
+    two hundred and forty-three. The numeric walks have taken this
+    population since they were written; these two did not.
+    """
+    if not candidate:
+        return False
+    if _is_a_hole_spelling(candidate, holes):
+        # THE CONSERVATIVE HALF, because a spelling is being CHOSEN
+        # here (review round 2 finding 8). It matches the way the
+        # READER matches -- folded, and a vocabulary member its own
+        # way -- so a column declaring `a-00` absent cannot be handed
+        # a stand-in spelled `A-00`, which the reader would call
+        # absent too. Raw membership missed exactly that.
+        return False
+    if parsing.is_missing_text(candidate):
+        return False
+    if parsing.classify_number(candidate) == parsing.NUMBER:
+        return False
+    # ...AND NOT A NUMBER UNDER THE OTHER GRAMMAR EITHER (review round
+    # 5 of landing L8, item 1). A column declared `--decimal-comma` is
+    # READ with a dot as a thousands mark, so `0E.27` -- which is text
+    # under the ordinary rules and was accepted here -- becomes `0E27`,
+    # a number. On a compound column that moves the cell from the label
+    # half to the numeric half when the twin is described again, and
+    # the twin comes back as another role entirely.
+    #
+    # Asked of EVERY column and not only a declared one, because a
+    # stand-in is a spelling this package CHOOSES: one that is a number
+    # under a grammar this package reads is a spelling it should not
+    # choose, and refusing it costs a step of the walk.
+    if (
+        parsing.classify_number(
+            parsing.written_with_a_decimal_comma(candidate)
+        )
+        == parsing.NUMBER
+    ):
+        return False
+    for name in parsing.DATE_FORMATS:
+        if parsing.parse_datetime(candidate, name) is not None:
+            return False
+    for character in candidate:
+        if character == "," or character == '"':
+            return False
+    return candidate[0] not in "=+-@"
+
+
+def _made_up_label(
+    number: int,
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    form: str,
+    holes: "tuple[str, ...]",
+    walked: "dict[str, int]",
+) -> "tuple[int, str]":
+    """One label standing in for one that was held back (G8.3, P4-D18).
+
+    WHERE THE COLUMN PUBLISHED THE FORMS ITS VALUES WERE WRITTEN IN,
+    the stand-in is written in one of them. `group-14` is not a code:
+    it is the wrong length, it is lower-case where the codes are not,
+    and on a hyphenated scheme it carries a hyphen of its own -- so it
+    passes a "looks segmented" check, crashes a split into fixed parts,
+    and, the word being exactly five characters, makes a width check on
+    the leading segment answer plausibly and wrongly.
+
+    WHERE THE COLUMN PUBLISHED NONE it is `group-1`, `group-2` and so
+    on, exactly as before: the three sibling label roles publish their
+    levels, so their twins hold them and have no stand-in to shape.
+
+    A COLLISION MOVES THE SPELLING AND NEVER THE FORM. The step is what
+    the candidate is built from, so an earlier walk that advanced the
+    step on a collision threw away the form that stand-in owed and the
+    census went unpaid by exactly the collisions.
+
+    Either way the spelling is stepped past anything already used in
+    this column, raw or folded, and either way it is checked against
+    the four properties the neutral spelling had by construction --
+    `_is_a_usable_stand_in` asks them, because a spelling built to look
+    like a code no longer has them for free.
+    """
+    if form:
+        # THE FORM'S CURSOR IS CARRIED ACROSS STAND-INS, and the
+        # counter for the neutral spelling is NOT TOUCHED here (review
+        # round 2 finding 13, and the second defect its verification
+        # found).
+        #
+        # It restarted at zero on every call, so two hundred stand-ins
+        # of one form cost 1+2+...+200 probes and four thousand cost
+        # eight million -- twelve seconds. The worst case was not the
+        # big one: a form every spelling of which is refused, `-@%%`,
+        # re-walked its whole supply for EVERY stand-in, so three
+        # hundred held-back levels on a small column cost six seconds
+        # against a fortieth of a second here.
+        #
+        # And the shaped probes were counted as neutral ones. Method
+        # G8.3 says the invented labels are `group-1`, `group-2`, ...
+        # in order, each number advanced WHEN IT COLLIDES; a mixed
+        # column advanced it twenty thousand times without a single
+        # collision and its twin held `group-20101`. A shaped walk now
+        # leaves `number` exactly where it found it.
+        room = min(_form_room(form), _STAND_IN_STEPS)
+        if form not in walked:
+            walked[form] = 0
+        while walked[form] < room:
+            candidate = _filled_form(form, walked[form])
+            walked[form] = walked[form] + 1
+            if candidate in used or parsing.folded(candidate) in owners:
+                continue
+            if not _is_a_usable_stand_in(candidate, holes):
+                continue
+            used[candidate] = 1
+            owners[parsing.folded(candidate)] = candidate
+            return number, candidate
     step = number
     while True:
         step = step + 1
         candidate = f"group-{step}"
         if candidate in used or parsing.folded(candidate) in owners:
+            continue
+        if not _is_a_usable_stand_in(candidate, holes):
             continue
         used[candidate] = 1
         owners[parsing.folded(candidate)] = candidate
@@ -5823,26 +14242,37 @@ def _partner_at(
     The family is enumerated in a fixed order, so two implementations
     build the same partners:
 
-    * the spacing is taken in ascending TOTAL, and within one total the
-      leading share ascends: no spacing, then one space (trailing, then
-      leading), then two (trailing pair, one each side, leading pair),
-      and so on;
+    * the spacing is a TOTAL over the whole cell, taken in ascending
+      order, and within one total the leading share ascends: no
+      spacing, then one space (trailing, then leading), then two
+      (trailing pair, one each side, leading pair), and so on;
     * within one spacing, the case flips of method G8.2 are taken in
       ascending binary-counter order, the unflipped parent first;
-    * the parent itself -- no spacing and no flip -- is not one of its
-      own partners and is stepped over.
+    * the parent's OWN placement -- its own total, its own leading
+      share and no flip -- is not one of its own partners and is
+      stepped over.
 
     Case flips therefore come first and in exactly the order they came
     in before this family was widened, so a column whose collisions case
     alone could carry writes what it wrote before.
 
+    THE TOTAL IS COUNTED OVER THE CELL AND NOT ADDED TO THE PARENT
+    (residual R-P4-47). Those are the same thing for every parent
+    carrying no edge spacing of its own, which is every parent the
+    invention roles wrote before this one; where a parent DOES carry
+    spacing they differ, and the difference is what a pinned width
+    needs. A parent `N ` at a window pinned to its own length has ` N`
+    as its next partner rather than ` N ` one character past it, so
+    both cells land where the description says. See
+    `_unrepresentable_cells` for the walk that writes such a parent.
+
     ``shortest`` and ``longest`` are the lengths this partner is
     permitted to take -- the published length range of the column, or
     the one pinned length where this value carries a published end.
     ``longest`` of None says the description publishes no longest
-    length, and the spacing then has no end. Spacing only ever LENGTHENS
-    a value, so a parent already longer than ``longest`` has no partner
-    at all and None is handed back.
+    length, and the spacing then has no end. A parent whose own TRIMMED
+    text is longer than ``longest`` has no partner at all and None is
+    handed back.
 
     Guarantees: accepts text, a counting number from one upward and a
     length window; returns text or None, where None says this parent's
@@ -5851,24 +14281,46 @@ def _partner_at(
     """
     if order < 1:
         return None
-    places = len([place for place in range(len(parent))
-                  if _has_case(parent[place])])
+    # THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS THE
+    # TRIMMED TEXT AND NOT THE PARENT AS WRITTEN (residual R-P4-47).
+    # Every rule below is unchanged where the parent carries no edge
+    # spacing of its own, which is every parent the invention roles
+    # wrote before this: the trimmed text IS the parent, its own
+    # placement is the no-spacing one, and the walk starts and steps
+    # exactly where it did. What it adds is the case a parent WITH
+    # edge spacing needs -- the total is counted over the whole family
+    # rather than added to the parent, so a parent written `N ` at a
+    # pinned width has ` N` as its partner at that same width instead
+    # of ` N ` one character past it.
+    body = parsing.trimmed(parent)
+    own = len(parent) - len(body)
+    # HOW MUCH OF THAT SPACING IS AT THE FRONT, counted by asking the
+    # SHIPPED TRIM of each leading character rather than by a second
+    # notion of what a space is -- and by indexing rather than by a
+    # method call, which the offline audit refuses on a value it cannot
+    # trace. `str.find` was written here first and turned two source
+    # audits red, which is the policy working.
+    own_lead = 0
+    while own_lead < len(parent) and not parsing.trimmed(parent[own_lead]):
+        own_lead = own_lead + 1
+    places = len([place for place in range(len(body))
+                  if _has_case(body[place])])
     flips = 1 << places
-    spread = max(0, shortest - len(parent))
+    spread = max(0, shortest - len(body))
     left = order
-    while longest is None or len(parent) + spread <= longest:
+    while longest is None or len(body) + spread <= longest:
         room = (spread + 1) * flips
-        if spread == 0:
+        if spread == own:
             room = room - 1
         if left <= room:
             seat = left - 1
-            if spread == 0:
+            if spread == own and seat >= own_lead * flips:
                 seat = seat + 1
             lead = seat // flips
             flip = seat % flips
-            built = parent
+            built = body
             if flip:
-                turned = _case_variant(parent, flip)
+                turned = _case_variant(body, flip)
                 if turned is None:
                     return None
                 built = turned
@@ -5878,6 +14330,44 @@ def _partner_at(
     return None
 
 
+def _levels_past_the_line(
+    spellings: "list[str]", groups: "tuple[int, ...]", line: int
+) -> int:
+    """How many folded levels of these spellings reach the long-tail line.
+
+    MEASURED ON THE FINISHED SPELLINGS rather than counted inside the
+    walk that made them, and that is deliberate. A count taken in the
+    walk knows only about pairs the walk itself made; this one sees
+    every level however it arose, which is the thing a reader of the
+    twin actually meets. It also keeps `_partner_of` returning one
+    value: three roles ask that function, and a test pins that it is
+    one function.
+
+    Guarantees: accepts the spellings and the row count each covers, in
+    one index space, and the line; returns a count. Raises nothing
+    beyond the type check its own folding does. No I/O.
+    """
+    if line < 1:
+        return 0
+    covered: "dict[str, int]" = {}
+    for index, spelling in enumerate(spellings):
+        if index >= len(groups):
+            break
+        key = parsing.folded(spelling)
+        # Indexed behind an `in` test rather than `.get`: the offline
+        # audit refuses a method call on a value it cannot trace, and
+        # this module reads every one of its own tallies this way.
+        if key in covered:
+            covered[key] = covered[key] + groups[index]
+        else:
+            covered[key] = groups[index]
+    past = 0
+    for key in sorted(covered):
+        if covered[key] >= line:
+            past = past + 1
+    return past
+
+
 def _partner_of(
     index: int,
     folded: int,
@@ -5885,6 +14375,9 @@ def _partner_of(
     families: "list[str]",
     used: "dict[str, int]",
     windows: "list[tuple[int, int | None]]",
+    sizes: "list[int] | None" = None,
+    long_tail_line: int = 0,
+    carried: "dict[int, int] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -5954,22 +14447,61 @@ def _partner_of(
     # where eleven would do. Both passes keep the cyclic order the
     # method fixes, so a column whose parents all hold letters, or none
     # of which do, is laid out exactly as it was.
-    for lettered in (True, False):
-        for step in range(folded):
-            parent_place = (place + step) % folded
-            if families[parent_place] != families[index]:
-                continue
-            has_letter = False
-            for character in spellings[parent_place]:
-                if character in _LETTERS:
-                    has_letter = True
-                    break
-            if has_letter != lettered:
-                continue
-            found = _partner_from(
-                parent_place, index, spellings, used, shortest, longest
-            )
-            if found is not None:
+    # AND A PARENT THAT KEEPS THE FOLDED LEVEL UNDER THE LONG-TAIL LINE
+    # IS TAKEN FIRST (residual R-P4-36). A partner folds onto its
+    # parent, so the level the pair makes covers BOTH their rows, and a
+    # level at the detection line is what makes a reader call a column
+    # a long tail of LABELS rather than free text.
+    #
+    # THE LEVEL, NOT THE PAIR. A parent may already carry partners from
+    # earlier in this walk. Sizes 1, 2 and 9 give pairwise sums of 3
+    # and 10, both under a line of eleven, and a level of twelve.
+    #
+    # THIS PASS WAS WITHDRAWN ONCE AND RESTORED, and the reason is
+    # worth keeping. It was measured across 190 randomly built
+    # free-text columns and changed no outcome, so it was removed as
+    # inert -- and the sample was HOMOGENEOUS. Within one family the
+    # sorted group order usually makes the choice for it. ACROSS
+    # families the cyclic walk can meet an unsafe same-family parent
+    # before a safe one, and then this pass decides: on twenty-four
+    # rows of `alpha phrase`/`codeaa` shapes, sizes 1, 2, 2, 2, 8 and
+    # 9 split between an ordinary-text family and a code-alphabet one,
+    # the walk without it reaches eleven and the twin reads back as
+    # `long_tail_labels`; with it the largest level is ten and the twin
+    # reads back as free text. A measurement over one family is a
+    # measurement of one family.
+    under_first: "tuple[bool, ...]" = (True, False)
+    if sizes is None or long_tail_line < 1:
+        under_first = (False,)
+    for under in under_first:
+        for lettered in (True, False):
+            for step in range(folded):
+                parent_place = (place + step) % folded
+                if families[parent_place] != families[index]:
+                    continue
+                if under and sizes is not None:
+                    already = sizes[parent_place]
+                    if carried is not None and parent_place in carried:
+                        already = carried[parent_place]
+                    if already + sizes[index] >= long_tail_line:
+                        continue
+                has_letter = False
+                for character in spellings[parent_place]:
+                    if character in _LETTERS:
+                        has_letter = True
+                        break
+                if has_letter != lettered:
+                    continue
+                found = _partner_from(
+                    parent_place, index, spellings, used, shortest, longest
+                )
+                if found is None:
+                    continue
+                if carried is not None and sizes is not None:
+                    already = sizes[parent_place]
+                    if parent_place in carried:
+                        already = carried[parent_place]
+                    carried[parent_place] = already + sizes[index]
                 return found
     return None
 
@@ -6230,8 +14762,10 @@ def _grouped(
 
 
 def _text_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
-) -> "tuple[list[str], list[Deviation], tuple[int, int]]":
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    long_tail_line: int = 0,
+) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
     The text is MADE UP. This module never samples, quotes, templates
@@ -6311,20 +14845,77 @@ def _text_cells(
         carriers,
     )
     wanted = _demand(kinds, bands, lengths, counts)
+    # THE FORMS THIS COLUMN WAS WRITTEN IN, IF IT PUBLISHED ANY (plan
+    # P4-D18). A free-text column of prose publishes none, so the debt
+    # is empty, every group is offered nothing and the walk is what it
+    # was. The debt is settled by the spelling ACTUALLY WRITTEN, read
+    # back off it, because a form is an ask: a group offered one may be
+    # written without it, and a partner spelling wears whatever a case
+    # flip or an edge space left it wearing.
+    owing = _text_debt(facts)
+    # HOW FAR THE TWIN'S TOTAL LENGTH MAY STILL MOVE, in each direction
+    # (review round 2 finding 9). `length.mean` is approximated, so it
+    # has a window rather than a value -- and a window is a budget, not
+    # a licence. A form of another length is offered only while the
+    # projected total stays inside it.
+    budget = _length_budget(facts, groups, lengths)
+    # WHICH FORM EACH GROUP IS ASKED FOR, decided before the walk and in
+    # order of how many cells a group covers (residual R-P4-38).
+    form_asks = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        budget,
+    )
     made: dict[str, int] = {}
+    # How many rows each parent's folded level covers so far, so the
+    # preference reads the level rather than the pair.
+    carried: "dict[int, int]" = {}
     for index in range(total):
         partner = _partner_of(
-            index, folded, spellings, families, used, windows
+            index, folded, spellings, families, used, windows,
+            list(groups), long_tail_line, carried,
         )
         if partner is not None:
-            spellings = spellings + [_take(partner, used)]
+            taken = _take(partner, used)
+            _settle(owing, taken, groups[index])
+            _spend_length(budget, len(taken) - lengths[index], groups[index])
+            spellings = spellings + [taken]
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
+        # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
+        # order-aware pass above cannot know which groups will take a
+        # fold-collision partner instead of a made-up spelling, because
+        # that depends on `used`, which this walk is what fills. Where a
+        # partner has already settled the debt this group was going to
+        # settle, the pre-decided form is no longer owed anything and
+        # asking for it would write a form the column does not owe. The
+        # live rules answer instead, exactly as they did before the
+        # order-aware pass existed.
+        asked_form = form_asks[index]
+        stale = asked_form not in owing or owing[asked_form] < 1
+        if asked_form and stale:
+            asked_form = _wanted_form(
+                owing,
+                lengths[index],
+                counts[index],
+                index in carriers,
+                facts.length.minimum,
+                facts.length.maximum,
+                budget,
+                groups[index],
+            )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
         spelling = _made_up_cell(
             kind, band, lengths[index], counts[index],
             asks[index], states, used,
+            asked_form,
+            _hole_spellings(column),
         )
         if spelling is None:
             held = 0
@@ -6341,8 +14932,58 @@ def _text_cells(
         if key not in made:
             made[key] = 0
         made[key] = made[key] + 1
+        _settle(owing, spelling, groups[index])
+        _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings = spellings + [spelling]
-    return _grouped(groups, spellings), notes, carriers
+    # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
+    # (residual R-P4-36). A fold-collision partner folds onto its
+    # parent, so the pair makes a level covering BOTH their rows -- and
+    # a level at the long-tail detection line is what makes a reader
+    # call a column a long tail of LABELS rather than free text.
+    #
+    # TWO THINGS ANSWER IT, and only the second is a guarantee. The
+    # walk above PREFERS a parent that keeps the LEVEL under the line,
+    # which avoids the change wherever a safe parent exists -- and
+    # across families, which is where it decides, it does. Where no
+    # safe parent exists at all, as on the column this residual was
+    # opened for, the change happens and is NAMED here. That was the
+    # residual's complaint: the column changed kind "and says nothing".
+    #
+    # MEASURED ON THE FINISHED SPELLINGS rather than counted inside the
+    # walk, so a crossing is seen however it arose -- including one no
+    # walk-side rule could have anticipated. It also keeps
+    # `_partner_of` returning one value, which a test pins.
+    #
+    # THE SENTENCE HEDGES ON PURPOSE. Whether a later reading really
+    # calls this a long tail depends on how the twin is read: declared
+    # missing words and the categorical share both move it, and under
+    # some declarations the twin reads back as free text after all. So
+    # the sentence names what the twin HOLDS.
+    crossed = _levels_past_the_line(spellings, groups, long_tail_line)
+    remarks: "list[Remark]" = []
+    if crossed:
+        remarks = remarks + [
+            _remark(
+                column.name,
+                "folded groups of cells at or past the long-tail line",
+                f"{crossed} group(s) of cells that fold together cover at "
+                f"least {long_tail_line} row(s) each",
+                "folding this twin's spellings made a group of cells "
+                "large enough that describing the twin again may call "
+                "this column a long tail of labels rather than free "
+                "text. Whether it does depends on how the twin is read "
+                "-- which words are called missing, and what share of "
+                "the rows a set of categories may cover -- so this "
+                "names what the twin HOLDS rather than predicting what "
+                "a later reading will say about it. Code that "
+                "dispatches on a column's type is what this reaches. "
+                "Nothing was given up to produce it: this is a property "
+                "of the twin's spellings and not a published fact the "
+                "twin failed to meet. Where a fact WAS missed, this "
+                "report names it separately, above.",
+            )
+        ]
+    return _grouped(groups, spellings), notes, carriers, remarks
 
 
 def _shape_choices(total: int) -> "list[tuple[int, int]]":
@@ -7215,6 +15856,22 @@ def _worded_room(
 _ASK_STEPS = 4096
 
 
+def _reads_in_band(candidate: str, band: str) -> bool:
+    """Whether a finished cell recounts into the band it was made for.
+
+    Asked with the SHIPPED readers, on the trimmed cell, exactly as
+    `_alphabet_notes` recounts the twin -- so what this permits and
+    what a person recounting the column measures are one predicate and
+    cannot drift apart.
+    """
+    bare = parsing.trimmed(candidate)
+    if band == _BAND_DIGITS:
+        return parsing.is_digit_text(bare)
+    if band == _BAND_CODE:
+        return parsing.is_code_text(bare) and not parsing.is_digit_text(bare)
+    return not parsing.is_code_text(bare) and not parsing.is_digit_text(bare)
+
+
 def _made_up_cell(
     kind: str,
     band: str,
@@ -7223,6 +15880,8 @@ def _made_up_cell(
     letter: bool,
     states: "dict[str, list[int]]",
     used: "dict[str, int]",
+    form: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
 
@@ -7243,11 +15902,63 @@ def _made_up_cell(
     spend a family that the ordinary rule could still have used. The
     folded count then comes up short and the recount names it.
     """
+    # THE CURSOR IS THE FAMILY'S AND THE FORM'S, NOT THE FAMILY'S ALONE
+    # (review round 2 finding 3). Two forms of one family shared it, so
+    # after the first form had walked two hundred and twenty spellings
+    # the second -- whose whole supply is twenty-six -- began past its
+    # own end and was never tried at all: the twin wrote two hundred
+    # and forty cells of the first form and none of the second. A form
+    # walks its own supply from its own start.
     key = f"{kind}/{band}/{length}/{words}"
     if key not in states:
         states[key] = [0]
     state = states[key]
     began = state[0]
+    if form:
+        # THE FORM'S CURSOR IS KEYED WITH A SPACE, not with a slash. A
+        # slash is one of the thirteen marks a form may hold, so a
+        # slashed key is injective only by an argument about how many
+        # fields each kind of key has; no class name, band name, whole
+        # number or admitted form can hold a SPACE, so this one is
+        # injective by inspection.
+        shaped = f"{key} {form}"
+        if shaped not in states:
+            states[shaped] = [0]
+        # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
+        # column published one that fits this value, the value is
+        # written in it; where the form's own spellings cannot satisfy
+        # the family -- they read back as another class, or the form's
+        # supply is spent -- the walk is taken again WITHOUT it, so a
+        # form can cost the column no value it would otherwise have had
+        # (P4-D18).
+        #
+        # A FORM PASS THAT GAVE UP UNDER THE LETTER ASK IS PUT BACK
+        # EXACTLY WHERE IT BEGAN; ONE THAT GAVE UP WITHOUT THE ASK
+        # LEAVES ITS CURSOR WHERE IT STOPPED. That is verbatim the rule
+        # the family cursor two lines below already obeys, so one
+        # sentence governs both.
+        #
+        # NEITHER HALF IS OPTIONAL, and both were got wrong in turn.
+        # Sharing one cursor between two forms left the second never
+        # tried at all (review round 2 finding 3). Never putting the
+        # form's cursor back -- the first repair -- let the letter
+        # ask's give-up path walk a form's WHOLE supply producing
+        # nothing, so a column publishing two hundred cells of one
+        # shape got zero of them where this rule gets a hundred and
+        # eighty. And putting it back UNCONDITIONALLY costs the run:
+        # measured on a column whose every spelling of a form is
+        # refused, a thousand fillings under this rule against two
+        # hundred and forty thousand under that one.
+        shaped_state = states[shaped]
+        marked = shaped_state[0]
+        found = _walked_cell(
+            kind, band, length, words, letter, shaped_state, used, form,
+            holes,
+        )
+        if found is not None:
+            return found
+        if letter:
+            shaped_state[0] = marked
     found = _walked_cell(kind, band, length, words, letter, state, used)
     if found is None and letter:
         state[0] = began
@@ -7263,6 +15974,8 @@ def _walked_cell(
     letter: bool,
     state: "list[int]",
     used: "dict[str, int]",
+    form: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
 
@@ -7278,11 +15991,26 @@ def _walked_cell(
     ceiling, and by nothing smaller (review item P2-C2-F8).
     """
     room = _family_room(kind, band, length, words)
+    if form:
+        # A FORM'S SUPPLY IS ITS OWN AND IS USUALLY MUCH SMALLER THAN
+        # THE FAMILY'S (review round 1 finding 3, found again on this
+        # side of the walk). Every spelling of `-999-A` opens with the
+        # character a spreadsheet reads as the start of a formula, so
+        # every candidate is refused -- and bounded by the WIDE band's
+        # room at six characters, that refusal loop runs for minutes
+        # before the walk gives up. Bounded by the form's own supply it
+        # gives up at once, and the caller then takes the walk again
+        # without the form.
+        room = min(room, _form_room(form), _STAND_IN_STEPS)
     asked = 0
     while state[0] < room:
         index = state[0]
         state[0] = state[0] + 1
-        candidate = _family_at(kind, band, length, words, index)
+        candidate: "str | None" = None
+        if form:
+            candidate = _filled_form(form, index)
+        else:
+            candidate = _family_at(kind, band, length, words, index)
         if candidate is None:
             return None
         if letter and not _has_letter(candidate):
@@ -7298,6 +16026,39 @@ def _walked_cell(
             continue
         if _reads_as_a_date(candidate):
             continue
+        if not _reads_in_band(candidate, band):
+            # THE BAND IS NOT THE CLASS, AND ONLY THE CLASS WAS ASKED
+            # (review round 2 finding 7). A form's spelling is built
+            # from the CELL's shape and filled from ASCII, so a column
+            # of Greek-letter codes published `n_code_alphabet: 0` and
+            # its twin recounted 240. Both counts are exact facts of
+            # the description, so the form yields to them: the
+            # candidate is refused, the walk is taken again without the
+            # form, and the census is missed instead -- which
+            # `_form_notes` then says.
+            #
+            # ASKED OF EVERY CANDIDATE AND NOT ONLY OF A FORM'S. Every
+            # spelling `_family_at` builds is in its band by
+            # construction, so gating this on `form` would change
+            # nothing -- measured across all sixty-one class, band,
+            # length and word combinations the packing can assign, not
+            # one candidate leaves its band. But "by construction" is
+            # an argument and this is a check, and a check that runs
+            # on everything cannot be quietly weakened to run on
+            # nothing. `tests/test_p4d18_shape_forms.py` holds the
+            # enumeration.
+            continue
+        if form and not _is_a_usable_stand_in(candidate, holes):
+            # THE FORM'S OWN MARKS ARE NOT THE ALPHABETS' (review round
+            # 1 finding 6). Every candidate `_family_at` builds comes
+            # from an alphabet with the four hazardous characters taken
+            # out, so the checks above were the whole of what a
+            # candidate owed. A form is built from the CELL, so it can
+            # open with `=` -- a column of `=A00` published `=A99` and
+            # its twin wrote two hundred and forty cells a spreadsheet
+            # reads as formulas. The four properties are asked here on
+            # the same terms the label walk asks them.
+            continue
         return _claim(candidate, used)
     return None
 
@@ -7306,15 +16067,45 @@ def _walked_cell(
 
 
 def _unrepresentable_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    everywhere: "tuple[str, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers that cannot be held.
 
-    The description publishes no width and no magnitude for this role --
-    two columns of overflowing values, one about four hundred characters
-    wide and one about four thousand, publish identically -- so one
-    canonical width is made up, used for every such column, and named in
-    the report in those words.
+    ``everywhere`` is every spelling ANY column of the document calls
+    absent, and this role cannot do without it (review item P4-A2-R3,
+    item 2). A `--missing-value` declaration is made once and reaches
+    the whole table, and this role publishes NOTHING -- it is one of
+    `taxonomy.ROLES_PUBLISHING_NOTHING` -- so its own
+    `missing_by_source` is empty on every column there is and the walk
+    that read only that map was reading a map that is always empty.
+    Measured on a two-column table where a label column publishes
+    `missing_by_source {"1e400": 12}` under `--missing-value 1e400`
+    while the wide column beside it holds only present values: the wide
+    column's twin was given `1e400` -- the exponent family's very first
+    spelling -- as a PRESENT cell, its own recount stayed silent
+    because its own map is empty, no deviation was named, and
+    re-describing the twin under the profile's own settings moved that
+    column from 40 present and 0 absent to 39 and 1.
+
+    THE DESCRIPTION PUBLISHES A WIDTH NOW (residual R-P4-37), and this
+    docstring said the opposite until 2026-08-26. `min_length` and
+    `max_length` were stated by the contract on this role in four
+    places and written by the producer in none, so the twin used one
+    made-up canonical width for every such column -- four hundred
+    figures for a source of three hundred and twenty -- and said so in
+    the report rather than being right.
+
+    THE PUBLISHED WIDTH IS USED WHERE IT KEEPS THE VALUE
+    UNHOLDABLE, and that condition is the whole subtlety. This role
+    exists for numbers binary64 cannot hold; a cell written narrow
+    enough to BE holdable would make the twin reprofile as an ordinary
+    numeric column, so the description would describe a different kind
+    of column from the one the twin holds. Where the published width
+    is below the floor its kind needs, the floor is used and the
+    difference is NAMED -- which is the same report as before, now
+    raised only where it is true.
 
     What IS published is packed exactly wherever any packing exists
     (review item P2-C1-F1): how many values are whole, how many are
@@ -7326,6 +16117,7 @@ def _unrepresentable_cells(
     facts = column.facts
     if not isinstance(facts, contract.UnrepresentableFacts):
         raise _wrong_facts(column.name)
+    reserved = _holes_reserved(column, everywhere)
     kinds, signs = _unrepresentable_families(column, facts, groups)
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
@@ -7334,43 +16126,432 @@ def _unrepresentable_cells(
     families = [
         f"{kinds[index]}/{signs[index]}" for index in range(len(groups))
     ]
-    # NO PUBLISHED LENGTH AT ALL on this role (residual R-P2-1), so the
-    # fold-collision partners of method G9.3 are held to no length
-    # window: edge spacing may run on as far as the collisions need,
-    # and nothing a person can recount on the twin moves when it does.
+    # THE FOLD-COLLISION PARTNERS OF METHOD G9.3 ARE HELD TO NO LENGTH
+    # WINDOW: edge spacing may run on as far as the collisions need.
+    # This role now DOES publish a length window -- `min_length` and
+    # `max_length`, added when the twin stopped making up a canonical
+    # width -- so the older reason for the open window ("no published
+    # length at all", residual R-P2-1) is retired and the reason is
+    # stated afresh: a partner is a RESPELLING of a value already
+    # written, built to fold onto it, and the two published widths are
+    # measured across the finished cells rather than promised per
+    # spelling. Where a partner does take the twin outside the
+    # published window, the recount below measures it and says so.
+    asked = _wide_widths(facts, kinds, signs)
+    # AND THE PARTNER IS HELD TO THE WIDTH ITS GROUP WAS ASKED FOR
+    # (plan P4-D4.4's width-pinned clause; review item P4-G3-R5-F4).
+    # This role published no length at all until revision 4, so a
+    # partner was held to no window and its edge spacing ran on as far
+    # as the collision needed. Now that both ends are published that is
+    # a fidelity leak: a column of two 310-figure values folding
+    # together, published as 310 to 312 characters wide, wrote a parent
+    # at 310 and a partner at 311 and held no 312-character cell at
+    # all -- the partner consumed the group the ceiling was assigned
+    # to. The window is the group's own ask at both ends, so the
+    # spacing lands the partner exactly where the description says a
+    # cell of this column sits.
+    #
+    # A COLLISION INSIDE ONE WIDTH IS REAL, AND AN ARGUMENT HERE SAID IT
+    # WAS NOT. That argument ran: a partner differs from its parent in
+    # case or in edge spacing; a numeral holds no letter; so every
+    # collision on this role is spacing, which changes the width; so a
+    # colliding column always publishes two different widths. The last
+    # step is false. Spacing changes the width by the number of spaces
+    # and NOT by where they go, so `N + " "` and `" " + N` are two raw
+    # values of one width that fold to one identity -- a column a real
+    # table produces, publishing `min_length == max_length` and a folded
+    # count below its distinct count. That is why the pin above falls
+    # back rather than standing alone.
     windows: list[tuple[int, int | None]] = [
+        (asked[index], asked[index]) for index in range(len(groups))
+    ]
+    # THE PIN IS A PREFERENCE AND THE FOLD IS THE OBLIGATION, and this
+    # order is a repair rather than a nicety (review item P4-G3-R6-F1).
+    # Pinning alone lost the collision it was pinning: a column of
+    # `N + " "` beside `" " + N` publishes ONE width and two values that
+    # fold to one, and a partner reached only by adding a space cannot
+    # land on the width its parent already fills. The published folded
+    # count then came out 2 against a published 1 -- a fact given up to
+    # hold a width, which is the wrong way round. So the walk asks for
+    # the pinned width first and, where no partner exists at it, asks
+    # again with the window open.
+    open_windows: list[tuple[int, int | None]] = [
         (1, None) for _each in groups
     ]
-    for index in range(len(groups)):
-        partner = _partner_of(
-            index, folded, spellings, families, used, windows
-        )
-        if partner is not None:
-            spellings = spellings + [_take(partner, used)]
-            continue
-        spelling = _wide_number(kinds[index], signs[index], states, used)
-        if spelling is None:
-            raise errors.ProfileError(
-                _domain_too_small(
-                    column.name,
-                    _wide_shape_words(kinds[index], signs[index]),
-                    len(groups),
-                    index,
-                )
+    # THE PARENT KEEPS ROOM FOR THE PARTNERS IT WILL BE ASKED FOR
+    # (residual R-P4-47, contract 9.7's own sentence). A partner is
+    # reached by edge spacing and spacing only LENGTHENS, so a parent
+    # already filling a PINNED width has no partner at that width and
+    # the walk fell back to the open window: the fold was kept, the
+    # ceiling was missed by one character, and the report named it. The
+    # source column shows the answer its own cells took -- `N + " "`
+    # beside `" " + N` are one width because the PARENT carries a space
+    # too -- so a parent that will be asked for partners at its own
+    # pinned width is written with that many fewer figures and that
+    # many spaces, and both cells land where the description says.
+    #
+    # TWO PASSES, AND THE FIRST IS EXACTLY WHAT REVISION 5 WROTE. The
+    # reservation is not predicted: pass one writes every parent at its
+    # full width and records which parents had a partner fall back to
+    # the open window, and only a column that HAD such a fallback is
+    # built again. So every column whose widths were already held comes
+    # out byte for byte as it did, and the second pass is reached only
+    # where the twin was missing a width. Where the reserved room would
+    # take a parent below its own kind's floor the reservation is not
+    # made and the fallback stands, which is the old outcome with the
+    # miss still named.
+    spacing = [0 for _each in groups]
+    for _pass in range(2):
+        used = {}
+        states = {}
+        spellings = []
+        fallbacks: "dict[int, int]" = {}
+        for index in range(len(groups)):
+            partner = _partner_of(
+                index, folded, spellings, families, used, windows
             )
-        spellings = spellings + [spelling]
-    notes = [
-        _deviation(
-            column.name,
-            "width",
-            "no width at all: the description publishes none",
-            f"every value written {_CANONICAL_WIDTH} figures wide",
-            "The description of a column like this carries no width, so "
-            "the twin uses one made-up width for every such column and "
-            "says so here rather than implying the real one was this wide.",
-        )
-    ]
+            if partner is None:
+                partner = _partner_of(
+                    index, folded, spellings, families, used, open_windows
+                )
+                if partner is not None:
+                    fallbacks = _fallback_counted(
+                        fallbacks, partner, spellings, folded
+                    )
+            if partner is not None:
+                spellings = spellings + [_take(partner, used)]
+                continue
+            room = asked[index] - spacing[index]
+            spelling = _wide_number(
+                kinds[index], signs[index], states, used,
+                reserved,
+                _wide_width(kinds[index], room, signs[index]),
+            )
+            if spelling is None:
+                raise errors.ProfileError(
+                    _domain_too_small(
+                        column.name,
+                        _wide_shape_words(kinds[index], signs[index]),
+                        len(groups),
+                        index,
+                    )
+                )
+            if spacing[index] and len(spelling) == room:
+                spelling = _take(
+                    f"{spelling}{_SPACE * spacing[index]}", used
+                )
+            spellings = spellings + [spelling]
+        if not fallbacks:
+            break
+        moved = False
+        for place in sorted(fallbacks):
+            wanted = fallbacks[place]
+            floor = _wide_width(kinds[place], 1, signs[place])
+            if asked[place] - wanted < floor:
+                continue
+            if spacing[place] != wanted:
+                spacing[place] = wanted
+                moved = True
+        if not moved:
+            break
+    notes: "list[Deviation]" = []
+    # ONLY A WIDTH PAST THE PUBLISHED CEILING IS A WIDENING (item
+    # P4-G3-F1). The test was once "not equal to `max_length`", which
+    # became wrong the moment the holdable kinds started taking the
+    # published FLOOR: a cell written at the floor is inside the window
+    # the description publishes, and filing it as a deviation told the
+    # reader the twin was "wider than your table here" about a cell
+    # that is narrower than the ceiling and no wider than the widest.
+    widened = sorted(
+        {
+            _wide_width(kinds[index], asked[index], signs[index])
+            for index in range(len(groups))
+            if _wide_width(kinds[index], asked[index], signs[index])
+            > facts.max_length
+        }
+    )
+    if widened:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "max_length",
+                f"{facts.max_length} character(s)",
+                f"written {widened[0]} figure(s) wide instead",
+                "A value this narrow is one this file format CAN hold, "
+                "and this column is described as holding numbers it "
+                "cannot. Writing the published width would have made "
+                "the twin read back as an ordinary column of numbers, "
+                "so the twin is wider than your table here and says so "
+                "rather than changing what kind of column this is.",
+            )
+        ]
+    # AND THE TWO PUBLISHED WIDTHS ARE RECOUNTED OFF THE FINISHED
+    # SPELLINGS (item P4-G3-F1). Nothing above promises them: the
+    # holdable kinds take the floor, the unholdable ones take whatever
+    # keeps them unholdable, and a fold-collision partner is spelled to
+    # fold rather than to fit. So the twin's own narrowest and widest
+    # cells are measured here and named where they fall outside the
+    # window the description publishes. A check that cannot fail is a
+    # defect; this one fails on a column that reaches the deviation
+    # above, which is exactly the case it exists for.
+    notes = notes + _wide_width_notes(column.name, facts, spellings, kinds)
     return _grouped(groups, spellings), notes
+
+
+def _fallback_counted(
+    fallbacks: "dict[int, int]",
+    partner: str,
+    spellings: "list[str]",
+    folded: int,
+) -> "dict[int, int]":
+    """Record that one parent owed a partner its pinned width could not hold.
+
+    A partner is found by `_partner_of`, which hands back the spelling
+    and not the parent it was built from; the parent is the one value
+    already written that this partner FOLDS onto, which is the same
+    question the published folded count asks. Counting it here is what
+    lets the second pass reserve exactly the room the first pass found
+    wanting, rather than predicting an assignment `_partner_of` makes
+    from three preferences.
+
+    Guarantees: accepts the counts so far, one partner spelling, the
+    spellings written so far and how many of them are parents; returns
+    the counts with this partner's parent incremented, or unchanged
+    where no written parent folds onto it. Raises nothing. No I/O.
+    """
+    key = parsing.folded(partner)
+    for place in range(min(folded, len(spellings))):
+        if parsing.folded(spellings[place]) != key:
+            continue
+        if place in fallbacks:
+            fallbacks[place] = fallbacks[place] + 1
+        else:
+            fallbacks[place] = 1
+        return fallbacks
+    return fallbacks
+
+
+def _wide_width_notes(
+    name: str,
+    facts: contract.UnrepresentableFacts,
+    spellings: "list[str]",
+    kinds: "list[int]",
+) -> "list[Deviation]":
+    """Where the twin's own cells fall outside the published widths.
+
+    THE TWO WIDTHS ARE MEASURED OVER THE NUMERIC-LOOKING CELLS AND NOT
+    OVER ALL OF THEM, because that is what the producer publishes
+    (P4-D4.4): this role tolerates a slack of ordinary-text stragglers
+    whose lengths are facts about text rather than about the numbers
+    the role exists for, and the producer leaves them out. Measuring
+    them back in here would compare the twin's shortest word against
+    the description's shortest NUMERAL and report a miss on a column
+    that has none. Notation that conflicts with itself is numeric-
+    looking and IS counted, on both sides.
+
+    Guarantees: accepts a column name, the loaded facts, the finished
+    spellings and each one's kind; returns a list of deviations, empty
+    when the numeric-looking cells match both published widths. Raises
+    nothing. No I/O.
+    """
+    widths: "list[int]" = []
+    for index in range(len(spellings)):
+        if index < len(kinds) and kinds[index] == 5:
+            continue
+        widths = widths + [len(spellings[index])]
+    if not widths:
+        return []
+    shortest = widths[0]
+    longest = widths[0]
+    for width in widths:
+        if width < shortest:
+            shortest = width
+        if width > longest:
+            longest = width
+    # BOTH ENDS ARE CHECKED FOR EQUALITY AND NOT MERELY FOR CONTAINMENT.
+    # `min_length` is the width of the shortest value in your table, not
+    # a floor the twin may sit above: a twin whose narrowest cell is
+    # wider than your narrowest does not hold the published fact, and an
+    # earlier version of this check tested only `shortest <
+    # min_length` and so passed a column published at 250 whose twin
+    # started at 310.
+    notes: "list[Deviation]" = []
+    if shortest != facts.min_length:
+        notes = notes + [
+            _deviation(
+                name,
+                "min_length",
+                f"{facts.min_length} character(s)",
+                f"the twin's shortest value is {shortest} character(s)",
+                "the narrowest value written in this column of the twin "
+                "is not as narrow as the narrowest in your table. A "
+                "value narrow enough for this file format to hold is "
+                "not one this column can carry, so where the twin "
+                "cannot go that narrow it stays wide rather than "
+                "changing what kind of column this is. Code that "
+                "measures how wide the written values are -- a column "
+                "width, a fixed-width read, a check on the length of a "
+                "field -- meets a different width here.",
+            )
+        ]
+    if longest != facts.max_length:
+        notes = notes + [
+            _deviation(
+                name,
+                "max_length",
+                f"{facts.max_length} character(s)",
+                f"the twin's longest value is {longest} character(s)",
+                "the widest value written in this column of the twin is "
+                "not as wide as the widest in your table. Code that "
+                "measures how wide the written values are meets a "
+                "different width here.",
+            )
+        ]
+    return notes
+
+
+def _wide_widths(
+    facts: contract.UnrepresentableFacts,
+    kinds: "list[int]",
+    signs: "list[bool]",
+) -> "list[int]":
+    """The width EVERY group of this column is asked to write at.
+
+    BOTH PUBLISHED ENDS ARE CARRIED WHERE THERE ARE GROUPS TO CARRY
+    THEM (item P4-G3-F1), the way the text and record-number roles
+    carry theirs: one group is asked for `max_length` and a second for
+    `min_length`, so a person recounting the twin's widest and narrowest
+    written value finds the two the description publishes. Asking every
+    group for the ceiling -- which is what this method did before the
+    two facts existed -- meant a column published as 320 to 400
+    characters wide had no 320-character cell anywhere in its twin.
+
+    A column with one group has nothing to carry the second end with,
+    and its two published widths are equal unless a fold-collision
+    partner respelled it; either way the recount names what the twin
+    ends up holding.
+
+    WHICH group carries the floor is not free either. Three of the five
+    kinds can be written at any width -- the two leading-zero families
+    and contradictory notation -- while the two that stand for numbers
+    outside binary64's range have a floor of their own, below which
+    they stop being unholdable at all. So the floor is given to the
+    first group AFTER the first whose kind can actually write it, and
+    where no group can, the recount says the published width was not
+    held rather than this method pretending it was.
+
+    Guarantees: accepts the loaded facts and every group's kind;
+    returns one width per group, each at least 1. Raises nothing.
+    No I/O.
+    """
+    if not kinds:
+        return []
+    ceiling = max(facts.max_length, 1)
+    floor = max(facts.min_length, 1)
+    asked = [ceiling for _each in kinds]
+    if len(kinds) < 2 or floor == ceiling:
+        return asked
+    # THE FLOOR CARRIER IS CHOSEN BY KIND AND NOT BY POSITION. An
+    # earlier revision looked only past the first group, so a column
+    # whose one narrow-capable group happened to come first carried no
+    # floor at all and reported a miss it did not have to have.
+    #
+    # AND IT IS ONLY CHOSEN IF SOMETHING IS LEFT TO CARRY THE CEILING
+    # (review item P4-G3-R5-F2). Two of the six kinds write at a width
+    # of their own whatever they are asked for, so a column of one
+    # contradictory group beside one in-range group has exactly ONE
+    # group that can carry a width at all. Handing that group the floor
+    # spends the only carrier on the end the contradictory group was
+    # going to land on anyway -- `(-1)` is four characters, and a column
+    # published as 4 to 400 then held no cell wider than four. The
+    # single carrier keeps the ceiling instead, and the floor arrives on
+    # its own.
+    for index in range(len(kinds)):
+        if not _carries_a_width(kinds[index], floor, signs[index]):
+            continue
+        for other in range(len(kinds)):
+            if other == index:
+                continue
+            if _carries_a_width(kinds[other], ceiling, signs[other]):
+                asked[index] = floor
+                return asked
+    return asked
+
+
+def _carries_a_width(kind: int, width: int, negative: bool = False) -> bool:
+    """Whether one kind can be written at exactly ``width``.
+
+    TWO OF THE SIX KINDS CANNOT CARRY A WIDTH AT ALL, and asking them
+    to is how a floor carrier gets chosen that does not carry it.
+    Contradictory notation is the fixed construction of method G10.3
+    and ordinary text is a stand-in spelling drawn by the text rule;
+    both are settled by rules that know nothing about this column's
+    published widths, so neither is eligible however wide the ask. Of
+    the four that are, the two out-of-range kinds have a floor of their
+    own and can carry only a width at or above it.
+
+    Guarantees: accepts a kind and a width; returns whether that kind
+    written at that ask comes out at exactly that width. Raises
+    nothing. No I/O.
+    """
+    if kind == 0 or kind == 5:
+        return False
+    if width < _WIDE_NARROWEST[kind] + int(negative):
+        return False
+    return _wide_width(kind, width, negative) == width
+
+
+# THE NARROWEST CELL EACH KIND CAN WRITE, before its sign. The two
+# in-range kinds have no magnitude floor but they DO have a shortest
+# spelling: the whole one is a single figure and the fraction one is
+# `1.5`, three characters, because it must carry a point and a figure
+# on each side of it. `_wide_width` knew nothing about this and so
+# reported that the fraction kind could carry a width of one, which
+# made it the chosen carrier for a published floor it then missed by
+# two characters (review item P4-G3-R5-F3). The entry was then 3, for
+# `1.5`, and that was still one too many: the parser accepts a fraction
+# written with no leading zero, so `.5` is a holdable TWO-character
+# fraction, and a column whose narrowest cell is `.5` had no group able
+# to carry its published floor (item P4-G3-R6-F3). The two out-of-range
+# kinds are governed by their own floors above and the two uncarryable
+# kinds never reach this table.
+_WIDE_NARROWEST = (1, 1, 1, 1, 2, 1)
+
+
+def _wide_width(kind: int, asked: int, negative: bool = False) -> int:
+    """The width one kind of unholdable value is actually written at.
+
+    The width the group was ASKED for, where that keeps the value out
+    of binary64, and the kind's own floor where it does not -- a value
+    written narrow enough for this file format to hold is a different
+    kind of column from the one the twin holds, so the floor wins and
+    the caller names the difference. Kinds that carry no magnitude --
+    contradictory notation, and the two leading-zero families, which
+    are the cells of this column the format CAN hold -- take the asked
+    width unconditionally, because nothing about their width decides
+    whether they are holdable.
+
+    THE FLOOR IS THE NARROWER OF THE TWO SPELLING FAMILIES' FLOORS
+    (method G10.5 revision 5). It read 310 and 327 here until then,
+    which were the DIGIT-STRING family's floors and the only ones there
+    were; the exponent family says the same magnitudes in five and six
+    characters, so a column publishing widths of five and six carries
+    both its ends instead of neither. Nothing at or above the old
+    floors moves: the digit-string family is still asked first and
+    still writes every width it can.
+
+    Guarantees: accepts a kind and the width its group was asked for;
+    returns a width of at least 1. Raises nothing. No I/O.
+    """
+    asked = max(asked, 1)
+    sign = 0
+    if negative:
+        sign = 1
+    if kind == 1:
+        return max(asked, _EXPONENT_LARGE_ROOM + sign)
+    if kind == 2:
+        return max(asked, _EXPONENT_SMALL_ROOM + sign)
+    return asked
 
 
 def _wide_shape_words(kind: int, negative: bool) -> str:
@@ -7546,44 +16727,425 @@ def _spread_pairs(kinds: int, width: int) -> int:
 
 def _wide_number(
     kind: int, negative: bool, states: "dict[str, list[int]]",
-    used: "dict[str, int]",
+    used: "dict[str, int]", holes: "tuple[str, ...]",
+    width: int = _CANONICAL_WIDTH,
 ) -> "str | None":
-    """One value at the canonical width, of one kind and one sign.
+    """One value at the asked width, of one kind and one sign.
 
-    Every index writes a different spelling, so the walk ends: at most
-    one index per piece of text already written in this column can be
-    refused, and the ceiling says exactly that. None says the family is
-    spent, which no producible description reaches, and the caller
-    refuses generation rather than searching on.
+    A WIDE VALUE HAS TWO SPELLING FAMILIES NOW (method G10.5 revision
+    5, closing residuals R-P4-48 and R-P4-68), and this function is
+    where the choice between them is made. Four of the six kinds have
+    only the leading-zero construction below; the two out-of-range
+    kinds also have exponent notation, which says the same magnitude
+    in five or six characters where the digit string needs 310 or 327.
+
+    **The families are asked in a fixed order and the first that can
+    write wins**: the digit-string family first, so every column
+    revision 4 wrote comes out byte-identical, then the exponent
+    family where the digit string cannot write at the asked width or
+    has spent its spellings there. A kind that neither family can
+    write at the asked width has already been widened to the narrower
+    floor by `_wide_width`, and the caller names that widening.
+
+    Every index writes a different spelling, so each family's walk
+    ends: at most one index per piece of text already written in this
+    column can be refused, and the ceiling says exactly that. None says
+    every family is spent, and the caller refuses generation rather
+    than searching on.
+
+    Guarantees: accepts a kind, a sign, the per-family walk states, the
+    column's used spellings, its hole spellings and the width the group
+    was asked for; returns one spelling of that kind at that width, or
+    None where no family of that kind can supply another. Raises
+    nothing. No I/O.
     """
-    key = f"{kind}/{negative}"
+    lead = "-" if negative else ""
+    room = width - len(lead)
+    for family in _wide_families(kind, room):
+        spelling = _wide_family_number(
+            family, kind, lead, room, states, used, holes
+        )
+        if spelling is not None:
+            return spelling
+    return None
+
+
+def _wide_families(kind: int, room: int) -> "list[str]":
+    """The spelling families one kind may use at one room, in order.
+
+    Method G10.5 revision 5. The digit-string family is first wherever
+    it can write at all, which is at or above its own magnitude floor
+    -- 310 characters of room for a value too large to hold, 327 for
+    one too small. The exponent family follows from five and six. The
+    four kinds that carry no magnitude have one family and no floor.
+
+    Guarantees: accepts a kind and the room a cell of it has after its
+    sign; returns the families in the order they are asked, possibly
+    empty. Raises nothing. No I/O.
+    """
+    if kind == 1:
+        families: "list[str]" = []
+        if room >= _OVERFLOW_FIGURES:
+            families = families + [_WIDE_PLAIN]
+        if room >= _EXPONENT_LARGE_ROOM:
+            families = families + [_WIDE_EXPONENT]
+        return families
+    if kind == 2:
+        families = []
+        if room >= _UNDERFLOW_PLACES:
+            families = families + [_WIDE_PLAIN]
+        if room >= _EXPONENT_SMALL_ROOM:
+            families = families + [_WIDE_EXPONENT]
+        return families
+    return [_WIDE_PLAIN]
+
+
+def _exponent_power(step: int) -> "int | None":
+    """The ``step``-th exponent of the walk, counting outward from 400.
+
+    Method G10.5 revision 5. The exponent starts at 400 and walks UP to
+    999, then DOWN from 399, so the first spelling of the family is
+    `1e400` and the field stays three figures wide the whole way. None
+    says the walk would leave that field, which is a change of width
+    rather than another spelling of the same one.
+
+    WHERE THE WALK ACTUALLY STOPS IS EARLIER, AND IS NOT WRITTEN HERE:
+    it stops where the shipped parser stops reading the spelling as the
+    shape it is writing, which `_wide_reads_back` asks of every
+    candidate. That is the only form two implementations can agree on
+    without sharing a number, and it is why no 309 and no 325 appears
+    in this function.
+
+    Guarantees: accepts a zero-based step; returns a three-figure
+    exponent, or None once the walk would leave that field. Raises
+    nothing. No I/O.
+    """
+    up = _EXPONENT_CEILING - _EXPONENT_HOME
+    if step <= up:
+        return _EXPONENT_HOME + step
+    power = _EXPONENT_CEILING - step
+    if power < _EXPONENT_FLOOR:
+        return None
+    return power
+
+
+def _wide_exponent_number(
+    kind: int, lead: str, room: int, index: int
+) -> "str | None":
+    """The ``index``-th exponent spelling of one out-of-range kind.
+
+    ONE CONSTRUCTION FOR BOTH SHAPES (method G10.5 revision 5): the
+    value's sign, a mantissa of decimal figures, the letter `e`, and a
+    three-figure exponent that carries a minus for the too-small shape.
+    The mantissa fills whatever the exponent field leaves of the asked
+    width, and what separates one spelling from the next is the
+    mantissa read as a NUMBER -- 1, 2, 3 and so on -- written at the
+    right of that room behind a run of leading zeros. That is step 4's
+    own rule, which keeps the width fixed while the value moves;
+    counting by adding a figure instead would make every group after
+    the first one character wider than the width it was asked for.
+
+    THE MANTISSA IS SPENT BEFORE THE EXPONENT MOVES, and both move,
+    which is what makes this family's capacity the SHAPE's own. At five
+    characters one exponent supplies nine spellings and the shape has
+    thousands; a family that fixed the exponent refused to build a real
+    sixteen-value column. The constants above carry that measurement.
+
+    Guarantees: accepts an out-of-range kind, the sign's own text, the
+    room after that sign and a zero-based index; returns that spelling,
+    or None where the room holds no mantissa at all or the walk has
+    left the three-figure exponent field. Raises nothing. No I/O.
+    """
+    places = _exponent_places(kind, room)
+    if places < 1:
+        return None
+    power_sign = "-"
+    if kind == 1:
+        power_sign = ""
+    span = 10 ** places - 1
+    power = _exponent_power(index // span)
+    if power is None:
+        return None
+    body = f"{index % span + 1}"
+    return f"{lead}{'0' * (places - len(body))}{body}e{power_sign}{power}"
+
+
+def _exponent_places(kind: int, room: int) -> int:
+    """How many figures the mantissa gets at one room (method G10.5).
+
+    The exponent field is four characters wide for the too-large shape
+    and five for the too-small one, whatever exponent it holds, and the
+    mantissa fills what that leaves of the room. Zero or less says the
+    room holds no mantissa at all.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    mantissa's own width in figures, which may be zero or negative.
+    Raises nothing. No I/O.
+    """
+    if kind == 1:
+        return room - 4
+    return room - 5
+
+
+def _exponent_span(kind: int, room: int) -> int:
+    """How many spellings ONE exponent of this shape holds at one room.
+
+    The mantissa is spent before the exponent moves, so this is the
+    length of one exponent's own run of spellings -- and it is what
+    tells the walk that a shape has left the field for good. See
+    `_wide_family_number` for the argument that makes it a stopping
+    rule rather than a curiosity.
+
+    Guarantees: accepts an out-of-range kind and a room; returns the
+    count of mantissas at that room, zero where the room holds none.
+    Raises nothing. No I/O.
+    """
+    places = _exponent_places(kind, room)
+    if places < 1:
+        return 0
+    room_here: int = 10 ** places
+    return room_here - 1
+
+
+def _wide_reads_back(kind: int, candidate: str) -> bool:
+    """Whether the shipped parser reads one spelling back as its kind.
+
+    THE QUESTION ITSELF, ASKED OF EACH CANDIDATE (method G10.5 revision
+    5), rather than a constant trusted to have been measured widely
+    enough. The two questions are the two step 6's recount asks of the
+    finished cell -- what the notation classifies as, and whether the
+    value is whole -- so a spelling this refuses is one the recount
+    would have filed under another class, which is the defect the
+    refusal exists to prevent rather than a deviation to report.
+
+    THIS IS WHAT DECIDES THE WALK'S REACH, which is why no 309 and no
+    325 is written into the exponent family's construction. The
+    exponent steps outward from 400 and this is asked of every
+    candidate; the two shapes are turned down DIFFERENTLY, and neither
+    of them at a place a constant could name. The too-small shape's
+    first refusal is `3e-324`, two spellings INTO its exponent, because
+    `1e-324` and `2e-324` fall below the smallest subnormal and
+    `3e-324` rounds up onto it, and every later candidate is refused
+    with it. The too-large shape's first refusal is `1e308`, a number
+    this format holds -- and `2e308` through `9e308` are turned down by
+    NOTHING, so the walk steps past `1e308` and carries on. A rule that
+    stopped at a refusal threw those eight away; a rule that assumed an
+    exponent boundary would write a value this format holds into a
+    column described as holding none.
+
+    IT SAID SOMETHING ELSE FOR ONE DRAFT, and the correction is worth
+    keeping. While the exponent was FIXED at 400 this could not answer
+    no at any width a description carries, so it was a boundary of the
+    construction and nothing a column reached -- and withdrawing it
+    turned no test red at all. That was true and it was also the symptom
+    of the real defect: a family that can never be asked to stop is a
+    family with one exponent's worth of spellings, which is nine at five
+    characters where a real column has thousands.
+    `tests/test_p4d44_unrepresentable_widths.py` pins both edges and the
+    capacity each one leaves.
+
+    Guarantees: accepts an out-of-range kind and a candidate spelling;
+    returns whether the parser reads it as out of range and settles it
+    as that kind's own whole-number status. Raises nothing. No I/O.
+    """
+    if parsing.classify_number(candidate) != parsing.NUMBER_OUT_OF_RANGE:
+        return False
+    if kind == 1:
+        return parsing.numeric_whole(candidate) == parsing.WHOLE_YES
+    return parsing.numeric_whole(candidate) == parsing.WHOLE_NO
+
+
+def _wide_family_number(
+    family: str, kind: int, lead: str, room: int,
+    states: "dict[str, list[int]]", used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> "str | None":
+    """One value from one spelling family of one kind at one room.
+
+    Each family keeps its own place in its own walk, so asking the
+    digit-string family and being refused does not move the exponent
+    family's next spelling, and a column that uses both writes each
+    from its own start.
+
+    A TURNED-DOWN CANDIDATE IS STEPPED PAST AND IS NOT THE END OF THE
+    WALK (review item P4-A2-R3, item 1). Revision 5 read the first
+    refusal as the family being spent, which is true of the too-SMALL
+    shape and false of the too-large one: within one exponent the
+    mantissa ascends, so a value too small stops being out of range
+    once and stays in range for the rest of that exponent, while a
+    value too LARGE starts in range and becomes out of range as the
+    mantissa grows. At five characters `1e308` is a number this format
+    holds and `2e308` through `9e308` are not, so stopping on `1e308`
+    threw eight spellings away and made the family's asserted capacity
+    6,219 where the shape's own count is **6,227**. A real 6,220-row
+    column of `1e309` through `9e999` beside `2e308` was then REFUSED
+    by `synthtwin generate` on a description the profiler had just
+    written from it.
+
+    AND WHAT ENDS THE WALK INSTEAD IS ONE WHOLE EXPONENT TURNED DOWN.
+    The refusals inside one exponent are contiguous by the same
+    monotonicity -- a prefix for the too-large shape, a suffix for the
+    too-small one -- and the exponent itself walks outward from 400 and
+    then inward, so an exponent every one of whose mantissas is turned
+    down is an exponent past which nothing is ever accepted again. That
+    is a rule of the SHAPE and not a step budget: it needs no number
+    written here, it cannot stop a family that still holds a spelling,
+    and it bounds the walk, which a bare "step past it and carry on"
+    does not.
+
+    AND A HOLE SPELLING IS REFUSED BEFORE IT IS CLAIMED (review item
+    P4-A2-R3, item 2). Neither family asked: the exponent branch
+    ignored its `holes` argument outright, and the digit-string branch
+    asked only inside its ordinary-text arm. A `--missing-value`
+    declaration reaches the whole table, so a column whose own absent
+    cells wore nothing still has the table's hole spellings reserved
+    against it -- see `_unrepresentable_cells` for where the wider set
+    comes from. A refused candidate costs the family one spelling, so
+    the capacity a refusal leaves is the capacity this walk reports.
+
+    Guarantees: accepts a family, a kind, the sign's own text, the room
+    after that sign, the per-family walk states, the column's used
+    spellings and every hole spelling reserved against it; returns an
+    unused spelling of that family that is no hole spelling, or None
+    where the family is spent at that room. Raises nothing. No I/O.
+    """
+    key = f"{family}/{kind}/{lead}"
     if key not in states:
         states[key] = [0]
     state = states[key]
-    lead = "-" if negative else ""
-    steps = 0
-    while steps < len(used) + 2:
-        steps = steps + 1
+    span = _exponent_span(kind, room)
+    turned_down = 0
+    refused = 0
+    while refused <= len(used) + len(holes) + 1:
         index = state[0]
         state[0] = state[0] + 1
-        if kind == 0:
-            candidate = _contradictory_spelling(index + 1)
-        elif kind == 1:
-            figures = _spelling_at(_DIGITS, _CANONICAL_WIDTH - 1, index // 9)
-            candidate = f"{lead}{(index % 9) + 1}{figures}"
-        elif kind == 2:
-            figures = f"{index + 1}"
-            zeros = max(_CANONICAL_WIDTH - len(figures), 1)
-            candidate = f"{lead}0.{'0' * zeros}{figures}"
-        elif kind == 3:
-            candidate = f"{lead}{'0' * index}1"
-        elif kind == 4:
-            candidate = f"{lead}{'0' * index}0.5"
-        else:
-            candidate = _text_spelling(index + 1, used)
-        if _unused(candidate, used):
-            return _take(candidate, used)
+        if family == _WIDE_EXPONENT:
+            candidate = _wide_exponent_number(kind, lead, room, index)
+            if candidate is None:
+                return None
+            if not _wide_reads_back(kind, candidate):
+                turned_down = turned_down + 1
+                if turned_down > span:
+                    return None
+                continue
+            turned_down = 0
+            if _is_a_hole_spelling(candidate, holes):
+                refused = refused + 1
+                continue
+            if _unused(candidate, used):
+                return _take(candidate, used)
+            refused = refused + 1
+            continue
+        plain = _wide_plain_number(kind, lead, room, index, used, holes)
+        if plain is None:
+            return None
+        if _is_a_hole_spelling(plain, holes):
+            refused = refused + 1
+            continue
+        if _unused(plain, used):
+            return _take(plain, used)
+        refused = refused + 1
     return None
+
+
+def _wide_plain_number(
+    kind: int, lead: str, room: int, index: int,
+    used: "dict[str, int]", holes: "tuple[str, ...]",
+) -> "str | None":
+    """The ``index``-th leading-zero spelling of one kind at one room.
+
+    The construction revision 4 shipped, unchanged except that it now
+    says NO where it used to write a cell wider than the width it was
+    asked for. That happened on one shape only -- the too-small
+    fraction, whose zero run grows until the value underflows -- and it
+    is what residual R-P4-48 measured: at 327 characters this family
+    reaches twenty-four spellings and the twenty-fifth needs a zero
+    more than the width allows. Writing it anyway held a published
+    count by breaking a published width. Refusing hands the group to
+    the exponent family, which writes it at the width the description
+    asks for, and every published fact is met.
+
+    Guarantees: accepts a kind, the sign's own text, the room after
+    that sign, a zero-based index, the column's used spellings and its
+    hole spellings; returns that spelling, or None where this family
+    cannot write it at exactly that room. Raises nothing. No I/O.
+    """
+    # THE ASKED WIDTH IS THE WIDTH OF THE WHOLE CELL, sign and
+    # decimal point included (item P4-G3-F1). Each arm below spends
+    # `room` on the part it varies and lets the fixed characters --
+    # the minus sign, the leading `0.`, the trailing figure -- take
+    # the rest, so a group asked for 400 characters writes 400. The
+    # fraction arm used to count only its zeros and its figures and
+    # so came out two characters wide of every width it was given.
+    if kind == 0:
+        candidate = _contradictory_spelling(index + 1)
+    elif kind == 1:
+        figures = _spelling_at(_DIGITS, max(room - 1, 0), index // 9)
+        candidate = f"{lead}{(index % 9) + 1}{figures}"
+    elif kind == 2:
+        # THE ZERO RUN GROWS UNTIL THE VALUE ACTUALLY UNDERFLOWS,
+        # rather than to a fixed floor (review item P4-G3-R6-F2). A
+        # single number cannot answer this: what decides is the
+        # value, so the FIGURES decide it too. Behind 323 zeros the
+        # body `10` underflows and the body `9` does not, and a
+        # six-figure body needs only 319 -- so a floor high enough
+        # for the worst body writes every better one wider than the
+        # description asks. The rule is the question itself, asked
+        # of each spelling, which is also the only form two
+        # implementations can agree on without sharing a constant.
+        #
+        # AND WHERE THE GROWN RUN NO LONGER FITS, THIS FAMILY SAYS
+        # NO (method G10.5 revision 5, residual R-P4-48). It used to
+        # write the wider cell and let the recount name the width
+        # miss, which held a published count by breaking a published
+        # width; the exponent family writes that group at the asked
+        # width instead, and the column meets both.
+        figures = f"{index + 1}"
+        zeros = max(room - 2 - len(figures), 1)
+        candidate = f"{lead}0.{'0' * zeros}{figures}"
+        while float(candidate) != 0.0:
+            zeros = zeros + 1
+            candidate = f"{lead}0.{'0' * zeros}{figures}"
+        if len(candidate) - len(lead) > room:
+            return None
+    elif kind == 3:
+        # THE LEADING ZEROS ARE THE WIDTH, AND THE DIGITS ARE THE
+        # DIFFERENCE (item P4-G3-F1). These two kinds are the cells
+        # of this column that ARE holdable numbers, and they used to
+        # accept `width` and ignore it -- writing `1` and `0.5` into
+        # a column whose description publishes that nothing in it is
+        # shorter than hundreds of characters. Padding with zeros
+        # changes neither the value nor the kind, so the asked width
+        # is taken here.
+        #
+        # WHAT SEPARATES ONE SPELLING FROM THE NEXT IS THE VALUE AND
+        # NOT THE WIDTH. An earlier revision added `index` zeros for
+        # distinctness, which made every group after the first one
+        # character wider than the width it was asked for -- so a
+        # column published as at most 372 characters had a
+        # 373-character cell in its twin, reported as a miss on
+        # every column with two such groups. Counting up in the
+        # digits instead leaves the width fixed.
+        body = f"{index + 1}"
+        candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
+    elif kind == 4:
+        # `.5` IS A FRACTION THIS FORMAT HOLDS, and leaving it out
+        # cost a published width (review item P4-G3-R6-F3). The
+        # ordinary body is `1.5`, `2.5`, `3.5` behind a run of
+        # zeros, which needs three characters -- so a column whose
+        # narrowest numeric-looking cell is the two characters `.5`
+        # had no group able to carry that floor and missed it. The
+        # leading zero is optional to the parser, so at two
+        # characters the body is the point and one figure, which
+        # gives nine distinct spellings there.
+        if room == 2:
+            candidate = f"{lead}.{(index % 9) + 1}"
+        else:
+            body = f"{index + 1}.5"
+            candidate = f"{lead}{'0' * max(room - len(body), 0)}{body}"
+    else:
+        candidate = _text_spelling(index + 1, used, holes)
+    return candidate
 
 
 # -- the generation refusals (method G12) -----------------------------
@@ -7799,15 +17361,26 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     """
     plans: list[_ColumnPlan] = []
     words = 0
+    everywhere = _every_hole_spelling(profile)
     for column in profile.columns:
-        plan = _plan_column(column, profile.n_rows)
+        # THE LONG-TAIL DETECTION LINE reaches the free-text walk from
+        # here, because only the profile carries the settings and only
+        # the walk can act on them (residual R-P4-36).
+        line = max(
+            profile.settings.small_cell_floor,
+            profile.settings.long_tail_minimum_level,
+        )
+        plan = _plan_column(column, profile.n_rows, everywhere, line)
         plans = plans + [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
 def _plan_column(
-    column: contract.ColumnBlock, n_rows: int
+    column: contract.ColumnBlock,
+    n_rows: int,
+    all_holes: "tuple[str, ...]" = (),
+    long_tail_line: int = 0,
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -7816,10 +17389,81 @@ def _plan_column(
     notes: list[Deviation] = []
     groups: tuple[int, ...] = ()
     cells: list[str] = []
+    remarks: "list[Remark]" = []
     carriers = _FIRST_TWO
     content = 0
-    if isinstance(facts, contract.NumericFacts):
-        layout, notes, content = _numeric_layout(column, facts)
+    if isinstance(facts, contract.JoinedFacts):
+        # ONE LAYOUT PER POSITION, so the plan holds none of its own and
+        # `_joined_content` builds each where it builds that position's
+        # numbers. What is settled here is the WORD BUDGET, which the
+        # capacity question needs before any cell exists: it is the sum
+        # of what each position will draw.
+        for place in range(facts.n_parts):
+            _each, each_notes, each_content = _numeric_layout(
+                _part_view(column, place),
+                facts.parts[place],
+                facts.parts[place].n_distinct_values,
+            )
+            notes = notes + each_notes
+            content = content + each_content
+            # ...and the words that shuffle this position against the
+            # first, which every position after it needs.
+            if place:
+                content = content + max(facts.n_joined - 1, 0)
+    elif isinstance(facts, contract.CompoundFacts):
+        # THE LAYOUT IS THE NUMERIC HALF'S, on the affixed role's
+        # precedent: the numbers are built by the code that builds a
+        # plain numeric column, over a view of their own cells. The
+        # label half consumes no words at all -- everything about it is
+        # fixed by published counts -- so the budget is the numbers'
+        # plus the placement the whole column needs.
+        numbers_view = contract.compound_numbers_view(column)
+        layout, notes, content = _numeric_layout(
+            numbers_view,
+            facts.numbers,
+            facts.numbers.n_distinct_values,
+        )
+    elif isinstance(facts, contract.AffixedFacts):
+        # The layout is the CORES' -- see `_core_view`.
+        #
+        # ONE LAYOUT PER WRAPPER once the column wears a SET (plan
+        # P4-D37), on the joined role's own arrangement above: the plan
+        # then holds none of its own and `_affixed_content` builds each
+        # where it builds that wrapper's numbers. What is settled here
+        # is the WORD BUDGET, which the capacity question needs before
+        # any cell exists, and it is the sum of what each wrapper will
+        # draw.
+        for pair_view in _wrappers_of(facts, column):
+            _each, each_notes, each_content = _numeric_layout(
+                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+            )
+            content = content + each_content
+            if not facts.affix_variants:
+                # ONE WRAPPER, AND THE PLAN CARRIES ITS LAYOUT AND ITS
+                # NOTES exactly as it did: nothing about such a column
+                # moves.
+                layout = _each
+                notes = notes + each_notes
+            # ...AND ON A SET THE NOTES ARE NOT TAKEN HERE (review
+            # round 6, item 6). `_affixed_content` builds each
+            # wrapper's layout again where it builds that wrapper's
+            # cells, and names every note for its wrapper; taking them
+            # here as well wrote each shortfall TWICE -- once as
+            # `n_distinct_folded`, a key an affixed block does not
+            # carry, and once as
+            # `affix_variants[0].n_core_distinct_folded`, which is the
+            # one it does.
+    elif isinstance(facts, contract.NumericFacts):
+        layout, notes, content = _numeric_layout(column, facts, None)
+    elif isinstance(facts, contract.ClockFacts):
+        _clock_room(column, facts)
+        # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
+        # reason: both ends are pinned by fixed rule and cost no word,
+        # every stand-in is stepped past its neighbours and costs none,
+        # and each rank between the ends takes exactly one. `max(..., 0)`
+        # covers a column of one parsed cell, and invariant T4 -- some
+        # cell parsed -- is what stops it being none.
+        content = max(column.n_present - facts.n_unparsed - 2, 0)
     elif isinstance(facts, contract.DatetimeFacts):
         content = max(column.n_present - facts.n_unparsed - 2, 0)
     elif isinstance(facts, contract.IdentifierFacts):
@@ -7832,17 +17476,27 @@ def _plan_column(
         _fold_room(
             column, facts.length.minimum, facts.length.maximum, len(groups)
         )
-        cells, notes, carriers = _text_cells(column, groups)
+        cells, notes, carriers, remarks = _text_cells(
+            column, groups, long_tail_line
+        )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
-        cells, notes = _unrepresentable_cells(column, groups)
+        # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE (review item
+        # P4-A2-R3, item 2). Planning computed them for the whole
+        # document and then handed this role nothing, so the one role
+        # that publishes no `missing_by_source` of its own -- and
+        # therefore has no other way to learn a declared spelling --
+        # was the one role that could not see them.
+        cells, notes = _unrepresentable_cells(column, groups, all_holes)
     return _ColumnPlan(
         column=column,
+        all_holes=all_holes,
         content_words=content,
         placement_words=placement,
         layout=layout,
         cells=tuple(cells),
         notes=tuple(notes),
+        remarks=tuple(remarks),
         carriers=carriers,
     )
 
@@ -7891,6 +17545,54 @@ def _word_room(
                 column.name, shortest, words, length, held, 2 * words - 1
             )
         )
+
+
+def _clock_room(
+    column: contract.ColumnBlock, facts: contract.ClockFacts
+) -> None:
+    """Refuse a clock column asking for more times than a day holds.
+
+    THE ONE REFUSAL THIS ROLE ADDS, and it is decided from the published
+    facts alone, before a single cell exists. A day holds 1,440
+    different minutes and 86,400 different seconds, and nothing else can
+    be written in the column's form. So a description whose count of
+    different values, NET of the cells that are stand-ins, exceeds its
+    form's own space describes a column no table of that form can hold.
+
+    THE TEST IS THE FORM'S CAPACITY AND NOT THE SPAN BETWEEN THE ENDS.
+    A description whose own source met every count -- stand-ins
+    included -- is never refused here: that is the difference between a
+    description nothing can satisfy and one this method finds hard.
+
+    Raised as a REFUSAL rather than reported as a deviation because
+    there is no twin to report about: every arrangement of cells fails,
+    so the honest answer is to say so before writing anything and to
+    say that the description itself is valid -- what cannot be done is
+    building a table from it.
+    """
+    wanted = column.n_distinct - facts.n_unparsed
+    room = parsing.CLOCK_CAPACITY[facts.clock_form]
+    if wanted <= room:
+        return
+    raise errors.ProfileError(_clock_needs_room(column.name, wanted, room))
+
+
+def _clock_needs_room(name: str, wanted: int, room: int) -> str:
+    """What a person is told when a day is not long enough."""
+    return (
+        f"synthtwin cannot build a twin of the column '{parsing.visible(name)}'. "
+        f"Its description says the column holds {wanted} different "
+        f"times of day, and it says those times are written with "
+        f"{room} different ones available -- there are only {room} of "
+        f"them in a day at that precision. Both statements can be true "
+        f"of the description and neither can be true of any table, so "
+        f"no file synthtwin could write would match it.\n\n"
+        f"The description is not damaged and nothing is wrong with your "
+        f"file. If the real column recorded seconds as well as minutes, "
+        f"profile it again from the table that has them; if it did not, "
+        f"there is nothing here to fix and this column cannot be "
+        f"twinned. Nothing has been written."
+    )
 
 
 def _whole_number_room(
@@ -8022,6 +17724,59 @@ def _padded_room(
 # -- the run (method G4) ----------------------------------------------
 
 
+def _compound_content(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a column of numbers beside labels (L8).
+
+    BOTH HALVES ARE BUILT BY THE CODE THAT BUILDS THEIR OWN KIND OF
+    COLUMN, over a view of their own cells: the numbers by G5 and G6
+    exactly as a plain numeric column is built, the words by G8 exactly
+    as a column of labels is. Nothing here draws a value of its own, so
+    a twin's numeric half cannot come to differ from what a numeric
+    column of the same description would hold.
+
+    THE ORDER IS THE NUMBERS AND THEN THE WORDS, fixed, so two
+    implementations build the same list. Which ROW each cell lands on
+    is the arrangement of G4.2, which shuffles the finished list -- the
+    order here is not an order in the twin.
+
+    THE WORDS COST NOTHING. A column of labels consumes no words from
+    the stream: everything about it is fixed by published counts. So
+    the whole budget is the numeric half's, which is what the plan
+    above computed.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        raise _wrong_facts(column.name)
+    numbers_plan = dataclasses.replace(
+        plan, column=contract.compound_numbers_view(column)
+    )
+    made, half_notes = _numeric_content(numbers_plan, words)
+    # THE NUMERIC HALF'S NOTES NAME THE HALF THEY ARE ABOUT (review
+    # round 8 item 2). This role publishes its quantitative facts under
+    # `numbers.<key>`, and the numeric stages are handed that half as a
+    # column of its own, so they name the bare key -- `empty_edges`,
+    # which no block of a compound description carries. It is the same
+    # repair the joined role makes for `parts[i].<key>`.
+    notes: "list[Deviation]" = []
+    for step in range(len(half_notes)):
+        note = half_notes[step]
+        notes = notes + [
+            dataclasses.replace(
+                note,
+                fact=f"numbers.{note.fact}",
+                note=f"The numbers in these cells: {note.note}",
+            )
+        ]
+    labels_plan = dataclasses.replace(
+        plan, column=contract.compound_labels_view(column), layout=None
+    )
+    said, label_notes = _label_content(labels_plan)
+    return made + said, notes + label_notes
+
+
 def _content_of(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -8040,8 +17795,23 @@ def _content_of(
     kind = column.statistical_type
     if kind == "constant" or kind == "binary" or kind == "categorical":
         return _label_content(plan)
+    # THE LONG TAIL NAMES ITS OWN SHAPE (contract 14.1, C6-19) and is
+    # written by the label rule verbatim: published labels at their
+    # counts, invented neutral labels at the exact suppressed sizes.
+    # Naming it here rather than folding it into the line above keeps
+    # the axis table a bijection while leaving one construction.
+    if kind == "long_tail_labels":
+        return _label_content(plan)
     if kind == "count" or kind == "continuous":
         return _numeric_content(plan, words)
+    if kind == "affixed_number":
+        return _affixed_content(plan, words)
+    if kind == "joined_numbers":
+        return _joined_content(plan, words)
+    if kind == "numbers_with_labels":
+        return _compound_content(plan, words)
+    if kind == "time_of_day":
+        return _clock_content(plan, words)
     if kind == "datetime":
         return _datetime_content(plan, words)
     if kind == "code":
@@ -8093,6 +17863,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
     outcomes: list[ColumnOutcome] = []
     deviations: list[Deviation] = []
     approximated: list[Approximation] = []
+    remarked: "list[Remark]" = []
     drawn = 0
     for step in range(len(plan.columns)):
         each = plan.columns[step]
@@ -8119,7 +17890,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
-        content = content + ["" for _cell in range(column.n_missing)]
+        content = content + _absent_cells(
+            column, _declared_a_decimal_comma(column, profile)
+        )
         places: list[int] = []
         if each.placement_words > 0:
             places = [
@@ -8135,28 +17908,135 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         drawn = drawn + len(places)
         order = _arrangement(places, profile.n_rows)
         written = [content[order[place]] for place in range(profile.n_rows)]
-        columns = columns + [tuple(written)]
-        counted = _recounted(written)
+        # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
+        # applied to the CELLS HANDED OUT and to nothing this loop then
+        # measures. A column read with the comma as its decimal point
+        # and written back with a point hands a person cells their own
+        # tools read as thousands separators -- the very defect the
+        # declaration exists to prevent, arriving one step later.
+        #
+        # IT WAS APPLIED TOO EARLY ONCE AND THE REPORT WENT BLIND
+        # (review item P4-G3-R2-F1). Swapping before the measuring
+        # meant every recount below read `221,39` with the ordinary
+        # parser, found no number in it, and wrote a report saying the
+        # twin held 0 numeric cells against a published 200, 200
+        # not-numeric against a published 0, and two approximated facts
+        # where the same column undeclared names fifteen. Every one of
+        # those was false: the cells are exactly what was asked for.
+        # `1,234` would have been worse than false -- silently measured
+        # as one thousand two hundred and thirty-four.
+        #
+        # So the twin is MEASURED in the spelling its description was
+        # made from, which is the same spelling `validate` re-describes
+        # it in, and only the bytes that leave differ.
+        spelled = _spelled_with_a_decimal_comma(column, profile, written)
+        columns = columns + [tuple(spelled)]
+        # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
+        # is what every measurement below owes (review item
+        # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
+        # QUESTION and treating them as one was the defect: the twin
+        # SPELLS a column's numbers with a comma only where the numeric
+        # machinery wrote them, but the profiler READ every declared
+        # column that way, whatever role it took.
+        #
+        # A column of sixty cells all spelled `1,5` takes the CONSTANT
+        # role -- chosen before the numeric roles -- and publishes
+        # `n_numeric: 60`, because the profiler read them as sixty
+        # copies of one and a half. Its twin writes `1,5` sixty times,
+        # which is exactly right and which `synthtwin validate`
+        # confirmed; and the twin's OWN report read those cells with
+        # the ordinary parser, found no number in any of them, and said
+        # the twin held 0 numeric cells against a published 60. Both
+        # pages of one run, disagreeing, with the wrong one being the
+        # page that had the cells in its hand.
+        #
+        # One rule covers every role: take the cells as they LEAVE and
+        # read them the way the description was made. On a numeric role
+        # that undoes the swap and gives back the point form; on a
+        # constant or a label it translates the published spelling; on
+        # an undeclared column it changes nothing at all.
+        measured = _read_as_described(column, profile, spelled)
+        # COUNTED ON THE CELLS AS WRITTEN, and measured on the cells as
+        # DESCRIBED, which is the same split the profiler makes and the
+        # validator now makes (review item P4-G3-R4-F1). Presence is
+        # decided from the spelling a file HOLDS; what a number is, is
+        # decided from the spelling its description was made from.
+        #
+        # Counting the pre-swap cells hid a collision the swap itself
+        # creates. A column whose published hole is `7,5` and whose
+        # values run from 7.0 to 7.9 generates present cells spelled
+        # `7.5`; without the declaration that is a different spelling
+        # from the hole and nothing collides, and the swap makes the
+        # two the same. Measured on such a column the twin held SIXTY
+        # cells spelled `7,5` against a published forty-two, so
+        # eighteen values became holes -- and the recount, reading the
+        # cells from before the swap, called it all correct.
+        #
+        # The collision is REPORTED and not steered around, which is
+        # the position R-P2-13 already takes for a generated value that
+        # lands on a stand-in: distorting a distribution to protect a
+        # re-profiling artifact is the worse trade.
+        counted = _recounted(
+            spelled,
+            _hole_spellings(column),
+            _declared_a_decimal_comma(column, profile),
+        )
         notes = (
             list(each.notes)
             + notes
-            + _recount_notes(column, counted)
-            + _class_notes(column, written)
+            + _recount_notes(
+                column,
+                counted,
+                spelled,
+                _declared_a_decimal_comma(column, profile),
+            )
+            + _value_count_notes(column, measured)
+            + _half_distinct_notes(column, written)
+            + _form_notes(column, written)
+            + _level_form_notes(column, written)
+            + _class_notes(column, measured)
             + _alphabet_notes(column, written)
-            + _extreme_notes(column, written)
+            + _extreme_notes(column, measured)
             + _width_notes(column, written)
-            + _whole_notes(column, written)
-            + _magnitude_notes(column, written)
-            + _style_notes(column, written)
+            + _fraction_notes(column, measured)
+            + _pad_notes(column, measured)
+            + _field_notes(column, measured)
+            + _whole_notes(column, measured)
+            + _magnitude_notes(column, measured)
+            + _style_notes(column, measured)
+            + _mix_notes(column, measured)
+            + _agreement_notes(column, written)
         )
         # Every APPROXIMATED fact of this column, measured on the cells
         # just written and checked against both ends of the bound
         # method G12 fixes for it. One that landed outside its bound is
         # a fact the twin did not hold, so it joins the deviations too.
-        measured = _approximations(column, each, written)
-        notes = notes + _bound_notes(measured)
-        approximated = approximated + measured
+        approximated_here = _approximations(column, each, measured)
+        # AND A FACT THAT LANDED INSIDE ITS OWN BOUND IS NOT A FACT THE
+        # TWIN MISSED (residual R-P4-152). The two sections disagreed
+        # about one number on the same page: the deviations section said
+        # `n_distinct 100 -> 94` and the approximations section said
+        # `n_distinct`, published 100, achieved 94, INSIDE ITS RANGE. A
+        # reader was told a fact was not met and, four lines later, that
+        # the measurement landed where the method said it would.
+        #
+        # `_bound_notes` below has always raised a deviation only where
+        # an approximated fact landed OUTSIDE its bound, which is the
+        # right convention: a deviation means the twin does not hold
+        # what was published. The recount notes were written before the
+        # approximation records existed and kept the older, flatter one.
+        # They agree now, and they agree HERE rather than in each of the
+        # six roles that recount a count with a window, because one
+        # filter cannot drift from itself.
+        notes = _not_settled_by_a_bound(notes, approximated_here)
+        notes = notes + _bound_notes(approximated_here)
+        approximated = approximated + approximated_here
         deviations = deviations + notes
+        # WHAT THIS COLUMN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
+        # Carried beside the deviations rather than among them: these
+        # are properties of the finished cells, and every published
+        # fact of the column can be met exactly while one is true.
+        remarked = remarked + list(each.remarks)
         outcomes = outcomes + [
             ColumnOutcome(
                 name=column.name,
@@ -8172,7 +18052,8 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 content_words=each.content_words,
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
-                approximations=tuple(measured),
+                approximations=tuple(approximated_here),
+                remarks=each.remarks,
             )
         ]
     rows = [
@@ -8188,6 +18069,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         outcomes=tuple(outcomes),
         deviations=tuple(deviations),
         approximations=tuple(approximated),
+        remarks=tuple(remarked),
         words_drawn=drawn,
         seed=seed,
     )
@@ -8230,8 +18112,151 @@ def _folded_excess_reason(column: contract.ColumnBlock) -> str:
     )
 
 
+def _value_count_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a shortfall in how many different NUMBERS the twin holds.
+
+    THE COUNT NOTHING BOUND UNTIL NOW (residual R-P4-20, closed by plan
+    P4-D4.9). `n_distinct` counts SPELLINGS, and the contract defines
+    it that way on every role, so `1` and `01` are two of them and one
+    number. A twin could therefore meet every published distinctness
+    count with the leading-zero family while holding fewer NUMBERS than
+    the real column, and nothing said so: measured on a 200-row column
+    of tightly clustered values, the twin held all 166 published
+    spellings and 163 numbers, with no deviation raised anywhere. A
+    reader grouping rows by value met three groups that were not there.
+
+    COUNTED WITH `parsing.exact_of_spelling`, which is the rule the
+    producer counts by too -- it reads it under its own name and adds
+    nothing. The two sides have to agree about which cells are the same
+    value, and a second way of asking is how they come to disagree.
+    This module cannot reach the producer at all (the profiler is not
+    in the generator's import graph), which is exactly why the rule
+    lives in `parsing`, where both can read it.
+
+    Guarantees: accepts a column block and its written cells; returns a
+    list of deviations, empty where the twin holds the published count.
+    Raises nothing. No I/O of any kind.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published = facts.n_distinct_values
+    if published < 1:
+        return []
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
+    prefix = ""
+    suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
+    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        # THE TRIMMED TEXT STAYS TRACED, and the body is derived from
+        # it by slicing rather than by reassignment: the offline audit
+        # refuses a method call on a value it cannot follow back to an
+        # allowlisted rule, and it is right to. This is the shape
+        # `_pad_notes` uses for the same reason.
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        found = parsing.exact_of_spelling(body)
+        if found is None:
+            continue
+        seen[found] = 1
+    counted = len(seen)
+    if counted == published:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "n_distinct_values",
+            f"{published} different number(s)",
+            f"{counted}",
+            "The description says how many DIFFERENT NUMBERS this "
+            "column holds, which is not the same as how many different "
+            "ways of writing them: `1` and `01` are two spellings of "
+            "one number. The twin holds a different count of numbers, "
+            "so code that groups rows by this column's value, joins on "
+            "it, or counts its categories meets a different number of "
+            "groups than it would on your table.",
+        )
+    ]
+
+
+def _unconditional_hole_excess(
+    column: contract.ColumnBlock,
+    spelled: "list[str]",
+    decimal_comma: bool = False,
+) -> int:
+    """How many extra cells wear a hole spelling no judgement can undo.
+
+    Per SPELLING, because a column-wide flag cannot tell the two cases
+    apart and they point the same way (review item P4-G3-R6-F4). Both a
+    real collision and a judged sentinel that will not re-fire make the
+    recount hold MORE absent cells than the description publishes, so
+    "did any judged pass touch this column" answers the wrong question:
+    it let one judged `-999` silence a genuine collision on an
+    unconditional `7,5` in the same column.
+
+    A JUDGED spelling is one whose absence was decided by the stand-in
+    or calendar-placeholder pass, on the REAL column's distribution.
+    Re-describing the twin runs that judgement again on the twin's
+    distribution, where it may not fire -- so extra cells wearing such
+    a spelling prove nothing and are not counted here. An
+    UNCONDITIONAL spelling -- a declared word, or one of the
+    vocabulary's own -- is absent whatever any judgement does, so an
+    extra cell wearing it is a value the twin has lost.
+
+    Guarantees: accepts one column's block and its finished cells;
+    returns how many cells beyond the published counts wear an
+    unconditional hole spelling, never below zero. Determinism: a fixed
+    function of the two. Raises nothing. No I/O.
+    """
+    excess = 0
+    for spelling in _hole_spellings(column):
+        if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
+            continue
+        published = 0
+        for key in sorted(column.missing_by_source):
+            if key == spelling:
+                published = column.missing_by_source[key]
+        worn = 0
+        for cell in spelled:
+            if _wears_this_hole(cell, spelling, decimal_comma):
+                worn = worn + 1
+        if worn > published:
+            excess = excess + (worn - published)
+    return excess
+
+
 def _recount_notes(
-    column: contract.ColumnBlock, counted: "tuple[int, int, int, int]"
+    column: contract.ColumnBlock,
+    counted: "tuple[int, int, int, int]",
+    spelled: "list[str]",
+    decimal_comma: bool = False,
 ) -> "list[Deviation]":
     """Name every distinctness count the written column did not reach.
 
@@ -8242,6 +18267,84 @@ def _recount_notes(
     facts owner decision 6 gives up are measured.
     """
     notes: list[Deviation] = []
+    # PRESENCE FIRST, because a cell counted on the wrong side of it
+    # moves every other count with it (review item P4-G3-R4-F1). On
+    # nearly every column these two are exact by construction -- the
+    # placement writes exactly `n_present` values and `n_missing`
+    # holes -- so this says nothing at all. What it catches is a cell
+    # whose written spelling turns out to be one this column publishes
+    # among its ABSENT ones, which the placement cannot foresee: a
+    # column whose hole is `7,5` and whose values run from 7.0 to 7.9,
+    # declared `--decimal-comma`, writes present cells spelled `7,5`
+    # and a re-description reads them as holes. `synthtwin validate`
+    # reported that and the twin's own report did not, which is the
+    # two pages of one run disagreeing about what happened.
+    # ONLY WHERE THE HOLE IS UNCONDITIONAL, because the recount is
+    # broader than the profiler for one kind of hole (review item
+    # P4-G3-R5-F3). A spelling a JUDGED pass made absent -- a numeric
+    # stand-in or a calendar placeholder -- is absent because that
+    # pass's outlier and share tests fired on the REAL column's
+    # distribution. Re-describing the twin runs those tests again on
+    # the twin's distribution, where they may not fire, and then the
+    # cell is present. `_recounted` calls every published hole spelling
+    # absent unconditionally, so a note built on it alone would tell a
+    # reader "describing the twin again finds fewer present cells" on
+    # an ordinary undeclared column where describing it again finds no
+    # such thing.
+    #
+    # So the presence notes are raised only where every published hole
+    # spelling is one no judgement can undo: a declared word, or one of
+    # the vocabulary's own. Where a judged pass is in play the recount
+    # cannot speak for the re-description and this stays silent, which
+    # is the same reticence `_absent_cells` already shows.
+    #
+    # THE GUARD SKIPS THESE TWO NOTES AND NOTHING ELSE. A first version
+    # returned early here and took the DISTINCTNESS notes with it: the
+    # demonstration report lost two lines it had always carried, which
+    # the golden digest caught with the sentence it carries for exactly
+    # this -- a report that says less than it did is a defect even when
+    # nothing crashed.
+    # ASKED OF EVERY PUBLISHED HOLE SPELLING, and the notes are stayed
+    # only where a judged one could account for the whole difference
+    # (review item P4-G3-R6-F4). A column-wide flag let ONE judged
+    # sentinel silence a collision on a different, unconditional hole:
+    # a declared `7,5` that generated values collide with, beside a
+    # judged `-999` that has nothing to do with it. The quality report
+    # named the collision and the twin's own report did not.
+    #
+    # A judged pass can only ADD absences when the twin is described
+    # again, never remove them, so where the recount finds FEWER holes
+    # than published no judgement can account for it.
+    collided = (
+        _unconditional_hole_excess(column, spelled, decimal_comma) > 0
+    )
+    if collided and counted[0] != column.n_present:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_present",
+                f"{column.n_present}",
+                f"{counted[0]}",
+                "Describing the twin again reads a different number of "
+                "cells as holding a value than the description records. "
+                "A cell whose written spelling is one this column "
+                "publishes among its absent ones is read as absent, "
+                "whatever it was built to be.",
+            )
+        ]
+    if collided and counted[1] != column.n_missing:
+        notes = notes + [
+            _deviation(
+                column.name,
+                "n_missing",
+                f"{column.n_missing}",
+                f"{counted[1]}",
+                "Describing the twin again reads a different number of "
+                "cells as empty than the description records. Code that "
+                "counts missing values sees this number here and the "
+                "published one on your table.",
+            )
+        ]
     # WHICH WAY the count went decides which sentence is true. A twin
     # holding FEWER different values ran out of ways to write one; a
     # twin holding MORE was never told how often a value repeats, which
@@ -8293,6 +18396,34 @@ def _recount_notes(
     return notes
 
 
+def _present_of(
+    written: "list[str]", holes: "tuple[str, ...]"
+) -> "list[str]":
+    """The cells of a written column that are PRESENT cells.
+
+    NOT "every cell that is not blank", which is what nine recounts of
+    this module asked and which is a different question (review round
+    2 finding 11, widened by its own verification). A twin reproduces
+    the spellings its source's absent cells wore (7.7), so a numeric
+    column whose holes were written `-999` has twenty cells that LOOK
+    like numbers and are not values -- and counting them recounted a
+    mean of -40.4 against a published 39.5, a standard deviation of
+    277 against 11.6, and a first percentile of -999.
+
+    The validator was right about that file the whole time and said
+    so; only the report written beside the twin accused it. Eleven
+    fabricated deviations on a conforming twin is worse than none at
+    all, because a person reading them abandons a twin that was fine.
+
+    `_wears_a_published_hole` is the question a recount asks, and this
+    is every recount asking it once.
+    """
+    return [
+        cell for cell in written
+        if cell != "" and not _wears_a_published_hole(cell, holes)
+    ]
+
+
 def _alphabet_notes(
     column: contract.ColumnBlock, written: "list[str]"
 ) -> "list[Deviation]":
@@ -8314,7 +18445,8 @@ def _alphabet_notes(
         return []
     published = (facts.n_all_digits, facts.n_code_alphabet)
     trimmed = [
-        parsing.trimmed(cell) for cell in written if cell != ""
+        parsing.trimmed(cell)
+        for cell in _present_of(written, _hole_spellings(column))
     ]
     counted = (
         len([cell for cell in trimmed if parsing.is_digit_text(cell)]),
@@ -8389,7 +18521,7 @@ def _extreme_notes(
     facts = column.facts
     if not isinstance(facts, contract.TextFacts):
         return []
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     if not present:
         return []
     lengths = [len(cell) for cell in present]
@@ -8423,6 +18555,635 @@ def _extreme_notes(
     return notes
 
 
+def _quantitative_facts(
+    column: contract.ColumnBlock,
+) -> "contract.NumericFacts | None":
+    """The numeric facts of a column that has some, or None.
+
+    An affixed column HOLDS a numeric block rather than being one, so a
+    reader written as "if this is a numeric column" walks past it -- and
+    the census of widths is taken over its cores exactly as every other
+    quantitative fact of that role is.
+    """
+    facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        return facts.numbers
+    # AND A COMPOUND COLUMN, whose numeric half is a block held by its
+    # own facts in the same way. Every caller of this asks the same
+    # question -- "does this column have numbers to take a census of?"
+    # -- and the answer for this role is yes, over its numeric half.
+    if isinstance(facts, contract.CompoundFacts):
+        return facts.numbers
+    if isinstance(facts, contract.NumericFacts):
+        return facts
+    return None
+
+
+def _fraction_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published fraction width the column could not place.
+
+    The census is EXACT-OBSERVABLE: a person opens the twin, counts the
+    figures after the point on every cell written with one, and gets the
+    published census back. Where the twin cannot pay -- because no
+    remaining width holds a whole value's cells, or because snapping
+    that value would have split it -- it owes the reader a sentence
+    rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the contract's own ladder uses, so a width the writer intended and
+    a width the cell actually wears cannot come apart here.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.fraction_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.fraction_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.fraction_widths:
+        pooled = facts.fraction_widths[contract.WITHHELD]
+    # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, because that
+    # is the population the census is about. Reading `$1.20` as a bare
+    # number finds no number at all, so every cell of a column of
+    # prices failed the test and the report said the published width
+    # was written by NO cell of a twin that had in fact written every
+    # one of them at it -- a report that accuses a correct twin is
+    # worse than one that says nothing.
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
+    prefix = ""
+    suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
+    counted: dict[int, int] = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent
+        # is not a present cell (review round 3 finding 4).
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_DECIMAL:
+            continue
+        width = parsing.fraction_width(body)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each number of figures after the decimal point, and the twin "
+        "wrote a different number of them that way. The values are "
+        "within the bounds the description sets; what changes is the "
+        "PRECISION each cell appears to carry, so a reader of the twin "
+        "sees a column written more raggedly -- or more evenly -- than "
+        "the real one."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "fraction_widths",
+                f"{published[width]} cell(s) written with {width} "
+                f"figure(s) after the point",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _pad_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published field width the padded cells did not reach.
+
+    The census is EXACT-OBSERVABLE for the reason the fraction census
+    is: a person opens the twin, counts the figures each padded cell
+    writes, and gets the published census back. Where the twin cannot
+    pay -- because no remaining width holds a whole value's cells, or
+    because the value needs more figures than the width holds -- it
+    owes the reader a sentence rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the census itself used, so a width the writer intended and a width
+    the cell actually wears cannot come apart here.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.pad_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.pad_widths:
+        pooled = facts.pad_widths[contract.WITHHELD]
+    # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, for the reason
+    # `_fraction_notes` gives: reading a padded core still wearing its
+    # prefix as a bare number finds no number at all, and a report that
+    # accuses a correct twin is worse than one that says nothing.
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
+    prefix = ""
+    suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
+    counted: dict[int, int] = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent
+        # is not a present cell (review round 3 finding 4).
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_LEADING_ZERO:
+            continue
+        width = parsing.pad_width(body)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each field width with a leading zero, and the twin wrote a "
+        "different number of them that way. The values are within the "
+        "bounds the description sets; what changes is the WIDTH each "
+        "cell appears to carry, so code developed against the twin "
+        "that checks a length, slices a fixed-width code, or joins on "
+        "one can behave differently on the real table."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "pad_widths",
+                f"{published[width]} cell(s) written {width} "
+                f"figure(s) wide with a leading zero",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _field_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published field width the whole-written cells missed.
+
+    THE THIRD CENSUS OWES THE SAME SENTENCE THE OTHER TWO OWE. It is
+    EXACT-OBSERVABLE for the reason they are: a person opens the twin,
+    counts the figures each whole-written cell carries, and gets the
+    published census back. Where the twin cannot pay -- because no
+    stratum's own stretch of the ladder holds a value of the figure
+    count a width needs (amendment A-P4-18) -- it owes the reader a
+    sentence rather than a silence.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the census itself used, and over the CORES on the affixed role for
+    the reason `_pad_notes` gives: reading a core still wearing its
+    prefix as a bare number finds no number at all.
+    """
+    facts = _quantitative_facts(column)
+    if facts is None:
+        return []
+    published: dict[int, int] = {}
+    for key in sorted(facts.field_widths):
+        if key == contract.WITHHELD:
+            continue
+        published[int(key)] = facts.field_widths[key]
+    if not published:
+        return []
+    pooled = 0
+    if contract.WITHHELD in facts.field_widths:
+        pooled = facts.field_widths[contract.WITHHELD]
+    # AND THE FORMS MAP'S OWN POOL WIDENS THE WINDOW, exactly as it does
+    # in the validator's reading of this census: a cell the forms map
+    # held back may be written point-free, and a point-free cell lands
+    # at some field width. Contract 7.10's P9c is that bound stated over
+    # the whole census; this is it read at one width.
+    if contract.WITHHELD in facts.numeric_styles:
+        pooled = pooled + facts.numeric_styles[contract.WITHHELD]
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
+    prefix = ""
+    suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
+    counted: dict[int, int] = {}
+    for cell in _present_of(written, _hole_spellings(column)):
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        if parsing.numeric_style(body) not in taxonomy.POINT_FREE_STYLES:
+            continue
+        width = parsing.pad_width(body)
+        if width in counted:
+            counted[width] = counted[width] + 1
+            continue
+        counted[width] = 1
+    sense = (
+        "The description says how many of this column's cells wrote "
+        "each field width as a whole number, padded or not, and the "
+        "twin wrote a different number of them at that width. The "
+        "values are within the bounds the description sets; what "
+        "changes is how many FIGURES each cell appears to carry, so "
+        "code developed against the twin that checks a length, slices "
+        "a fixed-width code, or joins on one can behave differently on "
+        "the real table."
+    )
+    notes: list[Deviation] = []
+    for width in sorted(published):
+        found = counted[width] if width in counted else 0
+        if published[width] <= found <= published[width] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "field_widths",
+                f"{published[width]} cell(s) written {width} "
+                f"figure(s) wide as a whole number",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _half_distinct_notes(
+    column: "contract.ColumnBlock", written: "list[str]"
+) -> "list[Deviation]":
+    """The numeric half's two counts of different cells, recounted.
+
+    REVIEW ROUND 2 OF LANDING L8, ITEM 6. The two counts landed as
+    published facts and as the budget the half is laid out from, and no
+    recount in this report reached them: `_recount_notes` answers for
+    the WHOLE column and `_value_count_notes` for different NUMBERS, so
+    a twin whose half fell short of its own spelling count said so
+    nowhere. The validator names the shortfall; the twin's own report
+    is where a person reads it, and it was silent.
+
+    Counted off the finished cells with the same reader the census used
+    and over the same population the split defines, so what is compared
+    is the file a person opens.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        return []
+    holes = _hole_spellings(column)
+    raw: "dict[str, int]" = {}
+    folded: "dict[str, int]" = {}
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            continue
+        raw[cell] = 1
+        folded[parsing.folded(parsing.trimmed(cell))] = 1
+    # AND THE LABEL HALF'S TWO, on the same terms. Its shortfall is a
+    # different thing from the numeric half's -- the label
+    # construction writes made-up neutral spellings where the floor
+    # held a level back, and those can collide -- and it was reported
+    # nowhere: a twin publishing three different label cells and
+    # writing two said so on the validator's page and not on its own
+    # (review round 4 of this landing, item 3).
+    label_raw: "dict[str, int]" = {}
+    label_folded: "dict[str, int]" = {}
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) == parsing.NUMBER:
+            continue
+        label_raw[cell] = 1
+        label_folded[parsing.folded(parsing.trimmed(cell))] = 1
+    notes: "list[Deviation]" = []
+    for name, published, counted in (
+        ("n_numeric_distinct", facts.n_numeric_distinct, len(raw)),
+        (
+            "n_numeric_distinct_folded",
+            facts.n_numeric_distinct_folded,
+            len(folded),
+        ),
+        (
+            "labels -> n_distinct",
+            facts.n_label_distinct,
+            len(label_raw),
+        ),
+        (
+            "labels -> n_distinct_folded",
+            facts.n_label_distinct_folded,
+            len(label_folded),
+        ),
+    ):
+        if counted == published:
+            continue
+        half = "numbers"
+        if name[:6] == "labels":
+            half = "words"
+        reason = (
+            f"The {half} in this twin are written in fewer different "
+            "ways than the description records, because the ways of "
+            "writing a value that the description allows could not "
+            "supply that many."
+        )
+        if counted > published:
+            reason = (
+                f"The {half} in this twin are written in MORE different "
+                "ways than the description records. Code that groups "
+                "rows by this column, or that removes duplicates, sees "
+                f"more groups among the {half} here than it will on "
+                "your table."
+            )
+        notes = notes + [
+            _deviation(column.name, name, f"{published}", f"{counted}", reason)
+        ]
+    return notes
+
+
+def _label_half_of(
+    column: "contract.ColumnBlock", written: "list[str]"
+) -> "tuple[contract.ColumnBlock, list[str]] | None":
+    """A compound column's LABEL half, as a column and its own cells.
+
+    None for every other role, so a caller can ask without first
+    working out which kind it holds. The cells are the written ones the
+    role's own split rule puts in that half, so a census stated over
+    the half is recounted over the half.
+
+    IT IS THE VIEW `contract` HOLDS, the one the generator built the
+    half from and the validator checks it against, so a recount cannot
+    come to disagree with the construction about what the half is.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.CompoundFacts):
+        return None
+    mine: "list[str]" = []
+    for cell in written:
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            mine = mine + [cell]
+    return (contract.compound_labels_view(column), mine)
+
+
+def _form_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a published written form the twin's cells did not reach.
+
+    THE TWIN'S OWN REPORT OWED THIS AND DID NOT PAY IT (review round 1
+    finding 10). The census is EXACT-OBSERVABLE, and every other
+    EXACT-OBSERVABLE census this module writes is recounted off the
+    finished cells here and named where it was missed -- the styles,
+    both width censuses, the classes, the alphabets. The form census
+    was checked only by `synthtwin validate`, run later and by
+    somebody who might not run it, so a twin that could not reach a
+    form said nothing about it in the file written beside it.
+
+    IT IS REACHABLE and not a theoretical shortfall. A form every
+    spelling of which opens with the character a spreadsheet reads as
+    the start of a formula is refused cell by cell and the walk gives
+    the form up; a form whose length no group could take is never
+    offered; and the sizes a column's suppressed levels come in need
+    not divide its debts evenly.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the census itself used.
+    """
+    # THE COMPOUND ROLE'S LABEL HALF CARRIES THIS CENSUS TOO, and this
+    # function read the OUTER facts alone -- so a compound twin whose
+    # label half could not pay a published form said nothing at all
+    # about it (review round 2 of this landing, item 5). The half is
+    # handed over as the column it is, with the cells the split puts in
+    # it, and the whole body below then runs unchanged.
+    half = _label_half_of(column, written)
+    if half is not None:
+        return _form_notes(half[0], half[1])
+    facts = column.facts
+    census: "dict[str, int]" = {}
+    if isinstance(facts, contract.LabelFacts):
+        census = facts.shape_forms
+    elif isinstance(facts, contract.TextFacts):
+        census = facts.shape_forms
+    if not census:
+        return []
+    pooled = 0
+    if contract.WITHHELD in census:
+        pooled = census[contract.WITHHELD]
+    # THE COLUMN'S OWN ABSENT CELLS ARE NOT PRESENT CELLS, and this
+    # counted them (review round 2 finding 11). A twin reproduces the
+    # spellings its source's absent cells wore (7.7), so a column whose
+    # holes were written `N/A` has eleven twin cells wearing the form
+    # `@/@` -- and the census counts PRESENT cells. The note therefore
+    # accused a twin the validator, which excludes them correctly, had
+    # just called conforming.
+    holes = _hole_spellings(column)
+    counted: "dict[str, int]" = {}
+    for cell in written:
+        if cell == "":
+            continue
+        if _wears_a_published_hole(cell, holes):
+            # THE RECOUNTING HALF, not the conservative one. The
+            # question here is whether THIS COLUMN'S DESCRIPTION reads
+            # the cell as absent, and raw membership answered a
+            # narrower question -- so a hole the twin wrote in another
+            # case was counted as a present cell and a conforming twin
+            # was accused (review round 2 finding 11).
+            continue
+        form = parsing.shape_form(cell)
+        if not form:
+            continue
+        if form in counted:
+            counted[form] = counted[form] + 1
+            continue
+        counted[form] = 1
+    sense = (
+        "The description says how many of this column's cells were "
+        "written in each SHAPE -- every figure of a cell read as `%`, "
+        "every letter as `@`, the marks between them standing -- and "
+        "the twin wrote a different number of them that way. Code "
+        "developed against the twin that splits a value on a mark, "
+        "checks the width of a part, or matches a pattern can behave "
+        "differently on the real table."
+    )
+    notes: "list[Deviation]" = []
+    for form in sorted(census):
+        if form == contract.WITHHELD:
+            continue
+        found = counted[form] if form in counted else 0
+        if census[form] <= found <= census[form] + pooled:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "shape_forms",
+                f"{census[form]} cell(s) written in the shape {form}",
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
+def _level_form_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a level whose cells did not reach its own form count.
+
+    `shape_form_cells` is EXACT-OBSERVABLE (7.4.8, plan amendment
+    A-P4-47) and the walk that covers it has two bounded places it can
+    fall short: the case flips that keep a label's form run out, or the
+    held-back group sizes cannot be added up to the debt at all. Either
+    way the twin writes a trailing space, whose form is none, and this
+    is the line that says so -- in the file written beside the twin,
+    rather than only in a quality report somebody might not run.
+
+    THIS IS A RECOUNT, taken off the finished text with the same reader
+    the fact itself is measured with, so it names what the twin ACTUALLY
+    wears and not what the walk asked for. `_form_notes` above states
+    the same rule for the column-wide census.
+
+    THE TWO ARE SEPARATE FACTS AND NEITHER IS THE OTHER'S SUM
+    (residual R-P4-80): the column census pools below the floor,
+    refuses a form the column has no room for, and counts the cells of
+    levels the floor held back, none of which any level's own number
+    can see.
+    """
+    # ...AND THE SAME FOR THE PER-LEVEL HALF OF THE CENSUS, on the same
+    # terms and for the same reason.
+    half = _label_half_of(column, written)
+    if half is not None:
+        return _level_form_notes(half[0], half[1])
+    facts = column.facts
+    if not isinstance(facts, contract.LabelFacts):
+        return []
+    # THE COLUMN'S OWN ABSENT CELLS ARE NOT PRESENT CELLS, which is the
+    # correction review round 2 finding 11 made to `_form_notes` above
+    # and which this inherits rather than rediscovers: a twin
+    # reproduces the spellings its source's absent cells wore (7.7), and
+    # `shape_form_cells` counts the rows UNDER A PUBLISHED LABEL.
+    holes = _hole_spellings(column)
+    counted: "dict[str, int]" = {}
+    for cell in written:
+        if cell == "":
+            continue
+        if _wears_a_published_hole(cell, holes):
+            continue
+        if not parsing.shape_form(cell):
+            continue
+        key = parsing.folded(cell)
+        if key in counted:
+            counted[key] = counted[key] + 1
+            continue
+        counted[key] = 1
+    sense = (
+        "The description says how many of this label's rows wrote it in "
+        "the label's own SHAPE -- every figure of a cell read as `%`, "
+        "every letter as `@`, the marks between them standing -- and the "
+        "twin wrote a different number of them that way. Code developed "
+        "against the twin that splits a value on a mark, checks the "
+        "width of a part, or matches a pattern can behave differently on "
+        "the real table."
+    )
+    notes: "list[Deviation]" = []
+    for entry in facts.levels:
+        found = counted[entry.label] if entry.label in counted else 0
+        if found == entry.shape_form_cells:
+            continue
+        notes = notes + [
+            _deviation(
+                column.name,
+                "levels -> shape_form_cells",
+                (
+                    f"{entry.shape_form_cells} row(s) of one published "
+                    "label written in that label's own shape"
+                ),
+                f"{found}",
+                sense,
+            )
+        ]
+    return notes
+
+
 def _width_notes(
     column: contract.ColumnBlock, written: "list[str]"
 ) -> "list[Deviation]":
@@ -8444,7 +19205,7 @@ def _width_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     if not present:
         return []
     lengths = [len(cell) for cell in present]
@@ -8486,7 +19247,7 @@ def _class_notes(
     a group can be missed by a packing, and a packing that missed it in
     silence is the defect this closes (review item P2-C1-F1).
     """
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     counted = {name: 0 for name in _CLASSES}
     for cell in present:
         found = parsing.classify_number(cell)
@@ -8533,7 +19294,10 @@ def _whole_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    present = [parsing.trimmed(cell) for cell in written if cell != ""]
+    present = [
+        parsing.trimmed(cell)
+        for cell in _present_of(written, _hole_spellings(column))
+    ]
     whole = len(present) > 0
     for cell in present:
         if parsing.numeric_whole(cell) != parsing.WHOLE_YES:
@@ -8556,6 +19320,84 @@ def _whole_notes(
             "the width the description publishes, so a check that reads "
             "them as numbers can behave differently here than on the "
             "real table.",
+        )
+    ]
+
+
+def _mix_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name the form census a column read under the joint ISO reading loses.
+
+    `resolution_mix` is REPORT-ONLY and the plan says why: the twin
+    writes every parsed cell of such a column at the column's finest
+    recorded precision, exactly as the ratified rule writes every
+    column of dates today, because a cell spelled as a whole date
+    cannot carry an interior value of a column published at the
+    second. So the census is recorded and not reproduced -- and this is
+    where the report says so, per column, every run (plan P4-D4.3).
+
+    IT IS RECOUNTED RATHER THAN PREDICTED, like every other count in
+    this part of the report. The rule above says the twin writes no
+    whole dates at all, and a run that finds otherwise has found a
+    defect in itself; recounting is what lets the line say which it
+    was.
+
+    Only the joint reading reaches here. On a column read under one
+    format the census restates that format's own name beside the parsed
+    total, and the report already discloses the format as recorded
+    rather than reproduced, so a second line would name the same loss
+    twice.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return []
+    if facts.parser_family != contract.FORMAT_ISO_MIXED:
+        return []
+    counted = {"iso-date": 0, "iso-datetime": 0}
+    holes = _hole_spellings(column)
+    for cell in written:
+        if cell == "":
+            continue
+        # AND A CELL THE COLUMN'S OWN DECLARATION READS AS ABSENT IS
+        # NOT A DATE OF ANY FORM (review item P4-DATE-F2). Counting it
+        # would make this line say the twin wrote a value where its own
+        # description finds none.
+        if _wears_a_published_hole(cell, holes):
+            continue
+        if parsing.parse_datetime(cell, "iso-datetime") is not None:
+            counted["iso-datetime"] = counted["iso-datetime"] + 1
+            continue
+        if parsing.parse_datetime(cell, "iso-date") is not None:
+            counted["iso-date"] = counted["iso-date"] + 1
+    # THE TWO KEYS ARE THE LOADER'S OWN GUARANTEE. RM1 refuses a joint
+    # reading whose census names any other pair, so both are read
+    # straight rather than asked for with a stand-in value that would
+    # quietly answer zero if the pair ever changed.
+    published = facts.resolution_mix
+    whole_dates = published["iso-date"]
+    with_a_time = published["iso-datetime"]
+    if counted["iso-date"] == whole_dates:
+        if counted["iso-datetime"] == with_a_time:
+            return []
+    return [
+        _deviation(
+            column.name,
+            "resolution_mix",
+            f"{whole_dates} of these dates were written "
+            f"as a whole date and "
+            f"{with_a_time} carried a time of day",
+            f"{counted['iso-date']} of the twin's are written as a whole "
+            f"date and {counted['iso-datetime']} carry a time of day",
+            "The real column mixed the two ways of writing a date and "
+            "the twin writes them all the same way, at the finer of the "
+            "two, so code that reads these cells as text -- taking the "
+            "first ten characters, or testing how long a cell is -- can "
+            "behave differently here than on the real table. Code that "
+            "reads them as dates is unaffected: every cell of the twin "
+            "reads back as the same moment it would on the real table's "
+            "own terms, with a cell that carried no time of day placed "
+            "at midnight.",
         )
     ]
 
@@ -8613,9 +19455,29 @@ def _style_notes(
     and a reader who went looking for either number in the description
     alone would not find it, so the note names both.
     """
-    facts = column.facts
-    if not isinstance(facts, contract.NumericFacts):
+    # THE AFFIXED ROLE IS READ OVER ITS CORES HERE TOO. Its
+    # quantitative block IS the numeric block (P4-D4.1), styles map
+    # included, so a styles obligation it could not meet is owed the
+    # same sentence a plain numeric column gets. Returning empty for
+    # `AffixedFacts` meant an unmet EXACT count was reported on one
+    # role and silent on the other, with the same facts underneath.
+    facts = _quantitative_facts(column)
+    if facts is None:
         return []
+    # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
+    # facts this recount is compared against are the commonest
+    # wrapper's (plan P4-D37), so the population it counts is that
+    # wrapper's -- and asking `startswith`/`endswith` on the one pair
+    # gave it every cell of every wrapper whose spelling ends the same
+    # way, `12.0  kg` counting for ` kg` as well as for `  kg` (review
+    # round 3, item 3).
+    prefix = ""
+    suffix = ""
+    vocabulary: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        prefix = column.facts.affix_prefix
+        suffix = column.facts.affix_suffix
+        vocabulary = _vocabulary_of(column.facts)
     published = {name: 0 for name in contract.NUMERIC_STYLES}
     for name in sorted(facts.numeric_styles):
         if name != contract.WITHHELD:
@@ -8623,9 +19485,24 @@ def _style_notes(
     pooled = _style_pool(facts.numeric_styles)
     counted = {name: 0 for name in contract.NUMERIC_STYLES}
     pointless = 0
-    for cell in written:
-        if cell == "":
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
+        trimmed = parsing.trimmed(cell)
+        body = trimmed
+        if vocabulary:
+            if _worn_here(trimmed, vocabulary) != (prefix, suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        elif prefix or suffix:
+            if not trimmed.startswith(prefix):
+                continue
+            if not trimmed.endswith(suffix):
+                continue
+            body = trimmed[len(prefix) : len(trimmed) - len(suffix)]
+            if not body:
+                continue
+        cell = body
         if parsing.classify_number(cell) != parsing.NUMBER:
             continue
         counted[parsing.numeric_style(cell)] = (
@@ -8734,8 +19611,12 @@ def _style_notes(
     # trade one canonical form for the other.
     for name in ("decimal", "exponent_lower"):
         odd = 0
-        for cell in written:
-            if cell == "" or parsing.numeric_style(cell) != name:
+        for cell in _present_of(written, _hole_spellings(column)):
+            # THE SECONDARY LOOP OWES THE SAME RULE AS THE MAIN ONE
+            # (review round 3 finding 4). One reproduced hole spelled
+            # `1.00` counted as a non-canonical decimal on a column
+            # publishing none.
+            if parsing.numeric_style(cell) != name:
                 continue
             if parsing.classify_number(cell) != parsing.NUMBER:
                 continue
@@ -8794,11 +19675,20 @@ def _magnitude_notes(
     negative = 0
     positive = 0
     sign_unknown = 0
-    for cell in written:
-        if cell == "":
-            continue
-        if parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
-            continue
+    for cell in _present_of(written, _hole_spellings(column)):
+        # A cell the column's own description reads as absent is not a
+        # present cell (review round 3 finding 4) -- but a cell that
+        # is not a NUMBER still is, and this used to skip those
+        # (review round 4 finding 6).
+        #
+        # This role tolerates a slack of ordinary-text stragglers, and
+        # they are exactly what `n_whole_unknown` and `n_sign_unknown`
+        # count: a word settles no sign and settles no whole-number
+        # status, which is what the readers say of it. Skipping them
+        # recounted both as zero on a column publishing two, and
+        # accused a twin that had written them correctly. They fall
+        # into the two `unknown` arms below on their own; nothing else
+        # here has to know they are words.
         sign = parsing.numeric_sign(cell)
         if sign == parsing.SIGN_NEGATIVE:
             negative = negative + 1
@@ -8919,52 +19809,67 @@ def _summed(values: "list[float]") -> float:
 
 
 def _mean_of(values: "list[float]") -> float:
-    """The arithmetic mean of a non-empty list, in list order."""
-    return _summed(values) / len(values)
+    """The arithmetic mean of a non-empty list, in list order.
+
+    DIVIDED BEFORE IT IS SUMMED WHERE THE SUM HAS NO ANSWER (review
+    item P4-G6-R2-F3). A column's mean can sit well inside the
+    representable range while the TOTAL of its values does not: sixty
+    readings near 1e308 have a mean near 1e308 and a sum near 6e309.
+    `_summed` then carried an infinity, its compensation term became a
+    NaN, and the twin's own report printed `the twin holds: nan` for
+    the mean of a twin whose mean is an ordinary number -- and a range
+    of `nan to nan` beside it, which is a report saying something
+    false rather than saying nothing.
+
+    The plain form is kept wherever it answers, so every column that
+    already had a mean keeps exactly the bytes it had; the divided form
+    is reached only where the other has none. Both are a fixed function
+    of the list order, which is what the report's bytes rest on.
+    """
+    held = len(values)
+    total = _summed(values)
+    if math.isfinite(total):
+        return total / held
+    return _summed([value / held for value in values])
 
 
 def _moments_of(
     values: "list[float]",
-) -> "tuple[float, float | None, float | None]":
-    """The three moments the description publishes, from the twin's cells.
+) -> "tuple[float, float | None, float | None, float | None]":
+    """The four moments the description publishes, from the twin's cells.
 
-    The FORMULAS are the profiler's, so that the two numbers the report
-    puts side by side are the same statistic: the arithmetic mean; the
-    SAMPLE standard deviation, divided by one less than the count; and
-    the moment skewness, the average cubed deviation over the cube of
-    the POPULATION standard deviation. The standard deviation is None
-    for fewer than two values and the skewness is None for fewer than
-    three or where every value is identical, exactly as the contract's
-    Q4 and Q5 say the published fields are.
+    ONE IMPLEMENTATION, AND IT IS THE PROFILER'S (review items
+    P4-G6-R5-F1 and P4-G6-R5-F2). The two numbers this report puts side
+    by side -- what the description says and what the twin holds -- are
+    only the same statistic if they are computed the same way, and this
+    function recounted them from the finished cells in binary64 while
+    the description's own were worked out exactly over whole numbers.
 
-    The arithmetic is ordinary binary64 in a fixed order, with the sum's
-    lost part carried; the deviations are scaled as they are summed, so
-    a column whose spread the format can hold cannot overflow on the way
-    to its own spread.
+    Five review rounds of this landing kept finding the gap between
+    those two arithmetics, one column shape at a time: a variance whose
+    square has nowhere to go, a difference that overflows before it can
+    be scaled, a deviation so small its square underflows to nothing.
+    Each time the recount returned None and the report -- which prints
+    a line only where the value is not None -- said NOTHING AT ALL
+    about three facts the description publishes. Chasing that one
+    expression at a time is what four of those rounds did.
+
+    `taxonomy.moments_of` forms neither the square nor the difference,
+    so there is no column shape left for this to be wrong on, and the
+    number printed beside the published one is now the correctly
+    rounded value of the same exact statistic rather than a second
+    approximation of it.
+
+    THE PROFILE/GENERATOR BOUNDARY IS UNTOUCHED. What the charter
+    forbids is a module that opens a table being in this one's import
+    graph at any instant; `taxonomy` imports `math` and `parsing` and
+    nothing else, and reads no file. It is the module whose published
+    numbers this report is measured against.
     """
-    held = len(values)
-    mean = _mean_of(values)
-    if held < 2:
-        return (mean, None, None)
-    spread = _summed(
-        [(value - mean) * (value - mean) / held for value in values]
-    )
-    if not math.isfinite(spread) or spread <= 0:
-        return (mean, 0.0 if spread == 0 else None, None)
-    deviation = math.sqrt(spread) * math.sqrt(held / (held - 1))
-    if held < 3:
-        return (mean, deviation, None)
-    root = math.sqrt(spread)
-    shape = _summed(
-        [
-            ((value - mean) / root)
-            * ((value - mean) / root)
-            * ((value - mean) / root)
-            / held
-            for value in values
-        ]
-    )
-    return (mean, deviation, shape)
+    mean, spread, shape, tails = taxonomy.moments_of(values)
+    if mean is None:
+        return (0.0, None, None, None)
+    return (mean, spread, shape, tails)
 
 
 def _rung_of(ordered: "list[float]", percent: int) -> float:
@@ -8996,8 +19901,36 @@ def _figure(value: float) -> str:
     return f"{value}"
 
 
+# WHAT A BOUND WITH NO END READS AS. Method G12 fixes a two-sided bound
+# for every APPROXIMATED fact, and on a column that reaches across the
+# whole range of this format one of those two ends can be a number the
+# format cannot write. `inf` is not a bound a reader can act on, and
+# printing it says the opposite of what is true: a bound with no end
+# admits every value there is, so it proves nothing about the twin.
+_NO_END = "any value this format can write"
+
+
+def _bound_figure(value: float) -> str:
+    """One END of a bound, written for the report (item P4-G6-R4-F1).
+
+    THE SAME PLACE THE VALIDATOR PUTS ITS OWN GUARD, and for the same
+    reason. Three review rounds each guarded the arithmetic that
+    produces a bound and the next round found the overflow one step
+    further along; what closes it is guarding the point where the
+    number is RECORDED. Every end of every bound in the twin report
+    goes through here, so an end that is not a number cannot reach the
+    page whatever expression produced it.
+    """
+    if not math.isfinite(value):
+        return _NO_END
+    return f"{value}"
+
+
 def _numeric_window(
-    rungs: "tuple[float, ...]", held: int, widest: int, slack: float
+    rungs: "tuple[float, ...]",
+    held: int,
+    widest: int,
+    slack: float,
 ) -> "tuple[list[float], list[float], list[float]]":
     """The window every RANK of a column of numbers sits in (method G12.2).
 
@@ -9045,8 +19978,21 @@ def _inside(value: float, lowest: float, highest: float) -> bool:
     return lowest <= value <= highest
 
 
+def _at_a_named_width(cell: str, style: str, named: "dict[int, int]") -> bool:
+    """Whether this padded cell wears a field width the census names.
+
+    Read off the cell's own text, because this is a recount and a width
+    the writer intended is not a width the cell wears.
+    """
+    if style != parsing.STYLE_LEADING_ZERO:
+        return False
+    return parsing.pad_width(cell) in named
+
+
 def _numeric_supply(
-    layout: "_NumericLayout", written: "list[str]"
+    layout: "_NumericLayout",
+    written: "list[str]",
+    pad_widths: "dict[str, int]",
 ) -> "tuple[int, int]":
     """How many spellings and identities this column's own cells can hold.
 
@@ -9067,6 +20013,16 @@ def _numeric_supply(
       shape of the corner G12.8 names, where the whole-number rule of
       G5.4 rounds two strata onto one value and no spelling rule brings
       the second back.
+    - A PADDED CELL AT A NAMED FIELD WIDTH IS THE ONE EXCEPTION to the
+      family rule above, and it is the exception method G12.8 states
+      (plan P4-D14). Every order of the leading-zero family writes one
+      more figure, so where `pad_widths` names a cell's width the
+      family is spent: that value has exactly one padded spelling at
+      that width, and such a group supplies ONE, like a plain group.
+      Counting those cells one apiece put this report's bound above the
+      validator's on the same twin -- two surfaces disagreeing about
+      one method's formula, which is the defect a shared formula
+      exists to prevent.
     - Each other class supplies what its own share of the budget allows,
       never more than its cell count.
 
@@ -9076,8 +20032,13 @@ def _numeric_supply(
     bound able to fail.
     """
     present = [cell for cell in written if cell != ""]
+    named: dict[int, int] = {}
+    for key in sorted(pad_widths):
+        if key == contract.WITHHELD:
+            continue
+        named[int(key)] = pad_widths[key]
     counted = {name: 0 for name in _CLASSES}
-    seen: dict[tuple[float, str], int] = {}
+    seen: dict[tuple[float, str, int], int] = {}
     raw_room = 0
     folded_room = 0
     for cell in present:
@@ -9089,12 +20050,23 @@ def _numeric_supply(
         if value is None:
             continue
         style = parsing.numeric_style(cell)
-        if style != "plain":
+        if style != "plain" and not _at_a_named_width(cell, style, named):
             raw_room = raw_room + 1
             folded_room = folded_room + 1
             continue
-        if (value, style) not in seen:
-            seen[(value, style)] = 1
+        # THE FIELD WIDTH IS PART OF THE KEY, not a detail below it. One
+        # value at two named widths is TWO spellings -- `01` and `001`
+        # are the same number and different identities -- so a group
+        # keyed by value and style alone collapsed all three widths of
+        # a column publishing three and reported a supply of one. The
+        # validator meanwhile allowed one identity per named width, so
+        # the twin's own report and the check disagreed about the same
+        # twin, which is the failure a shared formula exists to stop.
+        field = -1
+        if style == parsing.STYLE_LEADING_ZERO:
+            field = parsing.pad_width(cell)
+        if (value, style, field) not in seen:
+            seen[(value, style, field)] = 1
             raw_room = raw_room + 1
             folded_room = folded_room + 1
     for place in range(1, len(_CLASSES)):
@@ -9125,8 +20097,11 @@ def _numeric_cardinalities(
     layout = plan.layout
     if layout is None:
         return []
-    supply = _numeric_supply(layout, written)
-    counted = _recounted(written)
+    facts = _quantitative_facts(column)
+    supply = _numeric_supply(
+        layout, written, facts.pad_widths if facts is not None else {}
+    )
+    counted = _recounted(written, _hole_spellings(column))
     found: list[Approximation] = []
     for place, name, room, note in (
         (
@@ -9162,11 +20137,427 @@ def _numeric_cardinalities(
     return found
 
 
+def _compound_cardinalities(
+    column: "contract.ColumnBlock",
+    facts: "contract.CompoundFacts",
+    plan: "_ColumnPlan",
+    numeric: "list[str]",
+    written: "list[str]",
+) -> "list[Approximation]":
+    """The counts of different cells this role sends to an envelope.
+
+    REVIEW ROUND 5 OF LANDING L8, item 3. Contract 9.4b sends all four
+    to a two-sided envelope, and the report carried none of them: a
+    twin whose numeric half fell short was told so as an unconditional
+    deviation, with no range beside it, so a reader could not see
+    whether the shortfall was one the description's own spellings made
+    unavoidable.
+
+    THE HALF'S TWO ARE RENAMED, exactly as a joined position's are.
+    `_numeric_cardinalities` builds them from the view, which carries
+    the HALF's counts, and calls them `n_distinct` -- the identifier
+    the whole column's count is reported under. Two facts under one
+    name on one page is the fault that withdrew the joined role's
+    first report, and round 4 of this landing found it here.
+
+    THE LABEL HALF HAS A WINDOW OF ITS OWN, which round 6 found this
+    assuming away (item 1). A first writing built the outer window by
+    shifting the numeric half's by the label half's PUBLISHED count --
+    which says the label half is always exact. It need not be: a half
+    of `alpha`, `Alpha`, `beta` and `Beta` whose variants the floor
+    holds back supplies three spellings for a published four, and the
+    outer record then said the twin held 44 of 44 while the same page
+    said 44 against 43.
+
+    So each half is MEASURED and bounded on its own, and the outer
+    pair is the two halves added -- both ends and the achieved count.
+    """
+    holes = _hole_spellings(column)
+    labels: "list[str]" = []
+    for cell in _present_of(written, holes):
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            labels = labels + [cell]
+    inner = _numeric_cardinalities(
+        contract.compound_numbers_view(column), plan, numeric
+    )
+    label_supply = _label_supply(facts.labels)
+    label_raw = len({cell: 1 for cell in labels})
+    label_folded = len(
+        {parsing.folded(parsing.trimmed(cell)): 1 for cell in labels}
+    )
+    found: "list[Approximation]" = []
+    for record in inner:
+        folded = record.fact == "n_distinct_folded"
+        name = "n_numeric_distinct_folded" if folded else "n_numeric_distinct"
+        found = found + [
+            dataclasses.replace(
+                record,
+                fact=name,
+                note="how many different ways the numbers in this "
+                "column are written",
+            )
+        ]
+        # The label half's own record, under the label group's bound:
+        # the spellings its published levels and variants supply
+        # against the count it publishes.
+        published_labels = (
+            facts.n_label_distinct_folded if folded else facts.n_label_distinct
+        )
+        reached_labels = label_folded if folded else label_raw
+        # FOLDING IS NOT A SPELLING QUESTION (V4.1): however few
+        # spellings the variants supply, the folded identities are
+        # settled by the published levels, so only the RAW count takes
+        # the label envelope.
+        low_labels = published_labels
+        high_labels = published_labels
+        if not folded:
+            low_labels = min(label_supply, published_labels)
+            high_labels = max(label_supply, published_labels)
+        # ONLY THE RAW COUNT IS AN APPROXIMATION (review round 7 of
+        # this landing, item 2). The label half's FOLDED count is
+        # exact by 9.4b -- folding is not a spelling question and the
+        # published levels settle it -- so a record for it sat in the
+        # approximated section at `2..2`, under a heading saying the
+        # method could not land exactly, and counted itself into the
+        # total. Its arithmetic is still used below, where the outer
+        # window needs it.
+        if not folded:
+            found = found + [
+                Approximation(
+                    column=column.name,
+                    fact="labels -> n_distinct",
+                    published=f"{published_labels}",
+                    achieved=f"{reached_labels}",
+                    lowest=f"{low_labels}",
+                    highest=f"{high_labels}",
+                    inside=low_labels <= reached_labels <= high_labels,
+                    note="how many different ways the words in this "
+                    "column are written",
+                    covers_published=True,
+                )
+            ]
+        whole = column.n_distinct_folded if folded else column.n_distinct
+        low = int(record.lowest) + low_labels
+        high = int(record.highest) + high_labels
+        reached = int(record.achieved) + reached_labels
+        found = found + [
+            Approximation(
+                column=column.name,
+                fact="n_distinct_folded" if folded else "n_distinct",
+                published=f"{whole}",
+                achieved=f"{reached}",
+                lowest=f"{min(low, whole)}",
+                highest=f"{max(high, whole)}",
+                inside=min(low, whole) <= reached <= max(high, whole),
+                note="how many different values this column holds",
+                covers_published=True,
+            )
+        ]
+    return found
+
+
+def _joined_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    plan: "_ColumnPlan",
+    written: "list[str]",
+) -> "list[Approximation]":
+    """Every approximated fact of a joined column (residual R-P4-44).
+
+    THE DEFECT THIS CLOSES. A twin of this role carried a report saying
+    it gave nothing up, while every position's ladder is approximated
+    by construction and the role's own decision calls `part_agreements`
+    approximated too. A plain numeric column of the same values names
+    fifteen approximations; this role named none.
+
+    THE FIRST ATTEMPT WAS WITHDRAWN FOR FOUR FAULTS, and each is
+    answered here rather than hoped past:
+
+    * it printed per-position comparisons of facts the profile
+      publishes for NO position. Only the rungs and the four moments
+      are built here, and every one of those is published by each
+      position's own block;
+    * both positions printed as "this column", with `percentiles.p01`
+      appearing twice at different values and nothing to tell them
+      apart. Every record now NAMES its position, in the identifier a
+      reader greps for and in the sentence they read;
+    * an unsplit stand-in `text-1` splits on `-` into two pieces and
+      was measured into position two. A cell counts for a position only
+      where it splits into exactly the published number of pieces AND
+      every piece reads as a number, which a stand-in never does;
+    * `part_agreements`, the one fact this role's own decision calls
+      approximated, was not measured at all. It is measured here,
+      against the window of method G12.9.
+    """
+    found: "list[Approximation]" = []
+    for place in range(facts.n_parts):
+        view = _part_view(column, place)
+        layout, _notes, _content = _numeric_layout(
+            view, facts.parts[place], facts.parts[place].n_distinct_values
+        )
+        part_plan = dataclasses.replace(plan, column=view, layout=layout)
+        mine = _joined_position_numbers(written, facts, place)
+        named = _position_words(place)
+        for one in _numeric_approximations(
+            view, facts.parts[place], part_plan, mine, named, False
+        ):
+            found = found + [
+                dataclasses.replace(
+                    one,
+                    column=column.name,
+                    fact=f"parts[{place}].{one.fact}",
+                )
+            ]
+    return found + _agreement_approximations(column, facts, written)
+
+
+def _agreement_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.JoinedFacts,
+    written: "list[str]",
+) -> "list[Approximation]":
+    """How strongly two positions moved together, measured (G12.9).
+
+    EVERY PAIR IS APPROXIMATED, AND THE WINDOW REACHES ALL OF THEM
+    (residual R-P4-51, closed by landing L7). The pairing walk of
+    G6B.4 moved the LAST position and no other, so a pair between two
+    EARLIER positions was neither moved nor scored -- it could come out
+    at `+1` against a published `-1`, fifty times the window, which is
+    not an approximation of anything, and the twin's report named such
+    a pair as a plain deviation instead. The walk now moves every
+    position but the first, so every pair has a member it moves and
+    every pair is aimed at: measured over 2,160 pairs of a
+    twelve-column battery of three- and four-position columns at forty
+    seeds, 960 of them between two earlier positions, every one of
+    those 960 came out further from its published value than the window
+    before and 407 of them do now, while their above-counts went from
+    945 missed of 960 to one.
+
+    So the branch that named such a pair as a deviation with no window
+    is gone rather than left standing, because a branch nothing can
+    reach is a branch no test can hold to its word.
+
+    `part_above` carries no window at all and is not measured here: a
+    row of it is a reading that cannot happen.
+    """
+    found: "list[Approximation]" = []
+    columns: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        numbers: "list[float]" = []
+        for text in _joined_position_numbers(written, facts, place):
+            value = parsing.parse_number(text)
+            if value is not None:
+                numbers = numbers + [value]
+        columns = columns + [numbers]
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if seat >= len(facts.part_agreements):
+                break
+            published = facts.part_agreements[seat]
+            # AT THE PRECISION THE DESCRIPTION PUBLISHES, because the
+            # published value is rounded there and a fact cannot be
+            # inside its window for one command and outside it for the
+            # other. The profiler rounds what it publishes; anything
+            # measuring a twin against it rounds the same way.
+            achieved = round(
+                _rank_agreement(columns[first], columns[second]),
+                parsing.RANK_AGREEMENT_PLACES,
+            )
+            moving = f"how strongly {_position_words(first)} and " + (
+                f"{_position_words(second)} rise and fall together"
+            )
+            # INCLUSIVE, AND SUBTRACTION ROUNDS (review item
+            # P4-G6-R7-F1). Method G12.9 holds a pair to `<= 0.02`,
+            # and `published - 0.02` in binary64 can land a hair ABOVE
+            # the value exactly 0.02 below it -- on a published 0.2487
+            # the difference comes out 0.22870000000000001, so a file
+            # agreeing at exactly 0.2287 was reported MISSED against a
+            # rule that admits it. Both ends step one place outward,
+            # which admits exactly what the rule admits and nothing
+            # else.
+            lowest = _lowered(published - _AGREEMENT_REACH)
+            highest = _raised(published + _AGREEMENT_REACH)
+            found = found + [
+                Approximation(
+                    column=column.name,
+                    fact=f"part_agreements[{seat}]",
+                    published=_figure(published),
+                    achieved=_figure(achieved),
+                    lowest=_bound_figure(lowest),
+                    highest=_bound_figure(highest),
+                    inside=_inside(achieved, lowest, highest),
+                    note=moving,
+                    covers_published=True,
+                )
+            ]
+            seat = seat + 1
+    return found
+
+
+def _agreement_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """A published `part_above` the pairing did not reach (R-P4-51).
+
+    ONE FACT IS LEFT HERE AND IT IS THE COUNT OF ROWS. `part_above` is
+    an exact count with no window at all -- a row out of it is one cell
+    holding a reading that cannot happen -- so where the pairing missed
+    it, the twin's own report says so, for every pair.
+
+    THE AGREEMENTS LEFT THIS FUNCTION IN LANDING L7. While the walk of
+    G6B.4 moved the LAST position and no other, a pair between two
+    earlier positions was aimed at by nothing, could come out at `+1`
+    against a published `-1`, and was named here as a plain deviation
+    rather than dressed as an approximation inside a window the method
+    denied applying to it (review item P4-G3-R1-F3). The walk now moves
+    every position but the first, so every pair is aimed at and every
+    pair is APPROXIMATED against G12.9 by `_agreement_approximations`.
+    The branch is gone rather than left unreachable.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        return []
+    columns: "list[list[float]]" = []
+    for place in range(facts.n_parts):
+        numbers: "list[float]" = []
+        for text in _joined_position_numbers(written, facts, place):
+            value = parsing.parse_number(text)
+            if value is not None:
+                numbers = numbers + [value]
+        columns = columns + [numbers]
+    found: "list[Deviation]" = []
+    # `part_above` FOR EVERY PAIR, because a miss of it is a fact the
+    # twin does not carry and the reader has to be told (review item
+    # P4-G3-R2-F3). This report named it on NO pair at all: measured
+    # over twelve random three-position columns, twelve of twelve
+    # missed the count between their two earlier positions and the
+    # twin's own report was silent on all twelve, while `synthtwin
+    # validate` on the same twin reported it every time. The two pages
+    # of one run must not disagree about whether something happened.
+    seat = 0
+    for first in range(facts.n_parts):
+        for second in range(first + 1, facts.n_parts):
+            if seat >= len(facts.part_above):
+                break
+            held = 0
+            for row in range(min(len(columns[first]), len(columns[second]))):
+                if columns[first][row] > columns[second][row]:
+                    held = held + 1
+            published_above = facts.part_above[seat]
+            if held != published_above:
+                found = found + [
+                    Deviation(
+                        column=column.name,
+                        fact=f"part_above[{seat}]",
+                        published=f"{published_above}",
+                        achieved=f"{held}",
+                        note=(
+                            f"how many rows hold {_position_words(first)} "
+                            f"above {_position_words(second)}. "
+                            "Code you write against this twin must not "
+                            "rely on how often one of these two is the "
+                            "larger"
+                        ),
+                    )
+                ]
+            seat = seat + 1
+    return found
+
+
+def _rank_agreement(first: "list[float]", second: "list[float]") -> float:
+    """The rank agreement of two positions, by the method's own rule.
+
+    THIS IS A DELEGATION AND THAT IS THE POINT (review item
+    P4-G3-R1-F1). It used to be a second implementation of the
+    convention G6B.4 step 4 fixes -- zero-based average ranks taken
+    about `(T - 1) / 2` -- written out beside the profiler's own. The
+    two agreed on every column whose positions both varied and
+    disagreed on the one case neither author thought about: where a
+    position holds one value repeated, there are no ranks to agree on,
+    the profiler answers `0.0`, and this answered "no number at all".
+    So a column of `1/2, 1/3, 1/4` published agreement `0.0`, the
+    pairing walk aimed at `0.0` and hit it, the validator measured
+    `0.0` and passed the file -- and the twin's own report printed
+    "nothing", called it outside the window and raised a deviation
+    against a fact the twin had met exactly.
+
+    Two implementations of one convention are two chances to disagree,
+    and the fix is not to correct the copy but to stop keeping one.
+    """
+    return parsing.rank_agreement(first, second)
+
+
+_INTERNAL_NOT_TEXT = "internal check: a twin's cell was not text"
+
+# The window a joined column's rank agreement is approximated inside,
+# stated by method G12.9 and read from there rather than chosen here.
+# The validator holds a checked file to the same number, and the two
+# must not drift: a report that promised one reach while the check used
+# another would call a twin sound and a file of the same numbers not.
+_AGREEMENT_REACH = parsing.RANK_AGREEMENT_WINDOW
+
+_POSITION_WORDS = (
+    "the first number in each cell",
+    "the second number in each cell",
+    "the third number in each cell",
+    "the fourth number in each cell",
+)
+
+
+def _position_words(place: int) -> str:
+    """How a position is named to a reader, and never by index alone."""
+    if place < len(_POSITION_WORDS):
+        return _POSITION_WORDS[place]
+    return f"number {place + 1} in each cell"
+
+
+def _joined_position_numbers(
+    written: "list[str]", facts: contract.JoinedFacts, place: int
+) -> "list[str]":
+    """The numbers ONE position of a joined column actually wrote.
+
+    A CELL THAT DID NOT SPLIT BELONGS TO NO POSITION, and getting that
+    wrong is one of the four faults that withdrew the first attempt at
+    this: an unsplit stand-in `text-1` splits on `-` into two pieces,
+    and where the separator IS `-` it was measured into position two as
+    the number one. So splitting is not enough -- every piece must read
+    as a number before the cell counts, which a stand-in never does.
+    """
+    found: "list[str]" = []
+    for cell in written:
+        trimmed = parsing.trimmed(cell)
+        if not trimmed:
+            continue
+        pieces = _cut_at(trimmed, facts.separator)
+        if len(pieces) != facts.n_parts:
+            continue
+        every = True
+        for piece in pieces:
+            if parsing.classify_number(piece) != parsing.NUMBER:
+                every = False
+        if not every:
+            continue
+        found = found + [pieces[place]]
+    return found
+
+
+def _cut_at(cell: str, separator: str) -> "list[str]":
+    """One cell cut at its separator, behind the audit's type gate."""
+    if not isinstance(cell, str):
+        raise TypeError(_INTERNAL_NOT_TEXT)
+    if not isinstance(separator, str):
+        raise TypeError(_INTERNAL_NOT_TEXT)
+    return cell.split(separator)
+
+
 def _numeric_approximations(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     plan: "_ColumnPlan",
     written: "list[str]",
+    subject: str = "this column",
+    cardinalities: bool = True,
 ) -> "list[Approximation]":
     """The four approximated families of a column of numbers (G12.2, G12.3).
 
@@ -9191,16 +20582,17 @@ def _numeric_approximations(
             value
             for value in [
                 parsing.parse_number(cell)
-                for cell in written
-                if cell != ""
-                and parsing.classify_number(cell) == parsing.NUMBER
+                for cell in _present_of(written, _hole_spellings(column))
+                if parsing.classify_number(cell) == parsing.NUMBER
             ]
             if value is not None
         ]
     )
     held = len(values)
-    rungs = _filled_rungs(facts.percentiles.rungs)
+    rungs = _merged_rungs(facts)
     if held < 1 or rungs is None:
+        if not cardinalities:
+            return []
         return _numeric_cardinalities(column, plan, written)
     layout = plan.layout
     widest = held
@@ -9239,17 +20631,17 @@ def _numeric_approximations(
                 fact=f"percentiles.p{percent:02d}",
                 published=_figure(rung),
                 achieved=_figure(achieved),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(achieved, lowest, highest),
                 note=(
                     "the value that stands "
-                    f"{percent} percent of the way up this column"
+                    f"{percent} percent of the way up {subject}"
                 ),
                 covers_published=_inside(rung, lowest, highest),
             )
         ]
-    mean, deviation, shape = _moments_of(values)
+    mean, deviation, shape, tails = _moments_of(values)
     if facts.mean is not None:
         lowest = _mean_of(lows)
         highest = _mean_of(highs)
@@ -9259,10 +20651,10 @@ def _numeric_approximations(
                 fact="mean",
                 published=_figure(facts.mean),
                 achieved=_figure(mean),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(mean, lowest, highest),
-                note="this column's average",
+                note=f"the average of {subject}",
                 covers_published=_inside(facts.mean, lowest, highest),
             )
         ]
@@ -9273,7 +20665,31 @@ def _numeric_approximations(
         max(middles[rank] - lows[rank], highs[rank] - middles[rank])
         for rank in range(held)
     ]
-    reach = math.sqrt(_mean_of([step * step for step in steps]))
+    # THE SAME SCALING THE VALIDATOR'S OWN DISPLACEMENT TAKES, and it
+    # is here because this is the eighth site of one family and the
+    # first that no review round named -- it was found by looking for
+    # the siblings of the seven that were. `step * step` on a column
+    # around 1e200 is an infinity, `_mean_of` of a list of them is a
+    # NaN, and every comparison against a NaN window is false: the twin
+    # report would have said the twin landed OUTSIDE a range it never
+    # computed, which is a false sentence and not a withheld one.
+    #
+    # The plain form is kept wherever it answers, so no column that
+    # already had a window changes a byte, and the scaled form is
+    # reached only where the other has none.
+    reach: float = math.sqrt(_mean_of([step * step for step in steps]))
+    if not math.isfinite(reach):
+        # NAMED APART FROM THE STRATUM WIDTH ABOVE, which is a count of
+        # slots and is an integer; this is a SPREAD in the column's own
+        # units. One spelling for both made the strict type check read
+        # the second as the first.
+        largest = float(max(steps))
+        reach = 0.0
+        if math.isfinite(largest) and largest > 0.0:
+            scaled = [
+                (step / largest) * (step / largest) for step in steps
+            ]
+            reach = largest * math.sqrt(_mean_of(scaled))
     centre = _moments_of(middles)
     if facts.std is not None and deviation is not None:
         room = reach * math.sqrt(held / (held - 1))
@@ -9286,10 +20702,10 @@ def _numeric_approximations(
                 fact="std",
                 published=_figure(facts.std),
                 achieved=_figure(deviation),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(deviation, lowest, highest),
-                note="how far this column's values spread out",
+                note=f"how far the values of {subject} spread out",
                 covers_published=_inside(facts.std, lowest, highest),
             )
         ]
@@ -9301,13 +20717,40 @@ def _numeric_approximations(
                 fact="skew",
                 published=_figure(facts.skew),
                 achieved=_figure(shape),
-                lowest=_figure(lowest),
-                highest=_figure(highest),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
                 inside=_inside(shape, lowest, highest),
-                note="which side of this column's average is the longer tail",
+                note=(
+                    f"which side of the average of {subject} the longer "
+                    "tail falls"
+                ),
                 covers_published=_inside(facts.skew, lowest, highest),
             )
         ]
+    if facts.kurtosis is not None and tails is not None and held >= 4:
+        lowest, highest = _tails_window(lows, highs, middles, reach, held)
+        found = found + [
+            Approximation(
+                column=column.name,
+                fact="kurtosis",
+                published=_figure(facts.kurtosis),
+                achieved=_figure(tails),
+                lowest=_bound_figure(lowest),
+                highest=_bound_figure(highest),
+                inside=_inside(tails, lowest, highest),
+                note=f"how heavy the tails of {subject} are",
+                covers_published=_inside(facts.kurtosis, lowest, highest),
+            )
+        ]
+    if not cardinalities:
+        # A POSITION OF A JOINED COLUMN PUBLISHES NO DISTINCTNESS OF ITS
+        # OWN (residual R-P4-44). `n_distinct` and `n_distinct_folded`
+        # are facts about the whole CELL, and `_part_view` hands a
+        # position the cell's counts so the numeric rules have
+        # something to work with -- printing them back as that
+        # position's own is the first of the four faults that withdrew
+        # the earlier attempt at this report.
+        return found
     return found + _numeric_cardinalities(column, plan, written)
 
 
@@ -9335,7 +20778,7 @@ def _shape_window(
     reaches zero, which is what the contract asks an approximated fact
     for.
     """
-    ceiling = (held - 2) / math.sqrt(held - 1)
+    ceiling = _raised((held - 2) / math.sqrt(held - 1))
     floor_mean = _mean_of(lows)
     ceiling_mean = _mean_of(highs)
     low_cubes: list[float] = []
@@ -9356,10 +20799,156 @@ def _shape_window(
     low_cube = low_root * low_root * low_root
     high_cube = high_root * high_root * high_root
     if low_cube <= 0 or not math.isfinite(high_cube):
+        # THE CEILING IS ALREADY WIDENED and is not widened again
+        # (review item P4-G6-R8). The round before this one removed the
+        # double step from the branch below and left it here, and the
+        # register then said the double step had been caught. It had
+        # been caught in one of the two places it lived: on the three
+        # cells `-1e20`, `0` and `1` this fallback printed a range two
+        # places wide where the validator's own fallback prints one, so
+        # one run of `generate` beside `validate` stated two
+        # versions of G12.3
+        # again -- the very thing the step was added to stop.
         return (-ceiling, ceiling)
     lowest = lowest_shape / (low_cube if lowest_shape < 0 else high_cube)
     highest = highest_shape / (high_cube if highest_shape < 0 else low_cube)
+    # THE SAME OUTWARD STEP THE VALIDATOR'S COPY OF THIS WINDOW TAKES
+    # (review item P4-G6-R7-F3). The two modules may not import each
+    # other, so the only thing holding their arithmetic together is
+    # being written the same way -- and for one round they were not:
+    # the validator stepped both ends of its skew pair and this
+    # returned the clamped pair unstepped, so one run of the two
+    # commands printed two numerical versions of one method. On the
+    # values 1 to 60 at seed 7 the twin report gave the skew range as
+    # -2.2822033330635727 to 2.282203333063574 and the quality report
+    # gave -2.282203333063573 to 2.2822033330635754.
+    # THE CEILING IS ALREADY WIDENED, so the clamped pair is NOT
+    # widened again: two steps outward is a bound two places looser
+    # than the method states, and the point of the step is to admit
+    # exactly what the limit admits and nothing further.
     return (max(-ceiling, lowest), min(ceiling, highest))
+
+
+def _tails_window(
+    lows: "list[float]",
+    highs: "list[float]",
+    middles: "list[float]",
+    reach: float,
+    held: int,
+) -> "tuple[float, float]":
+    """The two ends of the kurtosis bound (method G12.3a).
+
+    THE SAME SHAPE AS THE SKEWNESS BOUND, one moment further along.
+    Kurtosis is a ratio too, so its bound comes from the bounds of its
+    two parts: the average FOURTH deviation is bounded by taking the
+    fourth power of the ends of each rank's own window, and the
+    population spread is bounded by the same displacement `reach` that
+    bounds the standard deviation. The ratio is then taken with the
+    signs division needs.
+
+    THE FOURTH POWER DOES NOT KEEP THE ORDER, which is the one place
+    this differs from the cube. Cubing a window's two ends leaves them
+    the ends; raising them to the fourth does not, because a window
+    straddling zero has its SMALLEST fourth power in the middle. So the
+    low end of each rank's contribution is zero where the window
+    straddles the mean, and the high end is the larger of the two ends
+    raised to the fourth.
+
+    Every sample of `held` values has a kurtosis between 1 and
+    `held - 2 + 1 / (held - 1)`, whatever the values are -- the top
+    reached exactly when one value stands apart from `held - 1` equal
+    ones -- so the window is intersected with that. The bound is
+    finite on both sides even where the spread's own lower end reaches
+    zero, which is what the contract asks an approximated fact for.
+    """
+    # BOTH LIMITS ARE WIDENED ONCE, HERE, AND NOWHERE ELSE (review
+    # items P4-G6-R6-F1 and P4-G6-R8). The tail weight of any sample
+    # lies between 1 and `held - 2 + 1 / (held - 1)`, and each of
+    # those two is a limit a statistic can sit exactly ON, so each is
+    # moved one place outward before anything is compared against it.
+    # Widening them HERE is what lets every path below -- the two
+    # fallbacks and the clamped pair alike -- use the same two
+    # numbers: this function used to return a bare `1.0` from its
+    # fallbacks and a widened one from its main path, so the low end
+    # of the window had two different widths depending on which
+    # branch a column took.
+    ceiling = _raised(held - 2 + 1 / (held - 1))
+    floor = _lowered(1.0)
+    floor_mean = _mean_of(lows)
+    ceiling_mean = _mean_of(highs)
+    spread = _moments_of(middles)
+    root = 0.0
+    if spread[1] is not None and held >= 2:
+        root = spread[1] * math.sqrt((held - 1) / held)
+    low_root = max(0.0, root - reach)
+    high_root = root + reach
+    if low_root <= 0.0 or not math.isfinite(high_root):
+        return (floor, ceiling)
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, and
+    # that ordering is the whole of this repair (review item
+    # P4-K-R1-F1). Raising first and dividing after is the same number
+    # in exact arithmetic and NOT the same computation in binary64: a
+    # perfectly ordinary column of a hundred values around 1e79 has
+    # deviations whose fourth power is not a number this format holds,
+    # and the validator raised `OverflowError` instead of writing a
+    # report at all. The ratio is bounded by the row count -- that part
+    # of the argument was right -- but the way to it was not.
+    #
+    # THE SPREAD ENTERS TO THE FOURTH POWER and not the second. The
+    # skewness divides an average CUBED deviation by the spread cubed;
+    # the kurtosis divides an average FOURTH deviation by the spread to
+    # the fourth. Squaring instead put a gaussian column's window at
+    # 107 to 298 around a published 3.
+    low_fourths: "list[float]" = []
+    high_fourths: "list[float]" = []
+    for rank in range(held):
+        below = lows[rank] - ceiling_mean
+        above = highs[rank] - floor_mean
+        # THE WINDOW MAY STRADDLE THE MEAN, and then no displacement
+        # inside it is forced to be away from zero at all.
+        nearest = 0.0
+        if below > 0.0:
+            nearest = below
+        if above < 0.0:
+            nearest = -above
+        furthest = max(-below, above, 0.0)
+        near = nearest / high_root
+        far = furthest / low_root
+        low_fourths = low_fourths + [near * near * near * near / held]
+        high_fourths = high_fourths + [far * far * far * far / held]
+    lowest = _summed(low_fourths)
+    highest = _summed(high_fourths)
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return (floor, ceiling)
+    # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the
+    # four-value extreme the two clamps can cross by one unit in the
+    # last place, and a window whose low end is above its high end
+    # excludes the very statistic it was drawn for (item P4-K-R1-F5).
+    lowest = max(floor, lowest)
+    highest = min(ceiling, highest)
+    # AND THE CLAMPED PAIR IS NOT WIDENED AGAIN. Both limits were moved
+    # one place outward where they were formed, so a window touching a
+    # limit already contains it; stepping the clamped pair as well is a
+    # bound TWO places looser than the method states, and the point of
+    # the step is to admit exactly what the limit admits and nothing
+    # further (review item P4-G6-R8, which found this after the same
+    # double step had been taken out of the skewness beside it).
+    #
+    # The two ends are still ORDERED before they are returned: on the
+    # four-value extreme the two clamps can cross by one unit in the
+    # last place, and a window whose low end is above its high end
+    # excludes the very statistic it was drawn for.
+    if lowest >= highest:
+        # AND ONLY A WINDOW WHOSE ENDS HAVE MET IS WIDENED FURTHER. The
+        # round that found the double step was right that it was two
+        # places on EVERY path and wrong that taking it out is safe: on
+        # the four-value extreme both ends clamp onto the same limit,
+        # and a window of no width sits one place above the statistic
+        # it was drawn for, so `test_the_window_is_never_the_wrong_way_
+        # round` went red the moment the second step came out. The
+        # second step is load-bearing exactly here and nowhere else.
+        return (_lowered(min(lowest, highest)), _raised(max(lowest, highest)))
+    return (lowest, highest)
 
 
 def _written_ordinal(
@@ -9376,7 +20965,7 @@ def _written_ordinal(
     found = _instant_written(cell, facts)
     if found is None:
         return None
-    if facts.resolution == "quarter":
+    if facts.resolution == "quarter" or facts.resolution == "month":
         if len(found) < 7:
             return None
         return _ordinal_of(found, facts.resolution)
@@ -9481,13 +21070,129 @@ def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
     return max(1, carried)
 
 
+def _clock_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    written: "list[str]",
+) -> "list[Approximation]":
+    """The two approximated families of a column of clock times.
+
+    The nine interior rungs against the window each rank was built in,
+    and the two distinctness counts against the envelope amendment
+    A-P4-20 fixes. Both are measured off the FINISHED cells and neither
+    is restated from what this module intended.
+    """
+    present = _present_of(written, _hole_spellings(column))
+    form = facts.clock_form
+    ordinals = sorted(
+        [
+            found
+            for found in [parsing.clock_ordinal(cell, form) for cell in present]
+            if found is not None
+        ]
+    )
+    held = len(ordinals)
+    ladder = [
+        _clock_ordinal_of(facts.clock_percentiles[name], form)
+        for name in _LADDER_NAMES
+    ]
+    lows, highs = _clock_windows(ladder, held)
+    found_facts: "list[Approximation]" = []
+    rungs = 10 if held >= 1 else 1
+    for step in range(1, rungs):
+        percent = _PCT[step]
+        place = min(held - 1, ((held - 1) * percent) // 100)
+        achieved = ordinals[place]
+        lowest = lows[place]
+        highest = highs[place]
+        found_facts = found_facts + [
+            Approximation(
+                column=column.name,
+                fact=f"clock_percentiles.p{percent:02d}",
+                published=facts.clock_percentiles[_LADDER_NAMES[step]],
+                achieved=parsing.clock_spelling(achieved, form),
+                lowest=parsing.clock_spelling(max(0, lowest), form),
+                highest=parsing.clock_spelling(highest, form),
+                inside=lowest <= achieved <= highest,
+                note=(
+                    "the time of day that stands "
+                    f"{percent} percent of the way up this column"
+                ),
+                covers_published=lowest <= ladder[step] <= highest,
+            )
+        ]
+    stand_ins = len(present) - held
+    lowest_count = _forced_apart(lows, highs) + stand_ins
+    reachable = ladder[10] - ladder[0] + 1
+    highest_count = min(len(present), reachable + stand_ins)
+    lowest_count = min(lowest_count, highest_count)
+    counted = _recounted(written, _hole_spellings(column))
+    for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
+        published = column.n_distinct
+        if place == 3:
+            published = column.n_distinct_folded
+        found_facts = found_facts + [
+            Approximation(
+                column=column.name,
+                fact=name,
+                published=f"{published}",
+                achieved=f"{counted[place]}",
+                lowest=f"{lowest_count}",
+                highest=f"{highest_count}",
+                inside=lowest_count <= counted[place] <= highest_count,
+                note=(
+                    "how many different values this column holds"
+                    if place == 2
+                    else "how many different values it holds, ignoring "
+                    "case and edge spacing"
+                ),
+                covers_published=lowest_count <= published <= highest_count,
+            )
+        ]
+    return found_facts
+
+
+def _clock_windows(
+    ladder: "list[int]", held: int
+) -> "tuple[list[int], list[int]]":
+    """The window every rank of a clock column was built in.
+
+    The two ends are PINNED and have no room at all; every rank between
+    them was interpolated inside one segment of the ladder, so it sits
+    between the ladder read at its own two shares, one unit lower at
+    the bottom for the flooring.
+    """
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for rank in range(held):
+        if rank == 0:
+            lows = lows + [ladder[0]]
+            highs = highs + [ladder[0]]
+            continue
+        if rank == held - 1 and held >= 2:
+            lows = lows + [ladder[10]]
+            highs = highs + [ladder[10]]
+            continue
+        lows = lows + [_ladder_at(ladder, rank, held) - 1]
+        highs = highs + [_ladder_at(ladder, rank + 1, held)]
+    return (lows, highs)
+
+
+def _ladder_at(ladder: "list[int]", numerator: int, denominator: int) -> int:
+    """One ladder read at one share, by the construction's own walk."""
+    step = _segment(numerator, denominator)
+    above = 100 * numerator - _PCT[step] * denominator
+    span = (_PCT[step + 1] - _PCT[step]) * denominator
+    return ladder[step] + (above * (ladder[step + 1] - ladder[step])) // span
+
+
 def _datetime_approximations(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     written: "list[str]",
 ) -> "list[Approximation]":
     """The two approximated families of a column of dates (G12.4, G12.5)."""
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     ordinals = sorted(
         [
             found
@@ -9562,7 +21267,7 @@ def _datetime_approximations(
         reachable * _spellings_of_a_date(facts) + stand_ins,
     )
     lowest_count = min(lowest_count, highest_count)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
         if place == 3:
@@ -9640,7 +21345,7 @@ def _text_approximations(
     that filled the groups AROUND those two, so it is measured against
     the pair the run actually used and never against an assumed one.
     """
-    present = [cell for cell in written if cell != ""]
+    present = _present_of(written, _hole_spellings(column))
     rows = len(present)
     if rows < 1:
         return []
@@ -9666,8 +21371,8 @@ def _text_approximations(
                 fact="length.mean",
                 published=_figure(facts.length.mean),
                 achieved=_figure(achieved / rows),
-                lowest=_figure(lowest / rows),
-                highest=_figure(highest / rows),
+                lowest=_bound_figure(lowest / rows),
+                highest=_bound_figure(highest / rows),
                 inside=lowest <= achieved <= highest,
                 note="how many characters a value holds on average",
                 covers_published=lowest <= wanted <= highest,
@@ -9760,8 +21465,8 @@ def _median_length(
             fact="length.p50",
             published=_figure(facts.length.p50),
             achieved=_figure(achieved),
-            lowest=_figure(float(lowest)),
-            highest=_figure(float(highest)),
+            lowest=_bound_figure(float(lowest)),
+            highest=_bound_figure(float(highest)),
             inside=_inside(achieved, float(lowest), float(highest)),
             note="the middle length: half the values are shorter",
             covers_published=_inside(
@@ -9818,8 +21523,8 @@ def _word_average(
             fact="words.mean",
             published=_figure(facts.words.mean),
             achieved=_figure(achieved / rows),
-            lowest=_figure(lowest / rows),
-            highest=_figure(highest / rows),
+            lowest=_bound_figure(lowest / rows),
+            highest=_bound_figure(highest / rows),
             inside=lowest <= achieved <= highest,
             note="how many words a value holds on average",
             covers_published=lowest <= wanted <= highest,
@@ -9866,7 +21571,7 @@ def _label_approximations(
     bound are exactly those two numbers.
     """
     supply = _label_supply(facts)
-    counted = _recounted(written)
+    counted = _recounted(written, _hole_spellings(column))
     lowest = min(supply, column.n_distinct)
     highest = max(supply, column.n_distinct)
     return [
@@ -9905,8 +21610,104 @@ def _approximations(
     numbers.
     """
     facts = column.facts
+    if isinstance(facts, contract.AffixedFacts):
+        # Measured over the CORES the written cells hold, because that
+        # is the population every approximated fact of this role is
+        # about. Without this the role reported no approximation at
+        # all, so a ladder that landed outside its own window said
+        # nothing -- the twin's report is where a person reads that,
+        # and it was silent.
+        # ONE SET OF RECORDS PER WRAPPER, each measured over that
+        # wrapper's own cells and against that wrapper's own layout
+        # (review round 3, item 3). The walk here split on the
+        # COMMONEST pair alone and reported the primary block only, so
+        # a column of a hundred kilograms beside a hundred pounds gave
+        # thirteen records where each wrapper owes fifteen -- and the
+        # split itself was not the longest-wrapper rule, so a ` kg`
+        # population swallowed the `  kg` cells beside it.
+        #
+        # THE LAYOUT IS REBUILT RATHER THAN CARRIED. A set's plan holds
+        # no layout of its own -- each wrapper's is made where its
+        # cells are made -- and `_numeric_layout` is a function of the
+        # view and the facts, so asking it again here gives the same
+        # answer the writer used. Handed the plan's `None`, the bounds
+        # took the whole population as their widest stratum and two
+        # cardinality records vanished.
+        held = _cores_worn(facts, written)
+        records: "list[Approximation]" = []
+        step = -1
+        for pair_view in _wrappers_of(facts, column):
+            view = pair_view[1]
+            numbers = pair_view[2]
+            layout, _notes, _content = _numeric_layout(
+                view, numbers, numbers.n_distinct_values
+            )
+            mine = dataclasses.replace(plan, column=view, layout=layout)
+            for record in _numeric_approximations(
+                view, numbers, mine, held[pair_view[0]]
+            ):
+                records = records + [
+                    dataclasses.replace(record, fact=_affixed_key(step, record.fact))
+                ]
+            step = step + 1
+        return records
+    if isinstance(facts, contract.JoinedFacts):
+        # RESIDUAL R-P4-44, CLOSED. This role reported no approximation
+        # at all, so a twin of a joined column carried a report saying
+        # it gave nothing up while every position's ladder is
+        # approximated by construction and this role's own decision
+        # calls `part_agreements` approximated too.
+        #
+        # A first attempt was built and WITHDRAWN for four faults, and
+        # `_joined_approximations` answers each of them by name rather
+        # than hoping past it: only per-position facts are built, every
+        # record names its position in the identifier and in the
+        # sentence, a cell counts for a position only where it splits
+        # into exactly the published pieces AND every piece reads as a
+        # number, and the agreement is measured against G12.9's window.
+        return _joined_approximations(column, facts, plan, written)
+    if isinstance(facts, contract.CompoundFacts):
+        # THE SAME OMISSION, A THIRD TIME (review round 1 of landing
+        # L8, item 3). It was found on the affixed role, repaired,
+        # not carried across to the joined role, found again as
+        # residual R-P4-44 -- and this role landed with the same
+        # silence: a compound twin's report said it gave nothing up
+        # while its numeric half's ladder and moments are approximated
+        # by construction.
+        #
+        # Measured over the numeric cells the twin actually wrote, by
+        # the role's own split rule, and handed to the same function a
+        # plain numeric column goes through over the same view the
+        # generator built the half from. The label half publishes no
+        # approximated fact.
+        numeric: list[str] = []
+        for cell in written:
+            if parsing.classify_number(cell) == parsing.NUMBER:
+                numeric = numeric + [cell]
+        return _numeric_approximations(
+            contract.compound_numbers_view(column),
+            facts.numbers,
+            plan,
+            numeric,
+            subject="the numbers in this column",
+            # THE HALF'S DISTINCTNESS IS NOT PRINTED UNDER THE COLUMN'S
+            # NAME, which is the fault that withdrew the joined role's
+            # first report and which this repeated (review round 4 of
+            # this landing, item 3). The view carries the HALF's counts
+            # so the numeric rules have something to work with, and
+            # `_numeric_cardinalities` would print them as `n_distinct`
+            # -- the same identifier the whole column's count is
+            # `_half_distinct_notes` reports the half's two under
+            # their own names, and the records with their WINDOWS are
+            # built below.
+            cardinalities=False,
+        ) + _compound_cardinalities(
+            column, facts, plan, numeric, written
+        )
     if isinstance(facts, contract.NumericFacts):
         return _numeric_approximations(column, facts, plan, written)
+    if isinstance(facts, contract.ClockFacts):
+        return _clock_approximations(column, facts, written)
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(column, facts, written)
     if isinstance(facts, contract.TextFacts):
@@ -9914,6 +21715,67 @@ def _approximations(
     if isinstance(facts, contract.LabelFacts):
         return _label_approximations(column, facts, written)
     return []
+
+
+def _not_settled_by_a_bound(
+    notes: "list[Deviation]", measured: "list[Approximation]"
+) -> "list[Deviation]":
+    """Drop a deviation for a fact that landed inside its own bound.
+
+    WHY A DEVIATION HAS TO MEAN ONE THING (residual R-P4-152). The
+    twin's report has two sections about a fact whose value moved: the
+    deviations, which say the twin does not hold what the description
+    published, and the approximations, which show how close an
+    approximate fact came and whether it landed inside the range the
+    method promises. A fact inside its range DID hold what was
+    published -- the publication is the range -- so naming it in both
+    sections told a reader two different things about one number.
+
+    The fact is not silenced: `_bound_notes` raises it as a deviation
+    the moment it lands OUTSIDE, and the approximations section prints
+    it either way with the published value, the achieved value and both
+    ends of the bound. What is dropped is the second, contradictory
+    telling.
+
+    Guarantees:
+
+    - Inputs: one column's deviations and its approximation records.
+    - Determinism: a fixed function of the two, order preserved, so the
+      report's bytes stay a pure function of the description and seed.
+    - Errors raised: none.
+    - Boundary: reads the two lists and nothing else.
+
+    A fact with no approximation record is never dropped, which is what
+    keeps an exactly-published count's shortfall as loud as it was: a
+    count nothing authorized to move is a count the twin missed.
+    """
+    # AND THE BOUND MUST CONTAIN THE PUBLISHED VALUE, which `inside`
+    # alone does not say. None of these bounds is a margin around the
+    # published value: each is worked out from the description and the
+    # size of the column, so a bound can lie wholly to one side of the
+    # number printed beside it. Measured on the demonstration table:
+    # `recorded_on` publishes `n_distinct` 84, the twin holds 224, and
+    # the bound runs 106 to 240 -- the twin landed inside what the
+    # method promises AND nowhere near what the description says. A
+    # reader grouping rows by that column meets 224 groups where the
+    # real table has 84, and that is a fact the twin did not hold.
+    #
+    # So a deviation is settled only where landing inside the range
+    # MEANS the published fact was honoured, which is exactly what
+    # `covers_published` answers. Dropping it on `inside` alone made
+    # the report quieter rather than honester, which is the defect this
+    # filter exists to avoid rather than to commit.
+    settled = {
+        (found.column, found.fact)
+        for found in measured
+        if found.inside and found.covers_published
+    }
+    kept: list[Deviation] = []
+    for note in notes:
+        if (note.column, note.fact) in settled:
+            continue
+        kept += [note]
+    return kept
 
 
 def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":

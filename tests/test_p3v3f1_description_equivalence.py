@@ -79,6 +79,22 @@ MARKER_TEXTS = tuple(
 SENTINEL_TEXTS = tuple(f"{value:g}" for value in parsing.NUMERIC_SENTINELS)
 
 
+_PROSE = fixtures.prose(60)
+
+# THE FLOOR THIS WHOLE FILE ASKS AT, declared rather than inherited.
+# Every pair below is a pair BECAUSE a fact about it is pooled: how many
+# cells of a column are non-blank holes is named per spelling at or
+# above `small_cell_floor` and pooled into one unnamed total under it,
+# and that pooling is what makes two files one description cannot tell
+# apart. Eleven is the floor this battery was measured at; it used to be
+# the default, and plan amendment A-P4-37 (the owner's ruling) moved the
+# default to one, at which nothing is pooled at all (contract invariant
+# C5-S13) and every pair here would be told apart -- which would empty
+# the battery rather than answer it. So the floor is named here and used
+# by every description this file writes. What is asserted is unchanged.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
+
+
 def _table(rows: "list[list[str]]", names: "list[str]") -> str:
     """One CSV, written the way the twin writer writes one."""
     lines = [",".join(names)]
@@ -95,7 +111,7 @@ def _describe(
     table = reading.read_table(
         str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(table, SETTINGS, [])
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
 
@@ -443,7 +459,7 @@ def test_a_column_publishing_no_spellings_keeps_its_presence_teeth(
     names = ["note", "tag"]
     rows = [
         [
-            "n/a" if index < 30 else f"a sentence of some length number {index}",
+            "n/a" if index < 30 else _PROSE[index % len(_PROSE)],
             f"t{index % 7}",
         ]
         for index in range(60)
@@ -481,7 +497,7 @@ def test_the_named_source_threshold_is_the_publication_floor(
     """
     folder = tmp_path / "edge"
     folder.mkdir()
-    floor = taxonomy.Settings().small_cell_floor
+    floor = SETTINGS.small_cell_floor
     seen: dict[int, bool] = {}
     for count in (floor - 1, floor):
         names = ["label", "number"]
@@ -534,15 +550,37 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     The ruling is that whether a numeric cell's TEXT is a spelling its
     own value licenses is a fact about the file's own form rather than
     about the table it holds, on the ground that the producer publishes
-    it about NO file at ANY count. That ground is asserted here directly:
-    two files differing only in a trailing zero on every decimal cell are
-    described byte for byte alike, so no floor and no window could ever
-    settle the clause, and withholding it would withhold it forever --
-    the vacuity V3.4 refuses by name.
+    it about NO file at ANY count.
 
-    So the subcheck keeps its verdict, and this pins that it can still
-    MISS. If the owner reverses the ruling, this test is the one that
-    goes red, and A-P3-5 clause 4 says what to put in its place.
+    THAT GROUND IS GONE, AND THE PHASE 4 PLAN TOOK IT ON PURPOSE
+    (P4-D4.5, with amendments A-P4-5, A-P4-6 and A-P4-8). The census of
+    fraction widths publishes, floor-governed, how many cells wrote each
+    number of figures after the point -- so two files differing only in
+    a trailing zero on every decimal cell are no longer described alike,
+    and that is the whole reason the fact was added: a two-decimal
+    column's description now records what every cell does, and checking
+    the source against its own description stops missing on present
+    cells nothing is wrong with. The plan states the supersession in
+    those words and closes route residual R-P3-12 with it.
+
+    WHAT THIS TEST NOW PINS is the direction of that change and the
+    thing it was written to protect. The two descriptions DIFFER, and
+    they differ in the census and in nothing else -- so the padding is
+    published rather than invisible. And `styles.spelled` still holds on
+    the canonical file and still MISSES on the padded one described by
+    the canonical file's description, which is the obligation review
+    item P3-V2-C-F1 restored and which the plan says this fact
+    strengthens rather than trades away.
+
+    AND THE FLOOR IS WHERE THAT STOPS, pinned below rather than left to
+    be discovered (amendment A-P4-14 as narrowed, residual R-P4-19).
+    The census names a width only where at least `small_cell_floor`
+    cells wear it, so on a SHORT column both descriptions pool both
+    facts and are identical again -- and the old route survives there
+    exactly as A-P3-46 measured it. A test that showed only the
+    sixty-cell case would report the premise as retired and leave the
+    surviving half of it unnoticed, which is the same shape of claim
+    the amendment was written to correct.
     """
     folder = tmp_path / "spelling"
     folder.mkdir()
@@ -553,16 +591,68 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     described = _describe(folder, text_a, "submitted")
     own_a = _own_description(folder, described, text_a, "own-a")
     own_b = _own_description(folder, described, text_b, "own-b")
-    assert own_a == own_b, (
-        "the premise of the ruling: the producer publishes nothing that "
-        "separates a canonical spelling from a padded one"
+    assert own_a != own_b, (
+        "P4-D4.5: the census of fraction widths is what separates a "
+        "canonical spelling from a padded one, and a producer that "
+        "described these two files alike would have lost it"
+    )
+    apart = json.loads(own_a)
+    together = json.loads(own_b)
+    for one, other in zip(apart["columns"], together["columns"]):
+        moved = [
+            key
+            for key in sorted(set(one) | set(other))
+            if (one[key] if key in one else None)
+            != (other[key] if key in other else None)
+        ]
+        assert moved in ([], ["fraction_widths"]), (
+            "the two files differ by a trailing zero and by nothing "
+            f"else, so the census is the only key that may move: {moved}"
+        )
+    # THE SHORT COLUMN, where the floor pools both facts. Ten cells is
+    # below the floor of eleven this file declares, so neither
+    # description names the decimal form or any width, the two are
+    # identical, and the padded file misses the per-cell obligation
+    # against its OWN description -- the route A-P4-14 does NOT close.
+    short_names = ["amount", "tag"]
+    short_a = _table(
+        [[f"{index}.5", f"t{index % 3}"] for index in range(10)], short_names
+    )
+    short_b = _table(
+        [[f"{index}.50", f"t{index % 3}"] for index in range(10)], short_names
+    )
+    short_described = _describe(folder, short_b, "short-own")
+    own_short_a = _own_description(folder, short_described, short_a, "short-a")
+    own_short_b = _own_description(folder, short_described, short_b, "short-b")
+    assert own_short_a == own_short_b, (
+        "below the floor the census names no width, so the two files "
+        "are described alike and the premise A-P4-14 retires is still "
+        "true there -- if this now differs, R-P4-19 closed and the "
+        "amendment's narrowing should be revisited"
+    )
+    short_checks, _short_census = _report(
+        folder, short_described, short_b, "short-b.csv"
+    )
+    short_verdicts = {
+        (check[0], check[2]): check[3] for check in short_checks
+    }
+    assert short_verdicts[("amount", "styles.spelled")] == validation.MISSED, (
+        "the surviving below-floor route is what R-P4-19 records; a "
+        "file that now holds against its own description there means "
+        "the residual is closed and this file should say so"
     )
     checks_a, _census_a = _report(folder, described, text_a, "a.csv")
     checks_b, _census_b = _report(folder, described, text_b, "b.csv")
-    verdicts_a = {check[2]: check[3] for check in checks_a}
-    verdicts_b = {check[2]: check[3] for check in checks_b}
-    assert verdicts_a["styles.spelled"] == validation.HELD
-    assert verdicts_b["styles.spelled"] == validation.MISSED
+    # Keyed by COLUMN and subcheck. Keyed by subcheck alone, two
+    # columns carrying the same obligation collide and the map keeps
+    # whichever came last -- which is a silent way for this test to
+    # assert about a column it does not mean. The `tag` column is read
+    # as an affixed number and carries the numeric obligations over its
+    # cores, so it now carries `styles.spelled` too.
+    verdicts_a = {(check[0], check[2]): check[3] for check in checks_a}
+    verdicts_b = {(check[0], check[2]): check[3] for check in checks_b}
+    assert verdicts_a[("amount", "styles.spelled")] == validation.HELD
+    assert verdicts_b[("amount", "styles.spelled")] == validation.MISSED
 
 
 def test_the_spelling_subcheck_takes_no_number_from_the_description(
@@ -603,7 +693,13 @@ def test_the_spelling_subcheck_takes_no_number_from_the_description(
             folder, described, padded, f"probe{spread}.csv"
         )
         for check in checks:
-            if check[2] == "styles.spelled":
+            # The `amount` column's answer, and only its. The `tag`
+            # column is read as an affixed number and carries the
+            # numeric obligations over its cores, so it answers this
+            # subcheck too -- and gathering both would compare two
+            # columns' verdicts as though they were one column's under
+            # three descriptions.
+            if check[0] == "amount" and check[2] == "styles.spelled":
                 answers = answers + [check[3]]
     assert answers, "the subcheck did not run"
     assert len(set(answers)) == 1, (

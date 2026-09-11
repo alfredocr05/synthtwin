@@ -11,7 +11,20 @@ import pytest
 import fixtures
 from synthtwin import parsing, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE SMALLEST GROUP THIS FILE DESCRIBES COLUMNS AT, DECLARED BECAUSE
+# IT IS NO LONGER THE DEFAULT. The owner lowered the shipped
+# `small_cell_floor` to one (plan amendment A-P4-37), and at a floor of
+# one nothing is ever held back: no level is pooled, no spelling is
+# withheld, no sentinel candidate goes unpublished (contract invariant
+# C5-S13). Several rules of this file are about exactly that holding
+# back -- a constant below the floor, labels below the floor, the floor
+# under the binary role, a sentinel too rare to name -- and they cannot
+# be exercised at all at a floor of one. Eleven is the floor every case
+# below was written against, so it is asked for once here rather than
+# left to a default that has moved beneath them. The floor of one has a
+# file of its own (`tests/test_p3v5f1_floor_one.py`); this one is about
+# the roles and their statistics.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def describe(
@@ -49,6 +62,9 @@ def test_one_repeated_value_is_a_constant() -> None:
             "count": 30,
             "variants": {"same": 30},
             "variants_withheld": {},
+            # Letters alone are one kind, so `same` has no written form
+            # and none of its rows wrote it in one (7.4.8, A-P4-47).
+            "shape_form_cells": 0,
         }
     ]
 
@@ -73,7 +89,7 @@ def test_unique_words_are_free_text_until_someone_declares_them() -> None:
     is still exercised -- but the role now comes from the person who
     owns the table rather than from the values.
     """
-    values = [f"code{index}" for index in range(50)]
+    values = fixtures.prose(50)
     described = describe(values)
     assert described.role == taxonomy.ROLE_TEXT
     assert described.n_distinct == 50
@@ -92,7 +108,7 @@ def test_unique_words_are_free_text_until_someone_declares_them() -> None:
 def test_the_declined_column_says_what_was_not_assumed() -> None:
     # The withdrawal is not silent: the column that would once have been
     # called a record number carries the reason and the way to declare it.
-    described = describe([f"code{index}" for index in range(50)])
+    described = describe(fixtures.prose(50))
     said = " ".join(described.remarks)
     assert "did NOT assume they are record numbers" in said
     assert "--identifier NAME" in said
@@ -116,13 +132,11 @@ def test_the_user_can_declare_a_numeric_column_to_be_a_record_number() -> None:
 
 
 def test_all_different_sentences_are_free_text_not_identifiers() -> None:
-    described = describe(
-        [f"a sentence with several words number {index}" for index in range(50)]
-    )
+    described = describe(fixtures.prose(50))
     assert described.role == taxonomy.ROLE_TEXT
     assert "length" in described.details
     body = f"{described.details}"
-    assert "sentence" not in body, "no free-text value may appear anywhere"
+    assert "clinic" not in body, "no free-text value may appear anywhere"
 
 
 def test_two_values_are_binary_whatever_their_case() -> None:
@@ -212,13 +226,50 @@ def test_a_column_that_is_only_mostly_numbers_publishes_nothing() -> None:
     """
     values = [str(index) for index in range(90)] + ["word"] * 10
     described = describe(values)
-    assert described.role == taxonomy.ROLE_TEXT
+    # SUPERSEDED BY LANDING L8, and this is the supersession the close
+    # plan asked for rather than a test edited to suit new code. The
+    # objection review item P1-R6-F7 recorded was not "never publish
+    # below the line": it was that the old rule published a
+    # distribution over ONE population and said nothing about the
+    # other. Ninety numbers beside a word on ten rows is a compound
+    # column -- both halves described, both counts published, every
+    # cell in exactly one of them -- so the objection does not reach
+    # it. A column of numbers beside ALL-DIFFERENT prose still
+    # publishes nothing, which `tests/test_p1r6f7_one_policy.py` holds
+    # unchanged.
+    assert described.role == taxonomy.ROLE_COMPOUND
     assert described.n_not_numeric == 10
     assert described.n_numeric == 90
+    # AND WHAT MAKES IT A SUPERSESSION RATHER THAN A RELABELLING: both
+    # populations are really described, and together they are the
+    # whole column.
+    assert described.details["n_numeric_cells"] == 90
+    assert described.details["n_label_cells"] == 10
+    assert "percentiles" in described.details["numbers"]
+    # THE LABEL HALF IS DESCRIBED, WHICH IS NOT THE SAME AS NAMED. Its
+    # one word covers fewer rows than the publication floor asks, so
+    # the floor holds the word back and the half publishes a COUNT of
+    # what it holds back instead -- which still accounts for every one
+    # of its cells, and is the floor doing its work rather than the
+    # description falling short.
+    half = described.details["labels"]
+    shown = sum(level["count"] for level in half["levels"])
+    assert shown + half["suppressed_rows"] == half["n_present"]
+    assert half["n_present"] == described.details["n_label_cells"]
+    # THE COLUMN'S OWN BLOCK CARRIES NO DISTRIBUTION, and that is still
+    # true: the numbers are described inside their own half, where a
+    # consumer is told they answer for 90 cells and not for 100. A
+    # reader routing on the column's type is not handed a mean.
     assert "percentiles" not in described.details
+
+    # AND THE DECLINE SENTENCE IS GONE, because there is no decline.
+    # It read "90 of the 100 values are written as numbers ... only
+    # when at least 99 of them read that way", which is what a column
+    # was told when the line refused it and nothing was published. The
+    # line has not moved -- this column is still not read as NUMBERS --
+    # but it is no longer refused, so there is nothing to explain.
     said = " ".join(described.remarks)
-    assert "90 of the 100 values are written as numbers" in said
-    assert "only when at least 99 of them read that way" in said
+    assert "written as numbers" not in said, said
 
 
 def test_a_small_set_of_labels_is_categorical() -> None:

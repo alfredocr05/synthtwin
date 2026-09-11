@@ -27,6 +27,7 @@ WHAT THIS FILE HOLDS THE REPAIR TO:
 """
 
 import pathlib
+import random
 
 import fixtures
 from synthtwin import (
@@ -42,6 +43,17 @@ FAMILY = ("leading_zero", "leading_plus", "decimal", "exponent_lower",
           "exponent_upper")
 
 
+# The publication floor these fixtures were counted against. A floor of
+# one became the default under the owner ruling recorded as plan
+# amendment A-P4-37 -- contract invariant C5-S13 says that at a floor of
+# one nothing whatever is held back -- and pooling is a SUBJECT here:
+# the counts below are the counts a description publishes when a form
+# carried by fewer than eleven cells is pooled into `(withheld)`. So the
+# floor is stated rather than inherited, and it is the eleven every
+# docstring in this file counts against.
+SMALL_CELL_FLOOR = 11
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -50,7 +62,9 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
+    )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 
@@ -175,23 +189,99 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
 ) -> None:
     """Point 4's second half: the shortfall speaks.
 
-    Nought through four, every cell written plainly. The whole-number
-    rule can round two neighbouring strata onto one value and `plain`
-    has no second spelling of it, so the count of different values falls
-    short -- and the report names it, with the range of review item
-    P2-C2-F4 beside it.
+    Every cell written plainly. The whole-number rule can round two
+    neighbouring strata onto one value and `plain` has no second
+    spelling of it, so the count of different values falls short -- and
+    the report names it, with the range of review item P2-C2-F4 beside
+    it.
+
+    THE WITNESS IS 200 ROWS AND WAS FIVE UNTIL THE INTEGER-GRID
+    LANDING. Nought through four fell short because the grid pass of
+    G6.5a declined a whole-number column; it now reaches all five, and
+    the test below pins that. A shortfall still happens where the
+    strata are genuinely crowded -- 200 values between 40 and 120
+    publish 74 different numbers and the twin holds 70 -- so the
+    reporting path is pinned on a column that still cannot reach,
+    rather than on one the tool has since learnt to satisfy.
     """
-    document, loaded = _described(tmp_path, [str(n) for n in range(5)])
+    generator = random.Random(31337)
+    values = [str(generator.randint(40, 120)) for _each in range(200)]
+    document, loaded = _described(tmp_path, values)
+
+    twin = generation.generate(loaded, 0)
+    written = _present(twin)
+    assert all(parsing.numeric_style(cell) == "plain" for cell in written)
+    # THE FIXTURE REALLY DOES FALL SHORT, asserted rather than assumed:
+    # a column that reached its count would make this test vacuous.
+    published = loaded.columns[0].facts.n_distinct_values
+    held = len({float(cell) for cell in written})
+    assert held < published, (held, published)
+    # THE SHORTFALL SPEAKS, AND SINCE LANDING L19 IT SPEAKS ONCE
+    # (residual R-P4-152). This named `n_distinct` and
+    # `n_distinct_folded` among the facts the twin could not meet.
+    # Both are APPROXIMATED facts with a bound of 71 to 74 that
+    # contains the published 74, and the twin holds 71 -- inside what
+    # the method promises -- so the page also printed each of them,
+    # four lines later, as "inside the range". A reader was told a fact
+    # was not met and that the measurement landed where the method said
+    # it would.
+    #
+    # What carries the shortfall now is `n_distinct_values`, which
+    # counts different NUMBERS, has no window at all, and says the
+    # thing a person acts on: code that groups rows by this column
+    # meets a different number of groups here than on the real table.
+    # The point of review item P2-C2-F4 is kept -- the shortfall is
+    # named, with the range beside it -- and it is no longer named
+    # twice with the two tellings disagreeing.
+    named = [
+        note.fact for note in twin.deviations
+        if note.fact in ("n_distinct", "n_distinct_folded")
+    ]
+    assert named == []
+    assert "n_distinct_values" in [note.fact for note in twin.deviations], (
+        "the shortfall still speaks, in the fact no window authorizes "
+        "to move"
+    )
+    bounded = {
+        found.fact: found
+        for found in twin.approximations
+        if found.fact in ("n_distinct", "n_distinct_folded")
+    }
+    assert sorted(bounded) == ["n_distinct", "n_distinct_folded"]
+    for found in bounded.values():
+        assert found.inside and found.covers_published, (
+            "and each is printed with the range it was allowed, which "
+            "is why naming it as unmet as well was the contradiction"
+        )
+
+
+def test_a_small_whole_number_column_now_reaches_its_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other side of the same rule, and the landing that bought it.
+
+    Nought through four is five different numbers over five cells. The
+    grid pass of G6.5a acts only where every cell is on one grid, and
+    it asked the fraction-width census for that grid -- which is EMPTY
+    on a whole-number column, so the pass declined every one of them
+    and two strata could be written as one cell. The twin held four of
+    the five and the report named the miss.
+
+    It holds all five now, and says nothing, because there is nothing
+    to say.
+    """
+    document, loaded = _described(tmp_path, [str(number) for number in range(5)])
     assert set(document["columns"][0]["numeric_styles"]) == {"(withheld)"}
 
     twin = generation.generate(loaded, 0)
     written = _present(twin)
     assert all(parsing.numeric_style(cell) == "plain" for cell in written)
+    assert len({float(cell) for cell in written}) == 5, written
     named = [
         note.fact for note in twin.deviations
-        if note.fact in ("n_distinct", "n_distinct_folded")
+        if note.fact in ("n_distinct", "n_distinct_folded", "n_distinct_values")
     ]
-    assert named == ["n_distinct", "n_distinct_folded"]
+    assert named == [], named
 
 
 def test_no_zero_is_spent_that_the_published_count_did_not_ask_for(

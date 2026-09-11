@@ -14,7 +14,16 @@ import pytest
 import fixtures
 from synthtwin import errors, profile, reading, taxonomy
 
-SETTINGS = taxonomy.Settings()
+# THE FLOOR IS DECLARED RATHER THAN INHERITED. Every assertion below
+# about what this document holds back -- the label below the floor, the
+# identifier and free-text values that must not leak, the golden bytes
+# that pin both -- was written against a floor of eleven, which used to
+# be the default. Plan amendment A-P4-37 (the owner's ruling) moved
+# `small_cell_floor`'s default to one, at which nothing is held back at
+# all (contract invariant C5-S13), so this file now says at what floor
+# it is asking. What it asks is unchanged. The default itself is pinned
+# in tests/test_ap311_lowered_floor.py, not here.
+SETTINGS = taxonomy.Settings(small_cell_floor=11)
 
 
 def _document(tmp_path: pathlib.Path, text: str) -> dict:
@@ -55,7 +64,7 @@ def test_columns_keep_the_order_they_had_in_the_file(
     assert positions == list(range(1, len(positions) + 1))
     names = [column["name"] for column in document["columns"]]
     assert names[0] == "record_code"
-    assert names[-1] == "batch"
+    assert names[-1] == "note"
 
 
 def test_every_column_carries_its_evidence_and_counts(
@@ -195,8 +204,103 @@ def test_nothing_that_varies_between_runs_is_written(
 # No count, no statistic, no label, no role and no spelling of any
 # column moved, and no cell of any twin moved with them: the twin's own
 # golden is unchanged.
+#
+# RE-RECORDED 2026-08-21, and the cause is one change with one reach:
+# the demonstration table's free-text column stopped being a template.
+# It held `observation 0 written out in several plain words`,
+# `observation 1 ...` and so on -- which the affixed-number rule of
+# this phase reads as a number wearing shared text, because that is
+# what those strings are. A fixture meant to stand for text NO rule
+# reads had to become text no rule reads, so it is prose that varies
+# at both ends and holds no digit.
+#
+# RE-RECORDED AGAIN THROUGH CODEX ROUNDS 2 AND 3 (2026-08-21), and the
+# cause is NOT the one above: that free-text change is a round-1 record
+# and the column has not moved since. What moved these digests is the
+# `dose` column and the census beside it. `dose` was added to the
+# shared table so the affixed role is walked by every battery, its
+# spread was widened so a twin can carry its distinctness, and its
+# cores were given a decimal point so the fraction-width census is
+# exercised on THIS role rather than only on the plain numeric ones.
+# The census itself is new in that range and publishes two more
+# obligations on `dose` -- `widths.published.1` and
+# `widths.published.2` -- so the quality report carries MORE than it
+# did, which is the direction a re-recording must move in.
+#
+# All four digests moved together, which is what a change to the
+# TABLE looks like: a different column of values makes a different
+# description, a different twin, a different report and a different
+# quality report. A change to the generator alone would have moved the
+# last three and left the first.
+#
+# RE-RECORDED 2026-08-25 for the second declaration (plan P4-D19). ONE
+# line moved and no other: the settings block of every document now
+# carries `forced_codes`, which sorts immediately before
+# `forced_identifiers`, and this run declares none, so the line reads
+# `"forced_codes": [],`. That was CHECKED rather than assumed -- parsing
+# these bytes, deleting that one key and serializing again reproduces
+# the previous digest,
+# baf08b55fea0a72d6e0af2faadd3d88ace03b85b577d1f3d4b439e656a537ffe,
+# character for character. The floor this file describes at is unmoved:
+# it is named at the top of the file now rather than inherited from the
+# default, and eleven is the number the previous digest was recorded at.
+# No count, no statistic, no label, no role and no spelling of any
+# column moved.
+#
+# RE-RECORDED 2026-08-27 for the FOURTH declaration (plan P4-D26). ONE
+# line moved and no other: the settings block of every document now
+# carries `forced_decimal_commas`, the columns declared with
+# `--decimal-comma`, which sorts immediately after `forced_codes`, and
+# this run declares none, so the line reads
+# `"forced_decimal_commas": [],`. CHECKED rather than assumed, by the
+# procedure the previous re-recording used: building these bytes,
+# deleting that one key and serializing again reproduces the previous
+# digest,
+# d130e910e7c539c82cf8a307d3d1e6374b32911a7834d707343f34c9cae4bf46,
+# character for character. No count, no statistic, no label, no role
+# and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all -- which is what says
+# this is a change to what a description RECORDS and not to what it
+# says about the data.
+# RE-RECORDED 2026-08-31 for plan amendment A-P4-47: every published
+# level of a label role gains `shape_form_cells`, so this description
+# gains nine lines and loses none. No count, no statistic, no label, no
+# role and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all.
+# RE-RECORDED 2026-09-04 for residual R-P4-138: every numeric block
+# gains `empty_edges`, the two values each run of empty bins really
+# lies between. FIVE blocks of this description carry the key and ONE
+# of them carries anything -- the count column, whose nine empty bins
+# lie between consecutive whole numbers, so its pairs are
+# [0,1] ... [8,9]. CHECKED by the procedure the previous re-recordings
+# used: building these bytes, deleting that one key from every block
+# and serializing again reproduces the previous digest,
+# 4ee359b3e90f8cb80047e0475c0266529bb32bd7048c231fa37b889c58632dce,
+# character for character. No count, no statistic, no label, no role
+# and no spelling of any column moved, and the TWIN's own digest in
+# tests/test_twin_golden.py did not move at all -- so the value stage
+# reading the new fact wrote the same cells it wrote from the bins.
+# RE-RECORDED 2026-09-05 for plan P4-D36, and the difference was
+# COUNTED and read first. The affixed role's split put the space
+# between a number and its unit inside the CORE, and the value stage
+# rewrites a core as a number and has no space to write -- so every
+# cell of the demonstration's `dose` column came back `165.1mg` where
+# the source reads `165.1 mg`. All 240 of them move, and they move to
+# what the source says. The description gains three keys on that one
+# column -- the wrapper set and the two counts of different cores --
+# and no count, statistic, label, role or spelling of any other column
+# changes.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-72, and ONE
+# STRING OF ONE COLUMN moved -- the same string, for the same reason,
+# as the golden description in `tests/test_twin_golden.py`. The affixed
+# column's remark (contract NF35) said "if these are codes rather than
+# measurements, run the command again with --identifier and no value of
+# this column will be published at all", which is the declaration that
+# publishes NOTHING; `--code` is the one that keeps every code with the
+# rows that carried it. It names `--code` first now. No count,
+# statistic, label, role, spelling or cell of any column changed.
 GOLDEN_SHA256 = (
-    "c8e45bca6877060091d58f94ba463acb8f37e08f4eb7877b727f83bf1d03df86"
+    "ddcedf3207a45b3fba0e15ef19cbf268a5a75845070c6f036887090f292f939f"
 )
 
 

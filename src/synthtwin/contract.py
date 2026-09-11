@@ -1,14 +1,17 @@
 """The strict profile loader: the only way generation gets a profile.
 
-The normative text is `docs/spec/profile-contract-v5.md`, which carries
-`docs/spec/profile-contract-v4.md` by reference: every rule version 5
-does not supersede is a rule of version 5 at its version 4 wording, and
-a superseding clause is written into version 5 with the version 4 rule
-it names. This module carries both out rule for rule. Nothing here
-decides anything either contract left open; where a contract states a
-fact, the check below cites it by its own identifier so a reader can
-hold the two side by side -- an identifier beginning `C5-` is version
-5's, and every other is version 4's, carried.
+The normative text is `docs/spec/profile-contract-v6.md`, and
+`PROFILE_VERSION` below is 6: a description this tree writes is a
+version 6 one, and this loader accepts no other. Version 6 states the
+whole contract, and it stands on the two documents it supersedes --
+version 5, which carried version 4 by reference. This module carries
+the rules out one for one. Nothing here decides anything the contract
+left open; where it states a fact, the check below cites it by its own
+identifier so a reader can hold the two side by side. An identifier
+beginning `C6-` is version 6's own, one beginning `C5-` is a version 5
+rule version 6 keeps, and every other is a version 4 rule carried
+through both -- the identifier records where a rule was WRITTEN, not
+which document governs, and the document that governs is version 6.
 
 WHAT THIS MODULE IS FOR. A twin is built from a profile and a seed, and
 from nothing else (plan P2-D1). That makes the profile the whole of what
@@ -35,7 +38,7 @@ one way, and the most useful message is the one nearest the cause:
   2. read the bytes and decode them as UTF-8       R4, R19
   3. the bounded structural pre-scan over the TEXT R8, R9
   4. parse with a plain JSON parse                 R5
-  5. read `profile_version`, which must be 5       R11, R12
+  5. read `profile_version`, which must be 6       R11, R12
   6. the canonical round trip                      R6, R7, R10
   7. schema and invariant validation               R13 - R18
   8. build and return typed objects                --
@@ -95,18 +98,25 @@ from synthtwin.paths import validate_local_path
 # again, a newer one gets advice to update synthtwin and NEVER to re-run
 # a profiler on a machine that may not hold the table (contract 10.6).
 #
-# IT IS FIVE FROM AMENDMENT A-P3-27, AND THERE IS NO UPGRADE PATH
-# (contract 5 sections 10.1 and 10.2, owner ruling 2026-08-17). A
-# version 4 document is refused, not converted: it records a declaration
+# IT IS SIX, AND THERE IS NO UPGRADE PATH FROM EITHER OLDER VERSION
+# (owner ruling 2026-08-17 for version 5; amendment A-P4-41, which
+# extends version 6 IN PLACE until the first release rather than
+# bumping it each time a key is added). The value is written once,
+# below, and every sentence about it says "this integer" rather than
+# naming a number -- three sites said FIVE while the value was 6, and a
+# contributor following any of them prepares a description the loader
+# refuses (residual R-P4-63).
+#
+# An older document is refused, not converted: it records a declaration
 # only as a count, so converting it would mean making up the facts the
-# older rules did not record, which is the whole reason this version
+# older rules did not record, which is the whole reason a new version
 # exists. The refusal names both versions, says WHY the older file
 # cannot be read back, and tells the person to describe their table
 # again WITH THE SAME `--keep-value` AND `--missing-value` OPTIONS --
 # advice that is safe today because there is no release and every
 # description belongs to somebody who still holds the table, and that
 # is re-examined rather than inherited after the first one.
-PROFILE_VERSION = 5
+PROFILE_VERSION = 6
 
 # THE TWO PARSER BOUNDS, AND THERE ARE EXACTLY TWO (contract 10.3).
 # Neither is reachable by any producible profile, because neither scales
@@ -153,12 +163,17 @@ SETTINGS_KEYS = (
     "declaration_matching",
     "declaration_publication",
     "declared_missing_values",
+    "forced_codes",
+    "forced_decimal_commas",
     "forced_identifiers",
+    "forced_measurements",
     "identifier_minimum_rows",
     "identifier_uniqueness",
     "kept_values",
     "minimum_parse_rate",
     "near_threshold_slack",
+    "day_first",
+    "long_tail_minimum_level",
     "sentinel_minimum_share",
     "sentinel_outlier_iqr_multiple",
     "small_cell_floor",
@@ -169,6 +184,7 @@ SETTINGS_KEYS = (
 # lists that say which members of this package's OWN published
 # vocabulary a declaration named, and never a spelling of the person's.
 DECLARATION_KEYS = (
+    "built_in_dates",
     "built_in_numbers",
     "built_in_texts",
     "n_declared",
@@ -187,7 +203,23 @@ DECLARATION_KEYS = (
 # written in two modules because the generation and validation paths may
 # not import the profiler's taxonomy at all, and the suite compares them
 # so a change in one cannot pass unnoticed in the other.
-DEFAULT_SMALL_CELL_FLOOR = 11
+DEFAULT_SMALL_CELL_FLOOR = 1
+
+# THE NUMBER BELOW WHICH A PUBLISHED GROUP CAN POINT AT ONE PERSON, and
+# it is NOT the default any more (plan amendment A-P4-37). Until
+# 2026-08-25 these were one number, and every page that discloses what a
+# description carries asked "is the floor below the default?". The owner
+# ruled the default to 1, which made that question always false and
+# silently took the disclosure off every page -- the pages went quiet
+# exactly when they had the most to say.
+#
+# They are two different facts and now have two names. The DEFAULT is
+# what `synthtwin profile` writes when nobody asks for another. This is
+# the line under which a group is small enough that naming it says
+# something about a person, which is a fact about people and did not
+# move when the default did. Every page that tells a reader what a
+# description contains asks about THIS one.
+SMALL_GROUP_NOTICE_LINE = 11
 
 # The eight reserved cross-column names. This version of synthtwin
 # carries no structure between columns and says so in eight named
@@ -242,7 +274,25 @@ ROLE_COUNT = "count"
 ROLE_CONTINUOUS = "continuous"
 ROLE_CATEGORICAL = "categorical"
 ROLE_IDENTIFIER = "identifier"
+ROLE_CLOCK = "time_of_day"
+ROLE_AFFIXED = "affixed_number"
+ROLE_LONG_TAIL = "long_tail_labels"
+# THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
+# in one cell and joined by one repeated separator. Reached only where
+# the person named the column with `--measurement`, never from values.
+ROLE_JOINED = "joined_numbers"
+# The fifteenth role (residual R-P4-13, landing L8): numbers and
+# labels sharing one cell space, each half described in its own
+# terms, with two counts of cells that sum to `n_present`.
+ROLE_COMPOUND = "numbers_with_labels"
 ROLE_TEXT = "free_text"
+
+# The lower bound of the long-tail detection line (plan P4-D5). The
+# producer's own constant, written again here for the reason every
+# threshold is written twice: the loader may not import the describing
+# side, and a line applied on one side only is a line two
+# implementations disagree about.
+LONG_TAIL_LINE = 11
 
 ROLES = (
     ROLE_EMPTY,
@@ -254,6 +304,11 @@ ROLES = (
     ROLE_CONTINUOUS,
     ROLE_CATEGORICAL,
     ROLE_IDENTIFIER,
+    ROLE_CLOCK,
+    ROLE_AFFIXED,
+    ROLE_LONG_TAIL,
+    ROLE_JOINED,
+    ROLE_COMPOUND,
     ROLE_TEXT,
 )
 
@@ -282,6 +337,26 @@ AXIS_ROWS = (
     (ROLE_CONTINUOUS, "continuous", "ok"),
     (ROLE_CATEGORICAL, "categorical", "ok"),
     (ROLE_IDENTIFIER, "code", "ok"),
+    (ROLE_CLOCK, "time_of_day", "ok"),
+    (ROLE_AFFIXED, "affixed_number", "ok"),
+    # IT NAMES ITS OWN SHAPE (contract 14.1, C6-19). The axis table is
+    # a bijection -- thirteen roles onto thirteen types, one row each --
+    # and a role sharing another's type breaks the totality discipline
+    # the axes exist for.
+    (ROLE_LONG_TAIL, ROLE_LONG_TAIL, "ok"),
+    # AND SO DOES THIS ONE, for the same reason (plan P4-D21). Fourteen
+    # roles onto fourteen types now. Its shape is neither `count` nor
+    # `continuous`: both name ONE number per cell, and a consumer that
+    # read this column as either would take the whole cell for a value
+    # and find that `120/80` is not one.
+    (ROLE_JOINED, ROLE_JOINED, "ok"),
+    # AND THE FIFTEENTH (residual R-P4-13, landing L8). Fifteen roles
+    # onto fifteen types. Its shape is neither `continuous` nor
+    # `long_tail_labels` though it holds a population of each: a
+    # consumer told this column is a quantity would compute over cells
+    # that are not numbers, and one told it is a set of labels would
+    # miss that most of its cells are.
+    (ROLE_COMPOUND, ROLE_COMPOUND, "ok"),
     (ROLE_TEXT, "text", "ok"),
 )
 
@@ -295,6 +370,11 @@ STATISTICAL_TYPES = (
     "continuous",
     "categorical",
     "code",
+    "time_of_day",
+    "affixed_number",
+    "long_tail_labels",
+    "joined_numbers",
+    "numbers_with_labels",
     "text",
 )
 
@@ -306,8 +386,11 @@ ENCODINGS = ("utf-8-sig", "latin-1")
 
 HEADER_SOURCES = ("file", "generated")
 
+DATE_SENTINEL = "(date-sentinel)"
+
 MISSING_CLASS_KEYS = (
     BLANK,
+    DATE_SENTINEL,
     "(declared-missing)",
     "(numeric-sentinel)",
     "(text-code)",
@@ -330,10 +413,17 @@ REASONS = (
     "kept_by_you",
 )
 
-LEVEL_KEYS = ("count", "label", "variants", "variants_withheld")
+LEVEL_KEYS = (
+    "count",
+    "label",
+    "shape_form_cells",
+    "variants",
+    "variants_withheld",
+)
 
 LABEL_KEYS = (
     "levels",
+    "shape_forms",
     "suppressed_level_counts",
     "suppressed_levels",
     "suppressed_rows",
@@ -341,8 +431,33 @@ LABEL_KEYS = (
 
 CATEGORICAL_KEYS = LABEL_KEYS + ("level_ceiling",)
 
+# The label half of a compound column: the five above, plus the two
+# counts the half carries for ITSELF because the column's own counts
+# include the numbers (invariant NL2). Written as an extension of
+# LABEL_KEYS rather than as a list of its own, so a key added to a
+# label block reaches this one.
+COMPOUND_LABEL_KEYS = LABEL_KEYS + (
+    "n_distinct",
+    "n_distinct_folded",
+    "n_present",
+)
+
+# The clock role's own five, and the two forms its cells can wear.
+# Nothing else joins them: these five are the whole of what this role
+# adds to the universal keys, and the forbidden-key rule is what stops
+# a sixth.
+CLOCK_KEYS = (
+    "clock_form",
+    "clock_percentiles",
+    "earliest",
+    "latest",
+    "n_unparsed",
+)
+CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
+
 DATETIME_KEYS = (
     "date_percentiles",
+    "resolution_mix",
     "datetimes_read_at",
     "earliest",
     "earliest_utc_offset",
@@ -357,6 +472,14 @@ DATETIME_KEYS = (
 )
 
 NUMERIC_KEYS = (
+    "fraction_widths",
+    "pad_widths",
+    "field_widths",
+    "value_histogram",
+    "empty_bins",
+    # ...and the REAL edges of each stretch of empty bins (residual
+    # R-P4-138). Two values a run, and they are values of real cells.
+    "empty_edges",
     "integer_valued",
     "mean",
     "n_left_out_of_statistics",
@@ -367,10 +490,116 @@ NUMERIC_KEYS = (
     "n_zero",
     "numeric_share",
     "numeric_styles",
+    "kurtosis",
+    "n_distinct_values",
+    # The ninety rungs the named ladder does not carry (plan P4-D4.10).
+    "percentiles_between",
+    # The mode PAIR (plan P4-D4.11). Both keys are always present on a
+    # column of this role; a withheld mode is `null` beside a count of
+    # nought, never an absent key, so a reader never has to tell "this
+    # column had no dominant value" from "this description was written
+    # by something older".
+    "mode",
+    "mode_count",
     "percentiles",
     "skew",
     "std",
     "std_unrepresentable",
+)
+
+# The affixed-number role: everything a numeric column carries, plus
+# the pair it publishes, how many cells wore it, and the four counts
+# that answer for the CORES rather than for the cells. The two
+# populations are never the same one, and the key names say which each
+# answers for.
+AFFIXED_KEYS = NUMERIC_KEYS + (
+    "affix_prefix",
+    "affix_suffix",
+    # ...and the other wrappers this column wears (plan P4-D36),
+    # beside the counts of different cores the cells carry.
+    "affix_variants",
+    "n_core_distinct",
+    "n_core_distinct_folded",
+    "n_affixed",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+    "n_core_numeric",
+    "n_core_out_of_range",
+)
+
+# The joined-number role's own six. `separator` is the one key of this
+# role that carries a spelling off the table's cells, on exactly the
+# terms `affix_prefix` and `affix_suffix` carry theirs, and the
+# forbidden-key rule is what stops a seventh. `parts` holds one block of
+# NUMERIC_KEYS per position, in cell order, so the ladder and the mean
+# a consumer reads are the same ones every quantitative role publishes.
+# The characters a joined cell may be split on. Fixed and short, and
+# deliberately without the point and the comma: both are written INSIDE
+# numbers this format already reads, and admitting either would make
+# every decimal column a candidate pair.
+JOINED_SEPARATORS = ("/", "-", ":", "|", ";", "_")
+
+
+def _is_a_joined_separator(text: str) -> bool:
+    """Whether this is a whole separator a joined cell may be split on.
+
+    One mark of the list above, with at most one space before it and at
+    most one after (plan P4-D24). A pressure charted `120 / 80` is the
+    same reading as `120/80`, and the spacing is part of what the twin
+    writes back.
+    """
+    if not text or len(text) > 3:
+        return False
+    core = text
+    if core[0] == " ":
+        core = core[1:]
+    if core and core[len(core) - 1] == " ":
+        core = core[: len(core) - 1]
+    return core in JOINED_SEPARATORS
+
+COMPOUND_KEYS = (
+    # THE FIFTEENTH ROLE, at its first step (residual R-P4-13, landing
+    # L8). Two counts of CELLS that sum to `n_present`, so every
+    # present cell is in exactly one published population -- the answer
+    # to review item P1-R6-F7, which deleted a rule that described part
+    # of a column and said nothing about the rest.
+    #
+    "n_numeric_cells",
+    # ...AND THE THIRD POPULATION (residual R-P4-149, closed by the
+    # owner's ruling of 2026-09-04): the cells the number rules
+    # recognise as a numeral this format cannot hold. They are counted
+    # with the NUMERIC half rather than with the labels, so a lab
+    # column with one `9e999` no longer describes that cell as a word.
+    "n_numeric_out_of_range",
+    "n_numeric_contradictory",
+    "n_label_cells",
+    # ...AND THE NUMERIC HALF'S TWO COUNTS OF DIFFERENT WRITTEN CELLS,
+    # which the generator spends as its budget of different SPELLINGS.
+    # They were not here at first, and the twin could not reach the
+    # column's own count of different cells because of it: a count of
+    # different NUMBERS buys one spelling per number, so a column
+    # holding `07` beside `7` lost every second spelling (review round
+    # 1 of this landing, item 1; measured at 113 published against 56
+    # written).
+    "n_numeric_distinct",
+    "n_numeric_distinct_folded",
+    # ...AND THE TWO HALVES THEMSELVES. `numbers` holds a quantitative
+    # block read over the numeric cells and `labels` a label block read
+    # over the rest, each by the reader that reads its own kind of
+    # column. The counts above are what a reader checks them against.
+    "numbers",
+    "labels",
+)
+
+JOINED_KEYS = (
+    "part_above",
+    "part_agreements",
+    "n_joined",
+    "n_parts",
+    "n_unparsed",
+    "part_min_widths",
+    "parts",
+    "separator",
 )
 
 UNREPRESENTABLE_KEYS = (
@@ -381,6 +610,12 @@ UNREPRESENTABLE_KEYS = (
     "n_sign_unknown",
     "n_whole",
     "n_whole_unknown",
+    # THE TWO WIDTH FACTS (residual R-P4-37). Stated on this role by
+    # the contract in four places since version 6 and never written by
+    # the producer, so a producer written to the contract emitted a
+    # block this loader refused for an unknown key.
+    "min_length",
+    "max_length",
 )
 
 IDENTIFIER_KEYS = (
@@ -397,8 +632,13 @@ TEXT_KEYS = (
     "n_all_digits",
     "n_code_alphabet",
     "n_distinct_by_occurrences",
+    "shape_forms",
     "words",
 )
+
+# The long-tail role adds no key to the five every label role carries:
+# the form census stands on all four of them (P4-D18, corrected).
+LONG_TAIL_KEYS = LABEL_KEYS
 
 LENGTH_KEYS = ("max", "mean", "min", "p50")
 
@@ -406,6 +646,27 @@ WORD_KEYS = ("max", "mean", "min")
 
 # The eleven rungs, in ladder order. The order is the rule: a ladder is
 # checked non-decreasing by walking it in exactly this sequence.
+# THE NINETY RUNGS THE LADDER DOES NOT NAME (plan P4-D4.10). Built
+# from the same rule the producer builds them by, so the names a
+# description carries and the names this loader admits cannot drift:
+# every percent from 1 to 99 that `LADDER_KEYS` does not already name.
+FINER_LADDER_KEYS = tuple(
+    f"p{percent:02d}"
+    for percent in range(1, 100)
+    if percent not in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+)
+
+# The percent each of the hundred and one rungs stands at, in ladder
+# order, which is what the joint monotone check of Q19 walks.
+LADDER_PERCENTS = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
+
+# What each of those percents is CALLED in the document, so a refusal
+# names the rung the way the description spells it.
+_LADDER_NAME_AT = {
+    0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+    75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+}
+
 LADDER_KEYS = (
     "min",
     "p01",
@@ -423,15 +684,50 @@ LADDER_KEYS = (
 DATE_FORMATS = (
     "iso-date",
     "iso-datetime",
+    "slashed-iso-date",
+    "iso-month",
     "compact-date",
     "month-first-date",
     "day-first-date",
+    "textual-day-first-date",
+    "textual-month-first-date",
+    "dotted-month-first-date",
+    "dotted-day-first-date",
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
     "year-quarter",
+    "iso-mixed",
 )
 
-RESOLUTIONS = ("date", "datetime", "quarter")
+# The two members the joint ISO reading joins. A column that took that
+# reading publishes exactly these two counts and no other key.
+ISO_MEMBERS = ("iso-date", "iso-datetime")
+FORMAT_ISO_MIXED = "iso-mixed"
 
-TIME_PRECISIONS = ("subsecond", "second", "minute", "date", "quarter")
+# The two readings that reach `datetime` resolution through a clock in
+# the time-of-day role's own two forms -- `HH:MM` and `HH:MM:SS`, and
+# nothing else. THEY CARRY NEITHER A FRACTION NOR AN OFFSET, because
+# their own reader takes neither (plan amendment A-P4-1 item 2), so a
+# description claiming one of those for such a column describes a
+# column no table can hold. That is a rule about the FORMAT and not
+# about the resolution, which is why D6 and D9 each need a clause of
+# their own for it (review item P4-DATE4-F1).
+CLOCK_FORM_MEMBERS = ("month-first-datetime", "day-first-datetime")
+
+RESOLUTIONS = ("date", "datetime", "quarter", "month")
+
+TIME_PRECISIONS = (
+    "subsecond",
+    "second",
+    "minute",
+    "date",
+    "month",
+    "quarter",
+)
 
 CLOCKS = ("local", "utc")
 
@@ -443,6 +739,62 @@ NUMERIC_STYLES = (
     "exponent_lower",
     "exponent_upper",
 )
+
+# WHAT AN AFFIXED COLUMN'S OWN REMARK READS, in the one clause of it
+# that carries no argument. Invariant AF-R says every `affixed_number`
+# column bears the remark that names the pair, says how many cells wore
+# it, and names `--identifier` as the route for a column of codes -- and
+# a document that dropped it would publish a distribution over what may
+# be a column of account numbers with nothing warning its reader.
+#
+# THIS IS A SECOND SPELLING OF ONE SENTENCE, and it is one deliberately,
+# for the reason `DEFAULT_SMALL_CELL_FLOOR` is: the generation and
+# validation paths may not import the profiler's taxonomy, so the loader
+# cannot render the sentence it is looking for. Two modules holding one
+# phrase is the arrangement, and
+# `tests/test_p4d4_affixed_role.py` is the comparison that keeps it
+# honest -- it renders the real form and asserts this phrase is in it.
+AFFIXED_REMARK_MARK = "If these are codes rather than measurements"
+
+# ...AND THE REST OF ITS FIXED SKELETON, in the order the sentence
+# writes them. One marker was not enough and the gap was not a small
+# one: a description carrying the marker ALONE as its whole remark --
+# thirty-nine characters naming no pair, no count and no command --
+# satisfied AF-R while telling its reader nothing the invariant exists
+# to tell them. A sentence holding every fragment below, in order,
+# around the block's own count IS the sentence; a forgery that
+# reproduces all of it has written the remark.
+AFFIXED_REMARK_PARTS = (
+    # THE OPENING STOPS BEFORE "written as", because those two words
+    # are the CLAUSE's (review item L19-R1-1). The checker pins this
+    # fragment at position zero after the count and the clause
+    # immediately after it, so the two must not overlap or the
+    # structural test could never hold of the producer's own sentence.
+    "of this column's values are",
+    "and synthtwin described those numbers as quantities: their "
+    "average, their spread and their ends are in this profile.",
+    AFFIXED_REMARK_MARK,
+    # IT NAMES `--code` FIRST (residual R-P4-72, landing L19). The
+    # fragment read "--identifier and no value of this column will be
+    # published at all", which is the OPPOSITE declaration from the one
+    # a person with a code column wants: `--code` keeps every code with
+    # the rows that carried it and `--identifier` publishes none of
+    # them. Both are still named, in the order that answers the
+    # sentence's own question first.
+    "run the command again with --code NAME",
+    "--identifier NAME leaves them out of the profile altogether",
+)
+
+# The one form of the six the fraction census is taken over, named here
+# rather than spelled at the place it is read: the census and the forms
+# map have to agree about which form they are talking about, and a
+# spelling repeated at two sites is a spelling one site can change.
+DECIMAL_STYLE = "decimal"
+LEADING_ZERO_STYLE = "leading_zero"
+# ...and the three of the six that carry no point and no exponent,
+# which are exactly the cells the FIELD-width census counts (P4-D30).
+PLAIN_STYLE = "plain"
+LEADING_PLUS_STYLE = "leading_plus"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -533,8 +885,11 @@ INVARIANTS = {
         "instead"
     ),
     "S8": (
-        "every column named as holding record numbers is a column of "
-        "this table"
+        "every column named in a declaration is a column of this table"
+    ),
+    "S8a": (
+        "no column is named as writing its numbers with a comma and "
+        "also as holding codes or record numbers"
     ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
@@ -676,6 +1031,14 @@ INVARIANTS = {
     "B7": "no two published labels are the same label",
     "C1": "a column of one value has one value, ignoring case",
     "Y1": "a column of two values has two, ignoring case",
+    "LT1": (
+        "a long tail of labels has at least one value shared by as "
+        "many rows as its own detection line asks"
+    ),
+    "LT2": (
+        "a long tail of labels holds more different values than a set "
+        "of categories may"
+    ),
     "G1": (
         "a column of categories has no more different values than the "
         "line it passed allows"
@@ -757,6 +1120,55 @@ INVARIANTS = {
     "Q11": (
         "the zeroes are not more than the values that read as numbers"
     ),
+    "Q17": (
+        "a column of numbers holds no more different numbers than it "
+        "holds different spellings, and holds at least one wherever "
+        "its statistics used a value"
+    ),
+    "Q19": (
+        "the ninety finer rungs of a column of numbers are named "
+        "exactly, each holds a number or nothing, and the hundred and "
+        "one rungs of the named ladder and this one together never go down"
+    ),
+    "Q18": (
+        "the commonest number of a column and the count of cells that "
+        "held it are published together or not at all, and where they "
+        "are published at least two cells held it and no more cells "
+        "than the column has numbers"
+    ),
+    "Q16": (
+        "the weight of a column's tails is given when four or more "
+        "values are not all the same one, is left out when they are, "
+        "and lies where every sample of that many values must"
+    ),
+    "Q15": (
+        "the shape of a column's numbers accounts for every value the "
+        "statistics used and for no more, names each of its stretches "
+        "by number, holds back none of them where the smallest group "
+        "size is one, and holds back all of them otherwise"
+    ),
+    # The bins holding nothing (plan P4-D32). Three conditions, and
+    # each one is a way a hand-written description could say something
+    # about the shape of a column that no column has.
+    "Q20": (
+        "the bins a column of numbers names as holding nothing are "
+        "named once each and in order, are never the bin its smallest "
+        "value is in nor the bin its largest is in, and where the "
+        "shape of its numbers is published name exactly the bins that "
+        "shape does not"
+    ),
+    # The edges of those stretches (residual R-P4-138), which are what
+    # a twin keeps out of: the bins are strictly inside the stretch the
+    # source really leaves empty, and these two values are the stretch.
+    "Q21": (
+        "a column of numbers names one pair of edges for each stretch "
+        "of bins it says holds nothing: the value just below the "
+        "stretch and the value just above it, each pair ascending, "
+        "the pairs themselves ascending and never crossing (two "
+        "stretches may share the one value that stands between them), "
+        "and every "
+        "one of them inside the two ends the column publishes"
+    ),
     "I2": (
         "the repetition pattern accounts for every different value and "
         "every row that holds one"
@@ -793,6 +1205,12 @@ INVARIANTS = {
         "a published label was written some way, so it has a named "
         "spelling or a held-back one"
     ),
+    "W8": (
+        "the rows that wrote a label in its own written form are at "
+        "least the named spellings that wear one and at most those "
+        "plus every row the floor held back, and a label with no "
+        "written form was written in none"
+    ),
     "P1": (
         "the cells counted by the form they were written in come to the "
         "cells that read as numbers"
@@ -803,6 +1221,86 @@ INVARIANTS = {
     ),
     "P3": (
         "a column of numbers says how its numbers were written"
+    ),
+    "RM1": (
+        "a column of dates says how many of its values wore each form, "
+        "and names the form it was read under"
+    ),
+    "RM2": (
+        "the values counted by the form they were written in come to "
+        "the values that were read as dates at all"
+    ),
+    "T1": (
+        "every time of day this description publishes is written the "
+        "way this column's own times were written"
+    ),
+    "T2": (
+        "the ladder of clock times begins at the column's earliest "
+        "time and ends at its latest"
+    ),
+    "T3": (
+        "the ladder of clock times never goes backwards"
+    ),
+    "T4": (
+        "a column read as clock times holds at least one"
+    ),
+    "T5": (
+        "enough of a column's values are clock times for it to be read "
+        "that way"
+    ),
+    "P6": (
+        "the cells held back from the forms map fit inside the forms "
+        "that map does not name"
+    ),
+    "P5": (
+        "the cells counted by the figures they wrote after the point "
+        "come to the cells that were written with a point"
+    ),
+    "P5b": (
+        "the cells counted by the width of the field they wrote come "
+        "to the cells that were written with a redundant zero"
+    ),
+    "P6b": (
+        "every field width the census names was written by at least "
+        "the smallest group size"
+    ),
+    "P7b": (
+        "a field width narrower than two figures is a width no padded "
+        "cell can wear"
+    ),
+    "P8": (
+        "the cells held back from the forms map fit inside the forms "
+        "that map does not name, once both width censuses have said "
+        "how many of them they account for"
+    ),
+    # The census of WHOLE-WRITTEN field widths (plan P4-D30). Its sum
+    # is bounded on two sides rather than pinned on one, because it
+    # counts three of the six forms rather than one.
+    "P6c": (
+        "every whole-number field width the census names was written "
+        "by at least the smallest group size"
+    ),
+    "P7c": (
+        "a field width of no figures at all is a width no cell written "
+        "as a whole number can wear"
+    ),
+    "P9c": (
+        "the cells counted by the width of the field they wrote come "
+        "to the cells written in a form that carries no point, give or "
+        "take the cells the forms map held back"
+    ),
+    # The census of written forms. Registered here because a rule this
+    # module RAISES and this table does not hold reaches a person as a
+    # bare KeyError rather than as the refusal it is -- which is what a
+    # hand-edited document with a below-floor named form did (review
+    # round 1 finding 9).
+    "SF1": (
+        "every written form the census names was written by at least "
+        "the smallest group size"
+    ),
+    "SF3": (
+        "the census counts no more cells than the column has present, "
+        "a cell too long to have a form being counted nowhere"
     ),
 }
 
@@ -851,6 +1349,7 @@ class DeclarationRecord:
     values_recorded: bool
     built_in_texts: "tuple[str, ...]"
     built_in_numbers: "tuple[float, ...]"
+    built_in_dates: "tuple[str, ...]"
 
 
 
@@ -872,7 +1371,120 @@ class SettingsBlock:
     declaration_matching: str
     declaration_publication: str
     near_threshold_slack: int
+    day_first: bool
+    long_tail_minimum_level: int
     forced_identifiers: "tuple[str, ...]"
+    # THE SECOND DECLARATION (plan P4-D19). Columns the person named as
+    # holding codes rather than measurements. Unlike the record-number
+    # declaration above this one does not silence a column: it moves it
+    # off the rules that read a cell as a number, a date, a clock time
+    # or a number wearing an affix, and onto the label roles, where the
+    # exact spellings and their counts are what get published.
+    forced_codes: "tuple[str, ...]"
+    # THE THIRD DECLARATION (plan P4-D21). Columns the person named as
+    # holding quantities, including ones written as two or more whole
+    # numbers in one cell. Like `forced_codes` and unlike
+    # `forced_identifiers` it does not silence a column.
+    forced_measurements: "tuple[str, ...]"
+    # THE FOURTH DECLARATION (plan P4-D26). Columns the person named as
+    # writing their numbers with a comma where this tool's default
+    # reading expects a point. It is unlike the three above it in what
+    # it answers: they say WHAT a column holds and are three answers to
+    # one question, so no column may carry two of them. This one says
+    # HOW the numbers of a column are spelled, which is a different
+    # question, and a column declared a measurement may perfectly well
+    # also be declared to spell its numbers with a comma -- that pairing
+    # is the commonest true thing a person has to say about a European
+    # file, and refusing it would refuse the case this declaration was
+    # built for.
+    forced_decimal_commas: "tuple[str, ...]"
+
+
+# TWO QUESTIONS, TWO NAMES, because a first version asked one and
+# answered the other (review item P4-G3-R5-F2).
+#
+# THIS is the roles on which the declaration is HONOURED -- where the
+# published description differs because it was made. The profiler
+# swaps every declared column's cells BEFORE it chooses a role, so a
+# column of `1,5` cells reads as ones and a halves whatever role it
+# ends up with, `constant` and `binary` included; those two are chosen
+# before the numeric roles and were missing from the first version of
+# this list, so the command line told a person their numbers were "NOT
+# read" with the comma about a description whose profiler had read
+# exactly that way.
+#
+# It is used by the one caller holding a description rather than a
+# loaded profile: the command line, which must say when a declaration
+# landed somewhere it cannot help. Its COMPLEMENT is what gets the
+# warning.
+DECIMAL_COMMA_HONOURED_ROLES = (
+    "binary",
+    "constant",
+    "continuous",
+    "count",
+    # The compound role, whose numeric half the declaration reaches
+    # (plan P4-D34). It was missing while `a_decimal_comma_reaches`
+    # already answered yes for the role, so the two statements of the
+    # same fact disagreed and the CLI told a person their declaration
+    # had not reached a column it had reached (review round 5 of
+    # landing L8, item 4).
+    "numbers_with_labels",
+    "numeric_unrepresentable",
+)
+
+
+def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
+    """Whether the GENERATOR must spell this column's numbers with a
+    comma, and whether the validator must read them back that way.
+
+    THE NARROWER OF THE TWO QUESTIONS, and not the same one
+    `DECIMAL_COMMA_HONOURED_ROLES` answers. A declaration is HONOURED
+    on more roles than this: the profiler reads every declared column
+    with the comma, so a `constant` column of `1,5` publishes ones and
+    a halves. But that column's twin writes the published SPELLING,
+    `1,5`, straight out -- there is nothing for a swap to do, and
+    swapping would corrupt it. This predicate is about the cells the
+    numeric machinery WRITES as numbers, which are the only ones the
+    twin spells itself.
+
+    It reaches the plain numeric roles and the unrepresentable one,
+    whose cells are numbers too large or too small for this format to
+    hold but are numbers all the same, spelled by the same rules.
+
+    It does NOT reach the label and text roles: those publish spellings
+    the file itself held, and swapping a character inside one of them
+    would rewrite a value the description publishes exactly. It does
+    not reach the affixed or joined roles either, and that is residual
+    R-P4-52: their cells carry a number inside a larger spelling -- an
+    affix around it, or a separator between several -- and which mark
+    of that spelling is a decimal point is a question this declaration
+    does not answer.
+
+    IT LIVES HERE BECAUSE FOUR PLACES ASK IT (review item P4-G3-R2-F2).
+    The profiler's censuses, the generator's writeback, the validator's
+    cell reading and the refusal that turns away a declaration it
+    cannot honour must all agree about which columns are reached, and
+    the validator may not import the generator. A first version wrote
+    the test twice, said `NumericFacts` in both, and silently dropped
+    the unrepresentable role from a feature whose whole subject is how
+    a number is spelled.
+
+    Guarantees: accepts one column's block; returns whether the swap
+    applies. Determinism: a fixed function of the block. Raises
+    nothing. No I/O of any kind.
+    """
+    # AND THE COMPOUND ROLE, whose numeric HALF is written by the same
+    # machinery and must be spelled the same way (review round 4 of
+    # landing L8, item 1). Excluding it left a declared column of
+    # `1,5` cells profiled under the comma grammar and written back
+    # with points: sixteen checks missed on a twin that was otherwise
+    # correct. Its LABEL half is not touched -- both the writeback and
+    # the validator's reading translate a cell of this role only where
+    # the translation makes it a number, so a label spelled `E11.9`
+    # keeps its dot.
+    return isinstance(
+        column.facts, (NumericFacts, UnrepresentableFacts, CompoundFacts)
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -913,13 +1525,20 @@ class SentinelVerdict:
 class MissingByClass:
     """Absent cells by the reason each was counted absent (contract 5.4).
 
-    The five keys of the document are five fields here, because the
+    The six keys of the document are six fields here, because the
     document's own key spellings -- `(blank)` and the rest -- are not
-    names a program can carry, and a consumer that reads a sixth reason
-    should find out where it made the mistake.
+    names a program can carry, and a consumer that reads a seventh
+    reason should find out where it made the mistake.
+
+    THE SIXTH ARRIVED WITH THE CALENDAR PLACEHOLDERS (plan amendment
+    A-P4-1 item 3): a cell taken out because it wrote a placeholder day
+    is absent for its own reason, and pooling it with the numeric
+    stand-ins would tell a reader a column of dates held a stand-in
+    NUMBER.
     """
 
     blank: int
+    date_sentinel: int
     declared_missing: int
     numeric_sentinel: int
     text_code: int
@@ -928,12 +1547,22 @@ class MissingByClass:
 
 @dataclasses.dataclass(frozen=True)
 class LevelEntry:
-    """One published label, its rows, and how those rows wrote it."""
+    """One published label, its rows, and how those rows wrote it.
+
+    `shape_form_cells` is how many of those rows wrote it in the
+    label's own written form (7.4.8, plan amendment A-P4-47). It is one
+    number and not a census because every form-bearing spelling of a
+    level wears exactly `parsing.shape_form(label)`; a label with no
+    form of its own carries 0. It is the fact the twin needs to give
+    the level's made-up spellings the shape the source's held-back ones
+    wore, which the column-wide `shape_forms` cannot say.
+    """
 
     label: str
     count: int
     variants: "dict[str, int]"
     variants_withheld: "dict[str, int]"
+    shape_form_cells: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1017,12 +1646,27 @@ class EmptyFacts:
 class UnrepresentableFacts:
     """A column of numbers too large or too small to hold (6.2).
 
-    There is no width fact and no magnitude fact here, and the omission
-    is load-bearing: two columns of overflowing values, one about four
-    hundred characters wide and one about four thousand, publish
-    identically.
+    THE TWO WIDTH FACTS ARE HERE NOW (residual R-P4-37), and the
+    docstring said the opposite until 2026-08-26: "there is no width
+    fact and no magnitude fact here, and the omission is load-bearing".
+    That was never true of the CONTRACT, which has stated
+    `min_length` and `max_length` on this role in four places since
+    version 6; it was true only of the producer, which never wrote
+    them, and of this loader, which refused them. The consequence was
+    that a twin of a twenty-figure identifier column came out at one
+    made-up canonical width, so code checking `len(x)` behaved
+    differently on the twin than on the real table.
+
+    WHAT THE PAIR COSTS, kept from the old docstring because it is the
+    honest half of it: for decimal numerals a length bounds a
+    magnitude, so `max_length` states the order of magnitude of the
+    largest withheld numeral. That is one cell's worth of floor-free
+    fact, and section 12 prices it. What it buys is a twin whose
+    invented digit strings are the width the real ones were.
     """
 
+    min_length: int
+    max_length: int
     n_whole: int
     n_fraction: int
     n_whole_unknown: int
@@ -1034,12 +1678,31 @@ class UnrepresentableFacts:
 
 @dataclasses.dataclass(frozen=True)
 class LabelFacts:
-    """The published labels of a constant or binary column (6.3)."""
+    """The published labels of a label column (6.3), and their forms.
+
+    `shape_forms` is carried by ALL FOUR label roles (P4-D18,
+    corrected). It first stood on `long_tail_labels` alone, on the
+    reasoning that the other three publish their levels so their twins
+    hold them and have no stand-in to shape. That reasoning was wrong.
+    A diagnosis column of five common codes and twenty-six rare ones
+    is under the categorical ceiling, so it takes `categorical` -- and
+    the floor holds back every rare one, whose twin cells came out
+    `group-1` through `group-24`, which is the defect the census was
+    raised to close, in the shape a real table most often has it.
+    Whether a label role suppresses levels is a fact about the FLOOR,
+    not about the role.
+    """
 
     levels: "tuple[LevelEntry, ...]"
     suppressed_levels: int
     suppressed_rows: int
     suppressed_level_counts: "tuple[int, ...]"
+    shape_forms: "dict[str, int]"
+
+
+@dataclasses.dataclass(frozen=True)
+class LongTailFacts(LabelFacts):
+    """A long tail of labels. It adds no key of its own."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1077,6 +1740,7 @@ class DatetimeFacts:
     date_percentiles: DateLadder
     n_unparsed: int
     utc_offsets: "dict[str, int]"
+    resolution_mix: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1090,9 +1754,28 @@ class NumericFacts:
     """
 
     percentiles: NumberLadder
+    # The ninety rungs `percentiles` does not name, in percent
+    # order (plan P4-D4.10, contract Q19). One fact, no subcheck
+    # of its own, consumed by the generator's interpolation.
+    percentiles_between: "tuple[float | None, ...]"
     mean: "float | None"
     std: "float | None"
     skew: "float | None"
+    # HOW HEAVY THIS COLUMN'S TAILS ARE (plan P4-D4.8). The moment
+    # ratio and not the excess, so a normal curve reads 3 here rather
+    # than 0 -- the same measure the skewness beside it uses. Undefined,
+    # and written as null, below four values or where every value is
+    # the same one.
+    kurtosis: "float | None"
+    # HOW MANY DIFFERENT NUMBERS, as distinct from how many different
+    # SPELLINGS (plan P4-D4.9, closing residual R-P4-20). `n_distinct`
+    # on the column block counts spellings, so `1` and `01` are two of
+    # them and one number; this counts the numbers.
+    n_distinct_values: int
+    # The number the column held most often and how many cells held it,
+    # or None beside 0 where the pair was withheld (plan P4-D4.11).
+    mode: "float | None"
+    mode_count: int
     std_unrepresentable: bool
     n_zero: int
     n_negative: int
@@ -1103,6 +1786,32 @@ class NumericFacts:
     integer_valued: bool
     n_rows: int
     numeric_styles: "dict[str, int]"
+    fraction_widths: "dict[str, int]"
+    pad_widths: "dict[str, int]"
+    # HOW WIDE EVERY WHOLE-WRITTEN CELL WROTE ITS FIGURE FIELD (plan
+    # P4-D30, closing R-P4-30 and R-P4-35). The other two censuses
+    # cover the padded cells and the figures after a point; a cell
+    # written `199` is in neither, so nothing published said how wide
+    # it was.
+    field_widths: "dict[str, int]"
+    # HOW MANY OF THIS COLUMN'S NUMBERS FALL IN EACH OF THE THIRTY-TWO
+    # EQUAL BINS between its published ends (plan P4-D4.7). A ladder and
+    # the moments cannot show two peaks; this can, and it is the one
+    # fact in this block a person plotting a distribution or fitting a
+    # mixture is actually reading.
+    value_histogram: "dict[str, int]"
+    # ...AND WHICH OF THOSE BINS HOLD NOTHING (plan P4-D32, the owner's
+    # ruling of 2026-08-31). The census above is all or nothing and is
+    # therefore absent from every description written above a floor of
+    # one; this list survives the floor, because a bin holding nobody
+    # is not a small group. It is the one fact of this block the
+    # smallest group size does not reach, and the value stage reads it
+    # as a set of stretches no cell may land in.
+    empty_bins: "tuple[int, ...]"
+    # One `(below, above)` pair per run of empty bins: the largest
+    # value under the stretch and the smallest over it, both real
+    # (residual R-P4-138).
+    empty_edges: "tuple[tuple[float, float], ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1126,6 +1835,188 @@ class TextFacts:
     n_all_digits: int
     n_code_alphabet: int
     n_distinct_by_occurrences: "dict[str, int]"
+    shape_forms: "dict[str, int]"
+
+
+@dataclasses.dataclass(frozen=True)
+class AffixWrapper:
+    """One wrapper a column wears, with its own numbers (plan P4-D37).
+
+    A column wearing a SET of wrappers published ONE ladder over every
+    core it held, and that is a statistic of no quantity where the
+    wrappers are units: a hundred weights written `60.0 kg` to
+    `69.9 kg` beside a hundred written `132.3 lb` to `153.8 lb`
+    published mean 104.722, with the column's own ends running from 60
+    to 153.8. Every published wrapper carries its own block now.
+
+    THE FOUR CLASS COUNTS CLOSE ON `count`, exactly as the column's
+    four close on `n_affixed`. They are here rather than derived
+    because the block beside them cannot be checked without them: a
+    loader reading a block of a subset has to know how many of that
+    subset's cores read as numbers.
+
+    `numbers` echoes `count` rather than the table's row count, on the
+    joined role's own precedent -- a block describing a subset of a
+    column's cells answers for that subset.
+    """
+
+    prefix: str
+    suffix: str
+    count: int
+    n_core_numeric: int
+    n_core_out_of_range: int
+    n_core_contradictory: int
+    n_core_not_numeric: int
+    # HOW MANY DIFFERENT CORES THIS WRAPPER HOLDS. The generator lays
+    # each wrapper's cores out from its own block, and a layout is
+    # divided by a count of different things: handed the COLUMN's
+    # count, a wrapper worn by fifty cells is asked for the spellings
+    # of every core in the column.
+    n_core_distinct: int
+    n_core_distinct_folded: int
+    numbers: NumericFacts
+
+
+@dataclasses.dataclass(frozen=True)
+class AffixedFacts:
+    """A column of numbers each wearing one shared piece of text.
+
+    TWO POPULATIONS, and they are never the same one. `numbers` holds
+    the quantitative block, read over the CORES the cells carry. The
+    four `n_core_*` counts answer for those cores. `n_affixed` and
+    everything the universal keys count answer for the CELLS.
+
+    The pair is the one place a ranges-class role publishes a spelling
+    of the table, and it is confined to these two fields by the
+    forbidden-key rule rather than by anybody remembering the
+    exception.
+    """
+
+    # THE COMMONEST WRAPPER'S NUMBERS, AND NOT THE COLUMN'S (plan
+    # P4-D37). On a column wearing ONE wrapper those are the same
+    # thing, which is every column of this role until a set is worn.
+    # On a column wearing a SET they are not, and pooling them
+    # published a statistic of no quantity: a hundred weights in
+    # kilograms beside a hundred in pounds gave mean 104.722.
+    numbers: NumericFacts
+    affix_prefix: str
+    affix_suffix: str
+    # THE OTHER WRAPPERS THIS COLUMN WEARS (plan P4-D36), each with the
+    # count of cells wearing it AND ITS OWN NUMBERS (plan P4-D37).
+    # Empty on a column wearing one wrapper, which is most of them, so
+    # a description written before this key existed reads the same way.
+    affix_variants: "tuple[AffixWrapper, ...]"
+    n_affixed: int
+    # HOW MANY DIFFERENT CORES (plan P4-D36). The generator spends
+    # these as its budget of different core SPELLINGS; the column's own
+    # counts are of different CELLS, and once a column wears more than
+    # one wrapper the two are different numbers.
+    n_core_distinct: int
+    n_core_distinct_folded: int
+    n_core_numeric: int
+    n_core_out_of_range: int
+    n_core_contradictory: int
+    n_core_not_numeric: int
+
+
+@dataclasses.dataclass(frozen=True)
+class CompoundFacts:
+    """Numbers and labels in one cell space (residual R-P4-13, L8).
+
+    THREE COUNTS OF CELLS THAT SUM TO `n_present`, so every present
+    cell is in exactly one published population: the numbers, the
+    numerals this format cannot hold, and the labels. That sum is the whole
+    answer to review item P1-R6-F7, which deleted a rule describing
+    part of a column and saying nothing about the rest: a reader can
+    check the arithmetic without trusting any prose.
+
+    AND BOTH HALVES DESCRIBED, each by the reader that reads its own
+    kind of column: `numbers` is read by the SAME reader every
+    quantitative block is read by, over the numeric cells, and
+    `labels` by the same reader a column of labels is read by, over
+    the rest. Nothing here reads a fact a second way, so the two
+    halves cannot come to disagree with the roles they are borrowed
+    from.
+    """
+
+    n_numeric_cells: int
+    # THE THIRD POPULATION (residual R-P4-149, closed by the owner's
+    # ruling of 2026-09-04): cells the number rules recognise as a
+    # numeral this format cannot hold. They are counted with the
+    # NUMERIC half, because an unusable numeral is a number, and the
+    # two counts are the two a plain numeric column publishes.
+    n_numeric_out_of_range: int
+    n_numeric_contradictory: int
+    n_label_cells: int
+    n_numeric_distinct: int
+    n_numeric_distinct_folded: int
+    # ...and the label half's own two, so neither view has to borrow a
+    # count from the whole column.
+    n_label_distinct: int
+    n_label_distinct_folded: int
+    numbers: "NumericFacts"
+    labels: "LabelFacts"
+
+
+@dataclasses.dataclass(frozen=True)
+class JoinedFacts:
+    """Two or more numbers written in one cell (contract 6.15).
+
+    TWO POPULATIONS, as `AffixedFacts` has. `parts` holds one
+    quantitative block PER POSITION, each read over that position's
+    numbers alone, so the ladder a consumer reads for the first number
+    is a ladder of first numbers and nothing else. `n_joined` and
+    everything the universal keys count answer for the CELLS.
+
+    `separator` is the one key of this role that carries a spelling of
+    the table, on exactly the terms the affixed role's pair does, and
+    the forbidden-key rule is what confines it to that key.
+
+    `part_min_widths` is what tells a padded position from a plain one:
+    `95` and `133` differ in width because the NUMBERS differ, while a
+    padded position writes `007` and `080` at one width whatever the
+    number. It is a width and never a spelling.
+    """
+
+    parts: "tuple[NumericFacts, ...]"
+    separator: str
+    n_parts: int
+    n_joined: int
+    n_unparsed: int
+    part_min_widths: "tuple[int, ...]"
+    # HOW THE POSITIONS MOVE TOGETHER, one entry per PAIR of positions
+    # in the order (1,2), (1,3), ... (2,3), ... `part_agreements` is
+    # the rank agreement between the two, from -1 to 1, and
+    # `part_above` is the number of rows in which the earlier position
+    # held the larger number.
+    #
+    # THEY ARE FACTS ABOUT THE PAIRING AND NOTHING ELSE. What each
+    # position holds is published exactly in `parts`, so neither of
+    # these repeats a number the block already carries; between them
+    # they say the one thing it did not -- which numbers met in a row.
+    part_agreements: "tuple[float, ...]"
+    part_above: "tuple[int, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class ClockFacts:
+    """A column of clock times (contract section 6, the clock role).
+
+    FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
+    earliest and latest value, the eleven-rung ladder over the values
+    that parsed, and how many present cells no clock reading accepted.
+
+    Every clock value here is written in the form `clock_form` names,
+    two digits a field. The ladder is SELECTION -- eleven order
+    statistics of cells the column really holds -- so its two ends ARE
+    the endpoints, which the loader checks rather than assumes.
+    """
+
+    clock_form: str
+    earliest: str
+    latest: str
+    clock_percentiles: "dict[str, str]"
+    n_unparsed: int
 
 
 ColumnFacts = (
@@ -1136,6 +2027,15 @@ ColumnFacts = (
     | NumericFacts
     | IdentifierFacts
     | TextFacts
+    | AffixedFacts
+    | ClockFacts
+    | JoinedFacts
+    # THE FIFTEENTH ROLE, and it was missing from this union while
+    # every reader dispatched on it (review round 3 of landing L8,
+    # item 1). A strict type run named it: `_facts_of` returns one of
+    # these and returned a `CompoundFacts` that the union did not
+    # carry, so the checker could not hold any reader to the branch.
+    | CompoundFacts
 )
 
 
@@ -1180,9 +2080,133 @@ class ColumnBlock:
     facts: ColumnFacts
 
 
+# -- the two halves of a compound column, as columns ------------------
+#
+# THE HALVES ARE READ THE SAME WAY BY BOTH SIDES. The generator builds
+# each half with the machinery that builds a whole column of that kind,
+# and the validator checks each half with the checks that check a whole
+# column of that kind -- so what a half IS has to be one definition,
+# read from here by both. Writing it twice is how a producer and a
+# reader come to disagree about the same cells.
+
+
+def _not_its_own_facts(name: str) -> "errors.ProfileError":
+    """A column handed a view builder that its own kind does not have.
+
+    An internal check, and it stays one: both halves of a compound
+    column are read into `CompoundFacts` when the description is
+    loaded, so a column reaching either view without them is a mistake
+    in synthtwin rather than anything a description did.
+    """
+    return errors.ProfileError(
+        f"synthtwin internal check: the description of the column "
+        f"'{parsing.visible(name)}' does not carry the facts its own kind "
+        f"of column needs. Both are checked when the description is "
+        f"read, so this means a mistake in synthtwin; please report it."
+    )
+
+
+def compound_numbers_view(
+    column: "ColumnBlock",
+) -> "ColumnBlock":
+    """The numeric half of a compound column, as a column of numbers.
+
+    THE SAME MOVE `_core_view` MAKES, for the same reason. A compound
+    column has two populations and the numeric machinery is written
+    over one of them; its universal counts answer for the CELLS, and a
+    cell reading `NOT DETECTED` is not a number, so those counts say
+    the column holds fewer numbers than its numeric half does. The
+    quantitative block answers for the numeric cells alone.
+
+    Handed over as a column in its own right, every rule of G5 and G6
+    applies unchanged -- which is the point: the numbers inside a
+    compound column are built by exactly the code that builds a plain
+    numeric column.
+    """
+    facts = column.facts
+    # The TUPLE form of the type gate, which is how this module writes
+    # one (`a_decimal_comma_reaches` above). The offline audit refuses
+    # a bare class name handed to a callee it does not scan, and
+    # `isinstance` is not scanned code: it cannot tell a class from any
+    # other callable a caller might keep and run later.
+    if not isinstance(facts, (CompoundFacts,)):
+        raise _not_its_own_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="continuous",
+        # THE HALF'S POPULATION IS ITS NUMBERS AND ITS UNUSABLE
+        # NUMERALS (residual R-P4-149). A plain numeric column's
+        # `n_present` is the sum of its four class counts, and this
+        # view is handed to the same machinery, so it is that sum here
+        # too -- with `n_not_numeric` nought, because a cell that is
+        # not a numeral at all is in the OTHER half.
+        n_present=(
+            facts.n_numeric_cells
+            + facts.n_numeric_out_of_range
+            + facts.n_numeric_contradictory
+        ),
+        # A HALF HAS NO ABSENT CELLS OF ITS OWN. A blank cell is in
+        # neither population -- the two counts of the split are taken
+        # over the PRESENT cells and sum to `n_present` -- so carrying
+        # the column's own missing count into a half would say the half
+        # has room for cells it cannot hold. It is read: the style
+        # ceiling asks how many cells of this population a file could
+        # write in one form, and with the column's blanks left in, that
+        # capacity came out above the half's own size and an obligation
+        # no file can exceed was filed as a check that cannot fail.
+        n_missing=0,
+        n_numeric=facts.n_numeric_cells,
+        n_not_numeric=0,
+        n_out_of_range=facts.n_numeric_out_of_range,
+        n_contradictory=facts.n_numeric_contradictory,
+        # THE HALF'S OWN COUNTS OF DIFFERENT WRITTEN CELLS, and NOT
+        # its count of different numbers. The layout spends these two
+        # as a budget of SPELLINGS, and `07` and `7` are one number
+        # written two ways: a budget of numbers cannot buy the second
+        # way, so a column publishing 113 different cells produced a
+        # twin holding 56 (review round 1, item 1).
+        n_distinct=facts.n_numeric_distinct,
+        n_distinct_folded=facts.n_numeric_distinct_folded,
+        facts=facts.numbers,
+    )
+
+
+def compound_labels_view(
+    column: "ColumnBlock",
+) -> "ColumnBlock":
+    """The label half of a compound column, as a column of labels."""
+    facts = column.facts
+    # The TUPLE form of the type gate, which is how this module writes
+    # one (`a_decimal_comma_reaches` above). The offline audit refuses
+    # a bare class name handed to a callee it does not scan, and
+    # `isinstance` is not scanned code: it cannot tell a class from any
+    # other callable a caller might keep and run later.
+    if not isinstance(facts, (CompoundFacts,)):
+        raise _not_its_own_facts(column.name)
+    return dataclasses.replace(
+        column,
+        statistical_type="long_tail_labels",
+        role="long_tail_labels",
+        n_present=facts.n_label_cells,
+        n_missing=0,
+        # THE HALF'S OWN COUNTS OF DIFFERENT CELLS, and this view
+        # carried the WHOLE COLUMN's until review round 3 named it:
+        # `n_present` said five and `n_distinct` said two hundred and
+        # ninety-six, which is not a column any file could hold.
+        n_distinct=facts.n_label_distinct,
+        n_distinct_folded=facts.n_label_distinct_folded,
+        n_numeric=0,
+        n_not_numeric=facts.n_label_cells,
+        n_out_of_range=0,
+        n_contradictory=0,
+        facts=facts.labels,
+    )
+
+
+
 @dataclasses.dataclass(frozen=True)
 class Profile:
-    """A whole conforming version 5 description (contract 10.8).
+    """A whole conforming description at `PROFILE_VERSION` (10.8).
 
     `columns` is in the document's own list order, which IS the schema
     order, the order the twin's columns are written in, and the order
@@ -1209,6 +2233,54 @@ class _Frame:
     n_rows: int
     n_columns: int
     declared: "tuple[str, ...]"
+    # The columns the person named with `--code`. LT1 is stated over
+    # this: the long-tail detection line is a stand-in for a judgement
+    # nobody had made, and a declared code column is one where they
+    # have made it (plan P4-D22).
+    declared_codes: "tuple[str, ...]"
+    # The columns the person named with `--decimal-comma`. Invariant
+    # NL5 is stated over this: whether a published label of a compound
+    # column is a NUMBER depends on the grammar that column is read
+    # with, and `1,5` is a number on a declared column and text on
+    # every other.
+    declared_commas: "tuple[str, ...]"
+    # The share a role's detection line is drawn at, carried here
+    # because one invariant is stated over it: AF3 holds an affixed
+    # column's pair to the line its own detection had to clear, and a
+    # loader without the setting could not check it at all.
+    parse_rate: float
+    # The three settings the categorical ceiling is computed from,
+    # carried here because LT2 is stated over it: a long-tail block has
+    # to hold more different values than a set of categories may, and a
+    # loader without these could not ask the producer's own question.
+    category_share: float
+    category_ceiling: int
+    category_floor: int
+
+
+def _category_ceiling(frame: _Frame) -> int:
+    """The most different values a set of categories may hold here.
+
+    THE PRODUCER'S OWN RULE, written again for the reason every
+    threshold is written twice: the loader may not import the
+    describing side. `min(categorical_ceiling, categorical_share of the
+    table's ROWS)`, never below `categorical_floor` -- rows, not the
+    values the column happens to hold, which is what the producer
+    computes and what every profile records the settings for.
+    """
+    # THE EXACT PRODUCT, like every other threshold in this file
+    # (amendments A-P4-21 and A-P4-23). A ceiling computed by
+    # multiplying in binary64 is a ceiling the two sides can disagree
+    # about at the boundary, which is the whole reason the rule is
+    # written twice.
+    numerator, denominator = _exact_ratio(frame.category_share)
+    share = (numerator * frame.n_rows) // denominator
+    ceiling = frame.category_ceiling
+    if share < ceiling:
+        ceiling = share
+    if ceiling < frame.category_floor:
+        ceiling = frame.category_floor
+    return ceiling
 
 
 # -- reading the file -------------------------------------------------
@@ -1225,7 +2297,12 @@ def _read_text(place: pathlib.Path) -> str:
     caller turns into a refusal written for a person.
 
     Boundary: this is the only place in the generation path that opens
-    anything, and the only thing it opens is the description file.
+    anything, and the two files it opens are the description and the
+    questions file `profile` is handed with `--answers` (amendment
+    A-P4-58). NEITHER IS A TABLE, which is the guarantee that matters
+    and the one this sentence used to make by counting to one. The
+    questions file is not on the generation path at all: nothing in
+    `generate` can reach `load_answers`.
 
     It is a function of its own, and called through this module's own
     name, so that the two failures a test cannot arrange on a real
@@ -1432,7 +2509,7 @@ def _parsed(text: str, shown: str) -> object:
 
 
 def _versioned(parsed: object, shown: str) -> "dict[str, object]":
-    """Check `profile_version` is exactly 5, before anything else (10.6).
+    """Check `profile_version` is exactly `PROFILE_VERSION`, first (10.6).
 
     Guarantees:
 
@@ -1769,6 +2846,21 @@ def _one_of(
     return found
 
 
+def _exactly(value: object, key: str, where: str, permitted: int) -> int:
+    """The value under ``key``, required to be one whole number.
+
+    A setting with exactly one permitted value, on the
+    `declaration_matching` precedent. It is recorded rather than
+    assumed so that the number is on the document's own face, and it is
+    refused at any other value because moving it is a change to the
+    contract rather than a choice a run may make.
+    """
+    found = _whole(value, key, where, 0)
+    if found != permitted:
+        raise _out_of_range(key, where, f"{found}", f"{permitted}")
+    return found
+
+
 def _keys(
     mapping: "dict[str, object]",
     where: str,
@@ -1804,6 +2896,17 @@ _A_SPELLING_OF_YOURS = "(a spelling out of your own table)"
 _THE_SOURCE_KEYS = ("columns", canonical.EACH, "missing_by_source")
 _THE_VARIANT_KEYS = (
     "columns", canonical.EACH, "levels", canonical.EACH, "variants"
+)
+
+# THE SAME MAPPING ONE STEP DEEPER, inside the label half of a compound
+# column (residual R-P4-13, landing L8). The half publishes levels
+# exactly as a label column does, so a person's own spellings stand
+# here too -- and a refusal that quoted one would be a refusal printing
+# the data it refused. The path is passed rather than inferred for the
+# reason every other table-keyed mapping passes one: a caller that
+# forgot would fail OPEN.
+_THE_COMPOUND_VARIANT_KEYS = (
+    "columns", canonical.EACH, "labels", "levels", canonical.EACH, "variants"
 )
 
 
@@ -2057,6 +3160,65 @@ def _multiplicity_totals(
 # -- the eleven rungs ------------------------------------------------
 
 
+def _finer_ladder(
+    value: object, key: str, where: str, ladder: NumberLadder
+) -> "tuple[float | None, ...]":
+    """The ninety rungs the named ladder does not carry (contract Q19).
+
+    They are ONE FACT and not ninety: no rung here has a subcheck of
+    its own, and the fidelity they buy comes from the generator
+    interpolating them rather than from a file being held to each
+    (plan P4-D4.10).
+
+    What IS checked is the shape a consumer relies on. The keys are
+    exactly the ninety percents, every entry is a number or null, and
+    -- the half that matters -- the HUNDRED AND ONE rungs of this and
+    the named ladder together never go down. Checking the ninety alone
+    would let a finer rung sit outside the named pair it lies between,
+    and a generator interpolating that ladder would then place a value
+    outside two rungs the description publishes as exact.
+
+    Guarantees: accepts the value under ``key`` and the named ladder
+    beside it; returns the ninety rungs in percent order. Raises
+    ProfileError for a value that is not a block (R15), for keys that
+    are not exactly the ninety (L4), for an entry that is neither a
+    number nor null (R15), and for Q19. No I/O of any kind.
+    """
+    mapping = _mapping(value, key, where)
+    _keys(mapping, where, FINER_LADDER_KEYS, "every finer ladder")
+    finer: "dict[int, float | None]" = {}
+    rungs: list[float | None] = []
+    for name in FINER_LADDER_KEYS:
+        rung = _figure_or_nothing(mapping[name], f"{key} -> {name}", where)
+        rungs = rungs + [rung]
+        finer[int(name[1:])] = rung
+    # THE JOINT WALK, over all hundred and one rungs in percent order.
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = ladder.rungs[index]
+    previous: "float | None" = None
+    previous_percent = 0
+    for percent in range(101):
+        if percent in named:
+            rung = named[percent]
+            shown = f"percentiles -> {_LADDER_NAME_AT[percent]}"
+        else:
+            rung = finer[percent]
+            shown = f"{key} -> p{percent:02d}"
+        if rung is None:
+            continue
+        if previous is not None and rung < previous:
+            raise _broken(
+                "Q19",
+                where,
+                f"the rung at {previous_percent} per cent is {previous}",
+                f"{shown} is {rung}",
+            )
+        previous = rung
+        previous_percent = percent
+    return tuple(rungs)
+
+
 def _number_ladder(
     value: object, key: str, where: str
 ) -> NumberLadder:
@@ -2192,7 +3354,17 @@ def _canonical_datetime(
     reporting the end as a loss (review item P2-C3-F2).
     """
     found = _text(value, key, where)
-    if resolution == "quarter":
+    if resolution == "month":
+        wanted = "a month written like 2024-03"
+        good = (
+            len(found) == 7
+            and _digits_at(found, 0, 4)
+            and found[4] == "-"
+            and _digits_at(found, 5, 2)
+            and "01" <= found[5:7] <= "12"
+            and found[0:4] != "0000"
+        )
+    elif resolution == "quarter":
         wanted = "a quarter written like 2024-Q1"
         good = (
             len(found) == 7
@@ -2200,6 +3372,7 @@ def _canonical_datetime(
             and found[4] == "-"
             and found[5] == "Q"
             and "1" <= found[6] <= "4"
+            and found[0:4] != "0000"
         )
     elif resolution == "datetime":
         wanted = (
@@ -2366,7 +3539,8 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
     written before this rule carried an array of spellings under the
     same key, and a consumer must be able to tell the two apart without
     guessing. A description claiming to record the person's own declared
-    spellings is not a version 5 description, whatever else it says.
+    spellings is not a description this loader accepts, whatever else
+    it says.
 
     THE TWO LISTS ARE NOT THAT TEXT, and C5-S7 fixes the wording so the
     flag beside them cannot be read as contradicting them: each holds
@@ -2388,21 +3562,25 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
             where,
             f"the record '{key}' says the declared values were kept",
             (
-                "in a version 5 description no text of the person's own "
+                "in a description this tool writes no text of the "
+                "person's own "
                 "stands in that block, so the flag reads false in both "
                 "records"
             ),
         )
     texts = _built_in_texts(mapping["built_in_texts"], key, where)
     numbers = _built_in_numbers(mapping["built_in_numbers"], key, where)
-    if len(texts) + len(numbers) > declared:
+    days = _built_in_dates(mapping["built_in_dates"], key, where)
+    # THE COUNT IDENTITY REACHES ALL THREE LISTS (plan amendment
+    # A-P4-1 item 3): a record naming more of this package's own words
+    # than it says values were declared is a record that cannot be
+    # read back, whichever list the words are in.
+    named = len(texts) + len(numbers) + len(days)
+    if named > declared:
         raise _broken(
             "C5-K3",
             where,
-            (
-                f"the record '{key}' names "
-                f"{len(texts) + len(numbers)} of synthtwin's own words"
-            ),
+            f"the record '{key}' names {named} of synthtwin's own words",
             f"it says {declared} value(s) were named that way",
         )
     return DeclarationRecord(
@@ -2410,6 +3588,7 @@ def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
         values_recorded=recorded,
         built_in_texts=texts,
         built_in_numbers=numbers,
+        built_in_dates=days,
     )
 
 
@@ -2430,7 +3609,7 @@ def _built_in_texts(
     place = 0
     for item in listed:
         member = _text(item, f"{field}[{place + 1}]", where)
-        if member not in parsing.MISSING_TEXTS:
+        if member not in parsing.built_in_missing_texts():
             raise _broken(
                 "C5-K1",
                 where,
@@ -2453,6 +3632,39 @@ def _built_in_texts(
         found = found + [member]
         place = place + 1
     return tuple(found)
+
+
+def _built_in_dates(
+    value: object, key: str, where: str
+) -> "tuple[str, ...]":
+    """The placeholder days one declaration named (A-P4-1 item 3).
+
+    Every element must be a member of `parsing.calendar_placeholders()`,
+    the two days this package judges, and the list is sorted and holds
+    no repeat -- the same shape and the same identity rules the numeric
+    list carries, so a consumer can tell a day this package supplied
+    from a day somebody typed.
+    """
+    listed = _listing(value, f"{key} -> built_in_dates", where)
+    seen: list[str] = []
+    for item in listed:
+        member = _text(item, f"{key} -> built_in_dates", where)
+        if member not in parsing.calendar_placeholders():
+            raise _out_of_range(
+                f"{key} -> built_in_dates",
+                where,
+                f"'{member}'",
+                _listed(parsing.calendar_placeholders()),
+            )
+        if seen and member <= seen[len(seen) - 1]:
+            raise _broken(
+                "C5-K2",
+                where,
+                f"the record '{key}' names '{member}' out of order",
+                "the days it names are sorted and none is repeated",
+            )
+        seen = seen + [member]
+    return tuple(seen)
 
 
 def _built_in_numbers(
@@ -2511,7 +3723,7 @@ def _no_word_is_named_both_ways(
     words -- so a description carrying one member in both records is a
     description its own settings contradict. The refusal says which
     record pair clashed and never quotes the member: it is one of
-    synthtwin's own thirteen words, but naming it here would put the
+    synthtwin's own twenty-three words, but naming it here would put the
     loader in the business of quoting a settings value, which nothing
     else on this path does.
 
@@ -2604,6 +3816,56 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared = declared + [found]
         place = place + 1
+    declared_measurements: list[str] = []
+    measured_names = _listing(
+        mapping["forced_measurements"], "forced_measurements", where
+    )
+    place = 0
+    for name in measured_names:
+        found = _text(name, f"forced_measurements[{place}]", where)
+        if declared_measurements and found <= declared_measurements[
+            len(declared_measurements) - 1
+        ]:
+            raise _out_of_range(
+                "forced_measurements",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_measurements = declared_measurements + [found]
+        place = place + 1
+    declared_commas: list[str] = []
+    comma_names = _listing(
+        mapping["forced_decimal_commas"], "forced_decimal_commas", where
+    )
+    place = 0
+    for name in comma_names:
+        found = _text(name, f"forced_decimal_commas[{place}]", where)
+        if declared_commas and found <= declared_commas[
+            len(declared_commas) - 1
+        ]:
+            raise _out_of_range(
+                "forced_decimal_commas",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_commas = declared_commas + [found]
+        place = place + 1
+    declared_codes: list[str] = []
+    code_names = _listing(mapping["forced_codes"], "forced_codes", where)
+    place = 0
+    for name in code_names:
+        found = _text(name, f"forced_codes[{place}]", where)
+        if declared_codes and found <= declared_codes[len(declared_codes) - 1]:
+            raise _out_of_range(
+                "forced_codes",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_codes = declared_codes + [found]
+        place = place + 1
     block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
@@ -2654,7 +3916,17 @@ def _settings(value: object) -> SettingsBlock:
         near_threshold_slack=_whole(
             mapping["near_threshold_slack"], "near_threshold_slack", where, 0
         ),
+        day_first=_truth(mapping["day_first"], "day_first", where),
+        long_tail_minimum_level=_exactly(
+            mapping["long_tail_minimum_level"],
+            "long_tail_minimum_level",
+            where,
+            LONG_TAIL_LINE,
+        ),
         forced_identifiers=tuple(declared),
+        forced_codes=tuple(declared_codes),
+        forced_measurements=tuple(declared_measurements),
+        forced_decimal_commas=tuple(declared_commas),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -2842,6 +4114,7 @@ def _missing_by_class(
             )
     return MissingByClass(
         blank=counted[BLANK],
+        date_sentinel=counted[DATE_SENTINEL],
         declared_missing=counted["(declared-missing)"],
         numeric_sentinel=counted["(numeric-sentinel)"],
         text_code=counted["(text-code)"],
@@ -2944,6 +4217,7 @@ def _sentinel_verdicts(
     place = 0
     previous: tuple[int, str, str] | None = None
     previous_number: float | None = None
+    previous_day: "str | None" = None
     for entry in listed:
         seat = f"{where}, in decision number {place + 1} about a stand-in number"
         mapping = _mapping(entry, f"sentinel_verdicts[{place}]", where)
@@ -2992,7 +4266,33 @@ def _sentinel_verdicts(
                     ),
                 )
             previous = ranked
+        elif candidate in parsing.calendar_placeholders():
+            # A PLACEHOLDER DAY, WHICH IS NOT A NUMBER AND IS NOT
+            # ORDERED AS ONE (plan amendment A-P4-1 item 3, invariant
+            # V4). The decisions of one column carry every numeric
+            # candidate first, ascending by number, then every
+            # placeholder day, ascending as text -- so a reader
+            # checking the order has one rule per kind and the two
+            # kinds never interleave.
+            if previous_day is not None and candidate < previous_day:
+                raise _broken(
+                    "V4",
+                    seat,
+                    f"this decision is about '{candidate}'",
+                    f"the one before it is about '{previous_day}'",
+                )
+            previous_day = candidate
         else:
+            if previous_day is not None:
+                raise _broken(
+                    "V4",
+                    seat,
+                    "this decision is about a stand-in number",
+                    (
+                        "the one before it is about a placeholder day, "
+                        "and every number comes first"
+                    ),
+                )
             number = _reads_as_a_number(candidate, "candidate", seat)
             if previous_number is not None and number < previous_number:
                 raise _broken(
@@ -3190,6 +4490,7 @@ def _column(
         n_numeric,
         n_out_of_range,
         n_contradictory,
+        remarks,
     )
     return ColumnBlock(
         name=name,
@@ -3218,6 +4519,145 @@ def _column(
     )
 
 
+def _where(said: str, part: str) -> int:
+    """Where one fragment stands in a sentence, or -1.
+
+    Written with slicing rather than `find`, and that is the offline
+    audit's rule rather than a preference: a method call whose argument
+    the audit cannot resolve is a call it cannot judge, and one of
+    these fragments is built from the block's own pair. Slicing and
+    equality are neither of them method calls on an untraced value.
+    """
+    if not isinstance(said, str) or not isinstance(part, str):
+        raise TypeError("internal check: a sentence was not text")
+    span = len(part)
+    for start in range(len(said) - span + 1):
+        if said[start : start + span] == part:
+            return start
+    return -1
+
+
+def _where_after(said: str, part: str, start: int) -> int:
+    """Where one fragment stands at or after `start`, or -1.
+
+    THE STRUCTURAL HALF OF AF-R (review item L19-R1-1). The fragments
+    of the required remark were each looked for in the WHOLE sentence,
+    and one of them is quoted inside the block's own affix pair: a
+    column whose cells read `12 run the command again with --code NAME`
+    publishes that text as its suffix, so the advice fragment was found
+    inside the quotation -- before the advice itself -- the order test
+    failed, and the LOADER REFUSED A DESCRIPTION ITS OWN PROFILER HAD
+    JUST WRITTEN. The refusal told the person to make the description
+    again, which reproduced it exactly.
+
+    A person's own data may spell anything. The fragments after the
+    affix clause are therefore looked for after the affix clause, which
+    is a position the data cannot reach.
+
+    Written with slicing rather than `find` for the reason `_where`
+    gives: a method call whose argument the offline audit cannot
+    resolve is a call it cannot judge.
+    """
+    if not isinstance(said, str) or not isinstance(part, str):
+        raise TypeError("internal check: a sentence was not text")
+    span = len(part)
+    for place in range(max(start, 0), len(said) - span + 1):
+        if said[place : place + span] == part:
+            return place
+    return -1
+
+
+def _affix_clause(prefix: str, suffix: str) -> str:
+    """The clause the required remark writes about THIS block's pair.
+
+    Four shapes, because one side is usually empty and a sentence
+    saying "written as nothing, a number, then 'mg'" describes a shape
+    no cell has. Built from the block's OWN two spellings, so a remark
+    holding this clause names the pair the block publishes, character
+    for character -- which is what AF-R asks and what a check of the
+    sentence's generic fragments alone could not tell: a block
+    publishing `$` accepted a remark saying `'kg' followed by a
+    number`, a required warning that misdescribes the column it warns
+    about.
+
+    AND THE FOURTH IS THE BARE WRAPPER (plan P4-D36), which a column
+    wearing a SET may publish as its commonest: most laboratory results
+    carry no abnormal flag, so on the shape that landing was written
+    for, the wrapper worn by most cells is no text at all. With three
+    shapes this clause read `written as a number followed by ''`, the
+    producer's own sentence read the same, and THIS LOADER REFUSED THE
+    PRODUCER'S OWN DOCUMENT -- `synthtwin profile` wrote a file
+    `synthtwin generate` would not take. The sentence must stay
+    character-for-character the one `taxonomy._affix_shape` renders,
+    which is what `tests/test_p4d4_affixed_role.py` holds it to.
+    """
+    if prefix and suffix:
+        return f"written as '{prefix}', a number, then '{suffix}'"
+    if prefix:
+        return f"written as '{prefix}' followed by a number"
+    if suffix:
+        return f"written as a number followed by '{suffix}'"
+    return "written as a number, with others wearing text beside it"
+
+
+def _is_the_affixed_remark(
+    remark: str, n_affixed: int, clause: str
+) -> bool:
+    """Whether one sentence is the remark AF-R requires, not a token of it.
+
+    Every fixed fragment, IN ORDER, and the block's own count in front
+    of them. The loader may not import the profiler's taxonomy and so
+    cannot render the sentence; what it can do is refuse anything that
+    is not shaped like it, which is the difference between an invariant
+    and a password.
+    """
+    if not isinstance(remark, str):
+        raise TypeError("internal check: a remark was not text")
+    if isinstance(n_affixed, bool) or not isinstance(n_affixed, int):
+        raise TypeError("internal check: a count was not a whole number")
+    # THE FRAGMENTS ARE WRITTEN OUT HERE AS LITERALS rather than walked
+    # out of the tuple beside them, and the reason is the offline
+    # audit's: a method call whose argument it cannot resolve is a call
+    # it cannot judge, and a loop variable is not resolvable. The tuple
+    # stays as the record of what the sentence is made of, and
+    # `tests/test_p4d4_affixed_role.py` holds these calls to it.
+    # THE OPENING IS A POSITION, NOT A SEARCH (review item L19-R1-1).
+    # The count and the fixed opening words stand at the front of the
+    # sentence or the sentence is not the one AF-R requires -- and
+    # pinning them here is also what keeps the block's own affix pair,
+    # which a person's data spells and this loader cannot bound, out of
+    # the way of every fragment after it.
+    head = f"{n_affixed} of this column's values are "
+    if remark[: len(head)] != head:
+        return False
+    # The pair's own clause, which is where the block's two published
+    # spellings have to appear, AT the position the opening leaves for
+    # it rather than anywhere in the sentence.
+    if remark[len(head) : len(head) + len(clause)] != clause:
+        return False
+    after = len(head) + len(clause)
+    second = _where_after(
+        remark,
+        "and synthtwin described those numbers as quantities: their "
+        "average, their spread and their ends are in this profile.",
+        after,
+    )
+    third = _where_after(
+        remark, "If these are codes rather than measurements", after
+    )
+    fourth = _where_after(
+        remark, "run the command again with --code NAME", after
+    )
+    fifth = _where_after(
+        remark,
+        "--identifier NAME leaves them out of the profile altogether",
+        after,
+    )
+    if second < 0 or third < 0 or fourth < 0 or fifth < 0:
+        return False
+    return second < third < fourth < fifth
+
+
 def _role_keys(role: str) -> "tuple[str, ...]":
     """The keys this role ADDS to the universal set (contract 6.11)."""
     if role == ROLE_EMPTY:
@@ -3228,10 +4668,30 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return LABEL_KEYS
     if role == ROLE_CATEGORICAL:
         return CATEGORICAL_KEYS
+    if role == ROLE_LONG_TAIL:
+        # THE FOUR SHARED LABEL KEYS AND NOT `level_ceiling` (plan
+        # P4-D5, stated there so no ambiguity survives into this
+        # contract). That key is categorical's own, and its invariant --
+        # folded distinctness at or under the ceiling -- is exactly what
+        # a long-tail column breaks by definition. The format has no
+        # optional keys, so the ceiling this column PASSED is recorded
+        # in its evidence sentence instead.
+        #
+        # The form census is NOT among them: it is one of the five
+        # every label role carries (P4-D18, corrected).
+        return LONG_TAIL_KEYS
     if role == ROLE_DATETIME:
         return DATETIME_KEYS
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         return NUMERIC_KEYS
+    if role == ROLE_CLOCK:
+        return CLOCK_KEYS
+    if role == ROLE_JOINED:
+        return JOINED_KEYS
+    if role == ROLE_COMPOUND:
+        return COMPOUND_KEYS
+    if role == ROLE_AFFIXED:
+        return AFFIXED_KEYS
     if role == ROLE_IDENTIFIER:
         return IDENTIFIER_KEYS
     return TEXT_KEYS
@@ -3248,6 +4708,7 @@ def _facts(
     n_numeric: int,
     n_out_of_range: int,
     n_contradictory: int,
+    remarks: "list[str]",
 ) -> ColumnFacts:
     """Everything the ROLE adds, checked by the rules of its section."""
     if role == ROLE_EMPTY:
@@ -3264,6 +4725,17 @@ def _facts(
         return _categorical_facts(
             mapping, where, frame.floor, n_present, n_folded
         )
+    if role == ROLE_LONG_TAIL:
+        named = mapping["name"] if "name" in mapping else None
+        return _long_tail_facts(
+            mapping,
+            where,
+            frame.floor,
+            n_present,
+            n_folded,
+            _category_ceiling(frame),
+            isinstance(named, str) and named in frame.declared_codes,
+        )
     if role == ROLE_DATETIME:
         return _datetime_facts(mapping, where, frame.floor, n_present)
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
@@ -3276,11 +4748,28 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
+    if role == ROLE_CLOCK:
+        return _clock_facts(mapping, where, frame, n_present)
+    if role == ROLE_JOINED:
+        return _joined_facts(mapping, where, frame, n_present)
+    if role == ROLE_COMPOUND:
+        named = mapping["name"] if "name" in mapping else None
+        return _compound_facts(
+            mapping,
+            where,
+            frame,
+            n_present,
+            n_distinct,
+            n_folded,
+            isinstance(named, str) and named in frame.declared_commas,
+        )
+    if role == ROLE_AFFIXED:
+        return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct
         )
-    return _text_facts(mapping, where, n_present, n_distinct)
+    return _text_facts(mapping, where, n_present, n_distinct, frame.floor)
 
 
 def _empty_facts(mapping: "dict[str, object]", where: str) -> EmptyFacts:
@@ -3331,9 +4820,17 @@ def _unrepresentable_facts(
     """A column of numbers this format cannot hold (contract 6.2).
 
     Raises ProfileError for a wrong type or an out-of-range count, and
-    for U1, U2 and U3. There is no width fact here to check, because the
-    contract publishes none: the omission is load-bearing and is
-    recorded as a residual rather than closed.
+    for U1, U2, U3 and U5.
+
+    THIS ROLE PUBLISHES A WIDTH PAIR AND THIS DOCSTRING SAID IT
+    PUBLISHED NONE (review item P4-A2-R3, item 4). `min_length` and
+    `max_length` are loaded below, each a counting number from one
+    upward, and U5 refuses the pair where the shortest value is longer
+    than the longest. The sentence this replaces was written while the
+    contract really did publish neither, was carried unchanged through
+    the landing that added both, and stood immediately above the two
+    lines that read them -- so a contributor reading the loader's own
+    stated word was told the opposite of what the loader does.
     """
     n_whole = _whole(mapping["n_whole"], "n_whole", where, 0)
     n_fraction = _whole(mapping["n_fraction"], "n_fraction", where, 0)
@@ -3372,7 +4869,18 @@ def _unrepresentable_facts(
         None,
     )
     _pattern_closes(pairs, where, "U3", n_distinct, n_present)
+    smallest = _whole(mapping["min_length"], "min_length", where, 1)
+    largest = _whole(mapping["max_length"], "max_length", where, 1)
+    if smallest > largest:
+        raise _broken(
+            "U5",
+            where,
+            f"the shortest value is {smallest} character(s)",
+            f"the longest is {largest}",
+        )
     return UnrepresentableFacts(
+        min_length=smallest,
+        max_length=largest,
         n_whole=n_whole,
         n_fraction=n_fraction,
         n_whole_unknown=n_whole_unknown,
@@ -3420,6 +4928,7 @@ def _levels(
     floor: int,
     n_present: int,
     n_folded: int,
+    inside_a_half: bool = False,
 ) -> "tuple[tuple[LevelEntry, ...], int, int, tuple[int, ...]]":
     """The published labels and everything the floor held back (6.3).
 
@@ -3528,13 +5037,18 @@ def _levels(
                     f"{previous_count}"
                 ),
             )
-        variants, withheld = _variants(block, seat, floor, label, count)
+        variants, withheld = _variants(
+            block, seat, floor, label, count, inside_a_half
+        )
         entries = entries + [
             LevelEntry(
                 label=label,
                 count=count,
                 variants=variants,
                 variants_withheld=withheld,
+                shape_form_cells=_shape_form_cells(
+                    block, seat, label, variants, withheld
+                ),
             )
         ]
         seen = seen + [label]
@@ -3568,8 +5082,98 @@ def _levels(
     return tuple(entries), suppressed_levels, suppressed_rows, tuple(sizes)
 
 
+def _shape_form_cells(
+    block: "dict[str, object]",
+    seat: str,
+    label: str,
+    variants: "dict[str, int]",
+    withheld: "dict[str, int]",
+) -> int:
+    """How many rows wrote this label in its own form (7.4.8, W8).
+
+    THE FACT THAT LETS A LEVEL'S MADE-UP SPELLINGS KEEP ITS SHAPE. The
+    column-wide `shape_forms` census cannot say which of a level's
+    held-back spellings wore the label's form, so a generator reading
+    the description alone guessed -- and missed in both directions
+    (residual R-P4-34, plan amendment A-P4-47).
+
+    **W8, and it is TWO bounds and no sum.** The named spellings that
+    have a form already account for cells this number may not fall
+    below; the cells that could still be wearing one are the rows the
+    floor held back, so the number may not rise above the two together.
+    Both ends are facts of THIS ENTRY -- nothing here is compared
+    against the column's own census, and residual R-P4-80 is why: the
+    column census pools below the floor, refuses a form the column has
+    no room for, and counts cells of levels that are not published at
+    all, so it is a fact of its own beside these and not their sum. A
+    reader looking here for a sum rule is looking for something this
+    format deliberately does not state.
+
+    **AND A LABEL WITH NO FORM CARRIES 0.** A spelling belongs to this
+    level when trimming and folding it gives the label; a spelling that
+    has a form holds no space, so trimming changes nothing, and folding
+    an ASCII letter leaves an ASCII letter in place -- so a
+    form-bearing spelling and its fold wear the same form, which is the
+    label's. A label with no form of its own therefore has no
+    form-bearing spelling, and a document saying otherwise describes a
+    column no table can hold.
+
+    **WHAT IS NOT CHECKED HERE, said rather than left to be noticed.**
+    That the outstanding cells can be MADE UP of whole held-back groups
+    is a subset-sum question, and its cost is bounded by nothing this
+    document states. The generator asks it under a budget of its own
+    and NAMES the shortfall where it cannot pay it exactly, which is
+    what this package does with every other search.
+
+    Raises ProfileError for a wrong type, a negative count, and for W8.
+    """
+    shaped = _whole(block["shape_form_cells"], "shape_form_cells", seat, 0)
+    named_in_form = 0
+    for spelling in sorted(variants):
+        if parsing.shape_form(spelling):
+            named_in_form = named_in_form + variants[spelling]
+    _things, held_back_rows = _multiplicity_totals(
+        [(int(key), withheld[key]) for key in sorted(withheld)]
+    )
+    if not parsing.shape_form(label):
+        if shaped:
+            raise _broken(
+                "W8",
+                seat,
+                f"{shaped} rows are said to have written the label in a "
+                "form",
+                f"the label '{label}' has no written form, so no spelling "
+                "of it can have one",
+            )
+        return shaped
+    if shaped < named_in_form:
+        raise _broken(
+            "W8",
+            seat,
+            f"{shaped} rows are said to have written the label in a form",
+            f"the named spellings that wear one already cover "
+            f"{named_in_form}",
+        )
+    if shaped > named_in_form + held_back_rows:
+        raise _broken(
+            "W8",
+            seat,
+            f"{shaped} rows are said to have written the label in a form",
+            (
+                f"{named_in_form} named rows wear one and only the "
+                f"{held_back_rows} held-back rows could join them"
+            ),
+        )
+    return shaped
+
+
 def _variants(
-    block: "dict[str, object]", seat: str, floor: int, label: str, count: int
+    block: "dict[str, object]",
+    seat: str,
+    floor: int,
+    label: str,
+    count: int,
+    inside_a_half: bool = False,
 ) -> "tuple[dict[str, int], dict[str, int]]":
     """How the rows under one published label actually wrote it (7.4).
 
@@ -3580,9 +5184,10 @@ def _variants(
     byte for byte -- unlike the spellings of an empty cell, which are
     for a person to read and are escaped for display.
     """
-    named = _counts(
-        block["variants"], "variants", seat, 1, _THE_VARIANT_KEYS
-    )
+    keys: "tuple[str, ...]" = _THE_VARIANT_KEYS
+    if inside_a_half:
+        keys = _THE_COMPOUND_VARIANT_KEYS
+    named = _counts(block["variants"], "variants", seat, 1, keys)
     for spelling in sorted(named):
         if named[spelling] < floor:
             raise _broken(
@@ -3657,6 +5262,119 @@ def _label_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
+    )
+
+
+def _compound_label_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_folded: int,
+) -> "LongTailFacts":
+    """The label half of a compound column (residual R-P4-13, L8).
+
+    THE LEVELS, THE HELD-BACK REMAINDER AND THE FORM CENSUS, read
+    exactly as a label-publishing column's are -- so B2 holds here as
+    it holds anywhere: what is published and what is held back are
+    together all the different values, ignoring case.
+
+    WHAT IS NOT ASKED OF IT IS ANOTHER ROLE'S ENTRY CONDITION, and that
+    is the whole reason this reader exists rather than one of the two
+    beside it. `_label_facts` is the CONSTANT and BINARY reader and
+    demands one value or two; the long-tail reader demands a level
+    covering the detection line and a count above the categorical
+    ceiling. This half is neither of those columns. Rule 7b decided
+    what it is -- words that repeat, in a short list or a longer one
+    that comes back -- and a loader that re-asked a different rule's
+    question would refuse descriptions the producer correctly wrote.
+
+    Measured while writing it: a lab column of 295 readings beside five
+    `NOT DETECTED` was refused by the binary rule for having one value
+    and then by the long-tail rule for having no level on eleven rows.
+    Both refusals were about roles this half does not have.
+    """
+    entries, suppressed, rows, sizes = _levels(
+        mapping, where, floor, n_present, n_folded, True
+    )
+    return LongTailFacts(
+        levels=entries,
+        suppressed_levels=suppressed,
+        suppressed_rows=rows,
+        suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
+    )
+
+
+def _long_tail_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_folded: int,
+    ceiling: int,
+    code_declared: bool = False,
+) -> LabelFacts:
+    """A long tail of labels (plan P4-D5).
+
+    The same four keys under the same shared label invariants a
+    constant, a binary and a categorical column are held to. What it
+    adds is the rule that made it this role rather than free text, and
+    the loader can check it: at least one published level covers the
+    detection line, which is the recorded floor or eleven, whichever is
+    larger. A document whose every level falls below that line
+    describes a column this rule would not have claimed.
+    """
+    entries, suppressed, rows, sizes = _levels(
+        mapping, where, floor, n_present, n_folded
+    )
+    line = LONG_TAIL_LINE
+    if floor > line:
+        line = floor
+    covering = 0
+    for entry in entries:
+        if entry.count >= line:
+            covering = covering + 1
+    # THE DECLARATION LIFTS THE LINE (plan P4-D22), and it is the ONLY
+    # thing that lifts it. The line keeps a column of names or free
+    # comments out of the label roles, so that lowering the floor never
+    # widens which columns publish. Where the person has said `--code`
+    # that judgement is theirs and is made, and holding a laboratory-code
+    # column to the line is what left it publishing nothing at all.
+    if covering < 1 and not code_declared:
+        raise _broken(
+            "LT1",
+            where,
+            f"the type path is '{ROLE_LONG_TAIL}'",
+            (
+                f"no value of it is shared by {line} rows or more, so "
+                f"this rule would not have claimed the column"
+            ),
+        )
+    # LT2. THE COLUMN HAS TO BE PAST THE CEILING TOO, and checking only
+    # the line let a plain set of categories be relabelled by hand
+    # (review item P4-TAIL-F3). The ceiling is recomputed from the
+    # settings the document itself records, so the loader asks the
+    # producer's own question rather than trusting the answer.
+    if n_folded <= ceiling:
+        raise _broken(
+            "LT2",
+            where,
+            f"the type path is '{ROLE_LONG_TAIL}'",
+            (
+                f"the column has {n_folded} different values ignoring "
+                f"case, which is within the {ceiling} a set of "
+                f"categories may have, so the earlier rule would have "
+                f"claimed it"
+            ),
+        )
+    return LongTailFacts(
+        levels=entries,
+        suppressed_levels=suppressed,
+        suppressed_rows=rows,
+        suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
     )
 
 
@@ -3687,8 +5405,54 @@ def _categorical_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
+        shape_forms=_shape_forms(mapping, where, floor),
         level_ceiling=ceiling,
     )
+
+
+def _resolution_mix(
+    value: object,
+    where: str,
+    parser_family: str,
+    parsed: int,
+) -> "dict[str, int]":
+    """How many parsed cells wore each form (contract C6-25).
+
+    TWO PERMITTED KEY SETS AND NO THIRD. A column read under one form
+    names that form and nothing else; a column the joint ISO reading
+    claimed names exactly the two members it joins. Anything else is a
+    document describing a column no producer writes.
+
+    The counts are exact and no floor governs them, for the reason the
+    contract gives: a two-member space beside the published parsed
+    total makes a pooled remainder recoverable by subtraction, so a
+    floor would withhold nothing, and what these carry is a count of
+    FORMS rather than any value of the table.
+
+    Raises ProfileError for RM1 -- the wrong key set -- and RM2, the
+    total that does not come to the cells that parsed.
+    """
+    mix = _counts(value, "resolution_mix", where, 0)
+    wanted: "tuple[str, ...]" = ISO_MEMBERS
+    if parser_family != FORMAT_ISO_MIXED:
+        wanted = (parser_family,)
+    if sorted(mix) != sorted(wanted):
+        raise _broken(
+            "RM1",
+            where,
+            f"the forms it counts are {_listed(tuple(sorted(mix)))}",
+            f"a column read as '{parser_family}' counts "
+            f"{_listed(tuple(sorted(wanted)))}",
+        )
+    total = _added(mix)
+    if total != parsed:
+        raise _broken(
+            "RM2",
+            where,
+            f"the values counted by their form come to {total}",
+            f"{parsed} of the column's values were read as dates",
+        )
+    return mix
 
 
 def _datetime_facts(
@@ -3719,14 +5483,52 @@ def _datetime_facts(
     wanted = "date"
     if parser_family == "iso-datetime":
         wanted = "datetime"
+    elif parser_family == "month-first-datetime":
+        wanted = "datetime"
+    elif parser_family == "day-first-datetime":
+        wanted = "datetime"
+    elif parser_family == FORMAT_ISO_MIXED:
+        # THE JOINT READING PUBLISHES AT THE FINER OF THE TWO FORMS it
+        # joins. A column holding both `2024-03-15` and
+        # `2024-03-15 08:30:00` writes a time of day in some of its
+        # cells, so the column reaches the second; publishing it as a
+        # column of whole dates would lose every one of those times.
+        # The cells that carry no time of day are placed at midnight,
+        # which is what `resolution_mix` is published for -- it says
+        # how many of them there were, so a reader is never left to
+        # infer that all of them wrote a time (contract C6-25).
+        wanted = "datetime"
     elif parser_family == "year-quarter":
         wanted = "quarter"
+    elif parser_family == "iso-month":
+        wanted = "month"
     if resolution != wanted:
         raise _broken(
             "D1",
             where,
             f"the dates were read as '{parser_family}'",
             f"they are published as '{resolution}' rather than '{wanted}'",
+        )
+    if precision == "subsecond" and parser_family in CLOCK_FORM_MEMBERS:
+        raise _broken(
+            "D6",
+            where,
+            f"the dates were read as '{parser_family}', whose clock is "
+            f"a whole number of minutes or seconds",
+            "the finest detail the column writes is given as a "
+            "fraction of a second",
+        )
+    if precision == "month" and resolution != "month":
+        # A WHOLE MONTH IS THE FINEST DETAIL ONLY OF A COLUMN OF
+        # MONTHS, on the quarter's own precedent below. A cell written
+        # `2024-03` reads back as a column of months, so a description
+        # publishing that precision beside any other resolution
+        # publishes two facts no file can carry at once.
+        raise _broken(
+            "D6",
+            where,
+            "the finest detail the column writes is a whole month",
+            f"its dates are published as '{resolution}'",
         )
     if precision == "quarter" and resolution != "quarter":
         raise _broken(
@@ -3778,6 +5580,14 @@ def _datetime_facts(
             f"{unparsed} values did not read as a date",
             f"the column holds {n_present} values",
         )
+    # AFTER D8, WHICH IS WHAT MAKES THE CENSUS'S KEY SET CLOSED. A
+    # column where nothing read as a date would carry an empty census
+    # honestly, and RM1 would then have a third permitted key set for a
+    # document D8 has already refused. Asking D8 first leaves RM1 with
+    # the two key sets a real producer writes and nothing else.
+    mix = _resolution_mix(
+        mapping["resolution_mix"], where, parser_family, n_present - unparsed
+    )
     offsets = _counts(mapping["utc_offsets"], "utc_offsets", where, 1)
     named = 0
     for key in sorted(offsets):
@@ -3816,6 +5626,41 @@ def _datetime_facts(
             f"{named} different offsets are named",
             f"the dates are published on the '{clock}' clock",
         )
+    if parser_family in CLOCK_FORM_MEMBERS and clock != "local":
+        # AND A COLUMN WHOSE READER TAKES NO OFFSET IS ON ONE CLOCK
+        # (review item P4-DATE5-F1). D5 lets either reading stand where
+        # the offset map is fully withheld, because a withheld map
+        # reads the same whether one offset wrote the column or ten --
+        # true of every reading that CAN carry an offset. These two
+        # cannot: their own reader returns an empty offset for every
+        # cell it accepts, so no column of theirs ever held two, and a
+        # description claiming the shared clock states an
+        # EXACT-OBSERVABLE fact no twin of it can meet.
+        raise _broken(
+            "D5",
+            where,
+            f"the dates are published on the '{clock}' clock",
+            f"they were read as '{parser_family}', which reads no "
+            f"offset at all, so every value of the column wore the same "
+            f"one",
+        )
+    if parser_family in CLOCK_FORM_MEMBERS:
+        # ...AND SO DOES A READING WHOSE CLOCK CARRIES NO OFFSET
+        # (review item P4-DATE4-F1). These two members reach `datetime`
+        # resolution, so the resolution test below lets them through;
+        # their own reader takes a clock in two fixed forms and stops,
+        # so a cell of theirs with `+02:00` after it reads back as no
+        # date at all, exactly as a whole date with one does.
+        for key in sorted(offsets):
+            if key == WITHHELD or key == NO_OFFSET:
+                continue
+            raise _broken(
+                "D9",
+                where,
+                f"the offset '{key}' is named",
+                f"the dates were read as '{parser_family}', which reads "
+                f"no offset at all",
+            )
     if resolution != "datetime":
         # ONLY A DATE AND TIME CARRIES AN OFFSET (invariant D9, review
         # item P2-C1-F6). A whole date and a quarter have no time of day
@@ -3840,6 +5685,23 @@ def _datetime_facts(
     latest_offset = _endpoint_offset(
         mapping["latest_utc_offset"], "latest_utc_offset", where, offsets
     )
+    if parser_family in CLOCK_FORM_MEMBERS:
+        # The two ENDPOINT offset fields, held to the same rule as the
+        # map above and asked here because this is where they are read
+        # (review item P4-DATE4-F1).
+        for key, field in (
+            (earliest_offset, "earliest_utc_offset"),
+            (latest_offset, "latest_utc_offset"),
+        ):
+            if key == WITHHELD or key == NO_OFFSET:
+                continue
+            raise _broken(
+                "D9",
+                where,
+                f"{field} names the offset '{key}'",
+                f"the dates were read as '{parser_family}', which reads "
+                f"no offset at all",
+            )
     earliest = _canonical_datetime(
         mapping["earliest"], "earliest", where, resolution
     )
@@ -3883,6 +5745,7 @@ def _datetime_facts(
         latest_utc_offset=latest_offset,
         date_percentiles=ladder,
         n_unparsed=unparsed,
+        resolution_mix=mix,
         utc_offsets=offsets,
     )
 
@@ -4050,6 +5913,196 @@ def _endpoint_offset(
     return found
 
 
+# EXACTLY THE KEYS ONE WRAPPER OF A SET CARRIES, AND NO OTHERS (plan
+# P4-D37). Without this an entry carried whatever a file put in it, and
+# the compound role's own sub-blocks were found holding text nothing in
+# this package ever reads.
+# The four class keys in the order AF4 and AF16 read them.
+_CORE_CLASS_KEYS = (
+    "n_core_numeric",
+    "n_core_out_of_range",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+)
+
+_WRAPPER_KEYS = (
+    "prefix",
+    "suffix",
+    "count",
+    "n_core_numeric",
+    "n_core_out_of_range",
+    "n_core_contradictory",
+    "n_core_not_numeric",
+    "n_core_distinct",
+    "n_core_distinct_folded",
+    "numbers",
+)
+
+
+def _affix_variants(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: "_Frame",
+) -> "tuple[AffixWrapper, ...]":
+    """The other wrappers a column of this role wears (AF9, P4-D36).
+
+    A column wears ONE wrapper on most tables and a small SET of them
+    on some that matter: a laboratory column whose readings carry an
+    abnormal flag wears three, and one recorded in two units wears
+    two. Each entry names a wrapper and how many cells wear it.
+
+    AF9, in four conditions:
+
+    1. Each count is at least the smallest group size. A wrapper is
+       PUBLISHED text, so one worn by fewer cells than may be named is
+       not published at all and its cells are stragglers.
+    2. No wrapper appears twice, and none of them is the pair the
+       block names. Two entries for one wrapper are two counts of one
+       thing.
+    3. The entries ascend by their own text, so a producer writes them
+       one way and two producers write them the same way.
+    4. They are read before AF1, because AF1 is stated over the whole
+       set: the bare wrapper is a member of a vocabulary even though it
+       cannot be the whole of one.
+
+    Guarantees: accepts the block, its place and the frame; returns the
+    wrappers in the order the file states them. Determinism: a function
+    of those inputs. Raises `ProfileError` on a description no column
+    could have. No I/O of any kind.
+    """
+    given = mapping["affix_variants"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "affix_variants", where, given, "a list of wrappers"
+        )
+    found: "list[AffixWrapper]" = []
+    last: "tuple[str, str] | None" = None
+    for entry in given:
+        if not isinstance(entry, dict):
+            raise _wrong_type(
+                "affix_variants", where, entry,
+                "a wrapper with its two sides and its count",
+            )
+        for key in (
+            "prefix",
+            "suffix",
+            "count",
+            # ...AND ITS OWN FOUR CLASSES AND ITS OWN NUMBERS (plan
+            # P4-D37). A wrapper with no block is a wrapper whose cells
+            # nothing describes, which is the state this ruling ended.
+            "n_core_numeric",
+            "n_core_out_of_range",
+            "n_core_contradictory",
+            "n_core_not_numeric",
+            "n_core_distinct",
+            "n_core_distinct_folded",
+            "numbers",
+        ):
+            if key not in entry:
+                raise _wrong_type(
+                    "affix_variants", where, entry,
+                    f"a wrapper carrying {key}",
+                )
+        for key in entry:
+            if key not in _WRAPPER_KEYS:
+                raise _wrong_type(
+                    "affix_variants", where, entry,
+                    "a wrapper carrying only the keys this format "
+                    "gives one",
+                )
+        prefix = _text(entry["prefix"], "affix_variants", where)
+        suffix = _text(entry["suffix"], "affix_variants", where)
+        count = _bounded(
+            entry["count"], "affix_variants", where,
+            frame.floor, frame.n_rows,
+            "the number of rows the table has",
+        )
+        pair = (prefix, suffix)
+        if last is not None and not last < pair:
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {prefix!r}/{suffix!r} after "
+                f"{last[0]!r}/{last[1]!r}",
+                "the wrappers ascending, each named once",
+            )
+        last = pair
+        # AF11. THE WRAPPER'S FOUR CLASSES CLOSE ON ITS OWN COUNT,
+        # exactly as AF4 closes the column's four on `n_affixed`. A set
+        # of four that closes on something else describes a wrapper
+        # whose cells are in no class or in two.
+        classes: "list[int]" = []
+        for key in (
+            "n_core_numeric",
+            "n_core_out_of_range",
+            "n_core_contradictory",
+            "n_core_not_numeric",
+        ):
+            classes = classes + [
+                _bounded(
+                    entry[key], key, where, 0, count,
+                    "the number of cells wearing this wrapper",
+                )
+            ]
+        total = classes[0] + classes[1] + classes[2] + classes[3]
+        if total != count:
+            raise _out_of_range(
+                "affix_variants", where, f"a total of {total}",
+                f"a total of {count}, the number of cells wearing the "
+                f"wrapper {prefix!r}/{suffix!r}",
+            )
+        # AF13. A WRAPPER CANNOT HOLD MORE DIFFERENT CORES THAN IT HAS
+        # CELLS, and folding never separates two spellings that were
+        # the same.
+        # AT LEAST ONE, exactly as AF10 asks of the column's own pair
+        # (review round 4, item 2). The bound here was zero while the
+        # column's was one, so a description saying a wrapper worn by
+        # sixty cells holds no different core at all loaded, and
+        # generation then built 236 identities inside an interval it
+        # reported as 0 to 236.
+        wrapper_distinct = _bounded(
+            entry["n_core_distinct"], "n_core_distinct", where,
+            1, count, "the number of cells wearing this wrapper",
+        )
+        wrapper_folded = _bounded(
+            entry["n_core_distinct_folded"], "n_core_distinct_folded",
+            where, 1, wrapper_distinct,
+            "the raw count of different cores under this wrapper",
+        )
+        block = _mapping(entry["numbers"], "numbers", where)
+        _keys(
+            block, where, NUMERIC_KEYS,
+            f"the block for the wrapper {prefix!r}/{suffix!r}",
+        )
+        found = found + [
+            AffixWrapper(
+                prefix=prefix,
+                suffix=suffix,
+                count=count,
+                n_core_numeric=classes[0],
+                n_core_out_of_range=classes[1],
+                n_core_contradictory=classes[2],
+                n_core_not_numeric=classes[3],
+                n_core_distinct=wrapper_distinct,
+                n_core_distinct_folded=wrapper_folded,
+                numbers=_numeric_facts(
+                    block,
+                    f"{where}, the wrapper {prefix!r}/{suffix!r}",
+                    frame,
+                    count,
+                    classes[0],
+                    classes[1],
+                    classes[2],
+                    # THE ROW COUNT A WRAPPER'S BLOCK ECHOES IS ITS OWN
+                    # COUNT, on the joined role's precedent: a block
+                    # describing a SUBSET of the column's cells echoes
+                    # the count of that subset.
+                    echoes=count,
+                ),
+            )
+        ]
+    return tuple(found)
+
+
 def _numeric_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -4058,6 +6111,7 @@ def _numeric_facts(
     n_numeric: int,
     n_out_of_range: int,
     n_contradictory: int,
+    echoes: "int | None" = None,
 ) -> NumericFacts:
     """A column of counts or of continuous values (contract 6.7).
 
@@ -4070,9 +6124,13 @@ def _numeric_facts(
     the contract says so rather than pretending otherwise.
     """
     ladder = _number_ladder(mapping["percentiles"], "percentiles", where)
+    finer = _finer_ladder(
+        mapping["percentiles_between"], "percentiles_between", where, ladder
+    )
     mean = _figure_or_nothing(mapping["mean"], "mean", where)
     std = _figure_or_nothing(mapping["std"], "std", where)
     skew = _figure_or_nothing(mapping["skew"], "skew", where)
+    kurtosis = _figure_or_nothing(mapping["kurtosis"], "kurtosis", where)
     unrepresentable = _truth(
         mapping["std_unrepresentable"], "std_unrepresentable", where
     )
@@ -4098,7 +6156,22 @@ def _numeric_facts(
         mapping["integer_valued"], "integer_valued", where
     )
     echoed = _whole_row_count(mapping["n_rows"], "n_rows", where)
-    if echoed != frame.n_rows:
+    # WHICH ROW COUNT A BLOCK OF NUMBERS ECHOES. For a column it is the
+    # table's, which is what Q1 says. For one POSITION of a joined
+    # column it is not: that block describes only the cells that split,
+    # so the profiler writes `n_joined` there and every other count in
+    # the block is measured over those same cells.
+    #
+    # Comparing a position against the TABLE's row count made the tool
+    # write a file it then refused to read. Measured: a 200-row column
+    # of joined readings with ONE cell that does not split is published
+    # with `n_joined` 199, and `load_profile` raised Q1 against it --
+    # telling the user the file "has been changed since it was written"
+    # and to make it again, which produces the same file. Every joined
+    # column carrying any unparsed cell was unreadable this way; with
+    # none, the two counts coincide and nothing showed.
+    wanted = frame.n_rows if echoes is None else echoes
+    if echoed != wanted:
         raise _broken(
             "Q1",
             where,
@@ -4190,6 +6263,60 @@ def _numeric_facts(
                 "this format holds it"
             ),
         )
+    # INVARIANT Q16, the kurtosis's own, and it is the shape of Q5 one
+    # moment further along. A column whose values are all one value has
+    # no tails to weigh; a column of four or more values that are not
+    # all one has tails, and leaving the weight out is a description
+    # holding something back that it measured.
+    if flat and kurtosis is not None:
+        raise _broken(
+            "Q16",
+            where,
+            f"the weight of the tails is given as {kurtosis}",
+            "every value the statistics used is the same",
+        )
+    # AND BELOW FOUR VALUES IT IS NOT THERE AT ALL (item P4-K-R1-F3).
+    # Q16 refused a MISSING weight at four values and up, and never
+    # refused a PRESENT one below four -- so a description could carry
+    # a tail weight for three values, which the producer never writes
+    # and which no three points can support.
+    if not flat and used < 4 and kurtosis is not None:
+        raise _broken(
+            "Q16",
+            where,
+            f"the weight of the tails is given as {kurtosis}",
+            (
+                f"the statistics used {used} value(s), and a fourth "
+                f"moment asks for four"
+            ),
+        )
+    if not flat and used >= 4 and kurtosis is None:
+        raise _broken(
+            "Q16",
+            where,
+            "the weight of the tails is left out",
+            (
+                f"the statistics used {used} values and they are not all "
+                f"the same"
+            ),
+        )
+    # AND IT LIES WHERE EVERY SAMPLE OF THAT SIZE MUST. The moment
+    # ratio of `n` values is at least 1 and at most `n - 2 + 1/(n - 1)`,
+    # whatever the values are -- the upper end reached exactly when one
+    # value stands apart from `n - 1` equal ones. A number outside that
+    # is not a kurtosis of this column at any spelling.
+    if kurtosis is not None and used >= 4:
+        ceiling = used - 2 + 1 / (used - 1)
+        if kurtosis < 1.0 or kurtosis > ceiling:
+            raise _broken(
+                "Q16",
+                where,
+                f"the weight of the tails is given as {kurtosis}",
+                (
+                    f"a weight between 1 and {ceiling}, which is where "
+                    f"every {used}-value sample lies"
+                ),
+            )
     exact = (n_numeric + n_out_of_range + n_contradictory) / n_present
     if share != exact:
         raise _broken(
@@ -4222,11 +6349,86 @@ def _numeric_facts(
             f"{n_numeric} values read as a number",
         )
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
+    widths = _fraction_widths(mapping, where, frame.floor, styles)
+    padded = _padded_widths(mapping, where, frame.floor, styles)
+    _pool_holds_both(where, frame.floor, styles, widths, padded)
+    fields = _field_widths(mapping, where, frame.floor, styles)
+    histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
+    hollow = _empty_bins(mapping, where, used, ladder, histogram)
+    edges = _empty_edges(mapping, where, hollow, ladder)
+    values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
+    # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
+    # Q18). The two keys stand or fall together: a value with no count
+    # says "this number dominated" without saying by how much, and a
+    # count with no value says a number dominated without saying which,
+    # so a block carrying one and not the other is refused. Where the
+    # pair is published the count is at least two -- one cell is not a
+    # mode, every value ties there -- and no more than the numeric
+    # cells the block holds.
+    mode = _figure_or_nothing(mapping["mode"], "mode", where)
+    mode_count = _whole(mapping["mode_count"], "mode_count", where, 0)
+    if (mode is None) != (mode_count == 0):
+        raise _broken(
+            "Q18",
+            where,
+            "the number this column held most often"
+            + (" is not published" if mode is None else f" is {mode}"),
+            f"the count of cells that held it is {mode_count}",
+        )
+    if mode is not None:
+        if mode_count < 2:
+            raise _broken(
+                "Q18",
+                where,
+                f"the commonest number {mode} is published",
+                f"only {mode_count} cell(s) held it",
+            )
+        if mode_count > n_numeric:
+            raise _broken(
+                "Q18",
+                where,
+                f"{mode_count} cells held the commonest number",
+                f"{n_numeric} values read as a number",
+            )
+    # INVARIANT Q17. A block cannot hold more different numbers than it
+    # holds numeric CELLS, and a block whose statistics used a value
+    # holds at least one number. Both halves matter: the first is what
+    # stops a description claiming a fidelity no twin could give it,
+    # and the second is what stops a column of numbers saying it holds
+    # none.
+    #
+    # THE BOUND IS AGAINST THE CELL COUNT AND NOT AGAINST `n_distinct`,
+    # which would be the tighter statement on a whole column. This
+    # function is asked the same question at three grains -- a column,
+    # one part of a joined column, and the cores of an affixed one --
+    # and only the first of the three has a spelling count that counts
+    # the same cells. A bound that is true at one grain and quietly
+    # false at the other two is worse than a looser one true at all
+    # three.
+    if values > n_numeric:
+        raise _broken(
+            "Q17",
+            where,
+            f"{values} different number(s)",
+            f"{n_numeric} cell(s) that read as a number",
+        )
+    if used > 0 and values < 1:
+        raise _broken(
+            "Q17",
+            where,
+            "no different numbers at all",
+            f"the {used} value(s) the statistics used",
+        )
     return NumericFacts(
         percentiles=ladder,
+        percentiles_between=finer,
         mean=mean,
         std=std,
         skew=skew,
+        kurtosis=kurtosis,
+        n_distinct_values=values,
+        mode=mode,
+        mode_count=mode_count,
         std_unrepresentable=unrepresentable,
         n_zero=n_zero,
         n_negative=n_negative,
@@ -4237,6 +6439,12 @@ def _numeric_facts(
         integer_valued=integer_valued,
         n_rows=echoed,
         numeric_styles=styles,
+        fraction_widths=widths,
+        pad_widths=padded,
+        field_widths=fields,
+        value_histogram=histogram,
+        empty_bins=hollow,
+        empty_edges=edges,
     )
 
 
@@ -4301,7 +6509,1041 @@ def _numeric_styles(
             f"the cells counted by the form they were written in come to {total}",
             f"{n_numeric} of the column's values read as a number",
         )
+    # P6. THE POOL CANNOT HOLD MORE THAN THE FORMS IN IT. There are
+    # exactly six ways to write a number, a form is pooled only when
+    # its own count falls BELOW the floor, and a form this map names is
+    # not in the pool -- so the remainder is bounded by however many
+    # forms are left times one less than the floor. Nothing checked it,
+    # and the gap was not small: a column of two hundred and forty
+    # numbers naming `plain` and `decimal` could publish a pool of
+    # sixty, which four forms holding at most ten each cannot make.
+    # `generate` then told its reader the TWIN had missed a fact, when
+    # what had happened is that the description was altered after
+    # synthtwin wrote it.
+    named = 0
+    for name in sorted(styles):
+        if name != WITHHELD:
+            named = named + 1
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    room = (len(NUMERIC_STYLES) - named) * (floor - 1)
+    if pooled > room:
+        raise _broken(
+            "P6",
+            where,
+            f"{pooled} cells are held back from the forms map",
+            f"the {len(NUMERIC_STYLES) - named} form(s) it does not "
+            f"name can hold at most {floor - 1} cells each",
+        )
     return styles
+
+
+def _fraction_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How many figures the cells written with a point wrote after it.
+
+    One of the two width censuses, and the rule they are both read
+    under is `_width_census`. Raises ProfileError for a wrong type, a
+    key that is not a canonical width, a named width below the floor,
+    and for each of the four sum cases that rule states.
+    """
+    return _width_census(
+        mapping,
+        "fraction_widths",
+        where,
+        floor,
+        styles,
+        DECIMAL_STYLE,
+        "written with a point",
+        "the cells counted by the figures they wrote after the point",
+        "P5",
+        "P5",
+        0,
+        "P5",
+        "a fraction may be written to no figures at all",
+    )
+
+
+def _value_histogram(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    used: int,
+    ladder: NumberLadder,
+) -> "dict[str, int]":
+    """How many of a column's numbers fall in each published bin.
+
+    INVARIANT Q15: the bins account for EVERY value the statistics
+    used, and for no more. A histogram that counted fewer would let a
+    twin place the missing ones anywhere it liked while the description
+    looked complete; one that counted more would describe a column
+    nobody has. The `(withheld)` remainder is part of the sum, because
+    a bin below the floor is a bin whose values were counted and whose
+    edges were not named.
+
+    THE KEYS ARE BIN NUMBERS, canonically written and inside the fixed
+    range the method sets. A key outside it is a description this
+    version cannot place, and the loader is normative, so it refuses
+    rather than guessing which bin was meant.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    bin number, a bin at or below zero, a named bin below the floor,
+    and for a sum that is not the count of values used.
+    """
+    # READ THE SAME WAY ITS SIBLING CENSUSES ARE, through `_counts`,
+    # which is where the type of the block and the type of every entry
+    # are settled. Reaching for `mapping.get` instead put a method call
+    # on a value the offline audit cannot trace, and the audit is right
+    # to refuse it: a caller-supplied object may define `get` to do
+    # anything at all.
+    counts = _counts(mapping["value_histogram"], "value_histogram", where, 1)
+    total = 0
+    for key in sorted(counts):
+        entry = counts[key]
+        if key != WITHHELD:
+            if not _is_bin_key(key):
+                raise _broken(
+                    "Q15",
+                    where,
+                    "a key of the histogram is not a bin number",
+                    "a bin number written plainly, from 0 upwards",
+                )
+            if entry < floor:
+                raise _broken(
+                    "Q15",
+                    where,
+                    f"a bin of the histogram counts {entry} cell(s)",
+                    f"the publication floor of {floor}",
+                )
+        total = total + entry
+    if counts and total != used:
+        raise _broken(
+            "Q15",
+            where,
+            f"the bins of the histogram count {total} value(s)",
+            f"the {used} value(s) the statistics used",
+        )
+    # AND AT A FLOOR OF ONE AN EMPTY HISTOGRAM IS IMPOSSIBLE. Every bin
+    # that holds anything holds at least one value, so no bin can fall
+    # below a floor of one and the census is always publishable. An
+    # empty object there is a description built at a HIGHER floor and
+    # handed over as though it were this one -- a position the floor
+    # moves that nothing else in the document records, which is the gap
+    # `tests/test_p3v5f1_floor_one.py` exists to close.
+    #
+    # The one honest empty at a floor of one is a column whose ends
+    # this format cannot hold, or whose ends are finite and whose WIDTH
+    # is not: the bins then have no width to divide and the producer
+    # publishes none.
+    if not counts and used > 0 and floor <= 1 and _has_width(ladder):
+        raise _broken(
+            "Q15",
+            where,
+            "the histogram is empty",
+            (
+                "a bin for every value, since at a smallest group size "
+                "of one no bin can be held back"
+            ),
+        )
+    return counts
+
+
+def _empty_edges(
+    mapping: "dict[str, object]",
+    where: str,
+    bins: "tuple[int, ...]",
+    ladder: "NumberLadder",
+) -> "tuple[tuple[float, float], ...]":
+    """The real boundaries of each stretch this column leaves empty.
+
+    RESIDUAL R-P4-138, closed by the owner's ruling of 2026-09-04. One
+    `[below, above]` pair per RUN of empty bins: the largest value
+    under the stretch and the smallest over it. The twin keeps out of
+    the open interval between them, which the bins alone cannot ask
+    for -- the bins a column leaves empty sit strictly INSIDE the
+    stretch it really leaves empty, so a cell repaired to a bin edge
+    still lands in the source's own gap. Measured on a 300-row column
+    whose real gap runs 26.9 to 74.0: five cells of three hundred sat
+    in it at every seed, about a unit past the cluster edge.
+
+    Q21: as many pairs as the bins have runs, each pair ascending, each
+    inside the published ends, and the pairs themselves ascending and
+    not overlapping. A description that cannot be read as a set of
+    stretches is refused rather than repaired.
+    """
+    given = mapping["empty_edges"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "empty_edges", where, given, "a list of edge pairs"
+        )
+    # THE RUNS THEMSELVES and not just how many, because each pair has
+    # to be bound to the stretch it belongs to (review round 1 item 4).
+    stretches: "list[tuple[int, int]]" = []
+    for place in bins:
+        if stretches and place == stretches[-1][1] + 1:
+            stretches[-1] = (stretches[-1][0], place)
+        else:
+            stretches = stretches + [(place, place)]
+    if len(given) != len(stretches):
+        raise _broken(
+            "Q21",
+            where,
+            f"{len(given)} pair(s) of edges are named",
+            f"one pair for each of the {len(stretches)} stretch(es) of "
+            "empty bins this column names",
+        )
+    edges: "list[tuple[float, float]]" = []
+    for entry in given:
+        if not isinstance(entry, list) or len(entry) != 2:
+            raise _wrong_type(
+                "empty_edges", where, entry, "a pair of two numbers"
+            )
+        below = _figure(entry[0], "empty_edges", where)
+        above = _figure(entry[1], "empty_edges", where)
+        if not below < above:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch runs from {below} to {above}",
+                "a stretch whose lower edge is below its upper one",
+            )
+        # TWO STRETCHES MAY SHARE AN EDGE, and refusing that was wrong:
+        # a single value standing between two gaps is the upper edge of
+        # one and the lower edge of the next, and it is one real cell.
+        # A 240-row column with a value at 47.0 between two stretches
+        # was refused by its own producer's description.
+        if edges and below < edges[-1][1]:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch starting at {below} overlaps the one "
+                f"ending at {edges[-1][1]}",
+                "stretches that ascend and do not overlap",
+            )
+        edges = edges + [(below, above)]
+    # THE TWO ENDS, READ ONCE AND GUARDED. A rung may be null, meaning
+    # the exact value is not one this format can hold, and a block
+    # whose ends are not both finite has no scale to divide -- so it
+    # publishes no empty bin, and a pair naming values it lies between
+    # would be naming a stretch of nothing.
+    low = ladder.rungs[0]
+    high = ladder.rungs[-1]
+    if low is None or high is None:
+        if edges:
+            raise _broken(
+                "Q21",
+                where,
+                f"{len(edges)} pair(s) of edges are named",
+                "no pair at all, on a column one of whose two ends is "
+                "not a value this format can hold",
+            )
+        return tuple(edges)
+    for below, above in edges:
+        if below < low or above > high:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch runs from {below} to {above}",
+                "a stretch inside the two ends this column publishes",
+            )
+    # AND EACH PAIR STANDS EITHER SIDE OF ITS OWN RUN OF BINS (review
+    # round 1 item 4). Without this a description could name a pair
+    # BOTH of whose values fall in bins it also says hold nothing --
+    # ends 0 and 32, a run of bins 10 to 12, the pair [11, 12] -- which
+    # met every condition above and describes no column any table
+    # holds, while the value stage read the two numbers as real cells.
+    # The edge below a run is a value in an EARLIER bin and the edge
+    # above it a value in a LATER one, which is what "the largest value
+    # under the stretch and the smallest over it" means.
+    for index in range(len(edges)):
+        below = edges[index][0]
+        above = edges[index][1]
+        under = parsing.histogram_bin(below, low, high)
+        over = parsing.histogram_bin(above, low, high)
+        first = stretches[index][0]
+        last = stretches[index][1]
+        # THE EDGES STAND IN THE BINS NEXT TO THE RUN, not merely
+        # somewhere before and after it (review round 7 item 4). Every
+        # bin the description does not name as empty holds something,
+        # so the LARGEST value below a run is in the bin immediately
+        # before it and the SMALLEST above it in the bin immediately
+        # after. A pair naming the two ends of the whole scale for a
+        # run of three bins met the weaker test and describes no
+        # column: the bins between its values and the run are said to
+        # hold something, and that something is nearer.
+        if under != first - 1 or over != last + 1:
+            raise _broken(
+                "Q21",
+                where,
+                f"the stretch of bins {first} to {last} is named as "
+                f"lying between {below} and {above}, which stand in "
+                f"bins {under} and {over}",
+                f"a stretch whose lower edge is a value in bin "
+                f"{first - 1} and whose upper edge is a value in bin "
+                f"{last + 1}, the bins either side of it",
+            )
+    return tuple(edges)
+
+
+def _empty_bins(
+    mapping: "dict[str, object]",
+    where: str,
+    used: int,
+    ladder: NumberLadder,
+    histogram: "dict[str, int]",
+) -> "tuple[int, ...]":
+    """Which bins a column says hold none of its numbers (7.11).
+
+    INVARIANT Q20, in three conditions, and each one refuses a
+    description that says something about a shape no column has.
+
+    1. THE LIST IS A LIST OF BINS, each named once and in order. Order
+       is not decoration here: this is the one fact of the block that
+       is read as a set of stretches rather than as a mapping, and a
+       list a producer may write two ways is a list two producers write
+       two ways.
+    2. THE TWO END BINS ARE NEVER AMONG THEM. The scale runs from the
+       column's smallest number to its largest, so the smallest is in
+       the first bin and the largest in the last, and a column with a
+       scale has both occupied. A description naming either is
+       describing a column with no smallest value, which is not a
+       column.
+    3. WHERE THE CENSUS IS PUBLISHED AND THERE IS A SCALE, THE TWO ARE
+       COMPLEMENTS. The census is all or nothing, so where it is
+       published at all it names every bin that holds something; the
+       bins holding nothing are then exactly the rest. This is the
+       guard against the fact being written twice and one copy moving:
+       a description whose two shape facts disagree is refused rather
+       than read.
+
+       THE SCALE CONDITION IS NOT A SOFTENING, and it is where a real
+       disagreement between the producer and this rule was found. A
+       column whose values are all ONE number has two equal ends, so
+       there is no width to divide; the bin rule is TOTAL and answers
+       "the first bin" for every value, so the census reads `{"0": n}`
+       while the other thirty-one bins are empty of a division that
+       does not exist. Requiring the complement there would demand that
+       a description name thirty-one bins of a scale it does not have,
+       and the producer -- rightly -- names none.
+
+    AND WHERE THE COLUMN HAS NO SCALE THE LIST IS EMPTY. A ladder whose
+    ends this format cannot hold, or whose ends are finite and whose
+    width is not, divides into no bins at all, and "no bin holds
+    anything" is a different sentence from "there is nothing to
+    divide". The same is true of a block whose statistics used no
+    value.
+
+    Raises ProfileError for a wrong type, a bin outside the range this
+    method has, a repeat, an entry out of order, an end bin, a list on
+    a column with no scale, and for disagreement with the census.
+    """
+    given = mapping["empty_bins"]
+    if not isinstance(given, list):
+        raise _wrong_type(
+            "empty_bins", where, given, "a list of bin numbers"
+        )
+    bins: list[int] = []
+    for entry in given:
+        if isinstance(entry, bool) or not isinstance(entry, int):
+            raise _wrong_type(
+                "empty_bins", where, entry, "a whole bin number"
+            )
+        if not 0 <= entry < parsing.HISTOGRAM_BINS:
+            raise _out_of_range(
+                "empty_bins",
+                where,
+                f"{entry}",
+                f"a bin number from 0 to {parsing.HISTOGRAM_BINS - 1}",
+            )
+        if bins and entry <= bins[-1]:
+            raise _broken(
+                "Q20",
+                where,
+                f"the bin {entry} is named after the bin {bins[-1]}",
+                "each bin named once, in ascending order",
+            )
+        bins = bins + [entry]
+    scaled = used > 0 and _has_width(ladder)
+    if bins and not scaled:
+        raise _broken(
+            "Q20",
+            where,
+            f"{len(bins)} bin(s) are named as holding nothing",
+            "this column's numbers divide into no bins at all",
+        )
+    if scaled:
+        for entry in bins:
+            if entry == 0 or entry == parsing.HISTOGRAM_BINS - 1:
+                raise _broken(
+                    "Q20",
+                    where,
+                    f"the bin {entry} is named as holding nothing",
+                    "the smallest value is in the first bin and the "
+                    "largest in the last, so neither is ever empty",
+                )
+    if histogram and scaled:
+        named = {key for key in histogram if key != WITHHELD}
+        for entry in bins:
+            if f"{entry}" in named:
+                raise _broken(
+                    "Q20",
+                    where,
+                    f"the bin {entry} is named as holding nothing",
+                    f"the shape of this column's numbers says it holds "
+                    f"{histogram[f'{entry}']}",
+                )
+        for place in range(parsing.HISTOGRAM_BINS):
+            if f"{place}" in named or place in bins:
+                continue
+            raise _broken(
+                "Q20",
+                where,
+                f"the bin {place} is named neither as holding nothing "
+                f"nor by the shape of this column's numbers",
+                "every bin is named by exactly one of the two",
+            )
+    return tuple(bins)
+
+
+def _has_width(ladder: NumberLadder) -> bool:
+    """Whether a ladder's two ends leave a width the bins can divide."""
+    lowest = ladder.minimum
+    highest = ladder.maximum
+    if lowest is None or highest is None:
+        return False
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return False
+    reach = highest - lowest
+    if reach - reach != 0.0:
+        return False
+    return reach > 0.0
+
+
+def _is_bin_key(key: object) -> bool:
+    """Whether ``key`` names a bin this version of the method has."""
+    if not isinstance(key, str):
+        return False
+    if not key:
+        return False
+    for character in key:
+        if character not in "0123456789":
+            return False
+    if key != "0" and key[:1] == "0":
+        return False
+    return 0 <= int(key) < parsing.HISTOGRAM_BINS
+
+
+def _padded_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How wide the cells written with a redundant zero wrote a field.
+
+    The second width census (P4-D14). A forms map counting two hundred
+    and forty `leading_zero` cells cannot say whether the field was
+    five figures wide or nine, so a twin honouring that map exactly
+    wrote fields of another width and no report could say so.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    width, a named width below the floor, and for each of the four sum
+    cases `_width_census` states.
+    """
+    return _width_census(
+        mapping,
+        "pad_widths",
+        where,
+        floor,
+        styles,
+        LEADING_ZERO_STYLE,
+        "written with a redundant zero",
+        "the cells counted by the width of the field they wrote",
+        "P5b",
+        "P6b",
+        2,
+        "P7b",
+        "a padded cell writes at least one zero in front of at least "
+        "one figure, so its narrowest field is two",
+    )
+
+
+POINT_FREE_STYLES = (PLAIN_STYLE, LEADING_PLUS_STYLE, LEADING_ZERO_STYLE)
+
+
+def _field_widths(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+) -> "dict[str, int]":
+    """How wide every whole-written cell wrote its figure field (7.9).
+
+    THE THIRD CENSUS, AND IT IS NOT READ UNDER `_width_census` (plan
+    P4-D30). That reading is written for a census of ONE form, whose
+    sum equals that form's count exactly or else lives inside the
+    styles map's pooled remainder. This census covers THREE forms at
+    once -- `plain`, `leading_plus` and `leading_zero`, which are
+    exactly the forms carrying no point and no exponent -- so its sum
+    is bounded on two sides rather than pinned on one, and forcing it
+    through the other reading would have meant asking a rule a question
+    it was not written to answer.
+
+    WHAT BINDS IT, and each of the three is provable from the
+    definition rather than assumed:
+
+    1. every cell counted by a NAMED point-free style is a cell this
+       census counts, so the total is at least their sum;
+    2. every further cell it counts was held back from the styles map,
+       so the total is at most that sum plus the pooled remainder;
+    There is deliberately no THIRD condition against `n_numeric`: P1
+    makes the styles map sum to the numeric count exactly, so the
+    second bound above IS that ceiling, and writing it again would be
+    a check that cannot fail.
+
+    WHAT IT DOES NOT CHECK IS STATED RATHER THAN LEFT TO BE FOUND. A
+    loader holds no table, so nothing here checks that a width count IS
+    the count of source cells at that width -- that is producer
+    obligation XW-P -- and nothing here compares this census against
+    `pad_widths`, whose cells are a SUBSET of these and whose widths
+    are reached by padding rather than by magnitude.
+
+    Raises ProfileError for a wrong type, a key that is not a canonical
+    width, a named width below the floor, a width of nought, and for
+    either end of the sum bound.
+    """
+    widths = _counts(mapping["field_widths"], "field_widths", where, 1)
+    for name in sorted(widths):
+        if name == WITHHELD:
+            continue
+        if not _is_canonical_width(name):
+            raise _out_of_range(
+                f"field_widths -> {name}",
+                where,
+                f"'{name}'",
+                "a whole number of figures written without padding",
+            )
+        if int(name) < 1:
+            # A CELL WRITTEN WHOLE WRITES AT LEAST ONE FIGURE. A census
+            # naming width 0 describes cells no producer can have read
+            # and no twin can write.
+            raise _broken(
+                "P7c",
+                where,
+                "the width '0' is named",
+                "a cell written as a whole number writes at least one "
+                "figure",
+            )
+        if widths[name] < floor:
+            raise _broken(
+                "P6c",
+                where,
+                f"the width '{name}' was written by {widths[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(widths)
+    named = 0
+    for style in POINT_FREE_STYLES:
+        if style in styles:
+            named = named + styles[style]
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    if total < named:
+        raise _broken(
+            "P9c",
+            where,
+            f"{total} cells are counted by the width of the field they "
+            f"wrote",
+            f"{named} cells were written in a form that carries no point",
+        )
+    if total > named + pooled:
+        raise _broken(
+            "P9c",
+            where,
+            f"{total} cells are counted by the width of the field they "
+            f"wrote",
+            f"{named} cells were written in a named form that carries no "
+            f"point, and {pooled} cells in all were held back from the "
+            f"forms map",
+        )
+    # AND THERE IS NO SEPARATE CEILING AGAINST `n_numeric`, which is
+    # stated here rather than left as a gap. P1 makes the styles map
+    # sum to the numeric count exactly, so `named + pooled` IS
+    # `n_numeric` and the bound above is that ceiling already. A third
+    # comparison would be a check that cannot fail, which this
+    # repository counts as a defect rather than as caution.
+    return widths
+
+
+def _width_census(
+    mapping: "dict[str, object]",
+    key: str,
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+    style: str,
+    wrote: str,
+    counted: str,
+    sum_rule: str,
+    floor_rule: str,
+    least: int,
+    least_rule: str,
+    least_rule_says: str,
+) -> "dict[str, int]":
+    """The one reading both width censuses are checked under.
+
+    ONE RULE, ASKED TWICE, IN ONE PLACE. Two censuses of the same shape
+    with two copies of this arithmetic is the shape of defect this
+    repository has already paid for more than once: a rule that lives
+    in two places comes apart from itself, and the half nobody edited
+    is the half that stays wrong. The wording each census shows a
+    person differs, so the words are arguments; the arithmetic does
+    not, so it is written once.
+
+    ITS SUM IS STATED OVER A NUMBER THAT MAY NOT EXIST, and that is the
+    whole difficulty this reads through (plan amendments A-P4-5 and
+    A-P4-6). Where the floor named the form, `numeric_styles` carries
+    its key and the census sums to it exactly. Where the floor POOLED
+    that form, no published number holds the count of its cells -- and
+    an earlier reading concluded the sum obligation then binds nothing,
+    which would have admitted a census of a thousand cells in a column
+    of a hundred. Three published numbers bound it instead:
+
+    1. non-empty means a total of at least one;
+    2. the total is strictly BELOW the floor, because a form is pooled
+       only when its own count falls below it;
+    3. the total is at most the pooled remainder of the forms map,
+       because the pooled cells of this form are a subset of that pool.
+
+    The census may also be empty in the pooled case, which is what a
+    column with no cell of the form at all writes.
+    """
+    widths = _counts(mapping[key], key, where, 1)
+    for name in sorted(widths):
+        if name == WITHHELD:
+            continue
+        if not _is_canonical_width(name):
+            raise _out_of_range(
+                f"{key} -> {name}",
+                where,
+                f"'{name}'",
+                "a whole number of figures written without padding",
+            )
+        if int(name) < least:
+            # A WIDTH NO CELL OF THIS FORM CAN WEAR. The padded style
+            # writes at least one zero in front of at least one figure,
+            # so its narrowest field is two: a census naming width 0 or
+            # 1 describes cells no producer can have read and no twin
+            # can write, and admitting it left the generator refusing a
+            # width the loader had accepted.
+            raise _broken(
+                least_rule,
+                where,
+                f"the width '{name}' is named",
+                least_rule_says,
+            )
+        if widths[name] < floor:
+            raise _broken(
+                floor_rule,
+                where,
+                f"the width '{name}' was written by {widths[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(widths)
+    if style in styles:
+        if total != styles[style]:
+            raise _broken(
+                sum_rule,
+                where,
+                f"{counted} come to {total}",
+                f"{styles[style]} cells were {wrote}",
+            )
+        return widths
+    # THE POOL'S CAPACITY IS CHECKED BEFORE THE EMPTY CASE AND NOT
+    # AFTER IT. An empty census is a claim -- that NO cell of this
+    # column was written in this form -- and it is as checkable as any
+    # other: the pool then holds five forms rather than six, so a
+    # column whose forms map pools fifty-one cells at a floor of eleven
+    # is impossible with an empty census and was accepted. Returning
+    # early on a total of zero is what skipped the one condition an
+    # empty census can break.
+    pooled = styles[WITHHELD] if WITHHELD in styles else 0
+    room = 5 * (floor - 1)
+    if pooled - total > room:
+        raise _broken(
+            sum_rule,
+            where,
+            f"{total} of the {pooled} cells held back from the forms "
+            f"map are counted as {wrote}",
+            f"the {pooled - total} others would have to share five "
+            f"forms holding at most {floor - 1} cells each",
+        )
+    if not total:
+        return widths
+    if total >= floor:
+        raise _broken(
+            sum_rule,
+            where,
+            f"{total} cells are counted as {wrote}",
+            "no such form is named at all, so every one of them was "
+            f"held back and there are fewer than {floor}",
+        )
+    if total > pooled:
+        raise _broken(
+            sum_rule,
+            where,
+            f"{total} cells are counted as {wrote}",
+            f"{pooled} cells in all were held back from the forms map",
+        )
+    return widths
+
+
+def _pool_holds_both(
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+    widths: "dict[str, int]",
+    padded: "dict[str, int]",
+) -> None:
+    """The pooled remainder, read against BOTH censuses at once (P8).
+
+    EACH CENSUS CHECKED THE POOL ALONE, AND TWO TRUE STATEMENTS MADE A
+    FALSE ONE. C6-30's fourth condition asks whether the cells the
+    forms map held back can be shared out among the forms it does not
+    name, each holding fewer than the floor. It asks that of the
+    fraction census on its own, and then of the padded census on its
+    own, and a document can pass both while passing neither together:
+    each census says how many of the pooled cells belong to ITS form,
+    so what is left over has fewer forms to hide in than either check
+    supposed. A column pooling thirty-five cells, whose fraction census
+    accounts for ten of them and whose padded census -- being empty --
+    accounts for none, leaves twenty-five cells for the two exponent
+    forms alone, which at a floor of eleven can hold at most twenty.
+    The document is impossible and both single checks admitted it.
+
+    This is that condition asked once, over the pool the two censuses
+    leave behind and the forms that are actually left to hold it.
+
+    Raises ProfileError naming P8; returns None when the counts hold.
+    """
+    if WITHHELD not in styles:
+        return
+    pooled = styles[WITHHELD]
+    named = 0
+    for style in styles:
+        if style == WITHHELD:
+            continue
+        named = named + 1
+    spoken = 0
+    hidden = 0
+    for style, census in (
+        (DECIMAL_STYLE, widths),
+        (LEADING_ZERO_STYLE, padded),
+    ):
+        if style in styles:
+            continue
+        # This form is pooled, so its census speaks for the pooled
+        # cells of that form -- and an EMPTY census speaks too: it says
+        # there are none.
+        hidden = hidden + 1
+        spoken = spoken + _added(census)
+    # SIX FORMS EXIST. The map names some; the two censuses speak for
+    # up to two more; what is left is what the remainder has to hide
+    # in, and each of those holds fewer than the floor.
+    left = 6 - named - hidden
+    room = max(0, left) * (floor - 1)
+    if pooled - spoken > room:
+        raise _broken(
+            "P8",
+            where,
+            f"{pooled - spoken} of the cells held back from the forms "
+            "map are accounted for by neither width census",
+            f"the forms left to hold them can carry at most {room}",
+        )
+
+
+def _shape_forms(
+    mapping: "dict[str, object]", where: str, floor: int
+) -> "dict[str, int]":
+    """The census of written forms, checked key by key (C6-D18).
+
+    A KEY CARRIES NO FIGURE AND NO LETTER OF THE TABLE, and that is
+    checked here rather than assumed: every ASCII digit of a key must
+    be `9` and every ASCII letter must be `A`, because the producer
+    builds a form by replacing them and a key where another survived is
+    a key carrying a fragment of somebody's value. A loader that
+    accepted one would let a producer -- or a hand-edited file -- put a
+    real code into the one field this role has for saying what its
+    values look like.
+
+    The floor governs a named form as it governs a level, and the
+    `(withheld)` pool takes what it holds back.
+
+    Raises ProfileError for a wrong type, a key that is not a form, a
+    key longer than the limit, and a named form below the floor.
+    """
+    forms = _counts(mapping["shape_forms"], "shape_forms", where, 1)
+    counted = 0
+    for name in sorted(forms):
+        counted = counted + forms[name]
+    present = _whole(mapping["n_present"], "n_present", where, 0)
+    if counted > present:
+        # SF3. AT MOST, AND NOT EXACTLY. A cell over the length limit
+        # has no form and is counted nowhere in this census, so the
+        # sum falls short of `n_present` on any column holding one and
+        # only an upper bound is checkable here.
+        raise _broken(
+            "SF3",
+            where,
+            f"the census counts {counted} cells",
+            f"the column holds {present} present cells",
+        )
+    for name in sorted(forms):
+        if name == WITHHELD:
+            # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
+            # IS NONE -- but that rule is C5-S13's and is checked at
+            # the top of the document, before any column block is
+            # read. `shape_forms` is in C5-S13's own list, so a census
+            # holding a pool at a floor of one is refused there and a
+            # rule of this function's own would be unreachable. It was
+            # written and withdrawn for exactly that reason (review
+            # round 1 finding 9): a rule no document can reach is a
+            # rule no test can exercise.
+            continue
+        if not _is_shape_form(name):
+            raise _out_of_range(
+                f"shape_forms -> {name}",
+                where,
+                "a key of that shape",
+                "a written form: a figure written '%', a letter "
+                "written '@', and between them only the marks "
+                "- . / _ : # * ( ) [ ] + , -- carrying at least two "
+                "of those three kinds",
+            )
+        if forms[name] < floor:
+            raise _broken(
+                "SF1",
+                where,
+                f"the form '{name}' was written by {forms[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    return forms
+
+
+def _is_shape_form(name: str) -> bool:
+    """Whether one census key is a form -- asked of the ONE definition.
+
+    THE LOADER MUST NOT HOLD A SECOND READING OF THIS RULE. It did, and
+    the two parted: the producer refuses a key of one kind of symbol
+    and this accepted `AAAA`, `9999` and `----`, so a document
+    carrying one loaded, passed the publication guard, and then missed
+    its own census at every recount because no cell can ever wear such
+    a form (review round 2 finding 2).
+
+    `parsing.is_a_written_form` is that definition. Calling it also
+    carries the property finding 1 turned on: a key is spelled from
+    placeholders no cell that has a form may contain, so admitting a
+    key can never admit a value.
+    """
+    return parsing.is_a_written_form(name)
+
+
+def _is_canonical_width(name: str) -> bool:
+    """Whether one census key is a width written the one permitted way.
+
+    Decimal figures, no sign, no padding: `0` written as itself and
+    nothing else beginning with a zero. A grammar left to be inferred is
+    a grammar two producers spell differently and a consumer reads as
+    two widths.
+    """
+    if not name:
+        return False
+    for character in name:
+        if character not in "0123456789":
+            return False
+    if name == "0":
+        return True
+    return name[:1] != "0"
+
+
+def _is_a_clock_value(text: object, form: str) -> bool:
+    """Whether one published value is a clock time in one form.
+
+    Two digits a field, the separators where the form puts them, hours
+    to 23 and minutes and seconds to 59 -- invariant T1, asked of every
+    one of the thirteen clock values a block publishes.
+
+    Built out of character comparisons rather than string methods: the
+    offline audit refuses a method call on a value it cannot trace to
+    text, and a value read out of somebody's document is exactly such a
+    value.
+    """
+    if not isinstance(text, str):
+        return False
+    if form == CLOCK_FORMS[0]:
+        if len(text) != 5 or text[2] != ":":
+            return False
+    else:
+        if len(text) != 8 or text[2] != ":" or text[5] != ":":
+            return False
+        seconds = _digits_at(text, 6, 2)
+        if seconds is None or int(seconds) > 59:
+            return False
+    hours = _digits_at(text, 0, 2)
+    minutes = _digits_at(text, 3, 2)
+    if hours is None or minutes is None:
+        return False
+    return int(hours) <= 23 and int(minutes) <= 59
+
+
+def _clock_value(
+    value: object, key: str, where: str, form: str
+) -> str:
+    """One published clock time, checked against the column's own form."""
+    if not _is_a_clock_value(value, form):
+        # T1, raised in the invariant's own words rather than as a
+        # range error: what is wrong is not that one entry holds an odd
+        # value, it is that the block publishes a time in a form its
+        # own cells did not wear, and a reader is owed that sentence.
+        raise _broken(
+            "T1",
+            where,
+            f"the entry called '{key}' does not hold a time of day "
+            "written that way",
+            f"this column's times are written as {_clock_shape_said(form)}",
+        )
+    return f"{value}"
+
+
+def _clock_shape_said(form: str) -> str:
+    """The form named in the words a person reads."""
+    if form == CLOCK_FORMS[0]:
+        return "two digits for the hour and two for the minute, `09:30`"
+    return (
+        "two digits each for the hour, the minute and the second, "
+        "`09:30:00`"
+    )
+
+
+def _clock_ladder(
+    value: object, key: str, where: str, form: str
+) -> "dict[str, str]":
+    """The eleven rungs of a column of clock times (contract 5.6).
+
+    Guarantees: accepts the value under ``key`` and the form the column
+    publishes; returns the ladder as a mapping from rung name to clock
+    text. Raises ProfileError when it is not a block of entries (R15),
+    when its keys are not exactly the eleven rungs (L4), when a rung
+    holds nothing -- a rung of a clock ladder is never null -- when a
+    rung is not a clock time in this column's form (T1), or when the
+    rungs go DOWN (T3).
+
+    T3 IS A PLAIN TEXT COMPARISON, and that is sound rather than
+    convenient: both forms are fixed width and zero padded, so
+    comparing the written rungs character by character puts them in the
+    same order their ordinals do. It is checked only after T1 has
+    passed on the rung, because the equivalence rests on the shape.
+    """
+    mapping = _mapping(value, key, where)
+    _keys(mapping, where, LADDER_KEYS, "every ladder of clock times")
+    ladder: "dict[str, str]" = {}
+    previous = ""
+    previous_name = ""
+    for name in LADDER_KEYS:
+        rung = mapping[name]
+        if rung is None:
+            raise _broken(
+                "T1",
+                where,
+                f"the rung '{name}' of {key} holds nothing",
+                "a ladder of clock times has a time at every rung",
+            )
+        found = _clock_value(rung, f"{key} -> {name}", where, form)
+        ladder[name] = found
+        if previous and found < previous:
+            raise _broken(
+                "T3",
+                where,
+                f"the rung '{previous_name}' of {key} is {previous}",
+                f"the rung '{name}' after it is {found}",
+            )
+        previous = found
+        previous_name = name
+    return ladder
+
+
+def _clock_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+) -> ClockFacts:
+    """Read a clock block (contract section 6, the clock role).
+
+    The form is read FIRST, because every other value of the block is
+    checked against it: a ladder rung is a clock time in THIS column's
+    form, and asking that question without the form first would either
+    accept both shapes or invent one.
+
+    The five invariants, each raised in the words of the rule it broke:
+    T1 every published clock value is written in the column's own form;
+    T2 the ladder's two ends ARE the endpoints; T3 the rungs never go
+    backwards; T4 some cell parsed; T5 enough of them did.
+    """
+    form = _one_of(mapping["clock_form"], "clock_form", where, CLOCK_FORMS)
+    earliest = _clock_value(mapping["earliest"], "earliest", where, form)
+    latest = _clock_value(mapping["latest"], "latest", where, form)
+    ladder = _clock_ladder(
+        mapping["clock_percentiles"], "clock_percentiles", where, form
+    )
+    # T2. Both ends of the ladder ARE the endpoints. Untied, a twin
+    # pinned to the ladder could hold values earlier than the earliest
+    # this description publishes.
+    if ladder["min"] != earliest:
+        raise _broken(
+            "T2",
+            where,
+            f"the ladder of clock times begins at {ladder['min']}",
+            f"the column's earliest time is {earliest}",
+        )
+    if ladder["max"] != latest:
+        raise _broken(
+            "T2",
+            where,
+            f"the ladder of clock times ends at {ladder['max']}",
+            f"the column's latest time is {latest}",
+        )
+    unparsed = _whole(mapping["n_unparsed"], "n_unparsed", where, 0)
+    # T4. Some cell parsed, and this is NOT implied by T5: at a parse
+    # rate of zero the line is zero and T5 says nothing, and this is
+    # then the only rule keeping a cell for the endpoints to be values
+    # of.
+    if unparsed >= n_present:
+        raise _broken(
+            "T4",
+            where,
+            f"{unparsed} of this column's values are not clock times",
+            f"the column holds {n_present} values in all",
+        )
+    # T5. Enough of them parsed -- the parse line, applied as a COUNT
+    # and never as a compared share, exactly as the producer applied it.
+    line = _line_count(frame.parse_rate, n_present)
+    if n_present - unparsed < line:
+        raise _broken(
+            "T5",
+            where,
+            f"{n_present - unparsed} of this column's values are clock times",
+            f"at least {line} of them had to be for it to be read this way",
+        )
+    return ClockFacts(
+        clock_form=form,
+        earliest=earliest,
+        latest=latest,
+        clock_percentiles=ladder,
+        n_unparsed=unparsed,
+    )
 
 
 def _identifier_facts(
@@ -4352,11 +7594,824 @@ def _identifier_facts(
     )
 
 
+def _exact_ratio(share: float) -> "tuple[int, int]":
+    """One rate as the exact pair of whole numbers it really is.
+
+    THE PRODUCER'S OWN RULE AGAIN, and written again for the same
+    reason the line itself is. A rate recorded as `0.01` is not one
+    hundredth: the nearest binary64 to one hundredth sits a shade above
+    it, and a line computed by multiplying in binary64 rounds the
+    product back down, so a document the producer refuses is one the
+    loader accepts. Every binary64 is a whole number times a power of
+    two, which is what `frexp` hands back.
+
+    Guarantees: accepts a rate of zero or more; returns a numerator and
+    a denominator whose quotient IS the rate. Determinism: a function
+    of the rate. Raises TypeError if handed anything that is not a
+    float instance, and ValueError for a negative rate. No I/O.
+    """
+    if not isinstance(share, float):
+        raise TypeError("a rate reached the count rule as something else")
+    if share < 0.0:
+        raise ValueError("a rate reached the count rule below zero")
+    fraction, power = math.frexp(share)
+    numerator = int(fraction * float(1 << 53))
+    place = power - 53
+    if place >= 0:
+        return numerator << place, 1
+    return numerator, 1 << -place
+
+
+def _line_count(share: float, total: int) -> int:
+    """The smallest whole number of values that reaches ``share``.
+
+    THE PRODUCER'S OWN RULE, written again here rather than imported:
+    the loader may not import the describing side, and a threshold
+    applied as a count on one side and as a compared share on the other
+    is a threshold two implementations disagree about at the boundary.
+    A count is what both apply.
+
+    AND THE PRODUCT IS EXACT ON BOTH SIDES, which for a while it was on
+    only one (review item P4-DATE2-F1). Writing the rule twice is what
+    keeps the two sides independent; it is also what let one of them be
+    repaired alone, and a loader that admits a description the producer
+    would never write is a loader that admits a forged one. The rate is
+    carried as the whole numbers it stands for and the ceiling is taken
+    there, with no rounding left to happen.
+    """
+    numerator, denominator = _exact_ratio(share)
+    exact = numerator * total
+    whole = exact // denominator
+    if whole * denominator < exact:
+        return whole + 1
+    return whole
+
+
+def _joined_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+) -> JoinedFacts:
+    """Read a joined-number block (contract 6.13, plan P4-D21).
+
+    Six invariants, and each one is a fact the producer cannot have
+    written otherwise:
+
+    - J1: `separator` is ONE character of the admitted list. A longer
+      one, or one outside the list, describes a split this format does
+      not perform.
+    - J2: `n_parts` is at least two. One part is a bare number, which
+      is a different role.
+    - J3: `n_joined` and `n_unparsed` are a partition of the present
+      cells, and `n_joined` clears the detection line -- the role was
+      given because that many cells split this way, so a block claiming
+      it with fewer describes a column the producer would have declined.
+    - J4: `parts` and `part_min_widths` each hold exactly `n_parts`
+      entries, in cell order.
+    - J5: every part block is read by the SAME reader every
+      quantitative role's block is read by, over `n_joined` values.
+    - J6: every published width is at least one character.
+    - J7: every agreement is a rank agreement, so it lies in -1..1, and
+      there is exactly one for each PAIR of positions.
+    - J8: every above-count is a number of rows that split, and there
+      is exactly one for each pair.
+    """
+    separator = _text(mapping["separator"], "separator", where)
+    if not _is_a_joined_separator(separator):
+        raise _out_of_range(
+            "separator", where, f"'{separator}'",
+            "one of the marks this format splits a joined cell on, with "
+            "at most one space on each side of it",
+        )
+    n_parts = _bounded(
+        mapping["n_parts"], "n_parts", where, 2, n_present + 2,
+        "at least two numbers in a cell",
+    )
+    n_joined = _bounded(
+        mapping["n_joined"], "n_joined", where, 0, n_present,
+        "the number of values the column holds",
+    )
+    n_unparsed = _bounded(
+        mapping["n_unparsed"], "n_unparsed", where, 0, n_present,
+        "the number of values the column holds",
+    )
+    if n_joined + n_unparsed != n_present:
+        raise _out_of_range(
+            "n_joined", where, f"a total of {n_joined + n_unparsed}",
+            f"a total of {n_present}, the number of values the column "
+            "holds: every present cell either splits this way or does not",
+        )
+    line = _line_count(frame.parse_rate, n_present)
+    if n_joined < line:
+        raise _out_of_range(
+            "n_joined", where, f"{n_joined}",
+            f"at least {line}, the number of this column's values that "
+            "had to split into whole numbers for it to be read this way "
+            "at all",
+        )
+    widths_read = _listing(
+        mapping["part_min_widths"], "part_min_widths", where
+    )
+    if len(widths_read) != n_parts:
+        raise _out_of_range(
+            "part_min_widths", where, f"{len(widths_read)} width(s)",
+            f"{n_parts}, one for each number in a cell",
+        )
+    widths: "list[int]" = []
+    place = 0
+    for value in widths_read:
+        widths = widths + [
+            _bounded(
+                value, f"part_min_widths[{place}]", where, 1, 4096,
+                "a width of at least one character",
+            )
+        ]
+        place = place + 1
+    blocks_read = _listing(mapping["parts"], "parts", where)
+    if len(blocks_read) != n_parts:
+        raise _out_of_range(
+            "parts", where, f"{len(blocks_read)} block(s)",
+            f"{n_parts}, one for each number in a cell",
+        )
+    pairs = (n_parts * (n_parts - 1)) // 2
+    agreements_read = _listing(
+        mapping["part_agreements"], "part_agreements", where
+    )
+    if len(agreements_read) != pairs:
+        raise _out_of_range(
+            "part_agreements", where, f"{len(agreements_read)}",
+            f"{pairs}, one for each pair of numbers in a cell",
+        )
+    agreements: "list[float]" = []
+    place = 0
+    for value in agreements_read:
+        # J7. An agreement is a rank agreement and cannot leave -1..1.
+        found = _figure(value, f"part_agreements[{place}]", where)
+        if found < -1.0 or found > 1.0:
+            raise _out_of_range(
+                f"part_agreements[{place}]", where, f"{found}",
+                "a number from -1 to 1, as a rank agreement is",
+            )
+        agreements = agreements + [found]
+        place = place + 1
+    above_read = _listing(mapping["part_above"], "part_above", where)
+    if len(above_read) != pairs:
+        raise _out_of_range(
+            "part_above", where, f"{len(above_read)}",
+            f"{pairs}, one for each pair of numbers in a cell",
+        )
+    above: "list[int]" = []
+    place = 0
+    for value in above_read:
+        # J8. A count of rows cannot exceed the rows that split.
+        above = above + [
+            _bounded(
+                value, f"part_above[{place}]", where, 0, n_joined,
+                "the number of values that split into whole numbers",
+            )
+        ]
+        place = place + 1
+    blocks: "list[NumericFacts]" = []
+    place = 0
+    for value in blocks_read:
+        seat = f"parts[{place}]"
+        block = _mapping(value, seat, where)
+        _keys(block, where, NUMERIC_KEYS, f"the block for {seat}")
+        blocks = blocks + [
+            _numeric_facts(
+                block,
+                f"{where}, {seat}",
+                frame,
+                n_joined,
+                n_joined,
+                0,
+                0,
+                echoes=n_joined,
+            )
+        ]
+        place = place + 1
+    return JoinedFacts(
+        parts=tuple(blocks),
+        separator=separator,
+        n_parts=n_parts,
+        n_joined=n_joined,
+        n_unparsed=n_unparsed,
+        part_min_widths=tuple(widths),
+        part_agreements=tuple(agreements),
+        part_above=tuple(above),
+    )
+
+
+def _affixed_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+    remarks: "list[str]",
+) -> AffixedFacts:
+    """Read an affixed-number block (contract 6.12).
+
+    The quantitative invariants are read over the CORE counts, because
+    that is the population the statistics were computed from -- except
+    the two the contract defines over present CELLS, which the numeric
+    reader is given `n_present` for and which would otherwise leave a
+    straggler in neither count.
+    """
+    prefix = _text(mapping["affix_prefix"], "affix_prefix", where)
+    suffix = _text(mapping["affix_suffix"], "affix_suffix", where)
+    # THE OTHER WRAPPERS (plan P4-D36), read before AF1 because AF1 is
+    # stated over the whole set.
+    variants = _affix_variants(mapping, where, frame)
+    if not prefix and not suffix and not variants:
+        # AF1. A pair with nothing on either side describes no shape,
+        # and a cell wearing it is a bare number, which is a different
+        # role. WHERE THERE ARE OTHER WRAPPERS the bare one is a
+        # member of the vocabulary rather than the whole of it: a
+        # laboratory column of `13.5`, `4.2 H` and `9.8 L` wears three
+        # and the commonest may be the bare one.
+        raise _out_of_range(
+            "affix_prefix", where, "two empty spellings",
+            "at least one side carrying text, or another wrapper "
+            "beside this one that does",
+        )
+    carrying = bool(prefix) or bool(suffix)
+    for one in variants:
+        if one.prefix or one.suffix:
+            carrying = True
+    if not carrying:
+        raise _out_of_range(
+            "affix_prefix", where, "wrappers that all carry nothing",
+            "at least one wrapper carrying text, because a column "
+            "whose every cell wears nothing is a column of bare "
+            "numbers and that is a different role",
+        )
+    # AF14. NO WRAPPER IS NAMED TWICE ACROSS THE WHOLE VOCABULARY
+    # (review round 1 of the wrapper set, item 8). AF9 orders the
+    # variants and so refuses a duplicate AMONG them, and the commonest
+    # pair is read here rather than there -- so a variant repeating the
+    # pair this block already names passed both. Two entries for one
+    # wrapper are two counts of one thing, and the count of cells
+    # wearing the commonest would then be the column's total less a
+    # slice of itself.
+    for one in variants:
+        if (one.prefix, one.suffix) == (prefix, suffix):
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {prefix!r}/{suffix!r} named twice",
+                "each wrapper named once, the commonest one under "
+                "`affix_prefix` and `affix_suffix` and every other "
+                "under `affix_variants`",
+            )
+    # AF15. A SET OF WRAPPERS IS NOT LARGER THAN A SET OF CATEGORIES
+    # MAY BE. The wrappers are published text drawn from the table, so
+    # what bounds how many of them may be named is what bounds how many
+    # levels a categorical column may name. Without it a column of a
+    # thousand one-off units published a thousand spellings under a key
+    # nothing bounded.
+    ceiling = _category_ceiling(frame)
+    if len(variants) + 1 > ceiling:
+        raise _out_of_range(
+            "affix_variants", where,
+            f"{len(variants) + 1} wrappers",
+            f"no more than {ceiling}, the most different published "
+            "spellings a column of this table may name",
+        )
+    n_affixed = _bounded(
+        mapping["n_affixed"], "n_affixed", where, frame.floor, n_present,
+        "the number of values the column holds",
+    )
+    # AF3. The pair had to clear the detection line for this role to be
+    # given at all, and the line is a COUNT of the present cells rather
+    # than a share compared after a division -- so a block claiming the
+    # role with fewer cells wearing the pair than its own settings
+    # demand describes a column the producer would have declined.
+    # Applied here because nothing else could: the loader holds one
+    # document and the settings that wrote it, which is exactly what
+    # this invariant is stated over.
+    line = _line_count(frame.parse_rate, n_present)
+    if n_affixed < line:
+        raise _out_of_range(
+            "n_affixed", where, f"{n_affixed}",
+            f"at least {line}, the number of this column's values that "
+            "had to wear one shared piece of text for it to be read "
+            "this way at all",
+        )
+    # AF12. THE COMMONEST WRAPPER'S OWN POPULATION (plan P4-D37). The
+    # column's block is that wrapper's, so what it is checked against
+    # is that wrapper's counts: the column's totals less every other
+    # wrapper's. A column wearing ONE wrapper has nothing to subtract
+    # and is read exactly as it was, against the present cells and the
+    # table's row count.
+    worn_by_others = 0
+    numeric_elsewhere = 0
+    out_elsewhere = 0
+    contradictory_elsewhere = 0
+    for one in variants:
+        worn_by_others = worn_by_others + one.count
+        numeric_elsewhere = numeric_elsewhere + one.n_core_numeric
+        out_elsewhere = out_elsewhere + one.n_core_out_of_range
+        contradictory_elsewhere = (
+            contradictory_elsewhere + one.n_core_contradictory
+        )
+    text_elsewhere = 0
+    for one in variants:
+        text_elsewhere = text_elsewhere + one.n_core_not_numeric
+    common_count = n_affixed - worn_by_others
+    if variants and common_count < frame.floor:
+        raise _out_of_range(
+            "affix_variants", where,
+            f"{worn_by_others} cell(s) wearing the other wrappers, "
+            f"leaving {common_count} for the one this block names",
+            f"at least {frame.floor} left for the commonest wrapper, "
+            "because it is published like any other and a wrapper "
+            "worn by fewer cells than may be named is not published "
+            "at all",
+        )
+    # AF17. THE PAIR THIS BLOCK NAMES IS THE COMMONEST WRAPPER, and
+    # nothing said so until review round 3 (item 5). The subtraction
+    # above is nonnegative and closes, and a description can still be
+    # written with the two populations SWAPPED: the block naming the
+    # eighty cells wearing pounds and the entry naming the hundred and
+    # twenty wearing kilograms. Such a document loaded, and the twin
+    # built from it re-described with kilograms commonest and missed
+    # twenty-one of its own obligations -- a description no producer
+    # writes, accepted, and then failed by its own twin.
+    #
+    # THE TIE GOES THE PRODUCER'S WAY. Where a variant's count equals
+    # the commonest's, the producer keeps whichever pair sorts first,
+    # so an equal count is only admitted when the block's own pair
+    # sorts before the entry's.
+    for one in variants:
+        if one.count > common_count or (
+            one.count == common_count
+            and (one.prefix, one.suffix) < (prefix, suffix)
+        ):
+            raise _out_of_range(
+                "affix_variants", where,
+                f"the wrapper {one.prefix!r}/{one.suffix!r} worn by "
+                f"{one.count} cell(s) beside a commonest worn by "
+                f"{common_count}",
+                "the pair this block names to be the wrapper the most "
+                "cells wear, ties going to the pair that sorts first, "
+                "because that is the one a producer publishes there",
+            )
+    # AF10. HOW MANY DIFFERENT CORES, held inside the bounds a file
+    # cannot argue with: a set of cores cannot hold more different
+    # spellings than it has cells, and folding never separates two
+    # spellings that were the same.
+    #
+    # THE CELLS ARE THE COMMONEST WRAPPER'S, NOT THE COLUMN'S (plan
+    # P4-D37, and review round 1 item 8). These two counts belong to
+    # the block above them, that block is the commonest wrapper's, and
+    # bounding them by `n_affixed` let a description say a wrapper worn
+    # by fifty cells holds two hundred different cores.
+    #
+    # AND AT LEAST ONE. A block whose numbers a file is held to
+    # describes at least one core, so a published zero is a description
+    # no column could have written; the bound was zero and a document
+    # saying so loaded.
+    core_distinct = _bounded(
+        mapping["n_core_distinct"], "n_core_distinct", where,
+        1, common_count,
+        "the number of cells wearing the commonest wrapper",
+    )
+    core_distinct_folded = _bounded(
+        mapping["n_core_distinct_folded"], "n_core_distinct_folded",
+        where, 1, core_distinct,
+        "the raw count of different cores",
+    )
+    core_numeric = _bounded(
+        mapping["n_core_numeric"], "n_core_numeric", where, 0, n_affixed,
+        "the number of values wearing the pair",
+    )
+    core_out_of_range = _bounded(
+        mapping["n_core_out_of_range"], "n_core_out_of_range", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    core_contradictory = _bounded(
+        mapping["n_core_contradictory"], "n_core_contradictory", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    core_not_numeric = _bounded(
+        mapping["n_core_not_numeric"], "n_core_not_numeric", where,
+        0, n_affixed, "the number of values wearing the pair",
+    )
+    # AF4: the four core classes are a partition of the cells wearing
+    # the pair, so they close on `n_affixed` and on nothing else.
+    total = (
+        core_numeric
+        + core_out_of_range
+        + core_contradictory
+        + core_not_numeric
+    )
+    if total != n_affixed:
+        raise _out_of_range(
+            "n_core_numeric", where, f"a total of {total}",
+            f"a total of {n_affixed}, the number of values wearing the pair",
+        )
+    # AF16. EVERY ONE OF THE COMMONEST WRAPPER'S FOUR CLASS RESIDUALS
+    # IS A COUNT, and they close on its own cell count (review round 2,
+    # item 3). AF4 closes the column's four on `n_affixed` and AF11
+    # closes each entry's four on its own count, and a document can
+    # satisfy BOTH while leaving the commonest wrapper a negative
+    # remainder: move two contradictory cores into a variant, call the
+    # column's contradictory count zero and its not-numeric count two,
+    # and AF4 still adds up. The commonest wrapper's contradictory
+    # count is then `0 - 2`. Such a document loaded, and generation
+    # stopped with the internal-check message that tells its user
+    # synthtwin has a bug -- it had built 202 cells for a 200-row
+    # description.
+    residuals = (
+        core_numeric - numeric_elsewhere,
+        core_out_of_range - out_elsewhere,
+        core_contradictory - contradictory_elsewhere,
+        core_not_numeric - text_elsewhere,
+    )
+    for place in range(len(residuals)):
+        if residuals[place] < 0:
+            raise _out_of_range(
+                _CORE_CLASS_KEYS[place], where,
+                f"{residuals[place]} left for the commonest wrapper "
+                f"once every other wrapper's count is taken from it",
+                "a count of 0 or more, because the commonest wrapper's "
+                "cells are the column's less the other wrappers' and "
+                "no wrapper holds fewer than none",
+            )
+    left = residuals[0] + residuals[1] + residuals[2] + residuals[3]
+    if left != common_count:
+        raise _out_of_range(
+            "n_core_numeric", where,
+            f"a total of {left} for the commonest wrapper",
+            f"a total of {common_count}, the number of cells wearing "
+            "it, because its four classes are a partition of them "
+            "exactly as AF4's are of every counted cell",
+        )
+    # AF-R, ASKED WHERE THE BLOCK'S OWN NUMBERS ARE. It is
+    # unconditional -- no test of the values can separate a column of
+    # measurements from a column of codes, so the sentence is owed by
+    # every column of this role and not by the ones some rule found
+    # doubtful. It is asked HERE rather than beside the other remarks
+    # because here the pair and the count are already read: a check
+    # written where the facts are still a union of every role's would
+    # have to ask which role it holds, and asking that is a construct
+    # the offline audit refuses on a value it cannot trace.
+    carried = False
+    for remark in remarks:
+        # AGAINST THE COMMONEST WRAPPER'S OWN COUNT, which is the
+        # count the sentence names (review round 8, item 3): it names
+        # ONE spelling, so the number beside it is how many cells wear
+        # THAT spelling and not how many wear any of them.
+        if _is_the_affixed_remark(
+            remark, common_count, _affix_clause(prefix, suffix)
+        ):
+            carried = True
+    if not carried:
+        raise _out_of_range(
+            "remarks",
+            where,
+            f"{len(remarks)} remark(s), none of them that one",
+            "the sentence every column read this way carries, "
+            "which names the shared text its values wear, says how "
+            "many of them wore it, and says what to run if they "
+            "are codes rather than measurements",
+        )
+    return AffixedFacts(
+        numbers=_numeric_facts(
+            mapping,
+            where,
+            frame,
+            n_present if not variants else common_count,
+            residuals[0],
+            residuals[1],
+            residuals[2],
+            echoes=None if not variants else common_count,
+        ),
+        affix_prefix=prefix,
+        affix_variants=variants,
+        n_core_distinct=core_distinct,
+        n_core_distinct_folded=core_distinct_folded,
+        affix_suffix=suffix,
+        n_affixed=n_affixed,
+        n_core_numeric=core_numeric,
+        n_core_out_of_range=core_out_of_range,
+        n_core_contradictory=core_contradictory,
+        n_core_not_numeric=core_not_numeric,
+    )
+
+
+def _a_label_and_not_a_number(
+    spelling: str, where: str, decimal_comma: bool
+) -> None:
+    """Refuse a published label of a compound column that is a number.
+
+    The split rule of section 5.2 puts a cell in the label half exactly
+    when it does not read as a plain number, so a label that IS one
+    describes a cell of the other half. A description carrying one is
+    a description no file can satisfy: its twin writes that spelling,
+    and re-describing the twin counts the cell into the numeric half.
+    """
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    if parsing.classify_number(read) != parsing.NUMBER:
+        return
+    raise _out_of_range(
+        "labels -> levels",
+        where,
+        "a published label that reads as an ordinary number",
+        "a spelling that is NOT a number, because the rule that makes "
+        "this role puts every cell reading as a number in the other "
+        "half -- a label of this column is by definition a cell that "
+        "does not",
+    )
+
+
+def _compound_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+    n_distinct: int,
+    n_distinct_folded: int,
+    decimal_comma: bool,
+) -> CompoundFacts:
+    """A column of numbers beside labels (residual R-P4-13, landing L8).
+
+    THE SUM IS CHECKED HERE AND NOT ASSUMED. Two counts that did not
+    account for every present cell would be a description of part of a
+    column, which outcome principle 5 forbids and review item P1-R6-F7
+    deleted a rule for. A file whose counts do not add up is refused
+    rather than repaired, on the same terms as every other arithmetic
+    the loader holds.
+    """
+    numeric = _bounded(
+        mapping["n_numeric_cells"],
+        "n_numeric_cells",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    labels = _bounded(
+        mapping["n_label_cells"],
+        "n_label_cells",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    # BOTH HALVES HOLD SOMETHING, which is what this role IS. The
+    # producer never writes an empty half -- rule 7b refuses a column
+    # with one -- and the loader accepted it, so a plain numeric
+    # description rewritten with `n_label_cells: 0` and an empty label
+    # block was read as this role: a column whose statistical type says
+    # two populations and whose twin has one (review round 2 of this
+    # landing, item 3).
+    # THE THIRD POPULATION (residual R-P4-149). Numerals this format
+    # cannot hold. They used to be counted with the LABELS, which said
+    # a number was a word; they are counted with the numeric half now,
+    # and the sum below is three-way.
+    unusable_out = _bounded(
+        mapping["n_numeric_out_of_range"],
+        "n_numeric_out_of_range",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    unusable_contradictory = _bounded(
+        mapping["n_numeric_contradictory"],
+        "n_numeric_contradictory",
+        where,
+        0,
+        n_present,
+        "the number of present cells",
+    )
+    for count, key in ((numeric, "n_numeric_cells"), (labels, "n_label_cells")):
+        if count == 0:
+            raise _out_of_range(
+                key,
+                where,
+                "0",
+                "at least one cell, because a column of numbers beside "
+                "labels holds both populations and a description of "
+                "one of them is a description of some other kind of "
+                "column",
+            )
+    total = numeric + unusable_out + unusable_contradictory + labels
+    if total != n_present:
+        raise _out_of_range(
+            "n_numeric_cells",
+            where,
+            f"a total of {total} with n_numeric_out_of_range, "
+            f"n_numeric_contradictory and n_label_cells",
+            f"a total of exactly the {n_present} present cell(s) this "
+            "column has, so that every one of them is in one published "
+            "population and none is in two",
+        )
+    # THE NUMERIC HALF'S COUNTS OF DIFFERENT WRITTEN CELLS, held inside
+    # two bounds a file cannot argue with: a half cannot hold more
+    # different cells than it has cells, and the two halves together
+    # cannot hold more than the column does. Folding never separates
+    # two cells that were the same, so the folded count is at most the
+    # raw one.
+    numeric_distinct = _bounded(
+        mapping["n_numeric_distinct"],
+        "n_numeric_distinct",
+        where,
+        0,
+        numeric,
+        "the number of cells in the numeric half",
+    )
+    _bounded(
+        mapping["n_numeric_distinct"],
+        "n_numeric_distinct",
+        where,
+        0,
+        n_distinct,
+        "the number of different cells the whole column holds",
+    )
+    numeric_distinct_folded = _bounded(
+        mapping["n_numeric_distinct_folded"],
+        "n_numeric_distinct_folded",
+        where,
+        0,
+        numeric_distinct,
+        "the raw count of different cells in the numeric half",
+    )
+    # THE HALF'S WHOLE POPULATION: its numbers and its unusable
+    # numerals (residual R-P4-149). The four class counts of the block
+    # sum to this, exactly as they do on a plain numeric column.
+    half = numeric + unusable_out + unusable_contradictory
+    numbers = _numeric_facts(
+        _mapping(mapping["numbers"], "numbers", where),
+        f"{where} -> numbers",
+        frame,
+        half,
+        numeric,
+        unusable_out,
+        unusable_contradictory,
+        # THE ROW COUNT THIS BLOCK ECHOES IS THE HALF'S OWN, on the
+        # joined role's precedent: a block that describes a SUBSET of
+        # the column's cells echoes the count of that subset, and
+        # holding it to the table's count is what made a joined column
+        # with one unsplit cell unreadable by the tool that wrote it.
+        echoes=half,
+    )
+    label_block = _mapping(mapping["labels"], "labels", where)
+    # EXACTLY THESE KEYS IN EACH HALF, AND NO OTHERS. Without this a
+    # sub-block carried whatever a file put in it: `raw_note: "Jane
+    # Doe"` inside `labels` was ACCEPTED, survived the canonical
+    # round trip, and was read by nothing -- so a description could
+    # carry text nothing in this package ever looks at (review round 1
+    # of this landing, item 2). Every other block of the description is
+    # held to its key set, including each POSITION of a joined column,
+    # and these two were the exception.
+    _keys(
+        _mapping(mapping["numbers"], "numbers", where),
+        where,
+        NUMERIC_KEYS,
+        "the numeric half of a column of numbers beside labels",
+    )
+    _keys(
+        label_block,
+        where,
+        COMPOUND_LABEL_KEYS,
+        "the label half of a column of numbers beside labels",
+    )
+    # AND THE HALF'S OWN CELL COUNT IS THE SPLIT'S, which is invariant
+    # NL2 and was stated in the contract and enforced nowhere: a file
+    # publishing `n_label_cells: 20` beside `labels -> n_present: 999`
+    # was accepted, and every fact of that half is stated over the
+    # count it carries.
+    _bounded(
+        label_block["n_present"],
+        "labels -> n_present",
+        where,
+        labels,
+        labels,
+        "the number of cells the split puts in the label half",
+    )
+    label_distinct = _bounded(
+        label_block["n_distinct"],
+        "labels -> n_distinct",
+        where,
+        1,
+        labels,
+        "the number of cells in the label half",
+    )
+    folded = _bounded(
+        label_block["n_distinct_folded"],
+        "labels -> n_distinct_folded",
+        where,
+        1,
+        label_distinct,
+        "the raw count of different cells in the label half",
+    )
+    # THE FOUR COUNTS OF DIFFERENT CELLS ARE ONE ARITHMETIC, and until
+    # this they were four separate bounds that could each hold while
+    # the set of them was impossible (review round 2 of this landing,
+    # item 2). A file publishing ninety-seven different numeric cells
+    # in the half and ONE in `n_numeric_distinct` cleared every bound
+    # there was, and the generator writes ninety-seven whatever the
+    # budget says.
+    #
+    # The two halves hold disjoint spellings -- a cell that reads as a
+    # number is in the numeric half by the rule that made the column,
+    # so no label cell can wear a numeric cell's folded identity -- so
+    # the folded counts ADD. Measured before it was asserted, over
+    # sixty generated compound columns of three shapes: readings that
+    # repeat, values written two ways each, and exponents in both
+    # cases. The equality held on every one.
+    if (
+        numeric_distinct_folded + folded != n_distinct_folded
+        and n_distinct_folded > 0
+    ):
+        raise _out_of_range(
+            "n_numeric_distinct_folded",
+            where,
+            f"a total of {numeric_distinct_folded + folded} with the "
+            "label half's own count",
+            f"a total of exactly the {n_distinct_folded} folded "
+            "identities this column holds, because the two halves hold "
+            "no spelling in common",
+        )
+    # AND THE HALF'S FOLDED COUNT IS AT LEAST ITS COUNT OF DIFFERENT
+    # NUMBERS: two spellings of one value fold to two identities, and
+    # two different values can never fold to one.
+    if numeric_distinct_folded < numbers.n_distinct_values:
+        raise _out_of_range(
+            "n_numeric_distinct_folded",
+            where,
+            f"{numeric_distinct_folded}",
+            f"at least the {numbers.n_distinct_values} different "
+            "number(s) the numeric half holds, because two different "
+            "numbers are never written the same way",
+        )
+    # ...and the column's own raw count is the two halves' counts
+    # ADDED, now that both are published. It was a range between them
+    # while the label half published only a folded count (review round
+    # 3, item 5): every different numeric cell is a different cell of
+    # the column, the two halves share no spelling, and nothing else
+    # can contribute.
+    if numeric_distinct + label_distinct != n_distinct:
+        raise _out_of_range(
+            "n_numeric_distinct",
+            where,
+            f"a total of {numeric_distinct + label_distinct} with the "
+            "label half's own count",
+            f"a total of exactly the {n_distinct} different cell(s) "
+            "this column holds, because the two halves share no "
+            "spelling and nothing else can add one",
+        )
+    # READ BY THIS HALF'S OWN READER, and the docstring beside it says
+    # why the two readers already here would not do.
+    label_facts = _compound_label_facts(
+        label_block,
+        f"{where} -> labels",
+        frame.floor,
+        labels,
+        folded,
+    )
+    # AND EVERY PUBLISHED LABEL IS A CELL THE SPLIT WOULD PUT IN THE
+    # LABEL HALF (invariant NL5, review round 8 of this landing, item
+    # 2). The rule that makes this role puts a cell in the label half
+    # exactly when it does NOT read as a plain number, so a published
+    # label spelled `1` describes a cell that belongs to the other
+    # half. The loader checked the arithmetic of the split and never
+    # what the halves HOLD: a description whose every label was `1` was
+    # accepted, and its twin wrote 294 numeric-looking cells against a
+    # published 274 -- a file that cannot be re-described as the
+    # column it claims to be.
+    #
+    # Asked of the level's own spelling and of every published variant,
+    # under the column's own grammar: a declared column reads `1,5` as
+    # a number, so `1,5` is not a label of THAT column either.
+    for level in label_facts.levels:
+        _a_label_and_not_a_number(level.label, where, decimal_comma)
+        for spelling in sorted(level.variants):
+            _a_label_and_not_a_number(spelling, where, decimal_comma)
+    return CompoundFacts(
+        n_numeric_cells=numeric,
+        n_numeric_out_of_range=unusable_out,
+        n_numeric_contradictory=unusable_contradictory,
+        n_label_cells=labels,
+        n_numeric_distinct=numeric_distinct,
+        n_numeric_distinct_folded=numeric_distinct_folded,
+        n_label_distinct=label_distinct,
+        n_label_distinct_folded=folded,
+        numbers=numbers,
+        labels=label_facts,
+    )
+
+
 def _text_facts(
     mapping: "dict[str, object]",
     where: str,
     n_present: int,
     n_distinct: int,
+    floor: int,
 ) -> TextFacts:
     """A column no rule claimed (contract 6.9).
 
@@ -4400,6 +8455,7 @@ def _text_facts(
     )
     _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
+        shape_forms=_shape_forms(mapping, where, floor),
         length=LengthStats(
             minimum=shortest, maximum=longest, mean=mean_length, p50=middle
         ),
@@ -4488,6 +8544,78 @@ def _cross_checks(
                 "in the block of rules that produced the description",
                 f"'{name}' is named as holding record numbers",
                 "this table has no column of that name",
+            )
+    for name in settings.forced_codes:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as holding codes",
+                "this table has no column of that name",
+            )
+    for name in settings.forced_measurements:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as holding measurements",
+                "this table has no column of that name",
+            )
+    for name in settings.forced_decimal_commas:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing its numbers with a comma",
+                "this table has no column of that name",
+            )
+    # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
+    # P4-G3-R3-F3). The contract forbids the overlap and nothing
+    # enforced it, so a hand-written description could name a column
+    # both a code and a decimal-comma column and be accepted -- and the
+    # generator would then quietly not apply the comma, because a code
+    # column carries no numeric facts. The command line refuses the
+    # pair; a document carrying it is a document this contract does not
+    # describe, and the loader is where that is settled.
+    # S8b WAS BUILT HERE AND WITHDRAWN, and the reason is worth the
+    # space because it looks enforceable and is not (review item
+    # P4-G3-R8-F2).
+    #
+    # The thought was: on a column named `--decimal-comma`, an absent
+    # spelling whose number depends on the reading came either from a
+    # judged pass -- and then one of that column's own stand-in
+    # verdicts names its number -- or from a declared value, which the
+    # producer now refuses. Refuse the rest.
+    #
+    # THERE IS A THIRD SOURCE. A declaration the producer ALLOWS,
+    # because its own number does not depend on the grammar, can still
+    # match a cell whose spelling does: `--missing-value -999` is safe,
+    # and on a declared column it matches cells spelled `-999,0` by
+    # NUMBER, which is what the matching rule says it should do. That
+    # column then publishes `-999,0` among its absent spellings,
+    # legitimately, with no verdict to account for it -- and the rule
+    # above turned it away. A correct description, refused.
+    #
+    # The three sources cannot be told apart from the document,
+    # because a declaration is unrecoverable from it: the settings
+    # block carries no spelling a person typed (C5-16). So the
+    # producer is the gate, `profile.build_document` is where it
+    # stands, and every path this package offers goes through it.
+    for name in settings.forced_decimal_commas:
+        for other, what in (
+            (settings.forced_codes, "holding codes"),
+            (settings.forced_identifiers, "holding record numbers"),
+        ):
+            if name not in other:
+                continue
+            raise _broken(
+                "S8a",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing its numbers with a "
+                f"comma and also as {what}",
+                "a column read as codes or as record numbers is not "
+                "read as numbers at all, so the comma reading could "
+                "never be used",
             )
     previous = 0
     place = 0
@@ -4792,6 +8920,12 @@ def _validated(document: "dict[str, object]") -> Profile:
             n_rows=n_rows,
             n_columns=n_columns,
             declared=settings.forced_identifiers,
+            declared_codes=settings.forced_codes,
+            declared_commas=settings.forced_decimal_commas,
+            parse_rate=settings.minimum_parse_rate,
+            category_share=settings.categorical_share,
+            category_ceiling=settings.categorical_ceiling,
+            category_floor=settings.categorical_floor,
         ),
     )
     _cross_checks(columns, settings, notes)
@@ -4806,6 +8940,181 @@ def _validated(document: "dict[str, object]") -> Profile:
         publication_notes=notes,
         columns=columns,
     )
+
+
+def _no_duplicate_keys(text: str, shown: str) -> None:
+    """Refuse a document that names one key twice in one object.
+
+    WHY THIS EXISTS SEPARATELY FROM `_round_tripped` (review item
+    L17b-R1-2). A description is refused unless its bytes are exactly
+    the bytes synthtwin writes, and that one check catches a duplicated
+    key among six other defects. A QUESTIONS FILE cannot be held to
+    that: it is handed to a person to edit, and an editor that
+    re-indents on save would have their answers refused for the
+    formatting. Removing the canonical check removed the duplicate-key
+    protection with it, and a parse keeps only the LAST value -- so an
+    entry holding `"column": "x"` followed by `"column": "y"` declares
+    `y` a code and leaves `x` alone, with nothing said. Both names can
+    be real columns, so no later check sees anything wrong.
+
+    This is that one protection, on its own, so an edited file keeps
+    every freedom of layout and loses only the ambiguity.
+
+    Guarantees:
+
+    - Inputs: the document's text, ALREADY KNOWN TO PARSE, and the path
+      to name in a refusal. The order matters: the key literals are
+      read with the same parser the document was read with, so a key
+      written `"a"` and a key written `"\u0061"` are compared as the
+      one key they are.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: ProfileError naming the key and its object.
+    - Boundary: string operations and `json.loads` on one key literal
+      at a time. No callback slot is filled, and nothing is opened.
+
+    The walk is string-literal aware for the reason `_scanned`'s is: a
+    brace or a colon inside a quoted value is a character of that
+    value. A key is a string literal that is followed, across
+    whitespace, by a colon, while the innermost open container is an
+    object.
+    """
+    seen: "list[dict[str, int]]" = []
+    is_object: list[bool] = []
+    inside = False
+    escaped = False
+    literal = ""
+    pending = ""
+    have_pending = False
+    for character in text:
+        if inside:
+            literal = literal + character
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                inside = False
+                pending = literal
+                have_pending = True
+            continue
+        if character == '"':
+            inside = True
+            literal = '"'
+            have_pending = False
+            continue
+        if character == "{":
+            seen = seen + [{}]
+            is_object = is_object + [True]
+            have_pending = False
+            continue
+        if character == "[":
+            seen = seen + [{}]
+            is_object = is_object + [False]
+            have_pending = False
+            continue
+        if character == "}" or character == "]":
+            if seen:
+                seen = seen[:-1]
+                is_object = is_object[:-1]
+            have_pending = False
+            continue
+        if character == ":":
+            if have_pending and is_object and is_object[-1]:
+                key = _parsed(pending, shown)
+                if isinstance(key, str):
+                    here = seen[-1]
+                    if key in here:
+                        raise errors.ProfileError(
+                            errors.answers_names_one_key_twice(shown, key)
+                        )
+                    here[key] = 1
+            have_pending = False
+            continue
+        if character == " " or character == "\t":
+            continue
+        if character == "\n" or character == "\r":
+            continue
+        have_pending = False
+
+
+def load_answers(raw_path: str) -> "dict[str, object]":
+    """Read one questions file, or refuse it (amendment A-P4-58).
+
+    Guarantees:
+
+    - Inputs: ``raw_path`` is the path a person typed after
+      `--answers`. It passes `validate_local_path` before anything is
+      opened, exactly as a description does, so a URL form, a shared
+      network form and a Windows device form are refused lexically.
+    - Determinism: the same bytes always give the same result.
+    - Errors raised: ProfileError, with a plain-language message, for
+      each way the file cannot be read at all; PathValidationError when
+      the path is not a plain local one. Whether the CONTENT is a
+      questions file is `asking.answers_in`'s question and not this
+      one's.
+    - Boundary: opens the one file it is given and nothing else. It
+      builds no table path, and it is unreachable from `generate`.
+
+    THREE OF THE DESCRIPTION'S CHECKS ARE NOT RUN HERE, and each is
+    left out for the same reason. `_versioned` asks for a
+    `profile_version`, which a questions file does not carry and is not
+    a document of. `_round_tripped` asks that the bytes be exactly what
+    synthtwin would have written -- which is right for a machine-written
+    description and wrong for the one file in this product a person is
+    HANDED IN ORDER TO EDIT: a text editor that re-indents on save, or
+    a person who deletes a section they have finished with, would then
+    have their answers refused for the formatting rather than read.
+    `_validated` checks the profile contract, which this is not.
+
+    What IS run is every bound that protects the parser itself -- the
+    nesting depth and the numeric token length of `_scanned` -- because
+    those bound what a hostile file can cost, and the file arriving
+    from a person is exactly the file that might be one.
+    """
+    validated = validate_local_path(raw_path, purpose="questions file")
+    place = pathlib.Path(validated)
+    shown = f"{place}"
+    if not place.exists():
+        raise errors.ProfileError(errors.profile_file_missing(shown))
+    if place.is_dir():
+        raise errors.ProfileError(errors.profile_path_is_a_folder(shown))
+    try:
+        text = _read_text(place)
+    except UnicodeDecodeError as error:
+        raise errors.ProfileError(errors.profile_not_text(shown)) from error
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.profile_out_of_memory(shown)
+        ) from error
+    except PermissionError as error:
+        raise errors.ProfileError(
+            errors.profile_file_unreadable(shown, f"{error}")
+        ) from error
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.profile_file_unreadable(shown, f"{error}")
+        ) from error
+    try:
+        _scanned(text, shown)
+        document = _answers_mapping(_parsed(text, shown), shown)
+        # AFTER the parse, so the key literals are known to be
+        # well-formed and can be read with the same parser (review item
+        # L17b-R1-2).
+        _no_duplicate_keys(text, shown)
+        return document
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.profile_out_of_memory(shown)
+        ) from error
+
+
+def _answers_mapping(
+    parsed: object, shown: str
+) -> "dict[str, object]":
+    """The parsed questions file as a mapping, or a refusal."""
+    if not isinstance(parsed, dict):
+        raise errors.ProfileError(errors.answers_file_is_not_one(shown))
+    return parsed
 
 
 def load_profile(raw_path: str) -> Profile:

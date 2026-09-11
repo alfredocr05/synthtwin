@@ -85,6 +85,19 @@ SEED = entry_table.SEED
 # these tests on the commit that adds it.
 MARKERS = (parsing.MISSING_TEXTS[5], f"{parsing.NUMERIC_SENTINELS[1]:g}")
 
+# The publication floor the single-column fixtures below are described
+# at. A floor of one became the default under the owner ruling recorded
+# as plan amendment A-P4-37, and contract invariant C5-S13 says what
+# that means: at a floor of one nothing is held back at all, so the
+# withholding these tests are ABOUT -- a spelling the description passes
+# no verdict on, a numeric column the floor routes to a label role --
+# would simply not exist and the properties would be walked over
+# descriptions that publish everything. So the floor is stated here
+# rather than inherited: eleven, the number the docstrings below count
+# against, and the same number `test_p3v1f2_entry_table` states for the
+# fixtures reached through it.
+SMALL_CELL_FLOOR = entry_table.SMALL_CELL_FLOOR
+
 
 @pytest.fixture(scope="module", autouse=True)
 def _reinstated() -> "typing.Iterator[None]":
@@ -303,7 +316,6 @@ def test_nothing_a_file_holds_decides_which_obligations_it_owes(
 # values reach both ends of what a number can hold still has a mean and
 # a shape the producer publishes, and has no deviation it can state.
 _SPREAD_SUBCHECKS = ("moments.std",)
-
 
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
@@ -716,7 +728,9 @@ def _describe(
     table = reading.read_table(
         str(target), first_row=reading.FIRST_ROW_AUTOMATIC
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
+    )
     written = fixtures.write_profile(folder, f"{name}-profile.json", document)
     return contract.load_profile(str(written))
 
