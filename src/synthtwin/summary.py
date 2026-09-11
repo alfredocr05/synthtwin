@@ -1184,9 +1184,9 @@ def _lowered_floor_lines(floor: int) -> list[str]:
         "  profile does not.",
         "",
         "  It does not stop with this file. The twin is built to hold",
-        "  these counts exactly, and the twin's report and the quality",
-        "  report quote them back, so all five files of a full run carry",
-        "  them.",
+        "  these counts exactly, and the questions file, the twin's",
+        "  report and the quality report quote them back, so all six",
+        "  files of a full run carry them.",
         "",
     ]
 
@@ -1291,15 +1291,16 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # measurements taken from the file it checked, and THIS FILE --
         # the one being read right now -- repeats the published labels
         # in words. The person deciding what may leave their machine has
-        # to be told about all five in the one place they are reading
-        # about it, and the file they are holding is one of the five.
-        "  The same is true of the other four files a full run makes,",
+        # to be told about all six in the one place they are reading
+        # about it, and the file they are holding is one of the six.
+        "  The same is true of the other five files a full run makes,",
         "  this page among them: it repeats in words what the profile",
         "  carries, the real labels listed below included.",
-        "  The profile, the plain-language summary beside it, the twin,",
-        "  the twin's report and the quality report all carry facts",
-        "  computed from your real data, so those rules apply to all",
-        "  five of them, not to the profile alone.",
+        "  The profile, the plain-language summary beside it, the",
+        "  questions file, the twin, the twin's report and the quality",
+        "  report all carry facts computed from your real data, so",
+        "  those rules apply to all six of them, not to the profile",
+        "  alone.",
         "",
     ]
     lines = lines + _lowered_floor_lines(floor)

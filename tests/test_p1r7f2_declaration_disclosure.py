@@ -341,7 +341,7 @@ def test_the_disclosure_comes_before_the_files_exist(
     assert main(["profile", f"{table}", "--missing-value", RARE_TOKEN]) == 0
     shown = capsys.readouterr().out
     said = shown.index("Values you named yourself")
-    will_write = shown.index("These two files will be written")
+    will_write = shown.index("These three files will be written")
     written = shown.index("\nWritten:")
     assert said < will_write < written
 

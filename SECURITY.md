@@ -250,11 +250,12 @@ Stated here so that no reader has to discover them independently:
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,
-  as the threat model above says. And all five files a full run
+  as the threat model above says. And all six files a full run
   produces - the profile, the plain-language summary beside it, the
-  twin, the twin's report and the quality report - carry facts computed
-  from real data, so the institution's rules for real-derived material
-  apply to all five, never to the profile alone. Two of the five are
+  questions file, the twin, the twin's report and the quality report -
+  carry facts computed from real data, so the institution's rules for
+  real-derived material apply to all six, never to the profile alone.
+  Two of the six are
   easy to overlook, and they are named rather than left to be worked
   out. The quality report states counts and measurements taken from the
   file it checked, so a verdict travels under the same rules as the

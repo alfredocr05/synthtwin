@@ -150,9 +150,9 @@ force a twin row to match a real one, with nothing copied, and a check
 here confirming that count does not change it. synthtwin offers no
 formal privacy guarantee. Every measurement this module returns is
 taken from a file derived from real data, so the description, the
-plain-language summary beside it, the twin, the twin's report and the
-quality report are all real-derived material and are kept under the
-rules the real table is kept under.
+plain-language summary beside it, the questions file, the twin, the
+twin's report and the quality report are all real-derived material and
+are kept under the rules the real table is kept under.
 """
 
 import csv

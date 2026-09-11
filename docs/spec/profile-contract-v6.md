@@ -1091,7 +1091,7 @@ R16.
 
 **What the artifacts owe when the floor is under the default.** This
 contract governs the profile document, which carries the floor as a
-number under `settings` and needs no further wording. Of the five
+number under `settings` and needs no further wording. Of the six
 files a full run leaves behind, the readable ones — the plain-language
 summary, the twin's report and the quality report — each state on
 their own face that the description was made under a lowered floor and
@@ -8958,7 +8958,8 @@ version 5 document reads "version 5":
 > description again by running 'synthtwin profile' on your table,
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
-> --decimal-comma, --smallest-group, --first-row and --day-first.
+> --decimal-comma, --smallest-group, --first-row, --day-first and
+> --answers.
 > Every one of them changes what the description PUBLISHES about your
 > table, so any option you leave out can put something into the new
 > description that the old one held back: without the --smallest-group
@@ -8985,11 +8986,24 @@ version 5 document reads "version 5":
 > whose day and month are both written as numbers — with slashes, with
 > dots, or with a two-figure year — can be read the other way round,
 > which changes the dates the description publishes and can leave the
-> column described as text instead. If you do not hold the table
+> column described as text instead; and without the --answers you
+> gave, every answer you wrote in the questions file is gone — each of
+> them was a --code, an --identifier or a --measurement, so leaving the
+> file out costs whichever of those you had given, and this same
+> sentence says what each one costs. If you do not hold the table
 > yourself, ask whoever made this description to run it again for you.
 > Read the summary page synthtwin writes beside the new description
 > before either file goes anywhere, and use the description exactly as
 > synthtwin writes it.
+
+**Why it names ten options and prices each.** `--answers` joined them
+on 2026-09-10 with the hand-back (amendment A-P4-60), and it is not a
+new KIND of option: every answer written into a questions file becomes
+one of `--code`, `--identifier` or `--measurement`, so leaving the file
+out of a re-run costs exactly what leaving those out costs — which this
+sentence already prices, and now says so. It is named because a person
+who answered forty columns in a file and then re-runs from a command
+line that names none of them has lost all forty and been told nothing.
 
 **Why it names eight options and prices each.** `--measurement` joined
 them on 2026-08-26 with the fourteenth role (plan P4-D21): a re-run
@@ -9546,12 +9560,15 @@ a marked row.
 ### 12.4 The files, and the handling rule
 
 Every file a full run leaves behind — the description, the
-plain-language summary beside it, the twin, the twin's report and the
-quality report — carries real-derived published facts, and each is
-handled under the institution's rules for real-derived material.
-synthtwin claims no formal privacy guarantee. Two of the five are
+plain-language summary beside it, the questions file, the twin, the
+twin's report and the quality report — carries real-derived published
+facts, and each is handled under the institution's rules for
+real-derived material. synthtwin claims no formal privacy guarantee.
+Three of the six are
 counted because a narrower reading once left them out, and each is
-named with the reason it belongs: the quality report `synthtwin
+named with the reason it belongs: the questions file is written on
+every `profile` run, and it names columns of the real table beside the
+shapes measured from their cells; the quality report `synthtwin
 validate` writes states measurements taken from the file it checked;
 and the summary is a file of its own because that is how a person meets
 these facts — it is printed on the screen, written beside the

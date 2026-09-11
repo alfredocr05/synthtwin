@@ -94,6 +94,16 @@ Built now, by the three commands that exist:
 2. **The schema description** - columns, detected types, and how each
    was handled: the profile document itself and the plain-language
    summary beside it. Written by `synthtwin profile`.
+2b. **The questions file** - written by `synthtwin profile` on every
+   run, beside the description. It names the columns whose reading the
+   values cannot settle, says what was SEEN in each and what each was
+   read as, and offers the answers a person may give with what each
+   would publish. It carries no value of the table. Filled in and
+   handed back with `--answers`, each answer becomes the declaration it
+   stands for, and the settings block records it as one (amendment
+   A-P4-58). It is not a fourth output kind: it is how principle 2's
+   promise -- that somebody who has never programmed can run the whole
+   workflow -- is kept for the one thing no rule may decide.
 3. **The generation report** - written beside every twin, saying which
    published facts the twin holds exactly, which it holds only
    approximately with the achieved value printed beside the published
@@ -151,15 +161,19 @@ though it existed:
   every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
-  All five files a full run leaves behind - the profile, the
-  plain-language summary beside it, the twin, the twin's report and the
-  quality report - carry facts computed from real data, so the
-  institution's rules for real-derived material apply to all five, never
-  to the profile alone. The summary is counted in as a file of its own
-  (plan amendment A-P3-8) because that is how a person meets it: it is
-  printed on the screen and written beside the profile, it repeats the
-  real labels the profile publishes, and a rule that named four files
-  told a reader by omission that the fifth was free to travel.
+  All six files a full run leaves behind - the profile, the
+  plain-language summary beside it, the questions file, the twin, the
+  twin's report and the quality report - carry facts computed from real
+  data, so the institution's rules for real-derived material apply to
+  all six, never to the profile alone. The summary is counted in as a
+  file of its own (plan amendment A-P3-8) because that is how a person
+  meets it: it is printed on the screen and written beside the profile,
+  it repeats the real labels the profile publishes, and a rule that
+  named four files told a reader by omission that the fifth was free to
+  travel. The questions file joins on the same reasoning (plan
+  amendment A-P4-58): it is written on every `profile` run rather than
+  only where a column was ambiguous, and it names columns of the real
+  table beside the shapes measured from their cells.
 - **The twin changes where your rows go; it does not change which rules
   you are under.** What synthtwin buys is worth stating exactly,
   because it is a strong claim and it is the defensible one: you
@@ -167,7 +181,7 @@ though it existed:
   out from a description rather than taken from your rows, so the real
   table never has to leave the environment that already holds it and
   never has to reach an assistant. What it does NOT buy is a finding
-  about anybody's obligations. The five files above carry facts
+  about anybody's obligations. The six files above carry facts
   computed from real data, and at the default floor of one a column
   whose role publishes values names every one of them with the rows
   that held it, while the roles that publish none still publish counts

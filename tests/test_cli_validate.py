@@ -164,7 +164,7 @@ def _said(text: str) -> str:
 def test_the_three_commands_run_one_after_the_other(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """profile, generate, validate: five files, and nothing missed.
+    """profile, generate, validate: six files, and nothing missed.
 
     The end-to-end property the phase exists for. It is asserted on the
     FILES rather than on the return values alone, because a run that
@@ -180,6 +180,9 @@ def test_the_three_commands_run_one_after_the_other(
     assert written == [
         "clinic-profile.json",
         "clinic-profile.txt",
+        # written on EVERY `profile` run, empty of questions or not
+        # (plan amendment A-P4-58), so this list is unconditional
+        "clinic-questions.json",
         "clinic-twin-quality.txt",
         "clinic-twin-report.txt",
         "clinic-twin.csv",
@@ -1648,11 +1651,12 @@ def test_the_report_carries_its_limits_on_every_run(
         "any target that ties two columns together",
         "Nothing here promises when.",
         # V7.5: every file a full run leaves behind, the fifth of them
-        # named by plan amendment A-P3-8
-        "All five files a full run produces",
+        # named by plan amendment A-P3-8 and the sixth by A-P4-58
+        "All six files a full run produces",
         (
             "the description, the plain-language summary beside it, the "
-            "twin, the twin's report and this quality report"
+            "questions file, the twin, the twin's report and this "
+            "quality report"
         ),
         # the not-checkable census
         "WHAT COULD NOT BE CHECKED, AND WHY",

@@ -169,6 +169,24 @@ PROFILE_VERSION = 6
 # The two files a run writes, as suffixes added to the table's name.
 PROFILE_SUFFIX = "-profile.json"
 SUMMARY_SUFFIX = "-profile.txt"
+# THE QUESTIONS FILE (amendment A-P4-58), and it is written on
+# EVERY run of this command.
+#
+# WHY UNCONDITIONALLY, which is a decision and not an oversight.
+# A file this command leaves in a person's folder must be named on
+# every surface that states the institution's handling rules, and
+# a file that exists only sometimes makes every one of those
+# sentences conditional -- "a full run leaves five files, and a
+# sixth where synthtwin had a question" -- on eight surfaces at
+# once. A file that always exists needs one true sentence instead.
+# It is also the honest record of the check: a table with nothing
+# ambiguous in it gets a file saying so, which is how a person
+# knows the tool looked rather than assuming it did.
+#
+# It is written OUTSIDE the profile transaction: the description
+# and its summary are one outcome because either alone is a
+# failure state, and nothing is built from this one.
+QUESTIONS_SUFFIX = "-questions.json"
 
 # THE RESERVED CROSS-COLUMN MANIFEST (plan P2-D5, owner decision 3).
 #
@@ -2193,5 +2211,36 @@ def default_output_paths(
     writing.refuse_if_folder(first)
     writing.refuse_if_folder(second)
     return (first, second)
+
+
+def questions_output_path(
+    table_path: pathlib.Path, out_dir: "str | None"
+) -> pathlib.Path:
+    """Where the questions file goes, under the same rules as the pair.
+
+    Every exact target goes through the locality gate rather than the
+    folder alone, which is the rule review round 1 of Phase 1 wrote
+    after a link left at an output name sent the file wherever it
+    pointed. This one is no exception for being advisory.
+
+    Raises ProfileError when a given folder does not exist and
+    PathValidationError when it is not a plain local path, exactly as
+    `default_output_paths` does.
+    """
+    source = pathlib.Path(table_path)
+    stem = _without_table_suffix(f"{source.name}")
+    if out_dir is None:
+        folder = pathlib.Path(source.parent)
+    else:
+        validated = validate_local_path(out_dir, purpose="output folder")
+        folder = pathlib.Path(validated)
+        if not folder.is_dir():
+            raise errors.ProfileError(errors.output_folder_missing(f"{folder}"))
+    target = validate_local_path(
+        f"{folder / (stem + QUESTIONS_SUFFIX)}", purpose="output file"
+    )
+    path = pathlib.Path(target)
+    writing.refuse_if_folder(path)
+    return path
 
 

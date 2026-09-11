@@ -6,6 +6,33 @@ exists).
 
 ## [Unreleased]
 
+### Added: the questions come back in a file you can fill in
+
+- **Every `synthtwin profile` run now writes a third file beside your
+  description**, named for your table and ending `-questions.json`. It
+  lists the columns synthtwin could read more than one way, says what
+  it SAW in each one -- how many figures, how many padded, what
+  separates them -- and what it read each one as, and offers you the
+  answers you can give with what each one would publish. It carries no
+  value of your table. It is written on every run, whether there were
+  questions or not, so a rule about where synthtwin's files may go
+  never has to say "and sometimes a sixth".
+
+- **`--answers FILE` hands it back.** Write an answer beside
+  `your_answer` for the columns you want to correct, save the file, and
+  run `synthtwin profile` on the same table naming that file. Your
+  answers become the declarations -- exactly as if you had typed
+  `--code`, `--identifier` or `--measurement` for each -- and the
+  description records them as such, so it says who decided. Columns you
+  leave blank keep the reading synthtwin made. It is the way to answer
+  the questions when nobody is at the keyboard, which is most runs.
+
+- **An answer that was not offered is refused rather than ignored.** If
+  you write `codes` where the question offers `code`, synthtwin stops,
+  names the column, shows you what you wrote and lists what you can
+  write instead. Dropping a word nobody could read would have described
+  your table the old way while your file said otherwise.
+
 ### Changed: synthtwin asks about your codes without showing your data
 
 - **The list of columns to check now appears whoever is running the

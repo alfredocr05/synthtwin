@@ -180,6 +180,22 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # errors.py beside `QUALITY_WORDS`, never a value out of a file: on
     # this path the measured file may not be the reader's own table and
     # a refusal travels as freely as a report does.
+    # THE ONE FILE A PERSON IS MEANT TO EDIT (amendment A-P4-58). Every
+    # other refusal about a synthtwin file says "make it again",
+    # because a hand-edited description is a corrupted one. These four
+    # are the opposite: the questions file is written blank and handed
+    # over precisely so somebody types in it, so each of them says what
+    # to type and where, and none of them suggests that editing it was
+    # the mistake.
+    "answers_file_is_not_one": ("/data/clinic-profile.json",),
+    "answers_entry_is_not_a_question": ("asked[3]",),
+    "answers_entry_names_no_column": ("checklist[7]",),
+    "answers_answer_is_not_offered": (
+        "/data/clinic-questions.json",
+        "dose",
+        "codes",
+        ["measurement", "code", "identifier"],
+    ),
     "quality_target_already_there": ("/data/clinic-twin-quality.txt",),
     "output_would_replace_an_input": (
         "/data/clinic-profile.json",

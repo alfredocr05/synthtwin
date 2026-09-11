@@ -262,7 +262,7 @@ def test_the_disclosure_is_printed_before_the_files_exist(
     assert main(["profile", str(table)]) == 0
     out = capsys.readouterr().out
     disclosure = out.index("WHAT THIS PROFILE CARRIES FROM YOUR TABLE")
-    will_write = out.index("These two files will be written")
+    will_write = out.index("These three files will be written")
     written = out.index("Written:")
     assert disclosure < will_write < written
 

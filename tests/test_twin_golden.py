@@ -1108,8 +1108,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # substitution, and a person following the old names into the
 # description found nothing under them. No record was added or removed
 # and no measured value moved; two identifiers now name real fields.
+# RE-RECORDED 2026-09-10 for landing L17b, plan amendment A-P4-58, and
+# the report SAYS MORE than it did. `synthtwin profile` now writes a
+# sixth file -- the questions file -- on every run, so the handling
+# paragraph names six files where it named five, and the questions file
+# is named among them. ONE PARAGRAPH moved and it is that one: no
+# record, count, statistic, label, role, spelling or verdict changed,
+# and the twin's own digest above held.
 GOLDEN_REPORT_SHA256 = (
-    "c751c01eee0ebf3c0f521c2b12a4ed0631af3130d7e0fa8045b4b3f6746c0a4b"
+    "daa92d48064c51c266fc661a857fe0c20d61d5fc86eb3614bf137287d7d180c1"
 )
 
 
@@ -1567,8 +1574,15 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # the measured file and V5.4 keeps that back. So the line's published
 # side reads `no other wrapper` where it read `0`, and its measured
 # side is no longer printed.
+# RE-RECORDED 2026-09-10 for landing L17b, plan amendment A-P4-58, for
+# the same reason as the report above and with the same one-paragraph
+# reach. The census was COUNTED on both sides: the obligations, the
+# HELD, WITHIN-BOUND, MISSED and NOT CHECKABLE totals and the verdict
+# are identical before and after. What moved is the handling paragraph,
+# which names six files where it named five and names the questions
+# file among them.
 GOLDEN_QUALITY_SHA256 = (
-    "d555d27019cacda49cf912239fac396b02547ac079e3bef9a3926fe896a316f2"
+    "5170e48698ddc270e70f97403dcf75a1e3ba0b0b20d5c916f6bb3a2d4f294e1d"
 )
 
 

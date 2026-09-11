@@ -858,7 +858,7 @@ def _withheld_census_lines(withheld: int) -> "list[str]":
 def _handling_lines(
     description: contract.Profile, withheld: int
 ) -> "list[str]":
-    """Where the numbers came from, and how the five files are handled.
+    """Where the numbers came from, and how the six files are handled.
 
     V7.5. This report states measured facts about a file derived from
     real data, so it is real-derived material exactly as the description,
@@ -923,13 +923,13 @@ def _handling_lines(
         "at the top, because a report that does not say what it measured",
         "can be read as being about a file it is not -- so if you chose a",
         "file name that says something about your study, this report",
-        "carries it wherever it goes. All five files a full run produces",
+        "carries it wherever it goes. All six files a full run produces",
         "-- the description, the plain-language summary beside it, the",
-        "twin, the twin's report and this quality report -- carry facts",
-        "computed from your real data. Keep all five under the rules your",
-        "institution applies to the table itself, and check with whoever",
-        "approves data leaving your environment before you move any of",
-        "them anywhere.",
+        "questions file, the twin, the twin's report and this quality",
+        "report -- carry facts computed from your real data. Keep all",
+        "six under the rules your institution applies to the table",
+        "itself, and check with whoever approves data leaving your",
+        "environment before you move any of them anywhere.",
         "",
         "WHAT SYNTHTWIN SAYS ABOUT THE ROWS OF A TWIN, unchanged by any",
         "verdict here. Building a twin reads no table: it",

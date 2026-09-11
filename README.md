@@ -87,12 +87,16 @@ synthtwin generate my-table-profile.json
 synthtwin validate my-table-profile.json --twin my-table-twin.csv
 ```
 
-The first reads `my-table.csv` on your computer and writes two files
+The first reads `my-table.csv` on your computer and writes three files
 beside it:
 
 - `my-table-profile.json` - the description the twin will be built from;
 - `my-table-profile.txt` - the same description in plain language, which
-  is also printed on the screen.
+  is also printed on the screen;
+- `my-table-questions.json` - the columns synthtwin could read more than
+  one way, what it saw in each and what it read each as, with the
+  answers you can give. Fill it in and hand it back with `--answers`.
+  It is written on every run, whether there were questions or not.
 
 The profiler reads what each column holds -- whole numbers, measured
 numbers, dates, a set of categories, two-value columns, free text --
@@ -128,9 +132,10 @@ workflow runs on the result. What each setting costs is written out
 under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
-the profile, the plain-language summary beside it, the twin, the twin's
-report and the quality report all carry facts computed from your real
-data, so those rules apply to all five, not to the profile alone. The
+the profile, the plain-language summary beside it, the questions file,
+the twin, the twin's report and the quality report all carry facts
+computed from your real data, so those rules apply to all six, not to
+the profile alone. The
 summary is on that list for the reason that makes it easy to forget --
 it is the readable one, so it is the one that gets pasted into an email,
 and it repeats the real labels the profile publishes.
@@ -181,8 +186,19 @@ synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
 ```
 
-`--out-dir` writes the two files into a folder you name instead of into
+`--out-dir` writes the files into a folder you name instead of into
 the folder your table is in. The folder has to exist already.
+
+`--answers` names the questions file from an earlier run, with your
+answers written in. Open `my-table-questions.json`, write one of the
+answers offered beside `your_answer` for the columns you want to
+correct, save it, and run `synthtwin profile` on the same table naming
+that file here. Your answers become the declarations -- exactly as if
+you had typed `--code`, `--identifier` or `--measurement` for each of
+them -- and the description records them as such. Columns you leave
+blank keep the reading synthtwin made. An answer the question did not
+offer stops the run and tells you what you can write instead, rather
+than being quietly dropped.
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
@@ -274,8 +290,9 @@ about that group. Eleven is the number that keeps a published group too
 big for that.
 
 The counts do not stop at the profile: the twin is built to hold them
-exactly, and the summary, the twin's report and the quality report quote
-them back, so all five files of a run carry them. synthtwin does not
+exactly, and the summary, the questions file, the twin's report and the
+quality report quote them back, so all six files of a run carry them.
+synthtwin does not
 refuse the option -- it is your table and your institution's rules -- but
 a run at a lowered number prints an unmissable warning before either file
 exists, and each of the four readable files says on its own face that it
@@ -514,11 +531,12 @@ was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
 So synthtwin offers **no formal privacy guarantee** and claims no
-differential-privacy property. All five files a full run produces --
-the profile, the plain-language summary beside it, the twin, the twin's
-report and the quality report -- carry facts computed from your real
-data, and your institution's rules for real-derived material apply to
-all five, not to the profile alone. What synthtwin does give you is
+differential-privacy property. All six files a full run produces --
+the profile, the plain-language summary beside it, the questions file,
+the twin, the twin's report and the quality report -- carry facts
+computed from your real data, and your institution's rules for
+real-derived material apply to all six, not to the profile alone. What
+synthtwin does give you is
 an architecture in which the real table never has to move, plus a
 written account, in `SECURITY.md` and in the run's own report, of
 exactly which real facts each file carries.

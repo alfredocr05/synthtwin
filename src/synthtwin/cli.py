@@ -238,10 +238,10 @@ eleven rows share, publishes that label with the count eleven -- so the
 twin writes it in all eleven of its rows. synthtwin offers no formal
 privacy guarantee.
 
-All five files -- the profile, the plain-language summary beside it, the
-twin, the twin's report and the quality report -- are computed from your
-real data, so your institution's rules for real-derived material apply
-to all five, not to the profile alone.
+All six files -- the profile, the plain-language summary beside it, the
+questions file, the twin, the twin's report and the quality report --
+are computed from your real data, so your institution's rules for
+real-derived material apply to all six, not to the profile alone.
 
 Everything runs on this computer. synthtwin never sends anything
 anywhere, and it accepts only plain paths to local files.
@@ -470,6 +470,7 @@ class _Options:
     codes: list[str]
     measurements: list[str]
     decimal_commas: list[str]
+    answers: "str | None"
     kept_values: list[str]
     missing_values: list[str]
     first_row: str
@@ -701,6 +702,27 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--answers",
+        default=None,
+        metavar="FILE",
+        help=(
+            "the questions file from an earlier run, with your answers "
+            "written in. Every 'synthtwin profile' run writes one "
+            "beside the description, named for your table and ending "
+            "'-questions.json'. It lists the columns synthtwin could "
+            "read more than one way, says what it saw in each and what "
+            "it read each as, and offers the answers you can give. "
+            "Open it, write an answer beside 'your_answer' for the "
+            "columns you want to correct, save it, and name it here: "
+            "your answers become the declarations, exactly as if you "
+            "had typed --code, --identifier or --measurement for each "
+            "of them. Columns you leave blank keep the reading "
+            "synthtwin made. It is the same set of answers the "
+            "questions on screen ask for, so it is the way to answer "
+            "them when nobody is at the keyboard"
+        ),
+    )
+    parser.add_argument(
         "--keep-value",
         action="append",
         default=None,
@@ -843,6 +865,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         codes=list(code_named),
         measurements=list(measured_named),
         decimal_commas=list(comma_named),
+        answers=args.answers,
         kept_values=list(kept),
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
@@ -1427,6 +1450,7 @@ def _run_profile(
     forced_codes: list[str],
     forced_measurements: list[str],
     forced_decimal_commas: list[str],
+    answers_path: "str | None",
     kept_values: list[str],
     missing_values: list[str],
     first_row: str,
@@ -1454,11 +1478,61 @@ def _run_profile(
     run that must never touch it (plan P2-D1). This is the only place in
     the package where the reader is reached from the command line.
     """
-    from synthtwin import contract, profile, reading, summary, taxonomy
+    from synthtwin import (
+        canonical,
+        contract,
+        profile,
+        reading,
+        summary,
+        taxonomy,
+        writing,
+    )
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
+
+    # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
+    # A-P4-58). A file that is not a questions file, or that answers a
+    # column with a word no question offered, is the person's mistake
+    # to fix in one edit -- and telling them about it after their real
+    # table has been read and described would make them wait for a run
+    # whose whole point was to use the answers it did not have.
+    #
+    # AND THE FILE IS THE NEWER STATEMENT. A person who typed
+    # `--code dose` last week and answers `measurement` for `dose`
+    # today has changed their mind, so the answer replaces the typed
+    # declaration rather than joining it: the pair `--code dose
+    # --measurement dose` is refused a few lines below, and arriving at
+    # that pair by a route that never re-checked is exactly the defect
+    # review item P4-G3-R4-F3 found on the interview path.
+    answers_were_handed_back = False
+    if answers_path is not None:
+        try:
+            written = asking.answers_in(
+                contract.load_answers(answers_path), _shown(answers_path)
+            )
+        except ValueError as error:
+            _warn(_shown(f"{error}"))
+            return 2
+        spoken_for = (
+            list(written.codes)
+            + list(written.identifiers)
+            + list(written.measurements)
+        )
+        forced_codes = sorted(
+            [one for one in forced_codes if one not in spoken_for]
+            + list(written.codes)
+        )
+        forced_identifiers = sorted(
+            [one for one in forced_identifiers if one not in spoken_for]
+            + list(written.identifiers)
+        )
+        forced_measurements = sorted(
+            [one for one in forced_measurements if one not in spoken_for]
+            + list(written.measurements)
+        )
+        answers_were_handed_back = bool(spoken_for)
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
     # values that reach the whole table, so a pair that is one number
@@ -1643,8 +1717,21 @@ def _run_profile(
                 )
             )
 
+    # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
+    # list left it out until amendment A-P4-60. It cost nothing while
+    # every unanswered column of figures was read as a measurement
+    # anyway -- asking again named the reading the run was taking. It
+    # costs the file its one promise now that a PADDED column is read
+    # as codes: `--measurement dose` was honoured, `dose` came back
+    # holding numbers, and the questions file asked about it again
+    # under `read_as_now: code`, which is a reading the run did not
+    # take. All three declarations are answers, so all three suppress
+    # the question.
+    already_answered = (
+        forced_identifiers + forced_codes + forced_measurements
+    )
     asked_about = asking.questions_for(
-        document, read.columns, settings, forced_identifiers + forced_codes
+        document, read.columns, settings, already_answered
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
@@ -1656,7 +1743,7 @@ def _run_profile(
         document,
         read.columns,
         settings,
-        forced_identifiers + forced_codes,
+        already_answered,
         asked_about,
     )
     answered = False
@@ -1787,15 +1874,41 @@ def _run_profile(
     shown_profile_path = _shown(profile_path)
     shown_summary_path = _shown(summary_path)
     _say(text)
+    questions_path = profile.questions_output_path(
+        pathlib.Path(table), out_dir
+    )
+    shown_questions_path = _shown(questions_path)
     _say(
-        f"These two files will be written:\n"
-        f"  {shown_profile_path}\n  {shown_summary_path}"
+        f"These three files will be written:\n"
+        f"  {shown_profile_path}\n  {shown_summary_path}\n"
+        f"  {shown_questions_path}"
     )
     _say(
-        "\nBoth are computed from your real data. Keep them under the "
-        "same rules your institution applies to the table itself, and "
-        "read the section above before moving them anywhere."
+        "\nAll three are computed from your real data. Keep them "
+        "under the same rules your institution applies to the table "
+        "itself, and read the section above before moving them "
+        "anywhere."
     )
+    # THE THIRD FILE IS WRITTEN AGAIN OVER THE ONE THAT WAS ANSWERED,
+    # and a person who has just spent ten minutes filling it in must be
+    # told that before it happens rather than after. It is not a loss:
+    # the answers are in the description, the options that repeat them
+    # are printed below, and the file that replaces it holds the
+    # questions still open and no longer asks the ones answered. Said
+    # only where the file named is the file about to be written, so a
+    # person who kept their answers somewhere else is not warned about
+    # a file synthtwin is not touching.
+    if answers_path is not None and profile.is_the_same_file(
+        questions_path, pathlib.Path(validate_local_path(
+            answers_path, purpose="questions file"
+        ))
+    ):
+        _say(
+            f"\nYour answers were read from {shown_questions_path} and "
+            f"are recorded in the description. That file is about to be "
+            f"written again: it will hold the questions still open, and "
+            f"will no longer ask the ones you have answered."
+        )
     # BOTH WARNINGS GO HERE, before the write, for the one reason (plan
     # P1-D6): a person weighs what a file carries before it exists, not
     # after they have been told where it is. The declared-word notice is
@@ -1803,7 +1916,7 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
-    if answered and (
+    if (answered or answers_were_handed_back) and (
         forced_codes or forced_identifiers or forced_measurements
     ):
         _say(
@@ -1872,19 +1985,36 @@ def _run_profile(
         # the one confirming what already went well.
         _warn(_left_behind_note(left_behind))
     _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
-    # THE QUESTIONS FILE IS NOT WRITTEN YET, and the reason is the
-    # claim inventory's rather than the calendar's. A file this run
-    # leaves in the folder must be named on every handling surface in
-    # the SAME commit -- "a file nobody named is a file the
-    # institution's rules were never stated about" -- and this one is
-    # conditional where the other five are not: it exists only where
-    # synthtwin had a question. "A full run leaves five files" is still
-    # true of a table with no ambiguous column, so the handling rule
-    # needs a form that says five and a sixth where there are
-    # questions, on eight surfaces at once. That is a deliberate pass,
-    # not a line added at the end of a landing. The questions are
-    # computed here and shown on the screen; the file lands with the
-    # naming pass and the hand-back (`--answers`) it belongs with.
+    # THE QUESTIONS FILE, AFTER THE PAIR AND OUTSIDE THEIR TRANSACTION
+    # (amendment A-P4-58). The description and its summary are one
+    # outcome because either alone is a failure state; nothing is built
+    # from this one, so a run that wrote the pair and could not write
+    # this has still produced a complete description, and says so
+    # rather than undoing work that succeeded.
+    written_questions = True
+    try:
+        writing.write_one_file(
+            questions_path,
+            canonical.serialize(
+                asking.questions_document(
+                    _shown(pathlib.Path(table).name),
+                    asked_about,
+                    listed_about,
+                )
+            ),
+        )
+    except BaseException:
+        written_questions = False
+    if written_questions:
+        _say(f"  {shown_questions_path}")
+    else:
+        _warn(
+            f"\nThe description is written and complete. synthtwin could "
+            f"not write its questions beside it at "
+            f"{shown_questions_path}, so the columns it could not "
+            f"settle are named on the screen above and nowhere else."
+        )
+
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
     return 0
@@ -2564,6 +2694,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.codes,
             options.measurements,
             options.decimal_commas,
+            options.answers,
             options.kept_values,
             options.missing_values,
             options.first_row,

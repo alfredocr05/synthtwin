@@ -474,6 +474,12 @@ FILE_NAMES = (
         "the twin's report",
     ),
     ("-quality.txt", r"quality report", "the quality report"),
+    # THE SIXTH, and it joins here in the same commit that writes it
+    # (amendment A-P4-58). It is written on EVERY run of `profile`,
+    # not only where a column was ambiguous, so this list and every
+    # form below stay unconditional: a file that exists sometimes
+    # would make every handling sentence in the repository hedge.
+    ("-questions.json", r"questions file", "the questions file"),
 )
 
 # The handling rule has to name every file a run can leave behind, and
@@ -496,28 +502,32 @@ FILE_NAMES = (
 # the eye that wrote it.
 HANDLING_FORMS = (
     (
-        "the profile, the plain-language summary beside it, the twin, "
-        "the twin's report and the quality report"
+        "the profile, the plain-language summary beside it, the "
+        "questions file, the twin, the twin's report and the quality "
+        "report"
     ),
     (
-        "the profile, the plain-language summary beside it, the twin, "
-        "the twin's report and this quality report"
-    ),
-    (
-        "the description, the plain-language summary beside it, the "
-        "twin, the twin's report and the quality report"
-    ),
-    (
-        "the description, the plain-language summary beside it, this "
-        "twin, this report and the quality report"
+        "the profile, the plain-language summary beside it, the "
+        "questions file, the twin, the twin's report and this quality "
+        "report"
     ),
     (
         "the description, the plain-language summary beside it, the "
-        "twin, the twin's report and this quality report"
+        "questions file, the twin, the twin's report and the quality "
+        "report"
     ),
     (
-        "the profile, the plain-language summary beside it, this twin, "
-        "this report and the quality report"
+        "the description, the plain-language summary beside it, the "
+        "questions file, this twin, this report and the quality report"
+    ),
+    (
+        "the description, the plain-language summary beside it, the "
+        "questions file, the twin, the twin's report and this quality "
+        "report"
+    ),
+    (
+        "the profile, the plain-language summary beside it, the "
+        "questions file, this twin, this report and the quality report"
     ),
 )
 
@@ -958,8 +968,9 @@ def test_the_handling_rule_is_never_left_at_the_profile_alone() -> None:
         "only the profile:\n  "
         + "\n  ".join(silent)
         + "\n\nEvery file a full run leaves behind -- the profile, the "
-        "plain-language summary beside it, the twin, the twin's report "
-        "and the quality report -- carries facts computed from real "
+        "plain-language summary beside it, the questions file, the twin, "
+        "the twin's report and the quality report -- carries facts "
+        "computed from real "
         "data. Naming one of them and stopping reads as permission for "
         "the others. Add the sentence that names them all beside the "
         "rule."

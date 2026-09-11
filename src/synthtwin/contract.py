@@ -2285,7 +2285,12 @@ def _read_text(place: pathlib.Path) -> str:
     caller turns into a refusal written for a person.
 
     Boundary: this is the only place in the generation path that opens
-    anything, and the only thing it opens is the description file.
+    anything, and the two files it opens are the description and the
+    questions file `profile` is handed with `--answers` (amendment
+    A-P4-58). NEITHER IS A TABLE, which is the guarantee that matters
+    and the one this sentence used to make by counting to one. The
+    questions file is not on the generation path at all: nothing in
+    `generate` can reach `load_answers`.
 
     It is a function of its own, and called through this module's own
     name, so that the two failures a test cannot arrange on a real
@@ -8879,6 +8884,81 @@ def _validated(document: "dict[str, object]") -> Profile:
         publication_notes=notes,
         columns=columns,
     )
+
+
+def load_answers(raw_path: str) -> "dict[str, object]":
+    """Read one questions file, or refuse it (amendment A-P4-58).
+
+    Guarantees:
+
+    - Inputs: ``raw_path`` is the path a person typed after
+      `--answers`. It passes `validate_local_path` before anything is
+      opened, exactly as a description does, so a URL form, a shared
+      network form and a Windows device form are refused lexically.
+    - Determinism: the same bytes always give the same result.
+    - Errors raised: ProfileError, with a plain-language message, for
+      each way the file cannot be read at all; PathValidationError when
+      the path is not a plain local one. Whether the CONTENT is a
+      questions file is `asking.answers_in`'s question and not this
+      one's.
+    - Boundary: opens the one file it is given and nothing else. It
+      builds no table path, and it is unreachable from `generate`.
+
+    THREE OF THE DESCRIPTION'S CHECKS ARE NOT RUN HERE, and each is
+    left out for the same reason. `_versioned` asks for a
+    `profile_version`, which a questions file does not carry and is not
+    a document of. `_round_tripped` asks that the bytes be exactly what
+    synthtwin would have written -- which is right for a machine-written
+    description and wrong for the one file in this product a person is
+    HANDED IN ORDER TO EDIT: a text editor that re-indents on save, or
+    a person who deletes a section they have finished with, would then
+    have their answers refused for the formatting rather than read.
+    `_validated` checks the profile contract, which this is not.
+
+    What IS run is every bound that protects the parser itself -- the
+    nesting depth and the numeric token length of `_scanned` -- because
+    those bound what a hostile file can cost, and the file arriving
+    from a person is exactly the file that might be one.
+    """
+    validated = validate_local_path(raw_path, purpose="questions file")
+    place = pathlib.Path(validated)
+    shown = f"{place}"
+    if not place.exists():
+        raise errors.ProfileError(errors.profile_file_missing(shown))
+    if place.is_dir():
+        raise errors.ProfileError(errors.profile_path_is_a_folder(shown))
+    try:
+        text = _read_text(place)
+    except UnicodeDecodeError as error:
+        raise errors.ProfileError(errors.profile_not_text(shown)) from error
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.profile_out_of_memory(shown)
+        ) from error
+    except PermissionError as error:
+        raise errors.ProfileError(
+            errors.profile_file_unreadable(shown, f"{error}")
+        ) from error
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.profile_file_unreadable(shown, f"{error}")
+        ) from error
+    try:
+        _scanned(text, shown)
+        return _answers_mapping(_parsed(text, shown), shown)
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.profile_out_of_memory(shown)
+        ) from error
+
+
+def _answers_mapping(
+    parsed: object, shown: str
+) -> "dict[str, object]":
+    """The parsed questions file as a mapping, or a refusal."""
+    if not isinstance(parsed, dict):
+        raise errors.ProfileError(errors.answers_file_is_not_one(shown))
+    return parsed
 
 
 def load_profile(raw_path: str) -> Profile:

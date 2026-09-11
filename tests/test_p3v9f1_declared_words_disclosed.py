@@ -296,7 +296,7 @@ def test_the_notice_comes_before_the_files_exist(
     # itself the evidence that the old check could not see the defect.
     caught = capsys.readouterr()
     assert MARKER in caught.err
-    will_write = caught.out.index("These two files will be written")
+    will_write = caught.out.index("These three files will be written")
     written = caught.out.index("\nWritten:")
     assert will_write < written
     assert profile_path.exists() and summary_path.exists()

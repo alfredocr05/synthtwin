@@ -1525,9 +1525,16 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES SEVEN OPTIONS. It named two until 2026-08-17, five after
-    that, and gained `--code` on 2026-08-25 with the declaration itself
-    (plan amendment A-P4-38). `--code` belongs here by the same test as
+    IT NAMES TEN OPTIONS. It named two until 2026-08-17, five after
+    that, gained `--code` on 2026-08-25 with the declaration itself
+    (plan amendment A-P4-38), and gained `--answers` on 2026-09-10 with
+    the hand-back (amendment A-P4-60). `--answers` belongs here for a
+    reason of its own and it is not a new kind: every answer in a
+    questions file BECOMES one of `--code`, `--identifier` or
+    `--measurement`, so leaving the file out of a re-run costs exactly
+    what leaving those out costs, which this sentence already prices.
+    Naming it is what stops a person who answered forty columns in a
+    file from re-running with a command line that names none of them. `--code` belongs here by the same test as
     every other name on the list: leaving it out of a re-run moves a
     column off the label roles and back onto the numeric ones, and the
     new description then publishes a ladder of real codes the old one
@@ -1610,8 +1617,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
-        f"--measurement, --decimal-comma, --smallest-group, --first-row "
-        f"and --day-first. "
+        f"--measurement, --decimal-comma, --smallest-group, --first-row, "
+        f"--day-first and --answers. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
@@ -1631,7 +1638,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"with slashes, with dots, or with a two-figure year \u2014 can "
         f"be read the other way round, which changes "
         f"the dates the description publishes and can leave the column "
-        f"described as text instead. If you do not hold the table "
+        f"described as text instead; and without the --answers you "
+        f"gave, every answer you wrote in the questions file is gone \u2014 "
+        f"each of them was a --code, an --identifier or a --measurement, "
+        f"so leaving the file out costs whichever of those you had "
+        f"given, and this same sentence says what each one costs. If "
+        f"you do not hold the table "
         f"yourself, ask whoever made this description to run it again "
         f"for you. Read the summary page synthtwin writes "
         f"beside the new description before either file goes anywhere, "
@@ -2001,4 +2013,74 @@ def the_questions_were_not_finished() -> str:
         "was written. Run the command again to answer them, or name the "
         "columns yourself with --code and --identifier and no questions "
         "will be asked."
+    )
+
+
+# THE QUESTIONS FILE IS THE ONE FILE A PERSON IS MEANT TO EDIT, which
+# is why these four messages read the way they do (amendment A-P4-58).
+# Every other file synthtwin writes is refused with "make it again":
+# the description is machine-written and a hand-edited one is a
+# corrupted one. This file is the opposite -- it is written blank and
+# handed over precisely so that somebody types in it -- so a refusal
+# here tells them what to type, names the place in the file, and never
+# suggests that editing it was the mistake.
+_ANSWER_IT_AGAIN = (
+    "Open the file, fix that one line, save it, and run the command "
+    "again."
+)
+
+_A_QUESTIONS_FILE_IS_WRITTEN = (
+    "A questions file is written by 'synthtwin profile', beside the "
+    "description, and its name ends '-questions.json'."
+)
+
+
+def answers_file_is_not_one(path: str) -> str:
+    """The file parsed, but it is not shaped like a questions file."""
+    return (
+        f"The file at {path} was read, but it is not a synthtwin "
+        f"questions file: a questions file holds a list called 'asked' "
+        f"and a section called 'checklist', and this one does not. "
+        f"{_A_QUESTIONS_FILE_IS_WRITTEN} If you have one, name that "
+        f"file after --answers instead."
+    )
+
+
+def answers_entry_is_not_a_question(place: str) -> str:
+    """One entry of the file is not shaped like a question."""
+    return (
+        f"The questions file has something at {place} that is not a "
+        f"question. Each entry names a column, says what synthtwin saw "
+        f"in it, and offers you a set of answers. {_ANSWER_IT_AGAIN} If "
+        f"the file has been edited past repair, run 'synthtwin profile' "
+        f"on your table again and answer the fresh file it writes."
+    )
+
+
+def answers_entry_names_no_column(place: str) -> str:
+    """One entry lost its column name, so nothing can be done with it."""
+    return (
+        f"The question at {place} in the questions file has no column "
+        f"name, so synthtwin cannot tell which column your answer is "
+        f"about. The name belongs beside 'column'. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_answer_is_not_offered(
+    path: str, name: str, given: str, offered: list[str]
+) -> str:
+    """An answer was written that the question did not offer.
+
+    REFUSED RATHER THAN IGNORED, and the message carries the person's
+    own word back to them. Dropping an answer nobody could read would
+    describe the table the old way while the file on disk said
+    otherwise, so the person would have corrected their description and
+    been told nothing.
+    """
+    return (
+        f"The questions file at {path} answers the column "
+        f"'{_shown(name)}' with '{_shown(given)}', which is not one of "
+        f"the answers that question offers. Write one of these instead: "
+        f"{_listed(offered)}. Leave it blank to keep the reading "
+        f"synthtwin made. {_ANSWER_IT_AGAIN}"
     )
