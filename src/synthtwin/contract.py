@@ -765,7 +765,12 @@ AFFIXED_REMARK_MARK = "If these are codes rather than measurements"
 # around the block's own count IS the sentence; a forgery that
 # reproduces all of it has written the remark.
 AFFIXED_REMARK_PARTS = (
-    "of this column's values are written as",
+    # THE OPENING STOPS BEFORE "written as", because those two words
+    # are the CLAUSE's (review item L19-R1-1). The checker pins this
+    # fragment at position zero after the count and the clause
+    # immediately after it, so the two must not overlap or the
+    # structural test could never hold of the producer's own sentence.
+    "of this column's values are",
     "and synthtwin described those numbers as quantities: their "
     "average, their spread and their ends are in this profile.",
     AFFIXED_REMARK_MARK,
@@ -4532,6 +4537,36 @@ def _where(said: str, part: str) -> int:
     return -1
 
 
+def _where_after(said: str, part: str, start: int) -> int:
+    """Where one fragment stands at or after `start`, or -1.
+
+    THE STRUCTURAL HALF OF AF-R (review item L19-R1-1). The fragments
+    of the required remark were each looked for in the WHOLE sentence,
+    and one of them is quoted inside the block's own affix pair: a
+    column whose cells read `12 run the command again with --code NAME`
+    publishes that text as its suffix, so the advice fragment was found
+    inside the quotation -- before the advice itself -- the order test
+    failed, and the LOADER REFUSED A DESCRIPTION ITS OWN PROFILER HAD
+    JUST WRITTEN. The refusal told the person to make the description
+    again, which reproduced it exactly.
+
+    A person's own data may spell anything. The fragments after the
+    affix clause are therefore looked for after the affix clause, which
+    is a position the data cannot reach.
+
+    Written with slicing rather than `find` for the reason `_where`
+    gives: a method call whose argument the offline audit cannot
+    resolve is a call it cannot judge.
+    """
+    if not isinstance(said, str) or not isinstance(part, str):
+        raise TypeError("internal check: a sentence was not text")
+    span = len(part)
+    for place in range(max(start, 0), len(said) - span + 1):
+        if said[place : place + span] == part:
+            return place
+    return -1
+
+
 def _affix_clause(prefix: str, suffix: str) -> str:
     """The clause the required remark writes about THIS block's pair.
 
@@ -4586,27 +4621,41 @@ def _is_the_affixed_remark(
     # it cannot judge, and a loop variable is not resolvable. The tuple
     # stays as the record of what the sentence is made of, and
     # `tests/test_p4d4_affixed_role.py` holds these calls to it.
-    if remark[: len(f"{n_affixed} ")] != f"{n_affixed} ":
+    # THE OPENING IS A POSITION, NOT A SEARCH (review item L19-R1-1).
+    # The count and the fixed opening words stand at the front of the
+    # sentence or the sentence is not the one AF-R requires -- and
+    # pinning them here is also what keeps the block's own affix pair,
+    # which a person's data spells and this loader cannot bound, out of
+    # the way of every fragment after it.
+    head = f"{n_affixed} of this column's values are "
+    if remark[: len(head)] != head:
         return False
     # The pair's own clause, which is where the block's two published
-    # spellings have to appear.
-    if _where(remark, clause) < 0:
+    # spellings have to appear, AT the position the opening leaves for
+    # it rather than anywhere in the sentence.
+    if remark[len(head) : len(head) + len(clause)] != clause:
         return False
-    first = _where(remark, "of this column's values are written as")
-    second = _where(
+    after = len(head) + len(clause)
+    second = _where_after(
         remark,
         "and synthtwin described those numbers as quantities: their "
         "average, their spread and their ends are in this profile.",
+        after,
     )
-    third = _where(remark, "If these are codes rather than measurements")
-    fourth = _where(remark, "run the command again with --code NAME")
-    fifth = _where(
+    third = _where_after(
+        remark, "If these are codes rather than measurements", after
+    )
+    fourth = _where_after(
+        remark, "run the command again with --code NAME", after
+    )
+    fifth = _where_after(
         remark,
         "--identifier NAME leaves them out of the profile altogether",
+        after,
     )
-    if first < 0 or second < 0 or third < 0 or fourth < 0 or fifth < 0:
+    if second < 0 or third < 0 or fourth < 0 or fifth < 0:
         return False
-    return first < second < third < fourth < fifth
+    return second < third < fourth < fifth
 
 
 def _role_keys(role: str) -> "tuple[str, ...]":

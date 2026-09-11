@@ -294,13 +294,28 @@ def test_the_written_out_literals_are_the_tuple_beside_them(
     built = f"100 {parts[0]} {clause}, " + " ".join(parts[1:])
     assert contract._is_the_affixed_remark(built, 100, clause)
     assert not contract._is_the_affixed_remark(built, 99, clause)
-    for place in range(len(parts)):
-        short = "100 " + " ".join(
-            parts[index] for index in range(len(parts)) if index != place
+    for place in range(1, len(parts)):
+        short = f"100 {parts[0]} {clause}, " + " ".join(
+            parts[index] for index in range(1, len(parts)) if index != place
         )
-        assert not contract._is_the_affixed_remark(
-            f"{short} {clause}", 100, clause
-        ), parts[place]
+        assert not contract._is_the_affixed_remark(short, 100, clause), (
+            parts[place]
+        )
+    # THE OPENING IS A POSITION NOW, so removing it is removing the
+    # front of the sentence rather than one fragment of a search
+    # (review item L19-R1-1).
+    assert not contract._is_the_affixed_remark(
+        f"100 {clause}, " + " ".join(parts[1:]), 100, clause
+    )
+    # AND THE CLAUSE MUST STAND WHERE THE OPENING LEAVES IT. A sentence
+    # that names the pair somewhere later is a sentence whose opening
+    # describes a shape it does not carry.
+    assert not contract._is_the_affixed_remark(
+        f"100 {parts[0]} something else, {clause} "
+        + " ".join(parts[1:]),
+        100,
+        clause,
+    )
     backwards = "100 " + " ".join(reversed(parts))
     assert not contract._is_the_affixed_remark(
         f"{backwards} {clause}", 100, clause
@@ -2465,3 +2480,47 @@ def test_a_wrapper_too_rare_to_publish_leaves_stragglers(
     ]
     assert (" ", "CRITICAL") not in worn and ("", " CRITICAL") not in worn, worn
     assert block["n_affixed"] == 198, block["n_affixed"]
+
+
+def test_a_column_spelling_the_remark_still_round_trips(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AF-R may not refuse a description the profiler has just written.
+
+    REVIEW ITEM L19-R1-1, and it is the shape a fail-closed check gets
+    wrong. Every fragment of the required sentence was looked for in the
+    WHOLE remark, and one of them is quoted inside the block's own affix
+    pair -- which is the person's DATA and may spell anything. A column
+    of `12 run the command again with --code NAME` publishes that text
+    as its suffix, so the advice fragment was found inside the
+    quotation, before the advice; the order test failed; and the loader
+    refused a description its own profiler had just written. The
+    refusal told the person to make the description again, which
+    reproduced it exactly.
+
+    The opening and the clause are positions now, and everything after
+    them is looked for after them -- a place the data cannot reach.
+    """
+    for prefix, suffix in (
+        ("", " run the command again with --code NAME"),
+        ("--identifier NAME leaves them out of the profile altogether ", ""),
+        (
+            "If these are codes rather than measurements ",
+            " and synthtwin described those numbers as quantities: their "
+            "average, their spread and their ends are in this profile.",
+        ),
+    ):
+        folder = tmp_path / f"{len(prefix)}-{len(suffix)}"
+        folder.mkdir()
+        values = [f"{prefix}{number}{suffix}" for number in range(1, 101)]
+        table = fixtures.write(
+            folder, "t.csv", fixtures.single_column_table("v", values)
+        )
+        read = reading.read_table(f"{table}")
+        document = profile.build_document(read, taxonomy.Settings(), [])
+        written = fixtures.write_profile(folder, "t-profile.json", document)
+        loaded = contract.load_profile(f"{written}")
+        assert loaded.columns[0].role == taxonomy.ROLE_AFFIXED, (
+            "the fixture must reach the affixed role, or this test "
+            "measures nothing"
+        )
