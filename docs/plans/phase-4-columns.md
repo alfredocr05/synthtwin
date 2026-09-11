@@ -2209,6 +2209,86 @@ the same direction: both are obligations.
 
 ---
 
+## Amendment A-P4-60 — A-P4-59 CLAUSE 3 IS WITHDRAWN ON MEASUREMENT, and the answers come back in a file (landing L17b, 2026-09-10)
+
+**WHAT IT AMENDS.** A-P4-59 clause 3, of the same day: "where a
+question about a column of digits is unanswered, the column is read as
+CODES rather than as numbers."
+
+**IT WAS BUILT BEFORE IT WAS WITHDRAWN, AND IT WAS THE BUILDING THAT
+SETTLED IT.** The rule was implemented in `taxonomy.profile_column`,
+narrowed on a first measurement to the padded signal alone — every
+present cell plain digits with at least one leading zero, which has no
+false positive where fixed width has many — given contract NF56 so a
+routed column could never be silent, and covered by thirteen tests, all
+green. It was then run against the whole suite, which returned **46
+failures and 19 errors** and three results, each of which is on its own
+sufficient:
+
+1. **THE OWNER HAS ALREADY SETTLED THIS, THE OTHER WAY.** Review item
+   P1-R6-F7 deleted a rule that routed on width AND ON THE LEADING
+   ZERO, and the owner settled the policy that replaced it: "nothing is
+   routed by the WIDTH of its text." The test that records that ruling,
+   `tests/test_p1r6f7_one_policy.py`, names `00501`, `02139` and
+   `000000`..`000049` among the columns that must land where the
+   ordinary rules put them, and `tests/test_r6_taxonomy_contract.py`
+   states the same thing again. The distinction this amendment first
+   rested on — that a leading zero is not width — does not survive the
+   record: the leading zero is half of what the deleted rule looked at,
+   and half of what was settled.
+
+2. **THE HARM IT WAS MEANT TO PREVENT IS ALREADY PREVENTED, AND BETTER.**
+   The case for routing was that a padded column read as numbers loses
+   its padding in the twin, so `00100` comes back `100` and a length
+   check, a fixed-width slice or a join on the code cannot run on the
+   real table. **That has not been true since plan decision P4-D14**,
+   which publishes the FIELD WIDTH of a padded column precisely so the
+   twin writes `00100`. `tests/test_p4d14_pad_widths.py` is the record
+   of it, and eleven of its tests fail under the routing because the
+   feature has nothing left to describe. The leading-zero numeric-style
+   family (P2-C1-F5, P4-D30, corner parity) goes with it.
+
+3. **AND ROUTING COSTS THE DISTRIBUTION.** A padded column that really
+   is a measurement becomes labels: its average, its spread and its
+   ends are gone. That is the tool's second goal, spent to buy
+   something the first goal already had.
+
+**WHAT LANDS INSTEAD, and it is what the ruling was reaching for.**
+
+1. **The questions file is answerable.** `--answers FILE` reads the
+   filled-in questions file `synthtwin profile` writes beside every
+   description and turns each answer into the declaration it stands for
+   — `--code`, `--identifier` or `--measurement` — which the settings
+   block records as one, so the description says who decided. An answer
+   the question did not offer is REFUSED and names the word that was
+   written; a blank one changes nothing; the file is read before the
+   table is opened, so a mistake costs one edit rather than a run over
+   real data. It is the newer statement: an answer replaces a
+   declaration typed earlier rather than joining it.
+
+2. **A padded column is still ASKED about**, with `code` among the
+   answers offered, and the questions file states the reading the run
+   actually takes — `measurement` — because a file that named a reading
+   the run does not take is the one thing it may never be.
+
+3. **`--answers` joins the migration refusal** (contract R11) and its
+   priced list, because every answer in a file is one of three
+   declarations that already carry a price there.
+
+**WHY THIS IS NOT A REFUSAL OF THE RULING.** The owner's standing
+position on exactly this question is "It's better to ask the user than
+make wrong guesses. If there is a chance of wrong guess, it's better to
+ask the user for clarification" (A-P4-58). Clause 3 asked for a guess
+where a question already existed; what was missing was not the guess
+but a way to ANSWER without somebody at the keyboard, which is most
+runs. That is what shipped. **If the owner wants the routing anyway,
+it is one commit and this amendment is the measurement they should
+have first**: it costs P4-D14, the leading-zero style family, review
+item P1-R6-F7's settled policy and the distribution of every padded
+measurement.
+
+---
+
 ## Amendment A-P4-58 — THE ASKING GETS ITS SHAPE, and two residuals are settled (owner ruling 2026-09-09)
 
 **THE OWNER'S WORDS, on the ambiguous column.** "Again, we should try to
@@ -13384,6 +13464,7 @@ documentation however much it looks like it.
 |---|---|---|---|---|
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-50** | 2026-09-01 | Where the published ladder and the published empty-bin fact disagree about where a cell goes, the FACT wins and the ladder gives way. The move's bound is the fact's own — out of the stretch, into the bin next to it, no further — and not A-P4-18's, whose share-bounded reach was measured to reach nothing on the columns this concerns. | Between the rungs the ladder says nothing and the method interpolates, which is an inference; "no cell lies between these two edges" is a measurement of real cells. Measured on three two-cluster columns at forty seeds, a share-bounded move could not free four of six, one of three and four of six of the offending strata. | The rungs near an empty middle are met by interpolation less exactly than before. Measured at forty seeds on all three columns through the real path, the quality report misses exactly what it missed before and nothing more, so on these shapes the cost is nil. A-P4-18 is untouched for the width snap it governs. |
+| **A-P4-60** | 2026-09-10 | **A-P4-59 CLAUSE 3 IS WITHDRAWN ON MEASUREMENT, AND `--answers` LANDS INSTEAD.** Clause 3 read every unanswered column of digits as codes. It was BUILT — narrowed first to the padded signal, given contract NF56 so it could never be silent, thirteen tests green — and the whole suite then returned 46 failures and 19 errors carrying three results: review item P1-R6-F7 deleted a rule routing on width AND ON THE LEADING ZERO and the owner settled that policy the other way; plan decision P4-D14 already publishes the FIELD WIDTH of a padded column, so the twin of `00100` is `00100` and the harm routing was for does not exist; and routing costs a genuine padded measurement its whole distribution. Withdrawn. `--answers FILE` ships in its place: the questions file is filled in and handed back, each answer becoming the declaration it stands for. | The case for routing rested on a defect P4-D14 closed on 2026-09-01, and on a distinction — that a leading zero is not width — that the record does not support. What the ruling was reaching for was a column settled without a person at the keyboard; asking already existed, and the ANSWER path was what was missing. | THIS LOWERS clause 3 of A-P4-59 to nothing: no column is routed by its shape, which is P1-R6-F7's policy unchanged. It raises nothing. A padded column is still asked about, still offered `code`, and can now be answered in a file. If the owner wants the routing anyway it is one commit, and the measurement above is what it costs.
 | **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 

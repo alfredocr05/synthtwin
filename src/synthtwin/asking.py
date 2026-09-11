@@ -26,6 +26,39 @@ profile's `forced_codes`, and a wrong signal here costs one skipped
 question rather than a wrong description. That is why the evidence the
 deleted rule used is admissible here and inadmissible there.
 
+AND THE RULING TO ROUTE ON PADDING WAS MEASURED AND WITHDRAWN
+(A-P4-59 clause 3; amendment A-P4-60, 2026-09-10). It said an
+unanswered column of figures should be read as CODES. Built, it was
+run against the suite, and three things came back that no argument
+survives:
+
+* **The owner has already settled this, the other way.** Review item
+  P1-R6-F7 deleted a rule that routed on width AND ON THE LEADING
+  ZERO, and the owner settled the policy that replaced it. The test
+  that records it -- `tests/test_p1r6f7_one_policy.py` -- names
+  `00501` and `000000`..`000049` among the columns that must land
+  where the ordinary rules put them. A leading zero is not a signal
+  outside that finding; it is half of what the finding is about.
+* **The harm it was meant to prevent is already prevented, and better.**
+  Plan decision P4-D14 publishes the FIELD WIDTH of a padded column, so
+  the twin of `00100` is written `00100` and a length check, a
+  fixed-width slice or a join on the code runs on the real table. The
+  argument for routing was that the twin loses the padding. It does
+  not, and has not since P4-D14.
+* **Routing would have cost the distribution.** The column would have
+  become labels, so the average, the spread and the ends of a genuine
+  padded measurement would have gone -- against the tool's second goal,
+  to keep results close to the real ones.
+
+What is left of the ruling is what this module was already for: the
+column IS asked about, its shape is described, `code` is one of the
+answers offered, and since amendment A-P4-58 the question can be
+answered without anybody at the keyboard by filling in the questions
+file and handing it back with `--answers`. Asking was always the
+owner's own first principle here -- "it's better to ask the user than
+make wrong guesses" -- and the answer path is what was missing, not a
+rule.
+
 WHAT IS NOT ASKED ABOUT, stated so nobody reads silence as clearance.
 Only the roles that publish numeric statistics over the cells are
 reached -- `count`, `continuous` and `numeric_unrepresentable`. A
@@ -39,7 +72,9 @@ right thing with it; it is the asking that stops short, not the fix.
 
 import dataclasses
 
-from . import taxonomy
+from synthtwin import errors
+from synthtwin import parsing
+from synthtwin import taxonomy
 
 # The roles that publish a ladder of real values. A column here that is
 # really a coding system publishes real codes as its endpoints.
@@ -357,9 +392,9 @@ def _numeric_choices(
     rest: list[Choice] = []
     for choice in every:
         if choice.answer == taken:
-            first = first + [choice]
+            first += [choice]
         else:
-            rest = rest + [choice]
+            rest += [choice]
     return first + rest
 
 
@@ -434,28 +469,29 @@ def questions_for(
         if name in already:
             position = position + 1
             continue
-        if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
-            position = position + 1
-            continue
         if position >= len(table_columns):
             position = position + 1
             continue
         present, _absent = taxonomy.split_missing(
             table_columns[position], settings
         )
+        if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
+            position = position + 1
+            continue
+        reason: "str | None"
         if role in JOINED_ROLES:
             reason = why_joined_is_worth_asking(present)
         else:
             reason = why_worth_asking(present)
         if reason is not None:
-            # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES,
-            # not the one it ought to take. The owner ruled on
-            # 2026-09-10 that an unanswered column of figures should
-            # be read as CODES, which is a change to what `profile`
-            # does and lands with the answers path that makes it.
-            # Until then this says `measurement`, because a file that
+            # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES, and
+            # never the one it ought to take. A questions file that
             # named a reading the run does not take would be the one
-            # thing a questions file may never be.
+            # thing this file may never be, so both branches follow
+            # `taxonomy.profile_column` exactly -- which is why the
+            # padded column below says `measurement`, and why the
+            # docstring records the ruling that would have made it say
+            # `code` and the measurement that withdrew it.
             if reason == BECAUSE_JOINED:
                 # ENTER KEEPS THE READING THE COLUMN ALREADY HAS, which
                 # for a joined-looking column is text or labels and is
@@ -468,7 +504,7 @@ def questions_for(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
                 )
                 taken = ANSWER_MEASUREMENT
-            asked = asked + [
+            asked += [
                 Question(
                     name,
                     role,
@@ -737,9 +773,9 @@ CHECKLIST_HEADING = (
     "THAN MEASUREMENTS?"
 )
 # What the file is, said on its own face. It is real-derived material
-# like the five files a full run leaves behind: it names columns, it
-# counts cells, and it says what each column's shape is. It carries no
-# value of the table, and that is a narrower promise than being
+# like the other five files a full run leaves behind: it names columns,
+# it counts cells, and it says what each column's shape is. It carries
+# no value of the table, and that is a narrower promise than being
 # anonymous (amendment A-P4-58).
 FILE_CARRIES = (
     "This file was written from your real table. It names your columns, "
@@ -759,7 +795,7 @@ def _question_entry(question: Question) -> "dict[str, object]":
     """One question as the plain data both the file and a screen show."""
     offered: list[dict[str, str]] = []
     for choice in question.choices:
-        offered = offered + [
+        offered += [
             {
                 "answer": choice.answer,
                 "means": choice.means,
@@ -809,10 +845,10 @@ def questions_document(
     """
     asked_entries: list[dict[str, object]] = []
     for question in asked:
-        asked_entries = asked_entries + [_question_entry(question)]
+        asked_entries += [_question_entry(question)]
     listed_entries: list[dict[str, object]] = []
     for question in listed:
-        listed_entries = listed_entries + [_question_entry(question)]
+        listed_entries += [_question_entry(question)]
     return {
         "what_this_is": (
             "synthtwin could not settle these columns from their values "
@@ -834,3 +870,156 @@ def questions_document(
             "columns": listed_entries,
         },
     }
+
+
+@dataclasses.dataclass(frozen=True)
+class Answers:
+    """What a person wrote in a questions file, as three lists of names.
+
+    THE SAME THREE LISTS THE INTERVIEW PRODUCES (amendment A-P4-58).
+    Answering on the screen and answering in the file are the same act,
+    so they end in the same shape and the command cannot tell them
+    apart afterwards -- which is what stops the two paths drifting into
+    two behaviours.
+    """
+
+    codes: "tuple[str, ...]"
+    identifiers: "tuple[str, ...]"
+    measurements: "tuple[str, ...]"
+
+
+def _entry_answer(
+    entry: object, place: str
+) -> "tuple[str, str, tuple[str, ...]] | None":
+    """One entry read back: its column, the answer given, what was offered.
+
+    None where the entry carries no answer at all, which is what a
+    blank `your_answer` means and is the commonest case by far: a
+    person answers two columns of forty and leaves the rest alone.
+
+    Raises ValueError, with a message written for a person, where the
+    entry is not shaped like one this module wrote.
+    """
+    if not isinstance(entry, dict):
+        raise ValueError(errors.answers_entry_is_not_a_question(place))
+    # READ BY INDEX AND NEVER BY `.get`, which is the offline policy
+    # and not a style (plan D6.2): a method call on a value this
+    # module did not build is a call the audit cannot trace, and this
+    # value came out of a file somebody edited. Membership is asked
+    # with `in`, which is an operator, and the key is then indexed.
+    if "column" not in entry:
+        raise ValueError(errors.answers_entry_names_no_column(place))
+    name = entry["column"]
+    if not isinstance(name, str) or not name:
+        raise ValueError(errors.answers_entry_names_no_column(place))
+    given: object = ""
+    if "your_answer" in entry:
+        given = entry["your_answer"]
+    if not isinstance(given, str):
+        raise ValueError(errors.answers_entry_is_not_a_question(place))
+    written = parsing.trimmed(given)
+    if not written:
+        return None
+    offered: list[str] = []
+    if "answers_you_can_give" in entry:
+        choices = entry["answers_you_can_give"]
+        if isinstance(choices, list):
+            for choice in choices:
+                if not isinstance(choice, dict) or "answer" not in choice:
+                    continue
+                one = choice["answer"]
+                if isinstance(one, str) and one:
+                    offered += [one]
+    return name, written, tuple(offered)
+
+
+def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
+    """Every entry of a questions file, each with the place to name it by.
+
+    Both sections, in the order the file writes them, because a person
+    may answer in either: the checklist is where a code register that
+    raised no question of its own is corrected, and it is the longer
+    of the two.
+    """
+    if not isinstance(document, dict):
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    if "asked" not in document or "checklist" not in document:
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    asked = document["asked"]
+    checklist = document["checklist"]
+    if not isinstance(asked, list) or not isinstance(checklist, dict):
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    if "columns" not in checklist:
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    listed = checklist["columns"]
+    if not isinstance(listed, list):
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    found: list[tuple[object, str]] = []
+    place = 0
+    for entry in asked:
+        place += 1
+        found += [(entry, f"asked[{place}]")]
+    place = 0
+    for entry in listed:
+        place += 1
+        found += [(entry, f"checklist[{place}]")]
+    return found
+
+
+def answers_in(document: object, shown: str) -> Answers:
+    """Read a questions file back as the declarations it stands for.
+
+    Guarantees:
+
+    - Inputs: the parsed content of a questions file, and the path to
+      name in a refusal.
+    - Determinism: a fixed function of the two. The names come back in
+      the file's own order, which is the table's.
+    - Errors raised: ValueError, carrying one plain-language message,
+      where the file is not a questions file, where an entry is not
+      shaped like a question, or where an answer is not one of the
+      answers that entry offered.
+    - Boundary: opens nothing, prints nothing, and reads no table. It
+      turns text into three lists of column names and does not check
+      that any of them is a column: naming a column that is not in the
+      table is refused later, by the same check that covers `--code`
+      typed on the command line, so a person meets one message for
+      that mistake and not two.
+
+    AN ANSWER THAT IS NOT OFFERED IS REFUSED, never ignored. A person
+    who writes `codes` where the file offers `code`, or who answers a
+    column in a language of their own, has said something; taking the
+    file, dropping that word and describing their table the old way
+    would tell them their answer had been heard when it had not.
+
+    `keep` and `measurement` on a column already read as a measurement
+    add no declaration, because there is nothing to change. Every other
+    answer becomes the declaration that makes it true.
+    """
+    codes: list[str] = []
+    identifiers: list[str] = []
+    measurements: list[str] = []
+    for entry, place in _entries_of(document, shown):
+        read = _entry_answer(entry, place)
+        if read is None:
+            continue
+        name, written, offered = read
+        if offered and written not in offered:
+            raise ValueError(
+                errors.answers_answer_is_not_offered(
+                    shown, name, written, list(offered)
+                )
+            )
+        if written == ANSWER_CODE:
+            codes += [name]
+        elif written == ANSWER_IDENTIFIER:
+            identifiers += [name]
+        elif written == ANSWER_MEASUREMENT or written == ANSWER_JOINED:
+            measurements += [name]
+        elif written != ANSWER_KEEP:
+            raise ValueError(
+                errors.answers_answer_is_not_offered(
+                    shown, name, written, list(offered)
+                )
+            )
+    return Answers(tuple(codes), tuple(identifiers), tuple(measurements))

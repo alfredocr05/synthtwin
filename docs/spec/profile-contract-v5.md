@@ -1260,11 +1260,11 @@ is the rule; section 7 is what still cannot be recovered; the readable
 surfaces state it under plan amendment A-P3-31.
 
 **And the handling rule is unchanged.** Every file a full run leaves
-behind — the profile, the plain-language summary beside it, the twin,
-the twin's report and the quality report — carries facts computed from
-real data, so the institution's rules for real-derived material apply to
-all five. synthtwin claims no formal privacy guarantee, and version 5
-makes no privacy claim of any kind.
+behind — the profile, the plain-language summary beside it, the
+questions file, the twin, the twin's report and the quality report —
+carries facts computed from real data, so the institution's rules for
+real-derived material apply to all six. synthtwin claims no formal
+privacy guarantee, and version 5 makes no privacy claim of any kind.
 
 ---
 

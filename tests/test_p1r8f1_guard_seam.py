@@ -699,6 +699,10 @@ def test_a_plain_table_still_profiles_cleanly_through_the_command(
     assert sorted(entry.name for entry in tmp_path.iterdir()) == [
         "clinic-profile.json",
         "clinic-profile.txt",
+        # Written on EVERY run, empty of questions or not (amendment
+        # A-P4-58), which is what keeps the handling rule in this
+        # repository free of the word "sometimes".
+        "clinic-questions.json",
         "clinic.csv",
     ]
 

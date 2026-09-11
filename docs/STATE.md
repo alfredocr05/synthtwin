@@ -28,7 +28,8 @@ without the same help.
 | branch | `l14-affix-set` (never merged; `main` is pull-request only). The worktree it was cut from carries landings L8 and L9 under the branch name `l8-compound-role`, which is left alone rather than rewritten under a landing |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,411 collected; `4360 passed, 51 skipped in 1172.91s (0:19:32)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **ONE suite run for this landing**, which is what the order buys: every edit, then the scanners, then the seal LAST, then one run. fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. The ten days before it produced 95 commits of which 44 were review-round repairs, ran EIGHT rounds on each of three landings against a five-round ruling, and opened 32 residuals against 19 closed. |
+| suite | **4,430 collected** at landing L17b (2026-09-10); `4378 passed, 52 skipped in 1153.40s (0:19:13)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **Nineteen new tests**: eleven in `tests/test_p4a60_answers_handed_back.py` for the questions file and `--answers`, and the rest across the claim inventory, the failure catalog and the file listings that gained the sixth file. **ONE suite run for the landing**, which is what the order buys: every edit, then the scanners, then the seal LAST, then one run. A SECOND run was spent here deliberately and is worth the note: A-P4-59 clause 3's routing rule was built, and the diagnostic run that measured it returned 46 failures and 19 errors, which is what withdrew it (amendment A-P4-60). **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. |
+| suite, before this landing | 4,411 collected; `4360 passed, 51 skipped in 1172.91s (0:19:32)` verbatim, fully green |
 | suite, before the wrapper set | 4,355 collected on the worktree with the STRETCH EDGES (landing L9, plan P4-D35, all eight review rounds), residual R-P4-151 closed by measurement and residual R-P4-149's THIRD POPULATION in it; `4304 passed, 51 skipped in 1005.62s (0:16:45)` verbatim. **ELEVEN new tests**: round 8 added the block-wide disclosure ceiling and the affixed key-row completeness check to guards that already existed; round 7 moved the stretch report to a recount over the finished cells and rebuilt two witnesses on it; round 6 adds the looser-walk witness (residual R-P4-156); round 5 rebuilt the deviation-inventory guard around G12's new key index; **TEN before them**: round 4 adds the deviation-inventory guard, which found `shape_forms` missing from the method's own complete list on its first run; round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
 | suite, before the stretch edges | 4,343 collected on the worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4292 passed, 51 skipped in 979.16s (0:16:19)` verbatim after amendment A-P4-55's build. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
 | suite, before the compound role | 4,319 collected on the merged tree with the integer-grid landing and its six review rounds in it (52 skipped on another machine: that count moves, the collected count does not). **NINE new tests**: `tests/test_p4r56_grid_separation.py` goes from 9 to 17 -- the integer grid and its two refusals, the inclusive share endpoint, the sixty-four GRID steps, the round trip, the 323-and-324 boundary in BOTH implementations, and the caller that cannot be made to claim a value it did not create -- and one in `tests/test_p2c2f3_style_invention.py` |
@@ -53,6 +54,69 @@ ONE round per landing and does not run on L22 or L23. Everything not in
 those landings is CARRIED to Phase 5 by name in the closure section —
 about forty entries, each with a line and a size.
 
+* **LANDING L17b IS BUILT (2026-09-10): THE QUESTIONS FILE SHIPS, THE
+  ANSWERS COME BACK, AND A PADDED COLUMN READS AS CODES.** Three
+  things, and they are one decision seen from three sides.
+
+  **The file.** `synthtwin profile` writes `<table>-questions.json`
+  beside the description on EVERY run — not only where a column raised
+  a question. That is a change from the plan and it was taken
+  deliberately: a file that exists sometimes makes every handling
+  sentence in the repository hedge, and the claim inventory refused
+  the conditional form yesterday for exactly that reason. Unconditional,
+  the naming pass is a flat "six files", and it landed across all
+  twelve surfaces that state the rule — `CLAUDE.md`, `README.md`,
+  `SECURITY.md`, `__init__.py`, `cli.py`, `quality.py`, `rendering.py`,
+  `summary.py`, `validation.py` and each of the three profile
+  contract documents — in this
+  commit, which is what that guard exists to force.
+
+  **The hand-back.** `--answers FILE` reads the filled-in questions
+  file and turns each answer into the declaration it stands for, which
+  the settings block records as `--code`, `--identifier` or
+  `--measurement`. An answer the question did not offer is REFUSED and
+  names the word that was written; a blank one changes nothing. The
+  file is read before the table is opened, and it is the newer
+  statement: an answer replaces a declaration typed earlier rather
+  than joining it.
+
+  **The routing was BUILT AND THEN WITHDRAWN, on the suite (amendment
+  A-P4-60).** A-P4-59 clause 3 ruled that an unanswered column of
+  digits reads as CODES. It was implemented, narrowed on a first
+  measurement to the padded signal alone, given contract NF56 so it
+  could never be silent, and covered by thirteen green tests. The whole
+  suite then returned **46 failures and 19 errors**, carrying three
+  results, each sufficient on its own:
+
+  1. **The owner settled this the other way already.** Review item
+     P1-R6-F7 deleted a rule routing on width AND ON THE LEADING ZERO.
+     `tests/test_p1r6f7_one_policy.py` names `00501` and
+     `000000`..`000049` among the columns that must land where the
+     ordinary rules put them. The distinction the amendment rested on
+     — a leading zero is not width — is not in the record.
+  2. **The harm it was for has been fixed since 2026-09-01.** Plan
+     decision P4-D14 publishes the FIELD WIDTH of a padded column, so
+     the twin of `00100` is written `00100`. Eleven of
+     `tests/test_p4d14_pad_widths.py` fail under the routing because
+     the feature has nothing left to describe.
+  3. **And routing costs the distribution** of any padded column that
+     really is a measurement.
+
+  **What ships instead is what the ruling was reaching for**: the
+  column is still ASKED about, `code` is still offered, and the answer
+  can now be given without anybody at the keyboard. The owner's own
+  position on this question is "it's better to ask the user than make
+  wrong guesses" — asking already existed; the ANSWER path was what
+  was missing. **If the owner wants the routing anyway it is one
+  commit, and A-P4-60 is the measurement of what it costs.**
+
+  **One thing found while building it and worth keeping.** The role
+  gate in `questions_for` ran before the padded test, so a routed
+  column — no longer on a numeric role — stopped being asked about
+  altogether. That would have made the routing silent exactly where it
+  mattered. Recorded here because the same trap waits for anyone who
+  builds it again.
+
 * **LANDING L17a IS BUILT (2026-09-10): THE ASKING BECOMES ONE OBJECT,
   AND IT STOPS SHOWING YOUR CELLS.** Choices, what each reading
   publishes and the reading that stands unanswered are DATA on
@@ -74,12 +138,10 @@ about forty entries, each with a line and a size.
   COMMIT.** It worked -- three files written, the checklist naming
   `drug_concept_id`, zero cells of the table anywhere in it -- and the
   claim inventory refused it, correctly: a file a run leaves behind
-  joins every handling surface in the SAME commit. This one is
-  CONDITIONAL where the other five are not, so the handling rule needs
-  a form saying five files and a sixth where there are questions, on
-  eight surfaces including the frozen contract and excluding the
-  historical ones. That is a deliberate pass, and it lands tomorrow
-  with the hand-back (`--answers`) that makes the file answerable.
+  joins every handling surface in the SAME commit. **SETTLED THE OTHER
+  WAY BY L17b, above:** the file is written on EVERY run rather than
+  only where there are questions, so the handling rule needed no
+  conditional form at all — six files, flatly, on eleven surfaces.
   *The guard did its job: half-naming a real-derived file is the exact
   defect it exists to stop.*
 

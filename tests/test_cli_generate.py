@@ -633,8 +633,8 @@ def test_the_report_states_the_same_things_every_run(
         "It does NOT say that no row of the twin can equal a row of your",
         # every file a full run leaves behind, and institutional
         # handling (plan amendment A-P3-8: the profiler's summary
-        # joined the list)
-        "All five files",
+        # joined the list; A-P4-58: the questions file joined it)
+        "All six files",
         "the plain-language summary beside it",
         "institution",
         # the formula-context warning

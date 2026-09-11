@@ -24,7 +24,7 @@ columns were built one at a time and carry no structure between them;
 that the rows were built one at a time and the description never said
 what one row of the real table is; where the twin's values come from and
 the one case in which a twin row can nonetheless equal a real one; that
-all five files of a full run carry facts computed from real data; and
+all six files of a full run carry facts computed from real data; and
 which cells common spreadsheet software will read as a formula. None of
 those is conditional on anything, because a warning that appears only
 sometimes is a warning nobody comes to expect.
@@ -1507,16 +1507,17 @@ def _handling_lines() -> "list[str]":
         "copied; there was nothing else to write. The smaller the table and",
         "the fewer its columns, the more often that happens.",
         "",
-        "HOW TO KEEP THESE FILES. All five files of a full run -- the",
-        "description, the plain-language summary beside it, this twin,",
-        "this report and the quality report 'synthtwin validate' writes",
-        "-- carry facts computed from your real data: counts, ranges,",
-        "published labels and the spellings named above. Keep all five",
-        "under the rules your institution applies to the table itself,",
-        "and check with whoever approves data leaving your environment",
-        "before you move any of them anywhere. synthtwin offers no formal",
-        "privacy guarantee: nothing here bounds, mathematically, what",
-        "someone could work out from the twin.",
+        "HOW TO KEEP THESE FILES. All six files of a full run -- the",
+        "description, the plain-language summary beside it, the",
+        "questions file, this twin, this report and the quality report",
+        "'synthtwin validate' writes -- carry facts computed from your",
+        "real data: counts, ranges, published labels and the spellings",
+        "named above. Keep all six under the rules your institution",
+        "applies to the table itself, and check with whoever approves",
+        "data leaving your environment before you move any of them",
+        "anywhere. synthtwin offers no formal privacy guarantee:",
+        "nothing here bounds, mathematically, what someone could work",
+        "out from the twin.",
     ]
 
 
@@ -1549,7 +1550,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     were built independently; that rows were built independently and the
     description never said what one row is; where the twin's values came
     from and the one case in which a twin row can equal a real one; that
-    all five files a full run leaves behind carry facts computed from
+    all six files a full run leaves behind carry facts computed from
     real data and are kept
     under the institution's rules; which cells a spreadsheet reads as a
     formula; every published fact the twin could not meet, with the
