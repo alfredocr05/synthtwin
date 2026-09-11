@@ -30,6 +30,7 @@ otherwise, and the answer can now be given in a file.
 """
 
 import json
+import os
 import pathlib
 import random
 import tempfile
@@ -384,18 +385,45 @@ def test_the_questions_file_may_not_land_on_the_table(
     permitted local path, so the locality gate cannot catch it. The
     pair above was guarded against the table and this write was not,
     so a run could replace the person's own data with questions JSON.
+
+    **THE TWO PLATFORMS REFUSE IT IN DIFFERENT PLACES, AND WINDOWS
+    REFUSES IT HARDER.** CI found this: the first version of this test
+    asserted the POSIX outcome everywhere and went red on every Windows
+    cell. `validate_local_path` refuses a link on Windows OUTRIGHT --
+    "a link can quietly lead to a network location" -- so the run stops
+    at the path gate with exit 1 and writes nothing at all. On POSIX no
+    such lexical rule exists, the gate cannot see it, and the guard
+    this review item added is what catches it: the run goes on, writes
+    the description and its summary, and says which file the questions
+    name landed on.
+
+    What must hold on BOTH, and is asserted on both, is the thing that
+    matters: **the table is untouched and the link is never followed.**
     """
     table = _table(tmp_path, _columns())
     link = tmp_path / "clinic-questions.json"
     link.symlink_to(table)
     before = table.read_bytes()
-    assert cli.main(["profile", f"{table}", "--replace"]) == 0, (
+    code = cli.main(["profile", f"{table}", "--replace"])
+    told = capsys.readouterr()
+    # The invariant, on every platform.
+    assert table.read_bytes() == before, "the table is untouched"
+    assert link.is_symlink(), "and the link was never followed"
+    if os.name == "nt":
+        assert code == 1, (
+            "Windows refuses a link at the path gate, before anything "
+            "is opened or written"
+        )
+        assert "is a link" in told.err
+        assert not (tmp_path / "clinic-profile.json").exists(), (
+            "and nothing at all is written, which is the stronger "
+            "outcome of the two"
+        )
+        return
+    assert code == 0, (
         "the description is still written: a questions file nothing is "
         "built from is a caution, not a failure of the run"
     )
-    told = capsys.readouterr()
-    assert table.read_bytes() == before, "the table is untouched"
-    assert link.is_symlink(), "and the link was never followed"
     assert "will not write its questions" in told.err
     assert "table you asked synthtwin to describe" in told.err, (
         "the message says WHICH file the name landed on"

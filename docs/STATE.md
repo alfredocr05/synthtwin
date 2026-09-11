@@ -33,8 +33,9 @@ where it is measured and point at it from everywhere else.
 | branch | `l14-affix-set` (never merged; `main` is pull-request only) |
 | phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried to Phase 5 by name. **Phase 5 — relationships and fidelity depth — is next and has not started.** |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,453 collected; `4402 passed, 51 skipped in 1161.14s (0:19:21)` verbatim, fully green at the closing commit |
+| suite | 4,453 collected; `4402 passed, 51 skipped in 1162.34s (0:19:22)` verbatim, fully green at the closing commit |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at the closing commit |
+| CI | **runs on every pull request, on five Pythons across Ubuntu and Windows.** A green local suite is not a green CI: the close's last defect was a test that asserted the POSIX outcome on every platform and failed every Windows cell three runs running. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (A-P4-59), `codex exec -m gpt-6-astra -c model_reasoning_effort="high" -s read-only`, launched without checking in. A crash or a silent wrongness in what THAT landing built is repaired; every other item is recorded as a residual and carried |
 
 The suite size is enforced: `test_the_state_page_states_the_suite_size_
