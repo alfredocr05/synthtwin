@@ -6949,12 +6949,28 @@ def test_the_state_page_states_the_suite_size_it_was_written_against(
     # shrank below the number. What actually distinguishes the two is
     # whether anything was SELECTED -- a path, a keyword or a marker --
     # so that is what is asked.
+    #
+    # AND THE PATHS ARE COMPARED AS PATHS, not as the strings somebody
+    # typed. `testpaths` is `["tests"]` and the command everybody
+    # actually runs is `pytest tests/`, whose one argument is
+    # `"tests/"`. String inequality made every such run look SELECTED,
+    # so this check stood down on every whole-suite run of the project
+    # and the one mechanically enforced half of `docs/STATE.md`'s rule
+    # was inert. Found 2026-09-10 while landing L17b, by noticing that
+    # a count this page had wrong by two did not turn the suite red.
+    # A node id (`tests/x.py::test_y`) is still a selection and still
+    # compares unequal, which is what this has to keep being true of.
     option = request.config.option
+    given = [f"{argument}".rstrip("/") for argument in request.config.args]
+    paths = [
+        f"{argument}".rstrip("/")
+        for argument in request.config.getini("testpaths")
+    ]
     selected = (
         getattr(option, "keyword", "")
         or getattr(option, "markexpr", "")
         or getattr(option, "last_failed", False)
-        or list(request.config.args) != list(request.config.getini("testpaths"))
+        or given != paths
     )
     if selected:
         pytest.skip("a selected run; the stated count describes the whole suite")

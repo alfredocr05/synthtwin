@@ -1878,17 +1878,56 @@ def _run_profile(
         pathlib.Path(table), out_dir
     )
     shown_questions_path = _shown(questions_path)
-    _say(
-        f"These three files will be written:\n"
-        f"  {shown_profile_path}\n  {shown_summary_path}\n"
-        f"  {shown_questions_path}"
-    )
-    _say(
-        "\nAll three are computed from your real data. Keep them "
-        "under the same rules your institution applies to the table "
-        "itself, and read the section above before moving them "
-        "anywhere."
-    )
+    # AND THE COLLISION IS DECIDED BEFORE THE ANNOUNCEMENT, not left to
+    # the write (review item L17b-R1-1, second half). The transaction
+    # refuses to land on the table and the table survives -- but a run
+    # that announces "these three files will be written" and names the
+    # person's own table among them has already said the frightening
+    # thing, and then said nothing about why the third never appeared.
+    # A name that resolves onto the table, the description or the
+    # summary is named here, once, before anything exists, and the run
+    # goes on to write the pair: a questions file is not something
+    # anything else is built from, so losing it is a caution and not a
+    # failure of the run.
+    questions_collides = ""
+    for place, noun in (
+        (pathlib.Path(source), errors.INPUT_TABLE),
+        (profile_path, errors.INPUT_DESCRIPTION),
+        (summary_path, errors.INPUT_SUMMARY),
+    ):
+        if questions_path == place or profile.is_the_same_file(
+            questions_path, place
+        ):
+            questions_collides = noun
+            break
+    if questions_collides:
+        _say(
+            f"These two files will be written:\n"
+            f"  {shown_profile_path}\n  {shown_summary_path}"
+        )
+        _warn(
+            errors.questions_would_replace_a_file(
+                shown_questions_path, questions_collides
+            )
+        )
+        _say(
+            "\nBoth are computed from your real data. Keep them "
+            "under the same rules your institution applies to the table "
+            "itself, and read the section above before moving them "
+            "anywhere."
+        )
+    else:
+        _say(
+            f"These three files will be written:\n"
+            f"  {shown_profile_path}\n  {shown_summary_path}\n"
+            f"  {shown_questions_path}"
+        )
+        _say(
+            "\nAll three are computed from your real data. Keep them "
+            "under the same rules your institution applies to the table "
+            "itself, and read the section above before moving them "
+            "anywhere."
+        )
     # THE THIRD FILE IS WRITTEN AGAIN OVER THE ONE THAT WAS ANSWERED,
     # and a person who has just spent ten minutes filling it in must be
     # told that before it happens rather than after. It is not a loss:
@@ -1898,10 +1937,15 @@ def _run_profile(
     # only where the file named is the file about to be written, so a
     # person who kept their answers somewhere else is not warned about
     # a file synthtwin is not touching.
-    if answers_path is not None and profile.is_the_same_file(
-        questions_path, pathlib.Path(validate_local_path(
-            answers_path, purpose="questions file"
-        ))
+    if (
+        answers_path is not None
+        and not questions_collides
+        and profile.is_the_same_file(
+            questions_path,
+            pathlib.Path(
+                validate_local_path(answers_path, purpose="questions file")
+            ),
+        )
     ):
         _say(
             f"\nYour answers were read from {shown_questions_path} and "
@@ -1991,9 +2035,52 @@ def _run_profile(
     # from this one, so a run that wrote the pair and could not write
     # this has still produced a complete description, and says so
     # rather than undoing work that succeeded.
+    #
+    # THE QUESTIONS ARE RECOMPUTED HERE, FROM THE FINISHED DESCRIPTION
+    # (review item L17b-R1-3). They were worked out before the
+    # interview and reused after it, so a person who answered `code` at
+    # the terminal got a rebuilt description holding labels and a
+    # questions file still asking about that column under
+    # `read_as_now: measurement` -- a file naming a reading the run did
+    # not take, which is the one thing this file may never be. The
+    # inputs here are the FINAL document and the FINAL declarations, so
+    # an answered column is gone and every reading left is the one in
+    # force.
+    settled = forced_identifiers + forced_codes + forced_measurements
+    asked_about = asking.questions_for(
+        document, read.columns, settings, settled
+    )
+    listed_about = asking.checklist_for(
+        document, read.columns, settings, settled, asked_about
+    )
+    # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
+    # L17b-R1-1). On POSIX a link left at this name resolves to a
+    # permitted local path, so the locality gate cannot catch it: what
+    # would be destroyed is the person's own table, or the description
+    # this run has just finished writing. The pair above is guarded
+    # against the table by `is_the_same_file`; this write is guarded
+    # against all three by the transaction itself, which asks by
+    # lexical path, by resolved path, by the case-folded spelling and
+    # by the filesystem's own identity -- and asks AGAIN once the file
+    # is at its name, where a substitution made in between becomes
+    # decidable.
+    guarded_questions = [
+        (pathlib.Path(source), errors.INPUT_TABLE),
+        (profile_path, errors.INPUT_DESCRIPTION),
+        (summary_path, errors.INPUT_SUMMARY),
+    ]
+    if questions_collides:
+        # Said once, before the files existed. Repeating it here would
+        # be the same sentence twice with the run's outcome between
+        # them, which reads as two separate troubles.
+        if floor_chosen and smallest_group < _NOTICE_LINE:
+            _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+        return 0
     written_questions = True
+    questions_state = writing.DiskState()
+    left_questions: "list[str]" = []
     try:
-        writing.write_one_file(
+        left_questions = writing.write_one_file(
             questions_path,
             canonical.serialize(
                 asking.questions_document(
@@ -2002,12 +2089,36 @@ def _run_profile(
                     listed_about,
                 )
             ),
+            sources=guarded_questions,
+            state=questions_state,
         )
+    except (KeyboardInterrupt, SystemExit):
+        # THE PERSON STOPPING THEIR OWN COMMAND IS NOT A WRITE FAILURE
+        # (review item L17b-R1-4). Swallowing it turned Ctrl-C into exit
+        # 0 and told them the run had finished. The disk is described
+        # first, then the stop continues as itself so that `main`'s
+        # handler still recognizes it.
+        if questions_state.sentence:
+            _warn(_shown(questions_state.sentence))
+        elif questions_state.target_written:
+            _say(f"  {shown_questions_path}")
+            if questions_state.left_behind:
+                _warn(_left_behind_note([questions_state.left_behind]))
+        raise
     except BaseException:
         written_questions = False
     if written_questions:
         _say(f"  {shown_questions_path}")
+        if left_questions:
+            # The same caution the pair above prints, for the same
+            # reason: a working file this run could not clear away is a
+            # real-derived file sitting in the person's folder under a
+            # name nobody gave them (review item P1-R6-F5). Discarding
+            # this list was item L17b-R1-4's other half.
+            _warn(_left_behind_note(left_questions))
     else:
+        if questions_state.sentence:
+            _warn(_shown(questions_state.sentence))
         _warn(
             f"\nThe description is written and complete. synthtwin could "
             f"not write its questions beside it at "

@@ -8886,6 +8886,101 @@ def _validated(document: "dict[str, object]") -> Profile:
     )
 
 
+def _no_duplicate_keys(text: str, shown: str) -> None:
+    """Refuse a document that names one key twice in one object.
+
+    WHY THIS EXISTS SEPARATELY FROM `_round_tripped` (review item
+    L17b-R1-2). A description is refused unless its bytes are exactly
+    the bytes synthtwin writes, and that one check catches a duplicated
+    key among six other defects. A QUESTIONS FILE cannot be held to
+    that: it is handed to a person to edit, and an editor that
+    re-indents on save would have their answers refused for the
+    formatting. Removing the canonical check removed the duplicate-key
+    protection with it, and a parse keeps only the LAST value -- so an
+    entry holding `"column": "x"` followed by `"column": "y"` declares
+    `y` a code and leaves `x` alone, with nothing said. Both names can
+    be real columns, so no later check sees anything wrong.
+
+    This is that one protection, on its own, so an edited file keeps
+    every freedom of layout and loses only the ambiguity.
+
+    Guarantees:
+
+    - Inputs: the document's text, ALREADY KNOWN TO PARSE, and the path
+      to name in a refusal. The order matters: the key literals are
+      read with the same parser the document was read with, so a key
+      written `"a"` and a key written `"\u0061"` are compared as the
+      one key they are.
+    - Determinism: the answer depends only on the text.
+    - Errors raised: ProfileError naming the key and its object.
+    - Boundary: string operations and `json.loads` on one key literal
+      at a time. No callback slot is filled, and nothing is opened.
+
+    The walk is string-literal aware for the reason `_scanned`'s is: a
+    brace or a colon inside a quoted value is a character of that
+    value. A key is a string literal that is followed, across
+    whitespace, by a colon, while the innermost open container is an
+    object.
+    """
+    seen: "list[dict[str, int]]" = []
+    is_object: list[bool] = []
+    inside = False
+    escaped = False
+    literal = ""
+    pending = ""
+    have_pending = False
+    for character in text:
+        if inside:
+            literal = literal + character
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                inside = False
+                pending = literal
+                have_pending = True
+            continue
+        if character == '"':
+            inside = True
+            literal = '"'
+            have_pending = False
+            continue
+        if character == "{":
+            seen = seen + [{}]
+            is_object = is_object + [True]
+            have_pending = False
+            continue
+        if character == "[":
+            seen = seen + [{}]
+            is_object = is_object + [False]
+            have_pending = False
+            continue
+        if character == "}" or character == "]":
+            if seen:
+                seen = seen[:-1]
+                is_object = is_object[:-1]
+            have_pending = False
+            continue
+        if character == ":":
+            if have_pending and is_object and is_object[-1]:
+                key = _parsed(pending, shown)
+                if isinstance(key, str):
+                    here = seen[-1]
+                    if key in here:
+                        raise errors.ProfileError(
+                            errors.answers_names_one_key_twice(shown, key)
+                        )
+                    here[key] = 1
+            have_pending = False
+            continue
+        if character == " " or character == "\t":
+            continue
+        if character == "\n" or character == "\r":
+            continue
+        have_pending = False
+
+
 def load_answers(raw_path: str) -> "dict[str, object]":
     """Read one questions file, or refuse it (amendment A-P4-58).
 
@@ -8945,7 +9040,12 @@ def load_answers(raw_path: str) -> "dict[str, object]":
         ) from error
     try:
         _scanned(text, shown)
-        return _answers_mapping(_parsed(text, shown), shown)
+        document = _answers_mapping(_parsed(text, shown), shown)
+        # AFTER the parse, so the key literals are known to be
+        # well-formed and can be read with the same parser (review item
+        # L17b-R1-2).
+        _no_duplicate_keys(text, shown)
+        return document
     except MemoryError as error:
         raise errors.ProfileError(
             errors.profile_out_of_memory(shown)

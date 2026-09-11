@@ -920,16 +920,32 @@ def _entry_answer(
     written = parsing.trimmed(given)
     if not written:
         return None
+    # A MALFORMED CHOICE LIST MAY NOT TURN THE CHECK OFF (review item
+    # L17b-R1-5). This gathered what it could and handed back whatever
+    # it found, and the caller checked membership only when the tuple
+    # was non-empty -- so an entry whose `answers_you_can_give` was a
+    # mapping, or an empty list, or a list of the wrong shape, accepted
+    # ANY word as an answer. A question that offers nothing cannot be
+    # answered, and the person is told that rather than obeyed.
     offered: list[str] = []
-    if "answers_you_can_give" in entry:
-        choices = entry["answers_you_can_give"]
-        if isinstance(choices, list):
-            for choice in choices:
-                if not isinstance(choice, dict) or "answer" not in choice:
-                    continue
-                one = choice["answer"]
-                if isinstance(one, str) and one:
-                    offered += [one]
+    if "answers_you_can_give" not in entry:
+        raise ValueError(errors.answers_entry_offers_nothing(place, name))
+    choices = entry["answers_you_can_give"]
+    if not isinstance(choices, list):
+        raise ValueError(errors.answers_entry_offers_nothing(place, name))
+    for choice in choices:
+        if not isinstance(choice, dict) or "answer" not in choice:
+            raise ValueError(
+                errors.answers_entry_offers_nothing(place, name)
+            )
+        one = choice["answer"]
+        if not isinstance(one, str) or not one:
+            raise ValueError(
+                errors.answers_entry_offers_nothing(place, name)
+            )
+        offered += [one]
+    if not offered:
+        raise ValueError(errors.answers_entry_offers_nothing(place, name))
     return name, written, tuple(offered)
 
 
@@ -1004,7 +1020,11 @@ def answers_in(document: object, shown: str) -> Answers:
         if read is None:
             continue
         name, written, offered = read
-        if offered and written not in offered:
+        # UNCONDITIONALLY (review item L17b-R1-5). `_entry_answer`
+        # refuses an entry that offers nothing, so `offered` is a
+        # non-empty tuple by the time it arrives here and this check
+        # can no longer be skipped by editing the choices away.
+        if written not in offered:
             raise ValueError(
                 errors.answers_answer_is_not_offered(
                     shown, name, written, list(offered)
@@ -1017,6 +1037,9 @@ def answers_in(document: object, shown: str) -> Answers:
         elif written == ANSWER_MEASUREMENT or written == ANSWER_JOINED:
             measurements += [name]
         elif written != ANSWER_KEEP:
+            # Offered by the file but not a word this module acts on,
+            # which a questions file synthtwin wrote cannot contain and
+            # an edited one can.
             raise ValueError(
                 errors.answers_answer_is_not_offered(
                     shown, name, written, list(offered)
