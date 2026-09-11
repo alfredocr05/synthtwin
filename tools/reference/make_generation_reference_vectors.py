@@ -6982,13 +6982,25 @@ def _affixed_brackets():
         # what to run if they are codes instead. The oracle discovered
         # this by being refused, which is the argument residual
         # R-P4-17 makes.
+        # IT NAMES `--code` FIRST (residual R-P4-72, landing L19). The
+        # sentence named `--identifier` alone, which is the OPPOSITE
+        # declaration: a person told "if these are codes, run with
+        # --identifier", doing exactly as they were told, published no
+        # value of the column at all. The oracle is written from the
+        # contract, so this text follows contract NF35 and is the
+        # reason that clause and this line move in one commit.
         remarks=[
             "12 of this column's values are written as '[', a number, "
             "then ']', and synthtwin described those numbers as "
             "quantities: their average, their spread and their ends "
             "are in this profile. If these are codes rather than "
-            "measurements, run the command again with --identifier and "
-            "no value of this column will be published at all"
+            "measurements, run the command again with --code NAME, "
+            "where NAME is this column's name, and no average will be "
+            "published over them; each code a smallest-group's worth "
+            "of rows share is kept exactly as written, with the number "
+            "of rows that carried it. If instead they are record "
+            "numbers nothing should publish, --identifier NAME leaves "
+            "them out of the profile altogether"
         ],
         **moments,
     )

@@ -769,8 +769,15 @@ AFFIXED_REMARK_PARTS = (
     "and synthtwin described those numbers as quantities: their "
     "average, their spread and their ends are in this profile.",
     AFFIXED_REMARK_MARK,
-    "run the command again with --identifier and no value of this "
-    "column will be published at all",
+    # IT NAMES `--code` FIRST (residual R-P4-72, landing L19). The
+    # fragment read "--identifier and no value of this column will be
+    # published at all", which is the OPPOSITE declaration from the one
+    # a person with a code column wants: `--code` keeps every code with
+    # the rows that carried it and `--identifier` publishes none of
+    # them. Both are still named, in the order that answers the
+    # sentence's own question first.
+    "run the command again with --code NAME",
+    "--identifier NAME leaves them out of the profile altogether",
 )
 
 # The one form of the six the fraction census is taken over, named here
@@ -4592,14 +4599,14 @@ def _is_the_affixed_remark(
         "average, their spread and their ends are in this profile.",
     )
     third = _where(remark, "If these are codes rather than measurements")
-    fourth = _where(
+    fourth = _where(remark, "run the command again with --code NAME")
+    fifth = _where(
         remark,
-        "run the command again with --identifier and no value of this "
-        "column will be published at all",
+        "--identifier NAME leaves them out of the profile altogether",
     )
-    if first < 0 or second < 0 or third < 0 or fourth < 0:
+    if first < 0 or second < 0 or third < 0 or fourth < 0 or fifth < 0:
         return False
-    return first < second < third < fourth
+    return first < second < third < fourth < fifth
 
 
 def _role_keys(role: str) -> "tuple[str, ...]":

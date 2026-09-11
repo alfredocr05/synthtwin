@@ -290,8 +290,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED 2026-09-10 for landing L19, residual R-P4-72, and ONE
+# STRING OF ONE COLUMN moved -- the same string, for the same reason,
+# as the golden description in `tests/test_twin_golden.py`. The affixed
+# column's remark (contract NF35) said "if these are codes rather than
+# measurements, run the command again with --identifier and no value of
+# this column will be published at all", which is the declaration that
+# publishes NOTHING; `--code` is the one that keeps every code with the
+# rows that carried it. It names `--code` first now. No count,
+# statistic, label, role, spelling or cell of any column changed.
 GOLDEN_SHA256 = (
-    "6907f320817040d3ff57fdaf36ce0f63e47d9f830d45f415484cd77b3986ab22"
+    "ddcedf3207a45b3fba0e15ef19cbf268a5a75845070c6f036887090f292f939f"
 )
 
 

@@ -6,6 +6,54 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: the twin's report told you your 'no value' spelling stayed behind
+
+- **It did not.** For every column with an empty cell, the report said
+  "the twin writes every one of them as an empty cell, so how your
+  table wrote them is here rather than in the twin", and the heading
+  above listed those spellings among the things "no twin can carry".
+  Both were true once. They stopped being true when the twin started
+  writing your own `NA`, `-9.99` or `Not recorded` into its cells at
+  the published count -- and the sentences did not move with it.
+  Measured on four twins: a declared `-9.99` column came out with 0
+  blank cells and 20 wearing `-9.99`, and printed the sentence anyway.
+
+- **Now it says which, spelling by spelling.** Each published spelling
+  carries its own mark -- `-9.99: 20 cell(s) -- the twin writes this
+  spelling in all of them`, or `the twin leaves these cells empty` --
+  and the paragraph above says how many of the cells travel and what
+  that buys you: code that filters on your own word for "no value" does
+  the same thing on the twin as on your table. This matters for where
+  the files may go, because the twin is carrying that word out of the
+  run with it.
+
+### Fixed: one number is no longer both 'not met' and 'inside its range'
+
+- **The same page said both.** A column's `n_distinct` appeared among
+  the facts the twin could not meet and, a few lines later, among the
+  approximate facts with "inside the range" beside it. A fact that
+  lands inside the range the method promises is a fact the twin held,
+  so it is not listed as missed any more. It is still printed, with
+  the published value, the achieved value and both ends of the bound.
+
+- **And a fact whose range does not cover the published value is still
+  listed.** Not every range is a margin around the number printed
+  beside it: one column of the demonstration table publishes 84
+  different values, its twin holds 224, and the range runs 106 to 240.
+  The twin landed where the method said it would and nowhere near your
+  table, so that stays in the list of facts it could not meet.
+
+### Fixed: the advice for a column of codes wearing a unit named the wrong option
+
+- **It said `--identifier` where it meant `--code`.** A column of
+  values like `12 mg` carries a note saying synthtwin described the
+  numbers as quantities, and offering a way out if they are really
+  codes. It named `--identifier`, which publishes no value of the
+  column at all -- so following it exactly threw away the distribution
+  of codes you were trying to keep. It names `--code` first now, with
+  what that publishes, and `--identifier` after it for a column that
+  really is a record number.
+
 ### Added: the questions come back in a file you can fill in
 
 - **Every `synthtwin profile` run now writes a third file beside your
