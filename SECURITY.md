@@ -572,6 +572,79 @@ Stated here so that no reader has to discover them independently:
   although neither alone did; version 5 counts each on its own, so it
   names fewer groups there. Every page a person reads prints the same
   characters it printed before.
+- **Version 6 describes HOW each column is written, not only what it
+  holds** (Phase 4; contract 6 section 12.2, which is the authority
+  this entry summarizes). Version 5's entries above stop at the reading
+  of a cell. Version 6 adds shape. Each family is priced separately
+  because they are not alike:
+
+  * **Censuses of WRITTEN FORM** — `shape_forms` on the label roles and
+    on `free_text`, the style census, the fraction-width census, the
+    padded-field-width census and the whole-number field-width census
+    on the ranges roles. **What they add:** how many cells were written
+    each way — five characters wide, two decimal places, a leading
+    zero. Every key of a form census is built only from `%`, `@` and
+    the fixed mark list `parsing.SHAPE_MARKS`, whose members are
+    characters no cell that HAS a form may contain, so **a key can
+    carry no letter and no figure of any cell**. The list is named
+    rather than counted here, because a count restated on a second
+    surface is a count that goes stale there. All of them are
+    floor-governed with a `(withheld)` pool.
+  * **`shape_form_cells`** — for a PUBLISHED label, how many of its
+    rows wrote it in that label's own shape. It names no spelling and
+    no form key, and it is **not** floor-governed, because it counts
+    the rows of a label the floor has already admitted. What a reader
+    can take from it is which held-back group of that level was written
+    in the label's shape: presence and shape attached to an unnamed
+    group. That is a widening of the three held-back facts beside it,
+    and it is the owner's ruling of 2026-08-31 (plan amendment
+    A-P4-47), on the ground that a code's shape identifies nobody while
+    category columns are what analysis code is written against.
+  * **The empty stretches of a numeric range** — `empty_bins` and
+    `empty_edges`. **What they add:** where the column has NO value.
+    `empty_bins` is the one published fact of this format that names
+    only where nobody is; `empty_edges` names the two values a stretch
+    lies between and no group at all. Neither is under any floor, and
+    the contract prices both in its own rows 20 and 21.
+  * **More of the distribution** — `value_histogram`, `mode` and
+    `mode_count`, `percentiles_between`, `n_distinct_values`, and on
+    `numeric_unrepresentable` the two length bounds. **What they add:**
+    a mode is an exact value of real cells, as the endpoints already
+    were; the rest are counts and interpolated positions. A NUMERIC
+    ladder's nine interior rungs are interpolated between the order
+    statistics either side and are usually numbers no cell holds; the
+    two ENDPOINTS are exact values of real cells, as they were in every
+    earlier version.
+  * **The roles Phase 4 added carry their own shape** — the affix pair
+    on `affixed_number` (floor-governed by its own detection rule), and
+    on `joined_numbers` the separator, the part and split counts, each
+    position's written-width bounds and the two pairing aggregates. The
+    aggregates are floor-free: they are computed over every row and
+    name no cell. The affix pair and the separator are TEXT OF THE
+    TABLE and are governed by their roles' detection rules, which is
+    stated here rather than left in the contract because they are the
+    two places version 6 publishes a spelling version 5 did not.
+
+  **What none of it changes:** no cell of a nothing-publishing column
+  is published, the floor still governs every named spelling except
+  where this entry says otherwise, and the description still carries no
+  fact that crosses two columns. The authority is contract 6 section
+  12, which prices every row of the inventory; this entry exists so
+  that an institution reading THIS document is not told less than the
+  contract says.
+
+- **A sixth file: the questions file** (plan amendment A-P4-58). Every
+  `synthtwin profile` run writes `<table>-questions.json` beside the
+  description. **What it carries:** the names of columns whose reading
+  the values cannot settle, a count of their cells, and a description
+  of the SHAPE of what they hold — how many figures, how many padded,
+  what separates two numbers. **It carries no value of the table**,
+  which is a narrower promise than being anonymous and is stated at
+  that width. It is written on every run rather than only where a
+  column was ambiguous, so the handling rule that names the files a run
+  leaves behind needs no conditional form. Like the other five, it is
+  real-derived material and travels under the same rules.
+
 - **OS-transparent network mounts.** If the operating system presents a
   network share as an ordinary local path, no portable program can
   detect that. Mount configuration is part of your environment, not

@@ -3516,7 +3516,8 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   It was ruled on the same day: amendment A-P4-47 rules the fact IN,
   and the paragraph above records what closed the residual.
 
-- **R-P4-90 — OPEN (opened 2026-08-31 while closing R-P4-34).**
+- **R-P4-90 — CLOSED 2026-09-10 by landing L22** (opened 2026-08-31
+  while closing R-P4-34).**
   SECURITY.md'S DISCLOSURE RECORD STOPS AT VERSION 5, AND EVERY FACT
   VERSION 6 ADDED IS ABSENT FROM IT.
 
@@ -3535,10 +3536,24 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   institution what travels understates what travels, and by omission
   rather than by a wrong sentence, which is the harder kind to notice.
 
-  NOT fixed by this landing on purpose: writing one honest entry per
-  fact means reviewing every Phase 4 addition against the delta
-  SECURITY.md's existing entries state, which is a landing of its own
-  and not a paragraph appended to somebody else's.
+  **CLOSED: SECURITY.md now carries a version-6 entry, written against
+  contract section 12.2 rather than from memory, and priced by FAMILY
+  rather than key by key.** Five families, because they are not alike
+  and one price for all of them would be a wrong price for most: the
+  censuses of written form (floor-governed, and every key built from
+  marks no cell that has a form may contain, so no key carries a letter
+  or a figure); `shape_form_cells` (NOT floor-governed, and the entry
+  says why and whose ruling it is); the empty stretches `empty_bins`
+  and `empty_edges` (under no floor at all, and the one published fact
+  of this format that names only where nobody is); the distribution
+  additions; and the two roles Phase 4 added, whose affix pair and
+  separator are TEXT OF THE TABLE — the two places version 6 publishes
+  a spelling version 5 did not, which is stated here rather than left
+  in the contract. A sixth entry records the questions file.
+
+  The entry names contract section 12 as the authority and says in as
+  many words why it exists: so that an institution reading SECURITY.md
+  is not told less than the contract says.
 
 - **R-P4-91 — OPEN (opened 2026-08-31 while closing R-P4-34).** THE
   LABEL'S OWN SPELLING IS AIMED AT A GROUP THAT MAY NOT BE ABLE TO

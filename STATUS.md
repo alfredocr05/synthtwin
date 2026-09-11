@@ -65,9 +65,11 @@ you a file was fine when it held almost none of its published facts.
 Later ones found a message telling you the description does not keep
 words that it does keep. Every one of those is fixed.
 
-Late in the phase the profile format moved from version 4 to **version 5**,
-so the description now records *how each cell was read* — which word you
-called "missing", which you rescued as real data. That was done now
+Late in the phase the profile format moved from version 4 to **version
+5**, and during Phase 4 to **version 6**, so the description now records
+*how each cell was read* — which word you called "missing", which you
+rescued as real data, how a date whose day and month are both numbers
+was read, and the shape of the writing in each column. That is done now
 because Phase 5 needs it anyway, and changing the format costs nothing
 while nobody outside has the tool.
 
@@ -75,7 +77,7 @@ while nobody outside has the tool.
 
 ## What you have today
 
-Three commands, and a full run leaves **five files**.
+Three commands, and a full run leaves **six files**.
 
 ```
 synthtwin profile   my-table.csv           # writes the description
@@ -87,12 +89,13 @@ synthtwin validate  my-table-profile.json  # writes the quality report
 |---|---|
 | `my-table-profile.json` | the description — the only thing the generator reads |
 | `my-table-profile.txt` | the same description in plain language |
+| `my-table-questions.json` | the columns synthtwin could read more than one way, and the answers you can give. Fill it in and hand it back with `--answers` |
 | `my-table-twin.csv` | **the synthetic twin — the file you develop against** |
 | `my-table-twin-report.txt` | what the twin holds exactly, approximately, and not at all |
 | `my-table-twin-quality.txt` | the checker's report on a file you name |
 
-**All five carry facts computed from your real data.** Your institution's
-rules for real-derived material apply to all five, not to the twin alone.
+**All six carry facts computed from your real data.** Your institution's
+rules for real-derived material apply to all six, not to the twin alone.
 
 ---
 
@@ -116,7 +119,15 @@ Useful options:
 - `--seed 7` — same description and seed always give the same twin
 - `--missing-value -999` — "in my table, `-999` means missing"
 - `--keep-value -999` — "no, `-999` is real data here"
-- `--identifier record_id` — "this column is a code, not a measurement"
+- `--code procedure_code` — "this column is a coding system": every code
+  is kept exactly as written, with how many rows carried it, and no
+  average is published over it
+- `--identifier record_id` — "this column is a record number": nothing
+  of it is published at all
+- `--answers my-table-questions.json` — the questions file from an
+  earlier run, with your answers written in. Each answer becomes the
+  declaration it stands for, so you can settle a whole table's columns
+  by editing one file instead of remembering flags
 - `--smallest-group 11` — the privacy floor; groups smaller than this are
   not named in the description
 
@@ -211,26 +222,36 @@ it is a release that closes it.
 
 ---
 
-## What Phase 4 has built so far
+## What Phase 4 has built
 
-The twin now **tells you which of its cells synthtwin made up**. Before
-this, a column synthtwin could not read became free text, the twin
-filled it with invented characters, and nothing on any surface said so
-unless one of those cells happened to start with a spreadsheet formula
-character.
+**More kinds of column are read correctly, and the ones that cannot be
+are said out loud rather than guessed at.**
 
-Now every affected column says it in its own block of the twin's
-report, once, whatever the cells look like: a column whose description
-publishes no value of it says every present value is invented; a column
-of categories says how many of its cells stand in for labels the
-smallest-group floor held back; a numeric or date column says how many
-cells are counted stand-ins. The generate command prints the count on
-screen, the report repeats it at the foot, and the description's own
-summary warns you before you generate anything.
+- **The column types a real table actually holds.** Numbers wearing a
+  unit or a currency mark (`165.1 mg`, `$1,200`), two numbers in one
+  cell (`120/80`), clock times, dates written the European way — with
+  dots, with a two-figure year, day before month — and long tails of
+  labels where a handful repeat and the rest do not.
+- **Your own word for "no value" reaches the twin.** If your table
+  writes `NA`, `-999` or `Not recorded`, the twin writes it too, at the
+  same count. Code that filters on that word does the same thing on
+  both tables.
+- **Leading zeros survive.** A column of `00100` comes back five
+  characters wide, so a length check or a fixed-width slice runs on the
+  twin as it will on your table.
+- **The twin tells you which of its cells synthtwin made up**, per
+  column, once, whatever the cells look like — and the generate command
+  prints the count on screen before you use anything.
+- **And where the values cannot settle what a column IS, synthtwin
+  asks.** A column of figures might be a coding system or a set of
+  measurements, and nothing in the values can tell them apart. Every
+  run writes a questions file naming those columns and what was seen in
+  each; you fill in the answers and hand it back with `--answers`. It
+  carries no value of your table.
 
-The rest of Phase 4 — the new column types, the long-tail categories,
-the missing-value reproduction — is planned and ratified but not
-built.
+What is NOT built is Phase 5: anything that crosses two columns. The
+twin reproduces what the description publishes about each column **on
+its own**, and nothing about how two of them move together.
 
 ---
 

@@ -6,6 +6,42 @@ exists).
 
 ## [Unreleased]
 
+### Changed: the documents say what is true today
+
+- **`docs/STATE.md` is one page again.** It is the file a person or an
+  assistant reads first to find out where the project stands, and it
+  had reached 3,814 lines by gaining a section per landing --
+  narrative that belongs in this changelog. At that size nobody read
+  it, so every session measured the project from scratch, which is the
+  exact failure the page exists to prevent. It is 223 lines now, and it
+  carries a rule of its own: **a landing adds nothing to that page
+  except by changing a fact already stated there.**
+
+- **Three facts on it had gone stale and are corrected.** It said
+  review ran up to five rounds with a model that is no longer used; it
+  said ten lint errors stood after the commit that repaired them; and
+  it stated its own length as "~200 lines" while running to thousands.
+  Each was a fact written in more than one place with one copy updated,
+  which is now stated as the page's own rule: state a fact where it is
+  measured and point at it from everywhere else.
+
+- **`SECURITY.md` records what profile version 6 publishes.** That
+  document tells an institution, version by version, what a description
+  carries off the machine, and its entries stopped at version 5 --
+  understating what travels, by omission rather than by a wrong
+  sentence. Version 6's additions are now written out and priced by
+  family: the censuses of written form, the per-label form count, the
+  empty stretches of a numeric range, the distribution additions, and
+  the two column types Phase 4 added whose affix pair and separator are
+  text of your table. The questions file has an entry of its own.
+
+- **`STATUS.md` describes the tool that exists.** It said the new
+  column types, the long-tail categories and the missing-value
+  reproduction were "planned and ratified but not built"; all of them
+  are built. It now lists what Phase 4 actually gives you, names the
+  sixth file, and documents `--code` and `--answers` beside the other
+  options.
+
 ### Fixed: the twin's report told you your 'no value' spelling stayed behind
 
 - **It did not.** For every column with an empty cell, the report said
