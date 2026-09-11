@@ -1,10 +1,12 @@
 # Phase 5 — relationships: what the twin carries across two columns
 
-**Status:** revision 1, 2026-09-11 — **DRAFT, not ratified, not
-reviewed.** It is written the day Phase 4 closed and is the first
-artifact of Phase 5. Nothing may be built from it until it has been
-through adversarial plan review and the owner has taken the decisions
-of P5-D0 below. The phase process is not suspended for it.
+**Status:** revision 2, 2026-09-11 — **DRAFT, not ratified.** Revision
+1 was written the day Phase 4 closed; revision 2 records the owner's
+ruling on P5-D0.2 (**DECLARED**, taken 2026-09-11) and takes the other
+three decisions at this plan's own recommendation, each marked
+reversible and each naming what would overturn it. Nothing may be built
+from it until it has been through adversarial plan review. The phase
+process is not suspended for it.
 
 **Charter (CLAUDE.md):** cross-column structure and the quality report
 at full strength. This is the phase the twin's one-column-wide bound
@@ -116,31 +118,57 @@ correlation weakens a result.
 
 ---
 
-## 2. Owner decisions this plan waits on (P5-D0)
+## 2. Owner decisions (P5-D0)
 
 None of these is an implementation detail; each changes what the tool
-does to a person's data, and the phase does not start until they are
-taken.
+does to a person's data.
 
-1. **The three slots and their order** (section 1). Overturning it is
-   the owner's, and correlation-first is the obvious alternative.
-2. **Whether a relationship is DECLARED, DETECTED, or both.** Detection
-   means synthtwin decides from the values that `ended_on ≥ started_on`
-   always holds and writes it down. That is a guess of exactly the kind
-   review item P1-R6-F7 deleted for columns — and the standing owner
-   position is "it's better to ask the user than make wrong guesses".
-   The questions file built in Phase 4 is the obvious place to ask.
-   **The plan's recommendation: DECLARED first, with detection offered
-   as a proposal in the questions file and never applied unanswered.**
-3. **What a relationship costs in disclosure.** A published constraint
-   is a fact about the real table: "the end date is never before
-   the start date" says something true of every row. Section 4 prices it and
-   the owner rules on it before any slot is filled.
-4. **Whether the twin may FAIL to meet a declared relationship**, and
-   what it says when it does. A constraint and a per-column
-   distribution can be jointly unsatisfiable; the plan's position is
-   that the per-column facts win and the report says the constraint was
-   not met, never the reverse in silence.
+**P5-D0.2 — DECLARED. Taken by the owner on 2026-09-11.** A
+relationship reaches a description because a person said so, and by no
+other route. **Synthtwin never decides from the values that
+`ended_on ≥ started_on` always holds.** That would be a guess of
+exactly the kind review item P1-R6-F7 deleted for columns, and the
+failure mode is not hypothetical: a constraint that holds in three
+hundred rows by chance becomes a constraint the twin enforces for ever,
+and a person who never asked for it cannot see that it was applied.
+
+*One half of this is the assistant's reading and is flagged as such*:
+the owner answered the word "declared", and the plan takes that to
+permit synthtwin PROPOSING a candidate in the questions file, because a
+proposal is asking rather than guessing and the owner's standing
+position is "it's better to ask the user than make wrong guesses" and
+"we can make question to the user everytime we need to". **A proposal
+is never applied unanswered.** If the owner meant that synthtwin should
+not even propose, this paragraph is the one to strike and section 3.5
+loses its second half.
+
+**The other three are TAKEN AT THE PLAN'S RECOMMENDATION and are
+reversible.** They are written as decisions rather than questions so
+the phase can move; each names what would overturn it.
+
+1. **The three slots and their order** — `temporal`, then
+   `deterministic`, then `grain` (section 1). Taken on the measurement
+   of section 0. **Overturned by**: the owner preferring correlation
+   first, which is the obvious alternative and which section 1 argues
+   against in terms that can be disagreed with.
+2. *(taken by the owner, above)*
+3. **What a relationship costs in disclosure** — a published constraint
+   is a fact about the real table and joins the disclosure inventory
+   with its own row and its own price (section 4). Taken on the owner's
+   standing position, answered the same way three times in Phase 4:
+   a fact that identifies nobody and names no value is worth the
+   fidelity it buys. A constraint names no cell, no value and no group.
+   **Overturned by**: an institution that treats "this never happens in
+   my data" as disclosive.
+4. **The twin MAY fail to meet a declared relationship, and says so.**
+   A constraint and a per-column distribution can be jointly
+   unsatisfiable. **The per-column facts win**, the twin's report names
+   the constraint and counts the rows that violate it, and the quality
+   report does the same. The reverse — bending a published distribution
+   to satisfy a constraint, silently — is refused. **Overturned by**:
+   the owner preferring the constraint to win, which would mean a twin
+   whose published counts are wrong in a way the report would then have
+   to name instead.
 
 ---
 
@@ -162,6 +190,73 @@ fortnight.
 | L29 | **`grain`** | the description says what one row is; the twin's rows group the way the real table's do |
 | L30 | **the quality report** | `validate` checks the filled slots, with red cases, and says plainly which cross-column facts it cannot check |
 | L31 | **the record and the close** | CHANGELOG, STATE, SECURITY's version-7 disclosure entry, the closure section |
+
+---
+
+## 3.5 How a relationship is declared, since it is only ever declared
+
+**Two routes, and they are the two Phase 4 already built for columns.**
+Nothing new is invented here; a relationship is declared the way a code
+column is declared, because a person who has learnt one has learnt the
+other.
+
+**Route 1 — on the command line.** One option per slot, named for what
+a person would say out loud rather than for the slot:
+
+```
+synthtwin profile visits.csv --in-order started_on,ended_on
+synthtwin profile sales.csv  --derived "total = units * rate"
+synthtwin profile visits.csv --one-row-per subject_id
+```
+
+* `--in-order A,B` — B is never before A, in any row. Repeatable.
+* `--derived "C = A <op> B"` — C is computed from A and B, with a
+  closed set of operators fixed by the contract and no expression
+  language. **An expression language is refused outright**: it is the
+  dynamic-code seam principle 3 forbids, and a grammar a person can
+  write is a grammar synthtwin has to evaluate.
+* `--one-row-per COLUMN` — the grain: one row of this table is one of
+  whatever that column identifies.
+
+**Route 2 — in the questions file, which the person fills in.** The
+file Phase 4 ships already names the columns synthtwin could not
+settle. It gains a section for relationships it can PROPOSE:
+
+* two date columns where one is never before the other **in the real
+  table** — proposed, with the count of rows the observation rests on;
+* a numeric column whose values equal a closed-set operation on two
+  others in every row — proposed, with the operator named;
+* a declared identifier column whose repeats make the table look like
+  several rows per subject — proposed as a grain.
+
+**A proposal is a QUESTION and never an answer.** It is written into
+the file with `your_answer` blank, exactly as a column question is, and
+`--answers` turns a filled-in answer into the declaration. An
+unanswered proposal changes nothing: the slot stays `null` and the twin
+is built as it is today. That is what P5-D0.2 rules and it is the whole
+difference between this and detection.
+
+**What the proposal may show, and may not.** It may name the two
+columns, the operator, and HOW MANY rows the observation covers —
+counts and column names, which every question already carries. It may
+NOT show a cell. A proposal that printed "rows 4, 19 and 200 break
+this" would be publishing the person's data into a file whose one
+promise is that it carries none.
+
+**Three refusals, stated now so they are not discovered later.**
+
+1. **A declaration naming a column that is not in the table** stops the
+   run before anything is written, exactly as `--code` does.
+2. **A declaration the real table does not satisfy** stops the run and
+   says how many rows break it. A person who declares
+   `--in-order started_on,ended_on` on a table where forty rows run the
+   other way has told synthtwin something false about their data, and
+   describing it under that constraint would publish a fact that is not
+   true. It is a refusal, not a warning: the description is the thing
+   every later file is built from.
+3. **A declaration whose columns are not both readable** — a date
+   constraint on a free-text column, a formula on a column of labels —
+   stops the run and names the role each column actually took.
 
 ---
 
