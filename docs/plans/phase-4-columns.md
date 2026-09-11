@@ -10016,11 +10016,34 @@ carried by name". An entry carried by name is not an entry closed.
 | 7 | the reproduction rule exactly as stated | **MET, and its report sentence was FALSE until landing L19** (R-P4-70): the twin reproduced each published spelling at its count, and the twin's own report told the reader it had not. The rule held; the page describing it did not. Both hold now. |
 | 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. |
 | 9 | the version-refusal messages exact-shape tested, naming and pricing every publication-changing option | **MET**, and widened twice during the close: `--code` at landing L16, `--answers` at L17b. Contract R11's clause and the shipped message are held equal word for word by two tests. |
-| 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET on this machine at every landing of the close.** `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal are clean, and the suite is green. **CI has NOT run on the close's commits**, which is stated rather than implied: the last CI evidence recorded in this plan predates landing L16. |
+| 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET.** Every scanner, the seal and the suite are clean on this machine at every landing of the close, and **CI is green on every cell of the matrix at the closing commit — Windows included.** The first writing of this row said CI had not run, which was FALSE and is corrected here rather than quietly: CI had run on pull request 5 throughout the close and was FAILING on every Windows cell of the three runs before this one. See the note below. |
 
 **Eight of ten met, one met on a rule whose report was false until it
 was repaired in this phase, and one unmet and named.** That is the
 phase's own account of itself.
+
+**AND THE CLOSE'S OWN LAST DEFECT WAS FOUND BY CI, AFTER THIS SECTION
+FIRST CLAIMED CI HAD NOT RUN.** It had. Every Windows cell of the three
+runs before the closing commit failed on one test —
+`test_the_questions_file_may_not_land_on_the_table`, written at landing
+L17b against review item L17b-R1-1. The PRODUCT was right on both
+platforms and **Windows was the stronger of the two**:
+`validate_local_path` refuses a symbolic link outright there, because a
+link can quietly lead to a network location, so the run stops at the
+path gate and writes nothing at all; on POSIX no such lexical rule
+exists and the collision guard L17b-R1-1 added is what catches it,
+after the description and its summary are written. The test asserted
+the POSIX outcome on every platform. It asserts the INVARIANT on both
+now — the table is untouched and the link is never followed — and the
+platform's own outcome per platform.
+
+Two lessons are recorded rather than left implicit. **A fact about
+another machine may not be written from memory**: this row asserted the
+state of a system nobody had asked, and the truthful version was one
+command away. And **a cross-platform difference in a REFUSAL is as
+real as one in a value** — plan D12 says a difference appearing on one
+platform only is release-blocking, and this one was found by the
+matrix and not by the author.
 
 ### What is carried to Phase 5, by name
 
