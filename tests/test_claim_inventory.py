@@ -777,9 +777,15 @@ COMMAND_BEARING = (
 # Where the phase state is stated, and the exact sentence each states
 # it in. One sentence per surface, so the ban on parenthesized currency
 # markers above leaves exactly one place per file that can be stale.
+# MOVED 2026-09-11 WHEN PHASE 4 CLOSED. The pairing is the point: the
+# sentence in the file and the expected wording here change in one
+# commit, so a phase that advances cannot leave one surface behind.
+# `CLAUDE.md` names the phase that is RUNNING, which is now 5;
+# `README.md` names where a reader stands, which is a closed Phase 4
+# with Phase 5 not started.
 PHASE_STATEMENTS = (
-    ("CLAUDE.md", "the current phase is phase 4"),
-    ("README.md", "status: early (phase 4"),
+    ("CLAUDE.md", "the current phase is phase 5"),
+    ("README.md", "status: early (phase 4 closed; phase 5 next)"),
 )
 
 # Where the dependency count is stated, and what it must name. The

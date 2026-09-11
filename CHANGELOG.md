@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### Phase 4 is closed (2026-09-11)
+
+**Every column type a real table holds is read, or declined with an
+explanation you can act on.** Fourteen column roles instead of six:
+numbers wearing a unit or a currency mark, two numbers in one cell,
+clock times, dates written with dots or a two-figure year or day
+first, and long tails of labels where a handful repeat and the rest do
+not. Your own word for "no value" reaches the twin at its count.
+Leading zeros survive at their field width. The twin says which of its
+cells synthtwin made up. And where the values cannot settle what a
+column IS, synthtwin asks you in a file instead of guessing.
+
+**What closing does NOT mean.** Sixty-six entries of the phase's own
+register are **carried to Phase 5 by name rather than built**, grouped
+in the plan's closure section by what a reader would do about them.
+Eight of the ten acceptance criteria are met; one is met on a rule
+whose own report was false until this phase repaired it; and **one is
+unmet and named** — the reference vectors for two generation branches
+were not written, so those branches are pinned by tests rather than by
+a frozen case with a mutant.
+
+**And closing is an owner decision, not a review verdict.** Nothing in
+this repository describes Phase 4 as review-ratified.
+
+**Phase 5 is next, and it is the one that matters most for
+statistics:** the twin still carries no structure that crosses two
+columns — no correlation, no formula between two columns, no shared
+pattern of empty cells, no ordering between two event dates.
+
 ### Changed: the documents say what is true today
 
 - **`docs/STATE.md` is one page again.** It is the file a person or an

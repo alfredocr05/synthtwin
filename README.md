@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 4).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 4 closed; Phase 5 next).** synthtwin is **not on PyPI**. What
 > exists today is the whole workflow -- the profiler, which reads a CSV
 > table on your computer and describes it; the generator, which builds
 > the synthetic twin from that description and nothing else; and the

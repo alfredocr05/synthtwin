@@ -30,8 +30,8 @@ run the finished code on the real table, inside your safe environment.
 | **1** | the profiler — read a table, write the description | **done** |
 | **2** | the generator — build the twin from the description alone | **done** |
 | **3** | the whole product through one command, plus the checker | **product done; closed 2026-08-19 without its release** |
-| **4** | every column type, rare categories, missing-data patterns | **current** — the plan is ratified, the first piece is built |
-| **5** | relationships between columns | **not started — this is the one that matters most for statistics** |
+| **4** | every column type, rare categories, missing-data patterns | **closed 2026-09-11**, with sixty-six register entries carried to Phase 5 by name rather than built |
+| **5** | relationships between columns | **next — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
 | **7** | **a screen, so none of this needs a terminal** | not started |
 
