@@ -15,6 +15,13 @@ private planning documents may use the previous name.
 > on them, and what is broken right now. It moves in the same commit as
 > the work it describes, so a landing that leaves it untouched is not
 > finished.
+>
+> **And it stays ONE PAGE.** It reached 3,814 lines by gaining a
+> section per landing, and at that size no session read it — so every
+> session re-measured the project from scratch, which is the failure
+> the page exists to prevent. A landing adds nothing to it except by
+> changing a fact already stated there. What a landing DID belongs in
+> `CHANGELOG.md`; why it was allowed belongs in the phase plan.
 
 ## The goal
 
