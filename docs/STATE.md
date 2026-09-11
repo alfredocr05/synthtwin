@@ -30,7 +30,7 @@ where it is measured and point at it from everywhere else.
 
 | | |
 |---|---|
-| branch | `l14-affix-set` (never merged; `main` is pull-request only) |
+| branch | `phase-5-relationships`, cut from `main` after Phase 4 merged. `main` is pull-request only |
 | phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried by name. **Phase 5 — relationships — is CURRENT; its plan is drafted and NOT ratified.** |
 | plan | `docs/plans/phase-5-relationships.md` (revision 1, DRAFT, unreviewed). Phase 4's is `docs/plans/phase-4-columns.md` and its closure section is the register Phase 5 inherits |
 | suite | 4,457 collected; `4406 passed, 51 skipped in 1160.11s (0:19:20)` verbatim, fully green. Four new tests: `tests/test_p5r1_the_grain_clause_is_true.py` |
