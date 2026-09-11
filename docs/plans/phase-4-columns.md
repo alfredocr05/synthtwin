@@ -5871,6 +5871,31 @@ takes a slot outside every barred BIN instead.
   validating input against the current question's own choices while
   keeping the established key assignments.
 
+- **R-P4-169 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L19, item 3).** THE MISSING-SPELLING HEADING RESCANS THE DECLARATION
+  LIST PER COLUMN. `_any_spelling_travels` walks every column and calls
+  the split for each, and the split asks `_declared_a_decimal_comma`,
+  which walks `settings.forced_decimal_commas`. With every column
+  declared and none carrying a hole spelling, that is C(C+1)/2 name
+  comparisons -- 50,005,000 on ten thousand columns. The outer walk is
+  linear; its nested lookup is what makes this quadratic. Closing it
+  means resolving declaration membership once per report and reusing
+  the spelling splits, and skipping an empty spelling map before the
+  comma flag is resolved at all. It changes no sentence.
+
+- **R-P4-168 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L19, item 2; PRE-EXISTING).** AF-R ACCEPTS REVERSED ADVICE. The
+  invariant asks that fixed fragments appear in order; it does not read
+  what stands BETWEEN them. A remark whose command clause reads "do not
+  run the command again with --code NAME; that option deletes every
+  code", with every other fragment intact and in order, is accepted by
+  the full document validator -- a required warning carrying advice
+  that is the opposite of true. It is a weakness of the fragment
+  approach rather than of landing L19, which only moved which fragments
+  are asked for. Closing it means validating the complete permitted
+  sentence structure, including the text between fragments, around the
+  published count and the block's own affix pair.
+
 - **R-P4-167 — OPEN (opened 2026-09-10 by review round 1 of landing
   L17b, item 7).** THE HANDLING RULE'S PAYLOAD SENTENCE IS TRUE OF
   FIVE FILES AND LOOSE ABOUT THE SIXTH. `rendering.py` and
