@@ -34,6 +34,8 @@ import pathlib
 import random
 import tempfile
 
+import pytest
+
 import fixtures
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
@@ -326,3 +328,179 @@ def test_the_run_says_the_answered_file_is_written_again(
     assert "padded_code" not in [
         entry["column"] for entry in fresh["asked"]
     ], "and the successor no longer asks what was answered"
+
+
+# ---------------------------------------------------------------------
+# 3. what review round 1 of this landing found
+# ---------------------------------------------------------------------
+
+
+def test_the_questions_file_never_survives_a_terminal_answer(
+    tmp_path: pathlib.Path, capsys, monkeypatch
+) -> None:
+    """L17b-R1-3: the file is computed from the FINISHED description.
+
+    It was worked out before the interview and reused after it, so a
+    person who answered `code` at the terminal got a rebuilt
+    description holding labels and a questions file still asking about
+    that column under `read_as_now: measurement` -- a file naming a
+    reading the run did not take, which is the one thing it may never
+    do.
+    """
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    answers = iter([asking.ANSWER_CODE, "", ""])
+    monkeypatch.setattr(
+        cli, "_read_one_answer", lambda standing: next(answers)
+    )
+    assert _run(tmp_path) == 0
+    capsys.readouterr()
+    document = json.loads(
+        (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
+    )
+    assert document["settings"]["forced_codes"] == ["born"], (
+        "the first question is the first column in the table's order"
+    )
+    questions = json.loads(
+        (tmp_path / "clinic-questions.json").read_text(encoding="utf-8")
+    )
+    asked = [entry["column"] for entry in questions["asked"]]
+    listed = [entry["column"] for entry in questions["checklist"]["columns"]]
+    assert "born" not in asked and "born" not in listed, (
+        "the answered column is settled and may not be asked again"
+    )
+    for entry in questions["asked"]:
+        assert entry["read_as_now"] == asking.ANSWER_MEASUREMENT
+        assert _role_of(document, entry["column"]) in asking.NUMERIC_ROLES, (
+            "every reading the file names is the one the run took"
+        )
+
+
+def test_the_questions_file_may_not_land_on_the_table(
+    tmp_path: pathlib.Path, capsys
+) -> None:
+    """L17b-R1-1: the worst outcome this tool has.
+
+    On POSIX a link left at the questions file's name resolves to a
+    permitted local path, so the locality gate cannot catch it. The
+    pair above was guarded against the table and this write was not,
+    so a run could replace the person's own data with questions JSON.
+    """
+    table = _table(tmp_path, _columns())
+    link = tmp_path / "clinic-questions.json"
+    link.symlink_to(table)
+    before = table.read_bytes()
+    assert cli.main(["profile", f"{table}", "--replace"]) == 0, (
+        "the description is still written: a questions file nothing is "
+        "built from is a caution, not a failure of the run"
+    )
+    told = capsys.readouterr()
+    assert table.read_bytes() == before, "the table is untouched"
+    assert link.is_symlink(), "and the link was never followed"
+    assert "will not write its questions" in told.err
+    assert "table you asked synthtwin to describe" in told.err, (
+        "the message says WHICH file the name landed on"
+    )
+    # AND IT IS SAID BEFORE ANYTHING EXISTS. A run that announces
+    # "these three files will be written" and names the person's own
+    # table among them has said the frightening thing already.
+    assert "These two files will be written" in told.out
+    assert f"{table}" not in told.out.split("Written:")[0].split(
+        "will be written"
+    )[1], "the table is never announced as an output"
+
+
+def test_a_stop_during_the_questions_write_is_not_a_finished_run(
+    tmp_path: pathlib.Path, capsys, monkeypatch
+) -> None:
+    """L17b-R1-4: Ctrl-C was swallowed and became exit 0.
+
+    `except BaseException` caught the person stopping their own
+    command, printed a caution, and returned 0 -- telling them the run
+    had finished.
+    """
+    import synthtwin.writing as writing_module
+
+    def stopped(*arguments: object, **named: object) -> "list[str]":
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(writing_module, "write_one_file", stopped)
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["profile", f"{_table(tmp_path, _columns())}", "--replace"])
+    capsys.readouterr()
+
+
+def test_a_question_that_offers_nothing_is_refused(
+    tmp_path: pathlib.Path, capsys
+) -> None:
+    """L17b-R1-5: malformed choices turned the check off.
+
+    `offered` was gathered from whatever was there and the membership
+    test ran only when it came back non-empty -- so an entry whose
+    choices were a mapping, or an empty list, accepted ANY word.
+    """
+    assert _run(tmp_path) == 0
+    capsys.readouterr()
+    questions = tmp_path / "clinic-questions.json"
+    for broken in ({"answer": "identifier"}, [], [{"means": "x"}], "code"):
+        document = json.loads(questions.read_text(encoding="utf-8"))
+        document["asked"][0]["your_answer"] = asking.ANSWER_CODE
+        document["asked"][0]["answers_you_can_give"] = broken
+        questions.write_text(
+            json.dumps(document, indent=2), encoding="utf-8", newline="\n"
+        )
+        assert _run(tmp_path, "--answers", f"{questions}") == 2, broken
+        said = capsys.readouterr().err
+        assert "lost the list of answers it offers" in said
+
+
+def test_one_key_written_twice_is_refused(
+    tmp_path: pathlib.Path, capsys
+) -> None:
+    """L17b-R1-2: a parse keeps the last value, silently.
+
+    `"column": "x"` followed by `"column": "y"` declared `y` and left
+    `x` alone, with nothing said -- and both can be real columns of the
+    table, so no later check saw anything wrong. Dropping
+    `_round_tripped` for this file dropped that protection with it.
+    """
+    assert _run(tmp_path) == 0
+    capsys.readouterr()
+    questions = tmp_path / "clinic-questions.json"
+    text = questions.read_text(encoding="utf-8")
+    twice = text.replace(
+        '"column": "born"', '"column": "born", "column": "reading"', 1
+    )
+    assert twice != text, "the fixture must actually hold that key"
+    questions.write_text(twice, encoding="utf-8", newline="\n")
+    assert _run(tmp_path, "--answers", f"{questions}") == 1
+    said = capsys.readouterr().err
+    assert "twice" in said and "column" in said
+
+
+def test_an_edited_layout_is_still_read(
+    tmp_path: pathlib.Path, capsys
+) -> None:
+    """The other half of the same rule, and the reason for it.
+
+    This file is handed to a person to edit. A text editor that
+    re-indents on save, or a person who adds blank lines, must not have
+    their answers refused for the formatting -- which is why the
+    canonical-bytes check a description is held to is not applied here,
+    and why the duplicate-key check above is applied on its own.
+    """
+    assert _run(tmp_path) == 0
+    capsys.readouterr()
+    questions = tmp_path / "clinic-questions.json"
+    document = json.loads(questions.read_text(encoding="utf-8"))
+    document["asked"][0]["your_answer"] = asking.ANSWER_CODE
+    questions.write_text(
+        "\n" + json.dumps(document, indent=8) + "\n\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    assert _run(tmp_path, "--answers", f"{questions}") == 0
+    capsys.readouterr()
+    settings = json.loads(
+        (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
+    )["settings"]
+    assert settings["forced_codes"] == ["born"]

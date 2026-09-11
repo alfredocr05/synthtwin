@@ -5843,6 +5843,45 @@ takes a slot outside every barred BIN instead.
   validating input against the current question's own choices while
   keeping the established key assignments.
 
+- **R-P4-167 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17b, item 7).** THE HANDLING RULE'S PAYLOAD SENTENCE IS TRUE OF
+  FIVE FILES AND LOOSE ABOUT THE SIXTH. `rendering.py` and
+  `quality.py` say all six files carry "counts, ranges, published
+  labels and the spellings named above". A questions file for a table
+  that raised no question holds the table's NAME, two empty
+  collections and fixed instructional text -- no column name, no
+  count, no range. The rule itself is right and stays: the file is
+  real-derived material and travels under the same rules. What is
+  loose is the uniform payload clause. Closing it means qualifying
+  what each file may carry without weakening the rule, and adding an
+  empty-questions witness to the claim inventory's semantic checks.
+
+- **R-P4-166 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17b, item 6).** THE OVERWRITE NOTICE READS A CONSERVATIVE IDENTITY
+  TEST AS CERTAINTY. `is_the_same_file` deliberately treats a
+  case-only difference as the same file, which is right for a
+  destructive-write guard and wrong for a sentence. On a case-sensitive
+  filesystem, answers under `/work/out/` with `--out-dir /work/OUT/`
+  make the run say the answers file is about to be rewritten when it is
+  not touched. Closing it means separating confirmed identity from
+  protective uncertainty when composing the notice, and leaving the
+  guards conservative.
+
+- **R-P4-165 — OPEN (opened 2026-09-10 by review round 1 of landing
+  L17b, item 8).** KEEPING A PADDED COLUMN'S WIDTH IS NOT KEEPING ITS
+  CODE DOMAIN, and amendment A-P4-60 now says so rather than implying
+  otherwise. P4-D14 makes the twin of a five-character code five
+  characters wide; it does not make it a code of the register. The
+  reviewer measured it: 120 five-digit codes built as `100 + n²`,
+  generated at seed 7, gave **115 cells holding five-character values
+  outside the source register**, so a lookup join against the real code
+  table still misses. The fix is a declaration -- `--code` reads the
+  column as labels and keeps every spelling -- which the questions file
+  now asks for and `--answers` now accepts. What is open is whether a
+  column the person did NOT declare should say, on the description,
+  that its twin's values are not drawn from its own set. It routes
+  nothing either way.
+
 - **R-P4-164 — OPEN (opened 2026-09-10 by review round 1 of landing
   L17a, item 7; PRE-EXISTING).** A SPACED JOINED COLUMN IS NEVER ASKED
   ABOUT. `100 / 30` is read by the declared joined reader, which
@@ -13464,7 +13503,7 @@ documentation however much it looks like it.
 |---|---|---|---|---|
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-50** | 2026-09-01 | Where the published ladder and the published empty-bin fact disagree about where a cell goes, the FACT wins and the ladder gives way. The move's bound is the fact's own — out of the stretch, into the bin next to it, no further — and not A-P4-18's, whose share-bounded reach was measured to reach nothing on the columns this concerns. | Between the rungs the ladder says nothing and the method interpolates, which is an inference; "no cell lies between these two edges" is a measurement of real cells. Measured on three two-cluster columns at forty seeds, a share-bounded move could not free four of six, one of three and four of six of the offending strata. | The rungs near an empty middle are met by interpolation less exactly than before. Measured at forty seeds on all three columns through the real path, the quality report misses exactly what it missed before and nothing more, so on these shapes the cost is nil. A-P4-18 is untouched for the width snap it governs. |
-| **A-P4-60** | 2026-09-10 | **A-P4-59 CLAUSE 3 IS WITHDRAWN ON MEASUREMENT, AND `--answers` LANDS INSTEAD.** Clause 3 read every unanswered column of digits as codes. It was BUILT — narrowed first to the padded signal, given contract NF56 so it could never be silent, thirteen tests green — and the whole suite then returned 46 failures and 19 errors carrying three results: review item P1-R6-F7 deleted a rule routing on width AND ON THE LEADING ZERO and the owner settled that policy the other way; plan decision P4-D14 already publishes the FIELD WIDTH of a padded column, so the twin of `00100` is `00100` and the harm routing was for does not exist; and routing costs a genuine padded measurement its whole distribution. Withdrawn. `--answers FILE` ships in its place: the questions file is filled in and handed back, each answer becoming the declaration it stands for. | The case for routing rested on a defect P4-D14 closed on 2026-09-01, and on a distinction — that a leading zero is not width — that the record does not support. What the ruling was reaching for was a column settled without a person at the keyboard; asking already existed, and the ANSWER path was what was missing. | THIS LOWERS clause 3 of A-P4-59 to nothing: no column is routed by its shape, which is P1-R6-F7's policy unchanged. It raises nothing. A padded column is still asked about, still offered `code`, and can now be answered in a file. If the owner wants the routing anyway it is one commit, and the measurement above is what it costs.
+| **A-P4-60** | 2026-09-10 | **A-P4-59 CLAUSE 3 IS WITHDRAWN ON MEASUREMENT, AND `--answers` LANDS INSTEAD.** Clause 3 read every unanswered column of digits as codes. It was BUILT — narrowed first to the padded signal, given contract NF56 so it could never be silent, thirteen tests green — and the whole suite then returned 46 failures and 19 errors carrying three results: review item P1-R6-F7 deleted a rule routing on width AND ON THE LEADING ZERO and the owner settled that policy the other way; plan decision P4-D14 already publishes the FIELD WIDTH of a padded column, so the SPELLING defect routing was argued from is closed (code DOMAIN membership is NOT, and is carried as R-P4-165); and routing costs a genuine padded measurement its whole distribution. Withdrawn. `--answers FILE` ships in its place: the questions file is filled in and handed back, each answer becoming the declaration it stands for. | The case for routing rested on a defect P4-D14 closed on 2026-09-01, and on a distinction — that a leading zero is not width — that the record does not support. What the ruling was reaching for was a column settled without a person at the keyboard; asking already existed, and the ANSWER path was what was missing. | THIS LOWERS clause 3 of A-P4-59 to nothing: no column is routed by its shape, which is P1-R6-F7's policy unchanged. It raises nothing. A padded column is still asked about, still offered `code`, and can now be answered in a file. If the owner wants the routing anyway it is one commit, and the measurement above is what it costs.
 | **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 

@@ -795,6 +795,16 @@ QUALITY_WORDS = ArtifactWords(
 INPUT_DESCRIPTION = "description"
 INPUT_MEASURED_FILE = "file you asked synthtwin to check"
 
+# AND THE TWO A `profile` RUN MUST NOT LAND ITS THIRD FILE ON (review
+# item L17b-R1-1). The questions file is written after the description
+# and the summary and outside their transaction, so by the time it is
+# written those two are real files of this run and the table is the
+# person's own. All three are guarded, and a refusal has to say which
+# one the output name reached: "your table" is the noun for the worst
+# of the three, and it is the person's own words for it.
+INPUT_TABLE = "table you asked synthtwin to describe"
+INPUT_SUMMARY = "plain-language summary beside the description"
+
 
 COULD_NOT_CHECK = (
     "synthtwin could not read what is at that name to see whether it is "
@@ -2063,6 +2073,67 @@ def answers_entry_names_no_column(place: str) -> str:
         f"The question at {place} in the questions file has no column "
         f"name, so synthtwin cannot tell which column your answer is "
         f"about. The name belongs beside 'column'. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def questions_would_replace_a_file(path: str, noun: str) -> str:
+    """The questions file's name resolves onto a file that must survive.
+
+    SAID BEFORE ANYTHING IS WRITTEN (review item L17b-R1-1). The write
+    transaction refuses to land on any of its guarded names, so the
+    file survives either way; what this buys is that the person is not
+    first told their own table is about to be written and then left to
+    work out why the third file never appeared.
+    """
+    return (
+        f"synthtwin will not write its questions to {path}, because "
+        f"that name is the {noun}. A link or a name of your own is "
+        f"standing where the questions file goes, and writing there "
+        f"would destroy a file this run needs or that you asked it to "
+        f"describe. The description and its plain-language summary are "
+        f"written as usual, and the columns synthtwin could not settle "
+        f"are named on the screen. To get the questions file too, move "
+        f"or rename whatever is at that name, or run the command again "
+        f"with --out-dir and a folder of its own."
+    )
+
+
+def answers_names_one_key_twice(path: str, key: str) -> str:
+    """One object of the questions file names the same key twice.
+
+    REFUSED BECAUSE A PARSE KEEPS ONLY ONE OF THEM (review item
+    L17b-R1-2). A description is refused unless its bytes are exactly
+    synthtwin's own, which catches this among six other defects; a file
+    a person EDITS cannot be held to that without refusing their
+    answers for their editor's indentation. So the ambiguity is refused
+    on its own: a repeated `column` key would silently move an answer
+    from the column they meant to another real column of their table.
+    """
+    return (
+        f"The questions file at {path} names '{_shown(key)}' twice "
+        f"inside one question, and synthtwin cannot tell which of the "
+        f"two you meant -- reading it would silently act on one and "
+        f"ignore the other. Delete the line you did not mean and leave "
+        f"one. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_entry_offers_nothing(place: str, name: str) -> str:
+    """A question whose list of answers is missing or malformed.
+
+    REFUSED RATHER THAN TREATED AS "ANYTHING GOES" (review item
+    L17b-R1-5). The offered answers are what an answer is checked
+    against, so an entry that has lost them is an entry where no answer
+    can be verified -- and accepting one anyway would take a word
+    nobody offered and act on it.
+    """
+    return (
+        f"The question about '{_shown(name)}' at {place} in the "
+        f"questions file has lost the list of answers it offers, so "
+        f"synthtwin cannot tell whether what you wrote is one of them. "
+        f"Run 'synthtwin profile' on your table again to get a fresh "
+        f"questions file, and write your answers into that one. "
+        f"{_ANSWER_IT_AGAIN}"
     )
 
 

@@ -190,6 +190,16 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "answers_file_is_not_one": ("/data/clinic-profile.json",),
     "answers_entry_is_not_a_question": ("asked[3]",),
     "answers_entry_names_no_column": ("checklist[7]",),
+    "answers_entry_offers_nothing": ("asked[2]", "dose"),
+    "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # Said BEFORE anything is written, where a link or a name of the
+    # person's own stands where the questions file goes (review item
+    # L17b-R1-1). The noun is one of the three written out in errors.py
+    # beside `INPUT_DESCRIPTION`, never a value out of a file.
+    "questions_would_replace_a_file": (
+        "/data/clinic-questions.json",
+        errors.INPUT_TABLE,
+    ),
     "answers_answer_is_not_offered": (
         "/data/clinic-questions.json",
         "dose",

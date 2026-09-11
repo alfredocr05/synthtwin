@@ -28,7 +28,7 @@ without the same help.
 | branch | `l14-affix-set` (never merged; `main` is pull-request only). The worktree it was cut from carries landings L8 and L9 under the branch name `l8-compound-role`, which is left alone rather than rewritten under a landing |
 | phase | **Phase 4 — comprehensive column handling.** Current. |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | **4,430 collected** at landing L17b (2026-09-10); `4378 passed, 52 skipped in 1153.40s (0:19:13)` verbatim, fully green, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **Nineteen new tests**: eleven in `tests/test_p4a60_answers_handed_back.py` for the questions file and `--answers`, and the rest across the claim inventory, the failure catalog and the file listings that gained the sixth file. **ONE suite run for the landing**, which is what the order buys: every edit, then the scanners, then the seal LAST, then one run. A SECOND run was spent here deliberately and is worth the note: A-P4-59 clause 3's routing rule was built, and the diagnostic run that measured it returned 46 failures and 19 errors, which is what withdrew it (amendment A-P4-60). **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. |
+| suite | 4,442 collected at landing L17b (2026-09-10), after review round 1; `4391 passed, 51 skipped in 1158.65s (0:19:18)` verbatim, fully green, run as bare `pytest` so the suite-size guard below actually fired, with `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal all clean. **Twenty-nine new tests**: seventeen in `tests/test_p4a60_answers_handed_back.py` -- eleven for the questions file and `--answers`, six written against defects review round 1 found -- and the rest across the claim inventory, the failure catalog and the file listings that gained the sixth file. **ONE suite run for the landing**, which is what the order buys: every edit, then the scanners, then the seal LAST, then one run. A SECOND run was spent here deliberately and is worth the note: A-P4-59 clause 3's routing rule was built, and the diagnostic run that measured it returned 46 failures and 19 errors, which is what withdrew it (amendment A-P4-60). **THE PHASE IS CLOSING ON A ONE-WEEK PLAN (amendment A-P4-59, owner rulings of 2026-09-10).** Review is ONE round per landing, not five; scope is frozen; and the phase closes with its remainder CARRIED to Phase 5 by name rather than built. |
 | suite, before this landing | 4,411 collected; `4360 passed, 51 skipped in 1172.91s (0:19:32)` verbatim, fully green |
 | suite, before the wrapper set | 4,355 collected on the worktree with the STRETCH EDGES (landing L9, plan P4-D35, all eight review rounds), residual R-P4-151 closed by measurement and residual R-P4-149's THIRD POPULATION in it; `4304 passed, 51 skipped in 1005.62s (0:16:45)` verbatim. **ELEVEN new tests**: round 8 added the block-wide disclosure ceiling and the affixed key-row completeness check to guards that already existed; round 7 moved the stretch report to a recount over the finished cells and rebuilt two witnesses on it; round 6 adds the looser-walk witness (residual R-P4-156); round 5 rebuilt the deviation-inventory guard around G12's new key index; **TEN before them**: round 4 adds the deviation-inventory guard, which found `shape_forms` missing from the method's own complete list on its first run; round 3 adds the disclosure-ceiling construction, the mixed-route deviation witness and the bin-rule totality case in `tests/test_p4d32_empty_bins.py`, and the matrix-header guard in `tests/test_p4d18_role_topology.py`. **FIVE from rounds 1 and 2**: `tests/test_p4d32_empty_bins.py` gains the Q21 run-binding refusal (round 1 item 4) and the nested-block page witness (round 2 item 1); `tests/test_contract_loader.py`'s mutation battery gains its Q21 entry; and `tests/test_p4d18_role_topology.py` gains the two guards that bind section 6.11's columns to the loader's roles and its key-count numerals to the loader's key tuples (round 2 items 5 and 6) |
 | suite, before the stretch edges | 4,343 collected on the worktree with the COMPOUND ROLE (landing L8) and its review rounds in it; `4292 passed, 51 skipped in 979.16s (0:16:19)` verbatim after amendment A-P4-55's build. **TWENTY-FOUR new tests**: `tests/test_p4r13_compound_role.py` holds twenty-three, of which sixteen were written against defects review found, and four more sit in the approximation-bounds and registry files -- the spelling budget, the sub-block key sets, the four-count arithmetic, both text-half boundaries, both evidence sentences, the row-count echo and the seeded describe-again round trip |
@@ -116,6 +116,49 @@ about forty entries, each with a line and a size.
   altogether. That would have made the routing silent exactly where it
   mattered. Recorded here because the same trap waits for anyone who
   builds it again.
+
+  **AND THE GUARD ON THIS PAGE WAS FOUND INERT, which is worth more
+  than the count it was guarding.** `docs/STATE.md`'s one mechanically
+  enforced claim is its suite size, checked by
+  `test_the_state_page_states_the_suite_size_it_was_written_against`.
+  That check stands down on a SELECTED run, and it decided selection by
+  comparing `config.args` with `testpaths` AS STRINGS: `testpaths` is
+  `["tests"]` and the command everybody runs is `pytest tests/`, so
+  every whole-suite run of this project looked selected and the check
+  skipped. It was noticed here only because this row was wrong by two
+  and the suite stayed green. Paths are compared as paths now, a node
+  id is still a selection, and the number above is the measured one.
+
+  **REVIEW ROUND 1 RETURNED RATIFY-WITH-CONDITIONS, five repaired and
+  three carried.** The first was the worst outcome this tool has: the
+  questions file's write was not guarded against its own inputs, so a
+  link left at `<table>-questions.json` resolved onto the person's own
+  table and the run announced it would write there. The write now
+  carries the transaction's source guard against the table, the
+  description and the summary, the collision is decided BEFORE the
+  announcement, and the run says which file the name landed on. Second,
+  dropping the canonical-bytes check for this file -- right, because a
+  person edits it -- dropped the duplicate-key protection with it, so
+  `"column": "x", "column": "y"` silently declared `y` and left `x`
+  alone; there is a duplicate-key check of its own now, and an edited
+  layout is still accepted. Third, the questions file was computed
+  BEFORE the interview and reused after it, so a terminal answer left
+  it naming a reading the run did not take -- it is recomputed from the
+  finished description. Fourth, the write discarded its leftover-file
+  list and its DiskState and swallowed Ctrl-C into exit 0. Fifth, a
+  malformed `answers_you_can_give` turned answer validation off
+  entirely; a question that offers nothing is refused.
+
+  **Carried by name:** R-P4-165 (keeping a padded column's WIDTH is not
+  keeping its code DOMAIN -- measured at 115 of 120 cells outside the
+  source register, and A-P4-60's rationale is narrowed to say so),
+  R-P4-166 (the overwrite notice reads a deliberately conservative
+  identity test as certainty), R-P4-167 (the handling rule's payload
+  clause is loose about a questions file with no questions in it).
+
+  **The reviewer supports the withdrawal**: "padding does not determine
+  semantic type, and routing genuine measurements to labels removes
+  their numeric obligations."
 
 * **LANDING L17a IS BUILT (2026-09-10): THE ASKING BECOMES ONE OBJECT,
   AND IT STOPS SHOWING YOUR CELLS.** Choices, what each reading
