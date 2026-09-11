@@ -9990,6 +9990,79 @@ to correct it. That is a change to what every existing user sees, and
 it is the difference between a flag people must already know about and
 a tool that tells them. Recorded here; not built.
 
+## Phase 4 closure — 2026-09-11
+
+**Phase 4 is closed by owner decision, on the one-week close of
+amendment A-P4-59.** Closure here is an owner act and not a review
+verdict, exactly as Phase 2's and Phase 3's were, and nothing in this
+repository describes Phase 4 as review-ratified.
+
+**What that ruling lowered, restated here so a reader meets it before
+the criteria below.** A-P4-59 clause 2 closes the phase with its
+remainder CARRIED to Phase 5 by name rather than built, which lowers
+the ruling of 2026-08-30 from "nothing left open" to "nothing open or
+carried by name". An entry carried by name is not an entry closed.
+
+### The ten acceptance criteria, each with its verdict
+
+| # | what it asks | verdict |
+|---|---|---|
+| 1 | every owner decision of P4-D0 recorded before stage 3's contract | **MET.** The eight are in this plan, dated, and the amendment register carries every change to them. |
+| 2 | the artifacts ratified in order, under counted re-seals | **MET as amended by A-P4-4**, which covers stage 2 and says why; stages 3 through 7 keep the criterion's full force. The seal is current at every commit of the close. |
+| 3 | the loud decline total over its three classes | **MET.** Every fully-invented column, every label column with invented cells and every column with counted stand-ins carries its class's sentence; the two-part count prints at generate time; the quality report carries all three. |
+| 4 | the no-regression battery green in both parts | **MET.** |
+| 5 | the taxonomy total and ordered after P4-D3 | **MET.** Fourteen roles through every closed enumeration, completeness tests green, every threshold a recorded setting. |
+| 6 | producer → generator → validator at the new version, zero MISSED and zero WITHHELD on the every-role fixture in both header modes | **MET.** |
+| 7 | the reproduction rule exactly as stated | **MET, and its report sentence was FALSE until landing L19** (R-P4-70): the twin reproduced each published spelling at its count, and the twin's own report told the reader it had not. The rule held; the page describing it did not. Both hold now. |
+| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. |
+| 9 | the version-refusal messages exact-shape tested, naming and pricing every publication-changing option | **MET**, and widened twice during the close: `--code` at landing L16, `--answers` at L17b. Contract R11's clause and the shipped message are held equal word for word by two tests. |
+| 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET on this machine at every landing of the close.** `ruff`, `mypy --strict`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal are clean, and the suite is green. **CI has NOT run on the close's commits**, which is stated rather than implied: the last CI evidence recorded in this plan predates landing L16. |
+
+**Eight of ten met, one met on a rule whose report was false until it
+was repaired in this phase, and one unmet and named.** That is the
+phase's own account of itself.
+
+### What is carried to Phase 5, by name
+
+**Sixty-six entries, not the "about forty" A-P4-59 estimated.** The
+estimate is left standing in the amendment and corrected here, because
+a plan that quietly revises its own forecast teaches a reader nothing.
+The register above holds each of them in full — what was measured, what
+it costs, and what closing it would take. Grouped by what a reader
+would do about them:
+
+| group | entries | what a reader needs to know |
+|---|---|---|
+| **The report and its sentences** | R-P4-33, R-P4-60, R-P4-158, R-P4-161, R-P4-162, R-P4-163, R-P4-164, R-P4-166, R-P4-167, R-P4-168 | Sentences that are true but narrow, or guards that check a shape rather than a meaning. None misdescribes a twin. |
+| **Fidelity a twin does not reach** | R-P4-28, R-P4-91, R-P4-114, R-P4-119, R-P4-121, R-P4-122, R-P4-125, R-P4-130, R-P4-132, R-P4-139, R-P4-144, R-P4-147, R-P4-154, R-P4-165 | Published facts the generator misses on some shapes. **Every one of them is REPORTED by the twin's own report and by the quality report** — they are bounded misses, not silent ones. |
+| **Readings the values cannot settle** | R-P4-16, R-P4-19, R-P4-36, R-P4-100, R-P4-102, R-P4-150, R-P4-159, R-P4-160 | Columns where a shape is read one way and could be read another. The questions file now asks about the ones it can see; these are the ones it cannot. |
+| **The method's own text** | R-P4-101, R-P4-115, R-P4-120, R-P4-123, R-P4-124, R-P4-128, R-P4-129, R-P4-141, R-P4-145, R-P4-146 | Clauses written in the form the method argues for rather than the form a second implementer could follow. |
+| **Frozen vectors and guards** | R-P4-17, R-P4-18, R-P4-29, R-P4-63, R-P4-64, R-P4-65, R-P4-66, R-P4-67, R-P4-113, R-P4-126 | Coverage the oracle and the guards do not yet pin. Acceptance criterion 8 lives here. |
+| **Two implementations that must agree** | R-P4-61, R-P4-118 | The generator and the validator print moment windows differing in their last two digits. No verdict has been seen to differ, and R-P4-61 owes that measurement. |
+| **Cost** | R-P4-116, R-P4-169 | Generation is superlinear in the strata; one report heading rescans a declaration list per column. |
+| **Open questions for the owner** | R-P4-13, R-P4-14, R-P4-20, R-P4-37, R-P4-52, R-P4-71, R-P4-72, R-P4-111, R-P4-153 | Each needs a decision rather than a build. |
+
+**And the register itself has a defect worth naming at the close.**
+Ten entries — R-P4-1 through R-P4-12 — are written in a form whose head
+line states neither OPEN nor CLOSED, and four ids carry entries that
+disagree with each other. A register a reader cannot count is a
+register that will be miscounted; the count above was taken by rule
+(an id is closed where any entry head says so) and the rule is written
+here so the next count can be compared with this one.
+
+### What Phase 4 gives a person that Phase 3 did not
+
+Fourteen column roles instead of six. Numbers wearing a unit or a
+currency mark, two numbers in one cell, clock times, dates written with
+dots or a two-figure year or day-first, long tails of labels. The
+person's own word for "no value" reaching the twin at its count.
+Leading zeros surviving into the twin at their field width. A twin that
+says which of its cells synthtwin made up. And, where the values cannot
+settle what a column is, a file of questions the person answers instead
+of a guess nobody sees.
+
+---
+
 ## Acceptance criteria
 
 1. Every owner decision of P4-D0 is recorded in this plan — taken or

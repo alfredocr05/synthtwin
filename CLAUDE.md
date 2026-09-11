@@ -273,7 +273,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 4.** Each entry below carries its own
+**The current phase is Phase 5.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -302,11 +302,24 @@ running.
   are unmet, Phase 1's residual R3 stays open with them, and the plan's
   own register says so rather than counting them done.
 - **Phase 4 - comprehensive column handling:** the full range of column
-  types, rare categories, and missing-data patterns. *Current*; the
-  ratified plan is `docs/plans/phase-4-columns.md`.
+  types, rare categories, and missing-data patterns. *Closed by owner
+  decision 2026-09-11, with sixty-six register entries CARRIED to Phase
+  5 by name rather than built* (amendment A-P4-59); the ratified plan
+  is `docs/plans/phase-4-columns.md` and its closure section gives a
+  verdict on each of the ten acceptance criteria. Closure is an owner
+  act, not a review verdict, and nothing describes Phase 4 as
+  review-ratified. Eight criteria are met, one is met on a rule whose
+  own report was false until this phase repaired it, and **criterion 8
+  is UNMET and named**: the reference vectors for the width pass and
+  the empty-bin pass were not written, so those two branches are
+  pinned by tests rather than by a frozen case with a mutant.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Not started* -
-  this is the phase the twin's one-column-wide bound waits on.
+  structure and the quality report at full strength. *Current, and not
+  started* - this is the phase the twin's one-column-wide bound waits
+  on, and it inherits sixty-six carried register entries from Phase 4,
+  grouped by what a reader would do about them in that plan's closure
+  section. Nothing in this brief's "what the twin carries today" may
+  soften until this phase builds what it names.
 - **Phase 6 - standalone build:** hardened, fully offline distribution
   for institutional machines. *Not started.*
 - **Phase 7 - the interface:** a screen a researcher can use without

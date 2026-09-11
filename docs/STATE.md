@@ -31,10 +31,10 @@ where it is measured and point at it from everywhere else.
 | | |
 |---|---|
 | branch | `l14-affix-set` (never merged; `main` is pull-request only) |
-| phase | **Phase 4 — comprehensive column handling.** Current. |
+| phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried to Phase 5 by name. **Phase 5 — relationships and fidelity depth — is next and has not started.** |
 | plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,453 collected; `4402 passed, 51 skipped in 1161.57s (0:19:21)` verbatim, fully green |
-| checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at landing L22 |
+| suite | 4,453 collected; `4402 passed, 51 skipped in 1161.14s (0:19:21)` verbatim, fully green at the closing commit |
+| checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at the closing commit |
 | review | **ONE round per landing** (A-P4-59), `codex exec -m gpt-6-astra -c model_reasoning_effort="high" -s read-only`, launched without checking in. A crash or a silent wrongness in what THAT landing built is repaired; every other item is recorded as a residual and carried |
 
 The suite size is enforced: `test_the_state_page_states_the_suite_size_
@@ -46,11 +46,16 @@ project has ever done. Paths are compared as paths now.
 
 ## What is being built right now
 
-**The one-week close of Phase 4** (A-P4-59, owner rulings of
-2026-09-10). Seven landings, one a day. Review is one round per landing
-and does not run on L22 or L23. Everything not in those landings is
-CARRIED to Phase 5 by name in the closure section — about forty
-entries, each with a line and a size.
+**Nothing.** Phase 4 closed on 2026-09-11 and **Phase 5 has not
+started.** The next session's first job is a Phase 5 plan, written the
+way every phase plan here is written: reviewed adversarially before any
+code.
+
+Phase 5 inherits **sixty-six carried register entries** from Phase 4,
+grouped in that plan's closure section by what a reader would do about
+them. The estimate in A-P4-59 was "about forty"; the count is
+sixty-six, and the closure section says so rather than leaving the
+forecast standing.
 
 | | landing | state |
 |---|---|---|
@@ -60,7 +65,14 @@ entries, each with a line and a size.
 | 4 | L17b — the questions file and `--answers` | done |
 | 5 | L19 — the twin's report stops contradicting itself | done |
 | 6 | L22 — the record: this page, the changelog, STATUS, SECURITY | done |
-| 7 | **L23 — the closure section, the phase statements, the merge** | **current** |
+| 7 | L23 — the closure section, the phase statements, the merge | **this commit** |
+
+**The close finished in seven days, on 2026-09-11.** What made the
+difference is worth carrying into Phase 5: one review round per
+landing instead of eight, a frozen scope, and a remainder CARRIED by
+name rather than built. The ten days before it produced 95 commits of
+which 44 were review-round repairs, and opened 32 residuals against 19
+closed.
 
 What each landing did is in `CHANGELOG.md` under `[Unreleased]`, and
 the reasoning is in the plan at the amendment each names.
