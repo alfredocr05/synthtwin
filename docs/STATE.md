@@ -31,9 +31,9 @@ where it is measured and point at it from everywhere else.
 | | |
 |---|---|
 | branch | `l14-affix-set` (never merged; `main` is pull-request only) |
-| phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried to Phase 5 by name. **Phase 5 — relationships and fidelity depth — is next and has not started.** |
-| plan | `docs/plans/phase-4-columns.md` |
-| suite | 4,453 collected; `4402 passed, 51 skipped in 1162.34s (0:19:22)` verbatim, fully green at the closing commit |
+| phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried by name. **Phase 5 — relationships — is CURRENT; its plan is drafted and NOT ratified.** |
+| plan | `docs/plans/phase-5-relationships.md` (revision 1, DRAFT, unreviewed). Phase 4's is `docs/plans/phase-4-columns.md` and its closure section is the register Phase 5 inherits |
+| suite | 4,457 collected; `4406 passed, 51 skipped in 1160.11s (0:19:20)` verbatim, fully green. Four new tests: `tests/test_p5r1_the_grain_clause_is_true.py` |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at the closing commit |
 | CI | **runs on every pull request, on five Pythons across Ubuntu and Windows.** A green local suite is not a green CI: the close's last defect was a test that asserted the POSIX outcome on every platform and failed every Windows cell three runs running. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (A-P4-59), `codex exec -m gpt-6-astra -c model_reasoning_effort="high" -s read-only`, launched without checking in. A crash or a silent wrongness in what THAT landing built is repaired; every other item is recorded as a residual and carried |
@@ -47,16 +47,43 @@ project has ever done. Paths are compared as paths now.
 
 ## What is being built right now
 
-**Nothing.** Phase 4 closed on 2026-09-11 and **Phase 5 has not
-started.** The next session's first job is a Phase 5 plan, written the
-way every phase plan here is written: reviewed adversarially before any
-code.
+**Phase 5 — relationships.** Phase 4 closed on 2026-09-11. The phase 5
+plan is DRAFTED and NOT RATIFIED: `docs/plans/phase-5-relationships.md`,
+revision 1. Nothing may be built from it until it has been through
+adversarial plan review and the owner has taken the four P5-D0
+decisions it names.
+
+**What it proposes:** three of the eight reserved slots, in this order
+— `temporal` (two event columns keep their order), `deterministic` (a
+derived column agrees with what it is derived from), `grain` (what one
+row is). The other five stay `null`. Correlation is deliberately NOT
+first, and the plan says why in terms the owner can overturn.
+
+**Measured on an event table of 300 rows, at seed 7, the day the
+plan was written** — this is the phase in three numbers:
+
+| what a person would check | real | twin |
+|---|---|---|
+| rows where the end date precedes the start date | 0 | **137** |
+| rows where the duration column disagrees with the dates | 0 | **299** |
+| rows where a derived column disagrees with its two sources | 0 | **299** |
+
+**None of it is dishonest today** — the twin's report says every column
+and every row was built on its own, first and unmissably. Phase 5 lifts
+a declared bound; it does not repair a lie.
 
 Phase 5 inherits **sixty-six carried register entries** from Phase 4,
 grouped in that plan's closure section by what a reader would do about
 them. The estimate in A-P4-59 was "about forty"; the count is
 sixty-six, and the closure section says so rather than leaving the
 forecast standing.
+
+**R-P5-1 is opened and closed** in the same commit as the plan: the
+report's limit 2 said the twin holds no several-rows-per-person, and it
+holds exactly the real distribution of them — the identifier role
+publishes `n_distinct_by_occurrences` and the generator reproduces it.
+The error ran in the safe direction and was repaired before any
+relationship content was designed.
 
 | | landing | state |
 |---|---|---|

@@ -475,6 +475,15 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         # inventory's surfaces) at its ratification, per its own
         # sequencing item 1.
         "phase-4-columns.md",
+        # The Phase 5 plan, on the same precedent and for the same
+        # reason: DRAFT, unreviewed, written the day Phase 4 closed. It
+        # states in its own status line that nothing may be built from
+        # it until adversarial review and the P5-D0 decisions, and it
+        # joins dispositions.GOVERNING at its ratification. Listed here
+        # in the commit that adds it, which is what this guard exists
+        # to force -- a normative document beside the sealed ones is
+        # the obvious place to state a lesser outcome nobody sealed.
+        "phase-5-relationships.md",
     ], plans
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative

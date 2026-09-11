@@ -1170,8 +1170,25 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # R-P4-72: the report quotes `dose`'s remark back as "Note from the
 # description", so the corrected NF35 sentence moves this digest with
 # the description's. Nothing else on the page changed.
+# RE-RECORDED 2026-09-11 for residual R-P5-1, and ONE PARAGRAPH moved
+# because it was FALSE. Limit 2 said "If your table holds several rows
+# per person, per visit or per site, THE TWIN DOES NOT: its rows are
+# independent of each other." The twin does: the identifier role
+# publishes `n_distinct_by_occurrences`, the multiset of how often each
+# identity repeats, and the generator reproduces it -- measured on 335
+# rows over 100 subjects with uneven visits, where the twin's group
+# sizes match the real ones exactly (32 ones, 17 twos, 20 threes, 13
+# fives, 18 eights). The error ran in the SAFE direction and was still
+# worth repairing: a researcher with a repeated-measures design, told
+# the twin holds no several-rows-per-person, could discard a twin whose
+# group-size distribution was the one they needed.
+#
+# THE LIMIT IS NOT SOFTENED, and a test holds that half: which identity
+# gets which count is arbitrary, which rows share one carries nothing
+# further, the rows of a subject hold unrelated values, and anything
+# that groups rows still behaves differently.
 GOLDEN_REPORT_SHA256 = (
-    "0e15720a05f16d7c44bcd47d42fed9201a5e0f0a4b2332a14ff86014d12aa3da"
+    "de562b46370d7574eed99c87bb582d5a994f7a50be3c642e62dbe815abce3238"
 )
 
 
