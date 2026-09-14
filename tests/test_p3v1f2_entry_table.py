@@ -1377,6 +1377,7 @@ def _ladder_piled(
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
+            "T",
         )
         place = place + 1
     return _rebuilt(rows)
@@ -5336,6 +5337,11 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.sentinel_verdicts",
     ),
     "datetime": (
+        # REPORT-ONLY (plan P4-D39): the census of marks between day and
+        # clock, and whether every moment stands at midnight, listed on
+        # every datetime column as the form census beside them is.
+        "datetime.all_at_midnight",
+        "datetime.datetime_separators",
         "datetime.format",
         "datetime.resolution_mix",
         "universal.detection_evidence",

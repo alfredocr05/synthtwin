@@ -6754,7 +6754,82 @@ def _datetime_details(
         "date_percentiles": _date_ladder(canonical_order),
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
+        "datetime_separators": _separator_counts(sources, format_name, settings),
+        "all_at_midnight": _all_at_midnight(
+            format_name, resolution, reading, sources, settings
+        ),
     }
+
+
+def _separator_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wore each mark between day and clock (P4-D39).
+
+    `_offset_counts`' rule exactly: a name is published where its count
+    reaches the smallest group size, and the rest pool under
+    `(withheld)`. A cell that writes no clock is not counted, so the map
+    is empty on a column of dates, months or quarters, and on an
+    `iso-mixed` column it covers only the cells that wrote one.
+
+    Guarantees: accepts the cells that parsed, their format member and
+    the run's settings; returns a mapping of `parsing.DATETIME_SEPARATORS`
+    members, and `(withheld)`, to counts. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    counts: dict[str, int] = {}
+    for value in sources:
+        name = parsing.datetime_separator(value, format_name)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    published: dict[str, int] = {}
+    withheld = 0
+    for key in sorted(counts):
+        if counts[key] >= settings.small_cell_floor:
+            published[key] = counts[key]
+        else:
+            withheld = withheld + counts[key]
+    if withheld:
+        published[parsing.MISSING_WITHHELD] = withheld
+    return published
+
+
+def _all_at_midnight(
+    format_name: str,
+    resolution: str,
+    reading: str,
+    sources: "list[str]",
+    settings: Settings,
+) -> bool:
+    """Whether every parsed cell of a column of moments stands at midnight.
+
+    The warehouse spelling of a date with no time is the date plus
+    `00:00:00`, and without this fact the twin invents a time of day
+    for every row (plan P4-D39). Asked of the column's LOCAL cell text:
+    a column published on the shared clock is refused outright, because
+    a midnight written with an offset is not a midnight of the instant
+    the ladder publishes. And only where the parsed cells reach the
+    smallest group size, so the statement is about a group and never a
+    handful of rows.
+
+    Guarantees: accepts the column's format member, resolution, clock,
+    parsed cells and settings; returns a bool. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
+    """
+    if resolution != RESOLUTION_DATETIME:
+        return False
+    if reading != READ_AT_LOCAL:
+        return False
+    if len(sources) == 0 or len(sources) < settings.small_cell_floor:
+        return False
+    for value in sources:
+        if not parsing.clock_at_midnight(value, format_name):
+            return False
+    return True
 
 
 # The joint ISO reading's own name, used where a rule has to tell it

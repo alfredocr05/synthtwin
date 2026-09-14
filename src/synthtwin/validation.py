@@ -511,6 +511,21 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
 )
+_NOT_CHECKABLE_DATETIME_SEPARATORS = (
+    "the description records which mark each of the real column's "
+    "moments wore between the day and the time of day, and how many wore "
+    "each, and the twin writes those marks without being held to them: a "
+    "file is read the same way whichever mark its moments wear, so a file "
+    "that writes them all one way misses no obligation this description "
+    "makes"
+)
+_NOT_CHECKABLE_ALL_AT_MIDNIGHT = (
+    "the description records whether every moment of the real column "
+    "stood at midnight, and the twin keeps a column that did at midnight "
+    "without being held to it: a file is read the same way whatever time "
+    "of day its moments name, so a file whose moments stand elsewhere "
+    "misses no obligation this description makes"
+)
 # THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
 # the sentence it carried is kept here as the record of what changed:
 # "the description records how many different NUMBERS the real column
@@ -11501,6 +11516,8 @@ _INSTANT_UNITS = {
 
 def _instant_units(facts: contract.DatetimeFacts) -> str:
     """The word for one unit of this column's own ordinal space."""
+    if _counts_in_days(facts):
+        return _INSTANT_UNITS[taxonomy.RESOLUTION_DATE]
     if facts.resolution in _INSTANT_UNITS:
         return _INSTANT_UNITS[facts.resolution]
     return "unit"
@@ -11535,6 +11552,12 @@ def _shown_distance(
     step = _space_unit(facts)
     away = (ordinal - rung) // step
     word = _instant_units(facts)
+    if (ordinal - rung) % step != 0:
+        # A column counted in days whose FILE holds a time of day off
+        # midnight (plan P4-D39): said in seconds, as the clock role says
+        # an odd second, rather than rounded into a whole day it is not.
+        away = ordinal - rung
+        word = "second"
     if away == 0:
         return "that same value"
     if away < 0:
@@ -11753,7 +11776,14 @@ def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
             unnamed = 1
         else:
             named = named + 1
-    return max(1, named + unnamed)
+    # ...times the marks between day and clock the column writes (plan
+    # P4-D39): one instant can wear each named mark, and the withheld
+    # pool is written with one of those, so it adds none.
+    marked = 0
+    for key in facts.datetime_separators:
+        if key != contract.WITHHELD:
+            marked = marked + 1
+    return max(1, named + unnamed) * max(1, marked)
 
 
 def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
@@ -11862,6 +11892,27 @@ def _ladder_ordinals(facts: contract.DatetimeFacts) -> "list[int]":
     ]
 
 
+def _counts_in_days(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's ordinals are counted in whole days (P4-D39).
+
+    A column of dates is, and so is a column of moments whose every value
+    stands at midnight: the generator counts that one in days and writes
+    each day back with a midnight clock, so a window drawn in seconds
+    would call its own twin's cells out of place. The ONE predicate every
+    unit below asks, so the space, the step, the reading unit and the
+    unit's name cannot disagree about which columns it covers.
+
+    Guarantees: accepts loaded datetime facts; returns a bool.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    if facts.resolution == taxonomy.RESOLUTION_DATE:
+        return True
+    return (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and facts.all_at_midnight
+    )
+
+
 def _space_unit(facts: contract.DatetimeFacts) -> int:
     """One ordinal unit of the resolution's own space (method G7.1).
 
@@ -11870,7 +11921,7 @@ def _space_unit(facts: contract.DatetimeFacts) -> int:
     DAY for a column of whole dates, which this reading counts as 86400
     of its own units.
     """
-    if facts.resolution == taxonomy.RESOLUTION_DATE:
+    if _counts_in_days(facts):
         return 86400
     return 1
 
@@ -11936,7 +11987,7 @@ def _precision_step(facts: contract.DatetimeFacts) -> int:
         return 1
     if facts.resolution == taxonomy.RESOLUTION_MONTH:
         return 1
-    if facts.resolution == taxonomy.RESOLUTION_DATE:
+    if _counts_in_days(facts):
         return 86400
     if facts.time_precision == parsing.PRECISION_MINUTE:
         return 60
@@ -11976,6 +12027,7 @@ def _reading_unit(facts: contract.DatetimeFacts) -> int:
     if (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and facts.time_precision == parsing.PRECISION_MINUTE
+        and not facts.all_at_midnight
     ):
         return unit + 59
     return unit
@@ -12683,6 +12735,20 @@ def _listings(
                     "datetime.resolution_mix",
                     "",
                     _NOT_CHECKABLE_RESOLUTION_MIX,
+                ),
+                # REPORT-ONLY, LISTED on every datetime column and never
+                # silent (plan P4-D39), as the form census beside them.
+                Listing(
+                    column.name,
+                    "datetime.datetime_separators",
+                    "",
+                    _NOT_CHECKABLE_DATETIME_SEPARATORS,
+                ),
+                Listing(
+                    column.name,
+                    "datetime.all_at_midnight",
+                    "",
+                    _NOT_CHECKABLE_ALL_AT_MIDNIGHT,
                 ),
             ]
             listings = listings + _endpoint_listings(column, facts, corners)

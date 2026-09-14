@@ -6,6 +6,88 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a moment keeps its own separator, and a date held at midnight stays a date (stage 2, part two, 2026-09-14)
+
+**A stamp written `2025-09-04 06:16:00` came back from the twin as
+`2025-09-04T06:16:00`**, so code that split or searched on the space
+worked on the twin and silently did nothing on the real table. **A date stored as the date
+plus `00:00:00` came back with invented times of day**: 800 of 800 real
+rows at midnight became 2 of 800.
+
+Every datetime block now publishes two more facts (plan P4-D39), both
+REPORT-ONLY and listed in the quality report:
+
+- **`datetime_separators`**, the census of marks between day and clock
+  (`upper_t`, `space`, `lower_t`), floored like `utc_offsets` with a
+  `(withheld)` pool. The generator spends it by an evenly spread
+  rotation that draws no random word, so each mark is written its
+  published number of times and no link is invented between how early a
+  moment is and how it was spelled. A withheld pool is written with the
+  commonest mark and named in the twin's report.
+- **`all_at_midnight`**, true only for a local column whose every parsed
+  moment stands exactly at midnight, fraction included, and whose parsed
+  cells reach the smallest group size. Such a column is generated and
+  checked in whole days and written back with a midnight clock. The
+  twin's report recounts the midnight cells it wrote and names any miss,
+  because the checker's day-counted windows could not see one.
+
+**Measured on five 400-row shapes.** A space column comes back 400 of
+400 with a space. A column mixing 300 spaces, 50 `T` and 50 `t` comes
+back with exactly those counts, about 75 spaces in every quarter of its
+dates. A date column at midnight keeps 400 of 400 cells at midnight. The
+twin and the real table both pass the checker with nothing missed.
+
+**The loader** refuses a census name outside the vocabulary, a named
+count below the floor (D12), a census whose total is not the cells that
+write a clock or that gives a slashed format a mark other than a space
+(D13), and a midnight statement on the shared clock, below the floor, or
+beside a published moment that is not at midnight (D14).
+
+**The oracle mirrors both rules** in the same commit (A-P4-59), written
+from the statement rather than the implementation, and two frozen branch
+cases pin them: `midnight_days` and `mixed_marks`, each with a mutant
+that moves its cells. A new test holds the two writings to agreeing over
+6,000 censuses and 9,000 cells, and each of three in-memory mutants
+turns it red. Every earlier frozen cell is unchanged; both vector files
+gained the two keys on their datetime cases.
+
+**One review round rejected the first build, and was right twice.** A
+generated moment could equal a spelling ANOTHER column declares absent,
+so a present value read back as missing; the writer now checks every
+column's absent spellings. And where a cell's mark had to change to step
+around an absent spelling, the census was left one short in one name
+and one over in another with nothing said; another rank now takes the
+owed mark back, the finished marks are recounted, and a shortfall no
+rank can absorb is named. The loader also refuses a withheld pool larger
+than the unnamed marks could hold, the claim guard catches clearance
+said with a preposition, and the oracle mirrors the absent-spelling
+exception and its repair, held to the generator over 4,000 columns.
+
+**Also in this landing.** The claim guard's seventh family now names
+regimes by their acronyms and catches an exemption claimed by clearing a
+regime, not only by lifting it. The sentence saying analysis code
+developed on the twin runs is qualified on all four surfaces that
+shipped it: running unchanged is the aim, and nothing guarantees it.
+
+**Carried, not fixed:**
+
+- a column grouped with a space or an apostrophe is read as free text,
+  so its twin writes stand-in text; a strict expected failure pins it;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- neither new fact is an obligation a file can miss;
+- at a floor of one, a census name can stand for one row's spelling, the
+  same posture as `utc_offsets`, until landing 3 raises the floor;
+- the two published ends take their marks from the rotation, not from
+  the real ends' own cells;
+- on a midnight column, a calendar placeholder day inside the range is
+  now hit by whole-day ranks far more often than before;
+- the assembled contract gains two more keys its build folder does not
+  hold (residual R-P4-113).
+- no frozen case declares an absent spelling, so the exception and its
+  census repair are pinned by the agreement test, not by committed
+  cells.
+
 ### Fixed: a thousands comma is written back (stage 2, part one, 2026-09-14)
 
 **A column written `2,198.92` came back from the twin as `2198.92`.**

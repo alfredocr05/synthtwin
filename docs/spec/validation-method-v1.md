@@ -1112,6 +1112,18 @@ rather than withheld. The suite walks the producer's own list of
 resolutions, so a resolution added there without a reading here is red
 on the commit that adds it.
 
+**Amended 2026-09-14 (plan P4-D39): the space is fixed by the resolution
+AND by `all_at_midnight`.** A column of moments whose every value stands
+at midnight is generated in whole days and each day is written back with
+a midnight clock, so this method reads it in the space of a column of
+dates: its step, its reading allowance `u` and the unit it names a
+distance in are a day's, whatever precision its midnight clock is
+written at. A measured value off midnight in such a column is named in
+seconds rather than rounded into a day it is not. The fact itself is
+REPORT-ONLY and is listed, never checked, so a file whose moments stand
+elsewhere misses no obligation; what the day space prevents is a
+conforming twin being called out of place by windows drawn in seconds.
+
 **V3.4-A2 And the measurement taken in that space is the CONSTRUCTION's
 own, written from the method and compared with the generator's writing
 of it** (2026-08-14, review items P3-V4-F4 and P3-V4-F5; the plan's

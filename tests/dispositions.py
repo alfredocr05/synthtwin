@@ -361,6 +361,10 @@ PLAN4_REGIONS = {
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
+    "moment-spellings": (
+        "### P4-D39 The mark inside a moment, and a date held at midnight "
+        "(stage 2, 2026-09-14)"
+    ),
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
     ),
@@ -454,6 +458,8 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "mode_count"),
     ("numeric", "percentiles_between"),
     ("numeric", "group_separator"),
+    ("datetime", "datetime_separators"),
+    ("datetime", "all_at_midnight"),
 )
 
 
@@ -792,6 +798,22 @@ REGISTRY += (
         REPORT_ONLY,
         plan_words="the mark a column writes between thousands",
         plan_region="group-separator",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "datetime_separators",
+        REPORT_ONLY,
+        plan_words="the mark a moment writes between its day and its clock",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "all_at_midnight",
+        REPORT_ONLY,
+        plan_words="a column whose every moment stands at midnight",
+        plan_region="moment-spellings",
         aliases=(),
     ),
 )

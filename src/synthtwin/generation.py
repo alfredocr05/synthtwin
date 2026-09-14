@@ -3591,17 +3591,20 @@ def _ordinal_of(canonical: str, resolution: str) -> int:
 
 
 def _cell_of_ordinal(
-    ordinal: int, resolution: str, precision: str, figures: int
+    ordinal: int, resolution: str, precision: str, figures: int, mark: str
 ) -> str:
     """One instant written at the precision the description records (G7.5).
 
     Owner decision 5: a twin datetime cell is written in the ISO form
     matching the precision the description records, so the twin
     re-profiles to the same precision and the same offset state. The
-    separator is `T`, because the parser accepts three and the bytes
-    have to be fixed. The figures after the second are zeros: the
-    description says how MANY the finest cell carried and nothing about
-    their values, so any other figure would be a made-up fact.
+    mark between the day and the clock is the one `_separator_allocation`
+    gave this cell from the column's published census (plan P4-D39); it
+    was a fixed `T` until 2026-09-14, and a stamp written with a space
+    came back with a `T`. It is REQUIRED, so no caller can quietly write
+    a mark it did not choose. The figures after the second are zeros:
+    the description says how MANY the finest cell carried and nothing
+    about their values, so any other figure would be a made-up fact.
     """
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
@@ -3618,7 +3621,7 @@ def _cell_of_ordinal(
     hours = rest // 3600
     minutes = (rest - hours * 3600) // 60
     seconds = rest - hours * 3600 - minutes * 60
-    stamp = f"{year:04d}-{month:02d}-{day:02d}T{hours:02d}:{minutes:02d}"
+    stamp = f"{year:04d}-{month:02d}-{day:02d}{mark}{hours:02d}:{minutes:02d}"
     if precision == "minute":
         return stamp
     stamp = f"{stamp}:{seconds:02d}"
@@ -3627,8 +3630,79 @@ def _cell_of_ordinal(
     return stamp
 
 
+def _ordinal_space(facts: contract.DatetimeFacts) -> str:
+    """The resolution a column's ordinals are counted in (G7.1, P4-D39).
+
+    The column's own resolution, except for a column of moments whose
+    every value stands at midnight: that one is counted in DAYS, as a
+    column of dates is. Counted in seconds, its interior ranks landed
+    part-way through a day and the twin invented a time of day for
+    nearly every row; counted in days, every rank is a whole day and the
+    cell is written back with a midnight clock (`_space_cell`).
+
+    Guarantees: accepts loaded datetime facts; returns a member of the
+    resolution vocabulary. Determinism: a function of the facts. Raises
+    nothing. No I/O of any kind.
+    """
+    if facts.all_at_midnight:
+        return "date"
+    return facts.resolution
+
+
+def _space_cell(
+    ordinal: int, facts: contract.DatetimeFacts, mark: str
+) -> str:
+    """One cell from an ordinal in the column's own space (`_ordinal_space`).
+
+    A midnight column's day is written as that day with a midnight clock
+    at the column's recorded precision, carrying the given mark; every
+    other column's ordinal is written as `_cell_of_ordinal` writes it.
+
+    Guarantees: accepts an ordinal in `_ordinal_space(facts)`, the facts
+    and a mark; returns the cell text. Whole-number arithmetic only. No
+    I/O of any kind.
+    """
+    if facts.all_at_midnight:
+        return _cell_of_ordinal(
+            ordinal * 86400,
+            "datetime",
+            facts.time_precision,
+            facts.subsecond_digits,
+            mark,
+        )
+    return _cell_of_ordinal(
+        ordinal,
+        facts.resolution,
+        facts.time_precision,
+        facts.subsecond_digits,
+        mark,
+    )
+
+
+def _commonest_mark(facts: contract.DatetimeFacts) -> str:
+    """The mark most of a column's moments wore, or `T` where none is named.
+
+    The earliest name in sorted order wins a tie. It is the mark the twin
+    writes on every rank the named counts do not cover.
+
+    Guarantees: accepts loaded datetime facts; returns one character.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    best = ""
+    for name in sorted(facts.datetime_separators):
+        if name == contract.WITHHELD:
+            continue
+        if not best or (
+            facts.datetime_separators[name] > facts.datetime_separators[best]
+        ):
+            best = name
+    if not best:
+        return "T"
+    return parsing.SEPARATOR_MARKS[best]
+
+
 def _endpoint_cell(
-    facts: contract.DatetimeFacts, published: str, offset: str
+    facts: contract.DatetimeFacts, published: str, offset: str, mark: str
 ) -> str:
     """One END of a column of dates, from the published fields (G7.5).
 
@@ -3660,7 +3734,8 @@ def _endpoint_cell(
 
     Guarantees: accepts loaded datetime facts, a published canonical
     instant and the offset allocated to that cell; returns the cell
-    text; whole-number arithmetic only. No I/O of any kind.
+    text, carrying the mark allocated to its rank; whole-number
+    arithmetic only. No I/O of any kind.
     """
     if facts.resolution != "datetime":
         # A whole date and a quarter ARE their canonical text, and the
@@ -3674,7 +3749,7 @@ def _endpoint_cell(
         # the move cannot disturb the seconds field, and a 60 survives
         # it on this clock exactly as it does on the local one.
         minute = minute + _offset_seconds(offset)
-    stamp = _cell_of_ordinal(minute, "datetime", "minute", 0)
+    stamp = _cell_of_ordinal(minute, "datetime", "minute", 0, mark)
     if facts.time_precision == "minute":
         # A cell written to the minute has no seconds field. D10 admits
         # this precision only where both ends carry a seconds field of
@@ -11368,16 +11443,21 @@ def _datetime_content(
     if not isinstance(facts, contract.DatetimeFacts):
         raise _wrong_facts(column.name)
     parsed = column.n_present - facts.n_unparsed
+    space = _ordinal_space(facts)
     ladder = [
-        _ordinal_of(rung, facts.resolution)
-        for rung in facts.date_percentiles.rungs
+        _ordinal_of(rung, space) for rung in facts.date_percentiles.rungs
     ]
-    first = _ordinal_of(facts.earliest, facts.resolution)
-    last = _ordinal_of(facts.latest, facts.resolution)
+    first = _ordinal_of(facts.earliest, space)
+    last = _ordinal_of(facts.latest, space)
     offsets, notes = _offset_allocation(column, facts, parsed)
-    # The spellings this column publishes among its absent cells, so
-    # that no cell this run writes wears one (review item P4-DATE-F2).
-    holes = _hole_spellings(column)
+    marks, marked = _separator_allocation(column, facts, parsed)
+    notes = notes + marked
+    # The spellings ANY column publishes among its absent cells, so that
+    # no cell this run writes wears one (review item P4-DATE-F2). Its own
+    # column's alone was enough while every stamp wore a `T`; once a cell
+    # wears the source's space, a spelling another column declares
+    # absent can be one this column writes (stage 2 review item 1).
+    holes = _all_holes_of(plan)
     cells: list[str] = []
     taken = 0
     for rank in range(parsed):
@@ -11405,24 +11485,22 @@ def _datetime_content(
         # between them travel through the ordinal space, which is exact
         # for every second the space has a place for (G7.3, G7.5).
         if end:
-            written = _endpoint_cell(facts, end, offset)
+            written = _endpoint_cell(facts, end, offset, marks[rank])
         else:
             local = ordinal
             if (
                 facts.datetimes_read_at == "utc"
                 and facts.resolution == "datetime"
+                and not facts.all_at_midnight
             ):
                 local = ordinal + _offset_seconds(offset)
-            written = _cell_of_ordinal(
-                local,
-                facts.resolution,
-                facts.time_precision,
-                facts.subsecond_digits,
-            )
+            written = _space_cell(local, facts, marks[rank])
         text = written
         if _is_real_offset(offset) and offset:
             text = f"{text}{offset}"
         cells += [_kept_datetime_cell(text, holes)]
+    cells, balanced = _rebalanced_marks(column, marks, cells, holes)
+    notes = notes + balanced
     if parsed >= 1:
         notes = notes + _endpoint_notes(
             column, facts, "earliest", facts.earliest, cells[0], holes
@@ -11431,6 +11509,7 @@ def _datetime_content(
         notes = notes + _endpoint_notes(
             column, facts, "latest", facts.latest, cells[parsed - 1], holes
         )
+    notes = notes + _midnight_notes(column, facts, cells)
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
@@ -11496,10 +11575,12 @@ def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
     walks out of the twin over a separator nobody chose.
 
     The date reader accepts three separators between the day and the
-    time. The fixed one is `T`, and it stays fixed: this is asked only
-    where that spelling is one the column publishes among its absent
-    cells, and then the space form is offered, which reads back as the
-    same instant at the same precision on the same clock. Where BOTH
+    time, and the cell carries the one `_separator_allocation` gave its
+    rank (plan P4-D39). This is asked only where that spelling is one the
+    column publishes among its absent cells, and then the OTHER of the
+    two common forms is offered -- a space for a `T` or a `t`, a `T` for
+    a space -- which reads back as the same instant at the same precision
+    on the same clock. Where BOTH
     spellings are declared absent, nothing here can help and the
     original is returned so that the recount names the loss rather than
     hiding it behind a third spelling.
@@ -11513,9 +11594,14 @@ def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
         raise TypeError("a twin cell reached the spelling rule as something else")
     if not _is_a_hole_spelling(text, holes):
         return text
-    if len(text) < 11 or text[10] != "T":
+    if len(text) < 11:
         return text
-    other = f"{text[0:10]} {text[11:]}"
+    if text[10] == "T" or text[10] == "t":
+        other = f"{text[0:10]} {text[11:]}"
+    elif text[10] == " ":
+        other = f"{text[0:10]}T{text[11:]}"
+    else:
+        return text
     if _is_a_hole_spelling(other, holes):
         return text
     return other
@@ -11574,6 +11660,230 @@ def _endpoint_notes(
             "accepts has an end it can write exactly, so this line is a "
             "fault in the tool: please report it with the description "
             "that produced it.",
+        )
+    ]
+
+
+def _separator_allocation(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts, parsed: int
+) -> "tuple[list[str], list[Deviation]]":
+    """Which mark between day and clock every parsed cell carries (P4-D39).
+
+    The published census is spent EVENLY over the ranks by a smooth
+    weighted rotation: at each rank every name's count is added to its
+    running credit, the name with the most credit is taken -- the
+    earliest in sorted order on a tie -- and the column's total is taken
+    back from it. Each name is written exactly its published number of
+    times, and spread across the whole range, so the twin invents no
+    link between how early a moment is and how it was spelled. Spending
+    the names from the first rank upward would have written every
+    `lower_t` on the earliest dates. The rotation draws no random word,
+    so no other cell of the twin moves.
+
+    Ranks the named counts do not cover -- the withheld pool, and on an
+    `iso-mixed` column the ranks standing for its whole dates, since the
+    twin writes a clock on every parsed cell -- are added to the
+    commonest named mark. A withheld pool is named in the report, as
+    the offsets' own pool is. A column that writes no clock gets `T` on
+    every rank, which no cell of it uses.
+
+    Guarantees: accepts the column, its loaded datetime facts and the
+    number of parsed cells; returns one mark per rank and the deviations
+    to report. Determinism: a function of the three. Raises nothing. No
+    I/O of any kind.
+    """
+    marks = ["T" for _rank in range(parsed)]
+    notes: list[Deviation] = []
+    if facts.resolution != "datetime" or parsed == 0:
+        return marks, notes
+    census = facts.datetime_separators
+    if contract.WITHHELD in census:
+        notes += [
+            _deviation(
+                column.name,
+                "datetime_separators",
+                f"{census[contract.WITHHELD]} values whose mark between "
+                f"the day and the clock was held back",
+                f"written with '{_commonest_mark(facts)}'",
+                "The description does not say which mark those values "
+                "wore, so the twin writes them with the mark most of the "
+                "column wore.",
+            )
+        ]
+    names = [name for name in sorted(census) if name != contract.WITHHELD]
+    if not names:
+        return marks, notes
+    counts: dict[str, int] = {name: census[name] for name in names}
+    commonest = names[0]
+    for name in names:
+        if counts[name] > counts[commonest]:
+            commonest = name
+    named = 0
+    for name in names:
+        named = named + counts[name]
+    if named < parsed:
+        counts[commonest] = counts[commonest] + (parsed - named)
+    total = 0
+    for name in names:
+        total = total + counts[name]
+    credit: dict[str, int] = {name: 0 for name in names}
+    for rank in range(parsed):
+        for name in names:
+            credit[name] = credit[name] + counts[name]
+        best = names[0]
+        for name in names:
+            if credit[name] > credit[best]:
+                best = name
+        credit[best] = credit[best] - total
+        marks[rank] = parsing.SEPARATOR_MARKS[best]
+    return marks, notes
+
+
+def _all_holes_of(plan: "_ColumnPlan") -> "tuple[str, ...]":
+    """This column's absent spellings, then every other column's.
+
+    Guarantees: accepts one column's plan; returns each spelling once, in
+    the order first met. Determinism: a function of the plan. Raises
+    nothing. No I/O of any kind.
+    """
+    found: list[str] = []
+    for spelling in _hole_spellings(plan.column):
+        found += [spelling]
+    for spelling in plan.all_holes:
+        if spelling not in found:
+            found += [spelling]
+    return tuple(found)
+
+
+def _rebalanced_marks(
+    column: contract.ColumnBlock,
+    wanted: "list[str]",
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Give back a mark the absent-spelling swap took (stage 2 review item 2).
+
+    `_kept_datetime_cell` changes a cell's mark where its allocated
+    spelling is one the table declares absent, and that moves the census
+    by one in each of two names. This walks the ranks in ascending order
+    and, for each cell whose mark was changed, gives the owed mark to the
+    first other rank that holds the surplus mark as its own allocation,
+    was not itself changed, and whose new spelling is neither absent nor
+    already written. A rank changed here is never changed again. Then the
+    finished cells are recounted against the allocation, and a shortfall
+    no rank could absorb is named rather than left silent.
+
+    Guarantees: accepts the column, one allocated mark per parsed rank,
+    the parsed cells as written and every absent spelling; returns the
+    cells and at most one deviation. Determinism: a function of the four;
+    draws no word. No I/O of any kind.
+    """
+    fixed: list[str] = [cell for cell in cells]
+    seen: dict[str, int] = {cell: 1 for cell in fixed}
+    moved: dict[int, int] = {}
+    for rank in range(len(fixed)):
+        cell = fixed[rank]
+        if rank in moved or rank >= len(wanted) or len(cell) < 11:
+            continue
+        owed = wanted[rank]
+        spare = cell[10]
+        if spare == owed:
+            continue
+        for other in range(len(fixed)):
+            candidate = fixed[other]
+            if other == rank or other in moved or other >= len(wanted):
+                continue
+            if len(candidate) < 11 or candidate[10] != spare:
+                continue
+            if wanted[other] != spare:
+                continue
+            changed = f"{candidate[0:10]}{owed}{candidate[11:]}"
+            if changed in seen or _is_a_hole_spelling(changed, holes):
+                continue
+            fixed[other] = changed
+            seen[changed] = 1
+            moved[other] = 1
+            break
+    owed_counts: dict[str, int] = {}
+    written_counts: dict[str, int] = {}
+    for rank in range(len(fixed)):
+        cell = fixed[rank]
+        if rank >= len(wanted) or len(cell) < 11:
+            continue
+        mark = wanted[rank]
+        if mark in owed_counts:
+            owed_counts[mark] = owed_counts[mark] + 1
+        else:
+            owed_counts[mark] = 1
+        wore = cell[10]
+        if wore in written_counts:
+            written_counts[wore] = written_counts[wore] + 1
+        else:
+            written_counts[wore] = 1
+    if owed_counts == written_counts:
+        return fixed, []
+    return fixed, [
+        _deviation(
+            column.name,
+            "datetime_separators",
+            _marks_in_words(owed_counts),
+            _marks_in_words(written_counts),
+            "A value written with its published mark would have read as "
+            "an absent cell, and no other value could take that mark in "
+            "its place, so the twin writes the marks in these numbers.",
+        )
+    ]
+
+
+def _marks_in_words(counts: "dict[str, int]") -> str:
+    """Counts of marks, named in the census's own words and order."""
+    shown = ""
+    for name in parsing.DATETIME_SEPARATORS:
+        mark = parsing.SEPARATOR_MARKS[name]
+        if mark not in counts:
+            continue
+        piece = f"{counts[mark]} written with {name}"
+        if shown:
+            shown = f"{shown}, {piece}"
+        else:
+            shown = piece
+    return shown
+
+
+def _midnight_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Catch a midnight column this run wrote off midnight (plan P4-D39).
+
+    A DEFECT DETECTOR. `all_at_midnight` is REPORT-ONLY, and the reading
+    of a file cannot see a time of day inside a day-counted window, so a
+    generator that went back to making up times would pass every check
+    the validator draws. This recounts the cells this run actually wrote
+    and names any that do not stand at midnight.
+
+    Guarantees: accepts the column, its facts and the parsed cells
+    written; returns no deviation on a column that is not all at
+    midnight or on a twin that kept it. No I/O of any kind.
+    """
+    if not facts.all_at_midnight:
+        return []
+    off = 0
+    for cell in cells:
+        if not parsing.clock_at_midnight(cell, "iso-datetime"):
+            off = off + 1
+    if off == 0:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "all_at_midnight",
+            "true",
+            f"{off} of {len(cells)} values written at another time of day",
+            "The description says every value of this column stood at "
+            "midnight, and the twin wrote these values off it. That is a "
+            "defect in synthtwin, not a property of your table.",
         )
     ]
 
@@ -21198,7 +21508,7 @@ def _written_ordinal(
         return None
     if facts.resolution == "datetime" and len(found) < 19:
         return None
-    return _ordinal_of(found, facts.resolution)
+    return _ordinal_of(found, _ordinal_space(facts))
 
 
 def _ordinal_at(
@@ -21226,6 +21536,11 @@ def _precision_slack(facts: contract.DatetimeFacts) -> int:
     cell each carry their own unit exactly and lose nothing.
     """
     if facts.resolution != "datetime":
+        return 0
+    if facts.all_at_midnight:
+        # Counted in days (`_ordinal_space`): the cell names its whole
+        # day exactly, whatever precision its midnight clock is written
+        # at, so the cut loses nothing (plan P4-D39).
         return 0
     if facts.time_precision == "minute":
         return 59
@@ -21292,7 +21607,14 @@ def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
     for offset in facts.utc_offsets:
         if _is_real_offset(offset):
             carried = carried + 1
-    return max(1, carried)
+    # ...times the marks between day and clock it writes (plan P4-D39):
+    # one instant can wear each named mark, and the withheld pool is
+    # written with one of those, so it adds none.
+    marked = 0
+    for name in facts.datetime_separators:
+        if name != contract.WITHHELD:
+            marked = marked + 1
+    return max(1, carried) * max(1, marked)
 
 
 def _clock_approximations(
@@ -21415,9 +21737,10 @@ def _datetime_approximations(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     written: "list[str]",
+    holes: "tuple[str, ...]",
 ) -> "list[Approximation]":
     """The two approximated families of a column of dates (G12.4, G12.5)."""
-    present = _present_of(written, _hole_spellings(column))
+    present = _present_of(written, holes)
     ordinals = sorted(
         [
             found
@@ -21428,10 +21751,11 @@ def _datetime_approximations(
         ]
     )
     held = len(ordinals)
+    space = _ordinal_space(facts)
     ladder = [
-        _ordinal_of(rung, facts.resolution)
-        for rung in facts.date_percentiles.rungs
+        _ordinal_of(rung, space) for rung in facts.date_percentiles.rungs
     ]
+    mark = _commonest_mark(facts)
     lows, highs = _datetime_window(ladder, facts, held)
     found_facts: list[Approximation] = []
     # A column holding no readable date has no rung to measure, and the
@@ -21451,24 +21775,9 @@ def _datetime_approximations(
                 column=column.name,
                 fact=f"date_percentiles.p{percent:02d}",
                 published=facts.date_percentiles.rungs[step],
-                achieved=_cell_of_ordinal(
-                    achieved,
-                    facts.resolution,
-                    facts.time_precision,
-                    facts.subsecond_digits,
-                ),
-                lowest=_cell_of_ordinal(
-                    lowest,
-                    facts.resolution,
-                    facts.time_precision,
-                    facts.subsecond_digits,
-                ),
-                highest=_cell_of_ordinal(
-                    highest,
-                    facts.resolution,
-                    facts.time_precision,
-                    facts.subsecond_digits,
-                ),
+                achieved=_space_cell(achieved, facts, mark),
+                lowest=_space_cell(lowest, facts, mark),
+                highest=_space_cell(highest, facts, mark),
                 inside=lowest <= achieved <= highest,
                 note=(
                     "the date that stands "
@@ -21492,7 +21801,7 @@ def _datetime_approximations(
         reachable * _spellings_of_a_date(facts) + stand_ins,
     )
     lowest_count = min(lowest_count, highest_count)
-    counted = _recounted(written, _hole_spellings(column))
+    counted = _recounted(written, holes)
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
         if place == 3:
@@ -21934,7 +22243,9 @@ def _approximations(
     if isinstance(facts, contract.ClockFacts):
         return _clock_approximations(column, facts, written)
     if isinstance(facts, contract.DatetimeFacts):
-        return _datetime_approximations(column, facts, written)
+        return _datetime_approximations(
+            column, facts, written, _all_holes_of(plan)
+        )
     if isinstance(facts, contract.TextFacts):
         return _text_approximations(column, facts, written, plan.carriers)
     if isinstance(facts, contract.LabelFacts):

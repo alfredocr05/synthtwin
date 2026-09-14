@@ -149,11 +149,18 @@ EMPTY_EDGE_FACT = "numeric.empty_edges"
 # census it is listed once per such column. Subtracted the same way, and
 # named just below.
 GROUP_SEPARATOR_FACT = "numeric.group_separator"
+# ...and the FIFTH and SIXTH (plan P4-D39, the same day): the census of
+# marks between day and clock and the midnight statement, listed on every
+# datetime column. The demonstration has one, `recorded_on`.
+DATETIME_SEPARATORS_FACT = "datetime.datetime_separators"
+ALL_AT_MIDNIGHT_FACT = "datetime.all_at_midnight"
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     EMPTY_BIN_FACT,
     EMPTY_EDGE_FACT,
     GROUP_SEPARATOR_FACT,
+    DATETIME_SEPARATORS_FACT,
+    ALL_AT_MIDNIGHT_FACT,
 )
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
@@ -390,6 +397,15 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose|numeric.group_separator|",
         "reading|numeric.group_separator|",
         "visits|numeric.group_separator|",
+    ]
+    # ...and the two datetime listings, on the one datetime column.
+    assert sorted(
+        entry
+        for entry in listings
+        if DATETIME_SEPARATORS_FACT in entry or ALL_AT_MIDNIGHT_FACT in entry
+    ) == [
+        "recorded_on|datetime.all_at_midnight|",
+        "recorded_on|datetime.datetime_separators|",
     ]
     # ...and the empty-bin listings are named the same way, and the
     # list is SHORTER than the four above rather than equal to it,
@@ -716,8 +732,11 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # reference vector and had to move with the oracle, which is what this
 # landing did. No count, statistic, label, role, spelling or cell
 # changed on `dose` or on any other column.
+# RE-RECORDED 2026-09-14 (plan P4-D39): two keys added to `recorded_on`,
+# `all_at_midnight: false` and `datetime_separators: {}`, and nothing else;
+# the twin digest below did not move.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0a59a6475851b72232407647003045a9481e421570cb3a0f2050d47ecf17a4bb"
+    "7ef031ed5ecf5785ec559de3b494ec4f7bdec7bd3f48a4aef17cd6bec915a1fc"
 )
 
 
@@ -1208,8 +1227,10 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # gets which count is arbitrary, which rows share one carries nothing
 # further, the rows of a subject hold unrelated values, and anything
 # that groups rows still behaves differently.
+# RE-RECORDED 2026-09-14 (stage 2): the first limit's sentence about
+# analysis code running on the twin is qualified, and no other line moved.
 GOLDEN_REPORT_SHA256 = (
-    "de562b46370d7574eed99c87bb582d5a994f7a50be3c642e62dbe815abce3238"
+    "1fbad8c5008a89f9339b7c2c9b01ad2298bf0481fe19371d00e5c80cee4908fb"
 )
 
 
@@ -1674,8 +1695,12 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # are identical before and after. What moved is the handling paragraph,
 # which names six files where it named five and names the questions
 # file among them.
+# RE-RECORDED 2026-09-14 (stage 2): part one listed `group_separator` on
+# six numeric positions; part two lists `datetime_separators` and
+# `all_at_midnight` on `recorded_on`, raising the not-checkable count from
+# 146 to 148. No verdict and no check moved.
 GOLDEN_QUALITY_SHA256 = (
-    "36fdf67162a4426417d98caa3fa32e1d5a6cd441dc40a14c2908a1a97621f0c9"
+    "775a662cc2e3870108091391dcfd8ab7410e9c233b1d0821229bb61bfffa3fe4"
 )
 
 

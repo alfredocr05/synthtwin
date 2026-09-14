@@ -2225,8 +2225,13 @@ def ordinal_of(text, resolution):
     return 86400 * days + 3600 * hours + 60 * minutes + seconds
 
 
-def precision_form(ordinal, resolution, time_precision, subsecond_digits):
-    """The cell text of method section G7.5, before the offset suffix."""
+def precision_form(ordinal, resolution, time_precision, subsecond_digits, mark="T"):
+    """The cell text of method section G7.5, before the offset suffix.
+
+    ``mark`` is the character between the day and the clock that the
+    column's separator census gives this rank (plan P4-D39); ``T`` where
+    the census names none, which is every case frozen before it existed.
+    """
     if resolution == "quarter":
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
@@ -2241,7 +2246,7 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits):
     year, month, day = civil_from_days(days)
     hours, rest = divmod(rest, 3600)
     minutes, seconds = divmod(rest, 60)
-    stem = f"{year:04d}-{month:02d}-{day:02d}T{hours:02d}:{minutes:02d}"
+    stem = f"{year:04d}-{month:02d}-{day:02d}{mark}{hours:02d}:{minutes:02d}"
     if time_precision == "minute":
         return stem
     stem = f"{stem}:{seconds:02d}"
@@ -2320,7 +2325,7 @@ def interpolated_ordinal(position, denominator, rungs):
     ) // width
 
 
-def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift):
+def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mark="T"):
     """An endpoint cell, from the endpoint's OWN fields -- method section G7.5.
 
     The two endpoint cells do not travel through the ordinal space of
@@ -2350,14 +2355,16 @@ def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift):
         86400 * days_from_civil(year, month, day) + 3600 * hours + 60 * minutes
     )
     written = precision_form(
-        minute + shift, resolution, time_precision, subsecond_digits
+        minute + shift, resolution, time_precision, subsecond_digits, mark
     )
     if time_precision == "minute":
         # The one precision with no seconds field at all, which contract
         # invariant D10 admits only where both ends carry `SS` of `00`.
         return written
-    # YYYY-MM-DDTHH:MM:SS -- the seconds field is the two characters at
-    # 17 and 18, and anything after them is the fraction.
+    # YYYY-MM-DD?HH:MM:SS, the ? being the allocated mark -- one
+    # character at 10 whichever it is, so the seconds field is still the
+    # two characters at 17 and 18, and anything after them is the
+    # fraction.
     return written[:17] + f"{seconds:02d}" + written[19:]
 
 
@@ -2990,12 +2997,18 @@ def _datetime_content(column):
     because a reader has to know which reading was taken.
     """
     resolution = column["resolution"]
+    space = ordinal_space(column)
+    # Decided by the space, so that withdrawing the day-unit rule (the
+    # `midnight_days` mutant) withdraws the midnight writing with it.
+    midnight = space == "date" and resolution == "datetime"
     parsed = column["n_present"] - column["n_unparsed"]
     rungs = [
-        ordinal_of(column["date_percentiles"][key], resolution)
+        ordinal_of(column["date_percentiles"][key], space)
         for key in LADDER_KEYS
     ]
     offsets = _offset_allocation(column, parsed)
+    marks = _separator_allocation(column, parsed)
+    holes = set(column.get("missing_by_source", {}))
     words = iter(column["_content_words"])
     content = []
     for rank in range(parsed):
@@ -3014,7 +3027,9 @@ def _datetime_content(column):
             )
         suffix, shift = offset_form(offsets[rank])
         moved = shift if (
-            column["datetimes_read_at"] == "utc" and resolution == "datetime"
+            column["datetimes_read_at"] == "utc"
+            and resolution == "datetime"
+            and not midnight
         ) else 0
         if endpoint is not None:
             text = endpoint_cell(
@@ -3023,6 +3038,17 @@ def _datetime_content(column):
                 column["time_precision"],
                 column["subsecond_digits"],
                 moved,
+                mark=marks[rank],
+            )
+        elif midnight:
+            # A whole day, written with a midnight clock at the published
+            # precision (plan P4-D39).
+            text = precision_form(
+                ordinal * 86400,
+                "datetime",
+                column["time_precision"],
+                column["subsecond_digits"],
+                mark=marks[rank],
             )
         else:
             text = precision_form(
@@ -3030,10 +3056,115 @@ def _datetime_content(column):
                 resolution,
                 column["time_precision"],
                 column["subsecond_digits"],
+                mark=marks[rank],
             )
-        content.append(text + suffix)
+        content.append(kept_cell(text + suffix, holes))
+    content = rebalance_marks(marks, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
+
+
+MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
+
+
+def ordinal_space(column):
+    """The resolution a column's ordinals are counted in (plan P4-D39).
+
+    A column of moments that all stand at midnight is counted in whole
+    days, as a column of dates is; every other column in its own
+    resolution.
+    """
+    if column.get("all_at_midnight", False):
+        return "date"
+    return column["resolution"]
+
+
+def _separator_allocation(column, parsed):
+    """Which mark each rank carries between day and clock (plan P4-D39).
+
+    A smooth weighted rotation, written here from its statement rather
+    than from the implementation: every rank adds each named count to
+    that name's credit, the name holding the most credit is chosen --
+    the first in sorted order among equals -- and the weights' total is
+    taken back from it.  Ranks the named counts leave over are added to
+    the commonest name's weight.  No rank is pinned, and no word is
+    drawn.
+    """
+    if column["resolution"] != "datetime" or parsed == 0:
+        return ["T"] * parsed
+    named = {
+        name: count
+        for name, count in column.get("datetime_separators", {}).items()
+        if name != "(withheld)"
+    }
+    if not named:
+        return ["T"] * parsed
+    order = sorted(named)
+    commonest = max(order, key=lambda name: (named[name], -order.index(name)))
+    weights = dict(named)
+    weights[commonest] += max(0, parsed - sum(named.values()))
+    total = sum(weights.values())
+    credit = dict.fromkeys(order, 0)
+    marks = []
+    for _rank in range(parsed):
+        for name in order:
+            credit[name] += weights[name]
+        chosen = max(order, key=lambda name: (credit[name], -order.index(name)))
+        credit[chosen] -= total
+        marks.append(MARK_OF[chosen])
+    return marks
+
+
+ALTERNATE_MARK = {"T": " ", "t": " ", " ": "T"}
+
+
+def kept_cell(text, holes):
+    """G7.5's absent-spelling exception, written from its statement.
+
+    A cell whose text is a declared absent spelling is offered the other
+    common form -- a space for `T` or `t`, a `T` for a space -- and keeps
+    its own text where that form is absent too.  An absent spelling is
+    matched whatever the case of its letters, as the reading of a file
+    matches it: a `t` stamp is absent where its `T` form is declared.
+    """
+    folded = {hole.lower() for hole in holes}
+    if text.lower() not in folded or len(text) < 11:
+        return text
+    if text[10] not in ALTERNATE_MARK:
+        return text
+    other = text[:10] + ALTERNATE_MARK[text[10]] + text[11:]
+    return text if other.lower() in folded else other
+
+
+def rebalance_marks(wanted, cells, holes):
+    """G7.5's repair of the census after that exception (plan P4-D39).
+
+    Each cell whose mark the exception changed hands the mark it owed to
+    the first other rank, in rank order, that was allocated the mark the
+    changed cell now wears, was not itself touched, and whose new text is
+    neither absent nor already written.  No rank is touched twice.
+    """
+    cells = list(cells)
+    taken = set(cells)
+    touched = set()
+    folded = {hole.lower() for hole in holes}
+    for rank, cell in enumerate(cells):
+        if rank in touched or len(cell) < 11 or cell[10] == wanted[rank]:
+            continue
+        owed, spare = wanted[rank], cell[10]
+        for other, candidate in enumerate(cells):
+            if other == rank or other in touched or len(candidate) < 11:
+                continue
+            if candidate[10] != spare or wanted[other] != spare:
+                continue
+            changed = candidate[:10] + owed + candidate[11:]
+            if changed in taken or changed.lower() in folded:
+                continue
+            cells[other] = changed
+            taken.add(changed)
+            touched.add(other)
+            break
+    return cells
 
 
 def _offset_allocation(column, parsed):
@@ -5320,6 +5451,18 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     if role == "datetime":
         parsed = block["n_present"] - block["n_unparsed"]
         block["resolution_mix"] = {block["format"]: parsed}
+        # ...and the census of marks between day and clock, and the
+        # midnight statement (plan P4-D39), defaulted to what every cell
+        # frozen before them already wears: a `T` on each parsed cell of a
+        # column that writes a clock, none on one that writes no clock,
+        # and no column standing wholly at midnight.  A case that states
+        # its own keeps it.
+        if "datetime_separators" not in block:
+            block["datetime_separators"] = (
+                {"upper_t": parsed} if block["resolution"] == "datetime" else {}
+            )
+        if "all_at_midnight" not in block:
+            block["all_at_midnight"] = False
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -6143,6 +6286,81 @@ def _leap_second_endpoint():
         "identifier_declared": False,
     }
 
+
+
+def _midnight_days():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-01-08 00:00:00", latest="2024-12-16 00:00:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-01-08 00:00:00", "p01": "2024-01-08 00:00:00",
+            "p05": "2024-01-20 00:00:00", "p10": "2024-02-14 00:00:00",
+            "p25": "2024-04-21 00:00:00", "p50": "2024-06-30 00:00:00",
+            "p75": "2024-09-23 00:00:00", "p90": "2024-11-29 00:00:00",
+            "p95": "2024-12-08 00:00:00", "p99": "2024-12-15 00:00:00",
+            "max": "2024-12-16 00:00:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 12},
+        datetime_separators={"space": 12}, all_at_midnight=True,
+    )
+    return {
+        "why": "the day-unit rule of plan P4-D39. Every moment of this column "
+        "stands at midnight, which is how a warehouse holds a date with no "
+        "time, so the ladder, both ends and the ten interior ranks are "
+        "counted in whole days and each cell is written as its day with a "
+        "midnight clock at the published precision, carrying the space the "
+        "census names. Counted in seconds, as every column of moments was "
+        "before this rule, the interior ranks land part-way through a day "
+        "and the twin invents a time of day for each of them: that is the "
+        "regression this case is frozen to stop, and its mutant is exactly "
+        "that.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+    }
+
+
+def _mixed_marks():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="minute",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-05-01 06:30:00", latest="2024-05-28 21:45:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-05-01 06:30:00", "p01": "2024-05-01 06:30:00",
+            "p05": "2024-05-02 09:15:00", "p10": "2024-05-04 13:40:00",
+            "p25": "2024-05-08 07:05:00", "p50": "2024-05-14 18:20:00",
+            "p75": "2024-05-21 11:55:00", "p90": "2024-05-25 16:10:00",
+            "p95": "2024-05-27 08:25:00", "p99": "2024-05-28 20:50:00",
+            "max": "2024-05-28 21:45:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 24},
+        datetime_separators={"lower_t": 11, "space": 11, "(withheld)": 2},
+        all_at_midnight=False,
+    )
+    return {
+        "why": "the rotation of marks between day and clock of plan P4-D39. "
+        "The census names two marks at eleven cells each and holds two more "
+        "back, so it pins three rules at once: the named marks are spread "
+        "evenly over the ranks rather than spent from the earliest rank "
+        "upward, the earliest name in sorted order is the commonest on a "
+        "tie, and the withheld pool is written with that commonest mark. A "
+        "walk that spent the names from the first rank upward would write "
+        "every lower-case t on the earliest dates and every space on the "
+        "latest, making up a link between how early a moment is and how it "
+        "was spelled; this case's mutant is that walk.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
 
 def _mixed_parsed_unparsed():
     column = _universal(
@@ -7249,6 +7467,8 @@ BRANCH_CASE_BUILDERS = {
     "clock_ladder": _clock_ladder,
     "affixed_brackets": _affixed_brackets,
     "joined_readings": _joined_readings,
+    "midnight_days": _midnight_days,
+    "mixed_marks": _mixed_marks,
 }
 
 CASE_SETS = {
@@ -7537,6 +7757,32 @@ GIVEN_WORDS = {
         18342807586139153977, 17012409700022442331, 2994083137851607544,
         10884890814974754874, 13385752094565004958, 16951936404647227201,
     ),
+    "midnight_days": (
+        15225067758405650424, 3239691001737042761, 6965203772582325307,
+        3861130776911679617, 15173224978910387615, 9323792062223508955,
+        14250404113572641605, 1387121928156927234, 16727263926372204009,
+        17058543561537392661, 590429885636454433, 11726181845119428326,
+        11691978854857713329, 2605788068526521694, 15564275702978365942,
+        9295767331320370689, 4588766561642468171, 10672129521899455171,
+        1873019329306020848, 1526646873211970272, 11345087966265059162,
+    ),
+    "mixed_marks": (
+        12587170189557361101, 992822559630912803, 4064922177151560342,
+        3401059606364785669, 3244891138370822358, 14980499527944476233,
+        17032708870344961936, 5101897133503557865, 15121802600962083084,
+        16415622762886201840, 9462634704993459244, 4518799303034446728,
+        15204573778114825406, 3943230677818135853, 13677652951661521469,
+        11620345735806077694, 17107644350114347775, 4277951003820173595,
+        14741256730524897565, 9558457822766297307, 4271447349828353003,
+        3060388504118456040, 9182585704594671237, 10749372310875182232,
+        3400435677155855496, 274762717475212626, 8690874097962755731,
+        13433718298383103069, 16945188177730290244, 11539065713204468302,
+        16917925380007743293, 15950719764958515555, 4024025754346188944,
+        15977231050047964636, 13479993951608207110, 5125709897111330840,
+        14702858441175478488, 15960523503845024435, 5523654226794324199,
+        9722210440181412196, 1318698826428569177, 10758849686013811633,
+        4388598467465224327, 14111088605365728606, 3202938355627100572,
+    ),
 }
 
 
@@ -7647,6 +7893,7 @@ INTEGER_COLUMN_KEYS = frozenset({
 })
 INTEGER_COLUMN_MAPS = frozenset({
     "missing_by_class", "missing_by_source", "numeric_styles", "utc_offsets",
+    "datetime_separators",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
     "fraction_widths", "pad_widths", "field_widths", "resolution_mix",
     "shape_forms",
@@ -7975,8 +8222,11 @@ DEFINITIONS = {
     "always, before the epoch included, which is why it floors toward "
     "negative infinity rather than truncating toward zero (G7.3).",
     "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and "
-    "datetime writes YYYY-MM-DDTHH:MM, ...:SS or ...:SS.ddd by the "
-    "published time_precision, with T as the separator and the fractional "
+    "datetime writes YYYY-MM-DD?HH:MM, ...:SS or ...:SS.ddd by the "
+    "published time_precision, the ? being the mark separator_allocation "
+    "gives the rank (T where the census names none), a column whose every "
+    "moment stands at midnight writing its day with a midnight clock, and "
+    "the fractional "
     "digits all zeros because the profile publishes how many digits the "
     "finest cell carried and nothing about their values (G7.5).",
     "endpoint_fields": "the two endpoint cells are built from the published "
@@ -7989,6 +8239,21 @@ DEFINITIONS = {
     "the seconds field and a seconds field of 60 survives it; for every "
     "other seconds field this produces the bytes the ordinal route produces "
     "(G7.5).",
+    "separator_allocation": "the census of marks between day and clock is "
+    "spent over the parsed ranks by a smooth weighted rotation: each rank "
+    "adds every named count to that name's credit, takes the name holding "
+    "the most credit (the first in sorted order among equals) and takes "
+    "the weights' total back from it; ranks the named counts leave over "
+    "are added to the commonest name's weight. No rank is pinned and no "
+    "word is drawn; a column counted in days by ordinal_space is written "
+    "with a midnight clock (P4-D39). Where a cell's text is a declared absent "
+    "spelling (matched whatever the case of its letters) it takes the other "
+    "common mark (a space for T or t, a T for a "
+    "space) unless that is absent too, and the mark it owed is handed to the "
+    "first other rank, in rank order, allocated the mark it now wears whose "
+    "new text is neither absent nor already written; no rank is touched "
+    "twice. No frozen case declares an absent spelling, so that exception "
+    "is pinned by the agreement test rather than by committed cells (G7.5).",
     "grid_packing": "the published families of counts over one set of cells "
     "are MARGINS of one packing, never one walk after another: every group "
     "takes one cell of the grid out of the set its own facts permit, and "

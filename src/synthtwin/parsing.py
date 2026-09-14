@@ -2986,6 +2986,103 @@ def subsecond_digits(text: str, format_name: str) -> int:
     return len(clock) - 9
 
 
+# THE MARK BETWEEN A MOMENT'S DAY AND ITS CLOCK (stage 2, plan P4-D39).
+# `parse_datetime` accepts three and returns the canonical form, which
+# discards which one the cell wore; these are the names the description
+# publishes them under. Names and not the characters, as `numeric_styles`
+# names its styles: a key that is a single space is a key nobody can see.
+# In sorted order, which is the order the generator's rotation breaks a
+# tie in.
+SEPARATOR_LOWER_T = "lower_t"
+SEPARATOR_SPACE = "space"
+SEPARATOR_UPPER_T = "upper_t"
+DATETIME_SEPARATORS = (SEPARATOR_LOWER_T, SEPARATOR_SPACE, SEPARATOR_UPPER_T)
+SEPARATOR_MARKS = {
+    SEPARATOR_LOWER_T: "t",
+    SEPARATOR_SPACE: " ",
+    SEPARATOR_UPPER_T: "T",
+}
+
+
+def datetime_separator(text: str, format_name: str) -> "str | None":
+    """The name of the mark between a moment's day and its clock, or None.
+
+    Only a cell that writes a clock has one. A whole-date cell of an
+    `iso-mixed` column writes none, and is decided by the same reading
+    `taxonomy._resolution_mix` counts it by. The two slashed members
+    split their halves on exactly one space, so their mark is always
+    `space`.
+
+    Guarantees: accepts one cell and the format member it parsed under;
+    returns a member of `DATETIME_SEPARATORS`, or None for a cell that
+    writes no clock or does not parse. Determinism: a function of the
+    two. Raises TypeError if either is not a string instance. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if _clock_of(text, format_name) is None:
+        return None
+    if (
+        format_name == "month-first-datetime"
+        or format_name == "day-first-datetime"
+    ):
+        return SEPARATOR_SPACE
+    if parse_datetime(text, "iso-datetime") is None:
+        return None
+    body = text.strip()
+    mark = body[10]
+    if mark == "T":
+        return SEPARATOR_UPPER_T
+    if mark == "t":
+        return SEPARATOR_LOWER_T
+    if mark == " ":
+        return SEPARATOR_SPACE
+    return None
+
+
+def clock_at_midnight(text: str, format_name: str) -> bool:
+    """Whether a parsed cell names exactly the first instant of its day.
+
+    A cell that writes no clock names midnight of its day: that is how
+    the joint ISO reading reads a whole date, and it is what a whole
+    date means. The describing step asks this only of columns published
+    at `datetime` resolution, so a column of dates cannot claim the
+    fact through this answer. A cell that writes a clock names midnight
+    only where every figure of it is a zero -- hours, minutes, any
+    seconds and every fractional digit -- so `00:00:00.001` does not.
+
+    Guarantees: accepts one cell and its format member; returns False
+    for a cell that does not parse under that member. Determinism: a
+    function of the two. Raises TypeError if either is not a string
+    instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if parse_datetime(text, format_name) is None:
+        return False
+    clock = _clock_of(text, format_name)
+    if clock is None:
+        return True
+    if len(clock) < 5 or clock[0:5] != "00:00":
+        return False
+    rest = clock[5:]
+    if len(rest) == 0:
+        return True
+    if len(rest) < 3 or rest[0:3] != ":00":
+        return False
+    fraction = rest[3:]
+    place = 1
+    while place < len(fraction):
+        if fraction[place] != "0":
+            return False
+        place += 1
+    return True
+
+
 def looks_like_a_column_name(text: str) -> bool:
     """True when ``text`` could be a column name rather than a value.
 

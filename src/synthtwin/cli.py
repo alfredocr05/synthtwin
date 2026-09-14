@@ -223,9 +223,12 @@ more, not a code that only ever appears beside one region, not two
 columns left empty in the same rows. Every row is built on its own too,
 and the description never says what one row of your table is, so a table
 holding several rows per person yields a twin that behaves differently
-from your table under anything that groups rows. Your analysis code
-RUNS on the twin, which is what the twin is for; a number it computes
-from two columns of the twin means nothing about your table.
+from your table under anything that groups rows. Analysis code you
+develop on the twin is meant to run unchanged on your table, and nothing
+here guarantees that it will: a step that depends on more than the
+description publishes, such as a cut into quartiles, can succeed on the
+twin and fail on your table. A number it computes from two columns of
+the twin means nothing about your table.
 Cross-column structure arrives in a later version of synthtwin.
 
 What that does and does not promise about your rows. The generator is

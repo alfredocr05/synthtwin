@@ -1074,6 +1074,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "time_precision"): _WORD,
     ("columns", _EACH, "subsecond_digits"): _COUNT,
     ("columns", _EACH, "datetimes_read_at"): _WORD,
+    # A statement about every parsed cell at once, and a real yes or no
+    # (plan P4-D39): a count standing in for it is refused.
+    ("columns", _EACH, "all_at_midnight"): _FLAG,
     ("columns", _EACH, "earliest"): _MOMENT_TEXT,
     ("columns", _EACH, "latest"): _MOMENT_TEXT,
     ("columns", _EACH, "earliest_utc_offset"): _OFFSET,
@@ -1102,6 +1105,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
     ("columns", _EACH, "utc_offsets", _ANY_KEY): _FLOORED_ENTRY,
+    # HOW MANY PARSED CELLS WORE EACH MARK BETWEEN DAY AND CLOCK (plan
+    # P4-D39). Its keys are this package's own names, and unlike the form
+    # census above its counts ARE floored, with a withheld pool.
+    ("columns", _EACH, "datetime_separators"): _OBJECT,
+    ("columns", _EACH, "datetime_separators", _KEY_OF): _WORD,
+    ("columns", _EACH, "datetime_separators", _ANY_KEY): _FLOORED_ENTRY,
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -1270,6 +1279,9 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
+    ("columns", _EACH, "datetime_separators", _KEY_OF): (
+        parsing.DATETIME_SEPARATORS + (parsing.MISSING_WITHHELD,)
+    ),
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (

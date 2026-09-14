@@ -434,10 +434,14 @@ def _independence_lines() -> "list[str]":
         "   of your table is in the twin: not a taller person weighing",
         "   more, not a later date costing more, not a code that only ever",
         "   appears beside one region, not two columns left empty in the",
-        "   same rows. Analysis code developed on the twin RUNS; a number",
-        "   it computes from two columns of the twin means nothing about",
-        "   your table. Cross-column structure arrives in a later version",
-        "   of synthtwin.",
+        "   same rows. Analysis code developed on the twin is meant to",
+        "   run unchanged on your table, and nothing here guarantees that",
+        "   it will: a step that depends on more than the description",
+        "   publishes, such as a cut into quartiles, can succeed on the",
+        "   twin and fail on your table. A number it computes from two",
+        "   columns of the twin means nothing about your table.",
+        "   Cross-column structure arrives in a later version of",
+        "   synthtwin.",
         "",
         "2. EVERY ROW WAS BUILT ON ITS OWN, and the description of your",
         "   table never says what one row of it is. Where you named an",
@@ -1328,6 +1332,19 @@ def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
         "  column of quarters), at the same precision your table had and",
         "  with an offset only where the description records one.",
     ]
+    # THE TWO SPELLINGS PLAN P4-D39 KEEPS, said where a person meets the
+    # twin. Only on a column that writes a clock: a whole date has no mark
+    # and no time of day to keep.
+    if facts.resolution == "datetime":
+        lines += [
+            "  Between the day and the time of day it writes the marks your",
+            "  table wrote, each as often as the description records it.",
+        ]
+    if facts.all_at_midnight:
+        lines += [
+            "  Every moment of this column stood at midnight, so every moment",
+            "  of the twin's column stands at midnight too.",
+        ]
     if facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS:
         return lines + [
             (

@@ -164,6 +164,7 @@ were added to version 6 after it was declared -- `kurtosis`,
 the census of written forms, `field_widths`, `empty_bins`,
 `empty_edges`,
 `group_separator` on the numeric blocks,
+`datetime_separators` and `all_at_midnight` on the datetime block,
 `min_length` and `max_length` on the unrepresentable role,
 `value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
@@ -580,7 +581,7 @@ whose only container members are the objects `percentiles` and
 `latest`, `clock_percentiles` and `n_unparsed`. Elsewhere they are
 `fraction_widths`, `pad_widths` and `field_widths` — each a key of the
 block, a sibling of `numeric_styles` — `shape_forms`, a key of the block on the five
-roles that carry it, `resolution_mix`, `min_length`, `max_length`, the `(date-sentinel)` key
+roles that carry it, `resolution_mix`, `datetime_separators`, `all_at_midnight`, `min_length`, `max_length`, the `(date-sentinel)` key
 of `missing_by_class`, `built_in_dates` as the third list of each
 declaration record, whose members are strings, and the `settings` keys
 `day_first` and `long_tail_minimum_level`.
@@ -1000,7 +1001,7 @@ the consequence stated to them and accepted.
 floor-governed invariant is written as "at least the floor" and "below
 the floor", so each one still binds at the value the document carries:
 the absence-class and absence-source rules (N2, N4), the label rules
-(B5, W5), the offset rule (D3), the numeric-style rule (P2), the
+(B5, W5), the offset rule (D3), the separator rule (D12), the numeric-style rule (P2), the
 fraction-width rule (P6) and the stand-in rule (V1) hold at `f`
 exactly as they held at 11. The long-tail detection line does not move
 at all, because it reads `max(small_cell_floor,
@@ -1018,15 +1019,16 @@ whole of it:
 `suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`;
 every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `n_missing_withheld`; and the `(withheld)` ENTRIES of
-`missing_by_class`, `utc_offsets`, `numeric_styles`,
-`fraction_widths`, `pad_widths`, `field_widths` and `shape_forms`.
+`missing_by_class`, `utc_offsets`, `datetime_separators`,
+`numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
+`shape_forms`.
 
 A document that fills one of them is refused. The rule is checked with
 the top-level rules, before any column block is read, because the
 floor is a top-level setting and what the rule states is a fact about
 the whole description.
 
-**On SEVEN of those positions the added thing is the ENTRY, not the
+**On EIGHT of those positions the added thing is the ENTRY, not the
 field, and the difference matters.** At a floor of 1 a decimal column
 of two cells written at width 2 publishes `fraction_widths: {"2": 2}`,
 which is correct and must not be refused: at a floor of one every
@@ -1035,7 +1037,7 @@ and the field is nonempty precisely because nothing is held back. What
 must be zero or absent there is the `(withheld)` entry alone, for the
 rule's own reason — at a floor of one there is nothing to pool. The
 same reading applies to `missing_by_class`, `utc_offsets`,
-`numeric_styles`, `pad_widths`, `field_widths` and `shape_forms`: the
+`datetime_separators`, `numeric_styles`, `pad_widths`, `field_widths` and `shape_forms`: the
 map stays, the pooled remainder goes.
 
 **What does NOT join the list, named so no reader adds it.**
@@ -1047,7 +1049,9 @@ is not on it and must not be added: at a floor of one every blank
 group reaches the floor, so blanks are named rather than pooled, which
 is what the rule requires. And `resolution_mix` is not on it because
 it is floor-free — it never withholds at any floor, so a rule about
-what a floor of one holds back has nothing to say about it.
+what a floor of one holds back has nothing to say about it. The
+datetime block's other map, `datetime_separators`, is floor-governed
+with a `(withheld)` pool, and it is on the list.
 
 **THE LIST IS EXHAUSTIVE, AND THAT MATTERS TO A WALK** (plan amendment
 A-P3-32, review item P3-V9-F2). Every position above is a FIELD of
@@ -3519,7 +3523,7 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: thirteen.**
+**Added keys: fifteen.**
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -3536,22 +3540,26 @@ ISO reading below may still claim the column.
 | `n_unparsed` | integer ≥ 0 | — | present cells that did not read as a date under the chosen format |
 | `utc_offsets` | object | offset → count | how often each UTC offset appeared, under the floor |
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
+| `datetime_separators` | object | `lower_t`, `space`, `upper_t` or `(withheld)` → count | how many parsed cells wrote each mark between the day and the clock, under the floor; `{}` where `resolution` is not `datetime` |
+| `all_at_midnight` | boolean | — | `true` where every parsed cell of a `local` datetime column names exactly midnight and the parsed cells reach the floor |
 
-**Three closed vocabularies stand in that table** — `format` with
-NINETEEN members, `resolution` with FOUR, `time_precision` with SIX —
-and each is written again below inside a table that BINDS it: the
+**Four closed vocabularies stand in that table** — `format` with
+NINETEEN members, `resolution` with FOUR, `time_precision` with SIX,
+the `datetime_separators` names with THREE — and the first three are
+each written again below inside a table that BINDS it: the
 nineteen formats are the rows of the next table, where D1 fixes each one's
 resolution; the four resolutions are the rows of the canonical-forms
 table, which fixes what each one's instants are written as, and of D6's
 table; and the six precisions are named in D6's table, which admits no
-pair outside it. A closed list copied with nothing binding the copies
+pair outside it. The three separator names are bound by D12, which
+refuses any other key. A closed list copied with nothing binding the copies
 is a list two implementations can read differently; each copy here is
 the subject of a rule, so a member missing from one of them is a defect
-that rule catches. Section 14 indexes all three.
+that rule catches. Section 14 indexes all four.
 
 ##### The format vocabulary, its readings and its resolutions
 
-Seventeen members, each with the shape it reads and the `resolution` it
+Nineteen members, each with the shape it reads and the `resolution` it
 requires:
 
 | `format` | reads | `resolution` |
@@ -3600,7 +3608,9 @@ a datetime column with nothing in the document saying so.
 profile recording whole seconds; how many digits the source wrote is
 `subsecond_digits`, and that a column wrote any is `time_precision`.
 The two fields are where that notation is recorded, and the published
-instants are not.
+instants are not. `all_at_midnight` is the one fact that reads the
+discarded fraction: a cell counts as midnight only where every
+fractional digit it wrote is zero.
 
 **C6-D8N (the month-name vocabulary, closed).** The two textual
 members read a month NAME, and the names they read are these and no
@@ -3732,6 +3742,33 @@ proportion to a fact the reader still receives. The mix is recorded and
 not reproduced, on the precedent of the `format` fact itself, and the
 twin's report names it as such per column, every run (residual
 R-P4-12).
+
+**C6-25a (`datetime_separators`).** Every datetime block carries
+`datetime_separators`, a mapping from the name of the mark a parsed
+cell wrote between its day and its clock to how many cells wrote it:
+`upper_t` for the letter T, `space` for a space, `lower_t` for the
+letter t. A name is published only where its count reaches
+`small_cell_floor`; the rest pool under `(withheld)`, exactly as on
+`utc_offsets`. Only a cell that writes a clock is counted, so the map
+is `{}` where `resolution` is not `datetime`, and the whole-date cells
+of an `iso-mixed` column are left out. A `month-first-datetime` or
+`day-first-datetime` cell counts as `space`, the one mark its reader
+takes. D12 and D13 hold the map.
+
+**C6-25b (`all_at_midnight`).** Every datetime block carries
+`all_at_midnight`. It is `true` only where `resolution` is `datetime`,
+`datetimes_read_at` is `local`, the parsed cells number at least
+`small_cell_floor`, and every parsed cell names exactly midnight:
+clock `00:00`, seconds `00`, every fractional digit zero. A whole-date
+cell of an `iso-mixed` column counts as midnight. It is `false`
+everywhere else. D14 holds the flag.
+
+**`datetime_separators` is REPORT-ONLY, and so is `all_at_midnight`**
+(plan P4-D39, added after the freeze). A moment is read the same way
+whichever mark it wears, and a file whose clocks are not at midnight
+is read the same way too, so a file is held to neither. What they buy
+is code meeting the same spelling on the twin as on the real table, and
+a date-only field that stays a date.
 
 ##### The canonical forms, the ranges and the offsets
 
@@ -3889,7 +3926,7 @@ show).** Where `resolution` is `datetime`, the seconds field of
 `earliest` and of `latest`:
 
 - is `00` when `time_precision` is `minute`, because a cell written
-  `YYYY-MM-DDTHH:MM` has no seconds field to carry anything else; and
+  `YYYY-MM-DD`, a mark, then `HH:MM` has no seconds field to carry anything else; and
 - is not `60` when `datetimes_read_at` is `utc`, because that field
   names the instant on the SHARED clock, and reading any wall-clock
   cell back onto the shared clock moves a sixtieth second to the
@@ -3937,6 +3974,28 @@ describing that twin again gave back a different `earliest` with
 nothing said about it. Tying the two is what makes D10 cover the ladder
 ends as well, since they are the same two texts.
 
+**Invariant D12 (the separator names and the floor).** Every key of
+`datetime_separators` is `upper_t`, `space`, `lower_t` or
+`(withheld)`. Every key other than `(withheld)` maps to a count at
+least the floor, and `(withheld)` appears only when the pooled
+remainder is non-zero.
+
+**Invariant D13 (the separator totals).** `datetime_separators` is
+`{}` where `resolution` is not `datetime`. On a datetime column whose
+`format` is not `iso-mixed` its values sum to
+`n_present - n_unparsed`; on `iso-mixed` they sum to
+`resolution_mix["iso-datetime"]`, the cells that wrote a clock. A
+`month-first-datetime` or `day-first-datetime` column carries only
+`space` or `(withheld)`.
+
+**Invariant D14 (a column at midnight).** `all_at_midnight` is `true`
+only where `resolution` is `datetime`, `datetimes_read_at` is `local`,
+`n_present - n_unparsed` is at least the floor, and `earliest`,
+`latest` and every rung of `date_percentiles` end in `00:00:00`. The
+rule reads in that one direction: the canonical form drops the
+fraction, so a loader can refuse a `true` no column could carry and
+cannot confirm one (producer obligation MN-P).
+
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
 `earliest`, `latest` and every rung of `date_percentiles` are at second
@@ -3945,6 +4004,9 @@ resolution EVEN WHEN `time_precision` is `subsecond` and
 column's notation, published in its own two fields, not a property of
 the eleven published instants. A generator that must write subsecond
 cells reads `time_precision` and `subsecond_digits`, never the ladder.
+Where `all_at_midnight` is `true`, D14 puts every published instant at
+`00:00:00`, and it is the flag, not the ladder, that says every cell
+of the column stood at midnight.
 
 **Twin datetime cells** follow owner decision 5: a twin datetime cell
 is written in the ISO form matching the precision the profile records —
@@ -3952,8 +4014,16 @@ a date-only column writes `2024-03-15`, a month column writes
 `2024-03`, a quarter column writes `2024-Q1`, and an offset is written
 only where the profile records a real one. A column whose `format` is
 `iso-mixed` writes every parsed cell at the finest recorded form, its
-mix recorded and not reproduced. The rule is scoped to twin CSV cells
-and does not touch the profile's own canonical serialization.
+mix recorded and not reproduced. A datetime cell carries, between its
+day and its clock, the mark method G7.5 allocates from
+`datetime_separators`: ranks the named counts do not cover take the
+commonest named mark, or `T` where no name is published. A column
+whose `all_at_midnight` is `true` is generated in whole days, and every
+cell is written as its day with a midnight clock at the column's
+`time_precision` and `subsecond_digits`. The rule is scoped to twin CSV cells
+and does not touch the profile's own canonical serialization: a
+published instant stays space-separated whatever mark the cells
+carry.
 
 **`format` is REPORT-ONLY.** It names the REAL file's parser family.
 The twin is written in ISO syntax at the recorded precision, not in the
@@ -4747,6 +4817,8 @@ rather than a list of its own, so the two cannot part again.
 | `format` | | | | | | | ● | | | | | | | | |
 | `resolution` | | | | | | | ● | | | | | | | | |
 | `resolution_mix` | | | | | | | ● | | | | | | | | |
+| `datetime_separators` | | | | | | | ● | | | | | | | | |
+| `all_at_midnight` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -4825,9 +4897,9 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Eighty-five rows, one hundred and sixty-four marked cells**,
+**Eighty-seven rows, one hundred and sixty-six marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 13,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 15,
 `time_of_day` 5, `count` 26, `continuous` 26, `affixed_number` 36,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
@@ -5742,10 +5814,11 @@ forbidden-key matrix of section 6.11 carries the same listing for this
 role and for the other twelve; three groups are named here because a
 reader will expect them and their absence is a decision.
 
-- **The other ten datetime keys.** `format`, `resolution`,
+- **The other twelve datetime keys.** `format`, `resolution`,
   `resolution_mix`, `time_precision`, `subsecond_digits`,
   `datetimes_read_at`, `earliest_utc_offset`, `latest_utc_offset`,
-  `date_percentiles` and `utc_offsets` are `datetime`'s. `clock_form`
+  `date_percentiles`, `utc_offsets`, `datetime_separators` and
+  `all_at_midnight` are `datetime`'s. `clock_form`
   answers the form question here, and a clock with no date carries no
   zone: an offset moves an instant, and this role publishes none.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
@@ -7753,7 +7826,7 @@ a document, so no document can violate it.
 | S10 | every `publication_notes[i].column` is some column's `name` | yes |
 | S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
-| S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on `missing_by_class`, `utc_offsets`, `numeric_styles` and `fraction_widths` the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
+| S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
 | C6-20 | `settings` has exactly its twenty keys; nineteen or twenty-one is a document this contract does not describe | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
@@ -7763,13 +7836,13 @@ can cite them: the nine top-level keys (4.1), the five `source` keys
 (4.3), a level entry's four (6.3.1), a `publication_notes` entry's two
 (4.5).
 
-**AND S13's OWN LIST IS THE SEVEN MAP POSITIONS IT NAMES, NOT FOUR.**
+**AND S13's OWN LIST IS THE EIGHT MAP POSITIONS IT NAMES, NOT FOUR.**
 An earlier synopsis here counted four pooled-entry maps and omitted
 `pad_widths` and `shape_forms`, so a loader written from the synopsis
 would accept a floor-one document carrying a pooled form entry that
 the shipped loader refuses. The defining list at S13 is the authority
-and it names seven: `missing_by_class`, `utc_offsets`,
-`numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
+and it names eight: `missing_by_class`, `utc_offsets`,
+`datetime_separators`, `numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
 `shape_forms`. Each is normative where stated, and a loader enforces it.
 
 ### 8.2 The cell census — X
@@ -7940,6 +8013,9 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the two slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
+| D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime` or `day-first-datetime` column carries only `space` or `(withheld)` | yes |
+| D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `datetimes_read_at` is `local`, `n_present - n_unparsed` is at least the floor, and `earliest`, `latest` and every `date_percentiles` rung end in `00:00:00`; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 
@@ -8100,6 +8176,8 @@ document, never the table it describes.
 | DF-R | where the option was given and a slashed reading was in play, the column bears that remark exactly once, over the EVIDENCE, not the winner | whether a reading was in play is a fact about the table |
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
+| DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of cells whose mark too few shared | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
+| MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
@@ -8440,6 +8518,10 @@ form, the stand-in is written in it (7.9.1).
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
 
+`datetime_separators` and `all_at_midnight` have no row here: both
+were added after the freeze and are REPORT-ONLY under plan P4-D39,
+as `group_separator` is under P4-D38 with no row in 9.4.
+
 Datetime cardinality has its own explicit bound so that one
 implementation cannot bound datetime distinctness while another
 ignores it.
@@ -8470,9 +8552,11 @@ canonical form admits because a real reader accepts one, and both
 endpoints are exact in owner decision 5's representation with no
 exception at all. A twin cell carries it: the two endpoint cells are
 written from the published endpoint's OWN fields rather than through
-the whole-second ordinal arithmetic the interior ranks use, so
-`2024-11-02 04:55:60` is written `2024-11-02T04:55:60` and reads back
-character for character (G7.5). An exact representation exists, and
+the whole-second ordinal arithmetic the interior ranks use, so the
+published `2024-11-02 04:55:60` is written in the twin as
+`2024-11-02T04:55:60` — or with a space or a `t`, where G7.5 allocates
+that mark to the rank — and describing the twin again gives back
+`2024-11-02 04:55:60` character for character (G7.5). An exact representation exists, and
 lowering a ratified bar to fit an implementation is not available to
 this document.
 
@@ -9176,7 +9260,7 @@ this document, and the battery the plan requires turns red on it.
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
-| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs — the two ENDPOINTS are exact values of real cells on every role, and so are the nine interior rungs of a DATE ladder and of a CLOCK ladder; a NUMERIC ladder's nine interior rungs are INTERPOLATED between the order statistics either side and are usually numbers no cell holds (corrected 2026-09-04, measured on columns of 17 to 250 drawn values); moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`), the two values each run of those bins really lies between (`empty_edges`) and the offset map; `resolution_mix`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the four maps floor-governed with a `(withheld)` pool; `empty_bins` and `empty_edges` under NO floor at all — the first being the one published fact of this format that names only where nobody is (row 20), the second naming two values a stretch lies between and no group at all (row 21); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
+| ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs — the two ENDPOINTS are exact values of real cells on every role, and so are the nine interior rungs of a DATE ladder and of a CLOCK ladder; a NUMERIC ladder's nine interior rungs are INTERPOLATED between the order statistics either side and are usually numbers no cell holds (corrected 2026-09-04, measured on columns of 17 to 250 drawn values); moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`), the two values each run of those bins really lies between (`empty_edges`) and the offset map; `resolution_mix`; the separator census `datetime_separators` and the flag `all_at_midnight`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the style, fraction-width, padded-width, whole-number-width, offset and separator maps floor-governed with a `(withheld)` pool; `all_at_midnight` `true` only where the parsed cells reach the floor; `empty_bins` and `empty_edges` under NO floor at all — the first being the one published fact of this format that names only where nobody is (row 20), the second naming two values a stretch lies between and no group at all (row 21); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
@@ -9237,7 +9321,7 @@ a marked row.
    `dotted-two-digit-month-first-date` and
    `dotted-two-digit-day-first-date`, newly claim.
    **NEW for such a column.** The universal keys it newly fills are
-   priced at row 15, not here. The role-added set is thirteen keys, of
+   priced at row 15, not here. The role-added set is fifteen keys, of
    which a `free_text` block carries none, so every one is new for such
    a column:
    - **VALUES of real cells, floor-free under the ranges-class endpoint
@@ -9249,6 +9333,19 @@ a marked row.
    - **One VALUE map that is floor-GOVERNED:** the KEYS of
      `utc_offsets`, each an offset spelling as the source wrote it,
      under D3's floor with a `(withheld)` pool.
+   - **One SPELLING census that is floor-GOVERNED:**
+     `datetime_separators`, under D12's floor with a `(withheld)` pool.
+     Its KEYS are this package's three names for the mark a moment
+     writes between its day and its clock, never cell text; its VALUES
+     are how many parsed cells wrote each named mark. It names
+     spellings, not values. At a floor of one a name can stand for one
+     row's spelling, the posture `utc_offsets` has at that floor.
+   - **One statement about every parsed cell at once, floor-GATED:**
+     `all_at_midnight`, whether every parsed cell of a `local` datetime
+     column named exactly midnight. It names no value, and it is `true`
+     only where the parsed cells reach the floor. Where it is `true` it
+     tells a reader the time of day of every parsed row, which the
+     endpoints and the ladder already show for eleven of them.
    - D9 flattens both endpoint offset fields and every `utc_offsets`
      key to `(none)` or `(withheld)` unless `resolution` is `datetime`,
      so of those five members only `iso-mixed`,
@@ -9273,7 +9370,7 @@ a marked row.
      `categorical`, so a column either of those claimed can be taken by
      the widened rule — a column of `YYYY-MM` values under the
      categorical ceiling is the clean case — and such a block gains the
-     same thirteen while it STOPS publishing that column's label
+     same fifteen while it STOPS publishing that column's label
      spellings. A `constant` or `binary` column is not reachable: both
      are tested before `datetime` and an earlier rule's claim survives.
 6. **The two unrepresentable lengths. NEW.** For decimal numerals
@@ -9994,7 +10091,7 @@ override.
 `EXACT-CONTROL`, `APPROXIMATED`, `REPORT-ONLY`, `LOADER-ONLY`,
 `STRUCTURAL`.
 
-**Forbidden-key matrix — 57 rows over 13 role columns**, 115 marked
+**Forbidden-key matrix — 87 rows over 15 role columns**, 166 marked
 cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.2 Document and block key sets
@@ -10117,7 +10214,7 @@ count and the blank count live in `n_missing_withheld` and
 
 ### 14.6 Datetime and clock
 
-**`format` — 17** (6.6.2), each with the `resolution` it requires:
+**`format` — 19** (6.6.2), each with the `resolution` it requires:
 
 | `format` | `resolution` |
 |---|---|
@@ -10149,6 +10246,9 @@ count and the blank count live in `n_missing_withheld` and
 **`resolution_mix` keys** are `format` members: on a single-format
 column exactly the column's own member; on an `iso-mixed` column
 exactly `iso-date` and `iso-datetime`. No other key set conforms.
+**`datetime_separators` keys — 3**, plus the pooled key (6.6.2, D12):
+`lower_t`, `space`, `upper_t`; and `(withheld)`.
+**`all_at_midnight`** is a boolean, on the `datetime` block alone.
 
 ### 14.7 Numeric spelling
 
@@ -10258,13 +10358,14 @@ form to one of those four paths.
 
 ### 14.9 The reserved tokens
 
-**Where `(withheld)` appears — 8 places.**
+**Where `(withheld)` appears — 10 places, and three keys where it is never written.**
 
 | place | meaning |
 |---|---|
 | `missing_by_class` | the pooled count of absent-value CLASSES whose own counts fell below the floor |
 | `sentinel_verdicts[].candidate` | the column is a nothing-publishing column, so no value of the table appears anywhere in its block |
 | `utc_offsets` | the pooled count of cells whose OFFSETS fell below the floor |
+| `datetime_separators` | the pooled count of parsed cells whose MARK between day and clock was written by too few rows to name |
 | `earliest_utc_offset`, `latest_utc_offset` | that endpoint's offset is one the map is withholding |
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
@@ -10278,7 +10379,7 @@ form to one of those four paths.
 One token, one meaning: a group too small to name, counted rather than
 named. It is never a value, and it is never a key a generator has to
 invert. Every list it appears in draws its other keys from a fixed
-first-party vocabulary — class words, offset texts, style names, width
+first-party vocabulary — class words, offset texts, separator names, style names, width
 digits, and the form alphabet `%`, `@` and thirteen marks — so there
 is no field of this format in which a value of
 somebody's table and one of synthtwin's own words can land in the same
@@ -10291,4 +10392,5 @@ the cell carried no offset at all.
 
 **`(blank)`** is a key of `missing_by_class` and of nothing else.
 `resolution_mix` carries no reserved key: it is floor-free and never
-withholds.
+withholds. `datetime_separators`, the datetime block's other map, does
+carry `(withheld)`.

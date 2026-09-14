@@ -637,6 +637,23 @@ Stated here so that no reader has to discover them independently:
     nothing, which is what keeps a single cell's spelling from being
     read off the description.
 
+    **A fourth such place, added 2026-09-14: `datetime_separators`** on
+    every datetime block, how many cells wrote each mark between the
+    day and the clock of a moment: the letter T, a space, or the letter
+    t. Its keys are the tool's own three names for those marks, never
+    cell text, and it carries no value. It is floor-governed like the
+    offset map: a mark is named only where its count reaches the
+    smallest group size, and the rest are pooled under `(withheld)`. At
+    the default size of one a name can stand for a single row's
+    spelling, which is the posture the offset map already has.
+
+    **Beside it, `all_at_midnight`**, a yes-or-no statement that every
+    moment a column read stood at exactly midnight. It names no value,
+    and it is published as yes only where the column's parsed cells
+    reach the smallest group size. Where it says yes it tells a reader
+    the time of day of every one of those rows, which the published
+    ends and ladder already show for eleven of them.
+
   **What none of it changes:** no cell of a nothing-publishing column
   is published, the floor still governs every named spelling except
   where this entry says otherwise, and the description still carries no

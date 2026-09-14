@@ -209,8 +209,10 @@ def test_a_published_leap_second_end_is_written_back_unchanged(
 
     assert "latest" not in _named(twin)
     written = [cell for cell in twin.columns[0] if cell != ""]
-    assert "2024-11-02T04:55:60" in written
-    assert max(written) == "2024-11-02T04:55:60"
+    # The source wrote its stamps with a space, and since plan P4-D39 the
+    # end keeps the source's own mark.
+    assert "2024-11-02 04:55:60" in written
+    assert max(written) == "2024-11-02 04:55:60"
 
 
 def test_every_other_end_keeps_the_bytes_it_already_had(
@@ -241,14 +243,16 @@ def test_every_other_end_keeps_the_bytes_it_already_had(
                 moved = generation._ordinal_of(published, "datetime")
                 if facts.datetimes_read_at == "utc":
                     moved = moved + generation._offset_seconds(offset)
-                assert generation._endpoint_cell(
-                    facts, published, offset
-                ) == generation._cell_of_ordinal(
-                    moved,
-                    facts.resolution,
-                    facts.time_precision,
-                    facts.subsecond_digits,
-                ), (name, published, offset)
+                for mark in ("T", " ", "t"):
+                    assert generation._endpoint_cell(
+                        facts, published, offset, mark
+                    ) == generation._cell_of_ordinal(
+                        moved,
+                        facts.resolution,
+                        facts.time_precision,
+                        facts.subsecond_digits,
+                        mark,
+                    ), (name, published, offset, mark)
 
 
 def test_the_end_no_cell_of_this_shape_can_show_is_refused(
@@ -306,12 +310,14 @@ def test_the_generator_writes_the_published_seconds_on_both_clocks(
     assert isinstance(facts, contract.DatetimeFacts)
     assert facts.datetimes_read_at == "utc"
     shared = dataclasses.replace(facts, latest=f"{facts.latest[0:17]}60")
-    written = generation._endpoint_cell(shared, shared.latest, "-05:00")
+    written = generation._endpoint_cell(shared, shared.latest, "-05:00", "T")
     assert written is not None
     assert written[17:19] == "60"
 
     local = dataclasses.replace(shared, datetimes_read_at="local")
-    on_the_wall = generation._endpoint_cell(local, local.latest, "-05:00")
+    on_the_wall = generation._endpoint_cell(
+        local, local.latest, "-05:00", "T"
+    )
     assert on_the_wall is not None
     assert on_the_wall[17:19] == "60"
 
@@ -529,9 +535,13 @@ def test_an_end_this_tool_fails_to_write_is_still_printed(
     kept = generation._endpoint_cell
 
     def reverted(
-        facts: contract.DatetimeFacts, published: str, offset: str
+        facts: contract.DatetimeFacts, published: str, offset: str, mark: str
     ) -> str:
-        """The withdrawn rule: an end through the whole-second space."""
+        """The withdrawn rule: an end through the whole-second space.
+
+        The mark rides through unchanged, so the mutant differs from the
+        real rule only in the route and never in the separator.
+        """
         moved = generation._ordinal_of(published, facts.resolution)
         if facts.datetimes_read_at == "utc":
             moved = moved + generation._offset_seconds(offset)
@@ -540,6 +550,7 @@ def test_an_end_this_tool_fails_to_write_is_still_printed(
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
+            mark,
         )
 
     generation._endpoint_cell = reverted  # type: ignore[assignment]

@@ -469,6 +469,8 @@ DATETIME_KEYS = (
     "subsecond_digits",
     "time_precision",
     "utc_offsets",
+    "datetime_separators",
+    "all_at_midnight",
 )
 
 NUMERIC_KEYS = (
@@ -1084,6 +1086,19 @@ INVARIANTS = {
     "D11": (
         "the two ends of the ladder of dates are the column's first and "
         "last values themselves"
+    ),
+    "D12": (
+        "a mark between a moment's day and its clock is named only when at "
+        "least the smallest group size of values wrote it"
+    ),
+    "D13": (
+        "the marks between day and clock are counted over exactly the "
+        "values that write a clock"
+    ),
+    "D14": (
+        "a column said to stand at midnight is a column of moments on its "
+        "own clock, large enough to be a group, whose published moments "
+        "all stand at midnight"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -1742,6 +1757,8 @@ class DatetimeFacts:
     n_unparsed: int
     utc_offsets: "dict[str, int]"
     resolution_mix: "dict[str, int]"
+    datetime_separators: "dict[str, int]"
+    all_at_midnight: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5627,6 +5644,10 @@ def _datetime_facts(
                 f"date"
             ),
         )
+    separators = _separator_census(
+        mapping, where, floor, resolution, parser_family, mix,
+        n_present - unparsed,
+    )
     if named >= 2 and clock != "utc":
         raise _broken(
             "D5",
@@ -5741,6 +5762,12 @@ def _datetime_facts(
             f"the ladder of dates ends at {ladder.maximum}",
             f"the column's last value is {latest}",
         )
+    midnight = _truth(mapping["all_at_midnight"], "all_at_midnight", where)
+    if midnight:
+        _stands_at_midnight(
+            where, floor, resolution, clock, n_present - unparsed,
+            earliest, latest, ladder,
+        )
     return DatetimeFacts(
         parser_family=parser_family,
         resolution=resolution,
@@ -5755,7 +5782,153 @@ def _datetime_facts(
         n_unparsed=unparsed,
         resolution_mix=mix,
         utc_offsets=offsets,
+        datetime_separators=separators,
+        all_at_midnight=midnight,
     )
+
+
+def _separator_census(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    resolution: str,
+    parser_family: str,
+    mix: "dict[str, int]",
+    parsed: int,
+) -> "dict[str, int]":
+    """D12 and D13: the census of marks between a moment's day and clock.
+
+    Asked after the form census, because the total an `iso-mixed` column
+    owes is that census's count of the cells that wrote a clock.
+
+    Guarantees: accepts the datetime block and the facts already read
+    from it; returns the census. Raises ProfileError for a name outside the
+    vocabulary, for D12 and for D13. No I/O of any kind.
+    """
+    census = _counts(
+        mapping["datetime_separators"], "datetime_separators", where, 1
+    )
+    for key in sorted(census):
+        if key == WITHHELD:
+            continue
+        if key not in parsing.DATETIME_SEPARATORS:
+            raise _out_of_range(
+                f"datetime_separators -> {key}",
+                where,
+                f"'{key}'",
+                "'upper_t', 'space', 'lower_t', or '(withheld)'",
+            )
+        if census[key] < floor:
+            raise _broken(
+                "D12",
+                where,
+                f"the mark '{key}' was written by {census[key]} rows",
+                f"the smallest group size is {floor}",
+            )
+    if WITHHELD in census:
+        # A pooled count is made of names each held by fewer rows than
+        # the floor, so it can be no larger than the floor less one for
+        # every name the census leaves unnamed (stage 2 review item 3).
+        permitted: "tuple[str, ...]" = parsing.DATETIME_SEPARATORS
+        if parser_family in CLOCK_FORM_MEMBERS:
+            permitted = (parsing.SEPARATOR_SPACE,)
+        unnamed = 0
+        for name in permitted:
+            if name not in census:
+                unnamed = unnamed + 1
+        if census[WITHHELD] > (floor - 1) * unnamed:
+            raise _broken(
+                "D12",
+                where,
+                f"{census[WITHHELD]} values' marks are held back",
+                f"{unnamed} mark(s) are left unnamed, and each of them was "
+                f"written by fewer than {floor} rows",
+            )
+    total = _added(census)
+    if resolution != "datetime":
+        if total != 0:
+            raise _broken(
+                "D13",
+                where,
+                f"{total} values are counted by the mark before their clock",
+                f"a column published at '{resolution}' writes no clock",
+            )
+        return census
+    owed = parsed
+    if parser_family == FORMAT_ISO_MIXED:
+        owed = mix["iso-datetime"]
+    if total != owed:
+        raise _broken(
+            "D13",
+            where,
+            f"the counted marks before the clock come to {total}",
+            f"{owed} of the column's values write a clock",
+        )
+    if parser_family in CLOCK_FORM_MEMBERS:
+        for key in sorted(census):
+            if key == WITHHELD or key == parsing.SEPARATOR_SPACE:
+                continue
+            raise _broken(
+                "D13",
+                where,
+                f"the mark '{key}' is counted",
+                f"a column read as '{parser_family}' separates its day "
+                f"and its clock with a space",
+            )
+    return census
+
+
+def _stands_at_midnight(
+    where: str,
+    floor: int,
+    resolution: str,
+    clock: str,
+    parsed: int,
+    earliest: str,
+    latest: str,
+    ladder: DateLadder,
+) -> None:
+    """D14: a column said to stand at midnight can be one.
+
+    One direction only. The canonical form drops a fraction of a second,
+    so a published moment of `00:00:00` cannot show that the cell behind
+    it wrote no fraction; what a loader CAN refuse is a description whose
+    own published moments, clock or size contradict the statement.
+
+    Guarantees: accepts the facts already read; returns nothing. Raises
+    ProfileError for D14. No I/O of any kind.
+    """
+    if resolution != "datetime" or clock != "local":
+        raise _broken(
+            "D14",
+            where,
+            "every value is said to stand at midnight",
+            f"the dates are published at '{resolution}' on the '{clock}' "
+            f"clock",
+        )
+    if parsed < floor:
+        raise _broken(
+            "D14",
+            where,
+            f"all {parsed} values are said to stand at midnight",
+            f"the smallest group size is {floor}",
+        )
+    for moment in (earliest, latest):
+        if moment[len(moment) - 8 :] != "00:00:00":
+            raise _broken(
+                "D14",
+                where,
+                f"the column's value {moment} is published",
+                "every value is said to stand at midnight",
+            )
+    for rung in ladder.rungs:
+        if rung[len(rung) - 8 :] != "00:00:00":
+            raise _broken(
+                "D14",
+                where,
+                f"the ladder of dates holds {rung}",
+                "every value is said to stand at midnight",
+            )
 
 
 def _minute_of(canonical: str) -> int:

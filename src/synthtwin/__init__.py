@@ -17,9 +17,11 @@ columns. Rows are treated as independent and the grain is undescribed —
 the description never says what one row of the real table is — so the
 twin of a repeated-measures table misdescribes the subject-level truth
 even where every column of it is right on its own. Analysis code
-developed on the twin RUNS, which is what the twin is for; a number
-that code computes from two columns of the twin says nothing about the
-real table. Cross-column structure arrives in a later phase (Phase 5),
+developed on the twin is meant to run unchanged on the real table, and
+nothing here guarantees that it will: a step that depends on more than
+the description publishes, such as a cut into quartiles, can succeed on
+the twin and fail on the real table. A number that code computes from
+two columns of the twin says nothing about the real table. Cross-column structure arrives in a later phase (Phase 5),
 and the report written beside every twin states both limits on every
 run.
 

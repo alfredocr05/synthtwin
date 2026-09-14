@@ -457,7 +457,14 @@ PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 # Plan P4-D38 (stage 2, 2026-09-14). The mark a column writes between
 # thousands is REPORT-ONLY: the validator accepts a grouped spelling and
 # does not yet hold a twin to carrying the mark, so the report LISTS it.
-STAGE_2_SPELLING_KEYS = ("group_separator",)
+# ...and plan P4-D39 on the same day: the mark a moment writes between
+# its day and its clock, and the statement that every moment of a column
+# stands at midnight. Both REPORT-ONLY and LISTED, for the same reason.
+STAGE_2_SPELLING_KEYS = (
+    "group_separator",
+    "datetime_separators",
+    "all_at_midnight",
+)
 
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
@@ -1436,7 +1443,7 @@ def test_every_key_the_producer_emits_has_a_disposition(
             for own in PHASE_4_FINER_LADDER_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
             for own in STAGE_2_SPELLING_KEYS:
-                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38)"
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38 and P4-D39)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1467,7 +1474,7 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         for own in PHASE_4_FINER_LADDER_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
         for own in STAGE_2_SPELLING_KEYS:
-            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38)"
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38 and P4-D39)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

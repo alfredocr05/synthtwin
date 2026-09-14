@@ -299,8 +299,12 @@ def test_nothing_that_varies_between_runs_is_written(
 # publishes NOTHING; `--code` is the one that keeps every code with the
 # rows that carried it. It names `--code` first now. No count,
 # statistic, label, role, spelling or cell of any column changed.
+# RE-RECORDED 2026-09-14 (stage 2): part one added `group_separator: ""`
+# to every numeric block; part two added `all_at_midnight: false` and
+# `datetime_separators: {}` to `recorded_on`, the one datetime column.
+# Read as a diff of the two documents: nothing else moved.
 GOLDEN_SHA256 = (
-    "fcf48d008b690e1cd83a64db10c3af709c67e935b9f40ef619fe91e165ceece0"
+    "dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf"
 )
 
 

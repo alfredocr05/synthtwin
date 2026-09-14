@@ -391,9 +391,11 @@ twin: not a taller person weighing more, not a later date costing more,
 not a code that only ever appears beside one region, not a column that
 is another column times twelve, not two columns that are empty in the
 same rows, and not one event date always falling before another.
-Analysis code you develop on the twin **runs**, which is what the twin
-is for; a number that code computes from two columns of the twin means
-nothing about your table.
+Analysis code you develop on the twin is **meant to run unchanged** on
+your table, and nothing here guarantees that it will: a step that depends
+on more than the description publishes, such as a cut into quartiles, can
+succeed on the twin and fail on your table. A number that code computes
+from two columns of the twin means nothing about your table.
 
 **Rows are treated as independent, and the grain is undescribed.** The
 description never says what one row of your table is. If your table

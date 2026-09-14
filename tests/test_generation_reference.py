@@ -172,6 +172,12 @@ BRANCH_CASES = (
     # so their generator branches were checked only against
     # themselves. This is one of the four.
     "long_tail_levels",
+    # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
+    # One pins the day-unit rule of a column that stands wholly at
+    # midnight; the other pins the evenly spread rotation of marks, its
+    # tie rule and the withheld pool.
+    "midnight_days",
+    "mixed_marks",
     # The month, added with the second SPAN resolution (plan P4-D4.3
     # item 2). A new transform reaching the twin without an independent
     # frozen case is a transform the generator and the validator agree
@@ -221,6 +227,8 @@ SEEDS = {
     "clock_ladder": 118,
     "affixed_brackets": 119,
     "joined_readings": 120,
+    "midnight_days": 122,
+    "mixed_marks": 123,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -970,14 +978,20 @@ def _toward_the_later_instant(position, denominator, rungs):
 _precision_form = gen.precision_form
 
 
-def _zero_based_quarter(ordinal, resolution, time_precision, subsecond_digits):
+def _zero_based_quarter(
+    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+):
     """G7.5's quarter form off by one: `2024-Q0` for the first quarter."""
     if resolution == "quarter":
         return f"{1970 + ordinal // 4:04d}-Q{ordinal % 4}"
-    return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
+    return _precision_form(
+        ordinal, resolution, time_precision, subsecond_digits, mark
+    )
 
 
-def _month_as_a_day(ordinal, resolution, time_precision, subsecond_digits):
+def _month_as_a_day(
+    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+):
     """G7.1's month row withdrawn: the month read in the DAY space.
 
     The one mistake a month invites, because both spaces count from the
@@ -988,7 +1002,9 @@ def _month_as_a_day(ordinal, resolution, time_precision, subsecond_digits):
     """
     if resolution == "month":
         return f"{1970 + ordinal // 12:04d}-{ordinal % 12 + 1:02d}-01"
-    return _precision_form(ordinal, resolution, time_precision, subsecond_digits)
+    return _precision_form(
+        ordinal, resolution, time_precision, subsecond_digits, mark
+    )
 
 
 _offset_form = gen.offset_form
@@ -1006,15 +1022,45 @@ def _reproduce_instead_of_standing_in(used, wanted):
 
 
 def _through_the_ordinal_space(
-    text, resolution, time_precision, subsecond_digits, shift
+    text, resolution, time_precision, subsecond_digits, shift, mark="T"
 ):
-    """G7.5's endpoint route withdrawn: both ends back through G7.1."""
+    """G7.5's endpoint route withdrawn: both ends back through G7.1.
+
+    The mark rides through unchanged, so the mutant differs from the
+    real rule only in the route and never in the separator.
+    """
     return gen.precision_form(
         gen.ordinal_of(text, resolution) + shift,
         resolution,
         time_precision,
         subsecond_digits,
+        mark,
     )
+
+
+def _seconds_even_at_midnight(column):
+    """P4-D39's day-unit rule withdrawn: every column counted in its resolution."""
+    return column["resolution"]
+
+
+def _marks_from_the_first_rank(column, parsed):
+    """P4-D39's rotation withdrawn: the names spent from the first rank up."""
+    if column["resolution"] != "datetime" or parsed == 0:
+        return ["T"] * parsed
+    named = {
+        name: count
+        for name, count in column["datetime_separators"].items()
+        if name != "(withheld)"
+    }
+    if not named:
+        return ["T"] * parsed
+    order = sorted(named)
+    commonest = max(order, key=lambda name: (named[name], -order.index(name)))
+    marks = []
+    for name in order:
+        marks += [gen.MARK_OF[name]] * named[name]
+    marks += [gen.MARK_OF[commonest]] * (parsed - len(marks))
+    return marks[:parsed]
 
 
 def _ties_toward_zero(value):
@@ -1342,6 +1388,22 @@ CASE_MUTANTS = {
         "moves",
         attribute="invented_variant",
         replacement=_spaces_before_flips,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "midnight_days": Mutant(
+        branch="P4-D39's day-unit rule, which counts a column whose every "
+        "moment stands at midnight in whole days; the mutant counts it in "
+        "seconds, and the interior ranks land part-way through a day",
+        attribute="ordinal_space",
+        replacement=_seconds_even_at_midnight,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "mixed_marks": Mutant(
+        branch="P4-D39's rotation, which spreads the census of marks evenly "
+        "over the ranks; the mutant spends the names from the first rank "
+        "upward, and the marks cluster by date",
+        attribute="_separator_allocation",
+        replacement=_marks_from_the_first_rank,
         outcome=CHANGES_THE_CELLS,
     ),
     "leap_second_endpoint": Mutant(

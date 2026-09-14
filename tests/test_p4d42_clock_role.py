@@ -170,7 +170,17 @@ def test_the_block_carries_five_keys_and_no_sixth() -> None:
     column = document["columns"][0]
     for key in contract.CLOCK_KEYS:
         assert key in column, key
-    for absent in ("format", "resolution", "utc_offsets", "percentiles"):
+    for absent in (
+        "format",
+        "resolution",
+        "utc_offsets",
+        "percentiles",
+        # A clock has no day to separate from its time and no midnight
+        # to stand at (plan P4-D39); the publication rules are keyed by
+        # path, so only the producer and the loader keep these off.
+        "datetime_separators",
+        "all_at_midnight",
+    ):
         assert absent not in column, absent
     ladder = column["clock_percentiles"]
     assert sorted(ladder) == sorted(taxonomy.LADDER_NAMES)

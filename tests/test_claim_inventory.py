@@ -6375,6 +6375,16 @@ _OBLIGATION_NAMES = (
     # reported as the banned claim. The shape is named instead of the
     # noun widened.
     r"\bapprovals? (?:is|are) (?:unnecessary|not needed|not required)\b",
+    # STAGE 2 (2026-09-12 measurement, repaired 2026-09-14). The family
+    # named regimes only by description, so a claim naming one by its
+    # ACRONYM walked past it: every such wording measured that day was
+    # passed. The acronyms are regime names in their own right.
+    r"\bhipaa\b",
+    r"\bgdpr\b",
+    r"\bhitech\b",
+    r"\bprotected health information\b",
+    r"\bphi\b",
+    r"\bprivacy (?:issues?|concerns?|risks?)\b",
 )
 
 # The claim that an obligation has been LIFTED. Deliberately not here:
@@ -6423,6 +6433,23 @@ _EXEMPTION_MARKS = (
     r"\bis exempt\b",
 )
 
+# ...AND THE CLEARANCE SHAPES, the other half of the stage-2 repair. An
+# exemption is also claimed by clearing the regime rather than lifting
+# it: no issue with it, free of it, compliant with it, safe under it.
+# The suffix form is ANCHORED to a regime word, because a bare `-free`
+# reports this repository's honest "floor-free" prose.
+_EXEMPTION_MARKS = _EXEMPTION_MARKS + (
+    r"\bno (?:[a-z'-]+ ){0,3}?(?:issues?|concerns?|risks?)\b",
+    (
+        r"\b(?:hipaa|gdpr|hitech|phi|privacy|compliance|regulation"
+        r"|regulatory)[- ](?:free|compliant|safe)\b"
+    ),
+    # Review round 1 of stage 2: the same clearance, said with a
+    # preposition.
+    r"\bcompliant with\b",
+    r"\bsafe under\b",
+    r"\bfree (?:of|from)\b",
+)
 _STILL_BOUND_MARKS = (
     r"\bapply to all five\b",
     r"\bstill (?:applies|apply)\b",
@@ -6507,12 +6534,35 @@ _EXEMPTIONS_THAT_MUST_TRIP = (
         "the twin is exempt from data-use agreements. its output "
         "formats have rules, and they still apply."
     ),
+    # STAGE 2 (2026-09-14): a regime named by its acronym, and an
+    # exemption claimed by clearing it. Each walked past the family
+    # before the repair.
+    "there is no hipaa issue with this workflow.",
+    "hipaa does not apply to the twin.",
+    "your data is hipaa-free once it is synthetic.",
+    "gdpr does not apply to synthetic output.",
+    "the twin is hipaa-compliant.",
+    "synthetic data raises no privacy issue.",
+    "the twin carries no hipaa risk.",
+    "this workflow is gdpr-safe because the rows are invented.",
+    "you do not need review board approval for the twin.",
+    # Review round 1 of stage 2, each measured walking past the repair.
+    "the twin is compliant with hipaa.",
+    "the twin is safe under gdpr because the rows are synthetic.",
+    "the twin is free of privacy risks.",
+    "the twin is phi-free.",
 )
 
 # SENTENCES THAT MUST NOT TRIP IT, kept beside the floor because a ban
 # is two-sided and the round-1 repair proved it: a widening that caught
 # one more attack reported this repository's own honest prose.
 _HONEST_AND_MUST_NOT_TRIP = (
+    # STAGE 2: the widening must keep these sayable.
+    "synthtwin offers no formal privacy guarantee.",
+    (
+        "a published maximum held by one person is a privacy risk, and "
+        "hipaa still applies."
+    ),
     (
         "this contract does not cover institutional requirements; consult "
         "your institution."

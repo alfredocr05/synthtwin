@@ -250,7 +250,8 @@ def test_the_last_second_of_a_leap_minute_is_written_back_exactly(
     assert "date_percentiles.max" not in named
 
     present = [cell for cell in built.columns[0] if cell != ""]
-    assert "2024-11-02T04:55:60" in present
+    # Written with the source's own space since plan P4-D39.
+    assert "2024-11-02 04:55:60" in present
     again = _redescribed(folder, built)["columns"][0]
     assert again["latest"] == "2024-11-02 04:55:60"
     assert again["date_percentiles"]["max"] == "2024-11-02 04:55:60"

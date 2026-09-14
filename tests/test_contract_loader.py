@@ -849,6 +849,22 @@ def battery() -> list[Mutation]:
                 "recorded_on", "date_percentiles", min="2023-01-01"
             ),
         ),
+        Mutation(
+            "D12", "a mark between day and clock named for too few rows",
+            edit("logged_at", datetime_separators={"space": 1}),
+        ),
+        Mutation(
+            "D12", "a withheld pool larger than the unnamed marks can hold",
+            edit("logged_at", datetime_separators={"(withheld)": 240}),
+        ),
+        Mutation(
+            "D13", "marks counted on a column that writes no clock",
+            edit("recorded_on", datetime_separators={"space": 240}),
+        ),
+        Mutation(
+            "D14", "a column of whole dates said to stand at midnight",
+            edit("recorded_on", all_at_midnight=True),
+        ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(

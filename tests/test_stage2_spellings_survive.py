@@ -1,8 +1,12 @@
 """Stage 2: the twin writes values the way the source wrote them.
 
-WHAT THIS FILE PINS. Three spellings the twin changes today, each of
-which makes a researcher's numbers wrong with NO ERROR RAISED. These
-are the tests first, red, and the repair follows them.
+WHAT THIS FILE PINS. Three spellings the twin used to change, each of
+which made a researcher's numbers wrong with NO ERROR RAISED. They were
+written first, red, and the repairs followed them: the thousands comma
+on 2026-09-14 (plan P4-D38), and the moment's own separator and the
+date held at midnight on the same day (plan P4-D39). What is still
+carried stands at the end of the file as a strict expected failure: a
+column grouped with a space or an apostrophe.
 
 **1. A THOUSANDS SEPARATOR.** A charge written `$2,198.92` comes back
 from the twin as `$2198.92`. A researcher develops on the twin, never
@@ -44,6 +48,7 @@ no committed data file is read.
 
 import csv
 import datetime
+import json
 import io
 import pathlib
 import random
@@ -95,6 +100,38 @@ def _twin_of(folder: pathlib.Path, name: str, text: str) -> "list[list[str]]":
     # comma, and this witness would go on reporting the defect open
     # after it had been repaired -- silently, with the suite green.
     # A test that cannot detect its own fix is worse than no test.
+    return [row for row in csv.reader(io.StringIO(written))]
+
+
+def _twin_declaring(
+    folder: pathlib.Path, name: str, text: str, missing: str
+) -> "list[list[str]]":
+    """`_twin_of`, with one spelling declared absent across the table."""
+    table = folder / f"{name}.csv"
+    table.write_text(text, encoding="utf-8", newline="")
+    _run(
+        [
+            "profile",
+            str(table),
+            "--out-dir",
+            str(folder),
+            "--replace",
+            "--missing-value",
+            missing,
+        ]
+    )
+    _run(
+        [
+            "generate",
+            str(folder / f"{name}-profile.json"),
+            "--out-dir",
+            str(folder),
+            "--seed",
+            "4",
+            "--replace",
+        ]
+    )
+    written = (folder / f"{name}-twin.csv").read_text(encoding="utf-8")
     return [row for row in csv.reader(io.StringIO(written))]
 
 
@@ -155,11 +192,6 @@ def test_a_thousands_separator_survives_into_the_twin(
     )
 
 
-@pytest.mark.xfail(
-    reason="stage 2 is not built yet: `parse_datetime` observes the "
-    "separator and discards it, so the twin always writes a T",
-    strict=True,
-)
 def test_a_moment_keeps_the_separator_the_source_used(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -179,11 +211,6 @@ def test_a_moment_keeps_the_separator_the_source_used(
     )
 
 
-@pytest.mark.xfail(
-    reason="stage 2 is not built yet: midnight is read as a clock "
-    "reading, so times of day are invented across the range",
-    strict=True,
-)
 def test_a_date_held_at_midnight_stays_at_midnight(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -204,3 +231,111 @@ def test_a_date_held_at_midnight_stays_at_midnight(
         f"developed on this twin is built on a distribution that does "
         f"not exist in the real table."
     )
+
+
+def test_a_moment_keeps_each_mark_at_its_own_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A column mixing its marks keeps each one, spread over the dates.
+
+    Three hundred stamps with a space, fifty with a `T` and fifty with a
+    `t`. The twin writes each mark exactly that many times, and not in
+    runs by date: spending the marks from the earliest date upward would
+    invent a link between how early a moment is and how it was spelled.
+    """
+    draw = random.Random(24)
+    start = datetime.datetime(2025, 3, 1)
+    stamps = []
+    for place in range(400):
+        moment = start + datetime.timedelta(minutes=draw.randrange(0, 400000))
+        mark = " " if place % 8 < 6 else ("T" if place % 8 == 6 else "t")
+        stamps += [
+            moment.strftime("%Y-%m-%d") + mark + moment.strftime("%H:%M:%S")
+        ]
+    rows = _twin_of(
+        tmp_path,
+        "marks",
+        fixtures.rows_to_csv(["seen_at"], [[stamp] for stamp in stamps]),
+    )
+    written = sorted(row[0] for row in rows[1:])
+    counted = {mark: 0 for mark in (" ", "T", "t")}
+    for cell in written:
+        counted[cell[10]] += 1
+    assert counted == {" ": 300, "T": 50, "t": 50}, counted
+    quarter = len(written) // 4
+    for part in range(4):
+        spaces = sum(
+            1 for cell in written[part * quarter : (part + 1) * quarter]
+            if cell[10] == " "
+        )
+        assert 70 <= spaces <= 80, (part, spaces)
+
+
+def test_a_moment_written_with_a_t_keeps_its_t(tmp_path: pathlib.Path) -> None:
+    """The mark the twin wrote before stage 2 is still written where it was the source's."""
+    stamps = [stamp.replace(" ", "T") for stamp in _stamps(200)]
+    rows = _twin_of(
+        tmp_path,
+        "iso",
+        fixtures.rows_to_csv(["admit_ts"], [[stamp] for stamp in stamps]),
+    )
+    assert all(row[0][10] == "T" for row in rows[1:])
+
+
+@pytest.mark.xfail(
+    reason="carried: a column grouped with a space or an apostrophe is "
+    "read as free text, so its twin writes stand-in text, not numbers",
+    strict=True,
+)
+def test_a_number_grouped_with_a_space_is_read_as_a_number(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A charge written `2 198.92` is described as a column of numbers.
+
+    Measured 2026-09-14: 600 charges grouped with a space, and the same
+    600 grouped with an apostrophe, are both described as free text, and
+    the twin writes opaque stand-ins such as `0271.5` in their place. Code
+    that parses them as numbers works on neither table the same way.
+    """
+    amounts = [amount.replace(",", " ") for amount in _charges(600)]
+    _twin_of(
+        tmp_path,
+        "spaced",
+        fixtures.rows_to_csv(["charge"], [[amount] for amount in amounts]),
+    )
+    described = json.loads(
+        (tmp_path / "spaced-profile.json").read_text(encoding="utf-8")
+    )
+    assert described["columns"][0]["role"] in ("continuous", "count")
+
+
+def test_a_spelling_declared_absent_is_never_written_as_a_moment(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Review round 1 of stage 2, items 1 and 2, as the reviewer built them.
+
+    Twenty moments at midnight, the first ten written with a `T` and the last ten
+    with a space, beside a second column holding twenty copies of
+    `2025-01-01 00:00:00` declared absent for the whole table. Before the
+    repair the twin wrote that absent spelling into the first column --
+    one present value read back as missing -- and, where the exception
+    stepped around it, left the marks at nine and eleven with nothing
+    said.
+    """
+    stamps = []
+    for day in range(20):
+        mark = "T" if day < 10 else " "
+        stamps += [f"2025-01-{day + 1:02d}{mark}00:00:00"]
+    rows = _twin_declaring(
+        tmp_path,
+        "absent",
+        fixtures.rows_to_csv(
+            ["seen_at", "other"],
+            [[stamp, "2025-01-01 00:00:00"] for stamp in stamps],
+        ),
+        "2025-01-01 00:00:00",
+    )
+    written = [row[0] for row in rows[1:]]
+    assert "2025-01-01 00:00:00" not in written
+    assert sum(1 for cell in written if cell[10] == "T") == 10
+    assert sum(1 for cell in written if cell[10] == " ") == 10

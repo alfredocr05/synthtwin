@@ -648,6 +648,13 @@ _LISTING_WORDS = {
         "which written form each of your dates wore, and how many wore "
         "each"
     ),
+    "datetime.datetime_separators": (
+        "the mark your column wrote between the day and the time of day, "
+        "and how many moments wore each"
+    ),
+    "datetime.all_at_midnight": (
+        "whether every moment your column recorded stood at midnight"
+    ),
     "numeric.n_distinct_values": (
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"

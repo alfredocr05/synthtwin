@@ -3333,7 +3333,8 @@ invention is REPORTED as a deviation of `n_unparsed`.
 
 All datetime arithmetic in this method is **exact integer arithmetic in
 ordinal space**. No float is formed anywhere in G7. The ordinal unit is
-fixed by the published `resolution`:
+fixed by the published `resolution`, and on a `datetime` column by
+`all_at_midnight` as well:
 
 | `resolution` | canonical form | ordinal unit | ordinal of a value |
 |---|---|---|---|
@@ -3341,6 +3342,15 @@ fixed by the published `resolution`:
 | `datetime` | `YYYY-MM-DD HH:MM:SS` | one second | `86400 * days + 3600*HH + 60*MM + SS` |
 | `quarter` | `YYYY-Qn` | one quarter | `4 * (year - 1970) + (n - 1)` |
 | `month` | `YYYY-MM` | one month | `12 * (year - 1970) + (MM - 1)` |
+
+**A `datetime` column whose `all_at_midnight` is `true` takes the
+`date` row** (stage 2, 2026-09-14, plan P4-D39). Its unit is one day,
+and its ladder, its two ends and every interior rank are day
+ordinals, exactly as for a column of dates; its cells still write a
+clock, at midnight (G7.5). The ruling that stood here — one second on
+every `datetime` column — handed a date stored as the date plus
+`00:00:00` back with invented times of day: 800 of 800 real rows at
+midnight became 2 of 800.
 
 **THE TWO SPAN ROWS ARE SPANS, AND THAT IS WHY THEY HAVE SPACES OF
 THEIR OWN** (plan P4-D4.3 item 2, amendment A-P4-24). A quarter and a
@@ -3379,7 +3389,8 @@ they are explicitly OUTSIDE the parsed-value representation obligation
 
 The `P` parsed cells are generated from the published
 `date_percentiles` ladder, `earliest`, `latest`, `earliest_utc_offset`,
-`latest_utc_offset`, `utc_offsets` and `datetimes_read_at`.
+`latest_utc_offset`, `utc_offsets`, `datetimes_read_at`,
+`datetime_separators` and `all_at_midnight`.
 
 ### G7.3 Values: the same stratified inverse transform, in integers
 
@@ -3415,7 +3426,9 @@ published). Then:
   earlier instant**, always, including for ordinals before the epoch
   (Python's `//` floors toward negative infinity, and that is the
   intended behaviour — a rule that truncated toward zero would round in
-  opposite directions on either side of 1970).
+  opposite directions on either side of 1970). On an `all_at_midnight`
+  column `Lo[]` and `ordinal` are day ordinals (G7.1), so the rounding
+  is toward the earlier DAY.
 
   `ordinal` is inside `[Lo[j], Lo[j+1]]` by construction, so it is
   inside `[Lo[0], Lo[10]]`, which is `[earliest, latest]` because the
@@ -3504,9 +3517,9 @@ only where the profile records a real one.** Exactly:
 | `quarter` | `quarter` | `YYYY-Qn` |
 | `month` | `month` | `YYYY-MM` |
 | `date` | `date` | `YYYY-MM-DD` |
-| `datetime` | `minute` | `YYYY-MM-DDTHH:MM` |
-| `datetime` | `second` | `YYYY-MM-DDTHH:MM:SS` |
-| `datetime` | `subsecond` | `YYYY-MM-DDTHH:MM:SS.` + `subsecond_digits` digits |
+| `datetime` | `minute` | `YYYY-MM-DD` + mark + `HH:MM` |
+| `datetime` | `second` | `YYYY-MM-DD` + mark + `HH:MM:SS` |
+| `datetime` | `subsecond` | `YYYY-MM-DD` + mark + `HH:MM:SS.` + `subsecond_digits` digits |
 
 then the offset suffix, when one was allocated: `Z`, or `+HH:MM`, or
 `-HH:MM`, exactly as the offset key spells it.
@@ -3610,16 +3623,48 @@ accepts has an end this rule writes exactly; a disagreement here is a
 defect in the implementation, and the run says so in as many words
 rather than passing it off as an outcome the description asked for.
 
-- **The separator is `T`**, on every `datetime` cell. The shipped parser
-  accepts `T`, `t` and a space; `T` is the ISO form and one choice has
-  to be made for the bytes to be fixed.
+- **The mark between the day and the clock is the one allocated from
+  `datetime_separators`** (stage 2, 2026-09-14, plan P4-D39). The ruling
+  that stood here — `T` on every `datetime` cell, because the parser
+  accepts `T`, `t` and a space and one choice had to be made for the
+  bytes to be fixed — fixed the bytes at the cost of the source's own
+  spelling: a stamp written with a space came back with a `T`, so code
+  splitting on the space worked on every twin row and failed on every
+  row of the real table. The bytes stay a fixed function of the
+  description:
+
+  1. Take the names of `datetime_separators` other than `(withheld)`,
+     sorted: `lower_t`, `space`, `upper_t`. Where none is named, every
+     cell is written with `T` and the steps below do not run.
+  2. `P` minus the named counts — the `(withheld)` pool, and on an
+     `iso-mixed` column the whole-date cells — is added to the
+     commonest named count, the first name in sorted order winning a
+     tie.
+  3. Every name starts with a credit of zero. For ranks `0 .. P - 1` in
+     order, every name's credit grows by its count, the rank takes the
+     name with the most credit, the first in sorted order winning a tie, and
+     that name's credit falls by `P`. `upper_t` writes `T`, `space` a
+     space, `lower_t` a `t`.
+
+  The walk draws no word, and it spreads each mark across the date
+  range, so the twin invents no link between a moment's date and its
+  spelling. The published instants stay in the contract's canonical
+  form, space-separated, whatever mark the cells carry.
+
+  Where the census holds a `(withheld)` pool, the report names it as a
+  deviation, with the mark it was written in.
+
+  The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
+  any other rank.
 
   **WITH ONE EXCEPTION, AND IT KEEPS AN EXACT FACT RATHER THAN
   RELAXING ONE** (review item P4-DATE-F2). Where the cell this rule
   produces is one of the spellings the column publishes among its
-  absent cells — the keys of `missing_by_source` — the space form is
-  written instead. The two spell the same instant at the same precision
-  on the same clock, so nothing published moves; what moves is whether
+  absent cells — the keys of any column's `missing_by_source`, since a
+  declaration reaches the whole table — the other form is
+  written instead: a space where the allocated mark is `T` or `t`, and
+  `T` where it is a space. The two spell the same instant at the same
+  precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,
   cells a declaration made absent as `2024-01-01T00:00:00`; the twin
@@ -3629,9 +3674,19 @@ rather than passing it off as an outcome the description asked for.
   EXACT-OBSERVABLE end walks out of the twin over a separator nobody
   chose. The exception is asked ONLY at that collision, so no other
   cell and no frozen vector moves. Where BOTH spellings are published
-  as absent the `T` form stands and G12's endpoint entry names the
+  as absent the allocated form stands and G12's endpoint entry names the
   loss: this rule declines to invent a third spelling to hide a fact
   the description really does make impossible.
+
+  **And the census is given back** (stage 2 review, 2026-09-14). Each
+  cell whose mark that exception changed hands the mark it owed to the
+  first other rank, in rank order, that was allocated the mark the
+  changed cell now wears, was not itself changed, and whose new
+  spelling is neither absent nor already written; no rank is changed
+  twice. The finished marks are then counted against the allocation,
+  and a shortfall no rank could take is a deviation of
+  `datetime_separators`. A spelling is matched as absent whatever the
+  case of its letters, as the reader matches it.
 - **The fractional digits are zeros.** The profile publishes how MANY
   subsecond digits the finest cell carried and nothing about their
   values — the parser reads and discards the fraction — so any other
@@ -3641,7 +3696,11 @@ rather than passing it off as an outcome the description asked for.
   finest the column recorded. That is what makes `time_precision`
   EXACT-OBSERVABLE: it is the finest precision any value writes, so at
   least one value must write it, and writing them all at that precision
-  is the rule that needs no further fact.
+  is the rule that needs no further fact. On an `all_at_midnight` column
+  every cell is its day with a midnight clock at that precision —
+  `00:00`, `00:00:00`, or `00:00:00.` and `subsecond_digits` zeros —
+  carrying its allocated mark (stage 2, 2026-09-14), and the report
+  recounts the midnight cells it wrote and names any that are not.
 - `format` is REPORT-ONLY and is NOT reproduced (P2-R4-F3, R-P2-7): a
   month-first source column yields ISO twin dates and re-profiles as
   `iso-date`. Code that parses dates with an explicit source format
@@ -5882,7 +5941,11 @@ which the twin does not reproduce (G7.5, contract C6-25, plan
 P4-D4.3); a count of the census of written forms
 (`shape_forms`, contract 7.9) a twin's finished cells did not reach,
 which the same landing's own guard found missing from this list on its
-first run; and **a value left inside a stretch the description says
+first run; the pooled marks of a datetime separator census, written in
+the commonest named mark (`datetime_separators`, G7.5, plan P4-D39); a
+cell of an `all_at_midnight` column written off midnight, which the
+rule says never happens and a run that finds one has found a defect in
+itself (`all_at_midnight`, G7.5); and **a value left inside a stretch the description says
 holds nothing** — named `empty_bins` where the stratum stands in a bin
 the description names, `empty_edges` where it stands only inside a
 published pair, carrying that stretch's two PUBLISHED edges and the
@@ -5919,7 +5982,9 @@ to them in BOTH directions. Three keys were missing from the prose
 list when that guard was first written: `shape_forms`, and the two
 gap keys `empty_bins` and `empty_edges`.
 
+* `all_at_midnight`
 * `all_whole_numbers`
+* `datetime_separators`
 * `datetimes_read_at`
 * `earliest`
 * `empty_bins`
@@ -6329,7 +6394,11 @@ the downward rounding of the whole-number interpolation itself, plus
 59 seconds where `resolution == "datetime"` and
 `time_precision == "minute"`, because such a cell carries no seconds.
 A date, a month, a quarter, a second and a subsecond cell each carry
-their own unit exactly and lose nothing further.
+their own unit exactly and lose nothing further. On an `all_at_midnight`
+column `Ladder_d` and `O` are day ordinals, `u` is one day and no
+59-second term applies, whatever `time_precision` is (G7.1, stage 2,
+2026-09-14); the validator reads such a column in day units of 86400
+seconds.
 
 The achieved rung at percent `c` is the profiler's own selection rule
 (`taxonomy._ordinal_rung`): the ordinal at sorted position
@@ -6355,16 +6424,20 @@ F + n_unparsed   <=   n_distinct(twin)
 **The upper end.** Every cell that reads as a date carries an instant
 between the published `earliest` and `latest`, written at the published
 precision, spelled with one of the offsets `utc_offsets` names by name
-(G7.4). With `W` the number of instants that range holds at that
-precision and `M` the number of named offsets — or 1 where none is
-named — and `n_present` cells in the column at all:
+(G7.4), and with one of the marks G7.5 allocates. With `W` the number
+of instants that range holds at that precision — days on an
+`all_at_midnight` column — `M` the number of named offsets, or 1 where
+none is named, `S` the number of named separator marks, or 1 where
+none is named, and `n_present` cells in the column at all:
 
 ```
-n_distinct(twin)   <=   min(n_present, W * M + n_unparsed)
+n_distinct(twin)   <=   min(n_present, W * M * S + n_unparsed)
 ```
 
-Folding a date cell changes no two of them onto one, so both ends bound
-`n_distinct_folded` as well. The lower end is brought down to the upper
+Folding can only put two of those spellings onto one — `T` and `t`
+fold together — so both ends bound `n_distinct_folded` as well. The
+factor `S` was added on 2026-09-14 (plan P4-D39), when a column began
+to write more than one mark. The lower end is brought down to the upper
 where a description's own facts put them the wrong way round.
 
 **This envelope need not contain the published count, and often does
@@ -6756,11 +6829,12 @@ fail.
 **Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the eleven it
+`tests/reference/generation-branch-vectors.json` carries the fourteen it
 names after them (five, until owner decision 11 added the
-pooled-spelling case; then the month-span case of plan P4-D4.3, and
+pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
-R-P4-17). This sentence carried the
+R-P4-17, then the exponent case of G10.5 revision 5, and then the
+midnight-day and mixed-mark cases of plan P4-D39). This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. Both are written by
@@ -6806,7 +6880,7 @@ Phase 1 vectors use, so a reviewer reads one shape and not two.
                      canonical_spelling, style_allocation,
                      ordinal_transform, precision_form, endpoint_fields,
                      offset_form, grid_packing, partner_family,
-                     notation_reading
+                     notation_reading, separator_allocation
   "cases": {
      "<case name>": {
         "why":            what this case exists to pin
@@ -6849,9 +6923,11 @@ its own value beside a whole number wider than the fixed-point window
 (owner decision 11), and one for the second SPAN resolution when it was
 added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
 (residual R-P4-17, now closed), and one for the second spelling family
-of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68).
-**All twenty-one are required.** The
-first nine are the first committed file and the last twelve the second
+of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68), and
+two for the mark between a moment's day and its clock and the day unit
+of a column at midnight (plan P4-D39).
+**All twenty-three are required.** The
+first nine are the first committed file and the last fourteen the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -6881,6 +6957,8 @@ case passed, which is the failure the count exists to prevent:
 | `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
+| `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
+| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written with that commonest mark |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -7186,6 +7264,15 @@ to prevent.
 
 **All four roles Phase 4 added now have a frozen case**, which is what
 residual R-P4-17 asked for.
+
+**Why the twenty-second and twenty-third exist** (2026-09-14; plan
+P4-D39). G7.1 and G7.5 changed on that date, and a rule no case
+reaches can be withdrawn with every committed byte unchanged.
+`midnight_days` pins the day unit: its mutant counts the column in
+seconds, the rule withdrawn, and the interior ranks then land part-way
+through a day. `mixed_marks` pins the rotation, the tie and the pool:
+its mutant spends the names from the first rank upward, and the marks
+then cluster by date.
 
 ### G14.4 What the vectors do NOT freeze
 

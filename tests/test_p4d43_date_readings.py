@@ -361,7 +361,10 @@ def test_a_month_ladder_is_read_in_months() -> None:
     assert generation._ordinal_of("1971-01", "month") == 12
     assert generation._ordinal_of("2024-06", "month") == 12 * 54 + 5
     for ordinal, text in ((0, "1970-01"), (11, "1970-12"), (12, "1971-01")):
-        assert generation._cell_of_ordinal(ordinal, "month", "month", 0) == text
+        assert (
+            generation._cell_of_ordinal(ordinal, "month", "month", 0, "T")
+            == text
+        )
 
 
 def test_a_month_twin_reads_back_as_a_column_of_months() -> None:
