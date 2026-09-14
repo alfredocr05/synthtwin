@@ -1569,7 +1569,32 @@ def point_free_spelling(value, integer_valued):
     return sign + digits + "0" * (decpt - len(digits))
 
 
-def styled_spelling(style, value, integer_valued, order):
+def _group_thousands(text, mark):
+    """``text`` with ``mark`` between each group of three whole figures.
+
+    The THIRD writing of this rule, and deliberately unlike the other
+    two. The generator counts the first group from the left and the
+    validator walks from the right; this reverses the whole figures,
+    cuts them in threes and reverses back, so a defect shared by any two
+    of them would show as a disagreement with the third.  It imports
+    nothing, as this oracle imports nothing it checks.
+
+    Only a whole part of four or more figures is grouped; a sign, the
+    point and every figure after it are left exactly where they stood.
+    """
+    if not mark:
+        return text
+    sign = text[0] if text and text[0] in "+-" else ""
+    body = text[len(sign):]
+    whole, point, rest = body.partition(".")
+    if len(whole) < 4 or not whole.isdigit():
+        return text
+    backwards = whole[::-1]
+    chunks = [backwards[at:at + 3][::-1] for at in range(0, len(backwards), 3)]
+    return sign + mark.join(reversed(chunks)) + point + rest
+
+
+def styled_spelling(style, value, integer_valued, order, mark=""):
     """One numeric cell in one of the six styles of method section G6.1.
 
     ``order`` is the leading-zero order the family of G6.3 carries
@@ -1588,10 +1613,17 @@ def styled_spelling(style, value, integer_valued, order):
     other quota is spent, and the finished text then classifies as
     whatever the ladder makes of it, which G12 names as a miss.
 
-    A thousands separator is never written -- the comma breaks the CSV
-    row itself -- and accounting parentheses never appear, because they
-    are the contradictory-notation stand-in of G10.3 and would change a
-    cell's class.
+    ``mark`` is the column's published thousands separator, written into
+    the ``plain``, ``leading_plus`` and ``decimal`` styles at order zero
+    and into nothing else: not ``leading_zero`` and not either exponent
+    form, and not a cell whose leading-zero family is spent, because
+    grouping the zeros would write a padded field wearing a separator.
+    This docstring once said a separator is never written because the
+    comma breaks the CSV row itself.  That was FALSE -- a comma-bearing
+    cell is quoted and read back unchanged -- and the method was amended
+    on 2026-09-14.  Accounting parentheses still never appear, because
+    they are the contradictory-notation stand-in of G10.3 and would
+    change a cell's class.
     """
     if style not in STYLE_ORDER:
         raise AssertionError(f"{style!r} is not one of the six permitted styles")
@@ -1610,7 +1642,7 @@ def styled_spelling(style, value, integer_valued, order):
     if style == "plain":
         if order:
             raise AssertionError("the plain style carries no leading-zero family")
-        return text
+        return _group_thousands(text, mark)
     sign = "-" if text.startswith("-") else ""
     body = text[len(sign):]
     if style == "leading_zero":
@@ -1620,7 +1652,11 @@ def styled_spelling(style, value, integer_valued, order):
             raise AssertionError(
                 "there is no leading-plus spelling of a negative value"
             )
+        if order == 0:
+            return "+" + _group_thousands(body, mark)
         return "+" + "0" * order + body
+    if style == "decimal" and order == 0:
+        return sign + _group_thousands(body, mark)
     return sign + "0" * order + body
 
 
@@ -4898,8 +4934,9 @@ def _numeric_content(column):
     styles, missed = style_allocation(
         column["numeric_styles"], cell_values, integer_valued
     )
+    mark = column.get("group_separator", "")
     content = [
-        styled_spelling(style, value, integer_valued, 0)
+        styled_spelling(style, value, integer_valued, 0, mark)
         for style, value in zip(styles, cell_values)
     ]
     # G6.5: how many zeros are spent is decided over the WHOLE column
@@ -4927,7 +4964,7 @@ def _numeric_content(column):
         order = 1
         while True:
             raised = styled_spelling(
-                styles[index], cell_values[index], integer_valued, order
+                styles[index], cell_values[index], integer_valued, order, mark
             )
             if folded(raised) not in held:
                 break
@@ -5198,6 +5235,12 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
+    # ...and the mark between thousands (contract numeric block, stage 2),
+    # EMPTY for every case here: no source column these cases describe
+    # was written with a grouped convention, so a case publishes no mark
+    # and its frozen cells are the ones it froze before the key existed.
+    if "numeric_styles" in block and "group_separator" not in block:
+        block["group_separator"] = ""
     # ...and the same for the census of field widths (P4-D14), which is
     # that map's sibling and empty for every case here but one: a block
     # naming no padded cells takes a census of none.
@@ -7084,6 +7127,9 @@ def _joined_readings():
             "n_used_in_statistics": 12, "n_left_out_of_statistics": 0,
             "integer_valued": True, "numeric_styles": {"plain": 12},
             "fraction_widths": {}, "pad_widths": {},
+            # No mark between thousands: a reading of two figures has
+            # no thousands to group (plan P4-D38, at a part's depth).
+            "group_separator": "",
             # The whole-number field-width census of this POSITION
             # (contract 7.10 read at that depth).  Every one of the
             # twelve readings a position holds is `plain`, and the

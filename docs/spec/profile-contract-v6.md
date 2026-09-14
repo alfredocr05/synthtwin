@@ -163,6 +163,7 @@ were added to version 6 after it was declared -- `kurtosis`,
 `forced_codes`, `forced_measurements`, `forced_decimal_commas`,
 the census of written forms, `field_widths`, `empty_bins`,
 `empty_edges`,
+`group_separator` on the numeric blocks,
 `min_length` and `max_length` on the unrepresentable role,
 `value_histogram` on the numeric roles, and the joined-numbers role -- each time on the argument that no version 6
 description exists outside this repository. The owner accepted that
@@ -4028,18 +4029,19 @@ that comes to differ.
 
 ### 6.7 `count` and `continuous` — the numeric roles
 
-Both roles carry exactly the same key set — the TWENTY-FIVE keys
+Both roles carry exactly the same key set — the TWENTY-SIX keys
 below, added to the universal set of section 5.1. They differ only in
 the verdict that produced them.
 
-**It read "sixteen" until 2026-09-09**, and the table under it has
-listed twenty-five for as long as the later keys have existed —
+**It read "sixteen" until 2026-09-09**, and the table under it had listed twenty-five for as long as the later keys have existed —
 `kurtosis`, `n_distinct_values`, `mode`, `mode_count`,
 `percentiles_between`, `field_widths`, `value_histogram`, `empty_bins`
 and `empty_edges` all arrived after the number was written and none of
-them moved it. `NUMERIC_KEYS` in the loader holds twenty-five, and an
-independent producer following "sixteen" writes a block missing nine
-obligations the loader requires.
+them moved it. `NUMERIC_KEYS` in the loader held twenty-five, and an
+independent producer following "sixteen" wrote a block missing nine
+obligations the loader requires. `group_separator` made it twenty-six
+on 2026-09-14 (plan P4-D38), and every count below moved with it in
+the same commit.
 
 **When a column takes one of these roles.** Rule 7 of the order in
 section 5.2 claims a column when at least the parse-line count of its
@@ -4129,6 +4131,7 @@ consumer off the role name.
 | `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
+| `group_separator` | string | `""` or `","` | the mark the column writes between thousands; `","` only where no declared decimal comma is in force, no groupable cell of four or more whole figures was written bare, no padded or exponent cell holds a comma, and the cells proving the grouping reach `small_cell_floor`; `""` otherwise | REPORT-ONLY (plan P4-D38, added after the freeze) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
@@ -4136,7 +4139,7 @@ consumer off the role name.
 | `empty_bins` | array | C6-32 to C6-33 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-33a to C6-33b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
 
-Twenty-five keys. Every one is present in every block of these two
+Twenty-six keys. Every one is present in every block of these two
 roles — this format has no optional keys — and every key not listed
 here or in section 5.1 is FORBIDDEN on them (section 6.11).
 
@@ -4775,6 +4778,7 @@ rather than a list of its own, so the two cannot part again.
 | `integer_valued` | | | | | | | | | ● | ● | ● | | | | |
 | `n_rows` (echo) | | | | | | | | | ● | ● | ● | | | | |
 | `numeric_styles` | | | | | | | | | ● | ● | ● | | | | |
+| `group_separator` | | | | | | | | | ● | ● | ● | | | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `field_widths` | | | | | | | | | ● | ● | ● | | | | |
@@ -4821,10 +4825,10 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Eighty-four rows, one hundred and sixty-one marked cells**,
+**Eighty-five rows, one hundred and sixty-four marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 13,
-`time_of_day` 5, `count` 25, `continuous` 25, `affixed_number` 35,
+`time_of_day` 5, `count` 26, `continuous` 26, `affixed_number` 36,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
@@ -5165,25 +5169,25 @@ column, in any spelling of that number, and naming `-999 mg` protects
 the cell spelled that way. That is wider than a spelling-granular rule
 would be and is stated here so nobody reads the narrower one into it.
 
-#### C6-6. Added keys: thirty-five
+#### C6-6. Added keys: thirty-six
 
-TEN of this role's own, and the TWENTY-FIVE a `count` or
+TEN of this role's own, and the TWENTY-SIX a `count` or
 `continuous` block carries, the quantitative ones computed over the
-CORES of the COMMONEST wrapper (C6-7b). Ten and twenty-five make the
-thirty-five the block-size sentence below already states, and
-`AFFIXED_KEYS` in the loader holds exactly those thirty-five.
+CORES of the COMMONEST wrapper (C6-7b). Ten and twenty-six make the
+thirty-six the block-size sentence below already states, and
+`AFFIXED_KEYS` in the loader holds exactly those thirty-six.
 
 **THIS COUNT HAS BEEN WRONG TWICE AND IN TWO DIFFERENT WAYS.** It read
 "seven" and "twenty-three" until 2026-09-08, three keys after the
 wrapper set added them; the repair moved the role's own half to ten and
 left the numeric half at "sixteen", a number no version of this
-document has been able to justify against `NUMERIC_KEYS`, which holds
-twenty-five. An independent producer following "sixteen" writes a block
-missing nine obligations the loader requires.
+document has been able to justify against `NUMERIC_KEYS`, which held
+twenty-five then. An independent producer following "sixteen" wrote a
+block missing nine obligations the loader requires.
 
 **Each entry of `affix_variants` carries ten keys of its own**: its two
 spellings, its `count`, its four class counts, its two counts of
-different cores, and a `numbers` block holding exactly the TWENTY-FIVE
+different cores, and a `numbers` block holding exactly the TWENTY-SIX
 keys a `count` or `continuous` block holds — the same set, read over
 that wrapper's cores, echoing that wrapper's `count` in `n_rows`. No
 entry carries an eleventh key, and a description whose entry does is
@@ -5217,6 +5221,7 @@ refused rather than read.
 | `integer_valued` | boolean | — | true when every numeric-looking CORE is whole | EXACT-OBSERVABLE, routed by the FACT and not by role |
 | `n_rows` | integer ≥ 0 | the table's row count where ONE wrapper is worn; the COMMONEST wrapper's own count where a SET is (C6-7b, AF13) | the row count of the population this block describes, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
+| `group_separator` | string | `""` or `","` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous` | REPORT-ONLY (plan P4-D38) |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
@@ -5235,12 +5240,12 @@ refused rather than read.
 | `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
-| `affix_variants[].numbers` | object | AF13 | the twenty-five keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
+| `affix_variants[].numbers` | object | AF13 | the twenty-six keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
-**The block is fifty-seven keys**: the twenty-two universal keys of
-section 5.1 and the thirty-five above — a `count` block's twenty-five
+**The block is fifty-eight keys**: the twenty-two universal keys of
+section 5.1 and the thirty-six above — a `count` block's twenty-six
 additions plus this role's own ten. The matrix of section 6.11 marks
-exactly those thirty-five cells in its `afx` column. There is no
+exactly those thirty-six cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -9197,8 +9202,8 @@ a marked row.
    `std_unrepresentable`, `n_zero`, `n_negative`,
    `n_negative_unrepresentable`, `n_used_in_statistics`,
    `n_left_out_of_statistics`, `numeric_share`, `integer_valued`,
-   `n_rows`, `numeric_styles` with its siblings `fraction_widths`,
-   `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
+   `n_rows`, `numeric_styles` with its siblings `group_separator`,
+   `fraction_widths`, `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
    `n_core_not_numeric`, `affix_variants`, `n_core_distinct`,
    `n_core_distinct_folded`, `kurtosis`, `percentiles_between`,
@@ -9206,7 +9211,7 @@ a marked row.
    keys `value_histogram`, `empty_bins` and `empty_edges` — each under
    the treatment the same fact has on a plain numeric column, all of
    it reaching columns that were free text. With row 2 this prices all
-   thirty-five keys the role adds; rows 4, 7, 20 and 21 restate four of
+   thirty-six keys the role adds; rows 4, 7, 20 and 21 restate four of
    them at their own floor or disclosure treatment and add nothing to
    the set.
 

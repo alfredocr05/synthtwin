@@ -27,6 +27,7 @@
           "2": 12
         },
         "fraction_widths": {},
+        "group_separator": "",
         "integer_valued": true,
         "kurtosis": {
           "decimal": "1.7832167832167831",
@@ -1094,6 +1095,7 @@
               "2": 12
             },
             "fraction_widths": {},
+            "group_separator": "",
             "integer_valued": true,
             "kurtosis": {
               "decimal": "2.645135996997432",
@@ -1758,6 +1760,7 @@
               "2": 12
             },
             "fraction_widths": {},
+            "group_separator": "",
             "integer_valued": true,
             "kurtosis": {
               "decimal": "1.685945422653337",
@@ -2971,6 +2974,7 @@
         "fraction_widths": {
           "1": 11
         },
+        "group_separator": "",
         "integer_valued": true,
         "kurtosis": null,
         "mean": {
@@ -3789,6 +3793,7 @@
         "fraction_widths": {
           "(withheld)": 1
         },
+        "group_separator": "",
         "integer_valued": false,
         "kurtosis": {
           "decimal": "2.5",

@@ -9479,6 +9479,16 @@ shape says what is true of such a column — a number, with others
 wearing text beside it — and `synthtwin profile` no longer writes a
 file `synthtwin generate` will not take.
 
+### P4-D38 The mark between thousands (stage 2, 2026-09-14)
+
+`group_separator` is REPORT-ONLY. It is the mark a column writes between thousands, published on every numeric block as one character or the empty string. It repairs a defect in which a charge written with a comma came back from the twin without one, so that code developed on the twin silently discarded every charge over a thousand when it met the real table: a mean of 412 against a true 918, with no error raised.
+
+It is published only where the column's convention can be reproduced. Never under a declared decimal comma. Never where any cell of four or more whole figures, written in a form that can be grouped, carries no mark. Never where a padded or exponent cell holds a comma. And only where the cells that prove the mark reach the smallest group size. Review round 1 of this landing measured why each of those refusals exists: without them one straggling cell in a decimal-comma column left no cell of the twin readable as a number, and one grouped cell among two hundred grouped all two hundred.
+
+The generator writes the mark into the plain, leading-plus and decimal forms at leading-zero order zero, and into nothing else. The independent oracle mirrors that rule in the same commit, as amendment A-P4-59 requires, and a test holds three separately written groupers to agreeing. The class is the weaker one because the validator accepts a grouped cell but does not yet hold a twin to carrying the mark; that is carried by name. The quality report lists the mark on every numeric-family column, as the field-width census beside it is listed, so the fact is named and never silent.
+
+The rule this overturns is Phase 2's sentence that a thousands separator is never written because the comma breaks the CSV row itself. That reason was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. The Phase 2 plan and the generation method record the correction on the same date.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free

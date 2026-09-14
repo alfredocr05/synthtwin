@@ -5274,11 +5274,15 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
         "joined.parts[0].field_widths",
+        # REPORT-ONLY (plan P4-D38): the mark between thousands, filed
+        # by each position as the field-width census beside it is.
+        "joined.parts[0].group_separator",
         # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
         # 2026-09-04: amendment A-P4-55 makes the count of different
         # numbers an obligation, so each position files it as a check.
         "joined.parts[0].percentiles_between",
         "joined.parts[1].field_widths",
+        "joined.parts[1].group_separator",
 
         "joined.parts[1].percentiles_between",
         "universal.detection_evidence",
@@ -5306,6 +5310,9 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # they are the same obligations under another answer.
     "compound": (
         "numeric.field_widths",
+        # REPORT-ONLY (plan P4-D38): the mark between thousands, listed
+        # on the numeric half as on any column of numbers.
+        "numeric.group_separator",
         # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
         # amendment A-P4-55 makes the count of different numbers an
         # obligation, so it is an executable subcheck now and is held
@@ -5420,6 +5427,9 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # are and the edges say where each really begins and ends.
         "numeric.empty_edges",
         "numeric.field_widths",
+        # REPORT-ONLY (plan P4-D38): the mark between thousands, listed
+        # whole on every column of this family.
+        "numeric.group_separator",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).
         "numeric.value_histogram",

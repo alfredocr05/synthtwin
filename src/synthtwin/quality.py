@@ -678,6 +678,10 @@ _LISTING_WORDS = {
         "how many figures each of your whole-numbered cells was "
         "written with"
     ),
+    "numeric.group_separator": (
+        "the mark your column wrote between thousands, or that it wrote "
+        "none"
+    ),
 }
 
 

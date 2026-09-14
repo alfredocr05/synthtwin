@@ -1017,6 +1017,81 @@ def _groups_by_threes(body: str, mark: str) -> bool:
     return True
 
 
+def groups_thousands(text: str) -> bool:
+    """Whether this cell PROVES its comma separates thousands.
+
+    The gate `group_separator` is published through, and it is
+    deliberately narrow. A cell proves a thousands separator only where
+    `comma_reading` says so: a point somewhere after the comma
+    (`1,234.56`), or a second comma (`1,234,567`). A lone `1,795`
+    settles nothing -- it reads either way -- and contributes no
+    evidence at all, so a decimal-comma column is never mistaken for a
+    grouped one and the ambiguity costs no new judgement here. That
+    reasoning, and the four constants it turns on, are `comma_reading`'s
+    and this only asks the question.
+
+    Guarantees: accepts text; answers True only where the cell itself
+    settles the reading as grouping. Determinism: the answer depends
+    only on the text. Raises TypeError if handed anything that is not a
+    string instance. Boundary: no figure of the cell travels out
+    through it. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return comma_reading(text) == COMMA_GROUPED
+
+
+def with_group_separator(figures: str, mark: str) -> str:
+    """`figures` with `mark` between each group of three whole figures.
+
+    THE WRITE RULE FOR A GROUPED COLUMN, and the reason the twin can
+    hold one at all. What used to stand here was the ruling that a
+    thousands separator can never be written because "the comma breaks
+    the CSV row itself". That is FALSE and it is the whole reason the
+    defect existed: `rendering.twin_csv` already quotes any cell
+    holding a comma, so `"$2,198.92"` is written, quoted, and read back
+    by this module's own reader unchanged.
+
+    Only the whole part is grouped, and only from four figures up. A
+    sign, a decimal point, anything after the point and any exponent
+    are left exactly as they were: an exponent's mantissa never reaches
+    four whole figures, and a padded field is a code whose width a
+    separator would corrupt, so neither is ever handed here.
+
+    Guarantees: accepts a written number and one separator character;
+    returns the same number with the separator between each group of
+    three whole figures, or the number unchanged where its whole part
+    is shorter than four figures or where `mark` is empty. Determinism:
+    a fixed function of the two. Raises TypeError if handed anything
+    that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(figures, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    if mark == "":
+        return figures
+    sign = ""
+    body = figures.strip()
+    if body[:1] == "+" or body[:1] == "-":
+        sign = body[:1]
+        body = body[1:]
+    point = body.find(".")
+    whole = body if point < 0 else body[:point]
+    rest = "" if point < 0 else body[point:]
+    if len(whole) < 4 or not _all_ascii_digits(whole):
+        return figures
+    lead = len(whole) % 3
+    if lead == 0:
+        lead = 3
+    grouped = whole[:lead]
+    place = lead
+    while place < len(whole):
+        grouped = grouped + mark + whole[place : place + 3]
+        place += 3
+    return sign + grouped + rest
+
+
 def comma_reading(text: str) -> str:
     """What one cell settles about the comma it carries, if anything.
 
@@ -1296,10 +1371,18 @@ def numeric_style(text: str) -> str:
 
     TWO SOURCE FORMS ARE NOT FORMS HERE, and the consequence is
     recorded rather than left to be discovered: accounting brackets and
-    thousands separators are classified by the digits inside them. A
-    comma would break a CSV row, and brackets are outside the spellings
-    a twin may write, so neither could be reproduced and neither is
-    counted as its own form.
+    thousands separators are classified by the digits inside them.
+    Brackets are outside the spellings a twin may write, so they are
+    not reproduced. A thousands separator IS reproduced, but not as a
+    seventh form: a grouped cell is also a `plain` or `decimal` cell,
+    and the styles map is a partition that must close on the numeric
+    count, so grouping is published beside it as `group_separator`.
+
+    THIS DOCSTRING USED TO GIVE ANOTHER REASON, AND IT WAS FALSE. It
+    said a comma would break a CSV row. The CSV writer quotes any cell
+    holding a comma and this module's own reader reads it back
+    unchanged; the false reason was the whole cause of a grouped charge
+    column coming back ungrouped.
 
     Guarantees:
 

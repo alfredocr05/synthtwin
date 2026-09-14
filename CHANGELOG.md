@@ -6,7 +6,70 @@ exists).
 
 ## [Unreleased]
 
-### Fixed: both commands were quadratic, and it was one idiom (stage 1, 2026-09-13)
+### Fixed: a thousands comma is written back (stage 2, part one, 2026-09-14)
+
+**A column written `2,198.92` came back from the twin as `2198.92`.**
+Code built on the twin then met the comma for the first time on the
+real table and silently dropped every value above a thousand. The
+profile now publishes `group_separator` on every numeric block (`""`
+or `","`), and the generator writes the comma back.
+
+**The evidence rule** (`taxonomy._group_separator`). The mark is `","`
+only when all of these hold:
+
+- no decimal comma is declared for the column;
+- every `plain`, `leading_plus` or `decimal` cell with four or more
+  whole figures carries a comma;
+- no padded or exponent cell carries one;
+- the cells proving the grouping reach `small_cell_floor`.
+
+Otherwise it is `""`. The generator groups `plain` cells always, and
+`leading_plus` and `decimal` cells only where no leading zeros were
+written. The validator accepts grouped spellings of each permitted
+form, and the independent oracle carries the same rule. The quality
+report lists the mark on every numeric-family column as a fact no file
+is held to.
+
+**Measured.** A naive parser gives a mean of 409.97 on the twin against
+412.11 on the real table, where the true mean is 917.93. The defect now
+shows up on the twin, where it can be fixed. The twin and the real
+table both validate with nothing missed. A declared decimal-comma
+column, a column mixing grouped and bare cells, and a padded column
+all publish `""`. Three independent groupers agree on 30,000 spellings.
+
+**One review round** found nine defects, all corrected here:
+
+- the comma leaked into decimal-comma columns;
+- one grouped cell grouped a whole column;
+- padded and exponent cells were grouped;
+- the generator grouped spent zeros (`+0,001,234`);
+- the loader accepted values other than `""` and `","`;
+- the reference profiles, including the joined case's two parts,
+  lacked the key;
+- the contract's key counts and role matrix were stale.
+
+A moment-separator and midnight census built in the same pass broke
+profiling and was backed out whole; it returns as part two.
+
+**Frozen artefacts moved, by one key only.** The profile golden and
+the twin golden's description hash were re-recorded after a diff showed
+`group_separator: ""` as the only addition. Both reference vector
+files gained the empty key and no cell moved. Contract v6 gained its
+table rows, a matrix row, and a place in the post-freeze list, all
+under plan P4-D38.
+
+**Carried, not fixed:**
+
+- the validator accepts a grouped spelling but does not require one, so
+  a twin written bare still passes;
+- no frozen reference case publishes `","`;
+- at a floor of one, a single grouped cell is enough to publish the
+  mark;
+- a column grouped with a space or an apostrophe is still read as the
+  wrong number;
+- a moment's own separator and a date held at midnight: part two.
+
+### Fixed: describing and generating were quadratic, and it was one idiom (stage 1, 2026-09-13)
 
 **Describing a table and building a twin both grew with the SQUARE of
 the row count**, and no guard in the suite looked at growth at all.

@@ -2379,6 +2379,7 @@ def _styled_number(
     whole_column: bool,
     width: int = -1,
     pad: int = -1,
+    mark: str = "",
 ) -> str:
     """One value written in one of the six permitted styles (G6.1, G6.3).
 
@@ -2387,14 +2388,37 @@ def _styled_number(
     step adds one zero after the sign. The `leading_zero` style starts
     at one, because that is what makes it that style at all.
 
-    Never a thousands separator -- the comma breaks the CSV row itself
-    -- and never accounting parentheses, which are kept for the
-    contradictory-notation stand-in and would otherwise move a cell into
-    another class.
+    ``mark`` is the column's published thousands separator, empty where
+    it publishes none. **THIS DOCSTRING USED TO SAY A THOUSANDS
+    SEPARATOR IS NEVER WRITTEN BECAUSE "THE COMMA BREAKS THE CSV ROW
+    ITSELF". THAT WAS FALSE, AND IT WAS THE WHOLE REASON THE DEFECT
+    EXISTED.** `rendering.twin_csv` already quotes any cell holding a
+    comma, so `"$2,198.92"` is written, quoted, and read back by this
+    package's own reader unchanged. What the false rule cost: a charge
+    column came back ungrouped, code developed on the twin never met a
+    separator, and on the real table that code silently discarded every
+    charge over a thousand -- a mean of 412 against a true 918, with no
+    error raised and nothing in any report mentioning it.
+
+    The mark reaches only the three styles a grouped number can wear.
+    NOT `leading_zero`: a padded figure field is a code, and grouping a
+    record number corrupts a key. NOT either exponent form: the mark
+    would sit inside a mantissa that never reaches four whole figures.
+
+    Accounting parentheses are still never written, which is a separate
+    rule: they are kept for the contradictory-notation stand-in and
+    would otherwise move a cell into another class.
     """
     canonical = _canonical_number(value, whole_column)
+    # NOT INTO ZEROS THIS CELL SPENT. Where a column needs more distinct
+    # spellings than its values supply, G6.5 raises a cell's leading-zero
+    # order, and grouping that text grouped the zeros too: `+0,001,234`
+    # and `001,234.5`, a padded field wearing a separator. So the mark
+    # reaches a cell only at order zero; a raised cell keeps its zeros
+    # and no mark, and the validator's family admits both spellings.
+    grouping = mark if order == 0 else ""
     if style == "plain":
-        return _point_free(value, canonical)
+        return parsing.with_group_separator(_point_free(value, canonical), mark)
     if style == "leading_zero":
         plain = _point_free(value, canonical)
         # A PUBLISHED FIELD WIDTH OUTRANKS THE ORDER, because the order
@@ -2409,19 +2433,25 @@ def _styled_number(
     if style == "leading_plus":
         plain = _point_free(value, canonical)
         if plain[0] == "-":
-            return plain
-        return _with_zeros(f"+{plain}", order)
+            return parsing.with_group_separator(plain, mark)
+        return parsing.with_group_separator(_with_zeros(f"+{plain}", order), grouping)
     figures = _digits_and_point(value)
     if style == "decimal":
         # A width of -1 is "whatever this value needs", which is what a
         # column publishing no census of widths asks for. Any other
         # width is one the census named, and the cell is written at it.
         if width < 0:
-            return _with_zeros(
-                _fixed_point(figures[0], figures[1], figures[2]), order
+            return parsing.with_group_separator(
+                _with_zeros(
+                    _fixed_point(figures[0], figures[1], figures[2]), order
+                ),
+                grouping,
             )
-        return _with_zeros(
-            _at_width(figures[0], figures[1], figures[2], width), order
+        return parsing.with_group_separator(
+            _with_zeros(
+                _at_width(figures[0], figures[1], figures[2], width), order
+            ),
+            grouping,
         )
     if style == "exponent_lower":
         return _with_zeros(
@@ -11084,6 +11114,7 @@ def _number_cells(
                 facts.integer_valued,
                 widths[index],
                 pads[index],
+                facts.group_separator,
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -11152,6 +11183,7 @@ def _number_cells(
                     facts.integer_valued,
                     widths[index],
                     pads[index],
+                    facts.group_separator,
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1

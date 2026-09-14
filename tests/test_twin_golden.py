@@ -143,7 +143,18 @@ EMPTY_BIN_FACT = "numeric.empty_bins"
 # same columns and nowhere else. Subtracted the same way, and named
 # the same way just below.
 EMPTY_EDGE_FACT = "numeric.empty_edges"
-LISTINGS_ADDED_SINCE = (FIELD_WIDTH_FACT, EMPTY_BIN_FACT, EMPTY_EDGE_FACT)
+# ...and the FOURTH listing to arrive after that baseline was frozen
+# (plan P4-D38, stage 2, 2026-09-14). `group_separator` is REPORT-ONLY
+# and published on every numeric-family column, so like the field-width
+# census it is listed once per such column. Subtracted the same way, and
+# named just below.
+GROUP_SEPARATOR_FACT = "numeric.group_separator"
+LISTINGS_ADDED_SINCE = (
+    FIELD_WIDTH_FACT,
+    EMPTY_BIN_FACT,
+    EMPTY_EDGE_FACT,
+    GROUP_SEPARATOR_FACT,
+)
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -369,6 +380,16 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose|numeric.field_widths|",
         "reading|numeric.field_widths|",
         "visits|numeric.field_widths|",
+    ]
+    # ...and the mark between thousands, on the same four columns and for
+    # the same reason: it is published on every numeric-family column.
+    assert sorted(
+        entry for entry in listings if GROUP_SEPARATOR_FACT in entry
+    ) == [
+        "amount|numeric.group_separator|",
+        "dose|numeric.group_separator|",
+        "reading|numeric.group_separator|",
+        "visits|numeric.group_separator|",
     ]
     # ...and the empty-bin listings are named the same way, and the
     # list is SHORTER than the four above rather than equal to it,
@@ -696,7 +717,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # landing did. No count, statistic, label, role, spelling or cell
 # changed on `dose` or on any other column.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0f054c7189ba838402ec78a021c617e10abe6029823b2268f26a1d2893164e81"
+    "0a59a6475851b72232407647003045a9481e421570cb3a0f2050d47ecf17a4bb"
 )
 
 
@@ -1654,7 +1675,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # which names six files where it named five and names the questions
 # file among them.
 GOLDEN_QUALITY_SHA256 = (
-    "5170e48698ddc270e70f97403dcf75a1e3ba0b0b20d5c916f6bb3a2d4f294e1d"
+    "36fdf67162a4426417d98caa3fa32e1d5a6cd441dc40a14c2908a1a97621f0c9"
 )
 
 

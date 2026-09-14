@@ -1248,7 +1248,7 @@ exactly one of six **styles**, and in no other form:
 | `exponent_lower` | the value in exponent notation with a lower-case `e` | yes |
 | `exponent_upper` | the value in exponent notation with an upper-case `E` | yes |
 
-**Never a thousands separator** — the comma breaks the CSV row itself —
+**A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table —
 and **never accounting parentheses**, which are reserved for the
 contradictory-notation stand-in of G10.3 and would otherwise change a
 cell's class.

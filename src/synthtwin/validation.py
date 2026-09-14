@@ -582,6 +582,14 @@ _NOT_CHECKABLE_FIELD_WIDTHS = (
     "reached, and a file whose cells fall at different widths misses "
     "no obligation this description makes"
 )
+_NOT_CHECKABLE_GROUP_SEPARATOR = (
+    "the description records the mark the real column wrote between "
+    "thousands, or that it wrote none, and the twin writes that mark "
+    "without being held to it: a file is read the same way whether its "
+    "large numbers carry the mark or not, so a file written without it "
+    "misses no obligation this description makes. What the mark buys is "
+    "code that meets the same spelling on the twin as on the real table"
+)
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -9852,7 +9860,10 @@ def _style_checks(
                 "six published forms of its own value"
             ),
             _cells_outside_the_styles(
-                cells, facts.integer_valued, _published_widths(facts)
+                cells,
+                facts.integer_valued,
+                _published_widths(facts),
+                facts.group_separator,
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -10346,8 +10357,56 @@ def _point_free_text(value: float, canonical: str) -> "str | None":
     return None
 
 
+def _grouped_text(text: str, mark: str) -> str:
+    """`text` with `mark` between each group of three whole figures.
+
+    WRITTEN HERE, NOT BORROWED FROM `parsing`, and the independence is
+    the point. The generator groups with `parsing.with_group_separator`;
+    if this check called the same function, a defect in it would be a
+    defect in both and the check could never see it. This walks the
+    whole figures from the right, where that one counts the first group
+    from the left, so the two agree only where both are right.
+
+    Guarantees: accepts a written number and one mark; returns it with
+    the mark between each group of three whole figures, or unchanged
+    where the mark is empty or the whole part is shorter than four
+    figures. Determinism: a fixed function of the two. Raises TypeError
+    if handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a grouped spelling was asked of something else")
+    if not isinstance(mark, str):
+        raise TypeError("a grouped spelling was asked of something else")
+    if mark == "":
+        return text
+    body = text.strip()
+    sign = ""
+    if body[:1] == "+" or body[:1] == "-":
+        sign = body[:1]
+        body = body[1:]
+    point = body.find(".")
+    whole = body if point < 0 else body[:point]
+    tail = "" if point < 0 else body[point:]
+    if len(whole) < 4:
+        return text
+    for figure in whole:
+        if figure < "0" or figure > "9":
+            return text
+    grouped = ""
+    end = len(whole)
+    while end > 0:
+        begin = end - 3 if end > 3 else 0
+        chunk = whole[begin:end]
+        grouped = chunk if grouped == "" else chunk + mark + grouped
+        end = begin
+    return sign + grouped + tail
+
+
 def _permitted_spellings(
-    value: float, whole_column: bool, widths: "tuple[int, ...]" = ()
+    value: float,
+    whole_column: bool,
+    widths: "tuple[int, ...]" = (),
+    mark: str = "",
 ) -> "tuple[str, ...]":
     """Every base text the six styles of G6.1 can write for one value.
 
@@ -10410,6 +10469,20 @@ def _permitted_spellings(
         padded = _text_at_width(sign, figures, place, width)
         if padded is not None:
             spellings += [padded]
+    # ...AND THE GROUPED FORM OF EACH, WHERE THE COLUMN PUBLISHES A MARK.
+    # Before this, a correctly grouped twin cell such as `2,198.92` read
+    # back as the value 2198.92, matched none of these ungrouped texts,
+    # and was counted as a spelling outside the six forms -- so validate
+    # reported `styles.spelled` MISSED against a twin that was right,
+    # and would not say why. Offered beside the bare form, not instead of
+    # it: whether every eligible cell carries the mark is its own
+    # question, and this subcheck asks only whether a cell's text is a
+    # spelling of its own value.
+    if mark:
+        for base in tuple(spellings):
+            grouped = _grouped_text(base, mark)
+            if grouped != base:
+                spellings += [grouped]
     plussed: list[str] = []
     for spelling in spellings:
         if spelling[:1] != "-":
@@ -10507,7 +10580,8 @@ def _published_widths(
 
 
 def _cells_outside_the_styles(
-    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]"
+    cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
+    mark: str = "",
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -10535,7 +10609,7 @@ def _cells_outside_the_styles(
         if value is None:
             continue
         worn = False
-        for spelling in _permitted_spellings(value, whole_column, widths):
+        for spelling in _permitted_spellings(value, whole_column, widths, mark):
             if _wears(body, spelling):
                 worn = True
         if not worn:
@@ -13048,6 +13122,17 @@ def _numeric_listings(
             "numeric.field_widths",
             "",
             _NOT_CHECKABLE_FIELD_WIDTHS,
+        ),
+        # THE MARK BETWEEN THOUSANDS, LISTED and never silent (plan
+        # P4-D38). Published on every column of this role, so its
+        # listing hangs off nothing else, exactly as the field-width
+        # census above it. REPORT-ONLY because the reading of a file
+        # accepts a grouped and an ungrouped spelling alike.
+        Listing(
+            column.name,
+            "numeric.group_separator",
+            "",
+            _NOT_CHECKABLE_GROUP_SEPARATOR,
         ),
         Listing(
             column.name,

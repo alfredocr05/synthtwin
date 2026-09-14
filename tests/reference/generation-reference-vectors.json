@@ -707,6 +707,7 @@
           "(withheld)": 3
         },
         "fraction_widths": {},
+        "group_separator": "",
         "integer_valued": false,
         "kurtosis": {
           "decimal": "2.5",
@@ -2246,6 +2247,7 @@
           "1": 16
         },
         "fraction_widths": {},
+        "group_separator": "",
         "integer_valued": true,
         "kurtosis": {
           "decimal": "2.5",

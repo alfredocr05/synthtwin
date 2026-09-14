@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 4,458 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| suite | 4,463 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu and Windows. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. `ultra` is valid and verified; do not substitute `high` |
@@ -62,7 +62,7 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 | # | landing | gate | wk |
 |---|---|---|---|
 | 1 | **DONE 2026-09-13. The list idiom and the heap merge.** `x = x + [item]` at 661 sites became `x += [item]`; the merge loop became `_merge_down`, a heap over a linked list. Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, 4,200 randomised cases agree with `_merge_nearest`, suite green at 4,406, and `tests/test_growth_is_linear.py` turns red on either defect | done |
-| 2 | **The three silent defects.** A number with a thousands separator keeps it; a moment keeps its own separator; a date stored at midnight stays a date | the twin writes values the way the source wrote them; a round-trip test per shape | 3 |
+| 2 | **The three silent defects. Part one DONE 2026-09-14: the thousands separator.** A column that proves a comma grouping publishes `group_separator` and its twin writes it back. Still open: a moment keeps its own separator; a date stored at midnight stays a date | the twin writes values the way the source wrote them; a round-trip test per shape | 3 |
 | 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared | no published number is held by fewer than the floor; a one-row table is refused | 5 |
 | 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
@@ -102,12 +102,12 @@ ones.
   columns is about 35 minutes, two million by fifty is about three
   hours. Landing 4 closes that by doing the ladder work once per
   distinct value rather than once per row.
-- **Three defects make a twin wrong without saying so.** A charge
-  written `$2,198.92` loses its comma, so code built on the twin drops
-  every value above a thousand on the real table — a measured mean of
-  412 against a true 918. A moment written with a space comes back with
-  a `T`, and the twin's own report says no code change is needed. A date
-  stored at midnight is given an invented time. Landing 2.
+- **Two defects make a twin wrong without saying so.** A moment written
+  with a space comes back with a `T`, and the twin's own report says no
+  code change is needed. A date stored at midnight is given an invented
+  time. Landing 2, part two. The third, the lost thousands comma, was
+  repaired on 2026-09-14; a column grouped with a space or an apostrophe
+  is still read wrong, and is carried in `CHANGELOG.md`.
 - **The description names individuals.** On a 1,200-row table the
   published maximum of two columns was held by exactly one subject.
   A population floor cannot fix this; the extremes must stop being

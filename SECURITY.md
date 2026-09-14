@@ -622,8 +622,20 @@ Stated here so that no reader has to discover them independently:
     aggregates are floor-free: they are computed over every row and
     name no cell. The affix pair and the separator are TEXT OF THE
     TABLE and are governed by their roles' detection rules, which is
-    stated here rather than left in the contract because they are the
-    two places version 6 publishes a spelling version 5 did not.
+    stated here rather than left in the contract because they are
+    places version 6 publishes a spelling version 5 did not.
+
+    **A third such place, added 2026-09-14: `group_separator`** on every
+    numeric block, the mark a column writes between thousands. It is a
+    single character or empty, and it carries no value and no count. It
+    is published only where the column's convention can be reproduced:
+    never under a declared decimal comma, never where any cell of four
+    or more whole figures in a groupable form was written without the
+    mark, never where a padded or exponent cell holds a comma, and only
+    where the number of cells proving the mark reaches the smallest
+    group size. A column mixing the two conventions therefore publishes
+    nothing, which is what keeps a single cell's spelling from being
+    read off the description.
 
   **What none of it changes:** no cell of a nothing-publishing column
   is published, the floor still governs every named spelling except

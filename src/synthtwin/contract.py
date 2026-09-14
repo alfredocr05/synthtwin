@@ -472,6 +472,7 @@ DATETIME_KEYS = (
 )
 
 NUMERIC_KEYS = (
+    "group_separator",
     "fraction_widths",
     "pad_widths",
     "field_widths",
@@ -1786,6 +1787,13 @@ class NumericFacts:
     integer_valued: bool
     n_rows: int
     numeric_styles: "dict[str, int]"
+    # THE MARK BETWEEN THOUSANDS, or the empty string where the
+    # column proves none. Published beside the styles map rather
+    # than inside it: that map is a partition whose counts close
+    # on the numeric total, and a grouped cell is also a decimal
+    # one, so a seventh form would break the closure. Amendment
+    # A-P4-5 set this precedent for the fraction widths.
+    group_separator: str
     fraction_widths: "dict[str, int]"
     pad_widths: "dict[str, int]"
     # HOW WIDE EVERY WHOLE-WRITTEN CELL WROTE ITS FIGURE FIELD (plan
@@ -6349,6 +6357,7 @@ def _numeric_facts(
             f"{n_numeric} values read as a number",
         )
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
+    mark = _group_separator(mapping, where)
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
@@ -6439,6 +6448,7 @@ def _numeric_facts(
         integer_valued=integer_valued,
         n_rows=echoed,
         numeric_styles=styles,
+        group_separator=mark,
         fraction_widths=widths,
         pad_widths=padded,
         field_widths=fields,
@@ -6462,6 +6472,34 @@ def _whole_row_count(value: object, key: str, where: str) -> int:
     if value < 0:
         raise _row_count_out_of_range(
             key, where, "a whole number of 0 or more"
+        )
+    return value
+
+
+def _group_separator(mapping: "dict[str, object]", where: str) -> str:
+    """The mark between thousands, refused unless it is one this writes.
+
+    A SPELLING, NOT A COUNT, so it carries no floor of its own: it
+    names how the column's numbers were written, not how many cells
+    any value had. Only the comma is accepted today; a space- or
+    apostrophe-grouped column is not read as grouped at all, so no
+    description can carry one and a file claiming otherwise is refused
+    rather than half-honoured.
+
+    Guarantees: accepts the numeric mapping and where it sits; returns
+    the empty string or one accepted mark. Determinism: a fixed
+    function of the two. Raises ProfileError where the value is not
+    text, or is text this producer never writes. No I/O of any kind.
+    """
+    value = mapping["group_separator"]
+    if not isinstance(value, str):
+        raise _wrong_type("group_separator", where, value, "a piece of text")
+    if value != "" and value != ",":
+        raise _out_of_range(
+            "group_separator",
+            where,
+            f"'{value}'",
+            _listed(("", ",")),
         )
     return value
 

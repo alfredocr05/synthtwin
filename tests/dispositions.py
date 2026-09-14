@@ -358,6 +358,9 @@ PLAN4_REGIONS = {
         "### P4-D35 The stretch edges (owner ruling 2026-09-04)"
     ),
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    "group-separator": (
+        "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
+    ),
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
     ),
@@ -450,6 +453,7 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "mode"),
     ("numeric", "mode_count"),
     ("numeric", "percentiles_between"),
+    ("numeric", "group_separator"),
 )
 
 
@@ -776,6 +780,19 @@ REGISTRY += (
         plan_words="how heavy this column's tails are",
         plan_region="kurtosis",
         aliases=("tail weight", "moment ratio"),
+    ),
+    # THE MARK BETWEEN THOUSANDS (stage 2, 2026-09-14). REPORT-ONLY on
+    # the rule stated above for the mode: the generator writes it, and
+    # the validator accepts a grouped cell but does not yet hold a twin
+    # to carrying the mark, so a class that claimed exactness would say
+    # more than any check establishes.
+    Fact(
+        "numeric",
+        "group_separator",
+        REPORT_ONLY,
+        plan_words="the mark a column writes between thousands",
+        plan_region="group-separator",
+        aliases=(),
     ),
 )
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric

@@ -166,8 +166,16 @@ rule: decisions 5-7 by round 3, decisions 8-9 by round 4, and decisions
    fold collisions where the profile records fewer folded than raw
    spellings — and are noted as changing the inferred type, which is
    faithful because a real column containing them is read the same way.
-   Never thousands separators (the comma breaks the CSV row itself) and
-   never parentheses. **An alternate spelling is used ONLY where the
+   Never parentheses, and never an invented thousands separator. The
+   reason this sentence first gave for the second -- that the comma
+   breaks the CSV row itself -- was FALSE, and is amended here on
+   2026-09-14 (stage 2): a cell holding a comma is quoted by the CSV
+   writer and read back unchanged. A separator the description
+   PUBLISHES is written, which is decision 10's own scope below; the
+   false reason had kept it from being written at all, so a grouped
+   charge column came back ungrouped and code developed on the twin
+   silently discarded every charge over a thousand from the real
+   table. **An alternate spelling is used ONLY where the
    published counts require it**, so an ordinary all-canonical integer
    column stays byte-plain and is read as a whole-number column exactly
    as the real one is.

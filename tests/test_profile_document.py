@@ -300,7 +300,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # rows that carried it. It names `--code` first now. No count,
 # statistic, label, role, spelling or cell of any column changed.
 GOLDEN_SHA256 = (
-    "ddcedf3207a45b3fba0e15ef19cbf268a5a75845070c6f036887090f292f939f"
+    "fcf48d008b690e1cd83a64db10c3af709c67e935b9f40ef619fe91e165ceece0"
 )
 
 

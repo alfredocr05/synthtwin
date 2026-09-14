@@ -6136,6 +6136,93 @@ def _mode_published(cells: _Cells, floor: int) -> dict[str, object]:
     return {"mode": value, "mode_count": count}
 
 
+# THE THREE FORMS A GROUPED NUMBER CAN WEAR, and the only three the
+# generator will write a separator into. A padded figure field is a code,
+# and an exponent form's mantissa is not where a reader groups thousands.
+_GROUPABLE_STYLES = ("plain", "leading_plus", "decimal")
+
+
+def _whole_figures(text: str) -> int:
+    """How many figures stand before the point, separators not counted.
+
+    Guarantees: accepts one written number; returns the count of its
+    whole figures with any sign and any group separator removed.
+    Determinism: a fixed function of the text. Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a whole-figure count was asked of something else")
+    body = text.strip()
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    body = body.replace(",", "")
+    point = body.find(".")
+    return len(body if point < 0 else body[:point])
+
+
+def _group_separator(cells: _Cells) -> str:
+    """The mark this column writes between thousands, or no mark.
+
+    THE SPELLING THE DESCRIPTION USED TO THROW AWAY. A charge written
+    `$2,198.92` came back from the twin as `$2198.92`, so code developed
+    on the twin silently discarded every charge over a thousand when it
+    met the real table -- a mean of 412 against a true 918, with no
+    error raised.
+
+    PUBLISHED ONLY WHERE THE TWIN CAN REPRODUCE THE COLUMN'S CONVENTION,
+    and review round 1 of this landing is why that condition exists. The
+    first version published a comma wherever ANY cell proved one, and
+    the review measured three ways that made a twin worse than the
+    defect it was repairing. Each is now a refusal to publish:
+
+    1. **A DECLARED DECIMAL COMMA.** `parsing.groups_thousands` reads a
+       cell's raw text, so under `--decimal-comma` the cell `2,198.92`
+       still reports proven grouping. One straggler `1,234,567` in a
+       declared decimal-comma column published a comma, and the twin
+       then wrote `1,018,44`: zero of 200 cells remained numbers. A
+       column declared to use the comma as its decimal mark is never
+       grouped.
+    2. **A MIXED COLUMN.** With one cell of 200 grouped and the other 199
+       four-figure cells left bare, the twin grouped all 200, and a plain
+       numeric read accepted 199 real cells and none of the twin's. Where
+       any cell of four or more whole figures in a groupable form carries
+       no separator, the convention is not the column's and nothing is
+       published, so the twin keeps the bare spelling most cells use.
+    3. **A FORM THE TWIN WILL NOT GROUP.** A padded or exponent cell
+       holding a comma (`01,234,000`, `1,234,000e1`) published the mark
+       and then lost every comma with no deviation, because the writer
+       never groups those forms. Any comma in such a cell withholds the
+       mark.
+
+    And the count of proving cells answers to the smallest group size,
+    exactly as a published form does in `_numeric_styles`.
+
+    Guarantees: accepts the column's tally; returns "," or the empty
+    string. Determinism: a fixed function of the tally, cells taken in
+    their given order. Raises nothing. No I/O of any kind.
+    """
+    if cells.decimal_comma:
+        return ""
+    proven = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        style = numeric_style(cell.numeric_text)
+        if style not in _GROUPABLE_STYLES:
+            if "," in cell.text:
+                return ""
+            continue
+        if _whole_figures(cell.numeric_text) < 4:
+            continue
+        if "," not in cell.text:
+            return ""
+        if parsing.groups_thousands(cell.text):
+            proven += 1
+    if proven == 0 or proven < cells.settings.small_cell_floor:
+        return ""
+    return ","
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -6229,6 +6316,12 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # map and not a key inside it: version 4 requires every value of
         # that map to be an integer summing to the numeric count, so an
         # object among them is a document no loader can read.
+        # THE MARK BETWEEN THOUSANDS, beside the other spelling
+        # facts rather than inside the styles map, which is a
+        # partition that must close on the numeric count
+        # (amendment A-P4-5 set that precedent for the fraction
+        # widths and this follows it).
+        "group_separator": _group_separator(cells),
         "fraction_widths": _fraction_widths(cells),
         # ...and how wide the ones written with a redundant zero wrote
         # their figure field, which the forms map cannot say either

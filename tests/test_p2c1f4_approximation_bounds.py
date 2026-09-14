@@ -454,6 +454,11 @@ PHASE_4_MODE_KEYS = ("mode", "mode_count")
 # interpolating it rather than from a file being held to any of them.
 PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 
+# Plan P4-D38 (stage 2, 2026-09-14). The mark a column writes between
+# thousands is REPORT-ONLY: the validator accepts a grouped spelling and
+# does not yet hold a twin to carrying the mark, so the report LISTS it.
+STAGE_2_SPELLING_KEYS = ("group_separator",)
+
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
     "count": NUMERIC_SECTION,
@@ -1430,6 +1435,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
             for own in PHASE_4_FINER_LADDER_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
+            for own in STAGE_2_SPELLING_KEYS:
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1459,6 +1466,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
         for own in PHASE_4_FINER_LADDER_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
+        for own in STAGE_2_SPELLING_KEYS:
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

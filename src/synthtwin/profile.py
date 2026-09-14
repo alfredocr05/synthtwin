@@ -953,6 +953,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): _WORD,
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "group_separator"): _AFFIX,
     ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1022,6 +1023,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # this package, so they are held to a grammar rather than to a
     # vocabulary -- and its counts are held to the floor exactly as the
     # forms map's are, the pooled remainder included.
+    # THE MARK BETWEEN THOUSANDS. A spelling the table's cells wear,
+    # admitted on the same terms as the affix pair and the joined
+    # role's separator, because it is the same kind of fact: how
+    # this column's numbers were written, carrying no value of any
+    # cell and no count of any group.
+    ("columns", _EACH, "group_separator"): _AFFIX,
     ("columns", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
