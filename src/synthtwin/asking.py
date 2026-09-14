@@ -705,7 +705,7 @@ def checklist_for(
         return []
     spoken: list[str] = []
     for question in asked:
-        spoken = spoken + [question.name]
+        spoken += [question.name]
     listed: list[Question] = []
     position = 0
     for block in blocks:
@@ -724,7 +724,7 @@ def checklist_for(
             table_columns[position], settings
         )
         if role in _MEASURED_ROLES:
-            listed = listed + [
+            listed += [
                 Question(
                     name,
                     role,
@@ -740,7 +740,7 @@ def checklist_for(
                 )
             ]
         elif role in _LABELLED_ROLES and _looks_like_a_code(present):
-            listed = listed + [
+            listed += [
                 Question(
                     name,
                     role,

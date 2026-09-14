@@ -691,7 +691,7 @@ def _read_streamed(
                     # there are.
                     ragged = ragged + 1
                     if len(offenders) < _MAX_REPORTED_OFFENDERS:
-                        offenders = offenders + [(n_rows + 1, len(row))]
+                        offenders += [(n_rows + 1, len(row))]
                     n_rows = n_rows + 1
                     continue
                 for position in range(width):

@@ -1909,7 +1909,7 @@ def _own_declarations_recovered(description: contract.Profile) -> int:
         if exact is None:
             words[parsing.folded(spelling)] = 1
         elif not _named(numbers, exact):
-            numbers = numbers + [exact]
+            numbers += [exact]
     return len(words) + len(numbers)
 
 
@@ -2294,15 +2294,15 @@ def corners_of(
         if isinstance(
             facts, contract.IdentifierFacts
         ) and _identifier_is_infeasible(column, facts):
-            corners = corners + [CORNER_IDENTIFIER_INFEASIBLE]
+            corners += [CORNER_IDENTIFIER_INFEASIBLE]
         if isinstance(
             facts, contract.DatetimeFacts
         ) and _offsets_are_withheld(facts):
-            corners = corners + [CORNER_DATETIME_OFFSETS_WITHHELD]
+            corners += [CORNER_DATETIME_OFFSETS_WITHHELD]
         if isinstance(
             facts, contract.LabelFacts
         ) and _label_variants_are_short(column, facts):
-            corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+            corners += [CORNER_LABEL_VARIANTS_SHORT]
         # G12.8's corner is asked of the QUANTITATIVE facts, so a column
         # whose numbers are held inside its own facts reaches it: an
         # affixed column's cells stand one for one with its cores under
@@ -2312,7 +2312,7 @@ def corners_of(
         if isinstance(
             quantitative, contract.NumericFacts
         ) and _numeric_spellings_are_short(column, quantitative):
-            corners = corners + [CORNER_NUMERIC_SPELLINGS_SHORT]
+            corners += [CORNER_NUMERIC_SPELLINGS_SHORT]
         # AND A COMPOUND COLUMN'S LABEL HALF, which this asked of an
         # OUTER `LabelFacts` alone -- so the half's own G12.7 corner was
         # never found, and the check that needed it was handed an empty
@@ -2321,7 +2321,7 @@ def corners_of(
             if _label_variants_are_short(
                 contract.compound_labels_view(column), facts.labels
             ):
-                corners = corners + [CORNER_LABEL_VARIANTS_SHORT]
+                corners += [CORNER_LABEL_VARIANTS_SHORT]
         if corners:
             found[column.name] = tuple(corners)
     return found
@@ -2436,12 +2436,12 @@ def _identifier_is_infeasible(
     supply: list[int] = []
     for band, cells in split:
         if cells < 1:
-            supply = supply + [0]
+            supply += [0]
             continue
         room = _identifier_capacity(column, facts, band, whole)
         if _band_falls_short(cells, widest, room):
             return True
-        supply = supply + [room]
+        supply += [room]
     reach = 0
     for place, pair in enumerate(split):
         if pair[1] < 1:
@@ -2497,7 +2497,7 @@ def _group_sizes(occurrences: "dict[str, int]") -> "tuple[tuple[int, int], ...]"
         size = contract.occurrence_size(key)
         if size is None:
             continue
-        found = found + [(size, occurrences[key])]
+        found += [(size, occurrences[key])]
     return tuple(sorted(found))
 
 
@@ -3417,7 +3417,7 @@ def _ladder_points(
     points: list[tuple[float, float]] = []
     for index, value in enumerate(rungs):
         if value is not None:
-            points = points + [(_LADDER_SHARES[index], float(value))]
+            points += [(_LADDER_SHARES[index], float(value))]
     return points
 
 
@@ -3459,7 +3459,7 @@ def _fine_ladder_points(
     for percent in range(101):
         value = named[percent] if percent in named else finer[percent]
         if value is not None:
-            points = points + [(percent / 100.0, float(value))]
+            points += [(percent / 100.0, float(value))]
     return points
 
 
@@ -3710,7 +3710,7 @@ def _variant_set(
             return None
         if not isinstance(many, int) or isinstance(many, bool):
             return None
-        read = read + [(front, behind)]
+        read += [(front, behind)]
     return tuple(sorted(read))
 
 
@@ -3733,7 +3733,7 @@ def _published_set(
     # the right ones the wrong number of times.
     said: "list[tuple[str, str]]" = []
     for one in facts.affix_variants:
-        said = said + [(one.prefix, one.suffix)]
+        said += [(one.prefix, one.suffix)]
     return tuple(sorted(said))
 
 
@@ -4644,9 +4644,9 @@ def _readable(checks: "list[Check]") -> "list[Check]":
     settled: list[Check] = []
     for check in checks:
         if check.verdict != MISSED or check.achieved or check.note:
-            settled = settled + [check]
+            settled += [check]
             continue
-        settled = settled + [
+        settled += [
             dataclasses.replace(
                 check, note=_NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY
             )
@@ -5021,7 +5021,7 @@ def _no_column_is_named(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            missed = missed + [
+            missed += [
                 Check(
                     check.column,
                     check.fact,
@@ -5104,7 +5104,7 @@ def _no_rows_at_all(
         ),
     ]
     if headed:
-        checks = checks + [
+        checks += [
             Check(
                 "",
                 "document.source.header_source",
@@ -5134,7 +5134,7 @@ def _no_rows_at_all(
             ),
         ]
     else:
-        checks = checks + [
+        checks += [
             _exact(
                 "",
                 "document.source.header_source",
@@ -5207,7 +5207,7 @@ def _structure_checks(
         ),
     ]
     if headed:
-        checks = checks + [
+        checks += [
             _silent(
                 "",
                 "universal.name",
@@ -5243,7 +5243,7 @@ def _first_values(table: reading.Table) -> "list[str]":
     for cells in table.columns:
         if not cells:
             return []
-        found = found + [cells[0]]
+        found += [cells[0]]
     return found
 
 
@@ -5412,8 +5412,8 @@ def _obligations(
         present, missing = _own_presence(block, cells)
     checks: list[Check] = []
     if _position_is_evidencible(column, headed):
-        checks = checks + [_position_check(column, names, headed)]
-    checks = checks + [
+        checks += [_position_check(column, names, headed)]
+    checks += [
         _exact(
             name,
             "universal.n_present",
@@ -5459,7 +5459,7 @@ def _obligations(
         ("statistical_type", column.statistical_type),
         ("quality_state", column.quality_state),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"universal.{field}",
@@ -5663,7 +5663,7 @@ def _cells_that_description_reads(
     read: list[str] = []
     for index, cell in enumerate(cells):
         if not holes[index]:
-            read = read + [cell]
+            read += [cell]
     return read
 
 
@@ -5722,7 +5722,7 @@ def _holes_by_the_description(
             # it through rather than through a second reading of it.
             kept_spellings_folded[parsing.folded(spelling)] = 1
         else:
-            kept_numbers = kept_numbers + [number]
+            kept_numbers += [number]
     declared_folded: dict[str, int] = {}
     declared_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in declared:
@@ -5730,9 +5730,9 @@ def _holes_by_the_description(
         if number is None:
             declared_folded[parsing.folded(spelling)] = 1
         else:
-            declared_numbers = declared_numbers + [number]
+            declared_numbers += [number]
     for candidate in _candidates_the_description_keeps(block):
-        kept_numbers = kept_numbers + [candidate]
+        kept_numbers += [candidate]
     missing_candidates = _candidates_the_description_drops(block)
     certain: list[bool] = []
     unsettled: list[bool] = []
@@ -5767,8 +5767,8 @@ def _holes_by_the_description(
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
                 undecided = not is_hole
-        certain = certain + [is_hole]
-        unsettled = unsettled + [undecided]
+        certain += [is_hole]
+        unsettled += [undecided]
     counted = 0
     for is_hole in certain:
         if is_hole:
@@ -5780,7 +5780,7 @@ def _holes_by_the_description(
     # is one of them. Which is not published, so all of them go.
     settled: list[bool] = []
     for index in range(len(cells)):
-        settled = settled + [certain[index] or unsettled[index]]
+        settled += [certain[index] or unsettled[index]]
     return settled
 
 
@@ -5895,7 +5895,7 @@ def _candidates_with(
             continue
         number = taxonomy.exact_of_spelling(candidate)
         if number is not None:
-            found = found + [number]
+            found += [number]
     return found
 
 
@@ -5993,7 +5993,7 @@ def _nothing_stands_here(
     for check in _obligations(
         description, column, [], {}, {}, names, headed
     ):
-        missed = missed + [
+        missed += [
             Check(
                 check.column,
                 check.fact,
@@ -6034,7 +6034,7 @@ def _nothing_left_to_measure(
         description, column, [], {}, {}, names, headed
     ):
         if check.fact == _POSITION_FACT and names is None:
-            filled = filled + [
+            filled += [
                 Check(
                     check.column,
                     check.fact,
@@ -6047,7 +6047,7 @@ def _nothing_left_to_measure(
             ]
             continue
         if check.verdict == WITHHELD and check.citation == _GATE_CLOSED:
-            filled = filled + [
+            filled += [
                 Check(
                     check.column,
                     check.fact,
@@ -6058,7 +6058,7 @@ def _nothing_left_to_measure(
                 )
             ]
             continue
-        filled = filled + [check]
+        filled += [check]
     return filled
 
 
@@ -6113,7 +6113,7 @@ def _cells_read_as_declared(
     swapped: "list[str]" = []
     for place in range(len(cells)):
         if holes[place]:
-            swapped = swapped + [cells[place]]
+            swapped += [cells[place]]
             continue
         read = parsing.written_with_a_decimal_comma(cells[place])
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
@@ -6124,9 +6124,9 @@ def _cells_read_as_declared(
         # spelling would never be found. A cell of this role is
         # translated only where the translation makes it a number.
         if compound and parsing.classify_number(read) != parsing.NUMBER:
-            swapped = swapped + [cells[place]]
+            swapped += [cells[place]]
             continue
-        swapped = swapped + [read]
+        swapped += [read]
     return swapped
 
 
@@ -6164,7 +6164,7 @@ def _judged_hole_spellings(
     found: list[str] = []
     for spelling in sorted(column.missing_by_source):
         if _one_judged_candidate(column, spelling, comma):
-            found = found + [spelling]
+            found += [spelling]
     return tuple(found)
 
 
@@ -6279,7 +6279,7 @@ def _hole_spelling_checks(
             # refuses by name, and rightly. `_judged_hole_listings`
             # files it where a fact no file can evidence belongs.
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 "universal.missing_by_source",
@@ -6574,16 +6574,16 @@ def _governed(
     # defect worth stopping on rather than one worth pairing past.
     for closed, found in zip(gated, measured, strict=True):
         if closed.verdict == WITHHELD and closed.citation == _GATE_CLOSED:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if closed.subcheck in _MEASURED_FROM_THE_CELLS:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if not split_published:
-            settled = settled + [closed]
+            settled += [closed]
             continue
         if found.verdict == WITHHELD and found.citation == _GATE_CLOSED:
-            settled = settled + [
+            settled += [
                 Check(
                     closed.column,
                     closed.fact,
@@ -6594,7 +6594,7 @@ def _governed(
                 )
             ]
             continue
-        settled = settled + [found]
+        settled += [found]
     return settled
 
 
@@ -6613,7 +6613,7 @@ def _universal_checks(
         ("n_contradictory", column.n_contradictory),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"universal.{field}",
@@ -6660,7 +6660,7 @@ def _distinctness_checks(
             # reason the date role has one: the construction writes a
             # value per RANK, so a column publishing fewer different
             # times than it has rows is met by a twin holding more.
-            checks = checks + [
+            checks += [
                 _within(
                     name,
                     fact,
@@ -6678,7 +6678,7 @@ def _distinctness_checks(
             # the construction writes a value per rank and holds far
             # more identities than the published count, so the matrix
             # sets both counts APPROXIMATED here and nowhere else.
-            checks = checks + [
+            checks += [
                 _within(
                     name,
                     fact,
@@ -6703,7 +6703,7 @@ def _distinctness_checks(
             low, high, said = _compound_window(column, facts, mine, field)
             if measured is not None and low <= measured <= high:
                 if low == high:
-                    checks = checks + [
+                    checks += [
                         _exact(
                             name,
                             fact,
@@ -6713,7 +6713,7 @@ def _distinctness_checks(
                         )
                     ]
                     continue
-                checks = checks + [
+                checks += [
                     Check(
                         name,
                         fact,
@@ -6730,7 +6730,7 @@ def _distinctness_checks(
                     )
                 ]
                 continue
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     fact,
@@ -6757,13 +6757,13 @@ def _distinctness_checks(
             # a listing rather than a check that cannot fail.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name, fact, subcheck, published, measured, corner, column
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 fact,
@@ -7703,7 +7703,7 @@ def _compound_checks(
         ("n_label_cells", facts.n_label_cells),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"compound.{field}",
@@ -7743,7 +7743,7 @@ def _compound_checks(
             under,
         )
         if found is not None:
-            checks = checks + [found]
+            checks += [found]
     # NAMED FOR WHAT IT HOLDS, and it was `mine` -- the name of this
     # function's own corner parameter (review round 3 of this landing,
     # item 1). The order of the lines kept it correct: the corner was
@@ -7753,7 +7753,7 @@ def _compound_checks(
     numeric_cells: "list[str]" = []
     for cell in cells:
         if parsing.classify_number(cell) == parsing.NUMBER:
-            numeric_cells = numeric_cells + [cell]
+            numeric_cells += [cell]
     settled = {subcheck for _fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS}
     for check in _numeric_checks(
         numbers,
@@ -7768,7 +7768,7 @@ def _compound_checks(
         # checks build them, so they are taken out here rather than by
         # a branch inside machinery every other role shares.
         if check.subcheck not in settled:
-            checks = checks + [check]
+            checks += [check]
     # THE LABEL HALF'S OWN TWO COUNTS OF DIFFERENT CELLS. They are
     # published facts of the label group read over this half, and no
     # check reached them: the loader read the folded one for invariant
@@ -7797,7 +7797,7 @@ def _compound_checks(
             field,
         )
         if found is not None:
-            checks = checks + [found]
+            checks += [found]
     checks = checks + _label_checks(
         labels, facts.labels, label_block, floor
     )
@@ -7845,7 +7845,7 @@ def _joined_checks(
     name = column.name
     checks: "list[Check]" = []
     found = _text_at(block, "separator")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "joined.separator",
@@ -7860,7 +7860,7 @@ def _joined_checks(
         ("n_unparsed", facts.n_unparsed),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.{field}",
@@ -7876,7 +7876,7 @@ def _joined_checks(
             if isinstance(held, int) and not isinstance(held, bool)
             else None
         )
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.part_min_widths[{place}]",
@@ -7903,7 +7903,7 @@ def _joined_checks(
             if isinstance(held, int) and not isinstance(held, bool)
             else None
         )
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.part_above[{place}]",
@@ -7942,7 +7942,7 @@ def _joined_checks(
             measured_agreement = float(found_agreement) + 0.0
         fact = f"joined.part_agreements[{place}]"
         subcheck = f"together.how strongly they move, pair {place + 1}"
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 fact,
@@ -8011,7 +8011,7 @@ def _position_cells(
                 every = False
         if not every:
             continue
-        found = found + [pieces[place]]
+        found += [pieces[place]]
     return found
 
 
@@ -8071,7 +8071,7 @@ def _position_styles(
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            checks = checks + [
+            checks += [
                 dataclasses.replace(
                     check,
                     fact=fact,
@@ -8144,7 +8144,7 @@ def _joined_number_checks(
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            checks = checks + [
+            checks += [
                 dataclasses.replace(
                     check,
                     fact=fact,
@@ -8191,7 +8191,7 @@ def _joined_part_checks(
                     value, bool
                 ):
                     measured = float(value)
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     f"joined.parts[{place}].{end}",
@@ -8207,7 +8207,7 @@ def _joined_part_checks(
             value = inner["integer_valued"]
             if isinstance(value, bool):
                 truth = value
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"joined.parts[{place}].integer_valued",
@@ -8262,7 +8262,7 @@ def _affixed_checks(
     # of `4.2 H` is read with ` H` off it and not with nothing.
     speaking: "list[tuple[str, str]]" = [(prefix, suffix)]
     for one in facts.affix_variants:
-        speaking = speaking + [(one.prefix, one.suffix)]
+        speaking += [(one.prefix, one.suffix)]
     cores: list[str] = []
     worn: "list[tuple[str, str]]" = []
     for cell in cells:
@@ -8289,14 +8289,14 @@ def _affixed_checks(
             continue
         core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
         if core:
-            cores = cores + [core]
+            cores += [core]
             # ...AND WHICH WRAPPER IT WORE (plan P4-D37). Every
             # published wrapper carries its own block now, so the
             # recount is read one wrapper at a time: a style census
             # published over a hundred kilograms, checked against a
             # recount over two hundred cores, missed by the hundred
             # pounds beside them.
-            worn = worn + [chosen]
+            worn += [chosen]
     # `n_affixed` COMES OFF THE FILE'S OWN DESCRIPTION, not off a
     # recount of its cells under the published pair. The difference is
     # V5.1: this report may state about the measured file only what
@@ -8309,7 +8309,7 @@ def _affixed_checks(
     # checked against a file of another printed "found: 5" beside the
     # pair, which is five cells of somebody's table counted for a
     # reader who may not hold it.
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "affixed.n_affixed",
@@ -8346,7 +8346,7 @@ def _affixed_checks(
     # reaches this report, and a wrapper is text, so the measured side
     # is kept back exactly as the commonest pair's is; what a reader is
     # shown is what the DESCRIPTION asks for, which is its own.
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "affixed.affix_variants",
@@ -8405,7 +8405,7 @@ def _affixed_checks(
             # count beside it.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name,
                     f"affixed.{field}",
@@ -8417,7 +8417,7 @@ def _affixed_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"affixed.{field}",
@@ -8447,7 +8447,7 @@ def _affixed_checks(
             # a file of bare `1` to `100` reported both affix spellings
             # HELD, which is a check stating something about a file it
             # had not looked at.
-            checks = checks + [
+            checks += [
                 Check(
                     name,
                     f"affixed.{field}",
@@ -8476,7 +8476,7 @@ def _affixed_checks(
         # report's phrase for an empty side compared equal to a
         # description that publishes none. The spellings decide; the
         # report says only which way it came out.
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"affixed.{field}",
@@ -8496,7 +8496,7 @@ def _affixed_checks(
         ("n_core_contradictory", facts.n_core_contradictory),
         ("n_core_not_numeric", facts.n_core_not_numeric),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"affixed.{field}",
@@ -8519,7 +8519,7 @@ def _affixed_checks(
     common_cores: "list[str]" = []
     for step in range(len(cores)):
         if worn[step] == (prefix, suffix):
-            common_cores = common_cores + [cores[step]]
+            common_cores += [cores[step]]
     # ...AND THROUGH THE CORE VIEW, NOT THE COLUMN (review round 2,
     # item 2). Every window `_numeric_checks` draws is a function of the
     # population it is given: the supply and the ceiling come off the
@@ -8606,7 +8606,7 @@ def _wrapper_checks(
     ours: "list[str]" = []
     for step in range(len(cores)):
         if worn[step] == mask:
-            ours = ours + [cores[step]]
+            ours += [cores[step]]
     inner = _worn_entry(block, wrapper.prefix, wrapper.suffix)
     view = dataclasses.replace(
         column,
@@ -8656,7 +8656,7 @@ def _wrapper_checks(
             # census entries -- see `_corner_listings`' wrapper walk.
             continue
         if corner:
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     column.name,
                     f"affixed.{field}",
@@ -8668,7 +8668,7 @@ def _wrapper_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 f"affixed.{field}",
@@ -8685,7 +8685,7 @@ def _wrapper_checks(
         ("n_core_contradictory", wrapper.n_core_contradictory),
         ("n_core_not_numeric", wrapper.n_core_not_numeric),
     ):
-        checks = checks + [
+        checks += [
             _exact(
                 column.name,
                 f"affixed.{field}",
@@ -8718,7 +8718,7 @@ def _wrapper_checks(
         mine,
     )
     for step in range(len(inside)):
-        checks = checks + [
+        checks += [
             dataclasses.replace(
                 inside[step],
                 subcheck=f"{named}.{inside[step].subcheck}",
@@ -8882,7 +8882,7 @@ def _numeric_checks(
         published = facts.n_distinct_values
         measured = _count_at(block, "n_distinct_values")
         if corner and not _envelope_admits_every_count(column, facts, published):
-            checks = checks + [
+            checks += [
                 _lesser_or_held(
                     name,
                     "numeric.n_distinct_values",
@@ -8894,7 +8894,7 @@ def _numeric_checks(
                 )
             ]
         elif not corner:
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     "numeric.n_distinct_values",
@@ -8911,7 +8911,7 @@ def _numeric_checks(
         ("n_left_out_of_statistics", facts.n_left_out_of_statistics),
     ):
         measured = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric.{field}",
@@ -8929,7 +8929,7 @@ def _numeric_checks(
         ),
     ):
         measured_truth = _truth_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric.{field}",
@@ -8943,7 +8943,7 @@ def _numeric_checks(
             )
         ]
     share = _number_at(block, "numeric_share")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "numeric.numeric_share",
@@ -8968,7 +8968,7 @@ def _ladder_checks(
     measured = _inner_at(block, "percentiles")
     published = facts.percentiles
     checks: list[Check] = []
-    checks = checks + [
+    checks += [
         _rung_end(name, "min", published.minimum, measured),
         _rung_end(name, "max", published.maximum, measured),
     ]
@@ -8988,7 +8988,7 @@ def _ladder_checks(
         expected = published.rungs[index]
         found = None if measured is None else _number_at(measured, key)
         if expected is None:
-            checks = checks + [
+            checks += [
                 _exact(
                     name,
                     "numeric.percentiles",
@@ -8998,7 +8998,7 @@ def _ladder_checks(
                 )
             ]
             continue
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 "numeric.percentiles",
@@ -9100,13 +9100,13 @@ def _windows_of(
     ladder: list[float] = []
     for rank in range(numbers):
         share = 0.0 if numbers < 2 else rank / (numbers - 1)
-        lows = lows + [
+        lows += [
             _ladder_at(points, max(0.0, share - displacement)) - half
         ]
-        highs = highs + [
+        highs += [
             _ladder_at(points, min(1.0, share + displacement)) + half
         ]
-        ladder = ladder + [_ladder_at(points, share)]
+        ladder += [_ladder_at(points, share)]
     return _moment_windows(lows, highs, ladder, numbers)
 
 
@@ -9215,7 +9215,7 @@ def _moment_checks(
         if field not in windows:
             continue
         found = _number_at(block, field)
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 f"numeric.{field}",
@@ -9417,8 +9417,8 @@ def _moment_windows(
         furthest = max(-below, above, 0.0)
         near = nearest / high_end
         far = furthest / low_end
-        low_fourths = low_fourths + [near**4]
-        high_fourths = high_fourths + [far**4]
+        low_fourths += [near**4]
+        high_fourths += [far**4]
     tails_low = math.fsum(low_fourths) / numbers
     tails_high = math.fsum(high_fourths) / numbers
     if not math.isfinite(tails_low) or not math.isfinite(tails_high):
@@ -9736,7 +9736,7 @@ def _style_checks(
                 fact = "numeric.fraction_widths"
             if subcheck[:15] == "pads.published.":
                 fact = "numeric.pad_widths"
-            withheld = withheld + [
+            withheld += [
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
         return withheld
@@ -9764,7 +9764,7 @@ def _style_checks(
         parsing.STYLE_LEADING_PLUS,
         parsing.STYLE_EXPONENT_UPPER,
     ):
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9778,7 +9778,7 @@ def _style_checks(
             )
         ]
     for style in _floor_styles(facts):
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9798,7 +9798,7 @@ def _style_checks(
         - named(parsing.STYLE_EXPONENT_LOWER)
         - named(parsing.STYLE_EXPONENT_UPPER),
     )
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "numeric.numeric_styles",
@@ -9842,7 +9842,7 @@ def _style_checks(
     # them and validated with exit 0. The ceiling below could not catch
     # it, because on that column the published decimal count is the cell
     # count and the ceiling is every cell there is.
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "numeric.numeric_styles",
@@ -9926,7 +9926,7 @@ def _style_checks(
             settled = _window_at_most(
                 (0, window((style,))[1]), odd, named(style)
             )
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 "numeric.numeric_styles",
@@ -9955,7 +9955,7 @@ def _style_checks(
     for style in sorted(published):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.numeric_styles",
@@ -9982,7 +9982,7 @@ def _style_checks(
     for width in sorted(census):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.fraction_widths",
@@ -10008,7 +10008,7 @@ def _style_checks(
     for width in sorted(padding):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "numeric.pad_widths",
@@ -10069,7 +10069,7 @@ def _floor_styles(facts: contract.NumericFacts) -> "list[str]":
         parsing.STYLE_EXPONENT_LOWER,
     ):
         if _counted(facts.numeric_styles, style) > 0:
-            asked = asked + [style]
+            asked += [style]
     return asked
 
 
@@ -10116,7 +10116,7 @@ def _ceilinged_styles(
     asked: list[str] = []
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if _counted(facts.numeric_styles, style) < rows:
-            asked = asked + [style]
+            asked += [style]
     return asked
 
 
@@ -10142,7 +10142,7 @@ def _style_subchecks(
     named = named + [
         f"styles.at-least.{style}" for style in _floor_styles(facts)
     ]
-    named = named + ["styles.spill", "styles.remainder", "styles.spelled"]
+    named += ["styles.spill", "styles.remainder", "styles.spelled"]
     named = named + [
         f"styles.canonical.{style}"
         for style in _ceilinged_styles(column, facts)
@@ -10150,15 +10150,15 @@ def _style_subchecks(
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"styles.published.{style}"]
+        named += [f"styles.published.{style}"]
     for width in sorted(facts.fraction_widths):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"widths.published.{width}"]
+        named += [f"widths.published.{width}"]
     for width in sorted(facts.pad_widths):
         if width == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [f"pads.published.{width}"]
+        named += [f"pads.published.{width}"]
     return named
 
 
@@ -10392,7 +10392,7 @@ def _permitted_spellings(
     ]
     plain = _point_free_text(value, canonical)
     if plain is not None:
-        spellings = spellings + [plain]
+        spellings += [plain]
     # ...AND THE FIXED-POINT FORM AT EVERY WIDTH THIS COLUMN'S OWN
     # CENSUS NAMES, and at no other. A trailing zero is not free: the
     # whole point of this subcheck is the twin whose every decimal cell
@@ -10409,11 +10409,11 @@ def _permitted_spellings(
     for width in widths:
         padded = _text_at_width(sign, figures, place, width)
         if padded is not None:
-            spellings = spellings + [padded]
+            spellings += [padded]
     plussed: list[str] = []
     for spelling in spellings:
         if spelling[:1] != "-":
-            plussed = plussed + [f"+{spelling}"]
+            plussed += [f"+{spelling}"]
     return tuple(spellings + plussed)
 
 
@@ -10502,7 +10502,7 @@ def _published_widths(
     for key in sorted(facts.fraction_widths):
         if key == taxonomy.SUPPRESSED_LABEL:
             continue
-        named = named + [int(key)]
+        named += [int(key)]
     return tuple(sorted(named))
 
 
@@ -10618,24 +10618,24 @@ def _label_checks(
     published_keys: list[str] = []
     for level in facts.levels:
         key = parsing.folded(parsing.trimmed(level.label))
-        published_keys = published_keys + [key]
+        published_keys += [key]
         entry = (
             measured[key] if measured is not None and key in measured else None
         )
-        checks = checks + [
+        checks += [
             _level_spelling(name, level, entry, measured),
             _level_count(name, level, entry, measured, floor),
             _variant_map(name, level, entry, measured, "variants"),
             _variant_map(name, level, entry, measured, "variants_withheld"),
             _level_form_cells(name, level, entry, measured, floor),
         ]
-    checks = checks + [_level_set(name, published_keys, measured)]
+    checks += [_level_set(name, published_keys, measured)]
     for field, published in (
         ("suppressed_levels", facts.suppressed_levels),
         ("suppressed_rows", facts.suppressed_rows),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"label.{field}",
@@ -10655,7 +10655,7 @@ def _label_checks(
             f"the rows covered by each of the {_shown_count(held_back)} "
             f"label(s) this description holds back"
         )
-    checks = checks + [
+    checks += [
         _silent(
             name,
             "label.suppressed_level_counts",
@@ -10751,7 +10751,7 @@ def _counts_at(
             return None
         if not isinstance(entry, int):
             return None
-        found = found + [entry]
+        found += [entry]
     return found
 
 
@@ -10917,7 +10917,7 @@ def _clock_checks(
     name = column.name
     checks: "list[Check]" = []
     found = _text_at(block, "clock_form")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "clock.clock_form",
@@ -10931,7 +10931,7 @@ def _clock_checks(
         ("latest", facts.latest),
     ):
         seen = _text_at(block, field)
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"clock.{field}",
@@ -10942,7 +10942,7 @@ def _clock_checks(
             )
         ]
     counted = _count_at(block, "n_unparsed")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "clock.n_unparsed",
@@ -10983,7 +10983,7 @@ def _clock_ladder_checks(
         ("max", facts.latest),
     ):
         seen = None if measured is None else _text_at(measured, key)
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"clock.clock_percentiles.{key}",
@@ -11010,7 +11010,7 @@ def _clock_ladder_checks(
         # two spaces are one.
         held = None if seen is None else _clock_seconds(seen, block)
         rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
-        checks = checks + [
+        checks += [
             _within_clock(
                 name,
                 f"clock-ladder.{key}",
@@ -11192,17 +11192,17 @@ def _clock_rank_windows(
     highs: "list[int]" = []
     for rank in range(parsed):
         if rank == 0:
-            lows = lows + [step * ladder[0]]
-            highs = highs + [step * ladder[0]]
+            lows += [step * ladder[0]]
+            highs += [step * ladder[0]]
             continue
         if rank == parsed - 1 and parsed >= 2:
-            lows = lows + [step * ladder[last]]
-            highs = highs + [step * ladder[last]]
+            lows += [step * ladder[last]]
+            highs += [step * ladder[last]]
             continue
-        lows = lows + [
+        lows += [
             step * _ladder_ordinal_at(ladder, rank, parsed) - step
         ]
-        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
+        highs += [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
     return (lows, highs)
 
 
@@ -11237,7 +11237,7 @@ def _datetime_checks(
         ("latest", facts.latest),
     ):
         found = _text_at(block, field)
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"datetime.{field}",
@@ -11252,7 +11252,7 @@ def _datetime_checks(
         ("time_precision", facts.time_precision),
     ):
         found = _text_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(name, f"datetime.{field}", f"precision.{field}", published, found)
         ]
     for field, counted in (
@@ -11260,7 +11260,7 @@ def _datetime_checks(
         ("n_unparsed", facts.n_unparsed),
     ):
         seen = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"datetime.{field}",
@@ -11297,7 +11297,7 @@ def _offset_checks(
     for key in sorted(facts.utc_offsets):
         if key == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 "datetime.utc_offsets",
@@ -11323,7 +11323,7 @@ def _offset_checks(
             # (review item P3-V7-F2's battery).
             continue
         found = _text_at(block, field)
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"datetime.{field}",
@@ -11334,7 +11334,7 @@ def _offset_checks(
             )
         ]
     read_at = _text_at(block, "datetimes_read_at")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "datetime.datetimes_read_at",
@@ -11385,7 +11385,7 @@ def _date_ladder_checks(
     checks: list[Check] = []
     for key, expected in (("min", published.minimum), ("max", published.maximum)):
         found = None if measured is None else _text_at(measured, key)
-        checks = checks + [
+        checks += [
             _silent(
                 name,
                 f"datetime.date_percentiles.{key}",
@@ -11402,7 +11402,7 @@ def _date_ladder_checks(
         found = None if measured is None else _text_at(measured, key)
         seen = None if found is None else _instant_of(found, facts.resolution)
         rank = _rung_rank(_LADDER_PERCENTS[index], dated)
-        checks = checks + [
+        checks += [
             _within_instant(
                 name,
                 f"date-ladder.{key}",
@@ -11749,17 +11749,17 @@ def _rank_windows(
     highs: list[int] = []
     for rank in range(dated):
         if rank == 0:
-            lows = lows + [step * ladder[0]]
-            highs = highs + [step * ladder[0]]
+            lows += [step * ladder[0]]
+            highs += [step * ladder[0]]
             continue
         if rank == dated - 1 and dated >= 2:
-            lows = lows + [step * ladder[last]]
-            highs = highs + [step * ladder[last]]
+            lows += [step * ladder[last]]
+            highs += [step * ladder[last]]
             continue
-        lows = lows + [
+        lows += [
             step * _ladder_ordinal_at(ladder, rank, dated) - unit
         ]
-        highs = highs + [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
+        highs += [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
     return (lows, highs)
 
 
@@ -12034,7 +12034,7 @@ def _text_checks(
         ("n_code_alphabet", facts.n_code_alphabet),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.{field}",
@@ -12050,7 +12050,7 @@ def _text_checks(
         ("max", facts.length.maximum),
     ):
         found = None if lengths is None else _count_at(lengths, key)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.length.{key}",
@@ -12064,7 +12064,7 @@ def _text_checks(
         ("max", facts.words.maximum),
     ):
         found = None if words is None else _count_at(words, key)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"free_text.words.{key}",
@@ -12074,7 +12074,7 @@ def _text_checks(
             )
         ]
     checks = checks + _text_shape_checks(column, facts, lengths, words)
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "free_text.n_distinct_by_occurrences",
@@ -12113,7 +12113,7 @@ def _form_checks(
     for form in sorted(census):
         if form == taxonomy.SUPPRESSED_LABEL:
             continue
-        checks = checks + [
+        checks += [
             _floor_governed(
                 name,
                 fact,
@@ -12328,7 +12328,7 @@ def _text_shape_checks(
         if published is None:
             continue
         found = None if holder is None else _number_at(holder, key)
-        checks = checks + [
+        checks += [
             _within(
                 name,
                 fact,
@@ -12359,7 +12359,7 @@ def _identifier_checks(
         ("n_code_alphabet", facts.n_code_alphabet, "counts.n_code_alphabet"),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"identifier.{field}",
@@ -12369,7 +12369,7 @@ def _identifier_checks(
             )
         ]
     found_truth = _truth_at(block, "all_whole_numbers")
-    checks = checks + [
+    checks += [
         _exact(
             name,
             "identifier.all_whole_numbers",
@@ -12382,7 +12382,7 @@ def _identifier_checks(
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).
         return checks
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "identifier.n_distinct_by_occurrences",
@@ -12433,7 +12433,7 @@ def _unrepresentable_checks(
         ("n_sign_unknown", facts.n_sign_unknown),
     ):
         found = _count_at(block, field)
-        checks = checks + [
+        checks += [
             _exact(
                 name,
                 f"numeric_unrepresentable.{field}",
@@ -12442,7 +12442,7 @@ def _unrepresentable_checks(
                 None if found is None else _shown_count(found),
             )
         ]
-    checks = checks + [
+    checks += [
         _occurrences(
             name,
             "numeric_unrepresentable.n_distinct_by_occurrences",
@@ -12514,7 +12514,7 @@ def _listings(
         # listing that names neither leaves a reader comparing this
         # census with an ordinary run's unable to see they are the same
         # obligation (review of the shipped reports, 2026-08-15).
-        listings = listings + [
+        listings += [
             Listing(
                 "",
                 "universal.name",
@@ -12535,7 +12535,7 @@ def _listings(
         # not, and naming them here is what keeps the census's own
         # claim true -- that every fact no file can evidence is on it.
         for spelling in _judged_hole_spellings(column, description):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     "universal.missing_by_source",
@@ -12564,7 +12564,7 @@ def _listings(
             "detection_evidence",
             "remarks",
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"universal.{field}",
@@ -12578,7 +12578,7 @@ def _listings(
         # each of them differ; this one is computed from the
         # declaration list the file is described under, so it reads the
         # same word on both sides whatever the file holds.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "universal.structural_role",
@@ -12587,7 +12587,7 @@ def _listings(
             )
         ]
         if not _position_is_evidencible(column, headed):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     "universal.position",
@@ -12597,7 +12597,7 @@ def _listings(
             ]
         facts = column.facts
         if isinstance(facts, contract.DatetimeFacts):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     "datetime.format",
@@ -12663,7 +12663,7 @@ def _listings(
                     _core_column(column), numbers, published
                 )
             ):
-                listings = listings + [
+                listings += [
                     Listing(
                         column.name,
                         "numeric.n_distinct_values",
@@ -12748,7 +12748,7 @@ def _listings(
                         inner, one.numbers, stated
                     ):
                         continue
-                    listings = listings + [
+                    listings += [
                         Listing(
                             column.name,
                             f"affix_variants[{place}].{field}",
@@ -12778,7 +12778,7 @@ def _listings(
                     head = "numeric."
                     if leaf[: len(head)] == head:
                         leaf = leaf[len(head) :]
-                    listings = listings + [
+                    listings += [
                         dataclasses.replace(
                             entry,
                             fact=f"affix_variants[{place}].numbers.{leaf}",
@@ -12821,7 +12821,7 @@ def _endpoint_listings(
     ):
         if published != taxonomy.SUPPRESSED_LABEL:
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 f"datetime.{field}",
@@ -12899,7 +12899,7 @@ def _compound_listings(
         )
         if not corner:
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 fact,
@@ -12908,7 +12908,7 @@ def _compound_listings(
             )
         ]
     for fact, subcheck in _SPLIT_CONSTANT_SUBCHECKS:
-        listings = listings + [
+        listings += [
             Listing(
                 column.name, fact, subcheck, _NOT_CHECKABLE_SPLIT_CONSTANT
             )
@@ -12944,7 +12944,7 @@ def _joined_listings(
             head = "numeric."
             if fact[: len(head)] == head:
                 fact = f"joined.parts[{place}].{fact[len(head):]}"
-            listings = listings + [
+            listings += [
                 dataclasses.replace(
                     entry,
                     fact=fact,
@@ -12974,7 +12974,7 @@ def _numeric_listings(
         # published fact that appears in no check and no listing is
         # one a reader cannot tell was never measured, which is the
         # defect review item P3-V1-F3 opened.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.value_histogram",
@@ -13004,7 +13004,7 @@ def _numeric_listings(
         # census above it and unlike the two facts below: a column
         # with no empty bin makes no claim here and a listing would be
         # a line about nothing.
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.empty_bins",
@@ -13032,7 +13032,7 @@ def _numeric_listings(
                 _NOT_CHECKABLE_EMPTY_EDGES,
             ),
         ]
-    listings = listings + [
+    listings += [
         # THE CENSUS OF WHOLE-NUMBER FIELD WIDTHS, LISTED and never
         # silent (plan P4-D30). It is published on every column of this
         # role, so like the value count beside it, its listing hangs
@@ -13061,7 +13061,7 @@ def _numeric_listings(
     # listing does not hang off the histogram beside it; a column with
     # no dominant value publishes no pair and gets no listing.
     if facts.mode is not None:
-        listings = listings + [
+        listings += [
             Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),
             Listing(
                 column.name,
@@ -13098,7 +13098,7 @@ def _numeric_listings(
     ):
         if value is None or field in drawn:
             continue
-        listings = listings + [
+        listings += [
             Listing(column.name, f"numeric.{field}", f"moments.{field}", reason)
         ]
     return listings + _unbounded_style_listings(column, facts)
@@ -13128,7 +13128,7 @@ def _unbounded_style_listings(
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if style in _ceilinged_styles(column, facts):
             continue
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.numeric_styles",
@@ -13137,7 +13137,7 @@ def _unbounded_style_listings(
             )
         ]
     if _skew_admits_every_value(column, facts):
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.skew",
@@ -13156,7 +13156,7 @@ def _unbounded_style_listings(
     # `5e-324` and `1e-323`, which publishes a kurtosis of 66.1 and
     # named it nowhere.
     if _tails_admit_every_value(column, facts):
-        listings = listings + [
+        listings += [
             Listing(
                 column.name,
                 "numeric.kurtosis",
@@ -13202,7 +13202,7 @@ def _corner_listings(
             ("latest_utc_offset", "offsets.latest"),
             ("datetimes_read_at", "offsets.read-at"),
         ):
-            listings = listings + [
+            listings += [
                 Listing(column.name, f"datetime.{field}", subcheck, why)
             ]
     if CORNER_IDENTIFIER_INFEASIBLE in mine and isinstance(
@@ -13216,7 +13216,7 @@ def _corner_listings(
             "n_distinct_folded",
             "n_distinct_by_occurrences",
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"identifier.{field}",
@@ -13238,7 +13238,7 @@ def _corner_listings(
             why = _NOT_CHECKABLE_SPELLING_ENVELOPE + CORNER_CITATIONS[corner]
             if not _envelope_admits_every_count(column, facts, published):
                 continue
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"{group}.{field}",
@@ -13270,7 +13270,7 @@ def _corner_listings(
                 cores_as_column, facts, published
             ):
                 continue
-            listings = listings + [
+            listings += [
                 Listing(
                     column.name,
                     f"affixed.{field}",
@@ -13298,7 +13298,7 @@ def _zero_row_listings(
         for check in _obligations(
             description, column, [], {}, {}, None, headed
         ):
-            listings = listings + [
+            listings += [
                 Listing(
                     check.column,
                     check.fact,

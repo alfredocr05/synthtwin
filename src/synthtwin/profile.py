@@ -411,7 +411,7 @@ def _named_once(names: "list[str]") -> "list[str]":
     for name in sorted(names):
         if once and once[len(once) - 1] == name:
             continue
-        once = once + [name]
+        once += [name]
     return once
 
 
@@ -1885,7 +1885,7 @@ def _affix_notes_are_bound(document: "dict[str, object]") -> None:
         remarks = block["remarks"] if "remarks" in block else None
         if isinstance(remarks, list):
             for remark in remarks:
-                said = said + [remark]
+                said += [remark]
         for sentence in said:
             _one_affix_note_is_bound(sentence, name, pairs)
     notes = document["publication_notes"] if "publication_notes" in document else None
@@ -2104,9 +2104,9 @@ def build_document(
             name in declared_measurements,
             name in declared_commas,
         )
-        columns = columns + [_column_block(described)]
+        columns += [_column_block(described)]
         for note in described.publication_notes:
-            notes = notes + [{"column": name, "note": note}]
+            notes += [{"column": name, "note": note}]
     document: dict[str, object] = {
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),

@@ -266,19 +266,19 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     # sentence is the one that is true there rather than the general one
     # with a bad number in it.
     if floor < 2:
-        lines = lines + [
+        lines += [
             "A published group can be a single row. If one row of the real",
             "table is one person, this description says out loud that exactly",
             "one person -- on their own -- had that value.",
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             f"If one row of the real table is one person, a group of {floor}",
             f"is {floor} people.",
             "",
         ]
-    lines = lines + [
+    lines += [
         "READ WHAT THAT DOES TO THIS REPORT, because it is not only the",
         "description that carries the small counts now. The rule further",
         "down decides what may be shown by asking what a description of",
@@ -292,7 +292,7 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
         "",
     ]
     if floor < 2:
-        lines = lines + [
+        lines += [
             "At 1 nothing is held back FOR BEING A SMALL GROUP: every count",
             "this description carries is named exactly, and no line below",
             "reads WITHHELD for that reason. Lines below may still read",
@@ -339,13 +339,13 @@ def _summary_lines(census: validation.Census) -> "list[str]":
         "",
     ]
     for verdict in _CENSUS_ORDER:
-        lines = lines + [
+        lines += [
             (
                 f"  {counted[verdict]:>6}  {_shown(verdict)} -- "
                 f"{_VERDICT_WORDS[verdict]}"
             )
         ]
-    lines = lines + [
+    lines += [
         "",
         (
             f"Those five numbers add to {total}, which is every obligation "
@@ -362,7 +362,7 @@ def _summary_lines(census: validation.Census) -> "list[str]":
         "",
     ]
     if census.missed == 0:
-        lines = lines + [
+        lines += [
             "NO CHECKABLE OBLIGATION WAS MISSED.",
             "",
             "That sentence is the whole of what this report concludes, and",
@@ -385,7 +385,7 @@ def _summary_lines(census: validation.Census) -> "list[str]":
             f"  {census.not_checkable} could not be checked at all.",
         ]
     else:
-        lines = lines + [
+        lines += [
             f"{census.missed} CHECKABLE OBLIGATION(S) WERE MISSED.",
             "",
             "Each one is named first in the section below, with what the",
@@ -497,11 +497,11 @@ def _detail_of(check: validation.Check) -> "list[str]":
         )
     ]
     if check.published:
-        lines = lines + [
+        lines += [
             f"      the description asks for: {_shown(check.published)}"
         ]
     if check.achieved:
-        lines = lines + [
+        lines += [
             f"      the file was found to hold: {_shown(check.achieved)}"
         ]
     if check.citation:
@@ -510,7 +510,7 @@ def _detail_of(check: validation.Check) -> "list[str]":
             opening = "the window comes from"
         if check.verdict == validation.WITHHELD:
             opening = "why nothing is shown"
-        lines = lines + [f"      {opening}: {_shown(check.citation)}"]
+        lines += [f"      {opening}: {_shown(check.citation)}"]
     return lines + _note_lines(check)
 
 
@@ -518,7 +518,7 @@ def _note_lines(check: validation.Check) -> "list[str]":
     """The check's own further lines, already broken where they break."""
     lines: list[str] = []
     for note in check.note:
-        lines = lines + [_shown(note)]
+        lines += [_shown(note)]
     return lines
 
 
@@ -556,7 +556,7 @@ def _column_order(outcome: validation.Outcome) -> "list[str]":
     seen: list[str] = []
     for check in outcome.checks:
         if check.column not in seen:
-            seen = seen + [check.column]
+            seen += [check.column]
     return seen
 
 
@@ -569,7 +569,7 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         "",
     ]
     lines = lines + _missed_lines(outcome)
-    lines = lines + [
+    lines += [
         "EVERY OBLIGATION, IN THE DESCRIPTION'S OWN ORDER.",
         "",
     ]
@@ -577,12 +577,12 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         heading = "the file as a whole"
         if column:
             heading = f"'{_shown(column)}'"
-        lines = lines + [heading]
+        lines += [heading]
         for check in outcome.checks:
             if check.column != column:
                 continue
             lines = lines + _detail_of(check)
-        lines = lines + [""]
+        lines += [""]
     return lines
 
 
@@ -733,7 +733,7 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
         words = _listing_name(listing)
         if words:
             named = f"{_shown(words)} [{named}]"
-        lines = lines + [
+        lines += [
             f"  {where} -- {named}",
             f"      {_shown(listing.reason)}",
         ]

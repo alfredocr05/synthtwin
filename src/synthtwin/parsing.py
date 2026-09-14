@@ -1003,11 +1003,11 @@ def _groups_by_threes(body: str, mark: str) -> bool:
     current = ""
     for character in body:
         if character == mark:
-            fields = fields + [current]
+            fields += [current]
             current = ""
             continue
         current = current + character
-    fields = fields + [current]
+    fields += [current]
     head = fields[0]
     if not head or len(head) > 3 or not _all_ascii_digits(head):
         return False
@@ -1677,7 +1677,7 @@ def _textual_fields(
         place = 0
         for character in body:
             if character == mark:
-                marks = marks + [place]
+                marks += [place]
             place = place + 1
         if len(marks) != 2:
             continue
@@ -1754,7 +1754,7 @@ def _delimited_fields(
     place = 0
     for character in body:
         if character == mark:
-            marks = marks + [place]
+            marks += [place]
         place = place + 1
     if len(marks) != 2:
         return None
@@ -2922,7 +2922,7 @@ def _average_ranks(values: "list[float]") -> "list[float]":
     # scan, and a tuple sorts on its first member anyway.
     pairs: "list[tuple[float, int]]" = []
     for seat in range(len(values)):
-        pairs = pairs + [(values[seat], seat)]
+        pairs += [(values[seat], seat)]
     pairs = sorted(pairs)
     ranks = [0.0 for _each in values]
     at = 0

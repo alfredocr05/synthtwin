@@ -111,9 +111,9 @@ def keys_are_the_tables_own_text(path: "tuple[object, ...]") -> bool:
         if isinstance(step, bool):
             return False
         if isinstance(step, int):
-            steps = steps + [EACH]
+            steps += [EACH]
         else:
-            steps = steps + [step]
+            steps += [step]
     return tuple(steps) in TABLE_TEXT_KEY_SPACES
 
 

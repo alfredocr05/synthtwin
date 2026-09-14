@@ -314,7 +314,7 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
         candidate = _text_of(entry["candidate"])
         if candidate == parsing.MISSING_WITHHELD:
             candidate = "a value not named here"
-        lines = lines + [
+        lines += [
             (
                 f"      {candidate}, in "
                 f"{_count_of(entry['n_occurrences'])} row(s): "
@@ -353,15 +353,15 @@ def _missing_spelling_words(
     spellings: list[str] = []
     blank = _count_of(column["n_missing_blank"])
     if blank:
-        spellings = spellings + [
+        spellings += [
             f"{blank} cell(s) with nothing written in them"
         ]
     for spelling in sorted(sources):
         counted = _count_of(sources[spelling])
-        spellings = spellings + [f"{_text_of(spelling)} ({counted})"]
+        spellings += [f"{_text_of(spelling)} ({counted})"]
     pooled = _count_of(column["n_missing_withheld"])
     if pooled:
-        spellings = spellings + [
+        spellings += [
             (
                 f"{pooled} cell(s) whose spelling is not named "
                 f"here, because fewer than {floor} cell(s) were "
@@ -403,11 +403,11 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
         for width in sorted(census):
             if width == taxonomy.SUPPRESSED_LABEL:
                 continue
-            parts = parts + [
+            parts += [
                 f"{width} character(s) in {_count_of(census[width])} cell(s)"
             ]
         if parts:
-            said = said + [
+            said += [
                 f"    figures {words}: {_listed(parts)}"
             ]
     return said
@@ -465,7 +465,7 @@ def _quantitative_blocks(
     """
     found: "list[tuple[str, dict[str, object]]]" = []
     if "empty_bins" in column:
-        found = found + [(where, column)]
+        found += [(where, column)]
     for key in ("numbers", "labels"):
         if key in column:
             half = column[key]
@@ -541,8 +541,8 @@ def _one_blocks_empty_bin_lines(
                 continue
             for one in entry:
                 if isinstance(one, (int, float)) and one not in apart:
-                    apart = apart + [one]
-        lines = lines + [
+                    apart += [one]
+        lines += [
             f"      and for each of those stretches the description "
             f"names the two values your column really holds either "
             f"side of it -- {len(apart)} different value(s) of real "
@@ -566,7 +566,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     ]
     spellings = _missing_spelling_words(column, floor)
     if spellings:
-        lines = lines + [f"    counted as missing: {_listed(spellings)}"]
+        lines += [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     lines = lines + _width_lines(column)
     lines = lines + _empty_bin_lines(column)
@@ -578,10 +578,10 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             for level in levels
         ]
         if shown:
-            lines = lines + [f"    values in the profile: {_listed(shown)}"]
+            lines += [f"    values in the profile: {_listed(shown)}"]
         withheld = _count_of(column["suppressed_levels"])
         if withheld:
-            lines = lines + [
+            lines += [
                 (
                     f"    values left out because too few rows share them: "
                     f"{withheld} (covering "
@@ -590,7 +590,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             ]
     if role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
         ladder = _map_of(column["percentiles"])
-        lines = lines + [
+        lines += [
             (
                 f"    smallest: {_text_of(ladder['min'])};   "
                 f"middle: {_text_of(ladder['p50'])};   "
@@ -611,7 +611,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 "  (written in more than one time zone, so these are "
                 "given at UTC)"
             )
-        lines = lines + [
+        lines += [
             (
                 f"    earliest: {_text_of(column['earliest'])};   "
                 f"latest: {_text_of(column['latest'])}{clock}"
@@ -621,7 +621,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         # A column is here because the reader of this summary put it
         # here. Saying so keeps the words honest: synthtwin never works
         # this role out for itself (review item P1-R6-F8).
-        lines = lines + [
+        lines += [
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
@@ -635,7 +635,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         # It goes before the sentence about who decided the role so that
         # the two claims about what is and is not recorded read together.
         lines = lines + _repetition_lines(column)
-        lines = lines + [
+        lines += [
             (
                 "    synthtwin never decides this for itself: a column "
                 "holds record numbers only when you say so with "
@@ -644,7 +644,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         ]
     if role == taxonomy.ROLE_TEXT:
         length = _map_of(column["length"])
-        lines = lines + [
+        lines += [
             (
                 f"    text between {_count_of(length['min'])} and "
                 f"{_count_of(length['max'])} characters long. The text "
@@ -660,7 +660,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             ),
         ]
     for remark in _list_of(column["remarks"]):
-        lines = lines + [f"    worth knowing: {_text_of(remark)}"]
+        lines += [f"    worth knowing: {_text_of(remark)}"]
     return lines
 
 
@@ -726,7 +726,7 @@ def words_of_your_own(
             raw = _raw_text_of(spelling)
             if taxonomy.is_published_vocabulary(raw):
                 continue
-            found = found + [(raw, name, _count_of(sources[spelling]))]
+            found += [(raw, name, _count_of(sources[spelling]))]
     return found
 
 
@@ -828,9 +828,9 @@ def _your_own_words_lines(document: dict[str, object]) -> list[str]:
             "    as your table spelled them:",
         ]
     for spelling, column, count in named:
-        lines = lines + [f"      {spelling} -- in {column} ({count} cell(s))"]
+        lines += [f"      {spelling} -- in {column} ({count} cell(s))"]
     if len(named) > words:
-        lines = lines + [
+        lines += [
             "    There are more lines there than words you named, because",
             "    your table wrote "
             + ("that word" if words == 1 else "some of those words")
@@ -996,15 +996,15 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     if kept and declared_missing:
         # Both options were used, so the reader is about to be given two
         # rules and has to be told they are not one rule said twice.
-        lines = lines + [
+        lines += [
             "    and the two directions do not work the same way:",
         ]
     else:
-        lines = lines + [
+        lines += [
             "    and here is what that means:",
         ]
     if declared_missing:
-        lines = lines + [
+        lines += [
             "      a value you named as 'no value' is counted as absent,",
             "      and THE WORD ITSELF is then written into that column's",
             "      description and printed on this page, spelled character",
@@ -1015,7 +1015,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             "      no values names no spelling at all;",
         ]
     if kept:
-        lines = lines + [
+        lines += [
             "      a value you named as real data IS data from then on,",
             "      so it appears wherever that column publishes values:",
             "      as the smallest or largest number of a column of",
@@ -1023,7 +1023,7 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             "      labels of a column of categories if at least",
             f"      {floor} rows share it.",
         ]
-    lines = lines + [
+    lines += [
         "    A column that publishes nothing -- record numbers, free",
         "    text -- still publishes nothing either way.",
     ]
@@ -1092,7 +1092,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
         "    the description records which of them you named.",
     ]
     if named:
-        lines = lines + [
+        lines += [
             (
                 f"    {named} of the values you named "
                 + ("is" if named == 1 else "are")
@@ -1105,7 +1105,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
             "    no count, column or row goes with the ones that are.",
         ]
     else:
-        lines = lines + [
+        lines += [
             "    You named none of them, so the settings record nothing",
             "    there.",
         ]
@@ -1160,14 +1160,14 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     # sentence is the one that is true there rather than the general one
     # with a bad number in it.
     if floor < 2:
-        lines = lines + [
+        lines += [
             "  A named group can be a single row. If one row of your table",
             "  is one person, this profile says out loud that exactly one",
             "  person -- on their own -- has that value.",
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             (
                 "  If one row of your table is one person, a group of "
                 f"{floor} is"
@@ -1237,12 +1237,12 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         name = _text_of(column["name"])
         role = _text_of(column["role"])
         if role in _ROLES_WITH_LABELS and _list_of(column["levels"]):
-            with_labels = with_labels + [name]
+            with_labels += [name]
         if role in _ROLES_WITHOUT_VALUES:
-            without_values = without_values + [name]
-            all_invented = all_invented + [name]
+            without_values += [name]
+            all_invented += [name]
         if role in _ROLES_WITH_RANGES:
-            with_ranges = with_ranges + [name]
+            with_ranges += [name]
         # A COMPOUND COLUMN IS IN BOTH LISTS, because it publishes
         # both: a range over its numbers and levels over its words
         # (residual R-P4-13, landing L8). Its facts sit one step deeper
@@ -1252,10 +1252,10 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # It said exactly that until this branch: "No column has labels
         # visible in the profile", on a table holding one.
         if role in _ROLES_WITH_BOTH:
-            with_ranges = with_ranges + [name]
+            with_ranges += [name]
             half = _map_of(column["labels"])
             if _list_of(half["levels"]):
-                with_labels = with_labels + [name]
+                with_labels += [name]
         # THE ONE SPELLING A RANGES ROLE PUBLISHES. An affixed column
         # names the piece of text its cells share -- `mg`, `$`, `%` --
         # where enough rows wrote it, and that is text of the table
@@ -1264,7 +1264,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # leave their machine is owed it in the place they read about
         # everything else (plan P4-D4.1).
         if role == taxonomy.ROLE_AFFIXED:
-            with_shared_text = with_shared_text + [name]
+            with_shared_text += [name]
         # A LABEL COLUMN CAN BE FULLY INVENTED WITHOUT PUBLISHING
         # NOTHING (plan amendment A-P4-2, review item P4-C2-F1). It
         # keeps its place in the disclosure lists above -- a published
@@ -1273,7 +1273,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # forward sentence below is about what a TWIN of it would hold,
         # which is a different question with a different answer.
         if role in _ROLES_WITH_LABELS and _all_labels_held_back(column):
-            all_invented = all_invented + [name]
+            all_invented += [name]
     floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     lines = [
         "WHAT THIS PROFILE CARRIES FROM YOUR TABLE",
@@ -1313,7 +1313,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # floor (owner decisions 9 and 11). A person deciding whether
         # the profile may leave their machine has to read that here, not
         # discover it in the file.
-        lines = lines + [
+        lines += [
             "  Real labels you will see in the profile, with how often each",
             f"  appears (only labels shared by at least {floor} rows). Beside",
             "  each label, the exact spellings your file uses for it --",
@@ -1323,19 +1323,19 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             "  No column has labels visible in the profile.",
             "",
         ]
     if with_ranges:
-        lines = lines + [
+        lines += [
             "  Real smallest and largest values, and the points in between",
             "  that describe the shape of the column:",
             f"    {_listed(with_ranges)}",
             "",
         ]
     if with_shared_text:
-        lines = lines + [
+        lines += [
             "  A piece of text your cells share -- the unit or the sign",
             "  written around each number, like mg or $ -- named exactly",
             f"  as your file writes it, and only where at least {floor} rows",
@@ -1367,7 +1367,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # values, so "only counts" below still covers it, and the
         # column's own block above says it in words for the person who
         # wants to know what shape of repetition was recorded.
-        lines = lines + [
+        lines += [
             "  No value at all -- only counts, lengths, the SHAPE its values",
             "  were written in where enough shared one, and what synthtwin",
             "  decided about the column:",
@@ -1393,7 +1393,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # sits below the floor. Both end with a twin whose every cell
         # is invented, for two different reasons, so the sentence
         # names both rather than the first one twice.
-        lines = lines + [
+        lines += [
             "  If you build a twin from this description, every value in",
             "  these columns will be one synthtwin made up. Either the",
             "  column publishes no value at all, or its spellings were",
@@ -1406,13 +1406,13 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
     lines = lines + _declaration_lines(document)
     notes = _list_of(document["publication_notes"])
     if notes:
-        lines = lines + ["  What was left out, column by column:"]
+        lines += ["  What was left out, column by column:"]
         for entry in notes:
             note = _map_of(entry)
-            lines = lines + [
+            lines += [
                 f"    {_text_of(note['column'])}: {_text_of(note['note'])}"
             ]
-        lines = lines + [""]
+        lines += [""]
     return lines
 
 
@@ -1482,7 +1482,7 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     # page. It goes here, near the top, and not in the disclosure block
     # at the end, because it changes what every later line means.
     lines = lines + _first_row_lines(document)
-    lines = lines + [
+    lines += [
         "",
         "This is a description of your table, not a copy of it. Next,",
         "'synthtwin generate' uses this description to build a synthetic",

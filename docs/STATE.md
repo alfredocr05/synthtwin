@@ -3,258 +3,170 @@
 **One page, kept current, for whoever picks this up next — a person
 returning after a week, or an assistant starting a conversation with no
 memory of the last one.** Everything here is a fact about *right now*.
-Nothing in it is history; history lives in `CHANGELOG.md`, the phase
-plans and `git log`.
+History lives in `CHANGELOG.md`, the phase plans and `git log`.
 
 **The rule that keeps it true: this file moves in the same commit as
 the work it describes.** A landing that does not update it is not
 finished.
 
-**And the rule that keeps it SHORT, which is new and is the point of
-landing L22.** This page reached 3,814 lines by growing a section per
-landing — narrative that belongs in `CHANGELOG.md` and the plan. At
-that size no session read it, so every session re-measured the project
-from scratch, which is the failure the page exists to prevent. **A
+**And the rule that keeps it SHORT.** This page reached 3,814 lines by
+growing a section per landing, and at that size no session read it. **A
 landing adds nothing to this page except by changing a fact already
-stated here.** If you want to write what a landing did, write it in the
-changelog.
+stated here.** What a landing DID belongs in `CHANGELOG.md`.
 
-**One fact, one place.** Every count in this file that also exists
-somewhere else has gone stale here at least once — the suite size, the
-lint state, the review protocol, the page's own length. State a fact
-where it is measured and point at it from everywhere else.
+**One fact, one place.** Every count here that also exists elsewhere has
+gone stale at least once. State a fact where it is measured and point at
+it from everywhere else.
 
 ---
+
+## THE TWIN, DEFINED (owner, 2026-09-12)
+
+> **At the population level the twin is identical to the real table.
+> None of its rows is a real row. And the description needed to build
+> that population reveals nothing about any individual.**
+
+Three clauses, all three binding. The first is the fidelity goal and now
+includes structure ACROSS columns, not only within them. The second is
+the provenance claim. The third is new and is the one that bites: it
+supersedes the floor-of-one reasoning of A-P4-37, because a published
+value held by exactly one person reveals that person's value.
+
+**Two goals, both mandatory, neither ranked above the other** (owner,
+2026-09-12): code developed on the twin runs unchanged on the real
+table, AND statistics computed on the twin are reliable — within a
+column and between columns.
+
+**Out of scope, permanently:** joins. The table handed to synthtwin is
+the final analysis table. Several rows per subject is NOT a join and
+stays in scope.
 
 ## Where the work is
 
 | | |
 |---|---|
-| branch | `phase-5-relationships`, cut from `main` after Phase 4 merged. `main` is pull-request only |
-| phase | **Phase 4 — CLOSED by owner decision 2026-09-11**, sixty-six register entries carried by name. **Phase 5 — relationships — is CURRENT; its plan is drafted and NOT ratified.** |
-| plan | `docs/plans/phase-5-relationships.md` (revision 1, DRAFT, unreviewed). Phase 4's is `docs/plans/phase-4-columns.md` and its closure section is the register Phase 5 inherits |
-| suite | 4,457 collected; `4406 passed, 51 skipped in 1171.61s (0:19:31)` verbatim, fully green. Four new tests: `tests/test_p5r1_the_grain_clause_is_true.py` |
-| checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — **all clean**, re-measured at the closing commit |
-| CI | **runs on every pull request, on five Pythons across Ubuntu and Windows.** A green local suite is not a green CI: the close's last defect was a test that asserted the POSIX outcome on every platform and failed every Windows cell three runs running. Check `gh pr checks` before believing a branch is done |
-| review | **ONE round per landing** (A-P4-59), `codex exec -m gpt-6-astra -c model_reasoning_effort="high" -s read-only`, launched without checking in. A crash or a silent wrongness in what THAT landing built is repaired; every other item is recorded as a residual and carried |
+| branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only |
+| phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
+| plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
+| suite | 4,458 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
+| CI | runs on every pull request, five Pythons across Ubuntu and Windows. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. `ultra` is valid and verified; do not substitute `high` |
 
-The suite size is enforced: `test_the_state_page_states_the_suite_size_
-it_was_written_against` compares the number above against what a whole
-run collects. **That guard was inert until 2026-09-10** — it compared
-`config.args` with `testpaths` as strings, so `pytest tests/` looked
-like a filtered run and it skipped on every whole-suite run this
-project has ever done. Paths are compared as paths now.
+## What is being built, in order
 
-## What is being built right now
+Each line is a landing: one commit, one review round, scope frozen at
+this page. Nothing starts until the line above has passed its gate.
+Weeks are elapsed from 2026-09-12 and assume one builder.
 
-**Phase 5 — relationships.** Phase 4 closed on 2026-09-11. The phase 5
-plan is DRAFTED and NOT RATIFIED: `docs/plans/phase-5-relationships.md`,
-revision 1. Nothing may be built from it until it has been through
-adversarial plan review and the owner has taken the four P5-D0
-decisions it names.
+| # | landing | gate | wk |
+|---|---|---|---|
+| 1 | **DONE 2026-09-13. The list idiom and the heap merge.** `x = x + [item]` at 661 sites became `x += [item]`; the merge loop became `_merge_down`, a heap over a linked list. Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, 4,200 randomised cases agree with `_merge_nearest`, suite green at 4,406, and `tests/test_growth_is_linear.py` turns red on either defect | done |
+| 2 | **The three silent defects.** A number with a thousands separator keeps it; a moment keeps its own separator; a date stored at midnight stays a date | the twin writes values the way the source wrote them; a round-trip test per shape | 3 |
+| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared | no published number is held by fewer than the floor; a one-row table is refused | 5 |
+| 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour | 8 |
+| 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
+| 6 | **Cross-column, pairwise.** Rank correlation over cut indicators, applied as a reordering of values already generated | every marginal unchanged; a known odds ratio comes back; the report names what it carries per relationship | 21 |
+| 7 | **Higher-order structure.** Design pending measurement (four prototypes scored as this page was written) | a known three-way interaction comes back with the right sign, or the limit declared per relationship | 25 |
+| 7b | **Higher-order structure, chosen.** A declared model plus one cross-tabulation for the outcome; the cross-column floor is ABOVE one, which is what lifts the reviewer's veto | a known three-way comes back at the real table's own estimate; no published cell names one subject | 25 |
+| 8 | **The screen.** The bundled toolkit with its scripting engine STRIPPED at startup — seventeen commands deleted, proven unrebuildable, mutation-tested one per command. The strip is the deliverable, not the toolkit | `tk.call`/`tk.eval` banned by the scanner; a table whose column name is an injection string has no effect | 33 |
 
-**What it proposes, after review round 1 returned REJECT with six
-blocking items and was right about all six:** TWO of the eight reserved
-slots — `temporal` (two event columns keep their order) and
-`deterministic` (a derived column agrees with its sources). `grain`
-LEFT the phase: the identifier role already reproduces the multiset of
-group sizes, so a grain slot would have added no measurable obligation.
-
-**Two owner rulings are taken.** P5-D0.2: a relationship is DECLARED
-and never detected. P5-D0.3 (2026-09-11): cross-column publication is
-governed by **the same floor as everything else** — a relationship is
-published only where it cannot narrow which values met in a row below
-the smallest-group size. That decision had to be taken again rather
-than inherited, because contract version 6 says the marginal floor
-ruling "is a ruling about MARGINAL publication" and that anything
-crossing two columns must be decided on its own facts.
-
-**Three things the plan asserted and had wrong**, corrected in
-revision 3 and recorded in `docs/plans/reviews/`: that an order
-constraint could be imposed on placements that already hold (it cannot
-— a valid pairing exists exactly when the SORTED values agree at every
-rank); that correlation was deferred because it is mechanically hard
-(the opposite — permuting whole columns preserves every marginal and
-changes the correlation, so a formula is the expensive one and the
-deferral stands only on the owner's priority); and that the owner's
-marginal disclosure position covered a cross-column fact.
-
-**Measured on an event table of 300 rows, at seed 7, the day the
-plan was written** — this is the phase in three numbers:
-
-| what a person would check | real | twin |
-|---|---|---|
-| rows where the end date precedes the start date | 0 | **137** |
-| rows where the duration column disagrees with the dates | 0 | **299** |
-| rows where a derived column disagrees with its two sources | 0 | **299** |
-
-**None of it is dishonest today** — the twin's report says every column
-and every row was built on its own, first and unmissably. Phase 5 lifts
-a declared bound; it does not repair a lie.
-
-Phase 5 inherits **sixty-six carried register entries** from Phase 4,
-grouped in that plan's closure section by what a reader would do about
-them. The estimate in A-P4-59 was "about forty"; the count is
-sixty-six, and the closure section says so rather than leaving the
-forecast standing.
-
-**R-P5-1 is opened and closed** in the same commit as the plan: the
-report's limit 2 said the twin holds no several-rows-per-person, and it
-holds exactly the real distribution of them — the identifier role
-publishes `n_distinct_by_occurrences` and the generator reproduces it.
-The error ran in the safe direction and was repaired before any
-relationship content was designed.
-
-| | landing | state |
-|---|---|---|
-| 1 | L16 — the arbitration, and codes asked about | done |
-| 2 | L18 — the shapes a European table meets | done |
-| 3 | L17a — the asking becomes one object | done |
-| 4 | L17b — the questions file and `--answers` | done |
-| 5 | L19 — the twin's report stops contradicting itself | done |
-| 6 | L22 — the record: this page, the changelog, STATUS, SECURITY | done |
-| 7 | L23 — the closure section, the phase statements, the merge | **this commit** |
-
-**The close finished in seven days, on 2026-09-11.** What made the
-difference is worth carrying into Phase 5: one review round per
-landing instead of eight, a frozen scope, and a remainder CARRIED by
-name rather than built. The ten days before it produced 95 commits of
-which 44 were review-round repairs, and opened 32 residuals against 19
-closed.
-
-What each landing did is in `CHANGELOG.md` under `[Unreleased]`, and
-the reasoning is in the plan at the amendment each names.
+**Eight months, one builder.** The estimate is deliberately not
+optimistic: every estimate in the 2026-09-12 review came back from its
+skeptic short by about two and a half times, and these are the corrected
+ones.
 
 ## What the owner has decided, and must not be re-asked
 
-These are settled. A new conversation that re-opens one is wasting the
-owner's time; the reasoning is in the plan at the amendment named.
-
-- **The small-cell floor defaults to 1** (A-P4-37). Nothing is pooled
-  away unless the person asks with `--smallest-group`, so a rare
-  finding reaches the twin. It does NOT follow that every column names
-  its values: the nothing-publishing roles name none at any floor.
-- **A rare value REACHING the twin matters more than the disclosure of
-  its presence.** The owner has answered this family the same way three
-  times (A-P4-36, the ruling of 2026-08-24, and A-P4-47's per-level
-  form census). Do not re-ask it. What still needs asking is anything
-  that would publish the CONTENT of a held-back value, which no ruling
-  covers.
-- **Asking the person is part of the product, and a chance of a wrong
-  guess is itself the trigger** (A-P4-56, A-P4-58). "It's better to ask
-  the user than make wrong guesses."
-- **No column is routed by its SHAPE.** Review item P1-R6-F7 deleted a
-  rule that guessed codes from width and the leading zero; A-P4-59
-  clause 3 reopened it and **A-P4-60 withdrew it again on
-  measurement** — see "What is waiting on the owner".
-- **Being synthetic is not an answer to an obligation.** The twin means
-  the rows never have to travel; it decides nothing about a privacy
-  rule, an institution's own rules or an approval. Guarded by the
-  seventh family of `tests/test_claim_inventory.py`.
-- **The documentation regime is LEAN** (A-P4-40): an amendment is a
-  table row, review records are item lists, a written method clause is
-  owed only for branches that do arithmetic. What is NOT cut: the
-  tests, the reference vectors, the claim inventory, the
+- **The twin's definition above.** It replaces the floor-of-one
+  reasoning, which it contradicts.
+- **Both goals are mandatory.** Reliable statistics is no longer second.
+- **Joins are out of scope.** Repeated rows per subject are not.
+- **Asking the person is part of the product** (A-P4-56, A-P4-58).
+- **Being synthetic is not an answer to an obligation.** The screen may
+  not say "no HIPAA issue". What it MAY say: your rows never leave this
+  machine, nothing is sent anywhere, no model sees your data, and the
+  files produced are yours to govern like any other export. Guarded by
+  the seventh family of `tests/test_claim_inventory.py`.
+- **The documentation regime is LEAN** (A-P4-40), and tightened on
+  2026-09-12: stop producing text that describes the project. What is
+  NOT cut: the tests, the reference vectors, the claim inventory, the
   decontamination scan.
-- **Version 6 is extended in place** until the first release rather
-  than bumped per key (A-P4-41, contract 1.7a).
-- **The release is parked** until Phase 4 is finished and the tool has
-  been used on real tables. The release workflow was never built.
-
-## What is waiting on the owner
-
-**Nothing blocks the close.** One decision is open and is theirs alone:
-
-- **Whether to take the padded-column routing after all.** A-P4-59
-  clause 3 ruled that an unanswered column of digits reads as CODES. It
-  was built, narrowed to the padded signal, given contract NF56 so it
-  could never be silent, and covered by thirteen green tests — and the
-  suite then returned 46 failures and 19 errors. **A-P4-60 is the
-  measurement and the withdrawal.** Taking it anyway is one commit; the
-  amendment says what it costs (review item P1-R6-F7's settled policy,
-  plan decision P4-D14's field widths, and the distribution of every
-  padded measurement).
+- **Version 6 is extended in place** until the first release (A-P4-41).
+- **The release is parked** until the tool has been used on real tables.
 
 ## What is broken right now
 
-- **Nothing is known broken in the product.** Every scanner, the seal
-  and the suite are green as recorded above.
-- **R-P4-61 — the generator and the validator print moment windows
-  differing in their last two digits**, because they are independent
-  implementations by charter and were never written alike at that
-  precision. Carried, not closed: it needs the arithmetic stated
-  operation by operation in G12.3 and both implementations rewritten to
-  it. No verdict has been seen to differ, and R-P4-61 owes that
-  measurement too.
-- **R-P4-165 — keeping a padded column's WIDTH is not keeping its code
-  DOMAIN.** P4-D14 makes the twin of a five-character code five
-  characters wide; it does not make it a code of the register. Measured
-  by review: 120 five-digit codes gave 115 twin cells outside the source
-  set. The fix is a declaration — `--code` — which the questions file
-  now asks for.
-- **R-P4-168 — AF-R reads its fragments in order and never the text
-  between them**, so a required remark saying "do NOT run the command
-  again with `--code`" is accepted.
-
-The full register is in the plan. These four are the ones a reader
-would otherwise trip over.
+- ~~Both commands are quadratic.~~ **Repaired 2026-09-13, landing 1.**
+  What remains is only the largest tables: a million rows by twenty
+  columns is about 35 minutes, two million by fifty is about three
+  hours. Landing 4 closes that by doing the ladder work once per
+  distinct value rather than once per row.
+- **Three defects make a twin wrong without saying so.** A charge
+  written `$2,198.92` loses its comma, so code built on the twin drops
+  every value above a thousand on the real table — a measured mean of
+  412 against a true 918. A moment written with a space comes back with
+  a `T`, and the twin's own report says no code change is needed. A date
+  stored at midnight is given an invented time. Landing 2.
+- **The description names individuals.** On a 1,200-row table the
+  published maximum of two columns was held by exactly one subject.
+  A population floor cannot fix this; the extremes must stop being
+  published exactly. Landing 3.
+- **The sentence "analysis code developed on the twin RUNS" is false**
+  and ships in four places. It is disproved by the two defects above and
+  by a quartile cut that succeeds on the twin and raises on the real
+  table. Qualify it in landing 2.
+- **THE CLAIM GUARD IS INERT FOR THE SENTENCE IT EXISTS TO STOP.**
+  Measured 2026-09-12: "there is no HIPAA issue with this workflow",
+  "HIPAA does not apply to the twin", "your data is HIPAA-free once it
+  is synthetic" and "GDPR does not apply to synthetic output" ALL PASS
+  the seventh family of `tests/test_claim_inventory.py`. It names
+  regimes by description and holds no acronym. Adding the acronyms
+  alone catches 3 of 7; the shape clause is needed too. Landing 2.
+- **R-P4-61** — the generator and the validator print moment windows
+  differing in their last two digits. Carried.
 
 ## The rules an assistant breaks first here
 
 1. **Never change the decontamination scanner to make text pass** —
-   change the text. Some ordinary words are denied. Probe before you
-   write rather than guessing, and remember **a file you have not
-   staged is not scanned**, because the scanner walks the TRACKED tree.
+   change the text. Some ordinary words are denied. **A file you have
+   not staged is not scanned**, because the scanner walks the TRACKED
+   tree.
 2. **The generator never reads a table.** Only the profiler and the
    validator open a CSV. No test helper crosses that line.
 3. **Every published sentence is an enumerated form**, not a string
    written at the call site. Check `taxonomy.NOTE_ARITY`.
 4. **A closed enumeration is stated in up to eight places.** Adding a
-   role or a settings key means finding all of them; the guards will
-   tell you, but only after they turn red.
+   role or a settings key means finding all of them.
 5. **Never close a residual on a reading.** Build the column it
    describes and run it.
-6. **Grow a list with `+= [item]`, never `x = x + [item]`.** The second
-   is quadratic and this project has shipped it more than once.
-7. **Run the guards AFTER `git add`**, then the seal LAST, then ONE
-   full suite. Breaking that order costs another nineteen minutes.
+6. **Grow a list with `x += [item]`, never `x = x + [item]`.** The
+   second is quadratic and it is currently in 661 places. The scanner
+   forbids `.append`; `+=` is allowed and is 3,000 times faster at
+   100,000 items.
+7. **Run the guards AFTER `git add`**, then the seal LAST, then ONE full
+   suite. Breaking that order costs another nineteen minutes.
 
 ## Already tried here, and it does not work
 
-Kept short on purpose. Each of these cost at least half a day.
-
-- **A pronoun cannot be resolved by a regular expression.** A rule that
-  needs reference resolution must instead demand that the prose NAME
-  the thing.
-- **Widening a ban's noun list reports honest prose.** Name the SHAPE
-  of the claim, never broaden the noun.
-- **A guard that passes is not a guard.** Mutation-verify every new one
-  before believing it.
+- **A pronoun cannot be resolved by a regular expression.** Demand that
+  the prose NAME the thing.
+- **Widening a ban's noun list reports honest prose.** Name the SHAPE of
+  the claim, never broaden the noun.
+- **A guard that passes is not a guard.** Mutation-verify every new one.
 - **Where a review names one site, there are usually two or three.**
-  Search for siblings rather than repairing the site named.
-- **A count restated in several places will disagree.** Compute it from
-  one source and check every site that states it.
+- **A count restated in several places will disagree.**
 - **A GIT WORKTREE HAS NO `.venv`, AND BORROWING THE SHARED ONE TESTS
-  THE WRONG SOURCE.** The checkout's venv installs this package
-  EDITABLE from its own `src`, so a worktree reaching for
-  `../../.venv/bin/python` imports the SHARED checkout's product code
-  while its tests and documents come from the worktree. Nothing
-  announces it. Set `PYTHONPATH=<worktree>/src` or give the worktree a
-  venv of its own.
+  THE WRONG SOURCE.** Set `PYTHONPATH=<worktree>/src` or give it a venv.
 - **A repair that prints ambiguous numbers is worse than the silence it
-  replaced.** Withdraw it and record the defect instead.
+  replaced.**
 - **Measure a ruling against the suite BEFORE building it.** The tests
-  here are the record of decisions already taken, with the reasoning in
-  the docstring. A-P4-59 clause 3 was built in full before the suite
-  showed that the owner had settled the same question the other way and
-  that the harm it addressed had been fixed nine days earlier.
+  are the record of decisions already taken.
+- **Declaring column types does not make generation faster.** It helps
+  only the describing step, and only by skipping the reading cascade.
+  The generator's cost is the idiom and the ladder.
 
 ## How a new conversation gets its bearings
-
-**Four things carry this project, and none of them is the contract.**
-The contract is over eight thousand lines and the phase plan over five
-thousand: no session reads either, which is why freezing them (A-P4-46)
-costs almost no context.
 
 | what | how it reaches you |
 |---|---|
@@ -263,12 +175,8 @@ costs almost no context.
 | the assistant's own memory | loaded at session start, outside the repository |
 | **the docstrings** | read whenever the code is read, which is when it matters |
 
-**The docstrings ARE the specification now.** Every public function's
-docstring states what it promises — accepted inputs, determinism,
-errors, and any boundary it upholds. With the contract frozen they stop
-being a second copy and become the first one. **And the tests are the
-other half:** when you would have written a contract clause, write a
-test instead.
+**The docstrings ARE the specification**, and the tests are the other
+half: when you would have written a contract clause, write a test.
 
 ## Where the detail lives
 
@@ -276,8 +184,6 @@ test instead.
 |---|---|
 | the principles and the honest limits | `CLAUDE.md` |
 | what the reviewer holds this to | `AGENTS.md` |
-| the current phase, its decisions, its open register | `docs/plans/phase-4-columns.md` |
 | what a description may contain | `docs/spec/profile-contract-v6.md` |
 | what changed, in order | `CHANGELOG.md` |
-| the project in plain language, for an outside reader | `STATUS.md` |
-| what each landing did and why | `CHANGELOG.md`, then `git log` |
+| the project in plain language | `STATUS.md` |

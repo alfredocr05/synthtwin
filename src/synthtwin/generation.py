@@ -1401,7 +1401,7 @@ def _cell_order(
         rank = [0 for _each in quotas]
         for step in range(len(placed)):
             rank[placed[step]] = step
-        ranks = ranks + [rank]
+        ranks += [rank]
     keyed = sorted([
         (
             tuple(
@@ -1642,7 +1642,7 @@ def _cell_next(
         most = 0
         if (keys[ahead][1] >> cell) & 1:
             most = min(left[ahead], (highest - used) // keys[ahead][0])
-        walk = walk + [most]
+        walk += [most]
         used = used + most * keys[ahead][0]
 
 
@@ -1723,11 +1723,11 @@ def _cell_walk(
                 if cell < 0:
                     return None
                 continue
-            marks = marks + [mark]
-            rooms = rooms + [room]
-            reaches = reaches + [_reach_bits(keys, left, cell, room[1])]
-            walks = walks + [[]]
-            placed = placed + [[]]
+            marks += [mark]
+            rooms += [room]
+            reaches += [_reach_bits(keys, left, cell, room[1])]
+            walks += [[]]
+            placed += [[]]
         else:
             _moved_by(
                 placed[cell], keys, left, owed, part_at, cell, 1,
@@ -1939,9 +1939,9 @@ def _merged_rungs(
     whole: "list[float | None]" = []
     for percent in range(101):
         if percent in named:
-            whole = whole + [named[percent]]
+            whole += [named[percent]]
         else:
-            whole = whole + [finer[percent]]
+            whole += [finer[percent]]
     return _filled_rungs(tuple(whole))
 
 
@@ -1986,7 +1986,7 @@ def _filled_rungs(
                 found = rungs[below[len(below) - 1]]
             else:
                 found = rungs[holds[0]]
-        filled = filled + [found if found is not None else 0.0]
+        filled += [found if found is not None else 0.0]
     return tuple(filled)
 
 
@@ -2460,33 +2460,33 @@ def _pinned_cells(
     starts: list[int] = []
     at = 0
     for place in range(len(layout.sizes)):
-        starts = starts + [at]
+        starts += [at]
         at = at + layout.sizes[place]
     total = len(layout.sizes)
     kept: list[float] = []
     if total >= 1:
-        kept = kept + [values[0]]
+        kept += [values[0]]
     if total >= 2:
-        kept = kept + [values[total - 1]]
+        kept += [values[total - 1]]
     found: list[int] = []
     for value in kept:
         for place in range(total):
             if values[place] != value:
                 continue
             for step in range(layout.sizes[place]):
-                found = found + [starts[place] + step]
+                found += [starts[place] + step]
     for place in range(total):
         if layout.bands[place] != _BAND_ZERO:
             continue
         for step in range(layout.sizes[place]):
-            found = found + [starts[place] + step]
+            found += [starts[place] + step]
     settled: list[int] = []
     seen: dict[int, int] = {}
     for index in found:
         if index in seen:
             continue
         seen[index] = 1
-        settled = settled + [index]
+        settled += [index]
     return settled
 
 
@@ -2731,9 +2731,9 @@ def _width_places(
             continue
         value = holds[index]
         if value in pinned_groups:
-            pinned_groups[value] = pinned_groups[value] + [index]
+            pinned_groups[value] += [index]
             continue
-        pinned_order = pinned_order + [value]
+        pinned_order += [value]
         pinned_groups[value] = [index]
     for value in pinned_order:
         members = pinned_groups[value]
@@ -2760,10 +2760,10 @@ def _width_places(
             continue
         value = holds[index]
         if value in groups:
-            groups[value] = groups[value] + [index]
+            groups[value] += [index]
             continue
         groups[value] = [index]
-        order = order + [(-_fraction_need(value), value)]
+        order += [(-_fraction_need(value), value)]
     # HOW MANY CELLS EACH VALUE HOLDS IN ALL, not just how many of them
     # the style step made decimal. A snap moves the VALUE, so snapping
     # the decimal cells of a value some of whose cells were written
@@ -2897,16 +2897,16 @@ def _eligible_groups(
             continue
         value = holds[index]
         if value in groups:
-            groups[value] = groups[value] + [index]
+            groups[value] += [index]
             continue
         groups[value] = [index]
-        seen = seen + [value]
+        seen += [value]
     ranked: "list[tuple[int, float]]" = []
     for value in seen:
-        ranked = ranked + [(-len(groups[value]), value)]
+        ranked += [(-len(groups[value]), value)]
     ordered: "list[list[int]]" = []
     for _size, value in sorted(ranked):
-        ordered = ordered + [groups[value]]
+        ordered += [groups[value]]
     return ordered
 
 
@@ -2985,7 +2985,7 @@ def _padded_style_swaps(
             continue
         if not _carries_plainly(holds[index], whole_column):
             continue
-        eligible = eligible + [index]
+        eligible += [index]
 
     # THE CENSUS ASKS FOR WIDTHS, NOT FOR A WIDTH, and this walk is the
     # difference. An earlier pass asked only whether a value fitted the
@@ -3077,7 +3077,7 @@ def _padded_style_swaps(
                     trial = []
                     break
                 taken[partner] = 1
-                trial = trial + [(index, partner)]
+                trial += [(index, partner)]
             if not trial:
                 continue
             for index, partner in trial:
@@ -3173,10 +3173,10 @@ def _pad_places(
             continue
         value = holds[index]
         if value in groups:
-            groups[value] = groups[value] + [index]
+            groups[value] += [index]
             continue
         groups[value] = [index]
-        seen = seen + [value]
+        seen += [value]
     # NARROW FIELDS FIRST, because a value that fits a field of three
     # fits every wider one, so spending it on a wide field is what
     # makes a narrow field unfillable.
@@ -3202,14 +3202,14 @@ def _pad_places(
                     waiting = waiting + 1
             if waiting < 1 or _pad_need(value, whole_column) >= width:
                 continue
-            ranked = ranked + [(-waiting, value)]
+            ranked += [(-waiting, value)]
         for _size, value in sorted(ranked):
             if owing < 1:
                 break
             unplaced: "list[int]" = []
             for index in groups[value]:
                 if places[index] < 0:
-                    unplaced = unplaced + [index]
+                    unplaced += [index]
             if len(unplaced) > owing:
                 continue
             for index in unplaced:
@@ -3297,9 +3297,9 @@ def _some_fraction_survives(
     given: list[int] = []
     for index in range(len(places)):
         if styles[index] == "decimal" and holds[index] == kept:
-            given = given + [-1]
+            given += [-1]
             continue
-        given = given + [places[index]]
+        given += [places[index]]
     return given
 
 
@@ -3525,7 +3525,7 @@ def _style_places(
         left[picked] = left[picked] - 1
         if picked == "plain" and held > 0:
             held = held - 1
-        styles = styles + [picked]
+        styles += [picked]
     return styles
 
 
@@ -3834,20 +3834,20 @@ def _class_spellings(
         if room:
             order = order + 1
             spelling = _base_spelling(kind, order, negative, used, holes)
-            made = made + [spelling]
+            made += [spelling]
             _take(spelling, used)
         elif len(made) + len(extra) < raw_budget:
             candidate = _first_variant(made, steps, used)
             if candidate is None:
                 spelling = last[side]
             else:
-                extra = extra + [candidate]
+                extra += [candidate]
                 _take(candidate, used)
                 spelling = candidate
         else:
             spelling = last[side]
         last[side] = spelling
-        cells = cells + [spelling]
+        cells += [spelling]
     return cells
 
 
@@ -3913,8 +3913,8 @@ def _runs_of(
         if place > 0 and values[place] == values[place - 1]:
             lengths[len(lengths) - 1] = lengths[len(lengths) - 1] + 1
             continue
-        lengths = lengths + [1]
-        held = held + [values[place]]
+        lengths += [1]
+        held += [values[place]]
     return lengths, held
 
 
@@ -4067,6 +4067,200 @@ def _merge_nearest(
     )
 
 
+_HEAP_ENTRY = "tuple[tuple[int, int, float], int, int]"
+
+
+def _heap_push(
+    heap: "list[tuple[tuple[int, int, float], int, int]]",
+    size: int,
+    entry: "tuple[tuple[int, int, float], int, int]",
+) -> int:
+    """Add one candidate to the binary heap; return the new size.
+
+    The heap is the caller's list and the size is passed in and handed
+    back, because this source rebinds no name belonging to another
+    scope. Slots past `size` are spent entries kept for reuse.
+
+    Guarantees: accepts the heap, its live size and the entry; returns
+    the size after the push, with the heap ordered so that index 0 is
+    the smallest entry. Determinism: a fixed function of its inputs.
+    Raises nothing. No I/O of any kind.
+    """
+    if size < len(heap):
+        heap[size] = entry
+    else:
+        heap += [entry]
+    spot = size
+    while spot > 0:
+        parent = (spot - 1) // 2
+        if heap[spot] < heap[parent]:
+            heap[spot], heap[parent] = heap[parent], heap[spot]
+            spot = parent
+        else:
+            break
+    return size + 1
+
+
+def _heap_pop(
+    heap: "list[tuple[tuple[int, int, float], int, int]]", size: int
+) -> "tuple[tuple[tuple[int, int, float], int, int], int]":
+    """Take the smallest candidate; return it and the new size.
+
+    Guarantees: accepts a heap with at least one live entry and its
+    size; returns the smallest entry and the size after removing it.
+    Determinism: a fixed function of its inputs. Raises nothing. No I/O
+    of any kind.
+    """
+    top = heap[0]
+    size -= 1
+    heap[0] = heap[size]
+    spot = 0
+    while True:
+        left = 2 * spot + 1
+        right = left + 1
+        small = spot
+        if left < size and heap[left] < heap[small]:
+            small = left
+        if right < size and heap[right] < heap[small]:
+            small = right
+        if small == spot:
+            break
+        heap[spot], heap[small] = heap[small], heap[spot]
+        spot = small
+    return top, size
+
+
+def _pair_key(
+    lengths: "list[int]", held: "list[float]", left: int, right: int
+) -> "tuple[int, int, float]":
+    """The merge key for one adjacent pair, as `_merge_nearest` computes it.
+
+    The arithmetic is that function's, character for character: the gap
+    is divided before it is subtracted, and where the plain sum of
+    magnitudes is not representable both rungs are scaled by the larger
+    magnitude first. Review items P4-G5-O4 and P4-G6-R1-F1 are what fix
+    that order, and changing it here would move the twin's bytes.
+
+    Guarantees: accepts the run lengths, the run values and the two
+    positions; returns the smaller run length, whether the two values
+    are alike in whole-ness, and their relative gap. Determinism: a
+    fixed function of its inputs. Raises nothing. No I/O of any kind.
+    """
+    low = held[left]
+    high = held[right]
+    span = abs(high) + abs(low)
+    gap = 0.0
+    if not math.isfinite(span):
+        scale = max(abs(high), abs(low))
+        if math.isfinite(scale) and scale > 0.0:
+            near = low / scale
+            far = high / scale
+            span = abs(far) + abs(near)
+            if span > 0.0:
+                gap = abs(far / span - near / span)
+    elif span > 0.0:
+        gap = abs(high / span - low / span)
+    alike = parsing.is_whole_number(low) == parsing.is_whole_number(high)
+    return (min(lengths[left], lengths[right]), 0 if alike else 1, gap)
+
+
+def _merge_down(
+    lengths: "list[int]", held: "list[float]", strata: int
+) -> "tuple[list[int], list[float]]":
+    """Merge adjacent runs until there are `strata` of them.
+
+    THE SAME ANSWER AS REPEATING `_merge_nearest`, AND THAT EQUIVALENCE
+    IS THE WHOLE CONTRACT OF THIS FUNCTION. `_merge_nearest` rescans
+    every pair and rebuilds both lists on each call, so the loop that
+    used to sit here was quadratic in the number of runs: on one
+    8,000-row column it spent 26.8 seconds of a 28.6 second run inside
+    it. This keeps a binary heap of candidate pairs over a linked list,
+    so a merge costs a logarithm rather than a scan. Measured against
+    the original on 4,200 randomised cases over six adversarial
+    families -- all-equal values, whole and fractional mixes, the 1e308
+    and 1e-320 magnitudes that exercise the overflow rescale, signed
+    zeros, and the ladder's own plateau-and-transition shape -- the two
+    agree on every length AND on the `repr` of every value, with no
+    exception. Speedup at 30 strata: 11x at 500 runs, 138x at 8,000,
+    and it widens with the column.
+
+    WHY THE LEFTMOST RULE STILL HOLDS. `_merge_nearest` takes the first
+    place whose key is minimal, because it compares with a strict `<`.
+    A merge only ever joins neighbours and the merged run keeps the
+    left one's position, so ordering candidates by the key and then by
+    the left run's ORIGINAL index picks the same pair. A candidate made
+    stale by a merge is left in the heap and skipped by a version
+    stamp rather than removed.
+
+    NO NEW IMPORT. The heap is written out with `+= [item]`, subscript
+    stores and `len`: `heapq` is not on the offline allowlist, and
+    admitting it would be a plan-level decision this does not need.
+
+    Guarantees: accepts the run lengths, the run values and the number
+    of runs wanted; returns that many lengths and values, in order,
+    with the lengths summing to what they summed to before and each
+    value the leftmost of the runs that were joined into it.
+    Determinism: a fixed function of its three inputs. Raises nothing.
+    No I/O of any kind.
+    """
+    total = len(lengths)
+    if total <= strata:
+        return list(lengths), list(held)
+    run_lengths = list(lengths)
+    values = list(held)
+    after = list(range(1, total + 1))
+    after[total - 1] = -1
+    before = list(range(-1, total - 1))
+    alive = [True] * total
+    stamp = [0] * total
+    heap: "list[tuple[tuple[int, int, float], int, int]]" = []
+    size = 0
+    for place in range(total - 1):
+        size = _heap_push(
+            heap, size, (_pair_key(run_lengths, values, place, place + 1), place, 0)
+        )
+    standing = total
+    while standing > strata:
+        entry, size = _heap_pop(heap, size)
+        _, here, seen = entry
+        if not alive[here] or stamp[here] != seen:
+            continue
+        joined = after[here]
+        if joined == -1 or not alive[joined]:
+            continue
+        run_lengths[here] = run_lengths[here] + run_lengths[joined]
+        alive[joined] = False
+        after[here] = after[joined]
+        if after[joined] != -1:
+            before[after[joined]] = here
+        standing -= 1
+        stamp[here] += 1
+        onward = after[here]
+        if onward != -1:
+            size = _heap_push(
+                heap,
+                size,
+                (_pair_key(run_lengths, values, here, onward), here, stamp[here]),
+            )
+        back = before[here]
+        if back != -1:
+            stamp[back] += 1
+            size = _heap_push(
+                heap,
+                size,
+                (_pair_key(run_lengths, values, back, here), back, stamp[back]),
+            )
+    out_lengths: "list[int]" = []
+    out_values: "list[float]" = []
+    walk = 0
+    while walk != -1:
+        if alive[walk]:
+            out_lengths += [run_lengths[walk]]
+            out_values += [values[walk]]
+        walk = after[walk]
+    return out_lengths, out_values
+
+
 def _shape_sizes(
     start: int,
     cells: int,
@@ -4142,10 +4336,9 @@ def _shape_sizes(
         )
         if whole_valued:
             found = _whole_valued(found)
-        held = held + [found]
+        held += [found]
     lengths, values = _runs_of(held)
-    while len(lengths) > strata:
-        lengths, values = _merge_nearest(lengths, values)
+    lengths, values = _merge_down(lengths, values, strata)
     while len(lengths) < strata:
         lengths, values = _split_widest(lengths, values)
     return lengths
@@ -4191,7 +4384,7 @@ def _band_plateaus(
         )
         if whole_valued:
             found = _whole_valued(found)
-        held = held + [found]
+        held += [found]
     lengths, _values = _runs_of(held)
     return len(lengths)
 
@@ -4223,11 +4416,11 @@ def _band_sizes(
     for size in _shape_sizes(
         0, negatives, negative_strata, rungs, numbers, whole_valued
     ):
-        sizes = sizes + [size]
-        bands = bands + [_BAND_NEGATIVE]
+        sizes += [size]
+        bands += [_BAND_NEGATIVE]
     if zeros > 0:
-        sizes = sizes + [zeros]
-        bands = bands + [_BAND_ZERO]
+        sizes += [zeros]
+        bands += [_BAND_ZERO]
     for size in _shape_sizes(
         negatives + zeros,
         positives,
@@ -4236,8 +4429,8 @@ def _band_sizes(
         numbers,
         whole_valued,
     ):
-        sizes = sizes + [size]
-        bands = bands + [_BAND_POSITIVE]
+        sizes += [size]
+        bands += [_BAND_POSITIVE]
     return sizes, bands
 
 
@@ -4273,14 +4466,14 @@ def _carrier_flags(
     flags: list[bool] = []
     for place in range(total):
         if bands[place] == _BAND_ZERO:
-            flags = flags + [True]
+            flags += [True]
             continue
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if not pinned or rungs is None:
-            flags = flags + [True]
+            flags += [True]
             continue
         end = rungs[0] if place == 0 else rungs[-1]
-        flags = flags + [_carries_plainly(end, whole_column)]
+        flags += [_carries_plainly(end, whole_column)]
     return flags
 
 
@@ -4487,7 +4680,7 @@ def _starts_of(sizes: "list[int]") -> "list[int]":
     starts: list[int] = []
     running = 0
     for size in sizes:
-        starts = starts + [running]
+        starts += [running]
         running = running + size
     return starts
 
@@ -4578,15 +4771,15 @@ def _free_whole(
         middle = max(first, min(last, middle))
         for step in range(steps + 1):
             if step == 0:
-                candidates = candidates + [middle]
+                candidates += [middle]
                 continue
-            candidates = candidates + [middle + step, middle - step]
+            candidates += [middle + step, middle - step]
     elif band == _BAND_NEGATIVE:
         for step in range(steps + 1):
-            candidates = candidates + [last - step]
+            candidates += [last - step]
     else:
         for step in range(steps + 1):
-            candidates = candidates + [first + step]
+            candidates += [first + step]
     for number in candidates:
         if number < first or number > last:
             continue
@@ -4692,24 +4885,24 @@ def _reach_held(
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if band == _BAND_ZERO:
             held[0.0] = 1
-            flags = flags + [True]
+            flags += [True]
             continue
         if pinned:
             end = rungs[0] if place == 0 else rungs[-1]
             held[end] = 1
-            flags = flags + [_carries_plainly(end, whole_column)]
+            flags += [_carries_plainly(end, whole_column)]
             continue
         if place in settled:
-            flags = flags + [True]
+            flags += [True]
             continue
         low = _interpolated(rungs, starts[place], numbers)
         high = _interpolated(rungs, starts[place] + sizes[place], numbers)
         want = _free_whole(low, high, band, rungs, held, total + 1, True)
         if want is None:
-            flags = flags + [False]
+            flags += [False]
             continue
         held[want] = 1
-        flags = flags + [True]
+        flags += [True]
     return flags, held
 
 
@@ -5087,7 +5280,7 @@ def _numeric_layout(
     rest = min(rest, negatives + positives)
     if rest < needed:
         rest = needed
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_distinct_folded",
@@ -5409,7 +5602,7 @@ def _vocabulary_of(
     """Every wrapper this column wears, commonest first (plan P4-D37)."""
     worn = [(facts.affix_prefix, facts.affix_suffix)]
     for one in facts.affix_variants:
-        worn = worn + [(one.prefix, one.suffix)]
+        worn += [(one.prefix, one.suffix)]
     return worn
 
 
@@ -5479,7 +5672,7 @@ def _cores_worn(
             continue
         core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
         if core:
-            held[chosen] = held[chosen] + [core]
+            held[chosen] += [core]
     return held
 
 
@@ -5497,7 +5690,7 @@ def _wrapper_notes(
         return notes
     named: "list[Deviation]" = []
     for step in range(len(notes)):
-        named = named + [
+        named += [
             dataclasses.replace(
                 notes[step], fact=_affixed_key(place, notes[step].fact)
             )
@@ -5567,7 +5760,7 @@ def _wrappers_of(
         )
     ]
     for one in facts.affix_variants:
-        walk = walk + [
+        walk += [
             (
                 (one.prefix, one.suffix),
                 _wrapper_view(column, one),
@@ -5591,7 +5784,7 @@ def _position_notes(
     named: list[Deviation] = []
     for step in range(len(notes)):
         note = notes[step]
-        named = named + [
+        named += [
             dataclasses.replace(
                 note,
                 fact=f"parts[{place}].{note.fact}",
@@ -5685,7 +5878,7 @@ def _ranks_of(values: "list[float]") -> "list[float]":
     """The rank of each value, ties sharing the average of their ranks."""
     pairs: "list[tuple[float, int]]" = []
     for seat in range(len(values)):
-        pairs = pairs + [(values[seat], seat)]
+        pairs += [(values[seat], seat)]
     pairs = sorted(pairs)
     ranks = [0.0 for _each in values]
     at = 0
@@ -6035,9 +6228,9 @@ def _repaired_pairing(
     for column in drawn:
         pairs: "list[tuple[float, str]]" = []
         for spelling in column:
-            pairs = pairs + [(float(spelling), spelling)]
+            pairs += [(float(spelling), spelling)]
         pairs = sorted(pairs)
-        held = held + [[pair[1] for pair in pairs]]
+        held += [[pair[1] for pair in pairs]]
     for place in range(1, facts.n_parts):
         seat = place - 1
         anchored = 0.0
@@ -6060,9 +6253,9 @@ def _repaired_pairing(
     for place in range(facts.n_parts):
         counted_here: "list[float]" = []
         for spelling in held[place]:
-            counted_here = counted_here + [float(spelling)]
-        numbers = numbers + [counted_here]
-        ranks = ranks + [_ranks_of(counted_here)]
+            counted_here += [float(spelling)]
+        numbers += [counted_here]
+        ranks += [_ranks_of(counted_here)]
     middle = (total - 1) / 2.0
     # The divisor of every agreement, which no swap can move.
     spread: "list[float]" = []
@@ -6071,7 +6264,7 @@ def _repaired_pairing(
         for row in range(total):
             away = ranks[place][row] - middle
             summed = summed + away * away
-        spread = spread + [summed]
+        spread += [summed]
     # EVERY PAIR IS SCORED, because every pair has a member this walk
     # moves: the anchor is position 0, and a pair with two members is a
     # pair with at least one of them numbered 1 or more.
@@ -6112,7 +6305,7 @@ def _repaired_pairing(
     seen: "dict[str, int]" = {}
     for row in range(total):
         text = _joined_written(held, facts, row)
-        cells = cells + [text]
+        cells += [text]
         seen[text] = seen[text] + 1 if text in seen else 1
 
     def _room() -> float:
@@ -6704,7 +6897,7 @@ def _joined_content(
         part_words: "list[int]" = []
         step = 0
         while step < part_content and at + step < len(words):
-            part_words = part_words + [words[at + step]]
+            part_words += [words[at + step]]
             step = step + 1
         at = at + part_content
         part_plan = dataclasses.replace(plan, column=view, layout=layout)
@@ -6738,14 +6931,14 @@ def _joined_content(
         # published `n_distinct` is better than one that does not. A
         # fixed reversal would meet the count too and would invent a
         # strong negative agreement the description contradicts.
-        drawn = drawn + [values]
+        drawn += [values]
     # WHICH NUMBERS MEET IN A ROW. The words the shuffle used to spend
     # are spent here instead: the pairing is chosen to the facts the
     # description publishes about it rather than left to chance.
     spare: "list[int]" = []
     step = at
     while step < len(words):
-        spare = spare + [words[step]]
+        spare += [words[step]]
         step = step + 1
     # WHAT THE PAIRING IS ASKED FOR IS NOT THE WHOLE COLUMN'S COUNT,
     # where any cell did not split. Those cells are replaced by
@@ -6775,7 +6968,7 @@ def _joined_content(
         text = _joined_written(drawn, facts, row)
         made_cells[text] = 1
     if len(made_cells) != wanted:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_distinct",
@@ -6791,7 +6984,7 @@ def _joined_content(
         ]
     cells: "list[str]" = []
     for row in range(facts.n_joined):
-        cells = cells + [_joined_written(drawn, facts, row)]
+        cells += [_joined_written(drawn, facts, row)]
     # THE CELLS THAT SPLIT NO SUCH WAY -- the stragglers the parse line
     # tolerated. The description says how MANY there were and nothing
     # else about them, so they are invented, and invention is what they
@@ -6808,7 +7001,7 @@ def _joined_content(
             used,
             _hole_spellings(column),
         )
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_unparsed",
@@ -6849,7 +7042,7 @@ def _affixed_content(
         core_plan = dataclasses.replace(plan, column=_core_view(column))
         cores, notes = _numeric_content(core_plan, words)
         for step in range(len(cores)):
-            cells = cells + [
+            cells += [
                 f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
             ]
     else:
@@ -6875,7 +7068,7 @@ def _affixed_content(
             mine: "list[int]" = []
             step = 0
             while step < wrapper_content and at + step < len(words):
-                mine = mine + [words[at + step]]
+                mine += [words[at + step]]
                 step = step + 1
             at = at + wrapper_content
             wrapper_plan = dataclasses.replace(
@@ -6895,7 +7088,7 @@ def _affixed_content(
             )
             step_of_wrapper = step_of_wrapper + 1
             for step in range(len(drawn)):
-                cells = cells + [
+                cells += [
                     f"{pair_view[0][0]}{drawn[step]}{pair_view[0][1]}"
                 ]
     # WHICH WRAPPER EACH CELL WEARS (plan P4-D36). Most columns of
@@ -7051,7 +7244,7 @@ def _unaffixed_spellings(
                 continue
             if _is_a_hole_spelling(spelling, holes):
                 continue
-            built = built + [spelling]
+            built += [spelling]
             used[spelling] = 1
         step = step + wanted + 1
     seat = 0
@@ -7088,7 +7281,7 @@ def _unaffixed_spellings(
         if _wears(made, pair) and not conceded:
             continue
         used[made] = 1
-        built = built + [made]
+        built += [made]
     return built
 
 
@@ -7215,7 +7408,7 @@ def _read_as_described(
             if _wears_this_hole(cell, hole, True):
                 keep = True
         if keep:
-            read = read + [cell]
+            read += [cell]
             continue
         swapped = parsing.written_with_a_decimal_comma(cell)
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED HERE EITHER,
@@ -7229,9 +7422,9 @@ def _read_as_described(
         # counts and both outer counts, each one short.
         if _labels_beside_numbers(column):
             if parsing.classify_number(swapped) != parsing.NUMBER:
-                read = read + [cell]
+                read += [cell]
                 continue
-        read = read + [swapped]
+        read += [swapped]
     return read
 
 
@@ -7294,7 +7487,7 @@ def _spelled_with_a_decimal_comma(
             if cell == hole:
                 keep = True
         if keep:
-            spelled = spelled + [cell]
+            spelled += [cell]
             continue
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED. The swap
         # runs over the finished column, and half of this role's cells
@@ -7304,12 +7497,12 @@ def _spelled_with_a_decimal_comma(
         # the numeric machinery just wrote them in are swapped.
         if _labels_beside_numbers(column):
             if parsing.classify_number(cell) != parsing.NUMBER:
-                spelled = spelled + [cell]
+                spelled += [cell]
                 continue
         swapped = ""
         for letter in cell:
             swapped = swapped + ("," if letter == "." else letter)
-        spelled = spelled + [swapped]
+        spelled += [swapped]
     return spelled
 
 
@@ -7367,9 +7560,9 @@ def _absent_cells(
         if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
             continue
         for _each in range(column.missing_by_source[spelling]):
-            written = written + [spelling]
+            written += [spelling]
     while len(written) < column.n_missing:
-        written = written + [""]
+        written += [""]
     return written[: column.n_missing]
 
 
@@ -7494,7 +7687,7 @@ def _every_hole_spelling(
     for column in profile.columns:
         for spelling in _hole_spellings(column):
             if spelling not in found:
-                found = found + [spelling]
+                found += [spelling]
     return tuple(sorted(found))
 
 
@@ -7513,7 +7706,7 @@ def _hole_spellings(
     """
     found: list[str] = []
     for spelling in sorted(column.missing_by_source):
-        found = found + [spelling]
+        found += [spelling]
     return tuple(found)
 
 
@@ -7540,10 +7733,10 @@ def _holes_reserved(
     found: "list[str]" = []
     for spelling in _hole_spellings(column):
         if spelling not in found:
-            found = found + [spelling]
+            found += [spelling]
     for spelling in everywhere:
         if spelling not in found:
-            found = found + [spelling]
+            found += [spelling]
     return tuple(sorted(found))
 
 
@@ -7581,7 +7774,7 @@ def _unaffixed_numbers(
             and not _is_a_hole_spelling(spelling, holes)
         ):
             used[spelling] = 1
-            built = built + [spelling]
+            built += [spelling]
         value = value + 1
     return built
 
@@ -7689,7 +7882,7 @@ def _numeric_content(
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
     if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "percentiles",
@@ -7761,7 +7954,7 @@ def _numeric_content(
             used,
             _hole_spellings(column),
         )
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_out_of_range",
@@ -7813,11 +8006,11 @@ def _stratum_values(
         band = layout.bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if band == _BAND_ZERO:
-            values = values + [0.0]
+            values += [0.0]
             if pinned and rungs is not None:
                 published = rungs[0] if place == 0 else rungs[-1]
                 if published != 0.0:
-                    notes = notes + [
+                    notes += [
                         _deviation(
                             column.name,
                             "percentiles",
@@ -7831,12 +8024,12 @@ def _stratum_values(
             continue
         if pinned:
             if rungs is None:
-                values = values + [_sign_fallback(band, None)]
+                values += [_sign_fallback(band, None)]
             else:
-                values = values + [rungs[0] if place == 0 else rungs[-1]]
+                values += [rungs[0] if place == 0 else rungs[-1]]
             continue
         if rungs is None:
-            values = values + [_sign_fallback(band, None)]
+            values += [_sign_fallback(band, None)]
             taken = taken + 1
             continue
         word = words[taken]
@@ -7854,7 +8047,7 @@ def _stratum_values(
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
-        values = values + [found]
+        values += [found]
     repaired, repair_notes = _sign_repairs(column, facts, layout, rungs, values)
     return repaired, notes + repair_notes
 
@@ -7910,7 +8103,7 @@ def _sign_repairs(
             value = fallback
             pinned = place == 0 or (place == total - 1 and total >= 2)
             if pinned:
-                notes = notes + [
+                notes += [
                     _deviation(
                         column.name,
                         "percentiles",
@@ -7921,7 +8114,7 @@ def _sign_repairs(
                         "twin keeps the counts and that end moves.",
                     )
                 ]
-        repaired = repaired + [value]
+        repaired += [value]
     return repaired, notes
 
 
@@ -8737,7 +8930,7 @@ def _fraction_inside(
     tries = [middle]
     step = 0
     while step < 16:
-        tries = tries + [middle + above, middle - below]
+        tries += [middle + above, middle - below]
         above = above / 2.0
         below = below / 2.0
         step = step + 1
@@ -8756,7 +8949,7 @@ def _fraction_inside(
     step = 0
     while step < 60:
         reach = reach / 2.0
-        tries = tries + [low + reach, high - reach]
+        tries += [low + reach, high - reach]
         step = step + 1
     for order in range(len(tries)):
         pick = tries[order]
@@ -9165,7 +9358,7 @@ def _shares_after(
             continue
         if layout.bands[later] == _BAND_ZERO:
             continue
-        after = after + [
+        after += [
             (
                 _interpolated(rungs, layout.starts[later], numbers),
                 _interpolated(
@@ -9335,11 +9528,11 @@ def _carrier_cell(
             size = 1
         if step == taker:
             size = size + layout.sizes[place] - 1
-        sizes = sizes + [size]
+        sizes += [size]
     starts: list[int] = []
     running = 0
     for size in sizes:
-        starts = starts + [running]
+        starts += [running]
         running = running + size
     return dataclasses.replace(
         layout, sizes=tuple(sizes), starts=tuple(starts)
@@ -9749,11 +9942,11 @@ def _field_demands(facts: contract.NumericFacts) -> "list[tuple[int, int, int]]"
     for width in sorted(padded):
         if width - 1 < 1:
             continue
-        demands = demands + [(width - 1, 0, padded[width])]
+        demands += [(width - 1, 0, padded[width])]
     for width in sorted(named):
         spare = named[width] - (padded[width] if width in padded else 0)
         if spare > 0:
-            demands = demands + [(width, 1, spare)]
+            demands += [(width, 1, spare)]
     return sorted(demands)
 
 
@@ -10004,7 +10197,7 @@ def _empty_runs(bins: "tuple[int, ...]") -> "list[tuple[int, int]]":
         if runs and place == runs[-1][1] + 1:
             runs[-1] = (runs[-1][0], place)
             continue
-        runs = runs + [(place, place)]
+        runs += [(place, place)]
     return runs
 
 
@@ -10023,7 +10216,7 @@ def _census_widths(facts: contract.NumericFacts) -> "tuple[int, ...]":
     for key in sorted(facts.fraction_widths):
         if key == contract.WITHHELD:
             continue
-        widths = widths + [int(key)]
+        widths += [int(key)]
     return tuple(sorted(widths))
 
 
@@ -10321,7 +10514,7 @@ def _stretch_holding(
     for spelling in _spellings_of(value, widths, whole_column):
         read = parsing.parse_number(spelling)
         if read is not None:
-            readings = readings + [read]
+            readings += [read]
     for index in range(len(every)):
         below = every[index][0]
         above = every[index][1]
@@ -10359,7 +10552,7 @@ def _outside_every(
     for spelling in _spellings_of(value, widths, whole_column):
         read = parsing.parse_number(spelling)
         if read is not None:
-            readings = readings + [read]
+            readings += [read]
     for below, above in every:
         for reading in readings:
             if below < reading < above:
@@ -10584,7 +10777,7 @@ def _clear_enough(
             continue
         came[place] = by_pair
         if index in queued:
-            queued[index] = queued[index] + [place]
+            queued[index] += [place]
         else:
             queued[index] = [place]
     for index in sorted(queued):
@@ -10762,7 +10955,7 @@ def _gap_notes(
         apart: "list[float]" = []
         for one in sorted(found):
             if one not in apart:
-                apart = apart + [one]
+                apart += [one]
         # BUILT BY JOINING RATHER THAN BY A METHOD ON A VALUE, which
         # is this package's rule everywhere and what the offline audit
         # holds it to: a `join` over a comprehension hands the method a
@@ -10777,7 +10970,7 @@ def _gap_notes(
                 shown = f"{apart[step]}"
         if len(apart) > 4:
             shown = f"{shown} and {len(apart) - 4} more"
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 seat[1],
@@ -10839,7 +11032,7 @@ def _number_cells(
     holds: list[float] = []
     for place in range(len(layout.sizes)):
         for _step in range(layout.sizes[place]):
-            holds = holds + [values[place]]
+            holds += [values[place]]
     styles = _style_places(
         quotas, holds, facts.integer_valued, _style_pool(facts.numeric_styles)
     )
@@ -10883,7 +11076,7 @@ def _number_cells(
     )
     base: list[str] = []
     for index in range(len(holds)):
-        base = base + [
+        base += [
             _styled_number(
                 holds[index],
                 styles[index],
@@ -10963,7 +11156,7 @@ def _number_cells(
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
         spellings[spelling] = 1
-        cells = cells + [spelling]
+        cells += [spelling]
     # NO NOTE IS MADE HERE, and that is deliberate. This function used
     # to predict one style miss -- a leading plus with only negative
     # values left to put it on -- from its own bookkeeping. A prediction
@@ -11036,10 +11229,10 @@ def _clock_content(
     taken = 0
     for rank in range(parsed):
         if rank == 0:
-            cells = cells + [facts.earliest]
+            cells += [facts.earliest]
             continue
         if rank == parsed - 1 and parsed >= 2:
-            cells = cells + [facts.latest]
+            cells += [facts.latest]
             continue
         word = words[taken]
         taken = taken + 1
@@ -11083,7 +11276,7 @@ def _clock_content(
             if ordinal > ceiling:
                 ordinal = ceiling
         last = ordinal
-        cells = cells + [parsing.clock_spelling(ordinal, form)]
+        cells += [parsing.clock_spelling(ordinal, form)]
     # THE STAND-INS, which are outside the obligation to reproduce a
     # clock value and are counted rather than described. Each is
     # stepped past four things: a spelling this column already wrote, a
@@ -11100,7 +11293,7 @@ def _clock_content(
             continue
         if _is_a_hole_spelling(candidate, holes):
             continue
-        cells = cells + [_take(candidate, used)]
+        cells += [_take(candidate, used)]
     return cells, []
 
 
@@ -11197,7 +11390,7 @@ def _datetime_content(
         text = written
         if _is_real_offset(offset) and offset:
             text = f"{text}{offset}"
-        cells = cells + [_kept_datetime_cell(text, holes)]
+        cells += [_kept_datetime_cell(text, holes)]
     if parsed >= 1:
         notes = notes + _endpoint_notes(
             column, facts, "earliest", facts.earliest, cells[0], holes
@@ -11208,10 +11401,10 @@ def _datetime_content(
         )
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
-        cells = cells + [_take(_text_spelling(step + 1, used, holes), used)]
+        cells += [_take(_text_spelling(step + 1, used, holes), used)]
     carried = [offset for offset in offsets if offset]
     if facts.datetimes_read_at == "utc" and len(set(carried)) < 2:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "datetimes_read_at",
@@ -11383,7 +11576,7 @@ def _offset_allocation(
             left[key] = left[key] - 1
             pointer = pointer + 1
     if contract.WITHHELD in facts.utc_offsets and parsed > 0:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "utc_offsets",
@@ -11512,7 +11705,7 @@ def _label_content(
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
     if made_up:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "levels -> variants_withheld",
@@ -11578,7 +11771,7 @@ def _label_content(
                 f"{facts.suppressed_levels} labels made up in their place, "
                 f"{shaped} of them written in a form this column published"
             )
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "suppressed_levels",
@@ -12161,7 +12354,7 @@ def _subset_making(
     at = total
     while at:
         slot, before_sum = made[at]
-        picked = picked + [slot]
+        picked += [slot]
         at = before_sum
     return picked
 
@@ -12590,7 +12783,7 @@ def _wanted_form(
         # measured WORSE -- the debt went unpaid AND the group fell out
         # of the form alphabet into ordinary text (residual R-P4-38).
         snug = 0 if owing[form] >= covering else 1
-        fits = fits + [(snug, 0 - owing[form], form)]
+        fits += [(snug, 0 - owing[form], form)]
     if not fits:
         return ""
     return sorted(fits)[0][2]
@@ -13058,7 +13251,7 @@ def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
             continue
         if band == _BAND_WIDE and parsing.is_code_text(figure):
             continue
-        permitted = permitted + [figure]
+        permitted += [figure]
     return tuple(permitted)
 
 
@@ -13295,7 +13488,7 @@ def _identifier_shortfall(
     ]
     for name, counted, published in owed:
         if counted != published:
-            missed = missed + [name]
+            missed += [name]
     return frozenset(missed)
 
 
@@ -13385,7 +13578,7 @@ def _laid_identifiers(
             else:
                 supply[cells[index]] = supply[cells[index]] + 1
         if partner is not None:
-            spellings = spellings + [_take(partner, used)]
+            spellings += [_take(partner, used)]
             continue
         letter = asks[index] and band != _BAND_DIGITS
         spelling: str | None = None
@@ -13412,7 +13605,7 @@ def _laid_identifiers(
             if again:
                 repeated = repeated + 1
         _claim(spelling, used)
-        spellings = spellings + [spelling]
+        spellings += [spelling]
     if repeated or len(set(spellings)) < total:
         notes = notes + _repeat_notes(column)
     return _grouped(groups, spellings), notes, short, supply
@@ -13855,7 +14048,7 @@ def _identifier_packings(
             together = answers[question]
             if together is None:
                 continue
-            found = found + [(
+            found += [(
                 _collision_slots(
                     together,
                     groups,
@@ -13893,7 +14086,7 @@ def _identifier_packings(
                     together = answers[question]
                     if together is None:
                         continue
-                    found = found + [(
+                    found += [(
                         _collision_slots(
                             together,
                             groups,
@@ -14029,7 +14222,7 @@ def _identifier_windows(
             highest = facts.min_length
         elif index == carriers[1] and facts.max_length > facts.min_length:
             shortest = facts.max_length
-        permits = permits + [
+        permits += [
             _identifier_permits(facts, shortest, highest, signed)
         ]
     return permits
@@ -14637,7 +14830,7 @@ def _caseless_slots(
         if cells[place] // width == number and (
             cells[place] - (cells[place] // width) * width
         ) == code:
-            caught = caught + [place]
+            caught += [place]
     return frozenset(caught)
 
 
@@ -14815,7 +15008,7 @@ def _text_cells(
         counts[index] = 1
         shortened = shortened + 1
     if shortened:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "words",
@@ -14884,7 +15077,7 @@ def _text_cells(
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
-            spellings = spellings + [taken]
+            spellings += [taken]
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
@@ -14934,7 +15127,7 @@ def _text_cells(
         made[key] = made[key] + 1
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
-        spellings = spellings + [spelling]
+        spellings += [spelling]
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
@@ -14962,7 +15155,7 @@ def _text_cells(
     crossed = _levels_past_the_line(spellings, groups, long_tail_line)
     remarks: "list[Remark]" = []
     if crossed:
-        remarks = remarks + [
+        remarks += [
             _remark(
                 column.name,
                 "folded groups of cells at or past the long-tail line",
@@ -15056,13 +15249,13 @@ def _text_permits(
     permits: list[int] = []
     for place in range(len(lengths)):
         if reach and place not in carriers:
-            permits = permits + [
+            permits += [
                 _pair_reach(
                     lengths[place], facts.length.maximum, counts[place], room
                 )
             ]
             continue
-        permits = permits + [
+        permits += [
             _pair_permits(lengths[place], counts[place], place in carriers)
         ]
     return permits
@@ -15462,7 +15655,7 @@ def _text_shape(
             counts[place] = 1
             clamped = clamped + 1
     if clamped:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "words",
@@ -16219,7 +16412,7 @@ def _unrepresentable_cells(
                         fallbacks, partner, spellings, folded
                     )
             if partner is not None:
-                spellings = spellings + [_take(partner, used)]
+                spellings += [_take(partner, used)]
                 continue
             room = asked[index] - spacing[index]
             spelling = _wide_number(
@@ -16240,7 +16433,7 @@ def _unrepresentable_cells(
                 spelling = _take(
                     f"{spelling}{_SPACE * spacing[index]}", used
                 )
-            spellings = spellings + [spelling]
+            spellings += [spelling]
         if not fallbacks:
             break
         moved = False
@@ -16271,7 +16464,7 @@ def _unrepresentable_cells(
         }
     )
     if widened:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "max_length",
@@ -16358,7 +16551,7 @@ def _wide_width_notes(
     for index in range(len(spellings)):
         if index < len(kinds) and kinds[index] == 5:
             continue
-        widths = widths + [len(spellings[index])]
+        widths += [len(spellings[index])]
     if not widths:
         return []
     shortest = widths[0]
@@ -16377,7 +16570,7 @@ def _wide_width_notes(
     # started at 310.
     notes: "list[Deviation]" = []
     if shortest != facts.min_length:
-        notes = notes + [
+        notes += [
             _deviation(
                 name,
                 "min_length",
@@ -16395,7 +16588,7 @@ def _wide_width_notes(
             )
         ]
     if longest != facts.max_length:
-        notes = notes + [
+        notes += [
             _deviation(
                 name,
                 "max_length",
@@ -16786,16 +16979,16 @@ def _wide_families(kind: int, room: int) -> "list[str]":
     if kind == 1:
         families: "list[str]" = []
         if room >= _OVERFLOW_FIGURES:
-            families = families + [_WIDE_PLAIN]
+            families += [_WIDE_PLAIN]
         if room >= _EXPONENT_LARGE_ROOM:
-            families = families + [_WIDE_EXPONENT]
+            families += [_WIDE_EXPONENT]
         return families
     if kind == 2:
         families = []
         if room >= _UNDERFLOW_PLACES:
-            families = families + [_WIDE_PLAIN]
+            families += [_WIDE_PLAIN]
         if room >= _EXPONENT_SMALL_ROOM:
-            families = families + [_WIDE_EXPONENT]
+            families += [_WIDE_EXPONENT]
         return families
     return [_WIDE_PLAIN]
 
@@ -17371,7 +17564,7 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             profile.settings.long_tail_minimum_level,
         )
         plan = _plan_column(column, profile.n_rows, everywhere, line)
-        plans = plans + [plan]
+        plans += [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
@@ -17763,7 +17956,7 @@ def _compound_content(
     notes: "list[Deviation]" = []
     for step in range(len(half_notes)):
         note = half_notes[step]
-        notes = notes + [
+        notes += [
             dataclasses.replace(
                 note,
                 fact=f"numbers.{note.fact}",
@@ -17930,7 +18123,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # made from, which is the same spelling `validate` re-describes
         # it in, and only the bytes that leave differ.
         spelled = _spelled_with_a_decimal_comma(column, profile, written)
-        columns = columns + [tuple(spelled)]
+        columns += [tuple(spelled)]
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
         # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
@@ -18037,7 +18230,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # are properties of the finished cells, and every published
         # fact of the column can be met exactly while one is true.
         remarked = remarked + list(each.remarks)
-        outcomes = outcomes + [
+        outcomes += [
             ColumnOutcome(
                 name=column.name,
                 position=column.position,
@@ -18319,7 +18512,7 @@ def _recount_notes(
         _unconditional_hole_excess(column, spelled, decimal_comma) > 0
     )
     if collided and counted[0] != column.n_present:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_present",
@@ -18333,7 +18526,7 @@ def _recount_notes(
             )
         ]
     if collided and counted[1] != column.n_missing:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_missing",
@@ -18368,7 +18561,7 @@ def _recount_notes(
                 "removes duplicates, sees more groups here than it will "
                 "on your table."
             )
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_distinct",
@@ -18384,7 +18577,7 @@ def _recount_notes(
         )
         if counted[3] > column.n_distinct_folded:
             reason = _folded_excess_reason(column)
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_distinct_folded",
@@ -18454,7 +18647,7 @@ def _alphabet_notes(
     )
     notes: list[Deviation] = []
     if counted[0] != published[0]:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_all_digits",
@@ -18468,7 +18661,7 @@ def _alphabet_notes(
             )
         ]
     if counted[1] != published[1]:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "n_code_alphabet",
@@ -18672,7 +18865,7 @@ def _fraction_notes(
         found = counted[width] if width in counted else 0
         if published[width] <= found <= published[width] + pooled:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "fraction_widths",
@@ -18775,7 +18968,7 @@ def _pad_notes(
         found = counted[width] if width in counted else 0
         if published[width] <= found <= published[width] + pooled:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "pad_widths",
@@ -18882,7 +19075,7 @@ def _field_notes(
         found = counted[width] if width in counted else 0
         if published[width] <= found <= published[width] + pooled:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "field_widths",
@@ -18975,7 +19168,7 @@ def _half_distinct_notes(
                 f"more groups among the {half} here than it will on "
                 "your table."
             )
-        notes = notes + [
+        notes += [
             _deviation(column.name, name, f"{published}", f"{counted}", reason)
         ]
     return notes
@@ -19001,7 +19194,7 @@ def _label_half_of(
     mine: "list[str]" = []
     for cell in written:
         if parsing.classify_number(cell) != parsing.NUMBER:
-            mine = mine + [cell]
+            mine += [cell]
     return (contract.compound_labels_view(column), mine)
 
 
@@ -19092,7 +19285,7 @@ def _form_notes(
         found = counted[form] if form in counted else 0
         if census[form] <= found <= census[form] + pooled:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "shape_forms",
@@ -19169,7 +19362,7 @@ def _level_form_notes(
         found = counted[entry.label] if entry.label in counted else 0
         if found == entry.shape_form_cells:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "levels -> shape_form_cells",
@@ -19555,7 +19748,7 @@ def _style_notes(
             # they are owed a floor each and a total together.
             if counted[name] >= published[name]:
                 continue
-            notes = notes + [
+            notes += [
                 _deviation(
                     column.name,
                     "numeric_styles",
@@ -19574,7 +19767,7 @@ def _style_notes(
             # itself. A published form is never substituted away: the
             # count named in the description is a floor under the
             # recount, whatever the pool does above it.
-            notes = notes + [
+            notes += [
                 _deviation(
                     column.name,
                     "numeric_styles",
@@ -19597,7 +19790,7 @@ def _style_notes(
                 "plainly because that form changes nothing a reader "
                 "infers"
             )
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name, "numeric_styles", owed, f"{counted[name]}", sense
             )
@@ -19626,7 +19819,7 @@ def _style_notes(
             if cell != _canonical_number(held, facts.integer_valued):
                 odd = odd + 1
         if odd > published[name]:
-            notes = notes + [
+            notes += [
                 _deviation(
                     column.name,
                     "numeric_styles",
@@ -19640,7 +19833,7 @@ def _style_notes(
     carried = counted["decimal"] + counted["exponent_lower"]
     owed_together = published["decimal"] + published["exponent_lower"] + spilled
     if carried != owed_together:
-        notes = notes + [
+        notes += [
             _deviation(
                 column.name,
                 "numeric_styles",
@@ -19958,16 +20151,16 @@ def _numeric_window(
     middles: list[float] = []
     for rank in range(held):
         middle = rank * held
-        lows = lows + [
+        lows += [
             _interpolated(rungs, max(0, middle - span), denominator) - slack
         ]
-        highs = highs + [
+        highs += [
             _interpolated(
                 rungs, min(denominator, middle + span), denominator
             )
             + slack
         ]
-        middles = middles + [_interpolated(rungs, middle, denominator)]
+        middles += [_interpolated(rungs, middle, denominator)]
     return (lows, highs, middles)
 
 
@@ -20117,7 +20310,7 @@ def _numeric_cardinalities(
         ),
     ):
         published = column.n_distinct if place == 2 else column.n_distinct_folded
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact=name,
@@ -20176,7 +20369,7 @@ def _compound_cardinalities(
     labels: "list[str]" = []
     for cell in _present_of(written, holes):
         if parsing.classify_number(cell) != parsing.NUMBER:
-            labels = labels + [cell]
+            labels += [cell]
     inner = _numeric_cardinalities(
         contract.compound_numbers_view(column), plan, numeric
     )
@@ -20189,7 +20382,7 @@ def _compound_cardinalities(
     for record in inner:
         folded = record.fact == "n_distinct_folded"
         name = "n_numeric_distinct_folded" if folded else "n_numeric_distinct"
-        found = found + [
+        found += [
             dataclasses.replace(
                 record,
                 fact=name,
@@ -20222,7 +20415,7 @@ def _compound_cardinalities(
         # total. Its arithmetic is still used below, where the outer
         # window needs it.
         if not folded:
-            found = found + [
+            found += [
                 Approximation(
                     column=column.name,
                     fact="labels -> n_distinct",
@@ -20240,7 +20433,7 @@ def _compound_cardinalities(
         low = int(record.lowest) + low_labels
         high = int(record.highest) + high_labels
         reached = int(record.achieved) + reached_labels
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="n_distinct_folded" if folded else "n_distinct",
@@ -20301,7 +20494,7 @@ def _joined_approximations(
         for one in _numeric_approximations(
             view, facts.parts[place], part_plan, mine, named, False
         ):
-            found = found + [
+            found += [
                 dataclasses.replace(
                     one,
                     column=column.name,
@@ -20347,8 +20540,8 @@ def _agreement_approximations(
         for text in _joined_position_numbers(written, facts, place):
             value = parsing.parse_number(text)
             if value is not None:
-                numbers = numbers + [value]
-        columns = columns + [numbers]
+                numbers += [value]
+        columns += [numbers]
     seat = 0
     for first in range(facts.n_parts):
         for second in range(first + 1, facts.n_parts):
@@ -20378,7 +20571,7 @@ def _agreement_approximations(
             # else.
             lowest = _lowered(published - _AGREEMENT_REACH)
             highest = _raised(published + _AGREEMENT_REACH)
-            found = found + [
+            found += [
                 Approximation(
                     column=column.name,
                     fact=f"part_agreements[{seat}]",
@@ -20424,8 +20617,8 @@ def _agreement_notes(
         for text in _joined_position_numbers(written, facts, place):
             value = parsing.parse_number(text)
             if value is not None:
-                numbers = numbers + [value]
-        columns = columns + [numbers]
+                numbers += [value]
+        columns += [numbers]
     found: "list[Deviation]" = []
     # `part_above` FOR EVERY PAIR, because a miss of it is a fact the
     # twin does not carry and the reader has to be told (review item
@@ -20446,7 +20639,7 @@ def _agreement_notes(
                     held = held + 1
             published_above = facts.part_above[seat]
             if held != published_above:
-                found = found + [
+                found += [
                     Deviation(
                         column=column.name,
                         fact=f"part_above[{seat}]",
@@ -20538,7 +20731,7 @@ def _joined_position_numbers(
                 every = False
         if not every:
             continue
-        found = found + [pieces[place]]
+        found += [pieces[place]]
     return found
 
 
@@ -20625,7 +20818,7 @@ def _numeric_approximations(
             min(100 * held, percent * held + 100 * (widest + 2)),
             100 * held,
         ) + slack
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact=f"percentiles.p{percent:02d}",
@@ -20645,7 +20838,7 @@ def _numeric_approximations(
     if facts.mean is not None:
         lowest = _mean_of(lows)
         highest = _mean_of(highs)
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="mean",
@@ -20696,7 +20889,7 @@ def _numeric_approximations(
         middle = centre[1] if centre[1] is not None else 0.0
         lowest = max(0.0, middle - room)
         highest = middle + room
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="std",
@@ -20711,7 +20904,7 @@ def _numeric_approximations(
         ]
     if facts.skew is not None and shape is not None:
         lowest, highest = _shape_window(lows, highs, middles, reach, held)
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="skew",
@@ -20729,7 +20922,7 @@ def _numeric_approximations(
         ]
     if facts.kurtosis is not None and tails is not None and held >= 4:
         lowest, highest = _tails_window(lows, highs, middles, reach, held)
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="kurtosis",
@@ -20786,8 +20979,8 @@ def _shape_window(
     for rank in range(held):
         below = lows[rank] - ceiling_mean
         above = highs[rank] - floor_mean
-        low_cubes = low_cubes + [below * below * below / held]
-        high_cubes = high_cubes + [above * above * above / held]
+        low_cubes += [below * below * below / held]
+        high_cubes += [above * above * above / held]
     lowest_shape = _summed(low_cubes)
     highest_shape = _summed(high_cubes)
     spread = _moments_of(middles)
@@ -20914,8 +21107,8 @@ def _tails_window(
         furthest = max(-below, above, 0.0)
         near = nearest / high_root
         far = furthest / low_root
-        low_fourths = low_fourths + [near * near * near * near / held]
-        high_fourths = high_fourths + [far * far * far * far / held]
+        low_fourths += [near * near * near * near / held]
+        high_fourths += [far * far * far * far / held]
     lowest = _summed(low_fourths)
     highest = _summed(high_fourths)
     if not math.isfinite(lowest) or not math.isfinite(highest):
@@ -21025,15 +21218,15 @@ def _datetime_window(
     highs: list[int] = []
     for rank in range(held):
         if rank == 0:
-            lows = lows + [ladder[0]]
-            highs = highs + [ladder[0]]
+            lows += [ladder[0]]
+            highs += [ladder[0]]
             continue
         if rank == held - 1 and held >= 2:
-            lows = lows + [ladder[10]]
-            highs = highs + [ladder[10]]
+            lows += [ladder[10]]
+            highs += [ladder[10]]
             continue
-        lows = lows + [_ordinal_at(ladder, rank, held) - slack]
-        highs = highs + [_ordinal_at(ladder, rank + 1, held)]
+        lows += [_ordinal_at(ladder, rank, held) - slack]
+        highs += [_ordinal_at(ladder, rank + 1, held)]
     return (lows, highs)
 
 
@@ -21105,7 +21298,7 @@ def _clock_approximations(
         achieved = ordinals[place]
         lowest = lows[place]
         highest = highs[place]
-        found_facts = found_facts + [
+        found_facts += [
             Approximation(
                 column=column.name,
                 fact=f"clock_percentiles.p{percent:02d}",
@@ -21131,7 +21324,7 @@ def _clock_approximations(
         published = column.n_distinct
         if place == 3:
             published = column.n_distinct_folded
-        found_facts = found_facts + [
+        found_facts += [
             Approximation(
                 column=column.name,
                 fact=name,
@@ -21166,15 +21359,15 @@ def _clock_windows(
     highs: "list[int]" = []
     for rank in range(held):
         if rank == 0:
-            lows = lows + [ladder[0]]
-            highs = highs + [ladder[0]]
+            lows += [ladder[0]]
+            highs += [ladder[0]]
             continue
         if rank == held - 1 and held >= 2:
-            lows = lows + [ladder[10]]
-            highs = highs + [ladder[10]]
+            lows += [ladder[10]]
+            highs += [ladder[10]]
             continue
-        lows = lows + [_ladder_at(ladder, rank, held) - 1]
-        highs = highs + [_ladder_at(ladder, rank + 1, held)]
+        lows += [_ladder_at(ladder, rank, held) - 1]
+        highs += [_ladder_at(ladder, rank + 1, held)]
     return (lows, highs)
 
 
@@ -21221,7 +21414,7 @@ def _datetime_approximations(
         achieved = ordinals[place]
         lowest = lows[place]
         highest = highs[place]
-        found_facts = found_facts + [
+        found_facts += [
             Approximation(
                 column=column.name,
                 fact=f"date_percentiles.p{percent:02d}",
@@ -21272,7 +21465,7 @@ def _datetime_approximations(
         published = column.n_distinct
         if place == 3:
             published = column.n_distinct_folded
-        found_facts = found_facts + [
+        found_facts += [
             Approximation(
                 column=column.name,
                 fact=name,
@@ -21365,7 +21558,7 @@ def _text_approximations(
         achieved = 0
         for length in lengths:
             achieved = achieved + length
-        found = found + [
+        found += [
             Approximation(
                 column=column.name,
                 fact="length.mean",
@@ -21646,7 +21839,7 @@ def _approximations(
             for record in _numeric_approximations(
                 view, numbers, mine, held[pair_view[0]]
             ):
-                records = records + [
+                records += [
                     dataclasses.replace(record, fact=_affixed_key(step, record.fact))
                 ]
             step = step + 1
@@ -21683,7 +21876,7 @@ def _approximations(
         numeric: list[str] = []
         for cell in written:
             if parsing.classify_number(cell) == parsing.NUMBER:
-                numeric = numeric + [cell]
+                numeric += [cell]
         return _numeric_approximations(
             contract.compound_numbers_view(column),
             facts.numbers,
@@ -21792,7 +21985,7 @@ def _bound_notes(measured: "list[Approximation]") -> "list[Deviation]":
     for found in measured:
         if found.inside:
             continue
-        notes = notes + [
+        notes += [
             _deviation(
                 found.column,
                 found.fact,

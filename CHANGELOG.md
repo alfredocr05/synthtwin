@@ -6,6 +6,58 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: both commands were quadratic, and it was one idiom (stage 1, 2026-09-13)
+
+**Describing a table and building a twin both grew with the SQUARE of
+the row count**, and no guard in the suite looked at growth at all.
+Measured on the tree this landed on:
+
+| case                                | before  | after |
+|-------------------------------------|---------|-------|
+| build a twin, 20,000 rows x 20 numeric | 1,113 s | 19 s |
+| describe, 200,000 rows x 2 labels      |   390 s | 10 s |
+| describe, 100,000 rows x 20 numeric    | (hours) | 96 s |
+
+A 100,000-row table now runs end to end in about three and a half
+minutes. Before this it could not be done at all.
+
+**Two causes, in two places.** Every list in the package was grown with
+`x = x + [item]`, which rebuilds the whole list on each pass, in 669
+places -- 661 with a plain name as the target and 8 more where the list
+sits in a slot of another container. `tools/offline_scan` refuses
+`list.append`, so that quadratic form was what the rules left standing;
+`x += [item]` is accepted and is amortised constant. And
+`generation._shape_sizes` reduced runs by calling `_merge_nearest` once
+per merge, which rescans every adjacent pair and rebuilds both lists; it
+now calls `_merge_down`, a binary heap over a linked list, written
+without a new import because `heapq` is not on the allowlist.
+
+**Nothing the tool produces changed.** The profile, the twin and the
+twin's report were hashed for three tables before and after: identical.
+`_merge_down` was checked against `_merge_nearest` on 4,200 randomised
+cases over six adversarial families -- all-equal values, whole and
+fractional mixes, the 1e308 and 1e-320 magnitudes that exercise the
+overflow rescale, signed zeros, and the ladder's own
+plateau-and-transition shape -- agreeing on every length and on the
+`repr` of every value. Review independently reproduced this over
+267,330 exhaustive small cases and 6,000 seeded ones.
+
+**A new guard, `tests/test_no_quadratic_list_growth.py`.** It reads the
+source and names any list grown by copying, file and line. It is static
+rather than timed because the first version was timed and review killed
+it: with the defect restored the wall-clock ratios were 2.5 and 2.2,
+under the threshold, so the guard accepted a quadratic tree, while a
+single 0.6-second pause made repaired code fail. Counting the defect
+beats timing its symptom.
+
+**Review found three blocking items and all three were repaired**: the
+eight container-slot sites above, the timing guard, and a recorded test
+count that guaranteed a gate failure.
+
+Suite: 4,407 passed, 51 skipped. Lint, strict types, the offline import
+scan, provenance, decontamination and the signed attestation all clean.
+
+
 ### Phase 4 is closed (2026-09-11)
 
 **Every column type a real table holds is read, or declined with an

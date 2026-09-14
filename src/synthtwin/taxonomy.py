@@ -3736,7 +3736,7 @@ def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
     for cell in cells.classified:
         if cell.kind == parsing.NOT_A_NUMBER:
             continue
-        widths = widths + [len(cell.numeric_text)]
+        widths += [len(cell.numeric_text)]
     if not widths:
         return (1, 1)
     shortest = widths[0]
@@ -3880,7 +3880,7 @@ def declarations_named(spellings: "tuple[str, ...]") -> int:
             if _same_declaration(declaration, already):
                 known = True
         if not known:
-            distinct = distinct + [declaration]
+            distinct += [declaration]
     return len(distinct)
 
 
@@ -4921,7 +4921,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     labels: "list[_Cell]" = []
     for cell in cells.classified:
         if cell.kind == parsing.NUMBER:
-            numbers = numbers + [cell]
+            numbers += [cell]
         elif cell.kind in (
             parsing.NUMBER_OUT_OF_RANGE, parsing.NUMBER_CONTRADICTORY
         ):
@@ -4934,9 +4934,9 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
             # raised floor: one such cell does not clear it, so the
             # spelling was suppressed and the cell came back as
             # `group-N` -- a fake word where the source had a number.
-            unusable = unusable + [cell]
+            unusable += [cell]
         else:
-            labels = labels + [cell]
+            labels += [cell]
     if not numbers or not labels:
         return None
     # AND THE NUMBERS MUST LOOK LIKE A QUANTITY RATHER THAN A CODE SET,
@@ -5255,7 +5255,7 @@ def _stand_in_level_remarks(levels: _Levels) -> "list[Note]":
         wanted = exact_of_number(candidate)
         for held in exact:
             if held is not None and held == wanted:
-                said = said + [note(REMARK_LABEL_IS_A_STAND_IN, (place,))]
+                said += [note(REMARK_LABEL_IS_A_STAND_IN, (place,))]
                 break
     return said
 
@@ -5898,7 +5898,7 @@ def _empty_edges(numbers: "list[float]") -> "list[list[float]]":
             continue
         if above <= below:
             continue
-        edges = edges + [[below, above]]
+        edges += [[below, above]]
     return edges
 
 
@@ -5910,11 +5910,11 @@ def _bin_runs(bins: "list[int]") -> "list[tuple[int, int]]":
     for place in bins:
         if place != last + 1:
             if start >= 0:
-                runs = runs + [(start, last)]
+                runs += [(start, last)]
             start = place
         last = place
     if start >= 0:
-        runs = runs + [(start, last)]
+        runs += [(start, last)]
     return runs
 
 
@@ -6968,13 +6968,13 @@ def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
                 matched = False
                 break
         if matched:
-            parts = parts + [current]
+            parts += [current]
             current = ""
             at = at + len(separator)
             continue
         current = current + text[at]
         at = at + 1
-    parts = parts + [current]
+    parts += [current]
     if len(parts) < 2:
         return None
     for part in parts:
@@ -7019,7 +7019,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     tried: "list[str]" = []
     for mark in JOINED_SEPARATORS:
         for spacing in range(len(JOINED_SPACINGS)):
-            tried = tried + [
+            tried += [
                 JOINED_SPACINGS[spacing] + mark + JOINED_TAILINGS[spacing]
             ]
     for separator in tried:
@@ -7040,7 +7040,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
                     continue
                 worn = worn + 1
                 for place in range(width):
-                    columns[place] = columns[place] + [split[place]]
+                    columns[place] += [split[place]]
             return _Joined(
                 separator=separator,
                 n_parts=width,
@@ -7084,12 +7084,12 @@ def _joined_details(
         for spelling in text:
             if "." in spelling:
                 whole_here = False
-        blocks = blocks + [_numeric_details(part_cells, whole_here)]
+        blocks += [_numeric_details(part_cells, whole_here)]
         smallest = len(text[0])
         for value in text:
             if len(value) < smallest:
                 smallest = len(value)
-        widths = widths + [smallest]
+        widths += [smallest]
     # HOW THE POSITIONS MOVE TOGETHER (plan P4-D23). Two numbers per
     # PAIR of positions, in the fixed order (1,2), (1,3), ... (2,3), ...
     # so a reader can find a pair without being told the order:
@@ -7108,13 +7108,13 @@ def _joined_details(
     for place in range(joined.n_parts):
         counted_here: "list[float]" = []
         for spelling in joined.parts[place]:
-            counted_here = counted_here + [float(spelling)]
-        numbers = numbers + [counted_here]
+            counted_here += [float(spelling)]
+        numbers += [counted_here]
     agreements: "list[float]" = []
     above: "list[int]" = []
     for first in range(joined.n_parts):
         for second in range(first + 1, joined.n_parts):
-            agreements = agreements + [
+            agreements += [
                 round(
                     parsing.rank_agreement(numbers[first], numbers[second]),
                     parsing.RANK_AGREEMENT_PLACES,
@@ -7124,7 +7124,7 @@ def _joined_details(
             for seat in range(joined.n_joined):
                 if numbers[first][seat] > numbers[second][seat]:
                     counted = counted + 1
-            above = above + [counted]
+            above += [counted]
     return {
         "separator": joined.separator,
         "n_parts": joined.n_parts,
@@ -7195,7 +7195,7 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
                 # The CELL, not a tidied copy of it: what this role
                 # publishes are values some row wore, and the reader
                 # accepts nothing that needed tidying.
-                good = good + [text]
+                good += [text]
         if len(good) >= needed and good:
             return _Clock(
                 form=form,
@@ -7444,7 +7444,7 @@ def _clock_verdict(
         "n_unparsed": clock.n_unparsed,
     }
     if _all_different(cells):
-        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
     return _Verdict(
         role=ROLE_CLOCK,
         evidence=note(
@@ -7599,7 +7599,7 @@ def _pairs_of(reading: "_Affixed") -> "list[tuple[str, str]]":
     """Every wrapper this reading would publish: the commonest and its set."""
     pairs = [(reading.prefix, reading.suffix)]
     for prefix, suffix, _count in reading.variants:
-        pairs = pairs + [(prefix, suffix)]
+        pairs += [(prefix, suffix)]
     return pairs
 
 
@@ -7843,7 +7843,7 @@ def _affixed_before_the_address_test(
     speaking: "list[tuple[str, str]]" = []
     for key in sorted(proposing):
         if proposing[key] >= settings.small_cell_floor:
-            speaking = speaking + [key]
+            speaking += [key]
     if not speaking:
         return None
     # EVERY WRAPPER OF A SET STANDS APART FROM THE NUMBER (plan
@@ -8004,10 +8004,10 @@ def _affixed_before_the_address_test(
             # `mg` on its own wears no pair: it IS the suffix, with
             # nothing between the two sides for a number to be.
             continue
-        cores = cores + [core]
+        cores += [core]
         # ...AND WHICH WRAPPER IT WORE (plan P4-D37), kept beside it so
         # the blocks below can be read one wrapper at a time.
-        wrappers = wrappers + [chosen]
+        wrappers += [chosen]
         counts[chosen] = counts[chosen] + 1 if chosen in counts else 1
     # A WRAPPER IS FILTERED ON WHAT WEARS IT, NOT ON WHAT PROPOSED IT
     # (found while building plan P4-D37). `speaking` holds the wrappers
@@ -8034,8 +8034,8 @@ def _affixed_before_the_address_test(
         wearing: "list[tuple[str, str]]" = []
         for place in range(len(cores)):
             if wrappers[place] in kept:
-                held = held + [cores[place]]
-                wearing = wearing + [wrappers[place]]
+                held += [cores[place]]
+                wearing += [wrappers[place]]
         cores = held
         wrappers = wearing
         counts = kept
@@ -8065,7 +8065,7 @@ def _affixed_before_the_address_test(
     for key in sorted(counts):
         if key == pair:
             continue
-        variants = variants + [(key[0], key[1], counts[key])]
+        variants += [(key[0], key[1], counts[key])]
     # The floor is read HERE, at detection, deliberately: the pair is
     # PUBLISHED, so being able to publish a floor-clearing spelling is
     # constitutive of the role.
@@ -8475,7 +8475,7 @@ def _variant_blocks(
     for prefix, suffix, count in affixed.variants:
         tally = _wrapper_tally(affixed, (prefix, suffix), cells)
         looking = _numeric_looking(tally)
-        blocks = blocks + [
+        blocks += [
             {
                 "prefix": prefix,
                 "suffix": suffix,
@@ -8560,7 +8560,7 @@ def _wrapper_tally(
     worn: "list[str]" = []
     for place in range(len(affixed.cores)):
         if affixed.wrappers[place] == wrapper:
-            worn = worn + [affixed.cores[place]]
+            worn += [affixed.cores[place]]
     return _tally(_classify_all(worn), len(worn), cells.settings)
 
 
@@ -8737,7 +8737,7 @@ def _affixed_verdict(
     # stands in; the contract assigns this role the NUMBERS form, and
     # that is the one a column of `$1` to `$100` now carries.
     if _all_different(cells):
-        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
     return _Verdict(
         role=ROLE_AFFIXED,
         evidence=note(EVIDENCE_AFFIXED, pair),
@@ -8828,9 +8828,9 @@ def _cores_judged(
         split = _core_of(cell.text, reading.prefix, reading.suffix)
         core = _classify(split) if split is not None else None
         if core is not None and core.exact in removed:
-            missing = missing + [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
+            missing += [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
         else:
-            kept = kept + [cell]
+            kept += [cell]
     return kept, missing, judged
 
 
@@ -9039,13 +9039,13 @@ def _decide(
             and numeric_looking >= strict_needed
             and (len(cells.numbers) < strict_needed)
         ):
-            remarks = remarks + [
+            remarks += [
                 note(
                     REMARK_UNREPRESENTABLE,
                     (len(cells.numbers), numeric_looking),
                 )
             ]
-            notes = notes + [note(NOTE_UNREPRESENTABLE_WITHHELD)]
+            notes += [note(NOTE_UNREPRESENTABLE_WITHHELD)]
             return _Verdict(
                 role=ROLE_UNREPRESENTABLE,
                 # "all N of the M values" was false whenever N < M, and the
@@ -9100,7 +9100,7 @@ def _decide(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
             if levels.suppressed_levels:
-                notes = notes + [
+                notes += [
                     note(
                         NOTE_ONE_VALUE_BELOW_FLOOR,
                         (settings.small_cell_floor,),
@@ -9127,18 +9127,18 @@ def _decide(
                 cells.folded_counts, cells.spellings_by_folded, settings
             )
             if levels.suppressed_levels:
-                notes = notes + [
+                notes += [
                     note(
                         NOTE_ONE_OF_TWO_BELOW_FLOOR,
                         (levels.suppressed_levels, settings.small_cell_floor),
                     )
                 ]
             if cells.raw_distinct != 2:
-                remarks = remarks + [note(REMARK_CASE_ONLY_TWO)]
+                remarks += [note(REMARK_CASE_ONLY_TWO)]
             if numeric_looking >= strict_needed or _matching_date_format(
                 present, settings
             ):
-                remarks = remarks + [note(REMARK_TWO_ALSO_NUMBERS)]
+                remarks += [note(REMARK_TWO_ALSO_NUMBERS)]
             remarks = remarks + _stand_in_level_remarks(levels)
             return _Verdict(
                 role=ROLE_BINARY,
@@ -9175,7 +9175,7 @@ def _decide(
                 # count the numeric line was compared against three
                 # lines up, so the sentence states the two readings'
                 # own numbers rather than a third measurement of them.
-                remarks = remarks + [
+                remarks += [
                     note(
                         REMARK_DATES_ALSO_NUMBERS,
                         (len(pairs), numeric_looking),
@@ -9197,7 +9197,7 @@ def _decide(
             # that says what decided it and whether its own values
             # disagree with each other.
             if evidence is not None:
-                remarks = remarks + [
+                remarks += [
                     note(
                         REMARK_SLASHED_EVIDENCE,
                         (
@@ -9210,7 +9210,7 @@ def _decide(
                     )
                 ]
             elif format_name in _MONTH_FIRST_GUESSES:
-                remarks = remarks + [note(REMARK_MONTH_FIRST)]
+                remarks += [note(REMARK_MONTH_FIRST)]
             # THE CENTURY REMARK IS NOT AN ALTERNATIVE TO EITHER, so it
             # stands outside the chain above. A two-figure year is a
             # guess about the century whichever way the month and day
@@ -9218,7 +9218,7 @@ def _decide(
             # default -- so the column says so in every one of those
             # cases (plan P4-D15).
             if format_name in _TWO_DIGIT_YEAR_MEMBERS:
-                remarks = remarks + [note(REMARK_TWO_DIGIT_YEAR)]
+                remarks += [note(REMARK_TWO_DIGIT_YEAR)]
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(
@@ -9274,11 +9274,11 @@ def _decide(
             details = _level_details(levels, cells)
             details["level_ceiling"] = ceiling
             if levels.suppressed_levels:
-                notes = notes + [_pooled_note(levels, settings)]
+                notes += [_pooled_note(levels, settings)]
             if cells.raw_distinct != folded_distinct:
-                remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+                remarks += [note(REMARK_CASE_ONLY_MANY)]
             if ceiling - folded_distinct <= settings.near_threshold_slack:
-                remarks = remarks + [
+                remarks += [
                     note(REMARK_NEAR_CATEGORY_LINE, (folded_distinct, ceiling))
                 ]
             remarks = remarks + _stand_in_level_remarks(levels)
@@ -9390,7 +9390,7 @@ def _decide(
         else:
             annotated = _annotated_reading(cells)
             if annotated is not None:
-                remarks = remarks + [
+                remarks += [
                     note(
                         REMARK_TWO_READINGS_FIT,
                         (_wearing_a_word(annotated),),
@@ -9449,7 +9449,7 @@ def _decide(
     # sentence proposing three declarations to somebody who has just
     # made one of them is noise.
     if not forced_code and _declined_as_an_address(cells):
-        remarks = remarks + [note(REMARK_ADDRESS_NOT_A_QUANTITY)]
+        remarks += [note(REMARK_ADDRESS_NOT_A_QUANTITY)]
 
     # ...AND WHERE IT DECLINED BECAUSE A LETTER IS WRITTEN FLUSH
     # AGAINST THE DIGITS, THE COLUMN SAYS THAT TOO (landing L16,
@@ -9476,7 +9476,7 @@ def _decide(
     if not forced_code and not forced_measurement:
         letter_bound = _annotated_reading(cells)
         if letter_bound is not None:
-            remarks = remarks + [
+            remarks += [
                 note(
                     REMARK_A_LETTER_NEEDS_A_DECLARATION,
                     (_wearing_a_word(letter_bound),),
@@ -9539,9 +9539,9 @@ def _decide(
         )
         details = _level_details(levels, cells)
         if levels.suppressed_levels:
-            notes = notes + [_pooled_note(levels, settings)]
+            notes += [_pooled_note(levels, settings)]
         if cells.raw_distinct != folded_distinct:
-            remarks = remarks + [note(REMARK_CASE_ONLY_MANY)]
+            remarks += [note(REMARK_CASE_ONLY_MANY)]
         remarks = remarks + _stand_in_level_remarks(levels)
         return _Verdict(
             role=ROLE_LONG_TAIL,
@@ -9590,7 +9590,7 @@ def _decide(
     # sentences that can disagree.
     numbers_said = _read_as_numbers(numeric_looking, n_present)
     dates_said = _read_as_dates(present)
-    remarks = remarks + [
+    remarks += [
         _competing_readings(
             cells,
             ceiling,
@@ -9999,9 +9999,9 @@ def _free_text_verdict(
     # block contains is how the next field slips past unnoticed --
     # exactly the correction the record-number note took at review item
     # P1-R8-F4.
-    notes = notes + [note(NOTE_FREE_TEXT_WITHHELD)]
+    notes += [note(NOTE_FREE_TEXT_WITHHELD)]
     if _all_different(cells):
-        remarks = remarks + [note(REMARK_ALL_DIFFERENT_TEXT)]
+        remarks += [note(REMARK_ALL_DIFFERENT_TEXT)]
     remarks = remarks + _comma_remarks(cells)
     return _Verdict(
         role=ROLE_TEXT,
@@ -10206,7 +10206,7 @@ def _identifier_verdict(
     # too narrow is how the next field slips past unnoticed -- which is
     # why "how often they repeat" joined it with the field that made it
     # true (review item P1-R8-F4).
-    notes = notes + [note(NOTE_IDENTIFIER_WITHHELD)]
+    notes += [note(NOTE_IDENTIFIER_WITHHELD)]
     return _Verdict(
         role=ROLE_IDENTIFIER,
         evidence=note(EVIDENCE_DECLARED_IDENTIFIER),
@@ -10321,7 +10321,7 @@ def _numeric_verdict(
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
     unparsed = n_present - numeric_looking
     if unparsed:
-        remarks = remarks + [note(REMARK_SOME_NOT_NUMBERS, (unparsed,))]
+        remarks += [note(REMARK_SOME_NOT_NUMBERS, (unparsed,))]
     # A column where EVERY value is written as a number is not "close to
     # the line": no value of it could have been different without the
     # data being different. Reporting it as borderline is the useless
@@ -10334,7 +10334,7 @@ def _numeric_verdict(
             numeric_looking, strict_needed, settings.near_threshold_slack
         )
     ):
-        remarks = remarks + [
+        remarks += [
             note(
                 REMARK_NEAR_NUMERIC_LINE,
                 (numeric_looking, n_present, strict_needed),
@@ -10343,7 +10343,7 @@ def _numeric_verdict(
     if cells.raw_distinct >= _needed(
         settings.identifier_uniqueness, n_present
     ):
-        remarks = remarks + [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
     # ...AND A COLUMN WRITTEN WITH LEADING ZEROS SAYS SO TOO. The
     # all-different remark reaches a column whose every value differs,
     # which a column of codes is not: codes repeat, so that sentence
@@ -10354,7 +10354,7 @@ def _numeric_verdict(
     # average and a spread.
     padded = _padded_cells(cells)
     if padded:
-        remarks = remarks + [note(REMARK_PADDED_NUMBERS, (padded,))]
+        remarks += [note(REMARK_PADDED_NUMBERS, (padded,))]
     # ...AND A COMMA INSIDE A NUMBER IS A CHOICE, NOT A READING. This
     # is the one place the package can be wrong by a factor rather than
     # by a rounding, and it was silent about it: a column of European
@@ -10390,7 +10390,7 @@ def _numeric_verdict(
         # it is the same fact. What changes is that its owner is told.
         band = _epoch_band_reading(cells)
         if band is not None:
-            remarks = remarks + [note(REMARK_EPOCH_BAND, band)]
+            remarks += [note(REMARK_EPOCH_BAND, band)]
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)
@@ -10400,7 +10400,7 @@ def _numeric_verdict(
     # remark the only sign of it is a null where a number belongs
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
-        remarks = remarks + [note(REMARK_SPREAD_OUT_OF_RANGE)]
+        remarks += [note(REMARK_SPREAD_OUT_OF_RANGE)]
     # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
     # histogram is all or nothing, so a column whose values spread too
     # thinly for the floor publishes an EMPTY object -- and an empty
@@ -10409,7 +10409,7 @@ def _numeric_verdict(
     # it the only sign is an absence, and a reader cannot tell a shape
     # that was held back from a column that never had one.
     if numeric_looking > 0 and not details["value_histogram"]:
-        notes = notes + [note(NOTE_HISTOGRAM_WITHHELD)]
+        notes += [note(NOTE_HISTOGRAM_WITHHELD)]
     return _Verdict(
         role=role,
         evidence=evidence,
@@ -10820,15 +10820,15 @@ def profile_column(
     n_missing = n_rows - n_present
     remarks: list[Note] = []
     if cells.n_out_of_range:
-        remarks = remarks + [
+        remarks += [
             note(REMARK_OUT_OF_RANGE, (cells.n_out_of_range,))
         ]
     if cells.n_contradictory:
-        remarks = remarks + [
+        remarks += [
             note(REMARK_CONTRADICTORY, (cells.n_contradictory,))
         ]
     if unpublished:
-        remarks = remarks + [note(REMARK_RARE_SENTINELS, (unpublished,))]
+        remarks += [note(REMARK_RARE_SENTINELS, (unpublished,))]
 
     if not present:
         verdict = _Verdict(

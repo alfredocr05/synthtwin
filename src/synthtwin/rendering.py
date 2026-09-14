@@ -327,7 +327,7 @@ def _formula_hazard(twin: generation.Twin) -> "tuple[int, list[str]]":
                 if _first_character(cell) == leader:
                     hits = hits + 1
         if hits:
-            named = named + [f"'{_shown(twin.names[place])}'"]
+            named += [f"'{_shown(twin.names[place])}'"]
         total = total + hits
     return (total, named)
 
@@ -374,7 +374,7 @@ def _header_lines(profile: contract.Profile) -> "list[str]":
             "description, and the twin's columns are in the same order.",
         ]
     if source.header_by_convention:
-        lines = lines + [
+        lines += [
             "",
             "Those names were ASSUMED to be names. Nothing in your table",
             "settled the question, so what the twin carries as column names",
@@ -479,7 +479,7 @@ def _invented_columns(profile: contract.Profile) -> "frozenset[str]":
             "free_text",
             "numeric_unrepresentable",
         ):
-            made_up = made_up + [column.name]
+            made_up += [column.name]
     return frozenset(made_up)
 
 
@@ -747,7 +747,7 @@ def _formula_lines(
             continue
         for cell in twin.columns[place]:
             if _first_character(cell) in _FORMULA_LEADERS:
-                invented = invented + [f"'{_shown(name)}'"]
+                invented += [f"'{_shown(name)}'"]
                 break
     lines = [
         "Common spreadsheet software reads a cell that begins with  =  +  -",
@@ -758,13 +758,13 @@ def _formula_lines(
         "",
     ]
     if total:
-        lines = lines + [
+        lines += [
             f"This twin has {total} such cell(s), in these columns:",
             f"  {_joined(named)}",
         ]
         touched = [one for one in named if one in invented]
         if touched:
-            lines = lines + [
+            lines += [
                 "",
                 "Some of those cells synthtwin MADE UP, in these columns:",
                 f"  {_joined(touched)}",
@@ -778,7 +778,7 @@ def _formula_lines(
                 "which. The paragraph below says what that means.",
             ]
     else:
-        lines = lines + [
+        lines += [
             "No cell of this twin begins with one of those characters, and",
             "no twin is checked for it only when somebody suspects it, so",
             "the count is printed either way.",
@@ -828,7 +828,7 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
         "",
     ]
     if not twin.deviations:
-        lines = lines + [
+        lines += [
             "Nothing was given up in this run: every published fact this",
             "method reproduces exactly was reproduced exactly.",
             "",
@@ -837,7 +837,7 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
     # (P4-G2-R4-F1), and this section is the wrong place to describe it
     # -- these are not missed facts. So it is pointed at, not restated.
     if twin.remarks:
-        lines = lines + [
+        lines += [
             "Separately from anything above: this twin holds something a",
             f"reader should know about in {len(twin.remarks)} case(s), "
             f"where no",
@@ -847,7 +847,7 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
             "",
         ]
     for deviation in twin.deviations:
-        lines = lines + [
+        lines += [
             f"'{_shown(deviation.column)}' -- {_shown(deviation.fact)}",
             f"  the description says: {_shown(deviation.published)}",
             f"  the twin holds:       {_shown(deviation.achieved)}",
@@ -925,14 +925,14 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
     for found in twin.approximations:
         if not found.inside:
             outside = outside + 1
-    lines = lines + [
+    lines += [
         (
             f"{len(twin.approximations)} approximated fact(s) were measured "
             f"on this twin."
         ),
     ]
     if outside:
-        lines = lines + [
+        lines += [
             f"{outside} of them landed OUTSIDE the range this method",
             "promises. Each one that did is also named in the section above,",
             "because a promise this method could not keep is a fact the twin",
@@ -940,7 +940,7 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             "Every one of them landed inside the range this method promises.",
             "",
         ]
@@ -949,7 +949,7 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
         if not found.covers_published:
             missing = missing + 1
     if missing:
-        lines = lines + [
+        lines += [
             (
                 f"On {missing} of them the range does not cover the "
                 f"description's own"
@@ -962,11 +962,11 @@ def _approximation_lines(twin: generation.Twin) -> "list[str]":
     for found in twin.approximations:
         if found.column != shown:
             shown = found.column
-            lines = lines + [f"'{_shown(found.column)}'"]
+            lines += [f"'{_shown(found.column)}'"]
         result = "inside the range"
         if not found.inside:
             result = "OUTSIDE the range"
-        lines = lines + [
+        lines += [
             f"  {_shown(found.note)} ({_shown(found.fact)})",
             (
                 f"    the description says {_shown(found.published)}; "
@@ -1103,7 +1103,7 @@ def _missing_lines(
             "  The twin writes every one of them as an empty cell, so how",
             "  your table wrote them is here rather than in the twin.",
         ]
-    lines = lines + [
+    lines += [
         f"  The two groups below are two groupings of the same "
         f"{column.n_missing} cell(s) --",
         "  once by what your table wrote in them, once by the reason each",
@@ -1111,7 +1111,7 @@ def _missing_lines(
         "  By what your table wrote in them:",
     ]
     lines = lines + _by_spelling_lines(column, floor, profile)
-    lines = lines + ["  By the reason each was counted absent:"]
+    lines += ["  By the reason each was counted absent:"]
     return lines + _by_reason_lines(column, floor)
 
 
@@ -1135,7 +1135,7 @@ def _by_spelling_lines(
     lines: list[str] = []
     pooled = column.n_missing_withheld
     if column.n_missing_blank:
-        lines = lines + [
+        lines += [
             (
                 f"    {column.n_missing_blank} cell(s) with nothing "
                 f"written in them"
@@ -1155,11 +1155,11 @@ def _by_spelling_lines(
             carries = "the twin writes this spelling in all of them"
         else:
             carries = "the twin leaves these cells empty"
-        lines = lines + [
+        lines += [
             f"    {_shown(spelling)}: {count} cell(s) -- {carries}"
         ]
     if pooled:
-        lines = lines + [
+        lines += [
             f"    {pooled} cell(s) whose spelling is not named here:",
             (
                 f"      fewer than {floor} of this column's cells were "
@@ -1201,9 +1201,9 @@ def _by_reason_lines(
     lines: list[str] = []
     for count, reason in reasons:
         if count:
-            lines = lines + [f"    {reason}: {count} cell(s)"]
+            lines += [f"    {reason}: {count} cell(s)"]
     if classes.withheld:
-        lines = lines + [
+        lines += [
             f"    {classes.withheld} cell(s) whose reason is not named here:",
             (
                 f"      fewer than {floor} of this column's cells fell "
@@ -1276,7 +1276,7 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
         named = f"{_shown(verdict.candidate)}"
         if verdict.candidate == contract.WITHHELD:
             named = "a value not named here"
-        lines = lines + [
+        lines += [
             (
                 f"    {named} in "
                 f"{verdict.n_occurrences} row(s): {_shown(decision)}, "
@@ -1404,14 +1404,14 @@ def _column_lines(
     # decides whether anything below is worth computing on (plan P4-D2).
     lines = lines + _made_up_lines(column, floor)
     if column.detection_evidence:
-        lines = lines + [
+        lines += [
             (
                 f"  How synthtwin read this column: "
                 f"{_shown(column.detection_evidence)}"
             )
         ]
     for remark in column.remarks:
-        lines = lines + [f"  Note from the description: {_shown(remark)}"]
+        lines += [f"  Note from the description: {_shown(remark)}"]
     # WHAT THIS COLUMN'S TWIN HOLDS THAT MISSED NOTHING (P4-G2-R4-F1).
     # These are NOT deviations and must never be printed as though they
     # were: every published fact of the column can be met exactly while
@@ -1420,18 +1420,18 @@ def _column_lines(
     # label therefore names the twin rather than the description, and
     # the sentence beside it says which is which.
     for held in outcome.remarks:
-        lines = lines + [
+        lines += [
             f"  What the twin holds -- {_shown(held.subject)}:",
             f"    {_shown(held.held)}",
             f"    {_shown(held.note)}",
         ]
     for note in notes:
-        lines = lines + [f"  Held back from the description: {_shown(note)}"]
+        lines += [f"  Held back from the description: {_shown(note)}"]
     lines = lines + _missing_lines(column, floor, profile)
     lines = lines + _sentinel_lines(column)
     lines = lines + _datetime_lines(column)
     if column.n_sentinel_candidates_unpublished:
-        lines = lines + [
+        lines += [
             (
                 f"  {column.n_sentinel_candidates_unpublished} other "
                 f"number(s) were looked at as possible stand-ins and are"
@@ -1447,7 +1447,7 @@ def _notes_for(profile: contract.Profile, name: str) -> "list[str]":
     found: list[str] = []
     for note in profile.publication_notes:
         if note.column == name:
-            found = found + [note.note]
+            found += [note.note]
     return found
 
 
@@ -1541,7 +1541,7 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     # sentence is the one that is true there rather than the general one
     # with a bad number in it.
     if floor < 2:
-        lines = lines + [
+        lines += [
             "A published group can be a single row. If one row of the real",
             "table is one person, the description says out loud that exactly",
             "one person -- on their own -- had that value, and the twin",
@@ -1549,7 +1549,7 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             f"If one row of the real table is one person, a group of {floor}",
             f"is {floor} people.",
             "",
@@ -1687,7 +1687,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     lowered = _lowered_floor_lines(profile)
     if lowered:
         lines = lines + [""] + lowered
-    lines = lines + [
+    lines += [
         "",
         _RULE,
         "THREE THINGS THAT ARE TRUE OF EVERY TWIN THIS VERSION BUILDS",
@@ -1695,7 +1695,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "",
     ]
     lines = lines + _independence_lines()
-    lines = lines + [
+    lines += [
         "",
         _RULE,
         "BEFORE YOU OPEN THE TWIN IN A SPREADSHEET",
@@ -1703,7 +1703,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "",
     ]
     lines = lines + _formula_lines(profile, twin)
-    lines = lines + [
+    lines += [
         "",
         _RULE,
         "WHERE THE TWIN DOES NOT MATCH THE DESCRIPTION",
@@ -1711,7 +1711,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "",
     ]
     lines = lines + _deviation_lines(twin)
-    lines = lines + [
+    lines += [
         "",
         _RULE,
         "HOW CLOSE THE APPROXIMATE FACTS CAME",
@@ -1719,7 +1719,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         "",
     ]
     lines = lines + _approximation_lines(twin)
-    lines = lines + [
+    lines += [
         "",
         _RULE,
         "COLUMN BY COLUMN: WHAT ONLY THE DESCRIPTION HOLDS",
@@ -1752,7 +1752,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     # column block below said the opposite -- one page, two answers,
     # which is the defect this landing is also closing elsewhere.
     if _any_spelling_travels(profile):
-        lines = lines + [
+        lines += [
             "How your table wrote the cells it left empty is recorded here",
             "too -- and this twin CARRIES some of those spellings rather",
             "than leaving them behind, so each block below marks, spelling",
@@ -1779,7 +1779,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     # a number nobody sees until somebody suspects it is a number nobody
     # sees.
     whole, part = _made_up_totals(profile)
-    lines = lines + [
+    lines += [
         _RULE,
         "HOW MUCH OF THIS TWIN SYNTHTWIN MADE UP",
         _RULE,

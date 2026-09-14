@@ -334,7 +334,7 @@ def _described_columns(
     found: "list[dict[str, object]]" = []
     for entry in given:
         if isinstance(entry, dict):
-            found = found + [entry]
+            found += [entry]
     return found
 
 
@@ -1173,9 +1173,9 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     joined: list[asking.Question] = []
     for question in questions:
         if question.reason == asking.BECAUSE_JOINED:
-            joined = joined + [question]
+            joined += [question]
         else:
-            numeric = numeric + [question]
+            numeric += [question]
 
     def _listing(group: "list[asking.Question]", say_what: bool) -> str:
         shown = ""
@@ -1213,7 +1213,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         flags = _joined(
             [f"--code {_shown(one.name)}" for one in numeric], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
             f"{_listing(numeric, False)}\n\n"
             f"synthtwin cannot tell a coding system from a measurement: "
@@ -1229,7 +1229,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         flags = _joined(
             [f"--measurement {_shown(one.name)}" for one in joined], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND MIGHT BE "
             f"READINGS.{_listing(joined, True)}\n\n"
             f"Each column above is being described as text rather than as "
@@ -1325,11 +1325,11 @@ def _put_the_questions(
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
-            codes = codes + [question.name]
+            codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
-            identifiers = identifiers + [question.name]
+            identifiers += [question.name]
         elif answer == asking.ANSWER_JOINED:
-            measurements = measurements + [question.name]
+            measurements += [question.name]
     return codes, identifiers, measurements
 
 
@@ -1341,11 +1341,11 @@ def _how_to_repeat(
     """The options that repeat this run without asking anything."""
     parts: list[str] = []
     for name in sorted(forced_codes):
-        parts = parts + [f"--code {_shown(name)}"]
+        parts += [f"--code {_shown(name)}"]
     for name in sorted(forced_identifiers):
-        parts = parts + [f"--identifier {_shown(name)}"]
+        parts += [f"--identifier {_shown(name)}"]
     for name in sorted(forced_measurements):
-        parts = parts + [f"--measurement {_shown(name)}"]
+        parts += [f"--measurement {_shown(name)}"]
     flags = _joined(parts, " ")
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
@@ -1800,9 +1800,9 @@ def _run_profile(
                 kept_commas: "list[str]" = []
                 for named in forced_decimal_commas:
                     if named in forced_codes or named in forced_identifiers:
-                        dropped = dropped + [named]
+                        dropped += [named]
                         continue
-                    kept_commas = kept_commas + [named]
+                    kept_commas += [named]
                 forced_decimal_commas = kept_commas
                 for named in dropped:
                     _warn(
@@ -2334,7 +2334,7 @@ def _run_generate(
         taken: list[str] = []
         for target in (twin_path, report_path):
             if _already_there(target):
-                taken = taken + [_shown(target)]
+                taken += [_shown(target)]
         if taken:
             _warn(
                 errors.outputs_already_there(

@@ -358,7 +358,7 @@ def _reach_for(claimed: "_Claimed | None", place: pathlib.Path) -> None:
     """
     if claimed is None:
         return
-    claimed.entries = claimed.entries + [
+    claimed.entries += [
         (pathlib.Path(place), CLAIM_REACHED)
     ]
 
@@ -379,9 +379,9 @@ def _settle(
     for one, code in claimed.entries:
         if f"{one}" == wanted:
             continue
-        kept = kept + [(one, code)]
+        kept += [(one, code)]
     if state:
-        kept = kept + [(pathlib.Path(place), state)]
+        kept += [(pathlib.Path(place), state)]
     claimed.entries = kept
 
 
@@ -408,9 +408,9 @@ def _unclaimed(
         if f"{place}" in known:
             continue
         if state == CLAIM_MADE:
-            extra = extra + [(place, errors.ON_DISK_EMPTY_WORKING)]
+            extra += [(place, errors.ON_DISK_EMPTY_WORKING)]
         else:
-            extra = extra + [(place, errors.ON_DISK_CLAIMED_WORKING)]
+            extra += [(place, errors.ON_DISK_CLAIMED_WORKING)]
     return extra
 
 
@@ -547,7 +547,7 @@ def _claim_working_name(
     while number <= WORKING_NAME_ATTEMPTS:
         candidate = pathlib.Path(f"{place}{suffix}-{number}")
         if len(tried) < 3:
-            tried = tried + [f"{candidate}"]
+            tried += [f"{candidate}"]
         number = number + 1
         try:
             validate_local_path(f"{candidate}", purpose="working file")
@@ -643,11 +643,11 @@ def _clear_away(
             # sends the reader looking for it.
             if _what_is_there(place) == "nothing":
                 continue
-            left = left + [(f"{pathlib.Path(place)}", code)]
+            left += [(f"{pathlib.Path(place)}", code)]
             continue
         if _remove_and_check(place):
             continue
-        left = left + [(f"{pathlib.Path(place)}", code)]
+        left += [(f"{pathlib.Path(place)}", code)]
     return left
 
 
@@ -779,7 +779,7 @@ def _state_part_way_through(
         holds = errors.ON_DISK_UNSETTLED
         if kept_holds_the_earlier_profile:
             holds = errors.ON_DISK_SET_ASIDE
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(kept, holds, errors.ON_DISK_ABSENT)
         ]
     return errors.rollback_failed([], on_disk + left, words)
@@ -846,7 +846,7 @@ def _stopped_broken(
         ),
     ]
     if kept is not None:
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
@@ -1197,17 +1197,17 @@ def _describe_the_stop(
         return
     waiting: list[tuple[pathlib.Path, str]] = []
     if first_part is not None:
-        waiting = waiting + [(first_part, first_holds)]
+        waiting += [(first_part, first_holds)]
     if second_part is not None:
-        waiting = waiting + [(second_part, second_holds)]
+        waiting += [(second_part, second_holds)]
     # And then whatever a stop inside a creation left uncovered: a
     # working name whose file reached the disk before the call that made
     # it could hand the name back to the two variables above.
     known = [f"{first}", f"{second}"]
     for place, _code in waiting:
-        known = known + [f"{place}"]
+        known += [f"{place}"]
     if progress.kept is not None:
-        known = known + [f"{progress.kept}"]
+        known += [f"{progress.kept}"]
     extra = _unclaimed(claimed, known)
     if progress.moving:
         _remember(
@@ -1226,7 +1226,7 @@ def _describe_the_stop(
         # Claimed for the earlier profile, and the move of that profile
         # into it had not begun: the name holds the empty file synthtwin
         # created there, which is synthtwin's own to clear away.
-        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+        waiting += [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
     _remember(
         state, _state_nothing_published(first, second, waiting + extra, words)
     )
@@ -1432,7 +1432,7 @@ def write_both_files(
             raise errors.ProfileError(
                 errors.output_would_replace_the_table(f"{source}", words)
             )
-        forbidden = forbidden + [source]
+        forbidden += [source]
 
     # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
     # opens -- and this is the only place it can be done, because right
@@ -1649,7 +1649,7 @@ def _state_part_way_through_one(
         holds = errors.ON_DISK_UNSETTLED
         if kept_holds_the_earlier_file:
             holds = errors.ON_DISK_SET_ASIDE
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(kept, holds, errors.ON_DISK_ABSENT)
         ]
     return errors.rollback_failed([], on_disk + left, words)
@@ -1688,7 +1688,7 @@ def _stopped_broken_one(
         _named_state(target, errors.ON_DISK_NEW, errors.ON_DISK_TAKEN_AWAY)
     ]
     if kept is not None:
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
@@ -1741,12 +1741,12 @@ def _describe_the_stop_one(
         return
     waiting: list[tuple[pathlib.Path, str]] = []
     if part is not None:
-        waiting = waiting + [(part, holds)]
+        waiting += [(part, holds)]
     known = [f"{target}"]
     for place, _code in waiting:
-        known = known + [f"{place}"]
+        known += [f"{place}"]
     if progress.kept is not None:
-        known = known + [f"{progress.kept}"]
+        known += [f"{progress.kept}"]
     extra = _unclaimed(claimed, known)
     if progress.moving:
         _remember(
@@ -1760,7 +1760,7 @@ def _describe_the_stop_one(
         # Claimed for the earlier file, and the move of that file into it
         # had not begun: the name holds the empty file synthtwin created
         # there, which is synthtwin's own to clear away.
-        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+        waiting += [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
     _remember(
         state, _state_nothing_published_one(target, waiting + extra, words)
     )
@@ -2021,7 +2021,7 @@ def write_one_file(
     _refuse_unless_plain_file(place, words)
     forbidden = [place]
     for source, _noun in guarded:
-        forbidden = forbidden + [pathlib.Path(source)]
+        forbidden += [pathlib.Path(source)]
 
     # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
     # opens, and this is the only place it can be done: right now nothing

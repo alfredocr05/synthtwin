@@ -3134,7 +3134,7 @@ def _multiplicity(
                 f"the entry for {rows} row(s) of {key} counts nothing",
                 "a size that covered nothing has no entry at all",
             )
-        pairs = pairs + [(rows, kept[name])]
+        pairs += [(rows, kept[name])]
     if largest and width != len(f"{largest}"):
         raise _broken(
             "M3",
@@ -3190,7 +3190,7 @@ def _finer_ladder(
     rungs: list[float | None] = []
     for name in FINER_LADDER_KEYS:
         rung = _figure_or_nothing(mapping[name], f"{key} -> {name}", where)
-        rungs = rungs + [rung]
+        rungs += [rung]
         finer[int(name[1:])] = rung
     # THE JOINT WALK, over all hundred and one rungs in percent order.
     named: "dict[int, float | None]" = {}
@@ -3238,7 +3238,7 @@ def _number_ladder(
     previous_name = ""
     for name in LADDER_KEYS:
         rung = _figure_or_nothing(mapping[name], f"{key} -> {name}", where)
-        rungs = rungs + [rung]
+        rungs += [rung]
         if rung is None:
             continue
         if previous is not None and rung < previous:
@@ -3295,7 +3295,7 @@ def _date_ladder(
                 "a ladder of dates has a date at every rung",
             )
         found = _canonical_datetime(rung, f"{key} -> {name}", where, resolution)
-        rungs = rungs + [found]
+        rungs += [found]
         if previous and found < previous:
             raise _broken(
                 "L1",
@@ -3629,7 +3629,7 @@ def _built_in_texts(
                 "the words out of order, or one of them twice",
                 "synthtwin's own words in rising order, each of them once",
             )
-        found = found + [member]
+        found += [member]
         place = place + 1
     return tuple(found)
 
@@ -3663,7 +3663,7 @@ def _built_in_dates(
                 f"the record '{key}' names '{member}' out of order",
                 "the days it names are sorted and none is repeated",
             )
-        seen = seen + [member]
+        seen += [member]
     return tuple(seen)
 
 
@@ -3708,7 +3708,7 @@ def _built_in_numbers(
                     "each of them once"
                 ),
             )
-        found = found + [member]
+        found += [member]
         place = place + 1
     return tuple(found)
 
@@ -3814,7 +3814,7 @@ def _settings(value: object) -> SettingsBlock:
                 f"'{found}'",
                 "names in rising order, each of them once",
             )
-        declared = declared + [found]
+        declared += [found]
         place = place + 1
     declared_measurements: list[str] = []
     measured_names = _listing(
@@ -3832,7 +3832,7 @@ def _settings(value: object) -> SettingsBlock:
                 f"'{found}'",
                 "names in rising order, each of them once",
             )
-        declared_measurements = declared_measurements + [found]
+        declared_measurements += [found]
         place = place + 1
     declared_commas: list[str] = []
     comma_names = _listing(
@@ -3850,7 +3850,7 @@ def _settings(value: object) -> SettingsBlock:
                 f"'{found}'",
                 "names in rising order, each of them once",
             )
-        declared_commas = declared_commas + [found]
+        declared_commas += [found]
         place = place + 1
     declared_codes: list[str] = []
     code_names = _listing(mapping["forced_codes"], "forced_codes", where)
@@ -3864,7 +3864,7 @@ def _settings(value: object) -> SettingsBlock:
                 f"'{found}'",
                 "names in rising order, each of them once",
             )
-        declared_codes = declared_codes + [found]
+        declared_codes += [found]
         place = place + 1
     block = SettingsBlock(
         small_cell_floor=floor,
@@ -3983,7 +3983,7 @@ def _notes(value: object) -> "tuple[PublicationNote, ...]":
         seat = f"in note number {place + 1} of the notes about what was held back"
         mapping = _mapping(entry, f"publication_notes[{place}]", where)
         _keys(mapping, seat, NOTE_KEYS, "every note")
-        notes = notes + [
+        notes += [
             PublicationNote(
                 column=_text(mapping["column"], "column", seat),
                 note=_text(mapping["note"], "note", seat),
@@ -4302,7 +4302,7 @@ def _sentinel_verdicts(
                     f"the one before it is about {previous_number}",
                 )
             previous_number = number
-        entries = entries + [
+        entries += [
             SentinelVerdict(
                 candidate=candidate,
                 verdict=verdict,
@@ -4477,7 +4477,7 @@ def _column(
     remarks: list[str] = []
     place = 0
     for remark in _listing(mapping["remarks"], "remarks", where):
-        remarks = remarks + [_text(remark, f"remarks[{place}]", where)]
+        remarks += [_text(remark, f"remarks[{place}]", where)]
         place = place + 1
     facts = _facts(
         mapping,
@@ -4971,7 +4971,7 @@ def _levels(
                 f"a label held back covers {found} rows",
                 f"the one before it covers {previous_size}",
             )
-        sizes = sizes + [found]
+        sizes += [found]
         previous_size = found
         place = place + 1
     if len(sizes) != suppressed_levels:
@@ -5040,7 +5040,7 @@ def _levels(
         variants, withheld = _variants(
             block, seat, floor, label, count, inside_a_half
         )
-        entries = entries + [
+        entries += [
             LevelEntry(
                 label=label,
                 count=count,
@@ -5051,7 +5051,7 @@ def _levels(
                 ),
             )
         ]
-        seen = seen + [label]
+        seen += [label]
         covered = covered + count
         previous_count = count
         previous_label = label
@@ -6037,7 +6037,7 @@ def _affix_variants(
             "n_core_contradictory",
             "n_core_not_numeric",
         ):
-            classes = classes + [
+            classes += [
                 _bounded(
                     entry[key], key, where, 0, count,
                     "the number of cells wearing this wrapper",
@@ -6073,7 +6073,7 @@ def _affix_variants(
             block, where, NUMERIC_KEYS,
             f"the block for the wrapper {prefix!r}/{suffix!r}",
         )
-        found = found + [
+        found += [
             AffixWrapper(
                 prefix=prefix,
                 suffix=suffix,
@@ -6686,7 +6686,7 @@ def _empty_edges(
         if stretches and place == stretches[-1][1] + 1:
             stretches[-1] = (stretches[-1][0], place)
         else:
-            stretches = stretches + [(place, place)]
+            stretches += [(place, place)]
     if len(given) != len(stretches):
         raise _broken(
             "Q21",
@@ -6723,7 +6723,7 @@ def _empty_edges(
                 f"ending at {edges[-1][1]}",
                 "stretches that ascend and do not overlap",
             )
-        edges = edges + [(below, above)]
+        edges += [(below, above)]
     # THE TWO ENDS, READ ONCE AND GUARDED. A rung may be null, meaning
     # the exact value is not one this format can hold, and a block
     # whose ends are not both finite has no scale to divide -- so it
@@ -6865,7 +6865,7 @@ def _empty_bins(
                 f"the bin {entry} is named after the bin {bins[-1]}",
                 "each bin named once, in ascending order",
             )
-        bins = bins + [entry]
+        bins += [entry]
     scaled = used > 0 and _has_width(ladder)
     if bins and not scaled:
         raise _broken(
@@ -7721,7 +7721,7 @@ def _joined_facts(
     widths: "list[int]" = []
     place = 0
     for value in widths_read:
-        widths = widths + [
+        widths += [
             _bounded(
                 value, f"part_min_widths[{place}]", where, 1, 4096,
                 "a width of at least one character",
@@ -7753,7 +7753,7 @@ def _joined_facts(
                 f"part_agreements[{place}]", where, f"{found}",
                 "a number from -1 to 1, as a rank agreement is",
             )
-        agreements = agreements + [found]
+        agreements += [found]
         place = place + 1
     above_read = _listing(mapping["part_above"], "part_above", where)
     if len(above_read) != pairs:
@@ -7765,7 +7765,7 @@ def _joined_facts(
     place = 0
     for value in above_read:
         # J8. A count of rows cannot exceed the rows that split.
-        above = above + [
+        above += [
             _bounded(
                 value, f"part_above[{place}]", where, 0, n_joined,
                 "the number of values that split into whole numbers",
@@ -7778,7 +7778,7 @@ def _joined_facts(
         seat = f"parts[{place}]"
         block = _mapping(value, seat, where)
         _keys(block, where, NUMERIC_KEYS, f"the block for {seat}")
-        blocks = blocks + [
+        blocks += [
             _numeric_facts(
                 block,
                 f"{where}, {seat}",
@@ -8515,8 +8515,8 @@ def _columns(
                 f"the name '{block.name}' is used more than once",
                 "every column of a table has its own name",
             )
-        seen = seen + [block.name]
-        blocks = blocks + [block]
+        seen += [block.name]
+        blocks += [block]
         index = index + 1
     return tuple(blocks)
 
@@ -8773,11 +8773,11 @@ def _held_back_in(
             value = node[key]
             here = _step(path, key)
             if key == WITHHELD and _is_a_row_count(value):
-                found = found + [(here, value, _POOLED)]
+                found += [(here, value, _POOLED)]
             if key == _NAMED_REMAINDER and _is_a_row_count(value):
-                found = found + [(here, value, _POOLED)]
+                found += [(here, value, _POOLED)]
             if key == _UNNAMED_TALLY and _is_a_row_count(value):
-                found = found + [(here, value, _TOO_RARE)]
+                found += [(here, value, _TOO_RARE)]
             found = found + _held_back_in(value, here)
     elif isinstance(node, list):
         place = 0
@@ -9003,13 +9003,13 @@ def _no_duplicate_keys(text: str, shown: str) -> None:
             have_pending = False
             continue
         if character == "{":
-            seen = seen + [{}]
-            is_object = is_object + [True]
+            seen += [{}]
+            is_object += [True]
             have_pending = False
             continue
         if character == "[":
-            seen = seen + [{}]
-            is_object = is_object + [False]
+            seen += [{}]
+            is_object += [False]
             have_pending = False
             continue
         if character == "}" or character == "]":
