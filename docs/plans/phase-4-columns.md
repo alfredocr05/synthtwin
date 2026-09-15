@@ -421,7 +421,13 @@ false at the edges:
 - **Partially invented labels**: a label-class column with suppressed
   levels or withheld variants — the twin carries its published
   spellings byte-for-byte plus counted neutral stand-ins (`group-N`,
-  invented variant spellings) for the withheld remainder.
+  invented variant spellings) for the withheld remainder. **(AMENDED
+  at landing 2b.4: a held-back level that was a number is written as a
+  number, stepped from the column's published numbers, and a held-back
+  level of the published forms wears one of them -- method G8.3 and
+  G8.3a. Those stand-ins are counted in this class exactly as the
+  neutral ones are, and none of them is neutral in the sense of
+  reading as text.)**
 - **Counted stand-in cells**: any column whose construction writes
   counted stand-ins for cells the description could not carry —
   unparsed datetime cells, out-of-range, contradictory and non-numeric

@@ -753,9 +753,11 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # ...and BYTE FOR BYTE what the walk writes with the form offer
     # taken out altogether.
     offer = generation._wanted_form
+    # The stub takes `reads` as well: landing 2b.4 made the offer
+    # class-aware (method G9.5 step 7), which adds that argument.
     generation._wanted_form = (
         lambda owing, length, words, carrier, shortest, longest, budget,
-        covering=1: ""
+        covering=1, reads=None: ""
     )
     try:
         without = generation.generate(described, 7)
