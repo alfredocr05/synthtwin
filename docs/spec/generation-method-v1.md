@@ -7600,8 +7600,8 @@ pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
 R-P4-17, then the exponent case of G10.5 revision 5, and then the
 midnight-day and mixed-mark cases of plan P4-D39), and
-`tests/reference/generation-branch-vectors-2.json` carries the twelve it
-names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added. This sentence carried the
+`tests/reference/generation-branch-vectors-2.json` carries the seventeen
+it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. All three are written by
@@ -7630,9 +7630,12 @@ held 171111 bytes with its fourteen cases, and the twelve the carried
 landings 2b.4, 2b.3 and 2b.2 added would have taken it above 300000, so
 it was split as the paragraph above requires: no case was dropped, no
 proof was shortened and the cap was not raised. The fourteen stay where
-they were, and the twelve are the third file, at 141003 bytes. A case
-added after them goes to the third file until that file approaches the
-cap in turn.
+they were, and the twelve are the third file, at 141003 bytes. Five more
+cases then froze the marks and notations of a negative landing 2b.2 had
+left to round trips for want of room, at eleven rows each, because at
+twenty-two rows the five carried the file 873 bytes past the cap. The
+third file now holds 245567 bytes, which leaves no room for another
+case of this size: the next one opens a fourth file.
 
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the
@@ -7711,10 +7714,13 @@ stamp's one permitted mark, bare dates beside midnight moments, the move
 onto midnight and midnight on two offsets (G7.1, G7.4 and G7.5, landing
 2b.3), and two for the ranks whose instant the published tail fixes and
 the move off an accidental value at midnight (landing 2b.3's repair), and
-three for the spellings of a number landing 2b.2 publishes (plan P4-D41).
-**All thirty-five are required.** The
+three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
+and five for the marks and notations of a negative those three left
+unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
+2b.5).
+**All forty are required.** The
 first nine are the first committed file, the next fourteen the second,
-and the last twelve -- the cases the carried landings 2b.2, 2b.3 and
+and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
@@ -7749,6 +7755,11 @@ case passed, which is the failure the count exists to prevent:
 | `grouped_charges` | G6.1's mark at leading-zero order nought only, on a column publishing `,`, beside `decimal_plus` of eleven spread one in every two over twenty-two decimal cells; two cells spend a zero and carry the plus in front of it and no mark |
 | `grouped_decimal_comma` | P4-D26's exchange on a declared column publishing `.`: `42.037,34`, one spent cell `042037,34` with no mark, and two absent cells the exchange does not touch |
 | `spaced_brackets` | a space between thousands and the `brackets` notation: `(12 345.5)`, and a spent cell `(012345.5)` whose brackets close around the zeros with no mark and no sign |
+| `apostrophe_minus_sign` | an apostrophe between thousands and the `minus_sign` notation: `−12'345.5`, and a spent cell `−012345.5` with the sign in front of the zeros and no mark |
+| `quoted_trailing_minus` | U+2019 between thousands and the `trailing_minus` notation after figures carrying a point: `12’345.5-`, and a spent cell `012345.5-` with no mark |
+| `spaced_decimal_comma` | P4-D26's exchange beside a no-break space U+00A0, a mark neither decimal mark: `42 037,34`, one spent cell `042037,34` with no mark, and two absent cells |
+| `narrow_spaced` | a narrow no-break space U+202F between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
+| `thin_spaced` | a thin space U+2009 between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
 | `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
 | `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |

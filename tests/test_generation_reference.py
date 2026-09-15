@@ -57,7 +57,7 @@ cap and the nine already spend 88207 of it; they are one oracle, one
 transform and one proof layer, and the tests below hold both files to
 the same claims.
 
-**Every one of the thirty-five carries a mutant that removes or reverts the
+**Every one of the forty carries a mutant that removes or reverts the
 branch it exists for** (G14.3; review item P2-C4-C2). They are one table
 at the bottom of this file, `CASE_MUTANTS`, whose keys are asserted
 equal to the whole case set, because four cases with a mutant and ten
@@ -221,12 +221,20 @@ SECOND_BRANCH_CASES = (
     # moments at local midnight on a real offset, whose ranks with a published
     # instant settle their form and offset before the rotation.
     "accidental_midnight",
+    # THE REST OF LANDING 2b.2'S MARKS AND NOTATIONS, frozen at the
+    # integration of landings 2b.1 to 2b.5 once the branch cases had a file
+    # with room: the apostrophe with the minus sign, U+2019 with the trailing
+    # minus, U+00A0 on a declared decimal comma (whose mutant is the exchange),
+    # U+202F and U+2009. Eleven rows each: at twenty-two the five carried
+    # this file past the provenance guard's byte cap.
+    "apostrophe_minus_sign",
     # THE SPELLINGS OF A NUMBER LANDING 2b.2 FREEZES, in their sorted
     # places: a comma between thousands beside signed decimals with
     # zeros spent past order nought, a point on a declared decimal-comma
     # column beside two absent cells, and a space with accounting
     # brackets. They were three and not four while every branch case
-    # shared one file, whose byte cap a fourth would have passed.
+    # shared one file, whose byte cap a fourth would have passed; the
+    # other five followed when this file was split out.
     "grouped_charges",
     "grouped_decimal_comma",
     # WHAT THE CENSUS COULD HOLD, AND THE PLACES A NUMBER MAY TAKE (method
@@ -248,10 +256,14 @@ SECOND_BRANCH_CASES = (
     # spent on the unnamed marks, and a slashed stamp's one permitted mark.
     "midnight_mixed_forms",
     "midnight_two_offsets",
+    "narrow_spaced",
     "partial_midnight",
     "pooled_marks",
+    "quoted_trailing_minus",
     "slashed_pool",
     "spaced_brackets",
+    "spaced_decimal_comma",
+    "thin_spaced",
 )
 
 ALL_CASES = tuple(sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES))
@@ -299,11 +311,16 @@ SEEDS = {
     "grouped_charges": 124,
     "grouped_decimal_comma": 125,
     "spaced_brackets": 126,
+    "apostrophe_minus_sign": 131,
+    "quoted_trailing_minus": 132,
+    "spaced_decimal_comma": 133,
+    "narrow_spaced": 134,
+    "thin_spaced": 135,
 }
 
 # The cases whose column was declared with --decimal-comma, which the
 # contract's invariant GS1 binds to settings.forced_decimal_commas.
-DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma"})
+DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma", "spaced_decimal_comma"})
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
@@ -598,7 +615,7 @@ def test_the_implementation_writes_the_committed_cells(
 ) -> None:
     """Cell for cell, and then byte for byte, against a value it did not make.
 
-    All thirty-five bind normally, with no exception of any kind. The one
+    All forty bind normally, with no exception of any kind. The one
     that once did not was `identifier_edge_spacing` (review item
     P2-C4-F4): the column publishes four raw spellings, one folded
     identity and the length range 1 to 3, in figures alone, so every
@@ -1242,6 +1259,11 @@ def _notation_withdrawn(text, notation):
     return text
 
 
+def _every_mark_a_comma(column):
+    """Landing 2b.2's other marks withdrawn: every published mark is a comma."""
+    return ","
+
+
 def _plus_from_the_first_cell(count, styles, values):
     """Landing 2b.2's spread withdrawn: the plus taken from the first cell up."""
     carries = [False] * len(values)
@@ -1541,6 +1563,42 @@ CASE_MUTANTS = {
         "every negative is written with a hyphen-minus in front",
         attribute="negative_spelled",
         replacement=_notation_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "apostrophe_minus_sign": Mutant(
+        branch="landing 2b.2's minus sign U+2212; the mutant withdraws the "
+        "notation and every negative is written with a hyphen-minus in front",
+        attribute="negative_spelled",
+        replacement=_notation_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "quoted_trailing_minus": Mutant(
+        branch="the right single quotation mark between thousands; the mutant "
+        "writes every published mark as a comma",
+        attribute="grouping_mark_of",
+        replacement=_every_mark_a_comma,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "spaced_decimal_comma": Mutant(
+        branch="P4-D26's exchange beside a no-break space, a mark neither decimal "
+        "mark; the mutant withdraws the exchange and every present cell keeps "
+        "its point",
+        attribute="decimal_comma_spelled",
+        replacement=_exchange_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "narrow_spaced": Mutant(
+        branch="the narrow no-break space between thousands; the mutant writes "
+        "every published mark as a comma",
+        attribute="grouping_mark_of",
+        replacement=_every_mark_a_comma,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "thin_spaced": Mutant(
+        branch="the thin space between thousands; the mutant writes every "
+        "published mark as a comma",
+        attribute="grouping_mark_of",
+        replacement=_every_mark_a_comma,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(

@@ -9731,6 +9731,126 @@ def _spaced_brackets():
     }
 
 
+def _apostrophe_minus_sign():
+    column, rungs, claims = _flat_numbers(
+        "-12345.5", 11,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=11,
+        numeric_styles={"decimal": 11},
+        fraction_widths={"1": 11}, pad_widths={}, field_widths={},
+        group_separator="'", negative_form="minus_sign",
+    )
+    return {
+        "why": "an apostrophe between thousands and the minus sign U+2212 for "
+        "a negative number, two spellings landing 2b.2 publishes that no "
+        "frozen case reached while every branch case shared one file. Every "
+        "cell is minus twelve thousand three hundred and forty-five and a "
+        "half, written `−12'345.5`; one cell spends a zero and is written "
+        "`−012345.5`, with the sign in front of the zeros and no mark. "
+        "This case's mutant withdraws the notation, and every cell is written "
+        "with a hyphen-minus instead.",
+        "column": column,
+        "rows": 11,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _quoted_trailing_minus():
+    column, rungs, claims = _flat_numbers(
+        "-12345.5", 11,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=11,
+        numeric_styles={"decimal": 11},
+        fraction_widths={"1": 11}, pad_widths={}, field_widths={},
+        group_separator="’", negative_form="trailing_minus",
+    )
+    return {
+        "why": "the right single quotation mark U+2019 between thousands and a "
+        "minus written after the figures, which a trailing minus is only "
+        "where the figures carry a decimal point. Every cell is minus twelve "
+        "thousand three hundred and forty-five and a half, written "
+        "`12’345.5-`; one cell spends a zero and is written `012345.5-`, "
+        "with no mark. This case's mutant writes every mark as a comma, and "
+        "every cell that carries one moves.",
+        "column": column,
+        "rows": 11,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _spaced_decimal_comma():
+    column, rungs, claims = _flat_numbers(
+        "42037.34", 13,
+        n_present=11, n_missing=2,
+        n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 11},
+        fraction_widths={"2": 11}, pad_widths={}, field_widths={},
+        group_separator=" ",
+    )
+    return {
+        "why": "a no-break space U+00A0 between thousands on a column DECLARED "
+        "to write its decimals with a comma, which this case's own test "
+        "settings name: the mark is neither decimal mark, so it is written as "
+        "published and only the point becomes a comma, `42 037,34`. One "
+        "cell spends a zero and carries no mark, `042037,34`, and the two "
+        "absent cells are written empty. This case's mutant withdraws the "
+        "exchange of plan P4-D26, the rule `grouped_decimal_comma` pins by "
+        "its mark instead, and every present cell moves.",
+        "column": column,
+        "rows": 13,
+        "identifier_declared": False,
+        "decimal_comma_declared": True,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _narrow_spaced():
+    column, rungs, claims = _flat_numbers(
+        "12345.5", 11,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 11},
+        fraction_widths={"1": 11}, pad_widths={}, field_widths={},
+        group_separator=" ",
+    )
+    return {
+        "why": "a narrow no-break space U+202F between thousands. Every cell is "
+        "twelve thousand three hundred and forty-five and a half, written "
+        "`12 345.5`; one cell spends a zero and is written `012345.5`, "
+        "with no mark. This case's mutant writes every mark as a comma, and "
+        "every cell that carries one moves.",
+        "column": column,
+        "rows": 11,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _thin_spaced():
+    column, rungs, claims = _flat_numbers(
+        "12345.5", 11,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 11},
+        fraction_widths={"1": 11}, pad_widths={}, field_widths={},
+        group_separator=" ",
+    )
+    return {
+        "why": "a thin space U+2009 between thousands, the last mark landing "
+        "2b.2's repair added. Every cell is twelve thousand three hundred and "
+        "forty-five and a half, written `12 345.5`; one cell spends a "
+        "zero and is written `012345.5`, with no mark. This case's mutant "
+        "writes every mark as a comma, and every cell that carries one moves.",
+        "column": column,
+        "rows": 11,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -9773,6 +9893,15 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "grouped_charges": _grouped_charges,
     "grouped_decimal_comma": _grouped_decimal_comma,
     "spaced_brackets": _spaced_brackets,
+    # The rest of landing 2b.2's marks and notations, frozen at the
+    # integration of landings 2b.1 to 2b.5 once this file had room: the
+    # apostrophe, U+2019, U+00A0 on a declared decimal comma, U+202F and
+    # U+2009, with the minus sign and the trailing minus.
+    "apostrophe_minus_sign": _apostrophe_minus_sign,
+    "quoted_trailing_minus": _quoted_trailing_minus,
+    "spaced_decimal_comma": _spaced_decimal_comma,
+    "narrow_spaced": _narrow_spaced,
+    "thin_spaced": _thin_spaced,
 }
 
 CASE_SETS = {
@@ -9842,8 +9971,10 @@ _SECOND_BRANCH_ACCOUNT = (
     "stamp's one permitted mark, bare dates beside moments at midnight, "
     "the move onto midnight and off an accidental one, and midnight on two "
     "offsets (landing 2b.3); and the mark between thousands, the exchange "
-    "on a declared decimal-comma column and accounting brackets (landing "
-    "2b.2). They are computed by the same oracle and the same proof layer "
+    "on a declared decimal-comma column and accounting brackets, and the "
+    "apostrophe, the right single quotation mark, the no-break, narrow "
+    "no-break and thin spaces, the minus sign and the trailing minus "
+    "(landing 2b.2). They are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json and "
     "tests/reference/generation-branch-vectors.json, and live in a third "
     "file only because with them the second would pass the provenance "
@@ -10298,6 +10429,36 @@ GIVEN_WORDS = {
         1918039791416009201, 8866012333022508572, 3304104628595658101,
         5361620680766448462, 2128419656908236178, 13372904720345244078,
         8759118553313331063, 13069717736981496796, 6138377388608102850,
+    ),
+    "apostrophe_minus_sign": (
+        11925147295444600069, 11089240203900317313, 9819830666471227869,
+        2749346133703871953, 1508733343006715641, 18180139909873991228,
+        16463840791222180813, 10654012495794051676, 11710431502531830591,
+        16252906971658573958,
+    ),
+    "quoted_trailing_minus": (
+        2630530136600429752, 14843464820283064329, 13746219337496006556,
+        16276882424652558323, 15421845663344080015, 11250483033371735923,
+        9927756422451768005, 17351084460761096619, 17896605624886333308,
+        5365177923225636576,
+    ),
+    "spaced_decimal_comma": (
+        17988365877429453726, 9448520390256751155, 6656490661682814805,
+        10629575347112315327, 11033422561547849900, 4389274299741060645,
+        15177587718132664213, 16104903271661744053, 10595740474962929323,
+        11197535970092085343, 13866510609922126994, 12730807114626703150,
+    ),
+    "narrow_spaced": (
+        17865164054464875118, 9302008414438268749, 10038449414269515851,
+        14390649795119895464, 5582022101676062047, 14699329782199672301,
+        13849334626973602526, 12166305398364482328, 3728389681362057086,
+        6349893863503400983,
+    ),
+    "thin_spaced": (
+        10113102895414097955, 5178904941191796344, 16615958821304445730,
+        18209141115321277810, 4121229174028038910, 3400813849530246077,
+        16764169360987406787, 9284587010259531064, 16054953443299658383,
+        10855639821522867941,
     ),
 }
 
