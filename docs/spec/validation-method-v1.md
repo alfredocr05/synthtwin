@@ -72,6 +72,23 @@ defect with the generator it is checking — which is the one thing a
 second opinion may not do. No random number generator is constructed or
 consumed anywhere in the validate path.
 
+**The windows of generation method G12.2 and G12.3 are drawn from the
+description alone** (landing 2b.1, part 2). The widest stratum they read
+is G5.6's `g_max` — G5.2a's cap, read off the block the numbers are
+described by and, where that block's mode pair is withheld, off the
+description's own `small_cell_floor` (landing 2b.1, repair) — and
+nothing here rebuilds the generator's layout or
+estimates it: the two estimates that stood here, an even split and a
+longest plateau, were each narrower than the strata the construction
+built, and accused twins it had built. The twin's own report reads the
+same number off the same block and reads the ladder at the same exact
+fractions, so the two reports print one window, and the suite holds the
+two writings and the oracle's to that where all three may be imported.
+The one exception is generation method G5.6's: where the generator's
+carrier and reach steps move a stratum past the cap, the twin's own
+report widens to that stratum and this report, which cannot see it, does
+not.
+
 **V1.5 The reading is derived from the profile, never guessed.**
 
 - The header is present exactly when `source.header_source` says the

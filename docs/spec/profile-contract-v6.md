@@ -422,7 +422,9 @@ none may be inferred from another:
   every value ties there, and the tie rule would publish the column's
   smallest number under a name saying it dominates. Identity is the
   canonical triple, as for `n_distinct_values` below: two spellings of
-  one number are one value here.
+  one number are one value here. The pair stays REPORT-ONLY, and the
+  generator reads `mode_count` as a CEILING: generation method G5.2a
+  holds every stratum of the twin at or under it (landing 2b.1).
 - `n_distinct_values` counts NUMBERS where `n_distinct` beside it
   counts SPELLINGS, and the difference is the whole reason it exists.
   `1` and `01` are two spellings and one number, so the two keys can

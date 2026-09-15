@@ -624,7 +624,40 @@ operations and its clamp — with the integer rule of G5.4 applied
 afterwards where `integer_valued` is published true. `K` is the
 column's numeric cell count and `2**64` is the scale G5.3 itself uses,
 so nothing rounds here that does not round there. G5.5's sign repair is
-NOT applied: the two operations named here are the whole of it.
+NOT applied: the operations named here are the whole of it.
+
+**AND ON A COLUMN WRITTEN AT ONE FRACTION WIDTH, THE NUMBER THE WRITER
+WOULD WRITE THERE** (landing 2b.1, 2026-09-15). Where `integer_valued`
+is false and the column is on a WRITTEN GRID of `f > 0` figures, `v[i]`
+is replaced by the number its GRID TEXT reads back as: the text G6.6's
+writer gives `v[i]` at `f` figures. A run is then a run of one WRITTEN
+number, and `GridValue(x)` below names this reading. A column is on a
+written grid of `f` figures where `fraction_widths` names the one width
+`f` and either that width covers every numeric cell — G6.5a's WHICH GRID
+clause — or its count and `W`, the point-free count of G5.2's carrier
+step, add up to every numeric cell (landing 2b.1, repair, 2026-09-16).
+The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
+how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
+the grid point whose last `f` figures are zero, so every number of such
+a column is a point of the grid. Read as no grid, its strata did not
+line up with the numbers: at 53bb012 a 2,000-row column of weights
+written this way held 238 cells at full binary precision and 51 leading
+zeros, and a 4,000-row column of temperatures held one number 601 times
+against a `mode_count` of 308. On 96 twins of eight such shapes at 500
+to 4,000 rows the count of twins checked with nothing missed went from 4
+to 70, of cells at full precision from 6,971 to 21, and of leading zeros
+from 736 to 16.
+
+Without it a ladder read at every rank gives nearly every rank a value
+of its own on a column whose values move continuously, the join of
+step 3 has only one-rank transitions to work with, and the strata it
+builds bear no relation to the numbers the column is written as. G6.6's
+snap then refuses every stratum narrower than half a grid unit and the
+cell is written at full binary precision. Measured on 2,000 cells of a
+one-figure column publishing 517 different numbers: 227 cells written
+like `55.44657068472738`, 38 leading-zero spellings such as `053.6`
+bought to make up the spelling count, and 479 numbers held; with this
+reading and G5.3's grid value, none, none and 517, at every seed tried.
 
 **2. Take the runs.** A RUN is a maximal block of consecutive ranks
 whose values are equal, compared as binary64 numbers. Write the runs in
@@ -642,7 +675,9 @@ length `L[j] + L[j+1]` keeping the value `H[j]`. The pair is chosen by
 the SMALLEST of this key, and the leftmost pair wins a tie:
 
 ```
-( min(L[j], L[j+1]),  0 if Whole(H[j]) == Whole(H[j+1]) else 1,  Gap(j) )
+( Over(j),  min(L[j], L[j+1]),  0 if Whole(H[j]) == Whole(H[j+1]) else 1,  Gap(j) )
+
+Over(j) = max(0, L[j] + L[j+1] - Cap_band)     and 0 wherever Cap is 0
 
 span   = |H[j]| + |H[j+1]|
 Gap(j) = 0                              where span is 0
@@ -682,8 +717,66 @@ column the first form could represent keeps exactly the bytes it had. `Whole(x)`
 where `x` is a whole number, by the test of G5.4. The key is recomputed
 after every join, not once for the whole walk.
 
-`Whole(x)` is true where `x` is a whole number. **All three parts of
-the key earn their place, and each was measured against a witness that
+**THE CAP, AND WHY THE KEY BEGINS WITH IT** (landing 2b.1,
+2026-09-15). No stratum may hold more cells than one number of the real
+column held. Write
+
+```
+Cap      = mode_count                              where the mode pair is published
+         = min(K - n_distinct_values + 1,
+               floor((r + 1) * (K - 1) / 100) + 2,
+               F - 1)                              where it is withheld
+Cap_band = max(Cap, ceil(C / M))                   where Cap > 0
+```
+
+where `r` is the length of the longest run of equal rungs in the
+hundred-and-one-rung ladder, filled by G5.1's rule. Both halves of the
+second line are bounds the description proves. Every other number holds
+a cell, so one number holds at most `K - n_distinct_values + 1` — one
+exactly where every number is different. And the ladder proves the
+other: a number held by `c` cells stands at sorted positions
+`a .. a + c - 1`, and every rung whose type-7 position `(K - 1) p`
+falls in `[a, a + c - 2]` reads exactly that number, which is at least
+`floor((c - 2) * 100 / (K - 1))` rungs, so no run of equal rungs can be
+shorter than that. `ceil(C / M)` stands in only where a band has too few
+strata to fit its cells under the cap at all.
+
+`F` is the description's `small_cell_floor`, and its term stands only
+where `F >= 3` and the description does not itself prove a number held
+by `F` cells or more — neither `ceil(K / n_distinct_values)` nor
+`floor((r - 1) * (K - 1) / 100)` reaches `F`; everywhere else the term
+is absent (landing 2b.1, repair, 2026-09-16). The profiler withholds the
+pair exactly where the commonest number is held by fewer than `F` cells
+or by one, so under a floor of 3 or more the pair's absence proves no
+number was held by more than `F - 1`; under a lower floor it proves only
+that every number is different, which the first term already says. The
+two exceptions are descriptions that contradict that reading: every
+number of a column holds at least `ceil(K / n_distinct_values)` cells
+on average, and the rungs at the two ends of a run of `r` equal rungs
+stand `(K - 1)(r - 1) / 100` type-7 positions apart, with every sorted
+position from just past the first to the second reading that number. A
+withheld pair under the floor was not withheld by it there. Without the
+term, 4,000 amounts described under `--smallest-group 11` came back
+holding one number 45 times and 2,500 thousandths 27 times, where the
+withheld pair proved no real number was held more than 10 times, and
+the twin described again at that floor published a mode pair the real
+column had withheld; with it, 30 twins of five such shapes at 1,000 to
+4,000 rows held none more than 10 times.
+
+The three parts that follow `Over` never stop a run growing: a run
+beside a one-rank transition always has a smaller side of one, so on a
+ladder that moves continuously the same run takes neighbour after
+neighbour. Measured on 4,000 cells of a two-figure lognormal column
+publishing a `mode_count` of 62: strata of 760, 720 and 240 cells, one
+number written 760 times, and `p25` recomputed at 0.64 against a
+published 0.79 — while the twin's own report said every rung was inside
+its window, because that window is drawn from the same inflated
+stratum (G5.6). With `Over` first the join takes every pair that stays
+under the cap before any that does not, and where every pair overshoots
+it takes the one that overshoots least.
+
+`Whole(x)` is true where `x` is a whole number. **The three parts after
+`Over` earn their place, and each was measured against a witness that
 the other two get wrong:**
 
 - **the smaller side smallest** — absorb the least. A transition is one
@@ -705,6 +798,23 @@ While `R < M`, divide the longest run in two — leftmost on a tie — into
 lengths `floor(L/2)` and `L - floor(L/2)`, both keeping its value. The
 two strata then hold the same value, and the leading-zero family of
 G6.5 is what gives the second of them a spelling of its own.
+
+**Then no run stands above the cap.** Visit the runs in rank order;
+while one holds more than `Cap_band` cells, the NEAREST other run still
+under it — the lower where two are equally near — takes as many of its
+cells as it has room for and the overflow still owes. Cells move by
+moving the boundaries between strata, so no band's total, no stratum
+count and no rank order changes. A run of step 2 can stand above the
+cap on its own, because interpolation rounds a plateau's edges onto it:
+345 cells of a five-point score against a published `mode_count` of
+333. Nothing moves where `Cap` is 0, or where the band's strata could
+not hold it under `Cap_band`.
+
+The carrier and reach steps of G5.2b run after this and may move cells
+past the cap: `numeric_styles` is EXACT-OBSERVABLE and `mode_count` is
+REPORT-ONLY, so by plan P2-D6's feasibility rule 4 the published style
+count wins, exactly as it wins over the even split. That is the one
+exception G5.6 names to the promise its window rests on.
 
 **4. The sizes are the run lengths**, in rank order. Each is at least
 one and they sum to `C`, because every run is at least one rank long
@@ -737,10 +847,35 @@ them:
 ```
 M_neg = (2 * M_rest * A_neg + (A_neg + A_pos)) // (2 * (A_neg + A_pos))
 then clamp M_neg into [ max(1, M_rest - P),  min(G, M_rest - 1) ]
+then, where Cap > 0 and N_neg + N_pos <= M_rest,
+     clamp M_neg into [ N_neg,  M_rest - N_pos ]
+     with N_neg = ceil(G / Cap) and N_pos = ceil(P / Cap)
 ```
 
 falling back to `G` and `P` where there is no ladder or where
-`A_neg + A_pos` is zero.
+`A_neg + A_pos` is zero. `Cap` is G5.2a's.
+
+**AND THE CAP DECIDES EACH BAND'S FLOOR** (landing 2b.1, part 2,
+2026-09-15). Every number of a band holds at most `Cap` cells, so a band
+of `G` cells holds at least `ceil(G / Cap)` different numbers, and a band
+handed fewer strata than that holds more cells in one of them than any
+number of the real column held — which G5.2a's levelling cannot repair,
+because a band's strata cannot hold its cells under a cap they are too
+few for. The rounded share of runs does exactly that on a short column:
+twelve whole numbers, seven cells of `-29` and one of `-28` beside a
+zero and three positive cells, publish a `mode_count` of 7, and the
+share gave the negatives ONE stratum, which then held eight cells. The
+floor gives them two. `N_neg + N_pos <= M_rest` holds whenever `M_rest`
+is at least the column's count of different non-zero numbers, since the
+real bands hold at least `N_neg` and `N_pos` of them; where a budget
+leaves `M_rest` below that, the floor is not applied. With it, no band's
+even share rises above `Cap`, so `Cap_band` is `Cap` itself and no
+stratum holds more than `Cap` cells wherever the carrier and reach steps
+below move none — the promise G5.6's window is drawn from. Measured over
+4,500 randomised columns of mixed signs and very uneven counts, whole
+and one- and two-figure, at floors of 1, 5 and 11, that the carrier and
+reach steps do not touch: every layout at or under `Cap`, where one of
+the 1,500 of the first search had not been.
 
 **THE LADDER DECIDES THE SHARE AND THE CELLS DECIDE THE CEILING**, and
 the clamp above says so because the formula alone does not. G5.2's
@@ -820,7 +955,20 @@ more can move:
 - the fewest cells the demand needs are moved: taken from the strata of
   that band that cannot carry, in ascending `s`, each down to size 1,
   and shared out over the strata of that band that can carry by the
-  same even split above.
+  same even split above;
+- **except on a column on a written grid (G5.2a step 1)**, where the
+  shares are the same even split but each carrying stratum, in ascending
+  `s`, takes its share from the strata that cannot carry NEAREST to it
+  in `s` — the lower of two equally near — each still down to size 1
+  (landing 2b.1, repair, 2026-09-16). G5.2a lined every stratum of such
+  a column up with the numbers its grid holds, and taking the cells from
+  the lowest strata slid every boundary between those strata and the
+  takers: on 4,000 temperatures written `37` beside `37.4`, 34 cells
+  taken from the bottom left four strata on `35.3`, every stratum up to
+  `38.0` straddling two written numbers, and the twin four numbers
+  short. Taken from the nearest, only the boundaries beside a taker
+  move, and the same column came back with all 34 numbers at every
+  size and seed measured.
 
 **The reach step, taken third** (P2-C5-F3). "Can carry" above is a
 PLAN, not a certainty: every stratum that is neither a pinned end nor
@@ -877,9 +1025,12 @@ not a published fact. `numeric_styles` IS published, and
 EXACT-OBSERVABLE (contract 7.5.7, 9.4). Plan P2-D6's feasibility rule 4
 fixes the order: published counts take precedence over ladder
 conformance where the conflict is otherwise resolvable. The cost is
-paid in the open rather than absorbed, because `g_max` in G5.6 is read
-off the strata this step produces, so the rung envelope widens by
-exactly what the step spent and by nothing else. Revision 1 had no such
+paid in the open rather than absorbed, because the twin's own report
+reads `g_max` as no less than the widest stratum this step produces, so
+its rung envelope widens by exactly what the step spent and by nothing
+else. The quality report cannot read this layout, and reads `Cap`; so
+wherever this step moves a stratum past `Cap` the two reports print
+different windows for one fact, which is the one exception G5.6 names. Revision 1 had no such
 step and left a producer's own style map unreachable: a 51-cell column
 holding eleven `1.5`, twenty `100` and twenty `200.5` publishes twenty
 `plain` cells, its own values prove the map, and an even three-way
@@ -1022,6 +1173,27 @@ For each stratum `s`, in ascending `s`:
   if v < L[j]:    v = L[j]
   if v > L[j+1]:  v = L[j+1]
   ```
+
+- **any other stratum of a column on a written grid** — the grid of
+  G5.2a step 1, which includes a column whose other cells are written
+  with no point: the word `w` is drawn exactly as above, and
+  the stratum takes the grid value of the ladder at ONE OF ITS OWN
+  RANKS rather than at a share between ranks:
+
+  ```
+  rank  = c[s] + ((w * g[s]) >> 64)           (exact integer, c[s] <= rank < c[s] + g[s])
+  value = GridValue(Interpolate(Ladder, rank * 2**64, K * 2**64))
+  ```
+
+  G5.4 does not apply, the column not being whole-valued, and G5.5
+  applies as to every stratum (landing 2b.1, 2026-09-15). **Why a rank
+  and not a share.** G5.2a sized this stratum by the ranks whose grid
+  value is its own; a share `[c[s]/K, (c[s]+g[s])/K)` runs one rank past
+  them, so a one-rank stratum drew a position half a rank above its own
+  number and snapped onto its neighbour's half the time. Measured on
+  2,000 cells of a one-figure column publishing 598 different numbers:
+  529 strata held a number of their own after the draw, and G6.5a's
+  walk could bring that back only to 592.
 
 **Why the convex form and not `L[j] + t * (L[j+1] - L[j])`.** The
 difference form overflows to an infinity when the two rungs sit at
@@ -1168,8 +1340,14 @@ it true.
 
 Let `Ladder(p)` be the published ladder read as a piecewise-linear
 function of a probability `p` in `[0, 1]`, using the same segment rule
-and the same convex form as G5.3. Let `g_max` be the largest stratum
-size of G5.2 and
+and the same convex form as G5.3. Let `g_max` be G5.2a's `Cap`, read off
+the numeric block the numbers are described by — a column's own block,
+or the block of one joined position, one affixed wrapper or a compound
+column's numeric half — and the count of numeric cells that block
+describes where `Cap` is 0 (landing 2b.1, part 2, 2026-09-15). It is a
+function of the description alone, so the twin's own report and the
+quality report read one number without either rebuilding the layout
+(validation method V1.4), and
 
 ```
 d = (g_max + 2) / K
@@ -1197,6 +1375,24 @@ widest ladder displacement the construction can produce, and the bound
 is a statement about the method rather than a tolerance somebody
 measured and rounded up.
 
+**Why no stratum is wider than `g_max`.** G5.2b's band floor gives every
+band enough strata to hold its cells under `Cap`, and G5.2a's levelling
+holds every stratum under it. **The one exception is named, not
+absorbed.** On a column publishing `integer_valued: false` beside a
+point-free style count, G5.2b's carrier and reach steps may move cells
+past `Cap`, because the published style count wins (plan P2-D6, rule 4).
+The twin's own report, which built the layout, then reads `g_max` as the
+widest stratum built, so its bound still holds of the construction. The
+quality report cannot read that layout (validation method V1.4) and reads
+`Cap`, so there the two reports print different windows for one fact and
+the quality report's is the narrower: it can call a rung MISSED that the
+twin report calls inside. Closing that needs a second writing of the
+carrier and reach steps outside the generator. Measured: of 11,134
+layouts the generation test files build, 305 stood above `Cap`, every
+one of that shape; on a 4,000-row column of halves written without
+their trailing zero one stratum held 315 cells beside a `Cap` of 268,
+and no rung left the narrower window at the seeds tried.
+
 **What it must reject.** A mutant that ignores the nine interior rungs
 and interpolates only between `min` and `max` produces
 `T[i] ≈ min + (PCT[i]/100) * (max - min)`, which leaves this window on
@@ -1219,8 +1415,10 @@ Ladder(max(0, p_k - d))  <=  V[k]  <=  Ladder(min(1, p_k + d))
 ```
 
 with the same `d`. On a column publishing `integer_valued: true` both
-ends widen by the one half unit the whole-number rule of G5.4 can add,
-and by nothing else. G12.3 derives the moment bounds from this rank
+ends widen by the one half unit the whole-number rule of G5.4 can add;
+on a column written at one fraction width, by half a unit of its last
+place, which is how far G5.3's grid value stands from the ladder at its
+own rank; and by nothing else. G12.3 derives the moment bounds from this rank
 form, so the moments and the rungs rest on one statement about the
 construction rather than on two.
 
@@ -6629,14 +6827,48 @@ below: the rung form, over the nine published interior rungs, and the
 rank form, over every sorted position of the twin's own numeric cells.
 Both use the same displacement `d = (g_max + 2) / K`, where `K` is the
 number of cells the twin writes that read back as a number and `g_max`
-is the largest stratum of G5.2.
+is G5.6's, read off the description. **Both reports read that `g_max`,
+and neither rebuilds the layout** (landing 2b.1, part 2), except that the
+twin's own report reads it as no less than a stratum G5.2b's carrier and
+reach steps moved past `Cap`, which G5.6 names. Before it the
+twin's own report read the layout it had just built and the quality
+report read an estimate narrower than that layout: on a 2,000-row
+rounded-income column the twin report allowed `p75` anywhere from
+55673.3 to 63799.2 and called it inside, and the quality report allowed
+59624.75 to 60275.25 and called it MISSED.
+
+**Each end is the ladder read at an exact fraction.** Write
+`Ladder(N / D)` for G5.3's reading of the hundred and one rungs, filled
+by G5.1, at the share `N / D` of two whole numbers: its `A`, `B`, `T`
+and `t`, the four convex-form operations in their order, and the clamp.
+The rung form reads interior rung `i` at
+
+```
+low  = Ladder(max(0, PCT[i] * K - 100 * (g_max + 2)) / (100 * K)) - h
+high = Ladder(min(100 * K, PCT[i] * K + 100 * (g_max + 2)) / (100 * K)) + h
+```
+
+and the rank form reads rank `k` of `K >= 2` at
+
+```
+A[k] = Ladder(max(0, k * K - (g_max + 2) * (K - 1)) / (K * (K - 1))) - h
+B[k] = Ladder(min(K * (K - 1), k * K + (g_max + 2) * (K - 1)) / (K * (K - 1))) + h
+R[k] = Ladder(k * K / (K * (K - 1)))
+```
+
+and a column of one value at `Ladder(0 / 1)`. No share is formed in
+binary64. `PCT[i] / 100 - (g_max + 2) / K` formed that way is the same
+number in exact arithmetic and not the same reading, and it put one
+window into the two reports in two sets of last digits (residual
+R-P4-61).
 
 **The half unit, and the two rules that can spend it.** On a column
 publishing `integer_valued: true` both ends widen by one half unit, and
 by nothing else, because G5.4 rounds each value to a whole number
 exactly once. On a column publishing `integer_valued: false` whose
 `numeric_styles` map holds a count for `plain`, `leading_zero` or
-`leading_plus`, the values step of G6.4 may take a stratum to the
+`leading_plus` -- or a withheld share, which G6.4 writes plain -- the
+values step of G6.4 may take a stratum to the
 nearest whole number so that the published form can be written at all
 (P2-C2-F2), which is the same half unit and no more; both ends widen by
 it there too. A column publishing none of those three counts keeps the
@@ -6649,8 +6881,16 @@ share of the ladder instead (P2-C4-F3). That move is not an extra
 allowance and no term is added for it: `d` already carries the whole
 width of the stratum covering a rank, which is the argument G5.6 makes
 in full, so a value anywhere inside that share is inside the window
-before the half unit is added. The half unit above remains the only
-widening this document grants.
+before the half unit is added.
+
+**And half a grid unit on a column written at one fraction width**
+(landing 2b.1, 2026-09-15). G5.3 gives each stratum of such a column
+the grid value of the ladder at one of its own ranks, which stands at
+most half a unit of the column's last place from the ladder there. Both
+ends widen by that half unit on a column publishing neither
+`integer_valued: true` nor a point-free style count, and by the whole
+half unit above where it does. These two are the only widenings this
+document grants.
 
 ### G12.3 The bounds on `mean`, `std` and `skew`
 
@@ -6732,6 +6972,41 @@ are:
 -(K - 2) / sqrt(K - 1)   <=   skew   <=   +(K - 2) / sqrt(K - 1)
 ```
 
+**THE OPERATION ORDER, WHICH BOTH REPORTS FOLLOW** (residual R-P4-61,
+closed by landing 2b.1, part 2, 2026-09-15). The bounds above are exact
+statements, and binary64 reaches them in more than one way; the twin's
+own report and the quality report reached them in different ways and
+printed one window in two sets of last digits. So the computation is
+fixed, step by step, and both follow it. `fsum` is the correctly
+rounded sum of a list, `mean` is the profiler's exact mean correctly
+rounded once, and `std` is the profiler's exact sample deviation:
+
+```
+meanA  = mean(A)                        meanB = mean(B)
+m      = max over k of e[k]
+E      = 0                               where m is 0
+       = m * sqrt(fsum(q[k] * q[k]) / K) otherwise, with q[k] = e[k] / m
+S      = std(R)                          s     = S * sqrt((K - 1) / K)
+std    : max(0, S - E * sqrt(K / (K - 1)))  ..  S + E * sqrt(K / (K - 1))
+s_low  = max(0, s - E)                   s_high = s + E
+Q(X, c, t) = fsum(u[k] * u[k] * u[k]) / K, with u[k] = (X[k] - c) / t
+skew   : max(-C, min(Q(A, meanB, s_low), Q(A, meanB, s_high)))
+         ..  min(C, max(Q(B, meanA, s_low), Q(B, meanA, s_high)))
+```
+
+where `C` is the finite range below, already widened. Taking the lower
+of the two readings of `A` and the higher of the two readings of `B` is
+the sign rule above: a negative end is lowest over the smaller spread
+and a positive one over the larger, and the other two readings are
+never the extremes. **Each deviation is divided by the spread before it
+is cubed**, so a column around `1e300` has a window at all. The finite
+fallback is taken where `s_low` is 0 or any term is not a number. The
+quotient's two ends are NOT stepped outward; only the range `C` is, once,
+where it is formed — the quality report stepped the clamped ends again
+and the twin report did not. Where some `e[k]` is not a number there is
+no window to draw: the quality report lists the fact, and the twin
+report prints "any value this format can write".
+
 **AND EVERY LIMIT WRITTEN IN THIS SECTION IS WIDENED ONE PLACE OUTWARD
 BEFORE ANYTHING IS COMPARED AGAINST IT** (review item P4-G6-R7-F1,
 opened by the shape P4-G6-R6-F1 found). A limit stated as a closed form
@@ -6772,8 +7047,9 @@ reader of a report that counts this fact among its approximations could
 not find the rule its range rests on. That is review item P4-G3-R1-F4,
 and this closes it.
 
-The notation is G12.3's: `V`, `K`, `A[k]`, `B[k]`, `R[k]` and the
-displacement `E` all carry the meanings fixed there. The formula
+The notation is G12.3's: `V`, `K`, `A[k]`, `B[k]`, `R[k]`, the
+displacement `E`, the population spread `s` of the ladder's own values
+and the operation order all carry the meanings fixed there. The formula
 bounded is the profiler's own — the average FOURTH deviation over the
 FOURTH power of the POPULATION standard deviation. It is undefined for
 `K < 4`, matching the contract's Q16; where the published field is null
@@ -6791,10 +7067,11 @@ finite on both sides for every column — including one whose spread
 window reaches zero, where the quotient alone would not be.
 
 **The quotient.** The spread moves by at most `E`, exactly as in
-G12.3, so with `S` the twin's own population standard deviation:
+G12.3, so with `s` the population spread of the ladder's own values
+`R`, as there:
 
 ```
-S_low  = max(0, S - E)          S_high = S + E
+S_low  = max(0, s - E)          S_high = s + E
 ```
 
 and, writing `m_low` and `m_high` for the means of `A` and `B`,
@@ -6812,6 +7089,10 @@ furthest[k] = max(-below[k], above[k], 0)
 (1/K) * sum (nearest[k]  / S_high)^4   <=   kurtosis(V)
 kurtosis(V)   <=   (1/K) * sum (furthest[k] / S_low )^4
 ```
+
+in G12.3's order: `m_low` and `m_high` are `mean(A)` and `mean(B)`;
+each ratio `r` is raised as `r * r * r * r`; the terms are added by
+`fsum` and the sum is divided by `K` after (residual R-P4-61).
 
 **THE FOURTH POWER DOES NOT KEEP THE ORDER, and that is the one place
 this differs from the cube of G12.3.** Cubing a window's two ends

@@ -971,10 +971,19 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     refuses because `n_negative` is EXACT-OBSERVABLE while this fact is
     not.
     """
-    draw = random.Random(2)
+    # THE COLUMN MOVED AT LANDING 2b.1. The one this test was built on --
+    # 150 tenths around -30 beside 150 around 25 -- is written at ONE
+    # fraction width, so method G5.3 now gives each of its strata the
+    # grid value of one of its own ranks rather than a draw between
+    # them, and the value in the empty middle stood nearer its negative
+    # edge at all forty seeds: the "never succeeds" guard below went red
+    # on a column that no longer exercises both arms. This one keeps
+    # both, measured before it was written here: the move fails at 30
+    # seeds of 40, every stuck value positive.
+    draw = random.Random(0)
     rows = (
-        [f"{round(draw.gauss(-30, 3), 1)}" for _index in range(150)]
-        + [f"{round(draw.gauss(25, 2), 1)}" for _index in range(150)]
+        [f"{round(draw.gauss(-30, 1), 2)}" for _index in range(150)]
+        + [f"{round(draw.gauss(25, 2), 2)}" for _index in range(100)]
     )
     lowest, highest, barred = _empty_of(rows)
     assert barred, "this column is chosen for having an empty middle"

@@ -106,6 +106,20 @@ def _signed_rows() -> "list[str]":
     return ["+1"] * 11 + ["-99"] * 11 + ["-02"] * 11
 
 
+def _uneven_signed_rows() -> "list[str]":
+    """The same three spellings held eight, eight and nine times.
+
+    THE WITNESS FOR THE REPORTING PATH SINCE LANDING 2b.1. The column
+    above was that witness while its strata came out 12, 10 and 11, and
+    method G5.2a's stratum cap now holds every stratum at the published
+    `mode_count` of eleven, so it is met. Here the commonest number is
+    held nine times and the strata come out 9, 8 and 8 -- every one of
+    them under that cap -- so the seventeenth two-figure cell still has
+    no value narrow enough to wear, on the base commit and after it.
+    """
+    return ["+1"] * 8 + ["-99"] * 8 + ["-02"] * 9
+
+
 def _described(
     folder: pathlib.Path, name: str, header: str, rows: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -287,24 +301,48 @@ def test_the_unpadded_half_of_a_code_column_keeps_its_width(
         )
 
 
-def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
+def test_residual_r_p4_114s_own_column_is_met_under_the_stratum_cap(
     tmp_path: pathlib.Path,
 ) -> None:
-    """REPORT-ONLY means reported, and residual R-P4-114's own column.
+    """Eleven of each spelling, eleven cells to each stratum, every width met.
 
-    Its three strata are given 12, 10 and 11 cells where the source
-    holds eleven of each, so the eleventh padded cell has no value
-    narrow enough to wear the padding and comes out `-099`. No move of
-    a VALUE repairs a cell COUNT, so this column misses -- and the point
-    of this test is that it is not silent about it.
+    Its strata were 12, 10 and 11 where the source holds eleven of each,
+    so the eleventh padded cell had no value narrow enough and came out
+    `-099` at every seed. Method G5.2a now caps every stratum at the
+    published `mode_count` (landing 2b.1), which is eleven here, so the
+    layout is 11, 11, 11 and the census comes back whole with nothing
+    named against it.
     """
     document, loaded = _described(
-        tmp_path, "signed", "reading", _signed_rows()
+        tmp_path, "signed-even", "reading", _signed_rows()
     )
     assert document["columns"][0]["field_widths"] == {"1": 11, "2": 22}
     for seed in SEEDS:
+        cells, _path, built = _twin_cells(tmp_path, "signed-even", loaded, seed)
+        assert _field_widths_of(cells, "") == {1: 11, 2: 22}, seed
+        assert not [
+            note for note in built.deviations if note.fact == "field_widths"
+        ], seed
+
+
+def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REPORT-ONLY means reported, and residual R-P4-114's shape.
+
+    Its three strata are given 9, 8 and 8 cells where the source holds
+    eight, eight and nine, so the seventeenth two-figure cell has no
+    value narrow enough to wear the padding and comes out three figures
+    wide. No move of a VALUE repairs a cell COUNT, so this column misses
+    -- and the point of this test is that it is not silent about it.
+    """
+    document, loaded = _described(
+        tmp_path, "signed", "reading", _uneven_signed_rows()
+    )
+    assert document["columns"][0]["field_widths"] == {"1": 8, "2": 17}
+    for seed in SEEDS:
         cells, path, built = _twin_cells(tmp_path, "signed", loaded, seed)
-        assert _field_widths_of(cells, "") != {1: 11, 2: 22}
+        assert _field_widths_of(cells, "") != {1: 8, 2: 17}
         # The twin's OWN report names it, with the published count
         # beside the achieved one.
         named = [

@@ -830,7 +830,7 @@ def even_split(count, strata):
     ]
 
 
-def ladder_runs(ladder, low, count, numeric, integer_valued):
+def ladder_runs(ladder, low, count, numeric, integer_valued, figures=-1):
     """Steps 1 and 2 of method section G5.2a: the ladder's own plateaus.
 
     **Step 1, read the ladder at every rank of the band.**  For
@@ -855,6 +855,11 @@ def ladder_runs(ladder, low, count, numeric, integer_valued):
         value = ladder_at(ladder, (low + index) * scale, denominator)
         if integer_valued:
             value = integer_rule(value)
+        elif figures > 0:
+            # ON A COLUMN WRITTEN AT ONE FRACTION WIDTH the value at a rank
+            # is the grid value the writer would write there (G5.2a step
+            # 1), so a run is a run of one WRITTEN number.
+            value = float(grid_text(value, figures))
         if lengths and heights[-1] == value:
             lengths[-1] = lengths[-1] + 1
         else:
@@ -899,7 +904,116 @@ def join_key(lengths, heights, index):
     )
 
 
-def band_allotment(count, strata, ladder, low, numeric, integer_valued):
+def overshoot(lengths, index, cap):
+    """How far joining runs ``index`` and ``index + 1`` would stand above the cap.
+
+    The FIRST part of G5.2a step 3's key: a join that keeps both runs at
+    or under the cap costs nothing here and is chosen by the three parts
+    that follow, and where every join overshoots, the one that overshoots
+    least is taken.  A cap of nought bounds nothing.
+    """
+    if cap <= 0:
+        return 0
+    return max(0, lengths[index] + lengths[index + 1] - cap)
+
+
+def levelled(lengths, cap):
+    """G5.2a step 4: no stratum above the cap.
+
+    Strata are visited in ascending order.  While one holds more cells
+    than the cap, the NEAREST other stratum still under the cap -- the
+    lower one where two are equally near -- takes as many of its cells
+    as it has room for and the overflow still owes.  The stratum count
+    and the band's total are unchanged.  Nothing moves where the cap is
+    nought or where the strata could not hold the band under it.
+    """
+    sizes = list(lengths)
+    if cap <= 0 or not sizes or sum(sizes) > cap * len(sizes):
+        return sizes
+    for index in range(len(sizes)):
+        while sizes[index] > cap:
+            roomy = [other for other in range(len(sizes)) if sizes[other] < cap]
+            if not roomy:
+                break
+            target = min(roomy, key=lambda other: (abs(other - index), other))
+            moved = min(sizes[index] - cap, cap - sizes[target])
+            sizes[index] -= moved
+            sizes[target] += moved
+    return sizes
+
+
+# THE FLOOR EVERY CASE IS DESCRIBED UNDER.  tests/test_generation_reference.py
+# builds each case's document with `small_cell_floor: 11`, and G5.2a's cap
+# reads that floor where a case's mode pair is withheld; the test holds the
+# two equal.
+CASE_SMALL_CELL_FLOOR = 11
+
+
+def stratum_cap(column, ladder, numeric, floor):
+    """The most cells one stratum may hold -- G5.2a.
+
+    The published ``mode_count`` where the mode pair is published: no
+    number of the column was held by more cells than that.  Where the pair
+    is withheld, the smaller of ``K - n_distinct_values + 1`` -- every other
+    number holds a cell -- and the most cells one value can hold without
+    the hundred-and-one-rung ladder showing more equal rungs than it does: a value held by ``c`` cells
+    puts at least ``floor((c - 2) * 100 / (K - 1))`` rungs on itself, so
+    with ``r`` the longest run of equal rungs ``c`` is at most
+    ``floor((r + 1) * (K - 1) / 100) + 2``.
+
+    And a withheld pair under a publication ``floor`` of 3 or more proves no
+    number was held by ``floor`` cells, so the cap is at most ``floor - 1``
+    -- wherever the description does not itself prove a number held by that
+    many: ``ceil(K / n_distinct_values)`` cells, or the
+    ``floor((r - 1) * (K - 1) / 100)`` a run of ``r`` equal rungs forces onto
+    one number.  A floor under 3 proves only that every number is
+    different, which the count already says.
+    """
+    if column.get("mode") is not None and column.get("mode_count", 0) > 0:
+        return column["mode_count"]
+    # Every other number holds a cell, so one holds at most what is left.
+    # A placeholder count of nought (a case whose count is taken off its
+    # finished cells) proves nothing here.
+    distinct = column.get("n_distinct_values", 0)
+    counted = max(1, numeric - distinct + 1) if distinct > 0 else 0
+    if ladder is None or numeric < 2:
+        return floored_cap(counted, floor, numeric, distinct, 0)
+    longest = 1
+    run = 1
+    for index in range(1, len(ladder)):
+        if ladder[index] == ladder[index - 1]:
+            run += 1
+            longest = max(longest, run)
+        else:
+            run = 1
+    ladder_bound = ((longest + 1) * (numeric - 1)) // 100 + 2
+    bound = min(counted, ladder_bound) if counted > 0 else ladder_bound
+    return floored_cap(bound, floor, numeric, distinct, longest)
+
+
+def floored_cap(bound, floor, numeric, distinct, longest):
+    """``bound`` lowered to ``floor - 1`` where a floor of 3 or more binds.
+
+    It binds unless the description proves a number held by ``floor`` cells:
+    ``ceil(numeric / distinct)``, or ``floor((longest - 1) * (numeric - 1) /
+    100)`` for a run of ``longest`` equal rungs.  Nought still means no bound.
+    """
+    if floor < 3:
+        return bound
+    proven = 0
+    if longest > 1:
+        proven = (longest - 1) * (numeric - 1) // 100
+    if distinct > 0:
+        proven = max(proven, -(-numeric // distinct))
+    if proven >= floor:
+        return bound
+    held = floor - 1
+    return held if bound <= 0 else min(bound, held)
+
+
+def band_allotment(
+    count, strata, ladder, low, numeric, integer_valued, figures=-1, cap=0
+):
     """How a band's cells divide between its strata -- method G5.2a.
 
     THE EVEN SPLIT IS THE FALLBACK AND NO LONGER THE RULE.  Where there
@@ -942,13 +1056,20 @@ def band_allotment(count, strata, ladder, low, numeric, integer_valued):
         )
     if ladder is None or strata >= count:
         return even_split(count, strata)
-    lengths, heights = ladder_runs(ladder, low, count, numeric, integer_valued)
+    if cap > 0:
+        # A band with too few strata to fit under the cap is held to the
+        # even split's own largest share instead.
+        cap = max(cap, -(-count // strata))
+    lengths, heights = ladder_runs(
+        ladder, low, count, numeric, integer_valued, figures
+    )
     # ``min`` and ``max`` both hold the FIRST extremal item, which is
     # the leftmost-wins-a-tie both halves of step 3 ask for.
     while len(lengths) > strata:
         at = min(
             range(len(lengths) - 1),
-            key=lambda index: join_key(lengths, heights, index),
+            key=lambda index: (overshoot(lengths, index, cap),)
+            + join_key(lengths, heights, index),
         )
         lengths[at] = lengths[at] + lengths[at + 1]
         del lengths[at + 1]
@@ -961,6 +1082,7 @@ def band_allotment(count, strata, ladder, low, numeric, integer_valued):
         # The two strata then hold the same value, and the leading-zero
         # family of G6.5 is what gives the second of them a spelling.
         heights.insert(at + 1, heights[at])
+    lengths = levelled(lengths, cap)
     if sum(lengths) != count or any(size < 1 for size in lengths):
         raise AssertionError(
             "a band's allotment must cover its own cells with a stratum of "
@@ -979,6 +1101,8 @@ def band_sizes(
     ladder=None,
     numeric=None,
     integer_valued=False,
+    figures=-1,
+    cap=0,
 ):
     """The split of method section G5.2a, band by band.
 
@@ -1003,7 +1127,7 @@ def band_sizes(
                 bands.append(band)
             continue
         for size in band_allotment(
-            count, strata, ladder, low, numeric, integer_valued
+            count, strata, ladder, low, numeric, integer_valued, figures, cap
         ):
             sizes.append(size)
             bands.append(band)
@@ -1018,6 +1142,8 @@ def band_strata(
     ladder=None,
     numeric=None,
     integer_valued=False,
+    figures=-1,
+    cap=0,
 ):
     """How many strata each band gets -- method section G5.2b.
 
@@ -1035,6 +1161,12 @@ def band_strata(
     The rounding is to the nearest whole number with ties upward,
     computed exactly in whole numbers, then clamped so that a band
     holding cells keeps a stratum.
+
+    THEN THE CAP'S FLOOR (landing 2b.1, part 2).  Every number of a band
+    holds at most ``cap`` cells, so the band holds at least
+    ``ceil(cells / cap)`` numbers; where ``M_rest`` can give both bands
+    that many, ``M_neg`` is clamped into
+    ``[ceil(G / cap), M_rest - ceil(P / cap)]``.
     """
     rest = values - (1 if zeros > 0 else 0)
     if rest < 0:
@@ -1047,11 +1179,18 @@ def band_strata(
         share_positive = positives
         if ladder is not None:
             runs_negative = len(
-                ladder_runs(ladder, 0, negatives, numeric, integer_valued)[0]
+                ladder_runs(
+                    ladder, 0, negatives, numeric, integer_valued, figures
+                )[0]
             )
             runs_positive = len(
                 ladder_runs(
-                    ladder, negatives + zeros, positives, numeric, integer_valued
+                    ladder,
+                    negatives + zeros,
+                    positives,
+                    numeric,
+                    integer_valued,
+                    figures,
                 )[0]
             )
             if runs_negative + runs_positive > 0:
@@ -1060,6 +1199,12 @@ def band_strata(
         share = share_negative + share_positive
         negative_strata = (2 * rest * share_negative + share) // (2 * share)
         negative_strata = max(1, min(rest - 1, negative_strata))
+        if cap > 0:
+            need_negative = -(-negatives // cap)
+            need_positive = -(-positives // cap)
+            if need_negative + need_positive <= rest:
+                negative_strata = max(negative_strata, need_negative)
+                negative_strata = min(negative_strata, rest - need_positive)
         return negative_strata, rest - negative_strata
     if negatives > 0:
         return rest, 0
@@ -1077,6 +1222,8 @@ def stratum_layout(
     pair=None,
     ladder=None,
     integer_valued=False,
+    figures=-1,
+    cap=0,
 ):
     """The strata of method section G5.2: sizes and starting positions.
 
@@ -1094,7 +1241,15 @@ def stratum_layout(
     """
     if pair is None:
         pair = band_strata(
-            negatives, zeros, positives, values, ladder, numeric, integer_valued
+            negatives,
+            zeros,
+            positives,
+            values,
+            ladder,
+            numeric,
+            integer_valued,
+            figures,
+            cap,
         )
     sizes, bands = band_sizes(
         negatives,
@@ -1105,6 +1260,8 @@ def stratum_layout(
         ladder,
         numeric,
         integer_valued,
+        figures,
+        cap,
     )
     # ``starts[s]`` is the number of cells in all strata before ``s``.
     starts = []
@@ -1229,7 +1386,9 @@ def carrier_bands(
     return pair
 
 
-def carrier_split(sizes, bands, ladder, integer_valued, published, zeros, positives):
+def carrier_split(
+    sizes, bands, ladder, integer_valued, published, zeros, positives, fractional=-1
+):
     """The carrier step of method section G5.2 (review item P2-C4-F3).
 
     Three of the six styles can be worn only by a cell whose value has a
@@ -1286,6 +1445,27 @@ def carrier_split(sizes, bands, ladder, integer_valued, published, zeros, positi
             if take <= 0:
                 continue
             short -= take
+            if fractional > 0:
+                # ON A COLUMN ON A WRITTEN GRID each taker takes its even
+                # share from the NEAREST givers, the lower of two equally
+                # near, each giver keeping one cell (G5.2, landing 2b.1):
+                # taking from the lowest strata upward slid every boundary
+                # between them and the takers off the grid G5.2a lined up.
+                count = len(takers)
+                for step, taker in enumerate(takers):
+                    owed = (step + 1) * take // count - step * take // count
+                    while owed > 0:
+                        spare = [index for index in givers if moved[index] > 1]
+                        if not spare:
+                            break
+                        index = min(
+                            spare, key=lambda other: (abs(other - taker), other)
+                        )
+                        given = min(moved[index] - 1, owed)
+                        moved[index] -= given
+                        moved[taker] += given
+                        owed -= given
+                continue
             left = take
             for index in givers:
                 step = min(moved[index] - 1, left)
@@ -1945,6 +2125,36 @@ def whole_number_values(
             taken.append(moved)
             values[index] = moved
     return values
+
+
+def written_grid(fraction_widths, integer_valued, numeric, point_free):
+    """The grid G5.2a step 1 and G5.3 read the ladder on, or -1 (landing 2b.1).
+
+    ``grid_of``'s one width where it covers every numeric cell, and ALSO the
+    one width ``f > 0`` of a column whose other numeric cells are all written
+    with no point: a census naming that width alone, whose count and the
+    published point-free style count (``point_free``, the withheld share
+    counted as plain) add up to every numeric cell.  A point-free cell is the
+    grid point whose last ``f`` figures are zero, so such a column -- ``37``
+    beside ``37.4``, ``0`` beside ``2.5`` -- is on the grid ``f`` too.  A
+    whole-valued column answers -1: G5.4 already reads it on the integers.
+    """
+    if integer_valued:
+        return -1
+    figures = grid_of(fraction_widths, integer_valued, numeric)
+    if figures > 0:
+        return figures
+    if len(fraction_widths) != 1:
+        return -1
+    for width in fraction_widths:
+        try:
+            figures = int(width)
+        except (TypeError, ValueError):
+            return -1
+        if figures <= 0 or fraction_widths[width] + point_free != numeric:
+            return -1
+        return figures
+    return -1
 
 
 def grid_of(fraction_widths, integer_valued, numeric):
@@ -6379,9 +6589,20 @@ def _numeric_content(column):
     # values the LADDER gives each of them, not how many cells each
     # holds.  Two bands holding the same number of cells need not hold
     # the same number of values, and a stratum count is about values.
+    # THE GRID AND THE CAP OF G5.2a.  A column written at ONE fraction
+    # width reads its ladder on that grid; a whole-valued one already
+    # reads it on the integers through G5.4.  The cap is read off the
+    # mode pair, the count of different numbers and the ladder.
+    fractional = written_grid(
+        column.get("fraction_widths", {}),
+        integer_valued,
+        numeric,
+        sum(effective[style] for style in POINT_FREE_STYLES),
+    )
+    cap = stratum_cap(column, ladder, numeric, CASE_SMALL_CELL_FLOOR)
     pair = band_strata(
         negatives, zeros, positives, values_wanted, ladder, numeric,
-        integer_valued,
+        integer_valued, fractional, cap,
     )
     if demand > 0:
         # G5.2's carrier step, band half: a band whose only stratum is a
@@ -6410,6 +6631,8 @@ def _numeric_content(column):
         pair,
         ladder,
         integer_valued,
+        fractional,
+        cap,
     )
     # G5.2's carrier step, cell half: the cells a published point-free
     # count needs, put where they can be written.  It moves cells
@@ -6423,6 +6646,7 @@ def _numeric_content(column):
         column["numeric_styles"],
         zeros,
         positives,
+        fractional,
     )
     starts = restarted(sizes)
     words = iter(column["_content_words"])
@@ -6439,7 +6663,13 @@ def _numeric_content(column):
         if bands[index] == "zero":
             values.append(0.0)
             continue
-        position = starts[index] * TWO64 + size * next(words)
+        word = next(words)
+        position = starts[index] * TWO64 + size * word
+        if fractional > 0:
+            # G5.3 ON A COLUMN WRITTEN AT ONE FRACTION WIDTH: the word
+            # picks one of the stratum's own ranks, ``bounded(w, g)``, and
+            # the stratum holds the grid value of the ladder at that rank.
+            position = (starts[index] + ((size * word) >> 64)) * TWO64
         denominator = numeric * TWO64
         percents = percents_of(ladder)
         segment = ladder_segment(position, denominator, percents)
@@ -6453,6 +6683,8 @@ def _numeric_content(column):
         value = record["clamped"]
         if integer_valued:
             value = integer_rule(value)
+        elif fractional > 0:
+            value = float(grid_text(value, fractional))
         value, repaired = class_repair(value, bands[index], ladder[0], ladder[-1])
         record["stratum"] = index
         record["value"] = value
@@ -6889,9 +7121,10 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # the same three roles.  Both keys are always present on a block
     # that carries a ladder; a withheld mode is `null` beside a count
     # of nought, which is what a column with no dominant value
-    # publishes and what every case in this file publishes, because
-    # none of them turns on the fact.  It is REPORT-ONLY and steers no
-    # rule of the method, so it costs no word and moves no cell.
+    # publishes and what every case in this file publishes.  It is
+    # REPORT-ONLY and costs no word, and since landing 2b.1 it steers ONE
+    # rule: G5.2a's cap reads it, and a withheld pair hands that cap to
+    # the count of different numbers and the ladder instead.
     if "percentiles" in block and "mode" not in block:
         block["mode"] = None
         block["mode_count"] = 0
@@ -8995,9 +9228,11 @@ def _joined_readings():
             # numbers (contract Q18). Both positions of this column
             # repeat values, so a real profile of it would publish a
             # mode; this case publishes the withheld pair because the
-            # fact is REPORT-ONLY, steers no rule of the method and
-            # moves no cell, and a case that turns on nothing should
-            # publish nothing about it.
+            # fact is REPORT-ONLY. Withholding it is not nothing since
+            # landing 2b.1: G5.2a's cap then reads the ladder, and on
+            # this straight-line ladder over twelve cells that cap is
+            # two, which is why the first position no longer writes one
+            # number three times.
             "mode": None,
             "mode_count": 0,
         }

@@ -34,7 +34,7 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(672 rows over 668 sites, 73 curated and 599 derived); each derived row
+(670 rows over 666 sites, 73 curated and 597 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -3389,7 +3389,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-grouped-reading", "spelling.group_separator"),
             ("floor-bracketed-reading", "spelling.negative_form"),
             ("floor-signed-reading", "spelling.decimal_plus"),
-            ("filled-reading", "distinct.n_distinct_values"),
+            # LANDING 2b.1: `filled-reading` writes `5`, which the twin of this
+            # column now already holds -- its values sit on the column's own
+            # grid -- so the count of different numbers does not move. A filled
+            # fraction is a number the twin does not hold.
+            ("filled-fractioned-reading", "distinct.n_distinct_values"),
             ("emptied-reading", "axes.quality_state"),
             ("vast-reading", "axes.role"),
             ("vast-reading", "axes.statistical_type"),
@@ -3663,7 +3667,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crowded-dose", "ladder.p75"),
             ("crowded-dose", "ladder.p90"),
             ("crowded-dose", "ladder.p95"),
-            ("crowded-dose", "ladder.p99"),
+            # LANDING 2b.1: the checker now reads the widest stratum as no less
+            # than method G5.2a's cap, six here, so a crowded file's p99 lands
+            # inside the honest window; the enormous cells still move it out.
+            ("enormous-dose", "ladder.p99"),
             ("raised-dose", "moments.mean"),
             ("raised-dose", "moments.std"),
             ("raised-dose", "moments.skew"),
@@ -3742,7 +3749,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-reading", "ladder.p05"),
             ("zeroed-reading", "ladder.p10"),
             ("zeroed-reading", "ladder.p25"),
-            ("zeroed-reading", "ladder.p50"),
+            # LANDING 2b.1: with the widest stratum read as G5.2a's cap, the
+            # floor's worth of zeroed cells moves p50 to 188 inside a window
+            # from 182.74 to 211.46; the crowded file still leaves it.
+            ("crowded-reading", "ladder.p50"),
             ("enormous-reading", "ladder.p75"),
             # `spread` stopped moving p90 when the rung window began to
             # be drawn through all hundred and one published rungs
@@ -4494,8 +4504,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-zeroed-column_1", "ladder.min"),
             ("zeroed-column_1", "ladder.p01"),
             ("zeroed-column_1", "ladder.p05"),
-            ("floor-plussed-column_1", "ladder.p10"),
-            ("floor-plussed-column_1", "ladder.p50"),
+            # LANDING 2b.1: on sixty cells the widest stratum read as G5.2a's
+            # cap widens the p10 window to 0.5 to 72.9, which the floor's worth
+            # of plussed cells stays inside; the enormous cells still leave it.
+            ("enormous-column_1", "ladder.p10"),
+            # LANDING 2b.1: the same widening, at p50 (132.2 to 244.3).
+            ("crowded-column_1", "ladder.p50"),
             # `floor-plussed` reached p75 while the ladder had
             # eleven rungs; on a hundred and one it moves p10,
             # p25 and p50 and no further, because the finer ladder
@@ -4506,9 +4520,14 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crowded-column_1", "ladder.p90"),
             ("crowded-column_1", "ladder.p95"),
             ("raised-column_1", "ladder.p99"),
-            ("floor-plussed-column_1", "moments.mean"),
-            ("raised-column_1", "moments.skew"),
-            ("raised-column_1", "moments.kurtosis"),
+            # LANDING 2b.1: the same widening, on the mean (149.7 to 237.4).
+            ("crowded-column_1", "moments.mean"),
+            # `moments.skew` and `moments.kurtosis` are no longer
+            # registered here: since landing 2b.1 the checker reads the
+            # widest stratum of these sixty cells as method G5.2a's cap,
+            # both windows then admit every value a file could hold, and
+            # the validator LISTS the two moments instead of filing them.
+            # A registration naming a site no run files covers nothing.
             ("raised-column_1", "moments.std"),
             ("blanked-column_1", "presence.n_missing"),
             ("blanked-column_1", "presence.n_present"),
@@ -6697,8 +6716,8 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 672 rows
-    over 668 sites, 73 curated and 599 derived, each derived one an edit
+    up. The registration is now total over the shipped sites: 670 rows
+    over 666 sites, 73 curated and 597 derived, each derived one an edit
     aimed at the site it covers. THREE sites carry more than one row on
     purpose: `columns.order` carries three, because it is the whole of
     what the shipped table files for the STRUCTURAL disposition and the

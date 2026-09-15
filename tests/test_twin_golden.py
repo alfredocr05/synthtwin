@@ -235,13 +235,22 @@ NARROW_COLUMN_DIGESTS = {
     # re-recording, which is what the sentence beside the twin digest
     # asks for.
     "reading": "01d11476294ade427eb6806b3155e7b6",
-    "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
+    # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
+    # ONE fraction width, so method G5.2a now reads its ladder on that
+    # grid and G5.3 gives each stratum the grid value of one of its own
+    # ranks: 235 of its 240 cells moved, every one of them still a
+    # two-figure number, and the quality report still misses nothing.
+    "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
     "recorded_on": "275356366d05346ada86307a49d4467c",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
-    "dose": "2ae37c8ee2b559405bcf24a3fe6ab5e0",
+    # RE-RECORDED at landing 2b.1 (2026-09-15). The cores publish a
+    # withheld mode pair beside 180 different numbers over 240 cells, so
+    # G5.2a's stratum cap reads the ladder and is six: the widest
+    # stratum was seven, and 139 cells moved to hold it at six.
+    "dose": "8c8b3c5b9f6513ccd30b32e02393ae8c",
     "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -877,8 +886,11 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED at landing 2b.1 (2026-09-15): the `amount` and `dose`
+# columns moved for the causes recorded beside their column digests
+# above, and no other column's cells moved.
 GOLDEN_TWIN_SHA256 = (
-    "604642cadeb2c5094500752b8a618e57d894618d1dcfa7c91ba5d17a89acbca3"
+    "494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f"
 )
 
 
@@ -1269,8 +1281,18 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # that groups rows still behaves differently.
 # RE-RECORDED 2026-09-14 (stage 2): the first limit's sentence about
 # analysis code running on the twin is qualified, and no other line moved.
+# RE-RECORDED at landing 2b.1 (2026-09-15): the achieved figures and
+# windows of `amount` and `dose` follow their moved cells, the `amount`
+# windows widen by half a hundredth for G12.2's grid unit, and every
+# line still says inside.
+# RE-RECORDED at landing 2b.1, part 2 (2026-09-15, residual R-P4-61):
+# 122 lines of window ends move in their last digits and nothing else.
+# The report now reads every window's widest stratum off the description
+# (G5.6) and computes each end in the one operation order G12.2, G12.3
+# and G12.3a state, which is what the quality report prints; the twin,
+# every achieved figure and every inside-the-range verdict are unchanged.
 GOLDEN_REPORT_SHA256 = (
-    "1fbad8c5008a89f9339b7c2c9b01ad2298bf0481fe19371d00e5c80cee4908fb"
+    "2915f4c52c20798eefdd87492548ecfda26fa96d66afd7e891b4c527664957db"
 )
 
 
@@ -1742,6 +1764,11 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # RE-RECORDED AGAIN 2026-09-14 (stage 2 audit): the reason printed beside
 # each `numeric.group_separator` listing now says the mark was FOUND, not
 # WRITTEN; ten lines changed and nothing else.
+# RE-RECORDED AGAIN when landing 2b.1 merged into that integration: diffed
+# against the integrated report before the merge, only window figures moved
+# (50 asked-for windows, 5 signed ones and 21 found figures), 2b.1's cause
+# below, with no verdict and no count; diffed against landing 2b.1's own
+# report, only 2b.2's and 2b.3's lines moved, those stated here.
 # RE-RECORDED 2026-09-15 at the integration of landings 2b.1 to 2b.5, which
 # carries both causes below at once. Diffed against the integrated report
 # before landing 2b.2 merged, only 2b.2's lines moved: obligations 495 to
@@ -1763,8 +1790,22 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # -- four columns and the joined column's two positions, whose spellings
 # the loader now holds to the defaults -- so NOT CHECKABLE goes 148 to
 # 142. No verdict moved and nothing else in the report changed.
+# RE-RECORDED at landing 2b.1 (2026-09-15): the checker reads the widest
+# stratum as no less than G5.2a's cap, so the rung and moment windows of
+# the withheld-mode columns widen -- to a cap of three on `amount`, whose
+# 240 cells hold 238 numbers, and of six on `reading`, `dose` and both
+# pressure positions -- and `amount` and `dose` report their moved
+# figures. The census is unchanged: 420 held, 75 within a window, none
+# missed.
+# RE-RECORDED at landing 2b.1, part 2 (2026-09-15, residual R-P4-61):
+# 64 lines of window ends move in their last digits. The windows are
+# read at exact fractions of the ladder and computed in G12.3's one
+# operation order -- the twin report's own, digit for digit -- and the
+# widest stratum is read off the description alone, which on this
+# demonstration is the number it was already. The census is unchanged:
+# 420 held, 75 within a window, none missed.
 GOLDEN_QUALITY_SHA256 = (
-    "7ce093632a73b194eaa04609781aeadb482b4deecfb7faaa82a3f0916fdc188c"
+    "33b8fc1f5d7b0c42acca316a7d614bbaad389fcfda297753d52839ddda35142a"
 )
 
 
