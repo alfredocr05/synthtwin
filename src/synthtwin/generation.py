@@ -5654,6 +5654,25 @@ def _numeric_layout(
         # be no more than the positives have cells.
         if rest - negative_strata > positives:
             negative_strata = rest - positives
+        # AND NO BAND GETS FEWER STRATA THAN ITS CELLS NEED UNDER THE CAP
+        # (landing 2b.1, part 2; method G5.2b). The share above is a
+        # rounding of a ratio of runs, and a band it hands too few
+        # strata holds more cells in one of them than any number of the
+        # real column held: a 12-row column of whole numbers with eight
+        # negative cells over two numbers and a `mode_count` of 7 got
+        # ONE negative stratum and wrote one number eight times. Every
+        # number of a band holds at most the cap, so the band holds at
+        # least `ceil(cells / cap)` numbers, and where the strata left
+        # after the zero stratum can give both bands that many, each
+        # gets at least that many. That is also what lets the rung and
+        # moment windows read the widest stratum off the description
+        # alone (G5.6, G12.2).
+        if ceiling > 0:
+            need_negative = -((-negatives) // ceiling)
+            need_positive = -((-positives) // ceiling)
+            if need_negative + need_positive <= rest:
+                negative_strata = max(negative_strata, need_negative)
+                negative_strata = min(negative_strata, rest - need_positive)
     elif negatives > 0:
         negative_strata = rest
     else:
@@ -21132,6 +21151,84 @@ def _numeric_window(
     return (lows, highs, middles)
 
 
+def _window_stratum(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The widest stratum the rung and moment windows read (G5.6, G12.2).
+
+    Method G5.2a's cap, read off the block the numbers are described by
+    -- the published `mode_count`, or where the mode pair is withheld
+    the count and ladder bounds -- and the column's numeric cell count
+    where nothing bounds a stratum. A function of the description alone,
+    so the quality report draws the same window from the same block
+    without rebuilding the layout (validation method V1.4).
+
+    Guarantees: accepts a column, or the view of one position, wrapper or
+    half, and its numeric block; returns a whole number of at least one.
+    Determinism: a fixed function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    numbers = column.n_numeric
+    cap = _stratum_cap(facts, _merged_rungs(facts), numbers)
+    if cap > 0:
+        return cap
+    return max(numbers, 1)
+
+
+def _average(values: "list[float]") -> float:
+    """The mean of a non-empty list, correctly rounded (G12.3).
+
+    `taxonomy.average_of`, which is the profiler's exact mean and the
+    one the quality report takes, so the two reports print one number
+    for the two ends of the mean's window.
+    """
+    found = taxonomy.average_of(list(values))
+    if found is None:
+        return 0.0
+    return found
+
+
+def _root_mean_square(steps: "list[float]") -> float:
+    """`E` of method G12.3, in the one operation order it states.
+
+    Each step is divided by the largest before it is squared -- which
+    keeps a column around 1e300 finite -- the squares are added by
+    `math.fsum` and divided by the count, and the root is multiplied
+    back by the largest. An infinity where a step is not a number.
+    """
+    largest = 0.0
+    for step in steps:
+        if not math.isfinite(step):
+            return float("inf")
+        largest = max(largest, step)
+    if largest <= 0.0:
+        return 0.0
+    parts = [(step / largest) * (step / largest) for step in steps]
+    return largest * math.sqrt(math.fsum(parts) / len(steps))
+
+
+def _raised_mean(
+    edges: "list[float]", centre: float, spread: float, power: int
+) -> float:
+    """`(1/K) * sum ((edge - centre) / spread) ** power`, in G12.3's order.
+
+    Each deviation is divided by the spread BEFORE it is raised, the
+    power is taken by repeated multiplication, the terms are added by
+    `math.fsum` and the sum is divided by the count. An infinity where a
+    term is not a number.
+    """
+    parts: "list[float]" = []
+    for edge in edges:
+        ratio = (edge - centre) / spread
+        term = ratio
+        for _step in range(power - 1):
+            term = term * ratio
+        if not math.isfinite(term):
+            return float("inf")
+        parts += [term]
+    return math.fsum(parts) / len(edges)
+
+
 def _grid_half_unit(figures: int) -> float:
     """Half of one unit of the last place a fractional grid holds, or nought.
 
@@ -21772,10 +21869,28 @@ def _numeric_approximations(
         if not cardinalities:
             return []
         return _numeric_cardinalities(column, plan, written)
+    # THE WIDEST STRATUM IS READ OFF THE DESCRIPTION, NOT OFF THE
+    # LAYOUT (landing 2b.1, part 2; method G5.6, G12.2). The quality
+    # report may not import this module, so a window drawn from the
+    # layout this run built is one it cannot draw: on a 2,000-row
+    # rounded-income column the two reports printed two windows for one
+    # rung, 55673.3 to 63799.2 here and 59624.75 to 60275.25 there.
+    # G5.2a's cap is the one both can read, and the layout holds no
+    # stratum above it wherever G5.2b's carrier and reach steps moved no
+    # cell.
+    widest = _window_stratum(column, facts)
+    # ...AND WHERE THOSE STEPS DID MOVE A STRATUM PAST THE CAP, THIS
+    # REPORT'S BOUND STILL HOLDS OF WHAT WAS BUILT (review items
+    # P2-C4-F3 and P2-C5-F3). The published style count wins over the
+    # ladder, and the rung window widens by exactly what that spent: a
+    # 101-row column holding a named point-free count beside a pool
+    # moved its first percentile from 1.5 to 30.91, and a window read off
+    # the cap alone called that construction outside its own method. The
+    # quality report cannot read this layout, so on such a column it
+    # draws the narrower window (G5.6 names the exception).
     layout = plan.layout
-    widest = held
     if layout is not None and layout.sizes:
-        widest = max(layout.sizes)
+        widest = max(widest, max(layout.sizes))
     # THE HALF UNIT, AND THE TWO RULES THAT CAN SPEND IT. The
     # whole-number rule of G5.4 moves a value by at most half a unit on
     # a column publishing `integer_valued: true`. On a column publishing
@@ -21823,8 +21938,8 @@ def _numeric_approximations(
         ]
     mean, deviation, shape, tails = _moments_of(values)
     if facts.mean is not None:
-        lowest = _mean_of(lows)
-        highest = _mean_of(highs)
+        lowest = _average(lows)
+        highest = _average(highs)
         found += [
             Approximation(
                 column=column.name,
@@ -21845,35 +21960,17 @@ def _numeric_approximations(
         max(middles[rank] - lows[rank], highs[rank] - middles[rank])
         for rank in range(held)
     ]
-    # THE SAME SCALING THE VALIDATOR'S OWN DISPLACEMENT TAKES, and it
-    # is here because this is the eighth site of one family and the
-    # first that no review round named -- it was found by looking for
-    # the siblings of the seven that were. `step * step` on a column
-    # around 1e200 is an infinity, `_mean_of` of a list of them is a
-    # NaN, and every comparison against a NaN window is false: the twin
-    # report would have said the twin landed OUTSIDE a range it never
-    # computed, which is a false sentence and not a withheld one.
-    #
-    # The plain form is kept wherever it answers, so no column that
-    # already had a window changes a byte, and the scaled form is
-    # reached only where the other has none.
-    reach: float = math.sqrt(_mean_of([step * step for step in steps]))
-    if not math.isfinite(reach):
-        # NAMED APART FROM THE STRATUM WIDTH ABOVE, which is a count of
-        # slots and is an integer; this is a SPREAD in the column's own
-        # units. One spelling for both made the strict type check read
-        # the second as the first.
-        largest = float(max(steps))
-        reach = 0.0
-        if math.isfinite(largest) and largest > 0.0:
-            scaled = [
-                (step / largest) * (step / largest) for step in steps
-            ]
-            reach = largest * math.sqrt(_mean_of(scaled))
-    centre = _moments_of(middles)
+    # ONE OPERATION ORDER, AND BOTH REPORTS FOLLOW IT (residual R-P4-61,
+    # method G12.3). This took `sqrt` of a compensated mean of the plain
+    # squares and scaled only where that had no answer, while the
+    # quality report always scaled and added with `math.fsum`: the two
+    # printed one window in two sets of last digits. The scaled form is
+    # the one that answers on every column, so it is the one.
+    reach = _root_mean_square(steps)
+    centre = taxonomy.spread_of(list(middles))
     if facts.std is not None and deviation is not None:
         room = reach * math.sqrt(held / (held - 1))
-        middle = centre[1] if centre[1] is not None else 0.0
+        middle = centre if centre is not None else 0.0
         lowest = max(0.0, middle - room)
         highest = middle + room
         found += [
@@ -21959,53 +22056,42 @@ def _shape_window(
     for.
     """
     ceiling = _raised((held - 2) / math.sqrt(held - 1))
-    floor_mean = _mean_of(lows)
-    ceiling_mean = _mean_of(highs)
-    low_cubes: list[float] = []
-    high_cubes: list[float] = []
-    for rank in range(held):
-        below = lows[rank] - ceiling_mean
-        above = highs[rank] - floor_mean
-        low_cubes += [below * below * below / held]
-        high_cubes += [above * above * above / held]
-    lowest_shape = _summed(low_cubes)
-    highest_shape = _summed(high_cubes)
-    spread = _moments_of(middles)
+    spread = taxonomy.spread_of(list(middles))
     root = 0.0
-    if spread[1] is not None and held >= 2:
-        root = spread[1] * math.sqrt((held - 1) / held)
+    if spread is not None and held >= 2:
+        root = spread * math.sqrt((held - 1) / held)
     low_root = max(0.0, root - reach)
     high_root = root + reach
-    low_cube = low_root * low_root * low_root
-    high_cube = high_root * high_root * high_root
-    if low_cube <= 0 or not math.isfinite(high_cube):
+    if low_root <= 0.0 or not math.isfinite(high_root):
         # THE CEILING IS ALREADY WIDENED and is not widened again
-        # (review item P4-G6-R8). The round before this one removed the
-        # double step from the branch below and left it here, and the
-        # register then said the double step had been caught. It had
-        # been caught in one of the two places it lived: on the three
-        # cells `-1e20`, `0` and `1` this fallback printed a range two
-        # places wide where the validator's own fallback prints one, so
-        # one run of `generate` beside `validate` stated two
-        # versions of G12.3
-        # again -- the very thing the step was added to stop.
+        # (review item P4-G6-R8): on the three cells `-1e20`, `0` and
+        # `1` a second step printed a range two places wide where the
+        # validator's own fallback prints one.
         return (-ceiling, ceiling)
-    lowest = lowest_shape / (low_cube if lowest_shape < 0 else high_cube)
-    highest = highest_shape / (high_cube if highest_shape < 0 else low_cube)
-    # THE SAME OUTWARD STEP THE VALIDATOR'S COPY OF THIS WINDOW TAKES
-    # (review item P4-G6-R7-F3). The two modules may not import each
-    # other, so the only thing holding their arithmetic together is
-    # being written the same way -- and for one round they were not:
-    # the validator stepped both ends of its skew pair and this
-    # returned the clamped pair unstepped, so one run of the two
-    # commands printed two numerical versions of one method. On the
-    # values 1 to 60 at seed 7 the twin report gave the skew range as
-    # -2.2822033330635727 to 2.282203333063574 and the quality report
-    # gave -2.282203333063573 to 2.2822033330635754.
-    # THE CEILING IS ALREADY WIDENED, so the clamped pair is NOT
-    # widened again: two steps outward is a bound two places looser
-    # than the method states, and the point of the step is to admit
-    # exactly what the limit admits and nothing further.
+    floor_mean = _average(lows)
+    ceiling_mean = _average(highs)
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS CUBED, and the
+    # sign rule of division is taken by reading both spreads (residual
+    # R-P4-61, method G12.3). This cubed first and divided the sum after,
+    # and the quality report divided first: one method, two sets of last
+    # digits, and on the values 1 to 60 at seed 7 the skew range read
+    # ...745 here and ...754 there. Reading both spreads and keeping the
+    # lower of the two low ends and the higher of the two high ends is
+    # the sign rule itself -- a negative end is lowest over the smaller
+    # spread and a positive one over the larger.
+    lowest = min(
+        _raised_mean(lows, ceiling_mean, low_root, 3),
+        _raised_mean(lows, ceiling_mean, high_root, 3),
+    )
+    highest = max(
+        _raised_mean(highs, floor_mean, low_root, 3),
+        _raised_mean(highs, floor_mean, high_root, 3),
+    )
+    if not math.isfinite(lowest) or not math.isfinite(highest):
+        return (-ceiling, ceiling)
+    # THE CEILING IS ALREADY WIDENED, so the clamped pair is NOT widened
+    # again (review items P4-G6-R7-F3 and P4-G6-R8): two steps outward is
+    # a bound two places looser than the method states.
     return (max(-ceiling, lowest), min(ceiling, highest))
 
 
@@ -22054,12 +22140,12 @@ def _tails_window(
     # branch a column took.
     ceiling = _raised(held - 2 + 1 / (held - 1))
     floor = _lowered(1.0)
-    floor_mean = _mean_of(lows)
-    ceiling_mean = _mean_of(highs)
-    spread = _moments_of(middles)
+    floor_mean = _average(lows)
+    ceiling_mean = _average(highs)
+    spread = taxonomy.spread_of(list(middles))
     root = 0.0
-    if spread[1] is not None and held >= 2:
-        root = spread[1] * math.sqrt((held - 1) / held)
+    if spread is not None and held >= 2:
+        root = spread * math.sqrt((held - 1) / held)
     low_root = max(0.0, root - reach)
     high_root = root + reach
     if low_root <= 0.0 or not math.isfinite(high_root):
@@ -22094,10 +22180,14 @@ def _tails_window(
         furthest = max(-below, above, 0.0)
         near = nearest / high_root
         far = furthest / low_root
-        low_fourths += [near * near * near * near / held]
-        high_fourths += [far * far * far * far / held]
-    lowest = _summed(low_fourths)
-    highest = _summed(high_fourths)
+        low_fourths += [near * near * near * near]
+        high_fourths += [far * far * far * far]
+    # ADDED BY `math.fsum` AND DIVIDED BY THE COUNT AFTER, which is the
+    # order G12.3a states and the quality report takes (residual
+    # R-P4-61). Dividing each term first and adding with a compensated
+    # sum is the same number in exact arithmetic and not in binary64.
+    lowest = math.fsum(low_fourths) / held
+    highest = math.fsum(high_fourths) / held
     if not math.isfinite(lowest) or not math.isfinite(highest):
         return (floor, ceiling)
     # AND THE TWO ENDS ARE ORDERED BEFORE THEY ARE RETURNED. On the

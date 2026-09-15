@@ -1107,6 +1107,7 @@ def band_strata(
     numeric=None,
     integer_valued=False,
     figures=-1,
+    cap=0,
 ):
     """How many strata each band gets -- method section G5.2b.
 
@@ -1124,6 +1125,12 @@ def band_strata(
     The rounding is to the nearest whole number with ties upward,
     computed exactly in whole numbers, then clamped so that a band
     holding cells keeps a stratum.
+
+    THEN THE CAP'S FLOOR (landing 2b.1, part 2).  Every number of a band
+    holds at most ``cap`` cells, so the band holds at least
+    ``ceil(cells / cap)`` numbers; where ``M_rest`` can give both bands
+    that many, ``M_neg`` is clamped into
+    ``[ceil(G / cap), M_rest - ceil(P / cap)]``.
     """
     rest = values - (1 if zeros > 0 else 0)
     if rest < 0:
@@ -1156,6 +1163,12 @@ def band_strata(
         share = share_negative + share_positive
         negative_strata = (2 * rest * share_negative + share) // (2 * share)
         negative_strata = max(1, min(rest - 1, negative_strata))
+        if cap > 0:
+            need_negative = -(-negatives // cap)
+            need_positive = -(-positives // cap)
+            if need_negative + need_positive <= rest:
+                negative_strata = max(negative_strata, need_negative)
+                negative_strata = min(negative_strata, rest - need_positive)
         return negative_strata, rest - negative_strata
     if negatives > 0:
         return rest, 0
@@ -1200,6 +1213,7 @@ def stratum_layout(
             numeric,
             integer_valued,
             figures,
+            cap,
         )
     sizes, bands = band_sizes(
         negatives,
@@ -5113,7 +5127,7 @@ def _numeric_content(column):
     cap = stratum_cap(column, ladder, numeric)
     pair = band_strata(
         negatives, zeros, positives, values_wanted, ladder, numeric,
-        integer_valued, fractional,
+        integer_valued, fractional, cap,
     )
     if demand > 0:
         # G5.2's carrier step, band half: a band whose only stratum is a

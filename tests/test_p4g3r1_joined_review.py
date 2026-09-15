@@ -386,7 +386,13 @@ def test_both_pages_say_the_same_thing_about_every_pair() -> None:
     on, one landing and two readers with only one of them changed.
     """
     _document, loaded, folder, _table = _described(_three_position_column())
-    twin = generation.generate(loaded, 9)
+    # SEED 0, AND IT WAS 9 (landing 2b.1, 2026-09-15). At seed 9 the twin
+    # built since part 1's stratum cap and grid value lands all three
+    # pairs exactly on their published agreements, so all three are HELD
+    # and none carries a window -- the assertion below said so, and a
+    # test whose witness is never windowed pins nothing. Seed 0 windows
+    # all three, the strongest form of the claim.
+    twin = generation.generate(loaded, 0)
     written = fixtures.write(
         folder, "twin.csv", rendering.twin_csv(twin)
     )

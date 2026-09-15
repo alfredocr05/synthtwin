@@ -876,6 +876,16 @@ cells than any number of the real column was. That repaired a defect
 this decision never named: the join of G5.2a step 3 grew one stratum
 without bound on any ladder that moves continuously, and a 4,000-row
 two-figure column publishing a count of 62 held one number 760 times.
+AND BOTH REPORTS READ THAT CEILING AS THE WIDEST STRATUM of every rung
+and moment window (landing 2b.1, part 2): the twin's own report no
+longer reads its layout for it, the quality report no longer estimates
+it, and G5.2b gives each sign band at least `ceil(cells / mode_count)`
+strata so no stratum stands above it except where the carrier and reach
+steps move a cell for a published style count. On such a column the twin
+report widens to the stratum those steps built and the quality report,
+which cannot see it, reads the ceiling: the two print different windows
+there, and that exception is carried by name (G5.6).
+
 The carve below is still not built, so the pair stays REPORT-ONLY: the
 ceiling bounds every count and meets none. Item 5's warning does not
 fire, because the ceiling moves cells between strata and never changes
@@ -4338,8 +4348,8 @@ declaration for only one of them.
     the double step had been caught; round 8 read the code and found
     that it had not. See P4-G6-R8.
 
-- **R-P4-61 (opened here, 2026-08-30, PRE-EXISTING, and MEASURED before
-  it was written down).** THE GENERATOR AND THE VALIDATOR PRINT
+- **R-P4-61 — CLOSED 2026-09-15 by landing 2b.1, part 2** (opened here,
+  2026-08-30, PRE-EXISTING, and MEASURED before it was written down). THE GENERATOR AND THE VALIDATOR PRINT
   DIFFERENT MOMENT WINDOWS FOR ONE COLUMN. On the values 1 to 60 at
   seed 7 the twin report gives the skew range as -2.282203333063573 to
   2.2822033330635745 and the quality report gives -2.282203333063573 to
@@ -4361,6 +4371,35 @@ declaration for only one of them.
   at the tail of another one. The number a reader sees differs in its
   last two digits between two reports; the verdict either report gives
   has not been seen to differ, and R-P4-61 owes that measurement too.
+
+  **CLOSED, AND THE VERDICT MEASUREMENT IS WHAT CLOSES IT.** The
+  measurement this entry owed was never taken: the committed tool
+  compared the generator's window with the validator's published and
+  achieved values, which are not a window, never printed its own count,
+  and built columns of 20 to 240 rows, too short for the widest stratum
+  to tell the two modules apart. Repaired, it compares what each report
+  PRINTS for the same twin -- every interior rung and moment -- over 44
+  columns of fifteen shapes at 500, 2,000 and 4,000 rows and two seeds:
+
+  | commit | windows both print | ends that differ | verdicts that differ |
+  |---|---|---|---|
+  | 53bb012, before landing 2b.1 | 985 | 923 | **107** |
+  | landing 2b.1, part 1 | 838 | 544 | 0 |
+  | landing 2b.1, part 2 | 838 | **0** | **0** |
+
+  So verdicts DID differ, 107 of 1,128, and not in the last digits: the
+  two modules read two different widest strata. Part 2 closes both
+  halves. Both reports read the widest stratum off the description --
+  G5.2a's cap, which G5.2b's new band floor and G5.2a's levelling keep
+  every stratum under wherever the carrier and reach steps move no cell
+  (G5.6) -- and both follow one operation order, written step by step
+  in G12.2, G12.3 and G12.3a: the ladder read at exact fractions, the
+  profiler's exact mean, `E` in its scaled form, deviations divided by
+  the spread before they are raised, `fsum` then the count, and the one
+  outward step taken only where a universal range is formed. The values
+  1 to 60 at seed 7 now print one skew range in both reports, and
+  `tests/test_window_agreement.py` holds the two reports to one printed
+  window on seven shapes at three sizes and three seeds each.
 
 - **P4-G6-R8, the eighth and last round (2026-08-30). One item, and an
   AUDIT OF THIS REGISTER that found two of its claims overstated.**
@@ -10103,7 +10142,7 @@ would do about them:
 | **Readings the values cannot settle** | R-P4-16, R-P4-19, R-P4-36, R-P4-100, R-P4-102, R-P4-150, R-P4-159, R-P4-160 | Columns where a shape is read one way and could be read another. The questions file now asks about the ones it can see; these are the ones it cannot. |
 | **The method's own text** | R-P4-101, R-P4-115, R-P4-120, R-P4-123, R-P4-124, R-P4-128, R-P4-129, R-P4-141, R-P4-145, R-P4-146 | Clauses written in the form the method argues for rather than the form a second implementer could follow. |
 | **Frozen vectors and guards** | R-P4-17, R-P4-18, R-P4-29, R-P4-63, R-P4-64, R-P4-65, R-P4-66, R-P4-67, R-P4-113, R-P4-126 | Coverage the oracle and the guards do not yet pin. Acceptance criterion 8 lives here. |
-| **Two implementations that must agree** | R-P4-61, R-P4-118 | The generator and the validator print moment windows differing in their last two digits. No verdict has been seen to differ, and R-P4-61 owes that measurement. |
+| **Two implementations that must agree** | R-P4-61, R-P4-118 | The generator and the validator printed moment windows differing in their last two digits. R-P4-61 was CLOSED on 2026-09-15 by landing 2b.1, part 2, when its measurement was finally taken: 107 verdicts of 1,128 had differed, and none do now. |
 | **Cost** | R-P4-116, R-P4-169 | Generation is superlinear in the strata; one report heading rescans a declaration list per column. |
 | **Open questions for the owner** | R-P4-13, R-P4-14, R-P4-20, R-P4-37, R-P4-52, R-P4-71, R-P4-72, R-P4-111, R-P4-153 | Each needs a decision rather than a build. |
 

@@ -1980,19 +1980,25 @@ def test_the_validator_reads_the_ladder_the_way_the_generator_writes_it(
 
     The validator may not import the generator, so the only thing
     holding their arithmetic together is that both are written the way
-    the method states. `_ladder_at` said "the convex form" and computed
+    the method states. Its reading said "the convex form" and computed
     the DIFFERENCE form, which is the one `_interpolated`'s docstring
     rules out: two rungs at opposite ends of the representable range
     make `high - low` an infinity. Every number in this description is
     finite, and the reading the validator took was not -- and that
-    reading feeds the widest stratum and every rung and moment window,
-    so a conforming twin could be reported MISSED.
+    reading feeds every rung and moment window, so a conforming twin
+    could be reported MISSED.
+
+    AND THE SHARE IS EXACT ON BOTH SIDES (residual R-P4-61, landing 2b.1
+    part 2). The validator formed its share in binary64 and the generator
+    as a whole-number fraction, so one window came out of the two
+    reports in two sets of last digits; both now read the ladder at
+    `numerator / denominator` by G5.3's own steps.
     """
     from synthtwin import validation
 
-    points = [(0.0, -1.5e308), (0.49, -1.5e308), (0.50, 1.5e308),
-              (1.0, 1.5e308)]
-    reading_taken = validation._ladder_at(points, 0.495)
+    ladder = tuple([-1.5e308] * 50 + [1.5e308] * 51)
+    # Share 0.495, between rung 49 and rung 50, as the exact fraction.
+    reading_taken = validation._ladder_read(ladder, 99, 200)
     assert reading_taken == 0.0, reading_taken
 
     # The arithmetic that failed, shown beside it: this is what the
@@ -2002,23 +2008,32 @@ def test_the_validator_reads_the_ladder_the_way_the_generator_writes_it(
     part = (0.495 - 0.49) / (0.50 - 0.49)
     assert low_value + (high_value - low_value) * part == float("inf")
 
-    # AND IT AGREES WITH THE GENERATOR'S OWN READING at the same share.
-    rest = 1 - part
-    assert reading_taken == rest * low_value + part * high_value
+    # AND IT IS THE GENERATOR'S OWN READING at the same share, bit for bit.
+    assert reading_taken == generation._interpolated(ladder, 99, 200)
 
 
 def test_every_reading_of_the_ladder_stays_inside_its_own_segment() -> None:
     """The clamp, which is not decoration (G5.3).
 
-    `1 - part` rounds, so the convex pair can leave the segment by one
-    unit in the last place, and a reading outside the published rungs
-    is a reading of a ladder the description never named.
+    `1 - t` rounds, so the convex pair can leave the segment by one unit
+    in the last place, and a reading outside the published rungs is a
+    reading of a ladder the description never named. The generator's
+    reading at every one of these shares is the same number.
     """
     from synthtwin import validation
 
-    points = [(0.0, -3.25), (0.25, 1.0), (0.5, 1.0), (0.75, 2.5),
-              (1.0, 1e300)]
+    points = [(0, -3.25), (25, 1.0), (50, 1.0), (75, 2.5), (100, 1e300)]
+    ladder: "list[float]" = []
+    for percent in range(101):
+        for index in range(len(points) - 1):
+            low_at, low_value = points[index]
+            high_at, high_value = points[index + 1]
+            if low_at <= percent <= high_at:
+                part = (percent - low_at) / (high_at - low_at)
+                ladder += [(1 - part) * low_value + part * high_value]
+                break
+    rungs = tuple(ladder)
     for step in range(0, 1001):
-        share = step / 1000.0
-        value = validation._ladder_at(points, share)
-        assert points[0][1] <= value <= points[-1][1], (share, value)
+        value = validation._ladder_read(rungs, step, 1000)
+        assert rungs[0] <= value <= rungs[-1], (step, value)
+        assert value == generation._interpolated(rungs, step, 1000), step

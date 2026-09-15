@@ -1245,8 +1245,14 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # windows of `amount` and `dose` follow their moved cells, the `amount`
 # windows widen by half a hundredth for G12.2's grid unit, and every
 # line still says inside.
+# RE-RECORDED at landing 2b.1, part 2 (2026-09-15, residual R-P4-61):
+# 122 lines of window ends move in their last digits and nothing else.
+# The report now reads every window's widest stratum off the description
+# (G5.6) and computes each end in the one operation order G12.2, G12.3
+# and G12.3a state, which is what the quality report prints; the twin,
+# every achieved figure and every inside-the-range verdict are unchanged.
 GOLDEN_REPORT_SHA256 = (
-    "3e9212ad921bb0c78e920b745911870a4e80a2e955de4add9aff41b31eb916e1"
+    "2915f4c52c20798eefdd87492548ecfda26fa96d66afd7e891b4c527664957db"
 )
 
 
@@ -1725,8 +1731,15 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # pressure positions -- and `amount` and `dose` report their moved
 # figures. The census is unchanged: 420 held, 75 within a window, none
 # missed.
+# RE-RECORDED at landing 2b.1, part 2 (2026-09-15, residual R-P4-61):
+# 64 lines of window ends move in their last digits. The windows are
+# read at exact fractions of the ladder and computed in G12.3's one
+# operation order -- the twin report's own, digit for digit -- and the
+# widest stratum is read off the description alone, which on this
+# demonstration is the number it was already. The census is unchanged:
+# 420 held, 75 within a window, none missed.
 GOLDEN_QUALITY_SHA256 = (
-    "1f191f3e2d55233f36b952cb6905d970517d10ac5bac2a8e2c5de846b9142ec5"
+    "f203620313553cd9ac2e368a768b1f4ef131b690c7677d140c1454e9c8e1909d"
 )
 
 

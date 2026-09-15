@@ -1091,11 +1091,8 @@ _STAND_IN_SPELLINGS = tuple(
     [(value, f"{value:g}") for value in parsing.NUMERIC_SENTINELS]
 )
 
-# The eleven ladder positions as probabilities, in ladder order.
-_LADDER_SHARES = tuple(
-    [number / denominator for _name, number, denominator in taxonomy.LADDER]
-)
-# ...and as the WHOLE PERCENTAGES method G7.3 and G12.4 are written in.
+# The eleven ladder positions as the WHOLE PERCENTAGES method G7.3 and
+# G12.4 are written in, and G5.3's exact reading of a numeric ladder.
 # Every datetime step is exact integer arithmetic in the ordinal space of
 # G7.1 -- "no float is formed anywhere in G7" is the method's own
 # sentence -- so the rung selection and the interpolation take the
@@ -3429,22 +3426,6 @@ def _window_named(
 # -- the ladder, read as a function of a share ------------------------
 
 
-def _ladder_points(
-    rungs: "tuple[float | None, ...]",
-) -> "list[tuple[float, float]]":
-    """The published ladder as (share, value) points, nulls dropped.
-
-    A null rung is a rung the format cannot hold, carrying no
-    obligation (contract rule L3), so it is not a point the window can
-    be drawn through.
-    """
-    points: list[tuple[float, float]] = []
-    for index, value in enumerate(rungs):
-        if value is not None:
-            points += [(_LADDER_SHARES[index], float(value))]
-    return points
-
-
 def _fine_ladder_points(
     facts: contract.NumericFacts,
 ) -> "list[tuple[float, float]]":
@@ -3487,89 +3468,85 @@ def _fine_ladder_points(
     return points
 
 
-def _longest_plateau(
-    facts: contract.NumericFacts, numbers: int
-) -> int:
-    """The most cells the ladder puts on one value, read off the ladder.
+def _filled_ladder(
+    facts: contract.NumericFacts,
+) -> "tuple[float, ...] | None":
+    """The hundred and one rungs, each null one filled (method G5.1).
 
-    THE WIDEST STRATUM UNDER THE ALLOTMENT OF G5.2a, which is what the
-    rung window's displacement is made of. That allotment sizes a
-    stratum by the run of ranks the ladder gives one value, so the
-    widest stratum a column can have is its longest such run -- and a
-    column of two hundred and forty cells holding one value thirty
-    times has a stratum of thirty where the even split had two.
+    A null rung takes the nearest rung below it that holds a number, or
+    the first that holds one where none below does, which is the ladder
+    the construction reads. None where no rung holds a number at all.
 
-    Read from the DESCRIPTION and never from the generator, which this
-    module may not import: the ladder is published and the rank count
-    is published, and between them they say where the plateaus are.
-
-    Used only to WIDEN, never to narrow. A window too wide can fail to
-    catch a twin that missed; a window too narrow accuses a conforming
-    one, and this module may never do the second.
+    Written from G5.1 and never from the generator, which this module
+    may not import (V1.4).
     """
-    points = _fine_ladder_points(facts)
-    if not points or numbers <= 0:
-        return 0
-    longest = 0
-    run = 0
-    previous: "float | None" = None
-    for rank in range(numbers):
-        share = rank / numbers if numbers > 0 else 0.0
-        value = _ladder_at(points, share)
-        if previous is not None and value == previous:
-            run = run + 1
-        else:
-            run = 1
-        previous = value
-        if run > longest:
-            longest = run
-    return longest
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
+            index
+        ]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    rungs: "list[float | None]" = []
+    for percent in range(101):
+        rungs += [named[percent] if percent in named else finer[percent]]
+    held = [place for place in range(101) if rungs[place] is not None]
+    if not held:
+        return None
+    filled: "list[float]" = []
+    for place in range(101):
+        found = rungs[place]
+        if found is None:
+            below = [step for step in held if step < place]
+            found = rungs[below[len(below) - 1] if below else held[0]]
+        filled += [found if found is not None else 0.0]
+    return tuple(filled)
 
 
-def _ladder_at(points: "list[tuple[float, float]]", share: float) -> float:
-    """The ladder's value at ``share``, read piecewise-linearly.
+def _ladder_read(
+    ladder: "tuple[float, ...]", numerator: int, denominator: int
+) -> float:
+    """The ladder at the exact share ``numerator / denominator`` (G5.3).
 
-    The convex form of method G5.3: between two published rungs the
-    ladder is a straight line, and outside the published ends it is
-    flat, because no rung beyond them says otherwise.
+    THE SHARE IS NEVER A FLOAT (residual R-P4-61, landing 2b.1 part 2).
+    This module read the ladder at a share formed in binary64 -- a rung
+    at `0.25 - (g + 2) / K` -- while the generator reads it at the exact
+    fraction `(25 K - 100 (g + 2)) / (100 K)`, so one window came out of
+    the two reports in two sets of last digits. G5.3 states the reading
+    operation by operation, and this follows that text:
 
-    THE CONVEX FORM, AND NOT THE DIFFERENCE FORM (review item
-    P4-G6-R1-F2). This function said "convex" and computed `low + (high
-    - low) * t`, which is the form the generator's own `_interpolated`
-    docstring rules out in as many words: two rungs at opposite ends of
-    the representable range make that difference an infinity. An
-    accepted description whose `p49` is `-1.5e308` and whose `p50` is
-    `1.5e308` holds nothing but finite numbers, and at share 0.495 the
-    generator returns a value near zero while this returned an infinity
-    -- which then reached `_longest_plateau` and every rung and moment
-    window, so a conforming twin could be reported MISSED and a wrong
-    one given a bound with no width to it. The validator may not import
-    the generator, so the two arithmetics can only be held together by
-    being written the same way; this is now written the same way.
+    - the segment `j` is the one with `j * D <= 100 * N < (j + 1) * D`,
+      the last where `N` is `D`;
+    - `A = 100 * N - j * D`, `t = ldexp((A << 53) // D, -53)`, exact;
+    - `v = (1 - t) * L[j] + t * L[j + 1]`, four operations in that
+      order -- THE CONVEX FORM, because the difference form makes an
+      infinity of two rungs at opposite ends of the range;
+    - then the clamp into `[L[j], L[j + 1]]`, because `1 - t` rounds.
+
+    Guarantees: accepts the hundred-and-one-rung ladder and a share with
+    `0 <= numerator <= denominator` and a positive denominator; returns
+    a number between two adjacent rungs. Determinism: a fixed function
+    of the three. Raises nothing. No I/O of any kind.
     """
-    if share <= points[0][0]:
-        return points[0][1]
-    last = len(points) - 1
-    if share >= points[last][0]:
-        return points[last][1]
-    index = 0
-    while index < last:
-        low_share, low_value = points[index]
-        high_share, high_value = points[index + 1]
-        if share <= high_share:
-            width = high_share - low_share
-            if width <= 0.0:
-                return high_value
-            part = (share - low_share) / width
-            rest = 1 - part
-            value = rest * low_value + part * high_value
-            # The same clamp `_interpolated` takes, and for the same
-            # reason: `1 - part` rounds, so the pair can leave the
-            # segment by one unit in the last place.
-            value = max(value, min(low_value, high_value))
-            return min(value, max(low_value, high_value))
-        index = index + 1
-    return points[last][1]
+    scaled = 100 * numerator
+    step = scaled // denominator
+    last = len(ladder) - 2
+    if step > last:
+        step = last
+    if step < 0:
+        step = 0
+    low = ladder[step]
+    high = ladder[step + 1]
+    above = scaled - step * denominator
+    share = math.ldexp((above << 53) // denominator, -53)
+    rest = 1 - share
+    first = rest * low
+    second = share * high
+    value = first + second
+    value = max(value, low)
+    return min(value, high)
 
 
 def _rounded_up(number: int, divisor: int) -> int:
@@ -3586,66 +3563,6 @@ def _numeric_cells(facts: contract.NumericFacts) -> int:
     )
 
 
-def _largest_stratum(
-    facts: contract.NumericFacts, present: int, distinct_folded: int
-) -> int:
-    """How many cells the largest of method G5.2's strata can hold.
-
-    The strata are what the rung window's displacement is made of: a
-    cell landing at a recomputed rank comes from the stratum covering
-    that rank, so the widest stratum is the widest displacement the
-    construction can produce. Every term here is read off the
-    description -- the sign counts, the numeric count, and how many
-    different folded spellings the numbers may use -- and never off the
-    generator, which this module may not import.
-
-    THE BUDGET IS TAKEN AT ITS SMALLEST DEFENSIBLE READING, and the
-    direction is the point. Cells of every other class are allowed a
-    folded spelling each before the numbers get one, so a column whose
-    cells are not all numbers is credited with fewer different values,
-    larger strata, and a WIDER window. Wide is the safe direction: a
-    window too wide can fail to catch a twin that missed, while a window
-    too narrow would accuse a conforming one, and this module may never
-    do the second.
-    """
-    numbers = _numeric_cells(facts)
-    zeros = min(facts.n_zero, numbers)
-    negatives = min(facts.n_negative, numbers)
-    positives = max(0, numbers - zeros - negatives)
-    # Every cell of another class may need a folded spelling of its own
-    # before the numbers may spend one (method G6.5).
-    spent = max(0, present - numbers)
-    budget = max(1, distinct_folded - spent)
-    values = min(numbers, budget)
-    zero_values = 1 if zeros > 0 else 0
-    rest = min(values - zero_values, negatives + positives)
-    if negatives > 0 and positives > 0:
-        # The sign facts win where fewer values are permitted than they
-        # require: both bands keep a value (method G5.2, rule 4).
-        rest = max(rest, 2)
-    elif negatives + positives > 0:
-        rest = max(rest, 1)
-    else:
-        rest = 0
-    if rest <= 0:
-        return max(1, zeros)
-    if negatives > 0 and positives > 0:
-        total = negatives + positives
-        share = (2 * rest * negatives + total) // (2 * total)
-        negative_values = min(max(share, 1), rest - 1)
-    elif negatives > 0:
-        negative_values = rest
-    else:
-        negative_values = 0
-    positive_values = rest - negative_values
-    widest = zeros
-    if negative_values > 0:
-        widest = max(widest, _rounded_up(negatives, negative_values))
-    if positive_values > 0:
-        widest = max(widest, _rounded_up(positives, positive_values))
-    return max(1, widest)
-
-
 def _stratum_bound(facts: contract.NumericFacts) -> int:
     """The most cells method G5.2a lets one stratum hold, from the description.
 
@@ -3654,9 +3571,17 @@ def _stratum_bound(facts: contract.NumericFacts) -> int:
     `mode_count`; where the mode pair is withheld, at the smaller of
     `K - n_distinct_values + 1` -- every other number holds a cell -- and
     the most cells one value can hold without the hundred-and-one-rung
-    ladder showing a longer run of equal rungs than it does. The cap is raised only where a band has too few
-    strata to fit under it, and `_largest_stratum` beside this already
-    covers that case, so the larger of the readings is the widest stratum.
+    ladder showing a longer run of equal rungs than it does.
+
+    THE WIDEST STRATUM THE CONSTRUCTION BUILDS IS NO WIDER (landing 2b.1,
+    part 2). G5.2b gives every band at least `ceil(cells / cap)` strata,
+    so no band's even share rises above the cap, and the levelling of
+    G5.2a holds every stratum under it -- wherever the carrier and reach
+    steps move no cell, which is the one exception G5.6 names. So this
+    is the widest stratum both reports read, and nothing here estimates
+    the layout: the two estimates that stood beside it, the even split
+    and the longest plateau, were each narrower than the strata the
+    construction built and accused twins it had built.
     """
     numbers = _numeric_cells(facts)
     if facts.mode is not None and facts.mode_count > 0:
@@ -3665,32 +3590,13 @@ def _stratum_bound(facts: contract.NumericFacts) -> int:
     counted = 0
     if facts.n_distinct_values > 0:
         counted = max(1, numbers - facts.n_distinct_values + 1)
-    named: "dict[int, float | None]" = {}
-    for index in range(len(contract.LADDER_PERCENTS)):
-        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
-            index
-        ]
-    finer: "dict[int, float | None]" = {}
-    for index in range(len(contract.FINER_LADDER_KEYS)):
-        name = contract.FINER_LADDER_KEYS[index]
-        finer[int(name[1:])] = facts.percentiles_between[index]
-    rungs: "list[float | None]" = []
-    for percent in range(101):
-        rungs += [named[percent] if percent in named else finer[percent]]
-    held = [place for place in range(101) if rungs[place] is not None]
-    if not held or numbers < 2:
-        return counted
     # A NULL RUNG TAKES THE NEAREST RUNG BELOW IT THAT HOLDS A NUMBER, or
     # the first that holds one where none below does (method G5.1): the
     # same filling the construction reads, so a run of equal rungs is
     # counted here exactly as long as it is there.
-    filled: "list[float]" = []
-    for place in range(101):
-        found = rungs[place]
-        if found is None:
-            below = [step for step in held if step < place]
-            found = rungs[below[len(below) - 1] if below else held[0]]
-        filled += [found if found is not None else 0.0]
+    filled = _filled_ladder(facts)
+    if filled is None or numbers < 2:
+        return counted
     longest = 1
     run = 1
     for place in range(1, 101):
@@ -3703,6 +3609,19 @@ def _stratum_bound(facts: contract.NumericFacts) -> int:
     if counted > 0:
         return min(counted, ladder)
     return ladder
+
+
+def _window_stratum(facts: contract.NumericFacts) -> int:
+    """The widest stratum every rung and moment window reads (G5.6, G12.2).
+
+    `_stratum_bound`, read off the block alone, or the numeric cell count
+    where nothing bounds a stratum. The generator's twin report reads the
+    same number off the same block, so the two reports print one window.
+    """
+    bound = _stratum_bound(facts)
+    if bound > 0:
+        return bound
+    return _numeric_cells(facts)
 
 
 def _one_grid(facts: contract.NumericFacts) -> int:
@@ -3733,13 +3652,20 @@ def _half_unit(facts: contract.NumericFacts) -> float:
     """
     if facts.integer_valued:
         return 0.5
-    for style in (
-        parsing.STYLE_PLAIN,
-        parsing.STYLE_LEADING_ZERO,
-        parsing.STYLE_LEADING_PLUS,
-    ):
-        if style in facts.numeric_styles:
-            return 0.5
+    # A WITHHELD STYLE SHARE IS WRITTEN PLAIN (method G6.4), so it can
+    # spend the half unit exactly as a published `plain` count can, and
+    # the twin report grants it there.
+    owed = 0
+    for style in sorted(facts.numeric_styles):
+        if style in (
+            parsing.STYLE_PLAIN,
+            parsing.STYLE_LEADING_ZERO,
+            parsing.STYLE_LEADING_PLUS,
+            contract.WITHHELD,
+        ):
+            owed = owed + facts.numeric_styles[style]
+    if owed > 0:
+        return 0.5
     # AND HALF A GRID UNIT ON A COLUMN WRITTEN AT ONE FRACTION WIDTH
     # (method G5.3, G12.2). Each stratum of such a column holds the grid
     # value of one of its own ranks, which stands at most half a unit of
@@ -9098,12 +9024,20 @@ def _ladder_checks(
     # hundred-and-one-rung ladder, so a window drawn through eleven
     # invents a rise the column does not have and accuses a twin that
     # sat exactly where the finer rungs said.
-    points = _fine_ladder_points(facts)
-    if not points:
-        points = _ladder_points(published.rungs)
-    if not points:
+    ladder = _filled_ladder(facts)
+    if ladder is None:
         return checks
-    reach = _displacement(facts, column.n_present, column.n_distinct_folded)
+    # THE WINDOW OF G12.2 AT AN EXACT SHARE, and the widest stratum off
+    # this block alone. A position of a joined column, a wrapper of an
+    # affixed one and the numeric half of a compound one are each handed
+    # their OWN block here, so none of them borrows the counts of the
+    # cells around it: the whole column's counts made a 2,000-row `kg`
+    # column's window four strata wide where the construction's was
+    # eighty.
+    numbers = _numeric_cells(facts)
+    reach = 100 * (_window_stratum(facts) + 2)
+    whole = 100 * numbers
+    half = _half_unit(facts)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         expected = published.rungs[index]
@@ -9126,7 +9060,23 @@ def _ladder_checks(
                 f"ladder.{key}",
                 _shown_number(expected),
                 found,
-                _rung_window(points, _LADDER_SHARES[index], reach),
+                (
+                    _ladder_read(
+                        ladder,
+                        max(0, contract.LADDER_PERCENTS[index] * numbers - reach),
+                        whole,
+                    )
+                    - half,
+                    _ladder_read(
+                        ladder,
+                        min(
+                            whole,
+                            contract.LADDER_PERCENTS[index] * numbers + reach,
+                        ),
+                        whole,
+                    )
+                    + half,
+                ),
                 ENVELOPE_NUMERIC_RUNGS,
                 expected,
             )
@@ -9151,46 +9101,6 @@ def _rung_end(
     )
 
 
-def _displacement(
-    facts: contract.NumericFacts, present: int, distinct_folded: int
-) -> "tuple[float, float]":
-    """How far a rung may be displaced, and by how much it then widens.
-
-    Method G12.2, which states G5.6's envelope: the displacement is the
-    widest stratum the construction can produce, plus the one extra
-    rank a recomputed rung interpolates, over the numeric cells; and
-    both ends widen by the half unit exactly two rules can spend.
-    """
-    numbers = _numeric_cells(facts)
-    # THE WIDER OF THE TWO READINGS, because this may only widen
-    # (review item P4-G5-A1). `_largest_stratum` works out what the
-    # even split of G5.2 would give; the allotment of G5.2a sizes a
-    # stratum by the ladder's own plateau instead, and on a column
-    # whose commonest value is held by thirty of sixty cells that is a
-    # stratum of thirty where the even split said two. Taking the
-    # larger keeps the promise the displacement is written under: a
-    # window too wide can fail to catch a twin that missed, and a
-    # window too narrow accuses one that did not.
-    widest = max(
-        _largest_stratum(facts, present, distinct_folded),
-        _longest_plateau(facts, _numeric_cells(facts)),
-        _stratum_bound(facts),
-    )
-    return ((widest + 2) / numbers, _half_unit(facts))
-
-
-def _rung_window(
-    points: "list[tuple[float, float]]",
-    share: float,
-    reach: "tuple[float, float]",
-) -> "tuple[float, float]":
-    """The window one rung at ``share`` may land in."""
-    displacement, half = reach
-    low = _ladder_at(points, max(0.0, share - displacement)) - half
-    high = _ladder_at(points, min(1.0, share + displacement)) + half
-    return (low, high)
-
-
 def _windows_of(
     column: contract.ColumnBlock, facts: contract.NumericFacts
 ) -> "dict[str, tuple[float, float]]":
@@ -9208,27 +9118,31 @@ def _windows_of(
       published cell counts and the half unit G12.2 grants.
     - Errors raised: none.
     """
-    points = _fine_ladder_points(facts)
-    if not points:
-        points = _ladder_points(facts.percentiles.rungs)
-    if not points:
+    rungs = _filled_ladder(facts)
+    if rungs is None:
         return {}
     numbers = _numeric_cells(facts)
-    displacement, half = _displacement(
-        facts, column.n_present, column.n_distinct_folded
-    )
+    widest = _window_stratum(facts)
+    half = _half_unit(facts)
     lows: list[float] = []
     highs: list[float] = []
     ladder: list[float] = []
+    if numbers < 2:
+        value = _ladder_read(rungs, 0, 1)
+        return _moment_windows([value - half], [value + half], [value], 1)
+    # RANK `k` STANDS AT THE EXACT SHARE `k / (K - 1)`, and the window
+    # reaches `(g + 2) / K` either side of it, both formed over the one
+    # denominator `K (K - 1)` (G12.2's rank form, G5.3's reading).
+    denominator = numbers * (numbers - 1)
+    span = (widest + 2) * (numbers - 1)
     for rank in range(numbers):
-        share = 0.0 if numbers < 2 else rank / (numbers - 1)
-        lows += [
-            _ladder_at(points, max(0.0, share - displacement)) - half
-        ]
+        middle = rank * numbers
+        lows += [_ladder_read(rungs, max(0, middle - span), denominator) - half]
         highs += [
-            _ladder_at(points, min(1.0, share + displacement)) + half
+            _ladder_read(rungs, min(denominator, middle + span), denominator)
+            + half
         ]
-        ladder += [_ladder_at(points, share)]
+        ladder += [_ladder_read(rungs, middle, denominator)]
     return _moment_windows(lows, highs, ladder, numbers)
 
 
@@ -9422,7 +9336,9 @@ def _moment_windows(
     widest = max(reaches)
     displacement = 0.0
     if widest > 0.0:
-        parts = math.fsum([(reach / widest) ** 2 for reach in reaches])
+        parts = math.fsum(
+            [(reach / widest) * (reach / widest) for reach in reaches]
+        )
         displacement = widest * math.sqrt(parts / numbers)
     sample = _sample_deviation(ladder, numbers)
     if not math.isfinite(sample) or not math.isfinite(displacement):
@@ -9467,10 +9383,10 @@ def _moment_windows(
     # column around 1e300 is a number with nowhere to go, and the four
     # ratios below are what the cubes were only ever wanted for.
     def cubed(edges: "list[float]", centre: float, spread: float) -> float:
-        parts = [
-            ((edges[rank] - centre) / spread) ** 3
-            for rank in range(numbers)
-        ]
+        parts: "list[float]" = []
+        for rank in range(numbers):
+            ratio = (edges[rank] - centre) / spread
+            parts += [ratio * ratio * ratio]
         for part in parts:
             if not math.isfinite(part):
                 return float("inf")
@@ -9488,13 +9404,17 @@ def _moment_windows(
         if numbers >= 4:
             found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
-    ends = [
-        cubed(lows, mean_high, low_end),
-        cubed(lows, mean_high, high_end),
-        cubed(highs, mean_low, low_end),
-        cubed(highs, mean_low, high_end),
-    ]
-    if not all(math.isfinite(end) for end in ends):
+    # THE LOWER END IS THE LOWER OF THE TWO READINGS OF THE LOW EDGES AND
+    # THE UPPER END THE HIGHER OF THE TWO READINGS OF THE HIGH EDGES,
+    # which is the sign rule of G12.3 (a negative end is lowest over the
+    # smaller spread, a positive one over the larger). The other two
+    # readings can never be the extremes: every high edge stands above
+    # its low edge, and each operation keeps that order.
+    lower = min(cubed(lows, mean_high, low_end), cubed(lows, mean_high, high_end))
+    upper = max(
+        cubed(highs, mean_low, low_end), cubed(highs, mean_low, high_end)
+    )
+    if not math.isfinite(lower) or not math.isfinite(upper):
         # The same fallback the flat-spread branch above takes: the
         # window is the whole range this many values can reach, and
         # `_skew_admits_every_value` files it as a listing rather than
@@ -9503,11 +9423,12 @@ def _moment_windows(
         if numbers >= 4:
             found["kurtosis"] = (_lowered(1.0), ceiling)
         return found
-    if not _bounded(
-        "skew",
-        _lowered(max(-reach, min(ends))),
-        _raised(min(reach, max(ends))),
-    ):
+    # THE QUOTIENT'S ENDS ARE NOT STEPPED, AND THE UNIVERSAL RANGE IS
+    # STEPPED ONCE WHERE IT IS FORMED (residual R-P4-61; review item
+    # P4-G6-R8). This stepped both ends after clamping them, so a clamped
+    # end moved two places while the twin report's moved one, and every
+    # unclamped end moved one place the twin report's did not.
+    if not _bounded("skew", max(-reach, lower), min(reach, upper)):
         return found
     if numbers < 4:
         return found
@@ -9539,8 +9460,8 @@ def _moment_windows(
         furthest = max(-below, above, 0.0)
         near = nearest / high_end
         far = furthest / low_end
-        low_fourths += [near**4]
-        high_fourths += [far**4]
+        low_fourths += [near * near * near * near]
+        high_fourths += [far * far * far * far]
     tails_low = math.fsum(low_fourths) / numbers
     tails_high = math.fsum(high_fourths) / numbers
     if not math.isfinite(tails_low) or not math.isfinite(tails_high):
