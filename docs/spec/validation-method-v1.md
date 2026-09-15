@@ -161,6 +161,30 @@ in such a table were read back as data, the column re-read as free
 text, and seven obligations came back MISSED against the table's own
 profile; declared as the number `-777` instead, seventeen did.
 
+**V2.2-A2 A reading the description took from the values is carried
+over the way a declaration is** (2026-09-15, profile plan P4-D40). A
+column the description gives `joined_numbers` WITHOUT naming it in
+`forced_measurements` was read by the producer's rule for two plain
+whole numbers joined by a slash, which stands after the long-tail rule.
+Which of the two reads such a column turns on whether one whole reading
+repeats in the long-tail line's count of rows, and that is a property of
+the sample: a faithful twin, whose two positions are paired at random,
+repeats its commonest reading more often than the real table did, and
+measured over 80 round trips of blood pressures at 1,200 to 5,000 rows,
+22 twins re-read as a long tail and reported their role MISSED where
+the declared column passed on the same cells. So the validator hands the
+producer the names of those columns, derived from the description's own
+column roles and settings and from nothing in the checked file, and the
+producer tests that one reading just before the long-tail rule for them
+and changes nothing else. **What is carried is the reading and not the
+verdict.** A file whose cells are not such pairs is not read as them and
+falls to the ordinary rules, so its role MISSES (a hyphen-joined file is
+pinned in the suite); every published fact of each position is still
+recounted; and a column the description gave another role is re-read
+with nothing carried. **What it does not reach:** `synthtwin profile`
+passes nothing, so a plain re-profile of such a twin can read a long
+tail, exactly as a second sample of the real table can.
+
 **V2.3 The kept set, derived from the profile** (Phase 3 plan owner
 decision 8, as amended). A twin can validly hold a spelling the
 profiler would otherwise read as an absence, by three published routes,

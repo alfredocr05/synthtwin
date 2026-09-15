@@ -15,16 +15,31 @@ must be a reading and not stand-in text, and `synthtwin validate` must
 exit 0 on the twin and on the real table. No declaration is passed
 anywhere. The helper is stage 2's (`tests/test_stage2_round_trip.py`).
 
+NEAR THE LONG-TAIL LINE THE READING IS THE SAMPLE'S, NOT THE COLUMN'S
+(plan P4-D40, validation method V2.2-A2). Rule 9c stands after the
+long-tail rule, so a column of slashed pairs is read as two numbers only
+while no whole reading repeats in eleven rows. From about 1,200 rows of
+even-rounded pressures and 3,500 of plain ones, a faithful twin -- whose
+two positions are paired at random -- crosses that line where the real
+table did not, and a plain `synthtwin profile` of the twin reads a long
+tail. Before the validator read a checked file the way its description
+was read, that twin was reported MISSED on its role on 22 runs of 80.
+The second half of this file pins both halves: the plain re-profile does
+cross, and the validator's own re-description of the twin still returns
+every fact.
+
 Every table is built by seeded neutral code at runtime (plan D13).
 """
 
+import collections
 import pathlib
 import random
 import statistics
 
 import pytest
 
-from tests.test_stage2_round_trip import _round_trip
+from synthtwin import contract, profile, reading, validation
+from tests.test_stage2_round_trip import _exit_of, _round_trip
 
 
 def _pressures(count: int, seed: int, spaced: bool = False) -> "list[str]":
@@ -35,6 +50,45 @@ def _pressures(count: int, seed: int, spaced: bool = False) -> "list[str]":
         f"{int(draw.gauss(128, 17))}{mark}{int(draw.gauss(79, 11))}"
         for _each in range(count)
     ]
+
+
+def _even_pressures(count: int, seed: int) -> "list[str]":
+    """The same readings charted to the nearest even number, as many are."""
+    draw = random.Random(seed)
+    return [
+        f"{2 * int(draw.gauss(128, 17) / 2)}/{2 * int(draw.gauss(79, 11) / 2)}"
+        for _each in range(count)
+    ]
+
+
+def _as_checked(described_at: pathlib.Path, table_at: pathlib.Path) -> "dict[str, object]":
+    """The first column as `synthtwin validate` re-describes the checked file.
+
+    The reading, settings and carried-over names are the validator's own
+    (`validation.settings_for`, `validation._described_pairs_here`), so
+    this is the description the verdicts are counted from.
+    """
+    described = contract.load_profile(f"{described_at}")
+    table = reading.read_table(
+        f"{table_at}",
+        first_row=reading.FIRST_ROW_NAMES,
+        refusals=reading.REFUSALS_NAME_POSITIONS,
+    )
+    document = profile.build_document(
+        table,
+        validation.settings_for(described),
+        [],
+        [],
+        [],
+        [],
+        True,
+        validation._described_pairs_here(described, table),
+    )
+    columns = document["columns"]
+    assert isinstance(columns, list)
+    first = columns[0]
+    assert isinstance(first, dict)
+    return first
 
 
 def _position(cells: "list[str]", mark: str, place: int) -> "list[int]":
@@ -107,3 +161,101 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
         tmp_path / "declared", cells, flags=("--measurement", "bp"), seed=seed, header="bp"
     )
     assert _declared[2] == written
+    # A declared column is carried over as a declaration, and the
+    # reading from the values is carried over only where nobody declared.
+    table = reading.read_table(f"{tmp_path / 'trip' / 'real-twin.csv'}")
+    assert validation._described_pairs_here(
+        contract.load_profile(f"{tmp_path / 'trip' / 'real-profile.json'}"), table
+    ) == ["bp"]
+    assert validation._described_pairs_here(
+        contract.load_profile(f"{tmp_path / 'declared' / 'real-profile.json'}"), table
+    ) == []
+
+
+# Each case was measured to cross the line: the real table is read as
+# joined numbers, and a plain re-profile of its twin reads a long tail.
+# All four exited 3 on the twin before the validator carried the reading
+# over (commit ccffc6b), and the declared column passed on the same cells.
+NEAR_THE_LINE = [
+    ("pressure-5000-seed-3", "plain", 5000, 3, "3"),
+    ("pressure-4500-seed-6", "plain", 4500, 6, "3"),
+    ("even-pressure-1200-seed-5", "even", 1200, 5, "3"),
+    ("even-pressure-1600-seed-7", "even", 1600, 7, "3"),
+]
+
+
+@pytest.mark.parametrize(
+    "form, rows, data_seed, seed",
+    [case[1:] for case in NEAR_THE_LINE],
+    ids=[case[0] for case in NEAR_THE_LINE],
+)
+def test_a_twin_past_the_long_tail_line_is_checked_as_two_numbers(
+    tmp_path: pathlib.Path, form: str, rows: int, data_seed: int, seed: str
+) -> None:
+    cells = (
+        _pressures(rows, data_seed)
+        if form == "plain"
+        else _even_pressures(rows, data_seed)
+    )
+    home = tmp_path / "trip"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        home, cells, seed=seed, header="bp"
+    )
+    # The case is the one the gate is for: the real table sits below
+    # the line and its faithful twin sits on or above it.
+    assert collections.Counter(cells).most_common(1)[0][1] < 11
+    assert collections.Counter(written).most_common(1)[0][1] >= 11
+    assert first["role"] == "joined_numbers"
+    assert second["role"] == "long_tail_labels"
+    checked = _as_checked(home / "real-profile.json", home / "real-twin.csv")
+    real_checked = _as_checked(home / "real-profile.json", home / "real.csv")
+    assert real_checked == first
+    assert checked["role"] == "joined_numbers"
+    for key in ("separator", "n_parts", "n_joined", "n_unparsed", "part_min_widths"):
+        assert checked[key] == first[key], key
+    assert (first["n_joined"], first["n_unparsed"]) == (rows, 0)
+    for place in range(2):
+        real = _position(cells, "/", place)
+        described = first["parts"][place]
+        again = checked["parts"][place]
+        assert described["percentiles"]["min"] == min(real)
+        assert described["percentiles"]["max"] == max(real)
+        assert again["percentiles"]["min"] == described["percentiles"]["min"]
+        assert again["percentiles"]["max"] == described["percentiles"]["max"]
+        assert again["n_distinct_values"] <= described["n_distinct_values"]
+        twin = _position(written, "/", place)
+        assert len(twin) == rows
+        assert abs(statistics.fmean(twin) - statistics.fmean(real)) < 1.0
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_carried_reading_still_misses_a_file_that_is_not_pairs(
+    tmp_path: pathlib.Path,
+) -> None:
+    # The reading is carried over, not the verdict: a file whose cells
+    # are joined by a hyphen is not read as slashed pairs, falls to the
+    # ordinary rules, and its role is reported MISSED.
+    cells = _pressures(300, 3)
+    home = tmp_path / "trip"
+    first, _second, _written, twin_exit, _real_exit = _round_trip(
+        home, cells, seed="3", header="bp", check_real=False
+    )
+    assert first["role"] == "joined_numbers" and twin_exit == 0
+    other = home / "hyphen.csv"
+    other.write_text(
+        "bp\n" + "".join(cell.replace("/", "-") + "\n" for cell in cells),
+        encoding="utf-8",
+        newline="",
+    )
+    out = home / "check-hyphen"
+    out.mkdir()
+    code = _exit_of(
+        ["validate", str(home / "real-profile.json"), "--twin", str(other), "--out-dir", str(out), "--replace"]
+    )
+    assert code == 3
+    report = "".join(
+        found.read_text(encoding="utf-8") for found in sorted(out.glob("*.txt"))
+    )
+    assert "axes.role [universal.role]: MISSED" in report
+    assert _as_checked(home / "real-profile.json", other)["role"] != "joined_numbers"

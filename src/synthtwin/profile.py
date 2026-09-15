@@ -2044,6 +2044,7 @@ def build_document(
     forced_measurements: list[str] | None = None,
     forced_decimal_commas: list[str] | None = None,
     declarations_are_reconstructed: bool = False,
+    described_pairs: list[str] | None = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2068,6 +2069,12 @@ def build_document(
       with its spelling published only under the same floor and role
       rules as any other missing spelling. DECLARATION_PUBLICATION
       above states the scope of the settings rule exactly.
+    - ``described_pairs`` is handed over by the validator alone: the
+      columns the description it checks against read as a slashed pair
+      of whole numbers from their values, which the checked file is
+      then read as ahead of the long-tail rule (plan P4-D40, validation
+      method V2.2-A2). It is not a declaration and the settings block
+      does not record it. `synthtwin profile` never passes it.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
@@ -2080,6 +2087,7 @@ def build_document(
     declared_commas = (
         [] if forced_decimal_commas is None else forced_decimal_commas
     )
+    read_as_pairs = [] if described_pairs is None else described_pairs
     # REFUSED AT THE PRODUCER, so that every path is covered and not
     # only the command line (R-P4-54; review item P4-G3-R8-F2). A
     # declared value whose number depends on which grammar reads it
@@ -2122,6 +2130,7 @@ def build_document(
             name in declared_codes,
             name in declared_measurements,
             name in declared_commas,
+            name in read_as_pairs,
         )
         columns += [_column_block(described)]
         for note in described.publication_notes:

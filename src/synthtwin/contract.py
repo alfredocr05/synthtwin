@@ -1142,8 +1142,8 @@ INVARIANTS = {
     ),
     "Q17": (
         "a column of numbers holds no more different numbers than it "
-        "holds different spellings, and holds at least one wherever "
-        "its statistics used a value"
+        "holds cells that read as a number, and holds at least one "
+        "wherever its statistics used a value"
     ),
     "Q19": (
         "the ninety finer rungs of a column of numbers are named "

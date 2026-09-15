@@ -6165,7 +6165,7 @@ the present cells are each exactly TWO parts joined by a slash — the
 separator `/`, `/ ` or ` / ` — and each part is figures alone with no
 point, no sign, and no leading zero on a part of two or more figures.
 Every other present cell is counted in `n_unparsed`. None of the
-columns P4-D21 measured wears that shape: the date and the clock are
+columns P4-D21 measured wears that shape: the full date and the clock are
 claimed by earlier rules, both codes are joined by a hyphen and one is
 padded, and a part carrying a point is left to the declaration. A
 blood pressure written `128/79` was `free_text` at 300 rows and at
@@ -6174,6 +6174,24 @@ position was described. A coding system written as two slashed figures
 is still a code this rule cannot tell from a measurement, so every
 column read this way is asked about in the questions file, with codes
 and record numbers offered beside the reading taken.
+
+**What rule 12 does not reach, stated at its size.** It stands after
+`long_tail_labels`, so a column of such pairs in which one whole reading
+covers the long-tail line (the publication floor or eleven, whichever is
+larger) is a long tail and not this role. Measured on 2026-09-15: a
+blood pressure of 6,000 or 12,000 rows, and one charted to the nearest 5
+at 300 and 2,000 rows, is `long_tail_labels`, so neither position is
+described; between about 3,500 and 5,000 rows of plain readings, and
+1,200 and 1,600 of readings charted to the nearest even number, which of
+the two roles a column takes turns on its sample. The declaration reads
+every one of them. Nor is every slashed pair a date: a month and year
+written without padding (`4/2020`) is no date form this contract reads,
+so a column of them that no earlier rule claims is read by rule 12, and
+so is a register number written as year and serial (`2019/4821`); both
+are asked about. A file checked against a description that took this
+reading from the values is read the same way, ahead of the long-tail
+rule (validation method V2.2-A2), so a faithful twin whose randomly
+paired readings cross the line is not reported as another role.
 
 **The eight keys this role adds**, and no ninth; the forbidden-key
 matrix of 6.11 is what stops one:

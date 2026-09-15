@@ -4292,6 +4292,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         declared_codes = _declared_codes_here(description, table)
         declared_measured = _declared_measured_here(description, table)
         declared_commas = _declared_commas_here(description, table)
+        described_pairs = _described_pairs_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -4319,6 +4320,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared_measured,
             declared_commas,
             True,
+            described_pairs,
         )
         over_the_split = profile.build_document(
             table,
@@ -4328,6 +4330,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             declared_measured,
             declared_commas,
             True,
+            described_pairs,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -4622,6 +4625,34 @@ def _declared_measured_here(
         name
         for name in description.settings.forced_measurements
         if name in table.column_names
+    ]
+
+
+def _described_pairs_here(
+    description: contract.Profile, table: reading.Table
+) -> "list[str]":
+    """The columns read as slashed pairs from their values, carried over.
+
+    NOT A DECLARATION, and the settings block holds no record of it: a
+    column the description gives the joined role WITHOUT `--measurement`
+    was read by rule 9c from its values (plan P4-D40), and that is
+    visible in the column's own role. Rule 9c stands after the long-tail
+    rule, so which of the two reads such a column turns on whether one
+    whole reading happens to repeat in the long-tail line's count of
+    rows -- and a faithful twin, whose positions are paired at random,
+    crossed that line where the real table did not, and its role was
+    reported MISSED. The file is therefore read the way the description
+    was (validation method V2.2-A2), for the reason the declarations
+    above are carried over. A column the checked file does not carry is
+    dropped, for the reason `_declared_here` gives.
+    """
+    declared = description.settings.forced_measurements
+    return [
+        column.name
+        for column in description.columns
+        if column.role == taxonomy.ROLE_JOINED
+        and column.name not in declared
+        and column.name in table.column_names
     ]
 
 

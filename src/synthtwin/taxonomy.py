@@ -9189,6 +9189,7 @@ def _decide(
     forced_code: bool = False,
     forced_measurement: bool = False,
     probing: bool = False,
+    described_as_pair: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -9198,6 +9199,13 @@ def _decide(
     nothing else, so the question is asked exactly once and this
     function cannot call itself without end. Every other caller leaves
     it false and gets the ordinary reading.
+
+    ``described_as_pair`` says the DESCRIPTION a file is being checked
+    against read this column as a slashed pair of plain whole numbers
+    from its values (rule 9c, plan P4-D40). Only the validator sets it,
+    and it moves rule 9c's reading to just before rule 9b and changes
+    nothing else; see the comment at that point for why. Every other
+    caller leaves it false.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -9838,6 +9846,27 @@ def _decide(
     # no idea what a chapter is. Hierarchy is not modelled; it is a
     # consequence of holding the right values the right number of
     # times.
+    # ...UNLESS THE DESCRIPTION BEING CHECKED ALREADY READ THIS COLUMN AS
+    # A SLASHED PAIR (plan P4-D40; validation method V2.2-A2). Rule 9c
+    # stands after rule 9b, so whether a column of slashed pairs is read
+    # as two numbers or as a long tail turns on whether one whole reading
+    # repeats in the long-tail line's count of rows -- and that is a
+    # property of the SAMPLE, not of the column. Measured on a blood
+    # pressure of 5,000 rows: the real column's commonest reading
+    # repeated 9 times, a faithful twin's, whose two positions are paired
+    # at random, 12 and 14 times, so the twin re-read as a long tail and
+    # `synthtwin validate` called the role MISSED on 22 round trips of 80
+    # between 1,200 and 5,000 rows, where the declared column passed on
+    # the same cells. Checking a file is asking whether it matches the
+    # description, so the file is read the way the description was read,
+    # exactly as a declaration is carried over. It can still fail: a
+    # file whose cells are not such pairs is not read as them, and falls
+    # to the rules below.
+    if described_as_pair and not forced_code:
+        described_pair = _joined_reading(cells, plain_pair=True)
+        if described_pair is not None:
+            return _joined_verdict(cells, described_pair, notes, remarks)
+
     covering = _levels_covering(cells.folded_counts, settings)
     if covering > 0 or forced_code:
         levels = _levels(
@@ -10910,6 +10939,7 @@ def profile_column(
     forced_code: bool = False,
     forced_measurement: bool = False,
     forced_decimal_comma: bool = False,
+    described_as_pair: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -10934,6 +10964,11 @@ def profile_column(
       NUMBER each cell holds, so `-999` covers a file that writes
       `-999.00`; any other declaration is compared with the spelling,
       after trimming and case folding (review item P1-R6-F9).
+    - ``described_as_pair`` is not a declaration and no person sets it:
+      the validator sets it on a column its description read as a
+      slashed pair of whole numbers from the values, so the checked
+      file is read the way the description was (plan P4-D40,
+      validation method V2.2-A2). `_decide` states what it moves.
     - Errors raised: TypeError if a value is not text (an internal
       invariant: both readers produce text), and ValueError when the
       settings name one value BOTH as data and as "no value" -- there
@@ -11056,6 +11091,7 @@ def profile_column(
             forced_identifier,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
             reading = _remainder_reading(present, settings)
@@ -11109,6 +11145,7 @@ def profile_column(
             forced_identifier,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
         if trial.role == ROLE_AFFIXED:
             before = len(present)
@@ -11184,6 +11221,7 @@ def profile_column(
             after_days=judged_over_days,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
