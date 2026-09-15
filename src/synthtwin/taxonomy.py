@@ -760,6 +760,22 @@ REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 # or declined with a plain-language explanation, and this decline had
 # none.
 REMARK_ADDRESS_NOT_A_QUANTITY = "remark_an_address_is_not_a_quantity"
+# BRACKETS AROUND A NUMBER AND ITS TEXT TOGETHER, NAMED AND NOT READ
+# (landing 2b.2, contract NF56). Accounting writes a negative amount
+# `($1,234.56)`, and a note in brackets reads `(5 mg)`: the brackets
+# stand outside the affix in both, and the values cannot say which. Such
+# a wrapper is kept as written, so the twin writes the same spelling;
+# what the remark says is that the numbers published for it are the ones
+# inside the brackets, without a sign.
+REMARK_BRACKETS_AROUND_THE_AFFIX = "remark_brackets_around_the_affix"
+# A MINUS AFTER WHOLE FIGURES, NAMED AND NOT READ (the verification of
+# landing 2b.2, contract NF57). A ledger of whole amounts writes `500-`
+# for a debit, and a grade or a code writes `3-`: one cell cannot say
+# which, so the minus is kept as the text after the number, in every
+# cell alike whatever its size, and the remark says what the numbers
+# published for that wrapper are. The same minus after figures with a
+# point, `1,483.65-`, is read as a sign (`negative_form`).
+REMARK_MINUS_AFTER_THE_FIGURES = "remark_a_minus_after_the_figures"
 # A LABEL COLUMN PUBLISHING ONE OF THIS PACKAGE'S OWN STAND-IN NUMBERS
 # AS A LEVEL (plan P4-D4.7, amendment A-P4-30 item 1, contract NF37).
 # The stand-in judgement runs only above the numeric parse line, so a
@@ -896,6 +912,11 @@ NOTE_ARITY: "dict[str, int]" = {
     # sentence says the shape in its own fixed words and names no
     # number of this column at all.
     REMARK_ADDRESS_NOT_A_QUANTITY: 0,
+    # NO ARGUMENT, for the address remark's reason: the wrapper is
+    # published in the block beside the remark and the reader finds it
+    # there.
+    REMARK_BRACKETS_AROUND_THE_AFFIX: 0,
+    REMARK_MINUS_AFTER_THE_FIGURES: 0,
     # WHICH stand-in number, as its one-based place in this package's
     # own three-member list -- so 1, 2 or 3 and nothing else (contract
     # NF37). The NUMBER is written from that place through a fixed
@@ -1761,6 +1782,32 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"they are "
             f"record numbers nothing should publish, --identifier NAME "
             f"leaves them out of the profile altogether"
+        )
+    if form == REMARK_BRACKETS_AROUND_THE_AFFIX:
+        return (
+            "some values of this column are written inside brackets "
+            "together with the text around the number -- `($12.50)` or "
+            "`(5 mg)` -- and synthtwin reads the number inside as it is "
+            "written, without a sign, because accounting writes a "
+            "negative amount that way and a note in brackets looks the "
+            "same. The twin writes those values the same way. If the "
+            "brackets mean negative amounts, the average, the spread and "
+            "the ends published for those values are of the amounts "
+            "without their sign, and the column's count of negative "
+            "numbers does not include them"
+        )
+    if form == REMARK_MINUS_AFTER_THE_FIGURES:
+        return (
+            "some values of this column are written with a minus after "
+            "their figures and no decimal point -- `500-` -- and "
+            "synthtwin keeps that minus as text written after the number "
+            "rather than reading it as a sign, because a whole amount "
+            "owed is written that way and so is a grade or a code. The "
+            "twin writes those values the same way. If the minus means a "
+            "negative amount, the average, the spread and the ends "
+            "published for those values are of the amounts without their "
+            "sign, and the column's count of negative numbers does not "
+            "include them"
         )
     if form == REMARK_ALL_DIFFERENT_NUMBERS:
         return (
@@ -3285,14 +3332,9 @@ def _written_negative(text: str) -> bool:
     Guarantees: accepts text; returns a truth value. Raises nothing.
     No I/O of any kind.
     """
-    body = parsing.trimmed(text)
-    negative = False
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        negative = True
-        body = parsing.trimmed(body[1 : len(body) - 1])
-    if body[:1] == "-":
-        negative = True
-    return negative
+    # THE CORE CARRIES EVERY NOTATION AS A LEADING MINUS, the brackets,
+    # the minus sign and the trailing minus included (landing 2b.2).
+    return parsing.number_core(text)[:1] == "-"
 
 
 def _classify(text: str, decimal_comma: bool = False) -> _Cell:
@@ -3578,7 +3620,11 @@ def _tally(
 # makes it miss a core, and the second is why the set is generous --
 # every character any accepted numeric form uses is in it, and the
 # classifier, not this set, decides what parses.
-_CORE_CHARACTERS = frozenset("0123456789+-.,()eE")
+# The apostrophe, the right single quotation mark and the minus sign of
+# the character tables joined this set with landing 2b.2: a core written
+# `1'234.50` or `\u22126.09` is a number the reader holds, and a span
+# that stopped at the mark split it in two.
+_CORE_CHARACTERS = frozenset("0123456789+-.,()eE'\u2019\u2212")
 
 
 def _core_character(character: str) -> bool:
@@ -6154,29 +6200,35 @@ def _whole_figures(text: str) -> int:
     """
     if not isinstance(text, str):
         raise TypeError("a whole-figure count was asked of something else")
-    body = text.strip()
     # An accounting negative's brackets are not figures (stage 2 audit):
     # counted as two, `(123.45)` stood as a bare four-figure cell and
-    # withheld the mark from a whole column of grouped charges.
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = body[1 : len(body) - 1].strip()
+    # withheld the mark from a whole column of grouped charges. Nor is
+    # any sign, nor any mark of `parsing.GROUP_MARKS` (landing 2b.2),
+    # which is what `parsing.number_core` takes off.
+    body = parsing.number_core(text)
     if body[:1] == "+" or body[:1] == "-":
         body = body[1:]
-    body = body.replace(",", "")
-    point = body.find(".")
-    return len(body if point < 0 else body[:point])
+    figures = 0
+    for letter in body:
+        if letter == ".":
+            break
+        figures += 1
+    return figures
 
 
-def grouping_proven(cells: "list[str]", floor: int) -> bool:
-    """Whether written cells prove a comma grouping, by `_group_separator`'s rule.
+def grouping_proven(cells: "list[str]", floor: int, mark: str = ",") -> bool:
+    """Whether written cells prove the grouping ``mark``, by `_group_separator`'s rule.
 
     The same proof, bareness and majority `_group_separator` asks of a
     described column, asked of cells written with a point for decimals:
     the generator's own numbers before any decimal-comma exchange, so it
     can tell when a twin's cells no longer prove the mark it writes.
+    ``mark`` is the one they are grouped with, a comma for a published
+    comma or point and the published mark itself otherwise.
 
-    Guarantees: accepts cells and the smallest group size; returns a
-    bool. Determinism: a function of the two. No I/O of any kind.
+    Guarantees: accepts cells, the smallest group size and one mark of
+    `parsing.GROUP_MARKS`; returns a bool. Determinism: a function of the
+    three. No I/O of any kind.
     """
     proven = 0
     bare = 0
@@ -6185,19 +6237,11 @@ def grouping_proven(cells: "list[str]", floor: int) -> bool:
             raise TypeError("a grouping recount was handed something else")
         if parsing.classify_number(cell) != parsing.NUMBER:
             continue
-        figures = ""
-        for letter in parsing.trimmed(cell):
-            if letter != ",":
-                figures = figures + letter
-        if numeric_style(figures) not in _GROUPABLE_STYLES:
+        if numeric_style(cell) not in _GROUPABLE_STYLES:
             continue
         if _whole_figures(cell) < 4:
             continue
-        if "," not in cell:
-            bare += 1
-            continue
-        reading = parsing.comma_reading(cell)
-        if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
+        if parsing.thousands_mark(cell) == mark:
             proven += 1
         else:
             bare += 1
@@ -6234,40 +6278,54 @@ def _group_separator(cells: _Cells) -> str:
     error raised.
 
     WHAT COUNTS AS PROOF. A cell of four or more whole figures, in a form
-    the writer groups, proves the mark where its comma reads as grouping
-    -- and that includes a lone group such as `12,345`, which could be a
-    decimal comma in some other table but is read as thousands by this
-    one: the statistics already rest on that reading, so refusing it here
-    left the commonest grouped column, whole counts below a million,
-    written bare (stage 2 audit, 400 of 400 cells). A four-figure cell in
-    such a form with no comma is BARE.
+    the writer groups, proves a mark of `parsing.GROUP_MARKS` where its
+    whole part reads as thousands groups around that one mark
+    (`parsing.thousands_mark`) -- and that includes a lone group such as
+    `12,345`, which could be a decimal comma in some other table but is
+    read as thousands by this one: the statistics already rest on that
+    reading, so refusing it here left the commonest grouped column, whole
+    counts below a million, written bare (stage 2 audit, 400 of 400
+    cells). A four-figure cell in such a form carrying no valid grouping
+    is BARE.
+
+    EVERY MARK, NOT ONLY THE COMMA (landing 2b.2). A space, an
+    apostrophe, the right single quotation mark, a no-break space and a
+    narrow no-break space prove their own mark by the same rule, and a
+    column whose charges were written `2 198.92` publishes a space.
 
     PUBLISHED ONLY WHERE THE TWIN CAN REPRODUCE THE COLUMN'S CONVENTION:
 
-    1. **THE MAJORITY OF THE COLUMN.** The proving cells must reach the
-       smallest group size and outnumber the bare cells. One grouped
-       cell among two hundred bare ones publishes nothing (part one's
-       review measured a twin grouping all two hundred), and five bare
-       stragglers among 395 grouped cells no longer strip the mark from
-       the whole column (stage 2 audit: the twin wrote 0 of 400
-       grouped). The twin writes every groupable cell with the mark, so
-       a column mixing the two is written as its majority.
+    1. **THE MAJORITY OF THE COLUMN.** The commonest proven mark -- the
+       first in `parsing.GROUP_MARKS` on a tie -- must reach the smallest
+       group size and outnumber every other four-figure groupable cell,
+       bare or grouped with another mark. One grouped cell among two
+       hundred bare ones publishes nothing (part one's review measured a
+       twin grouping all two hundred), and five bare stragglers among
+       395 grouped cells no longer strip the mark from the whole column
+       (stage 2 audit: the twin wrote 0 of 400 grouped). The twin writes
+       every groupable cell with the mark, so a column mixing the two is
+       written as its majority.
     2. **A FORM THE TWIN WILL NOT GROUP.** A padded or exponent cell
-       holding the mark (`01,234,000`, `1,234,000e1`) withholds it,
-       because the writer never groups those forms.
-    3. **A DECLARED DECIMAL COMMA** swaps the roles: the cell is read
-       with its point and comma exchanged, and the mark published is
-       `.`, the one `42.037,34` writes. Under that declaration a lone
-       group reads as thousands for the same reason as above.
+       holding a valid grouping (`01,234,000`, `1,234,000e1`) withholds
+       the mark, because the writer never groups those forms.
+    3. **A DECLARED DECIMAL COMMA** swaps the roles of the comma and the
+       point: the cell is read with its points and commas exchanged, and
+       where the comma is proven the mark published is `.`, the one
+       `42.037,34` writes. The other marks are not exchanged, so
+       `1 234,56` publishes a space. Under that declaration a lone group
+       reads as thousands for the same reason as above.
 
-    Guarantees: accepts the column's tally; returns ",", "." or the
-    empty string, "." only under a declared decimal comma. Determinism:
-    a fixed function of the tally, cells taken in their given order.
-    Raises nothing. No I/O of any kind.
+    Guarantees: accepts the column's tally; returns a mark of
+    `parsing.PUBLISHED_GROUP_MARKS`, "." only under a declared decimal
+    comma and "," never there. Determinism: a fixed function of the
+    tally, cells taken in their given order. Raises nothing. No I/O of
+    any kind.
     """
     decimal = cells.decimal_comma
-    proven = 0
-    bare = 0
+    proven: "dict[str, int]" = {}
+    for mark in parsing.GROUP_MARKS:
+        proven[mark] = 0
+    others = 0
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -6275,27 +6333,134 @@ def _group_separator(cells: _Cells) -> str:
         if decimal:
             written = _marks_exchanged(cell.text)
         style = numeric_style(cell.numeric_text)
+        mark = parsing.thousands_mark(written)
+        if decimal and mark == "" and "," in written:
+            # A DECLARED COLUMN IS READ IN ITS OWN GRAMMAR, which drops
+            # every point whatever groups it leaves, so its proof is the
+            # one `comma_reading` gives and not the strict groups the
+            # undeclared reader needs: `1097.001,01` has always proven a
+            # point, and a stricter proof would have withdrawn the mark
+            # from columns the stage 2 rule published it on.
+            reading = parsing.comma_reading(written)
+            if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
+                mark = ","
         if style not in _GROUPABLE_STYLES:
-            if "," in written:
+            if mark or "," in written:
                 return ""
             continue
         if _whole_figures(written) < 4:
             continue
-        if "," not in written:
-            bare += 1
+        if not mark:
+            others += 1
             continue
-        reading = parsing.comma_reading(written)
-        if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
-            proven += 1
-        else:
-            bare += 1
-    if proven == 0 or proven < cells.settings.small_cell_floor:
+        proven[mark] = proven[mark] + 1
+        others += 1
+    best = ""
+    for mark in parsing.GROUP_MARKS:
+        if proven[mark] > 0 and (best == "" or proven[mark] > proven[best]):
+            best = mark
+    if best == "":
         return ""
-    if proven <= bare:
+    held = proven[best]
+    if held < cells.settings.small_cell_floor:
         return ""
-    if decimal:
+    if held <= others - held:
+        return ""
+    if decimal and best == ",":
         return "."
-    return ","
+    return best
+
+
+def _negative_form(cells: _Cells) -> str:
+    """How this column writes its negative numbers, by the majority rule.
+
+    ACCOUNTING BRACKETS WERE READ AND THEN FORGOTTEN (landing 2b.2). A
+    column of charges written `(1,234.56)` for a credit was described
+    with its negatives counted and its brackets dropped, so the twin
+    wrote `-1,234.56`: code parsing the real table's brackets met none on
+    the twin, and the real table failed its own description's spelling
+    check. The same held for the minus sign of the character tables and
+    for the trailing minus accounting systems write, which this reader
+    did not read as negative at all until the same landing.
+
+    Each cell reading as a negative number this format holds is counted
+    under the notation it wrote (`parsing.negative_notation`). A notation
+    other than the hyphen-minus in front is published where its cells
+    reach the smallest group size and outnumber every other negative
+    cell together; the commonest such notation is the candidate, the
+    first in `parsing.NEGATIVE_FORMS` on a tie. Otherwise the column
+    publishes `minus`. The twin writes every negative in the published
+    notation, so a column mixing two is written as its majority, as a
+    grouped column is.
+
+    Guarantees: accepts the column's tally; returns one name of
+    `parsing.NEGATIVE_FORMS`. Determinism: a fixed function of the
+    tally. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[str, int]" = {}
+    for form in parsing.NEGATIVE_FORMS:
+        counts[form] = 0
+    negatives = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER or cell.sign != parsing.SIGN_NEGATIVE:
+            continue
+        form = parsing.negative_notation(cell.numeric_text)
+        counts[form] = counts[form] + 1
+        negatives += 1
+    best = parsing.NEGATIVE_MINUS
+    for form in parsing.NEGATIVE_FORMS:
+        if form == parsing.NEGATIVE_MINUS:
+            continue
+        if counts[form] > 0 and (
+            best == parsing.NEGATIVE_MINUS or counts[form] > counts[best]
+        ):
+            best = form
+    if best == parsing.NEGATIVE_MINUS:
+        return best
+    held = counts[best]
+    if held < cells.settings.small_cell_floor or held <= negatives - held:
+        return parsing.NEGATIVE_MINUS
+    return best
+
+
+def _decimal_plus(cells: _Cells) -> "dict[str, int]":
+    """How many cells written with a point carried a leading plus.
+
+    THE PLUS A DECIMAL LOST (landing 2b.2). The form ladder tests the
+    point before the plus, so `+12.5` is a `decimal` cell and its plus
+    was published nowhere: the twin wrote none, and a column of signed
+    changes came back with every rise unsigned. A whole number keeps its
+    plus through the `leading_plus` form, counted cell by cell; this is
+    the same count for the cells the ladder files under `decimal`, so a
+    column with a plus on three cells in ten keeps three in ten on both
+    kinds of number.
+
+    A CENSUS UNDER THE FLOOR, the shape the width censuses have: `+`
+    named with its count where the count reaches the smallest group size,
+    and the count pooled under `(withheld)` where it does not, so a
+    single signed cell is never named -- and a floor of one, which holds
+    nothing back, never pools, so a description that held the count
+    back is one its loader refuses (C5-S13's rule, read for this key by
+    DP1). `{}` where no decimal cell carried a plus.
+
+    Guarantees: accepts the column's tally; returns `{}`, `{"+": n}` with
+    n at least the floor, or `{"(withheld)": n}` with n below it.
+    Determinism: a fixed function of the tally. Raises nothing. No I/O of
+    any kind.
+    """
+    counted = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
+            continue
+        if parsing.number_core(cell.numeric_text)[:1] == "+":
+            counted += 1
+    if counted < 1:
+        return {}
+    if counted < cells.settings.small_cell_floor:
+        return {SUPPRESSED_LABEL: counted}
+    return {"+": counted}
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
@@ -6396,6 +6561,12 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # (amendment A-P4-5 set that precedent for the fraction
         # widths and this follows it).
         "group_separator": _group_separator(cells),
+        # ...and how its negatives and its signed decimals were written
+        # (landing 2b.2): the notation a negative wore, and how many
+        # cells written with a point carried a plus. Siblings for the
+        # reason the mark is one.
+        "negative_form": _negative_form(cells),
+        "decimal_plus": _decimal_plus(cells),
         "fraction_widths": _fraction_widths(cells),
         # ...and how wide the ones written with a redundant zero wrote
         # their figure field, which the forms map cannot say either
@@ -9087,6 +9258,26 @@ def _affixed_verdict(
     # that is the one a column of `$1` to `$100` now carries.
     if _all_different(cells):
         remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+    # ...AND A WRAPPER THAT BRACKETS ITS WHOLE CELL IS NAMED (landing
+    # 2b.2, contract NF56). It is a wrapper like any other -- its prefix
+    # opens a bracket and its suffix closes one -- so nothing about the
+    # reading moves; the sentence is what tells the owner that a sign
+    # the brackets may carry is not in the numbers.
+    worn: "list[tuple[str, str]]" = [(affixed.prefix, affixed.suffix)]
+    for prefix, suffix, _count in affixed.variants:
+        worn += [(prefix, suffix)]
+    for prefix, suffix in worn:
+        if prefix[:1] == "(" and suffix[len(suffix) - 1 : len(suffix)] == ")":
+            remarks += [note(REMARK_BRACKETS_AROUND_THE_AFFIX)]
+            break
+    # ...AND SO IS A WRAPPER WRITING A MINUS AFTER ITS FIGURES (the
+    # verification of landing 2b.2, contract NF57): a minus after figures
+    # with no point is not read as a sign, so it reaches this role as a
+    # suffix, and the sentence says the sign is not in the numbers.
+    for _prefix, suffix in worn:
+        if suffix[len(suffix) - 1 : len(suffix)] == "-":
+            remarks += [note(REMARK_MINUS_AFTER_THE_FIGURES)]
+            break
     return _Verdict(
         role=ROLE_AFFIXED,
         evidence=note(EVIDENCE_AFFIXED, pair),

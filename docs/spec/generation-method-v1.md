@@ -1250,9 +1250,9 @@ exactly one of six **styles**, and in no other form:
 
 **A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table. Where `group_separator` is `,` or `.`, every `plain` cell, and every `leading_plus` or `decimal` cell at leading-zero order zero, is grouped with a comma, so a column whose proving cells were the majority is written wholly grouped; a `leading_zero` cell, an exponent form and a cell at a raised order are never grouped (the stage 2 audit, 2026-09-14). A column declared to write its decimals with a comma publishes `.`: it is grouped with a comma like any other and then has its points and commas exchanged, so `42,037.34` is written `42.037,34`.
 
-**Never accounting parentheses**, which are reserved for the
-contradictory-notation stand-in of G10.3 and would otherwise change a
-cell's class.
+**Every mark a column may publish, and every notation of a negative, and a plus on a decimal** (landing 2b.2, 2026-09-15; plan P4-D41). A column publishing a space, an apostrophe, U+2019, U+00A0, U+202F or U+2009 is grouped with that mark itself, under the same rule of forms and order; no exchange touches it, so a declared decimal-comma column grouped with a space is written `1 234,56`. Where `decimal_plus` names a count, the cells allocated `decimal` whose value is not negative are taken in cell order, and of E such cells the k-th, counting from nought, carries a plus in front exactly where `floor((k+1)·P/E)` exceeds `floor(k·P/E)`, P being the lesser of the named count and E; a pooled count names no form and adds no plus; the plus stands in front of any zeros the cell spends. Before any fraction width is assigned (G6.6), where fewer cells are allocated `decimal` on a value not negative than the named count, cells exchange forms: the cells allocated `plain` whose value is not negative, from the first cell upward, and the cells allocated `decimal` whose value is negative and has a point-free spelling, from the last cell downward, are paired in order, and each pair swaps its two forms, for as many pairs as the shortfall and both lists allow; no form count moves. Where E is still below `decimal_plus` every eligible cell carries one and the report names a deviation of `decimal_plus`. Every negative cell is then written in the column's `negative_form`: the figures after the hyphen-minus, zeros and mark included, inside brackets, after the minus sign U+2212, or followed by a hyphen-minus -- the last only where those figures carry a decimal point, because neither `12-` nor `1,234-` is read as a number, so such a cell keeps its hyphen-minus in front. So `(001234.5)` and `(1,234.5)` are written and `(0,001.00)` never is.
+
+**Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
 **Which decision governs which question** (P2-C1-F8). Decision 8 fixed
 the family the twin may INVENT from — the leading-zero forms, which have
@@ -1628,7 +1628,7 @@ in the order the carrier step uses and for the same reason: first over
 the strata that are not negative until the cells they cover reach
 `W_plus`, because a plus needs a value that is not negative as well as
 one with no point, and then over every stratum until the cells they
-cover reach `W`. Without the first pass a walk could cover `W` entirely
+cover reach `W`. Where `decimal_plus` names a count D above nought, a walk over the negative strata alone comes between the two, until the negative cells carrying a point-free spelling reach `W - max(0, F - D)`, F being the cells that are not negative: at most `F - D` of those may be point-free once D of them keep a point, so the rest of `W` must stand on negative values (the verification of landing 2b.2). Without the first pass a walk could cover `W` entirely
 out of the negative band and leave a published `leading_plus` count
 with nowhere to go. Each pass counts the cells whose stratum value
 already has a point-free spelling and, while that count is below its
@@ -6398,7 +6398,10 @@ numbers, the cores each wrapper of an affixed column wears, or the
 numeric half of a column of numbers and labels
 (`group_separator`, `affix_variants[<n>].numbers.group_separator`,
 `numbers.group_separator`, G6.1; the stage 2 closure and confirmation
-reviews, 2026-09-14 and 2026-09-15); a column whose twin values come to
+reviews, 2026-09-14 and 2026-09-15); a column whose twin put fewer values
+that are not negative in the decimal form than the description counts
+signed decimals, so fewer of its cells carry a plus (`decimal_plus`,
+G6.1; landing 2b.2); a column whose twin values come to
 two or fewer once case is ignored where the description counts three
 or more, so that describing the twin again reads it as a column of two
 values or one (`n_distinct_folded`; the stage 2 confirmation review); a
@@ -6448,6 +6451,7 @@ gap keys `empty_bins` and `empty_edges`.
 * `all_whole_numbers`
 * `datetime_separators`
 * `datetimes_read_at`
+* `decimal_plus`
 * `earliest`
 * `empty_bins`
 * `empty_edges`
@@ -7306,7 +7310,7 @@ fail.
 
 ### G14.2 The vector file shape
 
-**Two committed JSON files, and ONE oracle** (review item P2-C3-F3).
+**Three committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
 `tests/reference/generation-branch-vectors.json` carries the fourteen it
@@ -7314,14 +7318,17 @@ names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
 R-P4-17, then the exponent case of G10.5 revision 5, and then the
-midnight-day and mixed-mark cases of plan P4-D39). This sentence carried the
+midnight-day and mixed-mark cases of plan P4-D39), and
+`tests/reference/generation-branch-vectors-2.json` carries the twelve it
+names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
-next case has an obvious place to be recorded. Both are written by
+next case has an obvious place to be recorded. All three are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
-through the entry point `tools/reference/make_generation_branch_vectors.py`,
-which runs that oracle and asks it for the second case set — so there is
-one transform, one proof layer and one set of rules behind both files.
+through the entry point `tools/reference/make_generation_branch_vectors.py`
+and the third through `tools/reference/make_generation_branch_vectors_2.py`,
+each of which runs that oracle and asks it for its own case set — so there
+is one transform, one proof layer and one set of rules behind every file.
 Each is registered in `tools/provenance/fixture-manifest.json` with its
 `seed` (`0`, accepted and ignored — these vectors are a fixed transform,
 not a random sample), its `sha256`, and a justification, and each is
@@ -7336,6 +7343,16 @@ coverage. A third file follows the same rule the moment the second
 approaches the limit. Two copies of the oracle would not, and are
 forbidden here: a proof layer that exists twice can be repaired once.
 
+**The third file** (the integration of landings 2b.1 to 2b.5,
+2026-09-15). The manifest's cap is 250000 bytes today. The second file
+held 171111 bytes with its fourteen cases, and the twelve the carried
+landings 2b.4, 2b.3 and 2b.2 added would have taken it above 300000, so
+it was split as the paragraph above requires: no case was dropped, no
+proof was shortened and the cap was not raised. The fourteen stay where
+they were, and the twelve are the third file, at 141003 bytes. A case
+added after them goes to the third file until that file approaches the
+cap in turn.
+
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the
 Phase 1 vectors use, so a reviewer reads one shape and not two.
@@ -7344,8 +7361,8 @@ Phase 1 vectors use, so a reviewer reads one shape and not two.
 {
   "what":          one sentence naming this as the generation oracle
   "generated_by":  "tools/reference/make_generation_reference_vectors.py"
-  "case_set":      which of the two case sets this file carries, and where
-                   the other one lives, so neither file can be read as the
+  "case_set":      which of the three case sets this file carries, and where
+                   the other two live, so neither file can be read as the
                    whole of the oracle
   "never_imports": ["synthtwin", "numpy", "pandas"]
   "method":        "docs/spec/generation-method-v1.md"
@@ -7412,9 +7429,12 @@ could hold beside the places a made-up number may take (G8.3a, landing
 stamp's one permitted mark, bare dates beside midnight moments, the move
 onto midnight and midnight on two offsets (G7.1, G7.4 and G7.5, landing
 2b.3), and two for the ranks whose instant the published tail fixes and
-the move off an accidental value at midnight (landing 2b.3's repair).
-**All thirty-two are required.** The
-first nine are the first committed file and the last twenty-three the second
+the move off an accidental value at midnight (landing 2b.3's repair), and
+three for the spellings of a number landing 2b.2 publishes (plan P4-D41).
+**All thirty-five are required.** The
+first nine are the first committed file, the next fourteen the second,
+and the last twelve -- the cases the carried landings 2b.2, 2b.3 and
+2b.4 added -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -7445,6 +7465,9 @@ case passed, which is the failure the count exists to prevent:
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 | `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
+| `grouped_charges` | G6.1's mark at leading-zero order nought only, on a column publishing `,`, beside `decimal_plus` of eleven spread one in every two over twenty-two decimal cells; two cells spend a zero and carry the plus in front of it and no mark |
+| `grouped_decimal_comma` | P4-D26's exchange on a declared column publishing `.`: `42.037,34`, one spent cell `042037,34` with no mark, and two absent cells the exchange does not touch |
+| `spaced_brackets` | a space between thousands and the `brackets` notation: `(12 345.5)`, and a spent cell `(012345.5)` whose brackets close around the zeros with no mark and no sign |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
 | `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
 | `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |

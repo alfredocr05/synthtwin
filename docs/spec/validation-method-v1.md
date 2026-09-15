@@ -1212,6 +1212,33 @@ comma under either published mark. The listing says the description
 records the mark the real column's numbers were found to carry between
 thousands, or that none was found.
 
+**Amended 2026-09-15 (landing 2b.2, plan P4-D41): the mark, the notation
+of a negative and the count of signed decimals are held.** The listing of
+`group_separator` is withdrawn, and three checks stand in its place on
+every numeric block: `spelling.group_separator` and
+`spelling.negative_form` compare the published spelling with what
+describing the file on its own publishes, and `spelling.decimal_plus`
+holds the census's named count the way a named form count is held, with
+its pooled remainder widening the bar, and a census naming none to a
+file naming none. Because the
+comparison is made against the file's own description, every edge of the
+producer's rule comes with it: a padded or exponent cell holding a mark,
+the cores each wrapper wears, the numeric half of a column with labels,
+and a declared decimal comma read in its own grammar. Where the file
+holds fewer four-figure numbers in a groupable form, or fewer negative
+numbers, than the smallest group size, its own description publishes the
+default whatever those cells wear, and the verdict is WITHHELD rather
+than MISSED. `styles.spelled` offers, for every cell, the grouping of the
+one mark the cell carries and the leading-minus reading of brackets,
+U+2212 and a trailing minus after figures carrying a point, whatever the description publishes, and for a cell whose value is zero the unsigned reading too, because a ledger writes a rounded -0.3 as `(0)` or `-0` and the sign on a zero says nothing about the value (the verification of landing 2b.2), so a
+real table whose spellings fell short of the floor or the majority is
+never MISSED there for them. A position of a joined column files none of
+the three: its parts are read from figures and one point alone, so no
+mark, sign or plus can stand in one, the loader holds the three to their
+defaults (GS1, NS1, DP1), and a check of them could not fail. The sentence the listing carried -- a file
+is read the same way whether its large numbers carry the mark or not --
+is contradicted by the first goal and is withdrawn.
+
 **Amended 2026-09-15 (stage 2 confirmation review): a declared column is
 read in its own grammar before it is translated.** Which cells are
 absent is decided on the file's own text with every exact identity --

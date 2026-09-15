@@ -303,11 +303,20 @@ def test_nothing_that_varies_between_runs_is_written(
 # to every numeric block; part two added `all_at_midnight: false` and
 # `datetime_separators: {}` to `recorded_on`, the one datetime column.
 # Read as a diff of the two documents: nothing else moved.
+# RE-RECORDED 2026-09-15 at the integration of landings 2b.1 to 2b.5, whose
+# document carries both causes below at once. Diffed against the integrated
+# document before landing 2b.2 merged, only 2b.2's ten keys moved; diffed
+# against landing 2b.2's own, only `n_at_midnight: 0` moved.
 # RE-RECORDED 2026-09-15 (landing 2b.3): `n_at_midnight: 0` added to
 # `recorded_on`, the one datetime column, which writes no clock; read as
 # a diff of the two documents, nothing else moved.
+# RE-RECORDED 2026-09-15 (landing 2b.2, plan P4-D41): every numeric block
+# gained `negative_form: "minus"` and the census `decimal_plus: {}` -- five
+# blocks, ten keys. Read as a diff of the two documents against 53bb012:
+# nothing else moved, no count, statistic, label, role or spelling of any
+# column.
 GOLDEN_SHA256 = (
-    "3e99e46d047f1a600ce485ef9c257f5b144f00f7a5cac914cf3d9dbffc334989"
+    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
 )
 
 

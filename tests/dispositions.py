@@ -361,6 +361,12 @@ PLAN4_REGIONS = {
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
+    # ...and the landing that made the mark an obligation and added the
+    # notation of a negative and the count of signed decimals beside it.
+    "number-spellings": (
+        "### P4-D41 How a number's grouping and sign are written "
+        "(landing 2b.2, 2026-09-15)"
+    ),
     "moment-spellings": (
         "### P4-D39 The mark inside a moment, and a date held at midnight "
         "(stage 2, 2026-09-14)"
@@ -458,6 +464,8 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "mode_count"),
     ("numeric", "percentiles_between"),
     ("numeric", "group_separator"),
+    ("numeric", "negative_form"),
+    ("numeric", "decimal_plus"),
     ("datetime", "datetime_separators"),
     ("datetime", "all_at_midnight"),
     ("datetime", "n_at_midnight"),
@@ -788,17 +796,33 @@ REGISTRY += (
         plan_region="kurtosis",
         aliases=("tail weight", "moment ratio"),
     ),
-    # THE MARK BETWEEN THOUSANDS (stage 2, 2026-09-14). REPORT-ONLY on
-    # the rule stated above for the mode: the generator writes it, and
-    # the validator accepts a grouped cell but does not yet hold a twin
-    # to carrying the mark, so a class that claimed exactness would say
-    # more than any check establishes.
+    # THE MARK BETWEEN THOUSANDS (stage 2, 2026-09-14), an obligation
+    # since landing 2b.2 (P4-D41): the quality report holds a file to it
+    # through the file's own description, and beside it the notation of
+    # a negative and the count of signed decimals. It was REPORT-ONLY
+    # while no check held it.
     Fact(
         "numeric",
         "group_separator",
-        REPORT_ONLY,
+        EXACT_OBSERVABLE,
         plan_words="the mark a column writes between thousands",
-        plan_region="group-separator",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "negative_form",
+        EXACT_OBSERVABLE,
+        plan_words="how a column writes its negative numbers",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "decimal_plus",
+        EXACT_OBSERVABLE,
+        plan_words="how many cells written with a point carried a plus",
+        plan_region="number-spellings",
         aliases=(),
     ),
     # EXACT-OBSERVABLE SINCE LANDING 2b.3. Both were REPORT-ONLY on the

@@ -461,11 +461,20 @@ PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 # its day and its clock, and the statement that every moment of a column
 # stands at midnight. Both REPORT-ONLY and LISTED, for the same reason.
 STAGE_2_SPELLING_KEYS = (
-    "group_separator",
     "datetime_separators",
     "all_at_midnight",
     # ...and the count of values at midnight (landing 2b.3).
     "n_at_midnight",
+)
+
+# Landing 2b.2 (2026-09-15). The mark between thousands became an
+# obligation, and the notation of a negative and the count of signed
+# decimals arrived beside it as obligations: all three are held by the
+# quality report's spelling checks.
+LANDING_2B2_SPELLING_KEYS = (
+    "group_separator",
+    "negative_form",
+    "decimal_plus",
 )
 
 ROLE_SECTIONS = {
@@ -1445,7 +1454,9 @@ def test_every_key_the_producer_emits_has_a_disposition(
             for own in PHASE_4_FINER_LADDER_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
             for own in STAGE_2_SPELLING_KEYS:
-                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38 and P4-D39)"
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
+            for own in LANDING_2B2_SPELLING_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1476,7 +1487,9 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         for own in PHASE_4_FINER_LADDER_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
         for own in STAGE_2_SPELLING_KEYS:
-            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D38 and P4-D39)"
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
+        for own in LANDING_2B2_SPELLING_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

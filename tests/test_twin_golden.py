@@ -191,6 +191,16 @@ AFFIX_SET_SUBCHECKS = (
     "counts.n_core_distinct",
     "counts.n_core_distinct_folded",
 )
+# ...and the THREE spelling checks landing 2b.2 added (2026-09-15), set
+# aside on the same doctrine. The mark between thousands was a LISTING
+# on every numeric-family column and is a check now, and the notation of
+# a negative and the count of signed decimals arrived beside it, so each
+# numeric-family column of the demonstration carries all three.
+SPELLING_SUBCHECKS = (
+    "spelling.group_separator",
+    "spelling.negative_form",
+    "spelling.decimal_plus",
+)
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -277,7 +287,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        for one in AFFIX_SET_SUBCHECKS:
+        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS:
             if one in entry:
                 return True
         return False
@@ -296,6 +306,16 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose", "dose", "dose",
     ], wrapped
     assert len(counted) == WIDE_CHECK_COUNT, len(counted)
+    # ...and the three spelling checks, on the four numeric-family
+    # columns and nowhere else (landing 2b.2).
+    spelled = sorted(
+        entry
+        for entry in checks
+        if any(one in entry for one in SPELLING_SUBCHECKS)
+    )
+    assert sorted(entry.split("|")[0] for entry in spelled) == sorted(
+        ["amount", "dose", "reading", "visits"] * 3
+    ), spelled
     # ...and the four the new obligation adds are the four it should,
     # named rather than counted: every column of this table that
     # carries a quantitative block and no other.
@@ -393,16 +413,14 @@ def test_widening_the_demonstration_lost_no_obligation(
         "reading|numeric.field_widths|",
         "visits|numeric.field_widths|",
     ]
-    # ...and the mark between thousands, on the same four columns and for
-    # the same reason: it is published on every numeric-family column.
-    assert sorted(
+    # ...and the mark between thousands is listed NOWHERE now: it was
+    # listed on the same four columns until landing 2b.2 made it a check,
+    # and the check baseline above shows the four arriving there. Its
+    # listings were set aside from the frozen census when they arrived,
+    # so the census is untouched by their going.
+    assert [
         entry for entry in listings if GROUP_SEPARATOR_FACT in entry
-    ) == [
-        "amount|numeric.group_separator|",
-        "dose|numeric.group_separator|",
-        "reading|numeric.group_separator|",
-        "visits|numeric.group_separator|",
-    ]
+    ] == []
     # ...and the three datetime listings, on the one datetime column,
     # which writes no clock and so carries no obligation of any of them.
     assert sorted(
@@ -744,12 +762,21 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # RE-RECORDED 2026-09-14 (plan P4-D39): two keys added to `recorded_on`,
 # `all_at_midnight: false` and `datetime_separators: {}`, and nothing else;
 # the twin digest below did not move.
+# RE-RECORDED 2026-09-15 at the integration of landings 2b.1 to 2b.5, which
+# carries both causes below at once. Diffed against the integrated
+# description before landing 2b.2 merged, only 2b.2's twelve keys moved;
+# against landing 2b.2's own, only `n_at_midnight: 0`. The twin digest HELD.
 # RE-RECORDED 2026-09-15 (landing 2b.3): one key added to `recorded_on`,
 # `n_at_midnight: 0`, the count of values at midnight a column that writes
 # no clock publishes as nought; read as a diff of the two documents,
 # nothing else moved, and the twin and report digests below did not move.
+# RE-RECORDED 2026-09-15 (landing 2b.2, plan P4-D41): every numeric block
+# of the description gained `negative_form: "minus"` and the census
+# `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
+# when the two documents were diffed against 53bb012. The twin digest below
+# HELD: the twin's bytes are identical.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "8efd5a7094a75671a8510b742434d68203447c71adc73bf5643356261cda6fd6"
+    "f08c4e89993cab504c451630282ac90ef37fe6095747bf400db04ddd19a3b6c2"
 )
 
 
@@ -1715,14 +1742,29 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # RE-RECORDED AGAIN 2026-09-14 (stage 2 audit): the reason printed beside
 # each `numeric.group_separator` listing now says the mark was FOUND, not
 # WRITTEN; ten lines changed and nothing else.
+# RE-RECORDED 2026-09-15 at the integration of landings 2b.1 to 2b.5, which
+# carries both causes below at once. Diffed against the integrated report
+# before landing 2b.2 merged, only 2b.2's lines moved: obligations 495 to
+# 507, HELD 420 to 432, and NOT CHECKABLE 149 to 143 (2b.3's 149 less
+# 2b.2's six). Against landing 2b.2's own report, only 2b.3's datetime
+# listings moved, NOT CHECKABLE 142 to 143. No verdict moved.
 # RE-RECORDED 2026-09-15 (landing 2b.3): the marks and the values at midnight are
 # obligations wherever a column writes a clock, and `recorded_on` writes
 # none, so its two listings now give that reason in one sentence and a
 # third listing, `datetime.n_at_midnight`, joins them, raising the
 # not-checkable count from 148 to 149. Read as a diff: those five lines
 # and the two counts moved, and no verdict and no check moved.
+# RE-RECORDED 2026-09-15 (landing 2b.2, plan P4-D41), and the census was
+# COUNTED on both sides against 53bb012. The mark between thousands was a
+# listing and is a check now, beside the notation of a negative and the
+# count of signed decimals: twelve checks arrived on the four
+# numeric-family columns and every one of them is HELD, so obligations go
+# 495 to 507 and HELD 420 to 432. The six `group_separator` listings left
+# -- four columns and the joined column's two positions, whose spellings
+# the loader now holds to the defaults -- so NOT CHECKABLE goes 148 to
+# 142. No verdict moved and nothing else in the report changed.
 GOLDEN_QUALITY_SHA256 = (
-    "8f41e524d5f004d917881f16c97174fac22f56243916aea77db14237e0817656"
+    "7ce093632a73b194eaa04609781aeadb482b4deecfb7faaa82a3f0916fdc188c"
 )
 
 

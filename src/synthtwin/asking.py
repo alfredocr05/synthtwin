@@ -106,12 +106,24 @@ ANSWER_MEASUREMENT = "measurement"
 ANSWER_CODE = "code"
 ANSWER_IDENTIFIER = "identifier"
 ANSWER_JOINED = "joined"
+# ...and the fourth declaration a question can stand for (landing 2b.2):
+# the column writes a point between its thousands and a comma for its
+# decimals, which is `--decimal-comma`.
+ANSWER_DECIMAL_COMMA = "decimal_comma"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
 BECAUSE_PADDED = "padded"
 BECAUSE_FIXED_WIDTH = "fixed-width"
 BECAUSE_JOINED = "two-numbers"
+# ...and the two a number grouped between its thousands raises (landing
+# 2b.2). A column of `123 456 789` reads as numbers since that landing,
+# and every value the same number of figures is what an identifier looks
+# like whatever mark groups it. A column of `12.345` reads as decimals,
+# and three figures after every point is what a point between thousands
+# looks like.
+BECAUSE_GROUPED_FIXED_WIDTH = "grouped-fixed-width"
+BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -139,6 +151,73 @@ def _is_plain_whole_number(text: str) -> bool:
     return True
 
 
+def _grouped_figures(text: str) -> "str | None":
+    """The figures of a cell written as figures grouped in threes, or None.
+
+    A cell qualifies where `parsing.thousands_mark` finds one mark
+    grouping its figures and nothing but figures and that mark stands in
+    it -- no sign, no point, no exponent -- which is how an identifier
+    grouped for reading is written: `123 456 789`.
+    """
+    mark = parsing.thousands_mark(text)
+    if not mark:
+        return None
+    figures = ""
+    for character in text:
+        if character == mark:
+            continue
+        if not ("0" <= character <= "9"):
+            return None
+        figures = figures + character
+    return figures
+
+
+def _point_between_thousands(text: str) -> bool:
+    """Whether a cell could be a whole number with a point between thousands.
+
+    One to three figures, not led by a zero, then a point, then exactly
+    three figures, after an optional minus: `12.345`, `-1.500`. A
+    thousands group never begins `0.`, so a column of proportions
+    written `0.125` is not asked about.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    point = -1
+    for place in range(len(body)):
+        if body[place] == "." and point < 0:
+            point = place
+    if point < 1 or point > 3:
+        return False
+    head = body[:point]
+    tail = body[point + 1 :]
+    if head[:1] == "0" or len(tail) != 3:
+        return False
+    return _is_plain_whole_number(head) and _is_plain_whole_number(tail)
+
+
+def _written_below_a_thousand(text: str) -> bool:
+    """Whether a cell is a whole number below a thousand, written plainly.
+
+    One to three figures, not led by a zero unless it is `0` itself,
+    after an optional minus: `523`, `-7`, `0`. Written with a point
+    between its thousands, a number below a thousand has no point at all,
+    so these are the cells a column of `12.345` holds beside them.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    if len(body) < 1 or len(body) > 3:
+        return False
+    if body[:1] == "0" and body != "0":
+        return False
+    return _is_plain_whole_number(body)
+
+
 def why_worth_asking(values: "list[str]") -> "str | None":
     """The reason to ask about this column, or None to stay quiet.
 
@@ -158,12 +237,59 @@ def why_worth_asking(values: "list[str]") -> "str | None":
     - every cell exactly the same number of digits, at least three of
       them. Fixed width is what a code has and a measurement does not:
       real quantities spread across widths.
+
+    AND TWO THAT A GROUPED NUMBER RAISES (landing 2b.2):
+
+    - every cell figures alone or figures grouped in threes by one mark,
+      at least one of them grouped, and every cell the same number of
+      FIGURES. `123 456 789` is read as a number since that landing,
+      and a register of nine-figure identifiers grouped for reading
+      would otherwise publish its smallest and largest identifier with
+      nothing asked.
+    - at least one cell one to three figures, a point and exactly three
+      figures, and every other cell a whole number below a thousand
+      written plainly. Read undeclared, `12.345` is twelve and a bit;
+      written with a point between thousands it is twelve thousand, and
+      only the person holding the table knows which. The reading is not
+      changed: the question offers `--decimal-comma` as an answer.
+
+    THE SMALL NUMBERS DO NOT SILENCE IT (the verification of landing
+    2b.2). The first rule asked only where EVERY cell had a point, and a
+    count written the German way writes `523` for five hundred and
+    twenty-three: a column of 900 such counts, a third of them below a
+    thousand, published a mean of 184 for a true mean in the thousands
+    with nothing asked, on three seeds of three. A cell below a thousand
+    is what that column must hold, and one written any other way -- a
+    point with one or two figures after it, a fourth figure before it --
+    still settles the reading, so the column stays unasked.
     """
     if not values:
         return None
+    grouped = False
+    figures_of: "list[str]" = []
     for value in values:
-        if not _is_plain_whole_number(value):
+        if _is_plain_whole_number(value):
+            figures_of += [value]
+            continue
+        figures = _grouped_figures(value)
+        if figures is None:
+            pointed = False
+            for cell in values:
+                if _point_between_thousands(cell):
+                    pointed = True
+                elif not _written_below_a_thousand(cell):
+                    return None
+            if pointed:
+                return BECAUSE_POINT_THOUSANDS
             return None
+        grouped = True
+        figures_of += [figures]
+    if grouped:
+        counted = {len(figures) for figures in figures_of}
+        if len(counted) == 1:
+            if sorted(counted)[0] >= _NARROWEST_FIXED_WIDTH:
+                return BECAUSE_GROUPED_FIXED_WIDTH
+        return None
     for value in values:
         if len(value) > 1 and value[0] == "0":
             return BECAUSE_PADDED
@@ -354,6 +480,12 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             "each number inside the cell described on its own, with its "
             "own average and ends"
         )
+    if answer == ANSWER_DECIMAL_COMMA:
+        return (
+            "an average, a spread, a smallest and a largest, and points "
+            "between, with every point read as a mark between thousands "
+            "and every comma as the decimal point"
+        )
     if answer == ANSWER_CODE:
         if floor > 1:
             return (
@@ -419,6 +551,42 @@ def _numeric_choices(
     return first + rest
 
 
+def _point_choices(role: str, floor: int) -> "list[Choice]":
+    """The answers a column of `12.345`-shaped figures may take (landing 2b.2).
+
+    The reading taken first, because Enter gives it: the point is a
+    decimal point. The second is the declaration that reads it the other
+    way, and the last two are the ones every column of figures is
+    offered.
+    """
+    return [
+        Choice(
+            ANSWER_MEASUREMENT,
+            "measurements written with a decimal point -- `12.345` is "
+            "twelve and a bit",
+            _publishes_under(ANSWER_MEASUREMENT, role, floor),
+        ),
+        Choice(
+            ANSWER_DECIMAL_COMMA,
+            "measurements written with a point between thousands and a "
+            "comma for decimals -- `12.345` is twelve thousand three "
+            "hundred and forty-five",
+            _publishes_under(ANSWER_DECIMAL_COMMA, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system, where the value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
+
+
 def _joined_choices(role: str, floor: int) -> "list[Choice]":
     """The answers a column of two-numbers-in-one-cell may take.
 
@@ -482,6 +650,7 @@ def questions_for(
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
     already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Every column worth asking about, in the table's own order.
 
@@ -497,7 +666,11 @@ def questions_for(
 
     A column already declared is never asked about: the person has
     answered, and asking again would say their answer had not been
-    heard.
+    heard. ``decimal_commas`` names the columns declared with
+    `--decimal-comma`, which have answered the point question and only
+    that one (the verification of landing 2b.2: a declared column of
+    `2.433` beside `771` was still asked whether its point was a mark
+    between thousands).
     """
     blocks = document["columns"]
     if not isinstance(blocks, list):
@@ -527,6 +700,8 @@ def questions_for(
             reason = why_joined_is_worth_asking(present)
         else:
             reason = why_worth_asking(present)
+        if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
+            reason = None
         if reason is not None:
             # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES, and
             # never the one it ought to take. A questions file that
@@ -543,6 +718,9 @@ def questions_for(
                 # reading (review round 1, item 3).
                 choices = _joined_choices(role, settings.small_cell_floor)
                 taken = ANSWER_KEEP
+            elif reason == BECAUSE_POINT_THOUSANDS:
+                choices = _point_choices(role, settings.small_cell_floor)
+                taken = ANSWER_MEASUREMENT
             else:
                 choices = _numeric_choices(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
@@ -636,6 +814,28 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
         return (
             f"every value is written in figures alone, all {only} "
             f"characters wide"
+        )
+    if reason == BECAUSE_GROUPED_FIXED_WIDTH:
+        # THE WIDTH IN FIGURES, NOT IN CHARACTERS: the mark between the
+        # groups is not a figure, and "eleven characters" would name a
+        # width no identifier has.
+        counted: "list[int]" = []
+        for value in present:
+            figures = _grouped_figures(value)
+            counted += [len(value) if figures is None else len(figures)]
+        only = 0
+        for width in sorted(counted):
+            only = width
+        return (
+            f"every value is written in figures, grouped in threes, all "
+            f"{only} figures long"
+        )
+    if reason == BECAUSE_POINT_THOUSANDS:
+        return (
+            "every value with a point has exactly three figures after it, "
+            "and every value without one is below a thousand, which is "
+            "also how numbers are written with a point between their "
+            "thousands"
         )
     if reason == BECAUSE_JOINED:
         mark = _joining_mark(present)
@@ -930,6 +1130,9 @@ class Answers:
     codes: "tuple[str, ...]"
     identifiers: "tuple[str, ...]"
     measurements: "tuple[str, ...]"
+    # ...and the fourth list (landing 2b.2): the columns answered as
+    # writing a point between thousands, which is `--decimal-comma`.
+    decimal_commas: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -1059,6 +1262,7 @@ def answers_in(document: object, shown: str) -> Answers:
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
+    decimal_commas: list[str] = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -1080,6 +1284,8 @@ def answers_in(document: object, shown: str) -> Answers:
             identifiers += [name]
         elif written == ANSWER_MEASUREMENT or written == ANSWER_JOINED:
             measurements += [name]
+        elif written == ANSWER_DECIMAL_COMMA:
+            decimal_commas += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -1089,4 +1295,9 @@ def answers_in(document: object, shown: str) -> Answers:
                     shown, name, written, list(offered)
                 )
             )
-    return Answers(tuple(codes), tuple(identifiers), tuple(measurements))
+    return Answers(
+        tuple(codes),
+        tuple(identifiers),
+        tuple(measurements),
+        tuple(decimal_commas),
+    )

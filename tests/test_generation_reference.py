@@ -57,7 +57,7 @@ cap and the nine already spend 88207 of it; they are one oracle, one
 transform and one proof layer, and the tests below hold both files to
 the same claims.
 
-**Every one of the fourteen carries a mutant that removes or reverts the
+**Every one of the thirty-five carries a mutant that removes or reverts the
 branch it exists for** (G14.3; review item P2-C4-C2). They are one table
 at the bottom of this file, `CASE_MUTANTS`, whose keys are asserted
 equal to the whole case set, because four cases with a mutant and ten
@@ -95,6 +95,9 @@ GENERATOR = REPOSITORY / "tools" / "reference" / "make_generation_reference_vect
 BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors.py"
 )
+SECOND_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_2.py"
+)
 VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
@@ -104,6 +107,11 @@ BRANCH_VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
     / "generation-branch-vectors.json"
+)
+SECOND_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-2.json"
 )
 
 
@@ -129,6 +137,10 @@ def _branch_document() -> dict:
     return json.loads(BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
+def _second_branch_document() -> dict:
+    return json.loads(SECOND_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
 # The nine cases method section G14.3 names.
 REQUIRED_CASES = (
     "date_only",
@@ -147,11 +159,6 @@ REQUIRED_CASES = (
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
 BRANCH_CASES = (
-    # THE TWO CASES OF LANDING 2b.3'S REPAIR PASS: an accidental value at
-    # midnight moved off a column that publishes none, and bare dates beside
-    # moments at local midnight on a real offset, whose ranks with a published
-    # instant settle their form and offset before the rotation.
-    "accidental_midnight",
     # THE THIRD FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). It pins the rule the affixed role exists for: the
     # universal class counts answer for the CELLS and the quantitative
@@ -170,19 +177,6 @@ BRANCH_CASES = (
     # the method and the only place synthtwin reproduces structure
     # between two quantities at all.
     "joined_readings",
-    # WHAT THE CENSUS COULD HOLD, AND THE PLACES A NUMBER MAY TAKE (method
-    # G8.3a, landing 2b.4's repair). `label_numbers` pools two cells, so a
-    # number stepping past every named `%.%` value may write `10.0` there;
-    # this one pools none, and the rule that ends that side instead -- and
-    # takes the published whole numbers' places -- could be withdrawn with
-    # every other committed byte unchanged.
-    "label_number_tiers",
-    # THE CLASS DEBT OF A COLUMN OF LABELS (method G8.3a, landing 2b.4).
-    # Every earlier label case publishes no number, so the rule that
-    # writes a held-back number AS a number -- stepped from the published
-    # numbers, gaps first -- could be withdrawn with every committed byte
-    # unchanged.
-    "label_numbers",
     "leap_second_endpoint",
     # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). Every other case here exercises a role Phase 1 to 3
@@ -190,17 +184,11 @@ BRANCH_CASES = (
     # so their generator branches were checked only against
     # themselves. This is one of the four.
     "long_tail_levels",
-    "midnight_bare_offsets",
     # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
     # One pins the day-unit rule of a column that stands wholly at
     # midnight; the other pins the evenly spread rotation of marks, its
     # tie rule and the withheld pool.
     "midnight_days",
-    # THE FIVE CASES OF LANDING 2b.3: bare dates beside midnight moments,
-    # midnight on two offsets, a column partly at midnight, a withheld pool
-    # spent on the unnamed marks, and a slashed stamp's one permitted mark.
-    "midnight_mixed_forms",
-    "midnight_two_offsets",
     "mixed_marks",
     # The month, added with the second SPAN resolution (plan P4-D4.3
     # item 2). A new transform reaching the twin without an independent
@@ -209,9 +197,6 @@ BRANCH_CASES = (
     "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
-    "partial_midnight",
-    "pooled_marks",
-    "slashed_pool",
     # THE SECOND SPELLING FAMILY OF G10.5, added with revision 5
     # (residuals R-P4-48 and R-P4-68). `unrepresentable_joint` below
     # reaches this role, and every cell it freezes is a digit string
@@ -227,7 +212,49 @@ BRANCH_CASES = (
     "unrepresentable_joint",
 )
 
-ALL_CASES = tuple(sorted(REQUIRED_CASES + BRANCH_CASES))
+# The third committed file: the cases the carried landings 2b.4, 2b.3 and
+# 2b.2 added, split out when the second would have passed the provenance
+# guard's byte cap (G14.2). The order of this tuple is its sorted order too.
+SECOND_BRANCH_CASES = (
+    # THE TWO CASES OF LANDING 2b.3'S REPAIR PASS: an accidental value at
+    # midnight moved off a column that publishes none, and bare dates beside
+    # moments at local midnight on a real offset, whose ranks with a published
+    # instant settle their form and offset before the rotation.
+    "accidental_midnight",
+    # THE SPELLINGS OF A NUMBER LANDING 2b.2 FREEZES, in their sorted
+    # places: a comma between thousands beside signed decimals with
+    # zeros spent past order nought, a point on a declared decimal-comma
+    # column beside two absent cells, and a space with accounting
+    # brackets. They were three and not four while every branch case
+    # shared one file, whose byte cap a fourth would have passed.
+    "grouped_charges",
+    "grouped_decimal_comma",
+    # WHAT THE CENSUS COULD HOLD, AND THE PLACES A NUMBER MAY TAKE (method
+    # G8.3a, landing 2b.4's repair). `label_numbers` pools two cells, so a
+    # number stepping past every named `%.%` value may write `10.0` there;
+    # this one pools none, and the rule that ends that side instead -- and
+    # takes the published whole numbers' places -- could be withdrawn with
+    # every other committed byte unchanged.
+    "label_number_tiers",
+    # THE CLASS DEBT OF A COLUMN OF LABELS (method G8.3a, landing 2b.4).
+    # Every earlier label case publishes no number, so the rule that
+    # writes a held-back number AS a number -- stepped from the published
+    # numbers, gaps first -- could be withdrawn with every committed byte
+    # unchanged.
+    "label_numbers",
+    "midnight_bare_offsets",
+    # THE FIVE CASES OF LANDING 2b.3: bare dates beside midnight moments,
+    # midnight on two offsets, a column partly at midnight, a withheld pool
+    # spent on the unnamed marks, and a slashed stamp's one permitted mark.
+    "midnight_mixed_forms",
+    "midnight_two_offsets",
+    "partial_midnight",
+    "pooled_marks",
+    "slashed_pool",
+    "spaced_brackets",
+)
+
+ALL_CASES = tuple(sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES))
 
 # Which seed's opening words each case is given. This mapping lives here
 # and not in the oracle: the oracle is a pure function of the words, and
@@ -256,8 +283,8 @@ SEEDS = {
     "joined_readings": 120,
     "midnight_days": 122,
     "mixed_marks": 123,
-    # Landings 2b.4 and 2b.3 were built side by side and each took 124
-    # and 125 for its own cases. A seed only names the opening words a
+    # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
+    # 124 onward for its own cases. A seed only names the opening words a
     # case is given, and each case's committed cells were chosen from
     # those words, so both keep their seed rather than move to new words.
     "label_numbers": 124,
@@ -269,7 +296,14 @@ SEEDS = {
     "midnight_two_offsets": 128,
     "midnight_bare_offsets": 129,
     "accidental_midnight": 130,
+    "grouped_charges": 124,
+    "grouped_decimal_comma": 125,
+    "spaced_brackets": 126,
 }
+
+# The cases whose column was declared with --decimal-comma, which the
+# contract's invariant GS1 binds to settings.forced_decimal_commas.
+DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma"})
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
@@ -282,8 +316,13 @@ DECLARED_IDENTIFIERS = frozenset(
 )
 
 def _case(name: str) -> dict:
-    """One case, from whichever of the two committed files carries it."""
-    document = _branch_document() if name in BRANCH_CASES else _document()
+    """One case, from whichever of the three committed files carries it."""
+    if name in SECOND_BRANCH_CASES:
+        document = _second_branch_document()
+    elif name in BRANCH_CASES:
+        document = _branch_document()
+    else:
+        document = _document()
     return document["cases"][name]
 
 
@@ -303,7 +342,7 @@ def _relationships() -> dict:
     }
 
 
-def _settings(declared: list) -> dict:
+def _settings(declared: list, commas: "list | None" = None) -> dict:
     return {
         "small_cell_floor": 11,
         "identifier_uniqueness": 0.95,
@@ -343,7 +382,9 @@ def _settings(declared: list) -> dict:
         # measurement column: every case here is built from the
         # generation method's own text.
         "forced_measurements": [],
-        "forced_decimal_commas": [],
+        # The fourth (plan P4-D26), named for the one case frozen with
+        # it (landing 2b.2): its column is grouped with a point.
+        "forced_decimal_commas": [] if commas is None else commas,
     }
 
 
@@ -369,6 +410,7 @@ def _profile_document(case: dict, name: str) -> dict:
     """A whole profile document carrying one case's column and nothing else."""
     column = _unwrap(case["column"])
     declared = [column["name"]] if name in DECLARED_IDENTIFIERS else []
+    commas = [column["name"]] if name in DECLARED_DECIMAL_COMMAS else []
     return {
         "columns": [column],
         "created_with": "0+unknown",
@@ -377,7 +419,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
-        "settings": _settings(declared),
+        "settings": _settings(declared, commas),
         "source": {
             "encoding": "utf-8-sig",
             "used_fallback_encoding": False,
@@ -425,28 +467,40 @@ def test_the_oracle_is_present_and_says_what_it_is() -> None:
 
 
 def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
-    """Neither file may be read as the whole of the oracle.
+    """No file may be read as the whole of the oracle.
 
-    The two carry disjoint case sets and together carry every case
+    The three carry disjoint case sets and together carry every case
     method section G14.3 names, and each one's own account says where
-    the other lives -- so a reader who opens either is told at once that
-    it is half of one artifact rather than all of it.
+    the other two live -- so a reader who opens any of them is told at
+    once that it is part of one artifact rather than all of it.
     """
     named = _document()
     branch = _branch_document()
+    second = _second_branch_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
+    assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
     assert not set(named["cases"]) & set(branch["cases"])
-    assert tuple(sorted(set(named["cases"]) | set(branch["cases"]))) == ALL_CASES
-    for document, other in ((named, BRANCH_VECTORS), (branch, VECTORS)):
+    assert not set(named["cases"]) & set(second["cases"])
+    assert not set(branch["cases"]) & set(second["cases"])
+    assert (
+        tuple(sorted(set(named["cases"]) | set(branch["cases"]) | set(second["cases"])))
+        == ALL_CASES
+    )
+    files = ((named, VECTORS), (branch, BRANCH_VECTORS), (second, SECOND_BRANCH_VECTORS))
+    for document, own in files:
         assert document["never_imports"] == ["synthtwin", "numpy", "pandas"]
         assert document["method"] == "docs/spec/generation-method-v1.md"
         assert document["generated_by"] == (
             "tools/reference/make_generation_reference_vectors.py"
         )
-        assert f"tests/reference/{other.name}" in document["case_set"]
+        for _other, path in files:
+            if path != own:
+                assert f"tests/reference/{path.name}" in document["case_set"]
 
 
-@pytest.mark.parametrize("script", [GENERATOR, BRANCH_GENERATOR])
+@pytest.mark.parametrize(
+    "script", [GENERATOR, BRANCH_GENERATOR, SECOND_BRANCH_GENERATOR]
+)
 def test_the_oracle_imports_none_of_the_code_it_checks(script) -> None:
     """The claim in the file's own header, held up against its source.
 
@@ -544,7 +598,7 @@ def test_the_implementation_writes_the_committed_cells(
 ) -> None:
     """Cell for cell, and then byte for byte, against a value it did not make.
 
-    All fourteen bind normally, with no exception of any kind. The one
+    All thirty-five bind normally, with no exception of any kind. The one
     that once did not was `identifier_edge_spacing` (review item
     P2-C4-F4): the column publishes four raw spellings, one folded
     identity and the length range 1 to 3, in figures alone, so every
@@ -629,6 +683,10 @@ def test_every_committed_cell_reads_back_as_the_class_it_was_built_for(
     for cell in case["cells"]:
         if cell == "":
             continue
+        # A declared column's cells read in its own grammar, as the
+        # profiler read the column the case describes (P4-D26).
+        if name in DECLARED_DECIMAL_COMMAS:
+            cell = parsing.written_with_a_decimal_comma(cell)
         counted[parsing.classify_number(cell)] += 1
     assert counted[parsing.NUMBER] == column["n_numeric"]
     assert counted[parsing.NUMBER_OUT_OF_RANGE] == column["n_out_of_range"]
@@ -651,8 +709,12 @@ def test_the_committed_cells_are_the_content_list_arranged(name: str) -> None:
     assert sorted(case["cells"]) == sorted(
         list(case["content"]) + [""] * column["n_missing"]
     )
+    # A CELL HOLDING A COMMA IS QUOTED, which no committed cell did until
+    # landing 2b.2 froze a column grouped with one: the rule is G2's, and
+    # a quote inside a cell would be doubled, which no case writes.
     expected = "".join(
-        ('""' if cell == "" else cell) + "\n" for cell in case["cells"]
+        ('""' if cell == "" else f'"{cell}"' if "," in cell else cell) + "\n"
+        for cell in case["cells"]
     )
     assert case["csv_bytes"] == expected
 
@@ -664,12 +726,20 @@ PUBLISHED_NUMBERS = 210
 NAMED_COUNTS = 270
 BRANCH_PUBLISHED_NUMBERS = 23
 BRANCH_NAMED_COUNTS = 121
+SECOND_BRANCH_PUBLISHED_NUMBERS = 336
+SECOND_BRANCH_NAMED_COUNTS = 370
 
 # Each committed file, with the floors its own proof must clear and the
 # case set the oracle writes it from.
 COMMITTED_FILES = (
     (VECTORS, None, PUBLISHED_NUMBERS, NAMED_COUNTS),
     (BRANCH_VECTORS, gen.BRANCH_PART, BRANCH_PUBLISHED_NUMBERS, BRANCH_NAMED_COUNTS),
+    (
+        SECOND_BRANCH_VECTORS,
+        gen.SECOND_BRANCH_PART,
+        SECOND_BRANCH_PUBLISHED_NUMBERS,
+        SECOND_BRANCH_NAMED_COUNTS,
+    ),
 )
 
 
@@ -678,7 +748,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -720,7 +790,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -739,7 +809,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1147,6 +1217,42 @@ def _days_on_either_clock(column):
     return column["resolution"]
 
 
+_REAL_STYLED_SPELLING = gen.styled_spelling
+
+
+def _grouped_at_every_order(
+    style, value, integer_valued, order, mark="", negative="minus", plus=False
+):
+    """P4-D38's order rule withdrawn: a cell that spent zeros is grouped too."""
+    text = _REAL_STYLED_SPELLING(
+        style, value, integer_valued, order, "", negative, plus
+    )
+    if style in ("plain", "leading_plus", "decimal"):
+        return gen._group_thousands(text, mark)
+    return text
+
+
+def _exchange_withdrawn(content):
+    """P4-D26's exchange withdrawn: a declared column keeps its point."""
+    return list(content)
+
+
+def _notation_withdrawn(text, notation):
+    """Landing 2b.2's notation withdrawn: every negative keeps its minus."""
+    return text
+
+
+def _plus_from_the_first_cell(count, styles, values):
+    """Landing 2b.2's spread withdrawn: the plus taken from the first cell up."""
+    carries = [False] * len(values)
+    left = count
+    for index, (style, value) in enumerate(zip(styles, values)):
+        if left and style == "decimal" and not value < 0:
+            carries[index] = True
+            left -= 1
+    return carries
+
+
 def _ties_toward_zero(value):
     """G5.4's integer rule with the tie direction taken out."""
     whole = int(value)
@@ -1414,6 +1520,29 @@ def _the_sorted_start_and_no_walk(drawn, column, wanted, words):
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
+    "grouped_charges": Mutant(
+        branch="landing 2b.2's spread of signed decimals; the mutant takes "
+        "the plus from the first eligible cell upward, which ties a plus to "
+        "the smallest values",
+        attribute="plus_places",
+        replacement=_plus_from_the_first_cell,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "grouped_decimal_comma": Mutant(
+        branch="P4-D38's rule that the mark reaches a cell at leading-zero "
+        "order nought only; the mutant groups the cell that spent a zero as "
+        "well, and after the exchange it wears a point inside its padding",
+        attribute="styled_spelling",
+        replacement=_grouped_at_every_order,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "spaced_brackets": Mutant(
+        branch="landing 2b.2's negative notation; the mutant withdraws it and "
+        "every negative is written with a hyphen-minus in front",
+        attribute="negative_spelled",
+        replacement=_notation_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "date_only": Mutant(
         branch="G7.3's floor rounding, which rounds toward the EARLIER "
         "instant always; the mutant rounds toward the later one, and ten "

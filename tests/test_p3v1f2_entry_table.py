@@ -1856,6 +1856,12 @@ FLOOR_STYLE_VALUES = (
     ("zero-led", "05"),
     ("plussed", "+5"),
     ("upper", "5E0"),
+    # ...and the three spellings landing 2b.2 holds, missed the same way
+    # and for the same reason: a mark, a notation or a plus that fewer
+    # cells wear than the floor is one no description of the file names.
+    ("grouped", "1,234"),
+    ("signed", "+4.5"),
+    ("bracketed", "(4)"),
 )
 
 
@@ -2820,7 +2826,7 @@ NAMED_RED_CASES = (
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.published.decimal'),
     RedCase('pooled', 'added-row', 'reading', 'numeric.numeric_styles', 'styles.published.plain'),
     RedCase('pooled', 'dropped-row', 'reading', 'numeric.numeric_styles', 'styles.remainder'),
-    RedCase('pooled', 'one-bracketed-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
+    RedCase('pooled', 'noncanonical-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.spill'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p01'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p05'),
@@ -3379,6 +3385,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-tiny-clinic", "suppressed.suppressed_rows"),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("filled-reading", "distinct.n_distinct_values"),
             ("emptied-reading", "axes.quality_state"),
             ("vast-reading", "axes.role"),
@@ -3460,6 +3470,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-column", "header.presence"),
         ),
         "amount": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-amount", "spelling.group_separator"),
+            ("floor-bracketed-amount", "spelling.negative_form"),
+            ("floor-signed-amount", "spelling.decimal_plus"),
             ("marked-amount", "distinct.n_distinct_values"),
             ("contradicted-amount", "axes.quality_state"),
             ("rewritten-amount", "axes.role"),
@@ -3593,6 +3607,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-comment", "words.min"),
         ),
         "dose": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-dose", "spelling.group_separator"),
+            ("floor-bracketed-dose", "spelling.negative_form"),
+            ("floor-signed-dose", "spelling.decimal_plus"),
             ("marked-dose", "distinct.n_distinct_values"),
             # THE AFFIXED ROLE, and the edits divide the way its two
             # populations do. The pair is moved by three edits of its
@@ -3698,6 +3716,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crushed-seen_at", "clock-ladder.p99"),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("vast-reading", "distinct.n_distinct_values"),
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
@@ -3879,6 +3901,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-bracketed-unused", "presence.n_missing"),
         ),
         "visits": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-visits", "spelling.group_separator"),
+            ("floor-bracketed-visits", "spelling.negative_form"),
+            ("floor-signed-visits", "spelling.decimal_plus"),
             ("vast-visits", "distinct.n_distinct_values"),
             ("contradicted-visits", "axes.quality_state"),
             ("one-negated-visits", "axes.role"),
@@ -4100,6 +4126,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "code": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-code", "spelling.group_separator"),
+            ("floor-bracketed-code", "spelling.negative_form"),
+            ("floor-signed-code", "spelling.decimal_plus"),
             # THE CENSUS CATCHES WHAT THE FORMS MAP CANNOT, and this
             # row is that claim made executable: `leading_zero-code`
             # writes every cell one figure wider WITHOUT leaving the
@@ -4144,7 +4174,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-code", "styles.exact.leading_zero"),
             ("blanked-code", "styles.published.leading_zero"),
             ("crowded-code", "styles.remainder"),
-            ("bracketed-code", "styles.spelled"),
+            # A bracketed cell is a spelling of its own negative value
+            # since landing 2b.2, so the edit that misses this site is a
+            # cell written at a width the census does not name.
+            ("noncanonical-code", "styles.spelled"),
             ("crowded-code", "styles.spill"),
             ("crowded-code", "type.integer_valued"),
             ("marked-code", "type.std_unrepresentable"),
@@ -4166,6 +4199,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("vast-reading", "distinct.n_distinct_values"),
             ("overflowed-reading", "axes.quality_state"),
             ("vast-reading", "axes.role"),
@@ -4227,6 +4264,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('dropped-row', 'rows.n_rows'),
         ),
         'reading': (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("marked-reading", "distinct.n_distinct_values"),
             ('one-overflowed-reading', 'axes.quality_state'),
             ('moved-cell', 'axes.role'),
@@ -4270,7 +4311,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('blanked-cell', 'styles.published.decimal'),
             ('added-row', 'styles.published.plain'),
             ('dropped-row', 'styles.remainder'),
-            ('one-bracketed-reading', 'styles.spelled'),
+            # A bracketed cell is a spelling of its own negative value since
+            # landing 2b.2; a cell written at a width the census does not
+            # name is the edit that misses this site now.
+            ('noncanonical-reading', 'styles.spelled'),
             ('blanked-cell', 'styles.spill'),
             ('marked-reading', 'type.integer_valued'),
             ('marked-reading', 'type.std_unrepresentable'),
@@ -4290,6 +4334,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("marked-reading", "distinct.n_distinct_values"),
             ("one-contradicted-reading", "axes.quality_state"),
             ("one-worded-reading", "axes.role"),
@@ -4423,6 +4471,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-row", "rows.n_rows"),
         ),
         "column_1": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-column_1", "spelling.group_separator"),
+            ("floor-bracketed-column_1", "spelling.negative_form"),
+            ("floor-signed-column_1", "spelling.decimal_plus"),
             ("vast-column_1", "distinct.n_distinct_values"),
             ("contradicted-column_1", "axes.quality_state"),
             ("one-worded-column_1", "axes.statistical_type"),
@@ -4770,6 +4822,9 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "styles.published.decimal"): "numeric.numeric_styles",
     ("compound", "styles.remainder"): "numeric.numeric_styles",
     ("compound", "styles.spelled"): "numeric.numeric_styles",
+    ("compound", "spelling.group_separator"): "numeric.group_separator",
+    ("compound", "spelling.negative_form"): "numeric.negative_form",
+    ("compound", "spelling.decimal_plus"): "numeric.decimal_plus",
     ("compound", "styles.spill"): "numeric.numeric_styles",
     ("compound", "suppressed.counts"): "label.suppressed_level_counts",
     ("compound", "suppressed.suppressed_levels"): "label.suppressed_levels",
@@ -5208,6 +5263,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.published.plain"): "numeric.numeric_styles",
     ("numeric", "styles.remainder"): "numeric.numeric_styles",
     ("numeric", "styles.spelled"): "numeric.numeric_styles",
+    # The three spellings landing 2b.2 holds on every numeric block.
+    ("numeric", "spelling.group_separator"): "numeric.group_separator",
+    ("numeric", "spelling.negative_form"): "numeric.negative_form",
+    ("numeric", "spelling.decimal_plus"): "numeric.decimal_plus",
     ("numeric", "styles.spill"): "numeric.numeric_styles",
     ("numeric", "type.integer_valued"): "numeric.integer_valued",
     ("numeric", "type.std_unrepresentable"): "numeric.std_unrepresentable",
@@ -5292,15 +5351,11 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
         "joined.parts[0].field_widths",
-        # REPORT-ONLY (plan P4-D38): the mark between thousands, filed
-        # by each position as the field-width census beside it is.
-        "joined.parts[0].group_separator",
         # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
         # 2026-09-04: amendment A-P4-55 makes the count of different
         # numbers an obligation, so each position files it as a check.
         "joined.parts[0].percentiles_between",
         "joined.parts[1].field_widths",
-        "joined.parts[1].group_separator",
 
         "joined.parts[1].percentiles_between",
         "universal.detection_evidence",
@@ -5328,9 +5383,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # they are the same obligations under another answer.
     "compound": (
         "numeric.field_widths",
-        # REPORT-ONLY (plan P4-D38): the mark between thousands, listed
-        # on the numeric half as on any column of numbers.
-        "numeric.group_separator",
         # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
         # amendment A-P4-55 makes the count of different numbers an
         # obligation, so it is an executable subcheck now and is held
@@ -5453,9 +5505,6 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # are and the edges say where each really begins and ends.
         "numeric.empty_edges",
         "numeric.field_widths",
-        # REPORT-ONLY (plan P4-D38): the mark between thousands, listed
-        # whole on every column of this family.
-        "numeric.group_separator",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).
         "numeric.value_histogram",

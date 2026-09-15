@@ -140,12 +140,14 @@ def _dates_at_midnight(count: int, seed: int) -> "list[str]":
 
 
 _GROUP_COMMA = (
-    "    numbers written with ',' between the thousands, and the twin "
-    "writes ',' between the thousands too"
+    # Named in words since landing 2b.2, which made marks a page cannot
+    # show publishable.
+    "    numbers written with a comma between the thousands, and the twin "
+    "writes a comma between the thousands too"
 )
 _GROUP_POINT = (
-    "    numbers written with '.' between the thousands, and the twin "
-    "writes '.' between the thousands too"
+    "    numbers written with a point between the thousands, and the twin "
+    "writes a point between the thousands too"
 )
 _MIDNIGHT = (
     "    every value stood exactly at midnight, so this column holds "
@@ -337,16 +339,16 @@ def test_every_numeric_block_of_a_column_is_asked() -> None:
         ]
     }
     assert summary._group_separator_lines(joined) == [
-        "    part 1 of each cell: numbers written with ',' between the "
-        "thousands, and the twin writes ',' between the thousands too"
+        "    part 1 of each cell: numbers written with a comma between the "
+        "thousands, and the twin writes a comma between the thousands too"
     ]
     compound: "dict[str, object]" = {
         "numbers": {"empty_bins": [], "group_separator": "."},
         "labels": {"levels": []},
     }
     assert summary._group_separator_lines(compound) == [
-        "    its numbers: numbers written with '.' between the "
-        "thousands, and the twin writes '.' between the thousands too"
+        "    its numbers: numbers written with a point between the "
+        "thousands, and the twin writes a point between the thousands too"
     ]
     assert summary._group_separator_lines(
         {"empty_bins": [], "group_separator": ""}

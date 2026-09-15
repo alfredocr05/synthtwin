@@ -129,7 +129,9 @@ def _column(document: "dict[str, object]") -> "dict[str, object]":
 
 def test_the_loader_refuses_a_mark_it_never_writes(tmp_path: pathlib.Path) -> None:
     document = copy.deepcopy(_numbers_document(tmp_path))
-    _column(document)["group_separator"] = "'"
+    # An apostrophe was the refused mark until landing 2b.2 read it; an
+    # underscore is a mark no reader of numbers groups with.
+    _column(document)["group_separator"] = "_"
     assert "group_separator" in _refused(tmp_path, document)
 
 

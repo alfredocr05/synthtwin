@@ -1594,7 +1594,148 @@ def _group_thousands(text, mark):
     return sign + mark.join(reversed(chunks)) + point + rest
 
 
-def styled_spelling(style, value, integer_valued, order, mark=""):
+# THE MARKS A COLUMN MAY PUBLISH BETWEEN THOUSANDS (landing 2b.2), as the
+# contract lists them: none, a comma, a point under a declared decimal
+# comma, a space, an apostrophe, the right single quotation mark, a
+# no-break space, a narrow no-break space and a thin space.
+PUBLISHED_MARKS = ("", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
+
+# HOW A NEGATIVE IS WRITTEN (landing 2b.2): the notation names, and the
+# text each writes in place of the hyphen-minus in front of the figures.
+NEGATIVE_NOTATIONS = {
+    "minus": ("-", ""),
+    "brackets": ("(", ")"),
+    "minus_sign": ("\u2212", ""),
+    "trailing_minus": ("", "-"),
+}
+
+
+def grouping_mark_of(column):
+    """The mark the cells are grouped with before any exchange (G6.1).
+
+    A published comma, and a published point on a column that writes its
+    decimals with a comma, are both written as a comma first -- the point
+    arrives with the exchange of `decimal_comma_spelled`.  Every other
+    mark is neither decimal mark, no exchange touches it, and the cells
+    carry it as published.
+    """
+    published = column.get("group_separator", "")
+    if published not in PUBLISHED_MARKS:
+        raise AssertionError(f"{published!r} is not a mark a column may publish")
+    return "," if published in (",", ".") else published
+
+
+def negative_spelled(text, notation):
+    """A finished cell with its minus written in the column's notation.
+
+    Only a text that begins with the hyphen-minus is negative here; every
+    other text comes back as it is.  The figures between the two halves
+    of the notation are the ones the style wrote -- zeros, mark and all --
+    and no sign stands inside them, so brackets can never read as the
+    contradictory stand-in `(-5)`.
+    """
+    before, after = NEGATIVE_NOTATIONS[notation]
+    if not text.startswith("-"):
+        return text
+    # A trailing minus is read only after figures carrying a decimal
+    # point -- a thousands mark alone is a fact of a value's size, not of
+    # the column's form -- so on a field with no point the hyphen-minus
+    # stays in front, where the cell still reads as a number.
+    if notation == "trailing_minus" and "." not in text[1:]:
+        return text
+    return before + text[1:] + after
+
+
+def plus_style_exchange(count, styles, values, integer_valued):
+    """Styles exchanged so a signed decimal has cells to stand on (G6.4).
+
+    Only where ``count`` -- the named ``decimal_plus`` -- exceeds the cells
+    allocated ``decimal`` whose value is not below zero.  The cells
+    allocated ``plain`` whose value is not below zero are listed from the
+    first cell upward, and the cells allocated ``decimal`` whose value is
+    below zero and has a point-free spelling from the last cell downward;
+    the i-th of the first list takes ``decimal`` and the i-th of the
+    second takes ``plain``, for as many pairs as the shortfall and both
+    lists allow.  Each exchange leaves every form count where it was.
+    """
+    if count <= 0:
+        return styles
+    have = sum(
+        1
+        for style, value in zip(styles, values)
+        if style == "decimal" and not value < 0
+    )
+    if have >= count:
+        return styles
+    givers = [
+        index
+        for index, (style, value) in enumerate(zip(styles, values))
+        if style == "plain" and not value < 0
+    ]
+    takers = [
+        index
+        for index in reversed(range(len(values)))
+        if styles[index] == "decimal"
+        and values[index] < 0
+        and point_free_spelling(values[index], integer_valued) is not None
+    ]
+    exchanged = list(styles)
+    for giver, taker in list(zip(givers, takers))[: count - have]:
+        exchanged[giver], exchanged[taker] = "decimal", "plain"
+    return exchanged
+
+
+def plus_places(count, styles, values):
+    """Which cells carry a plus in front of a decimal spelling (G6.1).
+
+    The cells that may are the ones allocated ``decimal`` whose value is
+    not below zero, taken in cell order.  ``count`` of them carry one --
+    all of them where fewer exist -- and they are spread, not packed: of
+    E such cells the k-th, counting from 0, carries a plus exactly when
+    the whole part of (k+1)*count/E exceeds the whole part of k*count/E.
+    Taking them from the first cell upward would put every plus on the
+    smallest values.
+    """
+    eligible = [
+        index
+        for index, (style, value) in enumerate(zip(styles, values))
+        if style == "decimal" and not value < 0
+    ]
+    placed = min(count, len(eligible))
+    carries = [False] * len(values)
+    for k, index in enumerate(eligible):
+        if (k + 1) * placed // len(eligible) != k * placed // len(eligible):
+            carries[index] = True
+    return carries
+
+
+def decimal_comma_spelled(content):
+    """A declared column's cells with every point and comma exchanged (P4-D26).
+
+    Applied to the numbers the numeric rules wrote and to nothing else;
+    an absent cell is written empty and has no mark to exchange.
+    """
+    table = {".": ",", ",": "."}
+    return ["".join(table.get(letter, letter) for letter in cell) for cell in content]
+
+
+def styled_spelling(
+    style, value, integer_valued, order, mark="", negative="minus", plus=False
+):
+    """One numeric cell in its style, with the column's sign spellings.
+
+    The style's own text comes from `_style_text`.  A ``decimal`` cell
+    chosen by `plus_places` then takes a plus in front, ahead of any
+    zeros it spent, and a negative is written in the column's notation
+    by `negative_spelled` (landing 2b.2).
+    """
+    text = _style_text(style, value, integer_valued, order, mark)
+    if plus and style == "decimal" and text[:1] not in ("-", "+"):
+        text = "+" + text
+    return negative_spelled(text, negative)
+
+
+def _style_text(style, value, integer_valued, order, mark=""):
     """One numeric cell in one of the six styles of method section G6.1.
 
     ``order`` is the leading-zero order the family of G6.3 carries
@@ -1721,7 +1862,8 @@ def whole_inside(value, band, share, ends, reach, taken):
 
 
 def whole_number_values(
-    published, values, sizes, starts, bands, ladder, numeric, integer_valued
+    published, values, sizes, starts, bands, ladder, numeric, integer_valued,
+    signed=0,
 ):
     """The VALUES step of method section G6.4, taken before the styles.
 
@@ -1744,6 +1886,14 @@ def whole_number_values(
     Two strata are never taken: the two pinned ends, which hold the
     published ends of the ladder.
 
+    Where ``signed``, the named count of ``decimal_plus``, is above
+    nought, a walk over the negative strata alone comes between the two:
+    at most ``free - signed`` cells that are not negative may be
+    point-free, since that many must stay in the form written with a
+    point, so the negative strata are taken until they carry
+    ``W - max(0, free - signed)`` cells (the verification of landing
+    2b.2).
+
     Returns the values, moved where the shortfall asked for it.
     """
     total = len(values)
@@ -1764,8 +1914,10 @@ def whole_number_values(
         )
 
     taken = list(values)
+    below = max(0, wanted - max(0, free - signed)) if signed > 0 else 0
     for demand, reachable in (
         (min(remaining["leading_plus"], free), REACHABLE[0]),
+        (below, ("negative",)),
         (wanted, REACHABLE[1]),
     ):
         for index in range(total):
@@ -6317,6 +6469,7 @@ def _numeric_content(column):
     # The VALUES step of G6.4 is taken before the styles, because the map
     # and the values are one question: a point-free quota needs cells
     # whose values are whole.
+    signed = column.get("decimal_plus", {}).get("+", 0)
     values = whole_number_values(
         column["numeric_styles"],
         values,
@@ -6326,6 +6479,7 @@ def _numeric_content(column):
         ladder,
         numeric,
         integer_valued,
+        signed,
     )
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
     # carrier walk because that walk moves values onto whole numbers
@@ -6346,10 +6500,16 @@ def _numeric_content(column):
     styles, missed = style_allocation(
         column["numeric_styles"], cell_values, integer_valued
     )
-    mark = column.get("group_separator", "")
+    styles = plus_style_exchange(signed, styles, cell_values, integer_valued)
+    mark = grouping_mark_of(column)
+    negative = column.get("negative_form", "minus")
+    # The named count of the census; a pooled count names no form.
+    plussed = plus_places(signed, styles, cell_values)
     content = [
-        styled_spelling(style, value, integer_valued, 0, mark)
-        for style, value in zip(styles, cell_values)
+        styled_spelling(
+            style, value, integer_valued, 0, mark, negative, plussed[index]
+        )
+        for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
     # G6.5: how many zeros are spent is decided over the WHOLE column
     # first.  Count the identities the base spellings already hold; the
@@ -6376,7 +6536,13 @@ def _numeric_content(column):
         order = 1
         while True:
             raised = styled_spelling(
-                styles[index], cell_values[index], integer_valued, order, mark
+                styles[index],
+                cell_values[index],
+                integer_valued,
+                order,
+                mark,
+                negative,
+                plussed[index],
             )
             if folded(raised) not in held:
                 break
@@ -6653,6 +6819,14 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # and its frozen cells are the ones it froze before the key existed.
     if "numeric_styles" in block and "group_separator" not in block:
         block["group_separator"] = ""
+    # ...and the notation of a negative and the count of signed decimals
+    # (landing 2b.2), the minus in front and none for every case that
+    # does not state its own: no source column those cases describe wrote
+    # either, and their frozen cells are the ones they froze before.
+    if "numeric_styles" in block and "negative_form" not in block:
+        block["negative_form"] = "minus"
+    if "numeric_styles" in block and "decimal_plus" not in block:
+        block["decimal_plus"] = {}
     # ...and the same for the census of field widths (P4-D14), which is
     # that map's sibling and empty for every case here but one: a block
     # naming no padded cells takes a census of none.
@@ -8546,6 +8720,9 @@ def _identifier_edge_spacing():
 # and the nine already spend most of it.
 NAMED_PART = "named"
 BRANCH_PART = "branches"
+# The third file: the cases the carried landings 2b.2, 2b.3 and 2b.4 added,
+# which with the second file's own would pass the provenance byte cap.
+SECOND_BRANCH_PART = "branches-2"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -8790,6 +8967,10 @@ def _joined_readings():
             # No mark between thousands: a reading of two figures has
             # no thousands to group (plan P4-D38, at a part's depth).
             "group_separator": "",
+            # ...no negative reading and no signed decimal either
+            # (landing 2b.2): a pressure is written unsigned.
+            "negative_form": "minus",
+            "decimal_plus": {},
             # The whole-number field-width census of this POSITION
             # (contract 7.10 read at that depth).  Every one of the
             # twelve readings a position holds is `plain`, and the
@@ -9197,6 +9378,124 @@ def _accidental_midnight():
     }
 
 
+def _flat_numbers(value_text, rows, **facts):
+    """A column of one number written several ways, as landing 2b.2's cases need.
+
+    Every rung and every moment is the one value, so no cell of these
+    cases turns on where a value is placed -- only on how it is written,
+    which is what each of them is for.  The spread is nought, so the
+    shape and the tails are null, as a column of one value publishes
+    them.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields(
+        {key: value_text for key in LADDER_KEYS}
+    )
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", value_text), ("std", "0"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    present = facts.pop("n_present", rows)
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=present, n_numeric=present, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False, skew=None, kurtosis=None,
+        n_zero=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=present, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=rows, n_distinct_values=1,
+        **moments,
+        **facts,
+    )
+    return column, rungs, claims
+
+
+def _grouped_charges():
+    column, rungs, claims = _flat_numbers(
+        "12345", 44,
+        n_missing=0, n_distinct=6, n_distinct_folded=6, n_negative=0,
+        numeric_styles={"decimal": 22, "leading_plus": 11, "plain": 11},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={"5": 22},
+        group_separator=",", decimal_plus={"+": 11},
+    )
+    return {
+        "why": "the mark between thousands of plan P4-D38, the first frozen "
+        "case publishing a comma, beside the count of signed decimals "
+        "landing 2b.2 publishes. Every cell holds one value, twelve "
+        "thousand three hundred and forty-five, written plain, with a plus, "
+        "and with a point -- and eleven of the twenty-two written with a "
+        "point carry a plus too, spread one in every two rather than taken "
+        "from the first cell upward, which would tie a plus to the smallest "
+        "values. The column counts six spellings where those four supply "
+        "four, so two cells spend a zero, and it pins that a cell which "
+        "spends one carries no mark and keeps its plus in front of the "
+        "zeros: `012345.0` and `+012345.0`, never a padded field wearing a "
+        "comma. This case's mutant takes the plus from the first cell "
+        "upward, and cells move.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _grouped_decimal_comma():
+    column, rungs, claims = _flat_numbers(
+        "42037.34", 24,
+        n_present=22, n_missing=2,
+        n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 22},
+        fraction_widths={"2": 22}, pad_widths={}, field_widths={},
+        group_separator=".",
+    )
+    return {
+        "why": "the exchange of plan P4-D26 on a column whose grouping is "
+        "published as a point, the first frozen case publishing one. The "
+        "column is DECLARED to write its decimals with a comma, which this "
+        "case's own test settings name, so its numbers are grouped with a "
+        "comma and then have every point and comma exchanged: `42.037,34`. "
+        "One cell spends a zero and carries no mark, `042037,34`, and the "
+        "two absent cells are written empty and exchanged by nothing. This "
+        "case's mutant withdraws the exchange, and every present cell "
+        "moves.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+        "decimal_comma_declared": True,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _spaced_brackets():
+    column, rungs, claims = _flat_numbers(
+        "-12345.5", 22,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=22,
+        numeric_styles={"decimal": 22},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={},
+        group_separator=" ", negative_form="brackets",
+    )
+    return {
+        "why": "two spellings landing 2b.2 publishes: a space between "
+        "thousands and accounting brackets for a negative number. Every "
+        "cell is minus twelve thousand three hundred and forty-five and a "
+        "half, written `(12 345.5)`; one cell spends a zero and is written "
+        "`(012345.5)`, the brackets closing around the zeros with no mark "
+        "and no sign inside them, which is what keeps a written negative "
+        "apart from the contradictory stand-in of G10.3. This case's mutant "
+        "withdraws the notation, and every cell is written with a minus "
+        "instead.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -9210,10 +9509,16 @@ BRANCH_CASE_BUILDERS = {
     "clock_ladder": _clock_ladder,
     "affixed_brackets": _affixed_brackets,
     "joined_readings": _joined_readings,
-    "label_numbers": _label_numbers,
-    "label_number_tiers": _label_number_tiers,
     "midnight_days": _midnight_days,
     "mixed_marks": _mixed_marks,
+}
+
+# The cases the carried landings 2b.4, 2b.3 and 2b.2 added, the third file
+# (G14.2): one oracle, one proof layer, and a file of their own only
+# because the second would otherwise pass the provenance byte cap.
+SECOND_BRANCH_CASE_BUILDERS = {
+    "label_numbers": _label_numbers,
+    "label_number_tiers": _label_number_tiers,
     # The five cases of landing 2b.3: a withheld pool spent on the unnamed
     # marks, a slashed stamp's one permitted mark, bare dates beside
     # midnight moments, a column partly at midnight, and midnight on two
@@ -9229,14 +9534,23 @@ BRANCH_CASE_BUILDERS = {
     # publishes none.
     "midnight_bare_offsets": _midnight_bare_offsets,
     "accidental_midnight": _accidental_midnight,
+    # The spellings of a number landing 2b.2 publishes and freezes.
+    "grouped_charges": _grouped_charges,
+    "grouped_decimal_comma": _grouped_decimal_comma,
+    "spaced_brackets": _spaced_brackets,
 }
 
 CASE_SETS = {
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
+    SECOND_BRANCH_PART: SECOND_BRANCH_CASE_BUILDERS,
 }
 
-CASE_BUILDERS = {**NAMED_CASE_BUILDERS, **BRANCH_CASE_BUILDERS}
+CASE_BUILDERS = {
+    **NAMED_CASE_BUILDERS,
+    **BRANCH_CASE_BUILDERS,
+    **SECOND_BRANCH_CASE_BUILDERS,
+}
 
 # What each file says about itself, so that neither can be read as the
 # whole of the oracle and neither hides the other.
@@ -9254,8 +9568,10 @@ _NAMED_ACCOUNT = (
     "and P2-C4-C3, owner decision 11, the month resolution of plan "
     "P4-D4.3, residual R-P4-17's four Phase 4 roles, and G10.5 revision "
     "5's second spelling family) are the same oracle's second file, "
-    "tests/reference/generation-branch-vectors.json: one transform, one "
-    "proof layer, two files, because a committed fixture must stay under "
+    "tests/reference/generation-branch-vectors.json, and the cases the "
+    "carried landings 2b.2, 2b.3 and 2b.4 added are its third, "
+    "tests/reference/generation-branch-vectors-2.json: one transform, one "
+    "proof layer, three files, because a committed fixture must stay under "
     "the provenance manifest's byte cap and these already spend most of "
     "it."
 )
@@ -9274,19 +9590,37 @@ _BRANCH_ACCOUNT = (
     "window, the month, which is the second resolution naming a SPAN "
     "rather than an instant, the four roles Phase 4 added, the "
     "EXPONENT spelling family of an unrepresentable column, on widths no "
-    "digit string can be written at, and the class debt of a column of "
-    "labels, whose held-back numbers are written as numbers stepped from "
-    "the published ones, and what the census could hold beside the places "
-    "such a number may take. "
+    "digit string can be written at. "
     "They are computed by the same oracle and the same proof "
     "layer as tests/reference/generation-reference-vectors.json, and live "
     "in their own file only because a committed fixture must stay under "
-    "the provenance manifest's byte cap."
+    "the provenance manifest's byte cap; the cases the carried landings "
+    "2b.2, 2b.3 and 2b.4 added are the third file, "
+    "tests/reference/generation-branch-vectors-2.json, for the same reason."
+)
+_SECOND_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
+    "and 2b.4: the class debt of a column of labels, whose held-back "
+    "numbers are written as numbers stepped from the published ones, and "
+    "what the census could hold beside the places such a number may take "
+    "(landing 2b.4); the withheld pool of a moment's marks, a slashed "
+    "stamp's one permitted mark, bare dates beside moments at midnight, "
+    "the move onto midnight and off an accidental one, and midnight on two "
+    "offsets (landing 2b.3); and the mark between thousands, the exchange "
+    "on a declared decimal-comma column and accounting brackets (landing "
+    "2b.2). They are computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json and "
+    "tests/reference/generation-branch-vectors.json, and live in a third "
+    "file only because with them the second would pass the provenance "
+    "manifest's byte cap."
 )
 
 CASE_SET_ACCOUNTS = {
     NAMED_PART: f"The {len(NAMED_CASE_BUILDERS)} {_NAMED_ACCOUNT}",
     BRANCH_PART: f"The {len(BRANCH_CASE_BUILDERS)} {_BRANCH_ACCOUNT}",
+    SECOND_BRANCH_PART: (
+        f"The {len(SECOND_BRANCH_CASE_BUILDERS)} {_SECOND_BRANCH_ACCOUNT}"
+    ),
 }
 
 # The chain of interior values a case publishes lives under the key the
@@ -9693,6 +10027,43 @@ GIVEN_WORDS = {
         2350165068184227762, 17009699058798045745, 14049494365643690194,
         1297445315951002519, 5661899464629933938, 15148421627120523707,
     ),
+    "grouped_charges": (
+        14485363227759379260, 14496546446215838655, 17877404087858154871,
+        13799267182700036431, 12092778006306275581, 17319362901013630541,
+        3294855028839219168, 10858624428905468031, 8168203010090694442,
+        6435093561335128686, 6104571710385768880, 2939833306085970469,
+        18252379738369854919, 4742856688619991640, 13203531316936026217,
+        9331933324833785766, 12250691627341533157, 12955931837302369919,
+        960710691341638366, 1108584512337328690, 17438679814386998998,
+        4618150261496032979, 7485577089883912648, 5090626598207926334,
+        5546068173886288405, 6763907908498900843, 2744688177708167075,
+        6425753487679248711, 11015110302746343300, 18339080949187871663,
+        3417281073695313348, 18320094770021572713, 14492109870859816788,
+        8266784616822606329, 15687942191941692266, 15880471324755436178,
+        17841136179427949105, 3153720365097832194, 12904746883321067555,
+        15289589415482460436, 11790829620896665457, 16118600836855221284,
+        14339110349838762356, 3346176665544244880, 11953169525016169803,
+        3963784740836385802, 3229704822604864282,
+    ),
+    "grouped_decimal_comma": (
+        15712004738899576826, 9106234749995103221, 7197214430348145549,
+        3313175008234788654, 1858441125794321210, 14392887498122039256,
+        14505558076215610779, 16068856989174244207, 5942574399079652759,
+        2192282604479703364, 11260024226675101652, 13534188194726011293,
+        4063389463222510494, 14541140093590011962, 5139732853110514003,
+        1004173694524156974, 4999747325177310008, 36812468473126634,
+        12195136472623052346, 14062518629859044726, 4687709092736208221,
+        1597459712860693187, 470876766907946440,
+    ),
+    "spaced_brackets": (
+        113928492773646949, 17372370786837566977, 1219843214052797780,
+        18060177847918427891, 2269749036259349544, 1894645877340042640,
+        15072375343841275966, 17346076489125329089, 9786844728708983233,
+        2313887177159651904, 14383211509980887204, 1891469827612902315,
+        1918039791416009201, 8866012333022508572, 3304104628595658101,
+        5361620680766448462, 2128419656908236178, 13372904720345244078,
+        8759118553313331063, 13069717736981496796, 6138377388608102850,
+    ),
 }
 
 
@@ -9808,6 +10179,8 @@ INTEGER_COLUMN_MAPS = frozenset({
     "datetime_separators",
     "variants", "variants_withheld", "n_distinct_by_occurrences",
     "fraction_widths", "pad_widths", "field_widths", "resolution_mix",
+    # The census of signed decimals (landing 2b.2), a map of counts.
+    "decimal_plus",
     "shape_forms",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry
@@ -9968,6 +10341,11 @@ def build_case(name):
         content = _joined_content(working)
     elif column["role"] in ("count", "continuous"):
         content, chain, _missed = _numeric_content(working)
+        # A column DECLARED to write its decimals with a comma has its
+        # numbers' points and commas exchanged, and nothing else of it
+        # (P4-D26, landing 2b.2's frozen case of it).
+        if spec.get("decimal_comma_declared"):
+            content = decimal_comma_spelled(content)
     elif column["role"] == "identifier":
         content = _identifier_content(working)
     elif column["role"] == "free_text":
@@ -10225,10 +10603,10 @@ def build_document(part=None):
     """One whole file, and the exact value recorded for every number in it.
 
     ``part`` names which set of cases this file carries: the nine
-    method section G14.3 names, or the four it adds for the branches
-    those nine leave unexercised.  The two sets share this one oracle
-    and are two files only because a committed fixture must stay under
-    the manifest's byte cap.
+    method section G14.3 names, or one of the two sets it adds for the
+    branches those nine leave unexercised.  The three sets share this one
+    oracle and are three files only because a committed fixture must stay
+    under the manifest's byte cap.
     """
     if part is None:
         part = NAMED_PART
@@ -10424,8 +10802,9 @@ def main(argv=None, part=None):
     line argument for the same reason: the manifest's convention is that
     exact command line and nothing else. The nine cases method section
     G14.3 names are the default, and the branch cases are asked for by
-    the second entry point beside this one, which names this file's own
-    ``BRANCH_PART`` rather than repeating a word.
+    the two entry points beside this one, which name this file's own
+    ``BRANCH_PART`` and ``SECOND_BRANCH_PART`` rather than repeating a
+    word.
 
     Nothing is written until every number the file would carry has been
     proved, the proof layer has refused a full-generator mutant, and the
