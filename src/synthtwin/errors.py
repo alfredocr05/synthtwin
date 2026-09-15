@@ -469,30 +469,6 @@ def ragged_rows(
     )
 
 
-def line_endings_change_too_often(path: str, cap: int) -> str:
-    """Message for a file whose line endings change kind too many times."""
-    return (
-        f"The lines of {path} end in more than {cap} runs of different "
-        f"line endings -- some with a carriage return, some without, "
-        f"back and forth. synthtwin writes the twin's line endings where "
-        f"your table has them, and past {cap} changes it stops rather "
-        f"than write them differently. Save the file again from the "
-        f"program that made it, so that every line ends the same way, "
-        f"and run the command again."
-    )
-
-
-def blank_lines_in_too_many_places(path: str, cap: int) -> str:
-    """Message for blank lines standing between records in too many places."""
-    return (
-        f"{path} has blank lines between its records in more than {cap} "
-        f"places. synthtwin writes the twin's blank lines where your "
-        f"table has them, and past {cap} places it stops rather than "
-        f"leave them out. Remove the blank lines, or save the file again "
-        f"from the program that made it, and run the command again."
-    )
-
-
 def twin_not_writable_in_encoding(encoding: str) -> str:
     """Message for a twin holding a character its table's encoding lacks."""
     return (

@@ -888,7 +888,9 @@ INVARIANTS = {
         "separator hint, the preamble, the header, the rows of column "
         "descriptions, the records and the blank lines -- less the last "
         "where the file does not end its last line, in runs that each "
-        "end their lines one way"
+        "end their lines one way, or, past the cap on runs and in their "
+        "place, as how many lines end each of two or more ways in the "
+        "listed order of endings"
     ),
     "FD3": (
         "a byte-order mark is recorded only for UTF-8 or UTF-16 text, "
@@ -898,12 +900,16 @@ INVARIANTS = {
         "blank lines stand in file order after no more records than the "
         "table has, hold nothing but spaces and tabs, and stand inside a "
         "one-column table nowhere but after its last record; neither the "
-        "blank places nor the runs of line endings pass their caps"
+        "blank places nor the runs of line endings pass their caps; and "
+        "blank lines published counted stand in place of places, only "
+        "past that cap, in a table of two or more columns, from a first "
+        "place no later than the last and the last no later than the "
+        "table's end, holding nothing but spaces and tabs"
     ),
     "FD5": (
         "records holding nothing are published only in a table of two or "
-        "more columns with no row order and no row sequence, and no more "
-        "of them than any column has absent cells"
+        "more columns with no row sequence, and no more of them than any "
+        "column has absent cells"
     ),
     "FD6": (
         "a column published as the row sequence has every cell present, "
@@ -912,7 +918,9 @@ INVARIANTS = {
     "FD7": (
         "the column the rows are sorted by is a column of the table and "
         "not the row sequence, holding no empty cell and no absent cell "
-        "the twin writes empty, in a table of three or more rows"
+        "the twin writes empty outside the records holding nothing -- "
+        "exactly as many of them as there are such records -- in a table "
+        "of three or more rows"
     ),
     "FD8": (
         "a header cell written differently from its column's name stands "
@@ -3647,6 +3655,26 @@ def _dialect_block(value: object) -> dialect.Dialect:
                 lines=_whole(entry["lines"], "lines", where, 1),
             )
         ]
+    census: list[dialect.EndingRun] = []
+    for item in _listing(mapping["line_endings_spread"], "line_endings_spread", where):
+        entry = _mapping(item, "line_endings_spread", where)
+        _keys(entry, where, ("ending", "lines"), "a count of line endings")
+        census += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.ENDINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    spread: "dialect.BlankSpread | None" = None
+    if mapping["blank_lines_spread"] is not None:
+        counted = _mapping(mapping["blank_lines_spread"], "blank_lines_spread", where)
+        _keys(counted, where, ("first", "last", "lines", "text"), "the blank lines counted")
+        spread = dialect.BlankSpread(
+            first=_whole(counted["first"], "first", where, 0),
+            last=_whole(counted["last"], "last", where, 0),
+            lines=_whole(counted["lines"], "lines", where, 1),
+            text=_text(counted["text"], "text", where),
+        )
     blanks: list[dialect.BlankPlace] = []
     for item in _listing(mapping["blank_lines"], "blank_lines", where):
         entry = _mapping(item, "blank_lines", where)
@@ -3754,6 +3782,8 @@ def _dialect_block(value: object) -> dialect.Dialect:
         empty_rows_trailing=_whole(empty["trailing"], "trailing", where, 0),
         columns=tuple(columns),
         row_order=order,
+        line_endings_spread=tuple(census),
+        blank_lines_spread=spread,
     )
 
 
@@ -3788,6 +3818,24 @@ def _dialect_rules(
                 "two runs of line endings next to each other end lines the same way",
                 "a run is every consecutive line ending one way",
             )
+    places = {dialect.ENDINGS[index]: index for index in range(len(dialect.ENDINGS))}
+    census = form.line_endings_spread
+    for index in range(len(census)):
+        counted = counted + census[index].lines
+    if census and (
+        form.line_endings
+        or len(census) < 2
+        or counted <= dialect.MAXIMUM_ENDING_RUNS
+        or any(
+            places[census[index].ending] <= places[census[index - 1].ending]
+            for index in range(1, len(census))
+        )
+    ):
+        raise _broken(
+            "FD2", where,
+            "the line endings are published counted",
+            "counts stand in place of runs, for two or more endings in their listed order, only past the cap on runs",
+        )
     owed = total - (0 if form.final_line_ending or not total else 1)
     if counted != owed or (form.final_line_ending and not total):
         raise _broken(
@@ -3826,7 +3874,21 @@ def _dialect_rules(
         raise _broken(
             "FD4", where,
             "the form is longer than a description may carry",
-            "the caps the producer refuses past",
+            "the caps past which the producer publishes counts instead",
+        )
+    counted_blanks = form.blank_lines_spread
+    if counted_blanks is not None and (
+        form.blank_lines
+        or width < 2
+        or counted_blanks.first > counted_blanks.last
+        or counted_blanks.last > n_rows
+        or counted_blanks.lines <= dialect.MAXIMUM_BLANK_PLACES
+        or not all(character in " \t" for character in counted_blanks.text)
+    ):
+        raise _broken(
+            "FD4", where,
+            f"{counted_blanks.lines} blank lines are published counted, from after {counted_blanks.first} records to after {counted_blanks.last}",
+            f"counts stand in place of places, only past the cap on places, in file order within a table of {n_rows} records and two or more columns",
         )
     sequences = [column.sequence_start >= 0 for column in form.columns]
     empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
@@ -3836,13 +3898,12 @@ def _dialect_rules(
             width < 2
             or empties > n_rows
             or empties > fewest
-            or form.row_order.column
             or any(sequences)
         ):
             raise _broken(
                 "FD5", where,
                 f"{empties} records are published as holding nothing",
-                "every column holds at least that many absent cells, in a table of two or more columns with no row order and no row sequence",
+                "every column holds at least that many absent cells, in a table of two or more columns with no row sequence",
             )
     for index in range(min(width, len(form.columns))):
         if sequences[index] and (columns[index].n_missing or n_rows < 2):
@@ -3857,13 +3918,12 @@ def _dialect_rules(
             at > width
             or n_rows < 3
             or sequences[at - 1]
-            or columns[at - 1].n_missing_blank
-            or columns[at - 1].n_missing_withheld
+            or columns[at - 1].n_missing_blank + columns[at - 1].n_missing_withheld != empties
         ):
             raise _broken(
                 "FD7", where,
                 f"the rows are published as sorted by column {at}",
-                "a column of the table, not the row sequence, with no empty cell and no absent cell written empty, in a table of three or more rows",
+                "a column of the table, not the row sequence, with no empty cell and no absent cell written empty outside the records holding nothing, in a table of three or more rows",
             )
     if form.written_names:
         header = [column.name for column in columns]

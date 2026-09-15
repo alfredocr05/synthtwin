@@ -247,6 +247,31 @@ NARROW_COLUMN_DIGESTS = {
     "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
+# AND THE SAME COLUMNS IN THE ORDER THEIR CELLS STAND (repair of landing
+# 2b.9). The sorted digests above say no cell changed wherever its row
+# stands, and on their own they stop noticing a change that moves cells
+# WITHIN a column and keeps the multiset -- a sort that lost its
+# stability, an empty record placed elsewhere -- which only `rows.order`
+# on the one sort column would still catch. These are taken over the
+# cells as written, at the same seed, after the published sort. Recorded
+# 2026-09-15 at the repair; `record_code`, the sort column, and `unused`
+# and `batch`, whose cells cannot be told apart, hash as their sorted
+# digests do, which is the check that the two digests read the same twin.
+NARROW_COLUMN_ORDER_DIGESTS = {
+    "record_code": "bb878fb901ff9b21918c1aab62fc19ab",
+    "region": "c6aaaab5b456877e567d5277cca62e0c",
+    "visits": "db87a45be0f7b6221d45c8da95f2e419",
+    "reading": "b975be488ea135e180894623eaf7f4c2",
+    "amount": "ccb02269172179392206412c22f0f662",
+    "recorded_on": "afefaae4e256c46a2aa83dc038540e65",
+    "answer": "ba5c9e8204fe2cb51dc35654032bd6e6",
+    "comment": "701f0af371c986b58839cac47d9a6ab8",
+    "unused": "73be54e263565328cf0122ffc4c15570",
+    "batch": "3a209af377e49829fb4ef147725677ca",
+    "dose": "26d77558a0aaca47e4271f5a778dd8b7",
+    "seen_at": "036ae78d2167093ed33d41d3ca05e00d",
+    "note": "8127c9ed27f9fa91d8108663c12cd611",
+}
 
 
 def test_widening_the_demonstration_lost_no_obligation(
@@ -463,6 +488,17 @@ def test_widening_the_demonstration_lost_no_obligation(
             "Satisfy yourself the new cells are the ones the method "
             "requires before re-recording, exactly as the twin digest "
             f"below asks. New digest: {found}"
+        )
+    for name, digest in NARROW_COLUMN_ORDER_DIGESTS.items():
+        cells = twin.columns[twin.names.index(name)]
+        # As written: where each cell stands is part of what is pinned.
+        found = hashlib.sha256("\n".join(cells).encode("utf-8")).hexdigest()[:32]
+        assert found == digest, (
+            f"the twin's {name!r} column holds its cells in a different "
+            "order against the frozen baseline. If the sorted digest above "
+            "held, no cell changed and only where cells stand moved: find "
+            "the change in the arrangement (method G2.1) before "
+            f"re-recording. New digest: {found}"
         )
 
 
@@ -772,8 +808,16 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # own procedure: the new document written out again with that one key
 # deleted hashes to the description of commit 53bb012 built the same
 # way, so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 again, at the repair of landing 2b.9:
+# `source.dialect` gained `blank_lines_spread: null` and
+# `line_endings_spread: []` (past their caps those facts are published
+# counted instead of the file being refused). This description with those
+# two keys deleted and written out again hashes to
+# abbe3bcaab895e50d741748cf0af427492f2dd54587a855dcb635e27ade88c4e, the
+# digest this one replaces; the twin, report and quality digests below did
+# not move.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "abbe3bcaab895e50d741748cf0af427492f2dd54587a855dcb635e27ade88c4e"
+    "c02ed368482a54a7d8b91c3edea63e1b2ecc0d1f6386331665a82ee33ebe95a6"
 )
 
 

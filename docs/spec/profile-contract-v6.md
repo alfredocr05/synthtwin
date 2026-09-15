@@ -688,13 +688,14 @@ written" hides a warning the profile is carrying (plan P2-D6).
 ### 4.3a EXACT-CONTROL: `source.dialect`, the table's written form
 
 Owner ruling 2026-09-15, plan P4-D40: the twin is written the way its
-source file was. `dialect` is an object with exactly these nineteen keys,
+source file was. `dialect` is an object with exactly these twenty-two keys,
 all REQUIRED; the loader is the executable statement of every rule
 below (`contract._dialect_block`, `contract._dialect_rules`).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs) |
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null` |
+| `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
@@ -706,7 +707,8 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `header_rows` | array of arrays of strings | none, or two | the metadata rows a survey export writes under the names, one cell per column |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
-| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not |
+| `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
 | `preamble` | array of strings | at most 16 | the lines before the header or first record, as written, or as stand-ins |
 | `preamble_withheld` | boolean | — | the preamble is published as stand-ins |
 | `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`; `ascending`, `descending` | the leftmost column the rows are sorted by |
@@ -717,15 +719,19 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 
 **Invariants FD1-FD11** (`contract.INVARIANTS`): FD1 one column form per
 column; FD2 the line endings account for every line the file holds, in
-runs that each end their lines one way; FD3 a mark only on UTF-8 or
+runs that each end their lines one way, or past the cap on runs and in
+their place as counts of two or more endings in listed order; FD3 a mark only on UTF-8 or
 UTF-16, and always on UTF-16; FD4 blank lines in file order, within the
 table, spaces and tabs only, and in a one-column table only after its
-last record, within their caps; FD5 records holding nothing only in a
-table of two or more columns with no row order and no row sequence, no
-more than any column's absent cells; FD6 a row-sequence column has every
+last record, within their caps, and blank lines published counted only
+past that cap, in place of places, within the table, in two or more
+columns; FD5 records holding nothing only in a table of two or more
+columns with no row sequence, no more than any column's absent cells; FD6 a row-sequence column has every
 cell present; FD7 the sort column is a column, not the row sequence, holding no
-empty cell and no absent cell the twin writes empty, in three or more
-rows; FD8 written header cells stand
+empty cell and no absent cell the twin writes empty outside the records
+holding nothing, in three or more rows (the order is read over the
+records that hold something, and the twin sorts those around its
+records of nothing); FD8 written header cells stand
 under a header read from the file, in order, and name every column what
 the description names it; FD9 metadata rows only under such a header,
 two, each as wide as the table; FD10 only a header read from the file
@@ -10199,7 +10205,7 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 `used_fallback_encoding`.
 **`source.encoding` — 5:** `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`,
 `utf-16-be`.
-**`source.dialect` keys — 19** (4.3a).
+**`source.dialect` keys — 22** (4.3a).
 **`source.header_source` — 2:** `file`, `generated`.
 
 **`relationships` keys — 8** (4.6), every value exactly `null`:

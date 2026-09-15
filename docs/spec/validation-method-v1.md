@@ -1930,7 +1930,18 @@ does not hold holds any quoting rule; `mixed` holds of any file; a
 published left-out-cells or backslash rule holds of a file with no cell
 that would show it; the line-ending rule compares only the order of
 endings where the file holds a different number of lines, which the row
-and blank-line rules answer for. Every one of these facts is published,
+and blank-line rules answer for. Where the description publishes the
+line endings or the blank lines COUNTED, past their caps
+(`line_endings_spread`, `blank_lines_spread`), the rule compares the
+checked file's own counts — how many lines end each way; how many blank
+lines, where the first and last stand, what most hold — whatever its runs
+or places number. The row order is asked of the records that hold
+something, as the producer reads it. A checked file is read in the
+published encoding wherever its bytes decode there without a mark
+(`dialect.decoded_as`), and a Latin-1 or Windows-1252 description is
+held to be written as UTF-8 only by a file that is valid UTF-8 beyond
+ASCII and, read in the published encoding, holds a character the
+description publishes nowhere (repair of landing 2b.9). Every one of these facts is published,
 so on a file the producer refuses they are WITHHELD. That supersedes the
 ruling of the plan's amendment A-P3-3 clause 6, by the test its
 amendment A-P3-5 clause 3 wrote down: the producer now publishes the

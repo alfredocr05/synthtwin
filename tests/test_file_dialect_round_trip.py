@@ -712,3 +712,265 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
         tmp_path / "nothing", ("\n".join([header] + _lines(emptied)) + "\n").encode()
     )
     assert "bytes.empty-rows" in _missed(tmp_path / "nothing-plain", nothing, plain)
+
+
+# -- the repair of this landing: shapes a skeptic found ---------------------
+#
+# Each test below is built from a reproduction the skeptic of landing
+# 2b.9 ran against its first commit, and each failed there: a file
+# 53bb012 twinned and the landing refused, a sort the landing lost beside
+# Excel's empty records, a twin that failed its own description, a
+# semicolon file read with the comma, and four rules no test held.
+
+
+def test_a_utf8_table_with_a_stray_byte_in_an_identifier(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A UTF-8 table with one pasted Latin-1 byte, standing in an id cell.
+
+    The table is read as Latin-1, so its accented labels are published as
+    that reading gives them, and written back byte for byte. The byte
+    that made it Latin-1 stood in a cell the twin writes a stand-in for,
+    so the twin is valid UTF-8 -- and still exactly its description: the
+    validator reads it in the published encoding and finds no character
+    the description does not publish.
+    """
+    draw = random.Random(31)
+    body = ["study_id,age,site"]
+    for index in range(ROWS):
+        body += [
+            f"S{index + 1:05d},{draw.randint(18, 90)},"
+            f"{draw.choice(('Zürich clinic', 'Malmö clinic', 'Healthy'))}"
+        ]
+    data = ("\n".join(body) + "\n").encode("utf-8").replace(b"S00007,", b"S0000\xe9,", 1)
+    result = _round_trip(tmp_path, data, ("--identifier", "study_id"))
+    assert result["encoding"] == "latin-1"
+    twin = result["twin"]
+    for label in ("Zürich clinic", "Malmö clinic"):
+        assert twin.count(label.encode("utf-8")) == data.count(label.encode("utf-8"))
+    assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
+    assert result["twin_form"] == result["form"]
+
+
+@pytest.mark.parametrize("between", ["", "   "], ids=["blank", "spaces"])
+def test_a_double_spaced_export(tmp_path: pathlib.Path, between: str) -> None:
+    """A blank line -- or a line of spaces -- after every record, in more
+    places than the cap: the lines are published counted and written
+    exactly where they were, and the reader's check against the standard
+    reader still finds every one of them where it stands."""
+    rows = _people(32)
+    separator = "\n" + between + "\n"
+    data = (separator.join(["record_id,age,arm,site,reading"] + _lines(rows)) + "\n").encode()
+    result = _round_trip(tmp_path, data)
+    assert result["form"]["blank_lines"] == []
+    assert result["form"]["blank_lines_spread"] == {
+        "first": 0, "last": ROWS - 1, "lines": ROWS, "text": between,
+    }
+    lines = result["twin"].split(b"\n")
+    assert all(lines[index] == between.encode() for index in range(1, 2 * ROWS, 2))
+    assert all(lines[index].strip() != b"" for index in range(0, 2 * ROWS + 1, 2))
+    _held(result)
+
+
+def test_line_endings_that_change_kind_past_the_cap(tmp_path: pathlib.Path) -> None:
+    """Every third line ends with CRLF: eighty runs, so the endings are
+    published counted and the twin ends as many lines each way."""
+    rows = _people(33)
+    text = "record_id,age,arm,site,reading\n"
+    for index in range(ROWS):
+        text += _lines([rows[index]])[0] + ("\r\n" if index % 3 == 0 else "\n")
+    data = text.encode()
+    result = _round_trip(tmp_path, data)
+    assert result["form"]["line_endings"] == []
+    assert result["form"]["line_endings_spread"] == [
+        {"ending": "lf", "lines": ROWS + 1 - 40}, {"ending": "crlf", "lines": 40},
+    ]
+    assert result["twin"].count(b"\r\n") == data.count(b"\r\n")
+    _held(result)
+
+
+def test_a_sorted_excel_table_with_empty_records_below_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Excel CSV UTF-8 sorted by record_id with formatted-empty rows below:
+    the order is read over the records that hold something and kept."""
+    draw = random.Random(34)
+    body = ["record_id,age,arm,site"]
+    for index in range(ROWS):
+        body += [f"P{index + 1:04d},{draw.randint(18, 90)},{draw.choice('AB')},{draw.choice(SITES)}"]
+    body += [",,,"] * 5
+    data = b"\xef\xbb\xbf" + ("\r\n".join(body) + "\r\n").encode()
+    result = _round_trip(tmp_path, data)
+    assert result["form"]["row_order"] == {
+        "collation": "text", "column": 1, "direction": "ascending",
+    }
+    assert result["form"]["empty_rows"] == {"interior": 0, "leading": 0, "trailing": 5}
+    records = _records(result["twin"], "utf-8-sig")
+    ids = [row[0] for row in records[1 : ROWS + 1]]
+    assert all(ids) and ids == sorted(ids)
+    assert records[ROWS + 1 :] == [["", "", "", ""]] * 5
+    _held(result)
+
+
+def test_a_sorted_table_with_an_empty_record_inside(tmp_path: pathlib.Path) -> None:
+    """The empty record keeps its place and the rows are sorted around it."""
+    rows = sorted(_people(36), key=lambda row: row[0])
+    body = ["record_id,age,arm,site,reading"] + _lines(rows[:60]) + [",,,,"] + _lines(rows[60:])
+    data = ("\n".join(body) + "\n").encode()
+    result = _round_trip(tmp_path, data)
+    assert result["form"]["row_order"]["column"] == 1
+    assert result["form"]["empty_rows"] == {"interior": 1, "leading": 0, "trailing": 0}
+    records = _records(result["twin"], "utf-8")[1:]
+    assert records[60] == ["", "", "", "", ""]
+    ids = [row[0] for row in records if row[0]]
+    assert len(ids) == ROWS and ids == sorted(ids)
+    _held(result)
+
+
+def test_a_semicolon_export_whose_names_hold_commas(tmp_path: pathlib.Path) -> None:
+    """Comma and semicolon both read three fields a record; the cells read
+    as numbers only under the semicolon, so it is the delimiter.
+
+    What this holds is the written form, and the real file validating. The
+    twin's decimal-comma columns miss `numeric.fraction_widths` at this
+    seed -- a defect of how a declared decimal-comma column's widths are
+    written, measured the same on the comma-written equivalent at commit
+    53bb012, and the number-spelling lane's, not this one's.
+    """
+    draw = random.Random(35)
+    body = ["id;Gewicht, kg;Größe, cm"]
+    for _index in range(ROWS):
+        body += [
+            f"{draw.randint(10000, 99999)};{draw.randint(400, 1200) / 10:.1f};"
+            f"{draw.randint(1500, 2000) / 10:.1f}".replace(".", ",")
+        ]
+    data = ("\r\n".join(body) + "\r\n").encode("cp1252")
+    flags = ("--decimal-comma", "Gewicht, kg", "--decimal-comma", "Größe, cm")
+    result = _round_trip(tmp_path, data, flags)
+    assert result["form"]["delimiter"] == ";"
+    assert result["names"] == ["id", "Gewicht, kg", "Größe, cm"]
+    lines = result["twin"].split(b"\r\n")[:-1]
+    assert len(lines) == ROWS + 1 and all(line.count(b";") == 2 for line in lines)
+    assert result["twin_form"] == result["form"]
+    assert result["twin_encoding"] == result["encoding"]
+    assert result["exits"]["real"] == 0
+
+
+def test_a_constant_column_is_passed_over_for_the_sort(tmp_path: pathlib.Path) -> None:
+    """A study column holding one value says nothing about order; the
+    sorted participant column beside it is the sort column."""
+    draw = random.Random(37)
+    pids = sorted(draw.sample(range(1, 9999), ROWS))
+    body = ["study,pid,age"] + [f"STUDY01,P{pid:04d},{draw.randint(18, 90)}" for pid in pids]
+    result = _round_trip(tmp_path, ("\n".join(body) + "\n").encode())
+    assert result["form"]["row_order"] == {
+        "collation": "text", "column": 2, "direction": "ascending",
+    }
+    written = [row[1] for row in _records(result["twin"], "utf-8")[1:]]
+    assert written == sorted(written)
+    _held(result)
+
+
+def test_a_comma_space_guess_the_file_breaks_is_walked_again(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every field follows `, ` but one, which begins with three spaces
+    and stands past the first records the guess is made from: the
+    comma-space reading would drop two spaces of a value, so the file is
+    walked again without it and the spaces are kept."""
+    draw = random.Random(38)
+    body = ["id, note, site"]
+    for index in range(450):
+        note = "   indented" if index == 420 else " plain"
+        body += [f"S{draw.randint(10000, 99999)},{note}, {draw.choice(SITES)}"]
+    data = ("\n".join(body) + "\n").encode()
+    result = _round_trip(tmp_path, data)
+    assert result["form"]["initial_space"] is False
+    assert result["twin"].count(b",   indented,") == 1
+    _held(result)
+
+
+def test_short_rows_beside_rows_ending_empty_are_refused(tmp_path: pathlib.Path) -> None:
+    """A row leaving out its last cell beside a full row whose last cell is
+    empty is not one writer's habit, so the file is refused as ragged."""
+    draw = random.Random(39)
+    body = ["id,age,note"]
+    for index in range(ROWS):
+        cells = [f"S{draw.randint(10000, 99999)}", f"{draw.randint(18, 90)}"]
+        if index % 3 == 0:
+            body += [",".join(cells)]
+        elif index % 3 == 1:
+            body += [",".join(cells) + ","]
+        else:
+            body += [",".join(cells) + ",seen"]
+    real = tmp_path / "real.csv"
+    real.write_bytes(("\n".join(body) + "\n").encode())
+    assert _exit_of(["profile", str(real), "--out-dir", str(tmp_path), "--replace"]) == 1
+
+
+def test_a_blank_last_name_is_a_column_when_a_row_fills_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`id,age,` above rows ending with a comma looks like a trailing
+    delimiter until a row writes a value there; the file is walked again
+    and the last column is `Unnamed: 2`."""
+    draw = random.Random(40)
+    body = ["id,age,"]
+    for index in range(ROWS):
+        tail = "y" if index % 4 == 3 else ""
+        body += [f"S{draw.randint(10000, 99999)},{draw.randint(18, 90)},{tail}"]
+    result = _round_trip(tmp_path, ("\n".join(body) + "\n").encode())
+    assert result["names"] == ["id", "age", "Unnamed: 2"]
+    assert result["form"]["trailing_delimiter"] == {"header": False, "rows": False}
+    _held(result)
+
+
+def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
+    """Counted line endings and counted blank lines are each shown failing
+    on a file that differs in that one respect."""
+    rows = _people(41)
+    header = "record_id,age,arm,site,reading"
+    plain = ("\n".join([header] + _lines(rows)) + "\n").encode()
+    text = header + "\n"
+    for index in range(ROWS):
+        text += _lines([rows[index]])[0] + ("\r\n" if index % 3 == 0 else "\n")
+    counted = _describe(tmp_path / "counted-endings", text.encode())
+    assert "bytes.line-endings" in _missed(tmp_path / "counted-endings-plain", counted, plain)
+    fewer = text.replace("\r\n", "\n", 1).encode()
+    assert "bytes.line-endings" in _missed(tmp_path / "counted-endings-fewer", counted, fewer)
+
+    spaced = ("\n\n".join([header] + _lines(rows)) + "\n").encode()
+    blanks = _describe(tmp_path / "counted-blanks", spaced)
+    assert "bytes.blank-lines" in _missed(tmp_path / "counted-blanks-plain", blanks, plain)
+
+    in_order = sorted(rows, key=lambda row: row[0])
+    below = ("\n".join([header] + _lines(in_order) + [",,,,"] * 3) + "\n")
+    ordered = _describe(tmp_path / "ordered-empties", below.encode())
+    shuffled = ("\n".join([header] + _lines(rows) + [",,,,"] * 3) + "\n").encode()
+    assert "rows.order" in _missed(tmp_path / "ordered-empties-shuffled", ordered, shuffled)
+
+
+def test_the_summary_names_a_preamble_published_as_written(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A title line published as written at a smallest group of one is
+    named in the plain-language summary, with the way to withhold it; at a
+    floor above one it is a stand-in and nothing is said."""
+    rows = _people(42)
+    text = "Report: cohort extract 2026-09-01\n" + "\n".join(
+        ["record_id,age,arm,site,reading"] + _lines(rows)
+    ) + "\n"
+    for floor, named in (("1", True), ("11", False)):
+        folder = tmp_path / f"floor-{floor}"
+        folder.mkdir()
+        real = folder / "real.csv"
+        real.write_bytes(text.encode())
+        assert _exit_of(
+            [
+                "profile", str(real), "--out-dir", str(folder), "--replace",
+                "--smallest-group", floor,
+            ]
+        ) == 0
+        said = (folder / "real-profile.txt").read_text(encoding="utf-8")
+        assert ("About the lines before your column names:" in said) is named, said[:600]
+        assert ("--smallest-group above 1" in said) is named

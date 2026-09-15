@@ -797,6 +797,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "blank_lines", _EACH, "after"): _COUNT,
     ("source", "dialect", "blank_lines", _EACH, "lines"): _COUNT,
     ("source", "dialect", "blank_lines", _EACH, "text"): _BLANK_LINE,
+    # Past the cap on places, the blank lines counted.
+    ("source", "dialect", "blank_lines_spread"): _MAYBE_OBJECT,
+    ("source", "dialect", "blank_lines_spread", "first"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "last"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "lines"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "text"): _BLANK_LINE,
     ("source", "dialect", "byte_order_mark"): _FLAG,
     ("source", "dialect", "columns"): _ARRAY,
     ("source", "dialect", "columns", _EACH): _OBJECT,
@@ -829,6 +835,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "line_endings", _EACH): _OBJECT,
     ("source", "dialect", "line_endings", _EACH, "ending"): _WORD,
     ("source", "dialect", "line_endings", _EACH, "lines"): _COUNT,
+    # Past the cap on runs, how many lines end each way.
+    ("source", "dialect", "line_endings_spread"): _ARRAY,
+    ("source", "dialect", "line_endings_spread", _EACH): _OBJECT,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): _WORD,
+    ("source", "dialect", "line_endings_spread", _EACH, "lines"): _COUNT,
     # Free text that may name anybody: published only at a smallest group
     # of one, and otherwise as its stand-in (`dialect.withheld_line`).
     ("source", "dialect", "preamble"): _ARRAY,
@@ -1320,6 +1331,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("source", "dialect", "header_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
     ("source", "dialect", "row_order", "collation"): dialect.COLLATIONS,
     ("source", "dialect", "row_order", "direction"): dialect.DIRECTIONS,
     ("source", "header_source"): (
@@ -2161,12 +2173,17 @@ def _published_form(
     # writes those empty, which no order of the published kind can hold.
     # Contract invariant FD7 refuses the pair, so the order is dropped
     # here, where both are in hand.
+    #
+    # The records holding nothing are the exception: each gives the sort
+    # column one empty cell, which the twin writes in that record, so the
+    # column may count exactly that many cells empty and no more.
     order = form.row_order.column
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
     if order and order <= len(columns):
         block = columns[order - 1]
         blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
         pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
-        if blank or pooled:
+        if not isinstance(blank, int) or not isinstance(pooled, int) or blank + pooled != empties:
             form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
     if floor <= 1:
         return form

@@ -402,7 +402,9 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
     form = source.dialect
     mark = "with" if form.byte_order_mark else "without"
     spaced = ", each followed by one space" if form.initial_space else ""
-    if not form.line_endings:
+    if form.line_endings_spread:
+        endings = "line endings of several kinds"
+    elif not form.line_endings:
         endings = "no line endings"
     elif len(form.line_endings) == 1:
         endings = f"{dialect.ENDING_WORDS[form.line_endings[0].ending]} endings"
@@ -427,6 +429,22 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
             "The lines your table has before its column names are written",
             "as stand-ins: their text is not published above a smallest",
             "group of one.",
+        ]
+    if form.line_endings_spread:
+        lines += [
+            f"Your table's line endings change kind more than "
+            f"{dialect.MAXIMUM_ENDING_RUNS} times, so",
+            "the description records how many lines end each way, and the",
+            "twin ends as many lines each way with the rarer endings spread",
+            "evenly, not on the lines where your table has them.",
+        ]
+    if form.blank_lines_spread is not None:
+        lines += [
+            f"Your table has blank lines in more than "
+            f"{dialect.MAXIMUM_BLANK_PLACES} places, so the",
+            "description records how many there are and where the first and",
+            "last stand, and the twin spreads as many evenly between those",
+            "two places, not in every place your table has them.",
         ]
     mixed = 0
     for column in form.columns:

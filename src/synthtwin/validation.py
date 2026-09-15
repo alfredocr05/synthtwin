@@ -4220,6 +4220,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             path,
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
+            encoding=description.source.encoding,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -4442,7 +4443,12 @@ def _degenerate_report(
     - Errors raised: none.
     """
     return _assembled(
-        _byte_checks(description, data, _surveyed_quietly(data, headed), False)
+        _byte_checks(
+            description,
+            data,
+            _surveyed_quietly(data, headed, description.source.encoding),
+            False,
+        )
         + [_zero_row_form(description, data, text, headed)]
         + _zero_row_structure(description, text, headed),
         _zero_row_listings(description, headed),
@@ -4701,13 +4707,48 @@ _CLASS_WORDS = {
 }
 
 
-def _encoding_found(data: bytes, encoding: str) -> str:
+def _published_characters(value: object, found: "dict[str, bool]") -> None:
+    """Every character beyond ASCII that the description publishes, into ``found``.
+
+    Walks the loaded description -- every text in it, however deep --
+    so the question below is asked of what was published and of nothing
+    a list of fields could forget.
+    """
+    if isinstance(value, str):
+        for character in set(value):
+            if ord(character) > 127:
+                found[character] = True
+        return
+    if isinstance(value, (bool, int, float)) or value is None:
+        return
+    if isinstance(value, dict):
+        for key in value:
+            _published_characters(key, found)
+            _published_characters(value[key], found)
+        return
+    if isinstance(value, (tuple, list, frozenset, set)):
+        for item in value:
+            _published_characters(item, found)
+
+
+def _encoding_found(
+    data: bytes, encoding: str, description: "contract.Profile | None" = None
+) -> str:
     """What the bytes are, in the words the published encoding is asked in.
 
     A file holds the published encoding when its bytes decode under it --
     UTF-16 behind its own mark -- and, for a Western European encoding,
     when they are not UTF-8 text beyond ASCII, which is the twin's old
     defect: written as UTF-8 whatever the table was.
+
+    UNLESS EVERY SUCH CHARACTER IS ONE THE DESCRIPTION PUBLISHES (repair
+    of landing 2b.9). A table that is UTF-8 but for one stray byte is
+    read as Latin-1, so its accented labels are published as that reading
+    gives them; where the stray byte stood in a cell the twin writes a
+    stand-in for, the twin is UTF-8 text beyond ASCII and still exactly
+    its description. A twin wrongly written as UTF-8 is not: read in the
+    published encoding, its accented letters come out as characters the
+    description never published.
     """
     if not isinstance(data, bytes):
         raise TypeError("internal check: a file's bytes were not bytes")
@@ -4728,7 +4769,14 @@ def _encoding_found(data: bytes, encoding: str) -> str:
                 str(data, "utf-8")
             except UnicodeDecodeError:
                 return f"written as {words}"
-            return f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
+            as_utf8 = f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
+            if description is None:
+                return as_utf8
+            published: dict[str, bool] = {}
+            _published_characters(dataclasses.asdict(description), published)
+            for character in set(str(data, dialect.READING_CODECS[encoding])):
+                if ord(character) > 127 and character not in published:
+                    return as_utf8
     return f"written as {words}"
 
 
@@ -4755,6 +4803,28 @@ def _ending_words(
             piece = f"{piece} on {run.lines} lines"
         text = piece if not text else f"{text}, then {piece}"
     return text
+
+
+def _census_words(census: "tuple[dialect.EndingRun, ...]") -> str:
+    """How many lines end each way, for a description that published counts."""
+    if not census:
+        return "no line endings"
+    text = ""
+    for run in census:
+        piece = f"{run.lines} lines ending with {dialect.ENDING_WORDS[run.ending]}"
+        text = piece if not text else f"{text}, {piece}"
+    return f"line endings counted: {text}"
+
+
+def _counted_blank_words(counted: "dialect.BlankSpread | None") -> str:
+    """The blank lines counted, for a description that published them so."""
+    if counted is None:
+        return "no blank lines"
+    held = ", holding spaces or tabs" if counted.text else ""
+    return (
+        f"blank lines counted: {counted.lines}, the first after record "
+        f"{counted.first} and the last after record {counted.last}{held}"
+    )
 
 
 def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
@@ -4814,6 +4884,8 @@ def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
         form,
         byte_order_mark=False,
         line_endings=(),
+        line_endings_spread=(),
+        blank_lines_spread=None,
         final_line_ending=False,
         end_of_file_mark=False,
         separator_line=False,
@@ -4888,16 +4960,20 @@ def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
     )
 
 
-def _surveyed_quietly(data: bytes, headed: bool) -> "dialect.Survey | None":
+def _surveyed_quietly(
+    data: bytes, headed: bool, published: str
+) -> "dialect.Survey | None":
     """The survey of a file the reader refused, or None where it has none.
 
     The zero-row form's conforming file is one the reader refuses for
-    holding no rows, and its bytes still have a written form.
+    holding no rows, and its bytes still have a written form. It is read
+    in the description's encoding where it can be, as the reader reads
+    every checked file.
     """
     if not data:
         return None
     try:
-        text, encoding, marked = dialect.decoded(data, "")
+        text, encoding, marked = dialect.decoded_as(data, "", published)
         return dialect.settle(text, encoding, marked, not headed, "")
     except errors.ProfileError:
         return None
@@ -4944,9 +5020,34 @@ def _byte_checks(
     measured = surveyed.form if surveyed is not None else _bare_form(form, data)
     if refused:
         measured = form
-    same_count = sum([run.lines for run in form.line_endings]) == sum(
-        [run.lines for run in measured.line_endings]
+    same_count = sum(
+        [run.lines for run in form.line_endings + form.line_endings_spread]
+    ) == sum(
+        [run.lines for run in measured.line_endings + measured.line_endings_spread]
     )
+    # A DESCRIPTION THAT PUBLISHED COUNTS IS ANSWERED IN COUNTS, whatever
+    # the checked file's own runs number (repair of landing 2b.9): the
+    # twin writes the rarer endings spread evenly, and the real table
+    # holds them where they stood, and both hold as many of each.
+    ending_asked = _ending_words(form.line_endings, same_count)
+    ending_found = _ending_words(measured.line_endings, same_count)
+    if form.line_endings_spread:
+        census = dialect.census_of(measured.line_endings + measured.line_endings_spread)
+        if surveyed is not None and not refused:
+            census = surveyed.ending_census
+        ending_asked = _census_words(form.line_endings_spread)
+        ending_found = _census_words(census)
+    blank_asked = _blank_words(form.blank_lines)
+    blank_found = _blank_words(measured.blank_lines)
+    if form.blank_lines_spread is not None:
+        blank_asked = _counted_blank_words(form.blank_lines_spread)
+        blank_found = _counted_blank_words(
+            surveyed.blank_census
+            if surveyed is not None and not refused
+            else form.blank_lines_spread
+            if refused
+            else None
+        )
     escape = measured.escape
     if (
         form.escape == dialect.ESCAPE_BACKSLASH
@@ -4980,7 +5081,7 @@ def _byte_checks(
             "document.encoding",
             "bytes.encoding",
             f"written as {dialect.ENCODING_WORDS[encoding]}",
-            _encoding_found(data, encoding),
+            _encoding_found(data, encoding, description),
         ),
         _exact(
             "",
@@ -4993,8 +5094,8 @@ def _byte_checks(
             "",
             "document.line-endings",
             "bytes.line-endings",
-            _ending_words(form.line_endings, same_count),
-            _ending_words(measured.line_endings, same_count),
+            ending_asked,
+            ending_found,
         ),
         _exact(
             "",
@@ -5103,8 +5204,8 @@ def _byte_checks(
             "",
             _DIALECT_FACT,
             "bytes.blank-lines",
-            _blank_words(form.blank_lines),
-            _blank_words(measured.blank_lines),
+            blank_asked,
+            blank_found,
         ),
         _exact(
             "",
@@ -5217,8 +5318,8 @@ def _byte_checks(
     order = form.row_order
     if order.column and order.column <= len(description.columns):
         asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
-        held = aligned and surveyed is not None and dialect.holds_order(
-            surveyed.columns[order.column - 1], order
+        held = aligned and surveyed is not None and dialect.holds_order_in(
+            surveyed.columns, order
         )
         checks += [
             _exact(

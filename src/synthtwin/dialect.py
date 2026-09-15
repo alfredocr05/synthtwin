@@ -175,10 +175,17 @@ READING_CODECS = {
     ENCODING_UTF16_BE: "utf-16",
 }
 
-# Caps. Each is a place past which a file is refused rather than
-# described approximately: a line-ending pattern that changes more often
-# than this, blank lines in more places, a longer preamble. None of them
-# is a fact about a person; they bound the description's size.
+# Caps. None of them is a fact about a person; they bound the
+# description's size. PAST THE FIRST TWO THE FILE IS STILL DESCRIBED,
+# more coarsely, and never refused (repair of landing 2b.9: a file 53bb012
+# twinned may not be refused by this landing). Line endings that change
+# kind more often than this are published as how many lines end each way
+# (`line_endings_spread`), and the twin spreads the rarer endings evenly;
+# blank lines standing in more places than this are published as how
+# many there are, where the first and last stand and what they hold
+# (`blank_lines_spread`), and the twin spreads them evenly between those
+# two places -- which is exact for a double-spaced file. A longer preamble
+# than its cap is not a preamble: those lines are read as the table's.
 MAXIMUM_ENDING_RUNS = 64
 MAXIMUM_BLANK_PLACES = 64
 MAXIMUM_PREAMBLE_LINES = 16
@@ -228,6 +235,22 @@ class BlankPlace:
     """
 
     after: int
+    lines: int
+    text: str
+
+
+@dataclasses.dataclass(frozen=True)
+class BlankSpread:
+    """Blank lines in more places than `MAXIMUM_BLANK_PLACES`, counted.
+
+    ``lines`` blank lines in all, the first standing after ``first`` data
+    records and the last after ``last``; ``text`` is what the most of
+    them hold (nothing, or only spaces and tabs), the earlier text on a
+    tie. The twin writes them `spread_places` apart.
+    """
+
+    first: int
+    last: int
     lines: int
     text: str
 
@@ -296,6 +319,11 @@ class Dialect:
     empty_rows_trailing: int
     columns: "tuple[ColumnForm, ...]"
     row_order: RowOrder
+    # Past their caps, in place of `line_endings` and `blank_lines`
+    # (both then empty): how many lines end each way, in `ENDINGS` order,
+    # and the blank lines counted.
+    line_endings_spread: "tuple[EndingRun, ...]" = ()
+    blank_lines_spread: "BlankSpread | None" = None
 
 
 NO_ORDER = RowOrder(column=0, direction=ASCENDING, collation=COLLATION_TEXT)
@@ -324,6 +352,8 @@ def lines_of(form: Dialect, n_rows: int, headed: bool) -> int:
         total = total + 1
     for place in form.blank_lines:
         total = total + place.lines
+    if form.blank_lines_spread is not None:
+        total = total + form.blank_lines_spread.lines
     return total
 
 
@@ -405,8 +435,20 @@ def document_of(form: Dialect) -> "dict[str, object]":
             "column": form.row_order.column,
             "direction": form.row_order.direction,
         }
+    census: list[object] = []
+    for run in form.line_endings_spread:
+        census += [{"ending": run.ending, "lines": run.lines}]
+    spread: object = None
+    if form.blank_lines_spread is not None:
+        spread = {
+            "first": form.blank_lines_spread.first,
+            "last": form.blank_lines_spread.last,
+            "lines": form.blank_lines_spread.lines,
+            "text": form.blank_lines_spread.text,
+        }
     return {
         "blank_lines": blanks,
+        "blank_lines_spread": spread,
         "byte_order_mark": form.byte_order_mark,
         "columns": columns,
         "delimiter": form.delimiter,
@@ -423,6 +465,7 @@ def document_of(form: Dialect) -> "dict[str, object]":
         "header_rows_quoting": form.header_rows_quoting,
         "initial_space": form.initial_space,
         "line_endings": runs,
+        "line_endings_spread": census,
         "preamble": list(form.preamble),
         "preamble_withheld": form.preamble_withheld,
         "row_order": order,
@@ -438,6 +481,7 @@ def document_of(form: Dialect) -> "dict[str, object]":
 
 DOCUMENT_KEYS = (
     "blank_lines",
+    "blank_lines_spread",
     "byte_order_mark",
     "columns",
     "delimiter",
@@ -450,6 +494,7 @@ DOCUMENT_KEYS = (
     "header_rows_quoting",
     "initial_space",
     "line_endings",
+    "line_endings_spread",
     "preamble",
     "preamble_withheld",
     "row_order",
@@ -656,6 +701,30 @@ def decoded(data: bytes, shown: str) -> "tuple[str, str, bool]":
         except UnicodeDecodeError:
             pass
     return (str(data, "latin-1"), ENCODING_LATIN1, False)
+
+
+def decoded_as(data: bytes, shown: str, encoding: str) -> "tuple[str, str, bool]":
+    """The file's text read in a description's published encoding, where it can be.
+
+    The validator's reading of a checked file (plan P4-D40, repair of
+    landing 2b.9). A description published as Latin-1 or Windows-1252
+    publishes every label as that encoding reads it, so a checked file is
+    read the same way whenever its bytes decode there and carry no UTF-8
+    or UTF-16 mark (contract FD3 gives such a description none). Reading
+    it by detection instead would read a twin whose non-UTF-8 bytes all
+    stood in cells written as stand-ins -- and which is therefore valid
+    UTF-8 -- as UTF-8, and find every accented label changed. Every other
+    case is `decoded`'s.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    marked = data[:3] == b"\xef\xbb\xbf" or data[:2] == b"\xff\xfe" or data[:2] == b"\xfe\xff"
+    if encoding in FALLBACK_ENCODINGS and not marked:
+        try:
+            return (str(data, WRITING_CODECS[encoding]), encoding, False)
+        except UnicodeDecodeError:
+            pass
+    return decoded(data, shown)
 
 
 # -- the lexer ---------------------------------------------------------
@@ -1084,10 +1153,20 @@ def detected_delimiter(text: str, at: int) -> str:
     every record to the width this chose, so a table that only looked
     delimited in its first records is refused as ragged, never read
     wrongly.
+
+    A TIE OF BOTH IS DECIDED BY THE CELLS FIRST (repair of landing 2b.9).
+    A European export whose names hold a comma (`Gewicht, kg`) and whose
+    every number carries one decimal comma reads as three fields a
+    record under the comma and under the semicolon alike, and the order
+    of `DELIMITERS` took the comma -- `41943;91` and `0;166` as cells.
+    So on a tie the candidate under whose reading more cells read as
+    numbers, with a point or with a decimal comma, wins; the order of
+    `DELIMITERS` decides only where that ties too.
     """
     chosen = ","
     best_share = 0.0
     best_width = 0
+    best_numbers = -1
     for candidate in DELIMITERS:
         sample = records(text, candidate, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS)
         share, width = _width_share(sample)
@@ -1102,11 +1181,38 @@ def detected_delimiter(text: str, at: int) -> str:
             opening = opening + 1
         if opening < len(sample) and len(sample[opening].fields) != width:
             continue
-        if share > best_share or (share == best_share and width > best_width):
+        numbers = -1
+        if share == best_share and width == best_width:
+            numbers = _numbers_read(sample)
+            if best_numbers < 0:
+                best_numbers = _numbers_read(
+                    records(text, chosen, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS)
+                )
+        if (
+            share > best_share
+            or (share == best_share and width > best_width)
+            or (share == best_share and width == best_width and numbers > best_numbers)
+        ):
             chosen = candidate
             best_share = share
             best_width = width
+            best_numbers = numbers
     return chosen
+
+
+def _numbers_read(sample: "list[Record]") -> int:
+    """How many cells of these records read as numbers, with a point or a decimal comma."""
+    found = 0
+    for record in sample:
+        for value in record.fields:
+            cell = _text(value)
+            if parsing.classify_number(cell) != parsing.NOT_A_NUMBER:
+                found = found + 1
+            elif _holds(cell, ",") and parsing.classify_number(
+                parsing.written_with_a_decimal_comma(cell)
+            ) != parsing.NOT_A_NUMBER:
+                found = found + 1
+    return found
 
 
 def detected_initial_space(text: str, at: int, delimiter: str) -> bool:
@@ -1159,6 +1265,13 @@ class Survey:
     malformed: int
     escapes: int
     initial_space_broken: bool
+    # Measured whatever the caps: every place blank lines stand, how many
+    # lines end each way, and the blank lines counted. The reader checks
+    # the first against the standard reader; the validator compares the
+    # other two with a description that published them.
+    every_blank_place: "tuple[BlankPlace, ...]" = ()
+    ending_census: "tuple[EndingRun, ...]" = ()
+    blank_census: "BlankSpread | None" = None
 
 
 @dataclasses.dataclass
@@ -1193,10 +1306,8 @@ def _flush_ending(walk: _Walk, shown: str) -> None:
     if last >= 0 and walk.runs[last].ending == word:
         walk.runs[last] = EndingRun(ending=word, lines=walk.runs[last].lines + 1)
     else:
-        if len(walk.runs) >= MAXIMUM_ENDING_RUNS:
-            raise errors.ProfileError(
-                errors.line_endings_change_too_often(shown, MAXIMUM_ENDING_RUNS)
-            )
+        # No cap here: every run is kept, and `survey` publishes the
+        # counts in their place where there are more than the cap.
         walk.runs += [EndingRun(ending=word, lines=1)]
     walk.pending = ""
 
@@ -1509,6 +1620,29 @@ def holds_order(cells: "list[str]", order: RowOrder) -> bool:
         if order.direction == DESCENDING and _less(keys[index - 1], keys[index]):
             return False
     return True
+
+
+def holds_order_in(columns: "list[list[str]]", order: RowOrder) -> bool:
+    """`holds_order` over a table's records that hold something.
+
+    A record holding nothing in any cell of a table of two or more
+    columns has no key, and the survey reads the order without such
+    records, so the validator asks its question the same way.
+    """
+    if order.column < 1 or order.column > len(columns):
+        return False
+    empty: list[int] = []
+    if len(columns) >= 2:
+        for row in range(len(columns[0])):
+            nothing = True
+            for column in columns:
+                if row < len(column) and column[row] != "":
+                    nothing = False
+                    break
+            if nothing:
+                empty += [row]
+    kept = _without_rows([columns[order.column - 1]], empty)
+    return holds_order(kept[0], order)
 
 
 def _is_import_row(fields: "list[str]") -> bool:
@@ -1907,16 +2041,31 @@ def survey(
         and empty_rows[len(empty_rows) - 1 - trailing] == n_rows - 1 - trailing
     ):
         trailing = trailing + 1
-    order = NO_ORDER
-    if not empty_rows:
-        order = row_order_of(columns, sequences, n_rows)
+    # THE ORDER IS READ OVER THE RECORDS THAT HOLD SOMETHING (repair of
+    # landing 2b.9). A sorted Excel table with formatted-empty records
+    # below it is sorted; its empty records hold no key, and reading the
+    # order over them lost it. The twin puts its empty records in their
+    # places first and sorts the rest around them (`arranged`).
+    order = row_order_of(_without_rows(columns, empty_rows), sequences, n_rows - len(empty_rows))
+    census = census_of(walk.runs)
+    blank_census = blank_census_of(blanks)
+    runs_published: "tuple[EndingRun, ...]" = tuple(walk.runs)
+    census_published: "tuple[EndingRun, ...]" = ()
+    if len(walk.runs) > MAXIMUM_ENDING_RUNS:
+        runs_published = ()
+        census_published = census
+    places_published: "tuple[BlankPlace, ...]" = tuple(blanks)
+    spread_published: "BlankSpread | None" = None
+    if len(blanks) > MAXIMUM_BLANK_PLACES:
+        places_published = ()
+        spread_published = blank_census
     form = Dialect(
         delimiter=delimiter,
         initial_space=spaced,
         escape=escaping,
         separator_line=bool(hinted),
         byte_order_mark=byte_order_mark,
-        line_endings=tuple(walk.runs),
+        line_endings=runs_published,
         final_line_ending=_ended(body, size),
         end_of_file_mark=end_mark,
         preamble=tuple(preamble),
@@ -1928,12 +2077,14 @@ def survey(
         header_trailing_delimiter=header_trailing,
         rows_trailing_delimiter=rows_trailing,
         short_rows=short_rows,
-        blank_lines=tuple(blanks),
+        blank_lines=places_published,
         empty_rows_leading=leading,
         empty_rows_interior=len(empty_rows) - leading - trailing,
         empty_rows_trailing=trailing,
         columns=tuple(column_forms),
         row_order=order,
+        line_endings_spread=census_published,
+        blank_lines_spread=spread_published,
     )
     return Survey(
         form=form,
@@ -1948,7 +2099,127 @@ def survey(
         malformed=malformed,
         escapes=escapes,
         initial_space_broken=spaces_broken,
+        every_blank_place=tuple(blanks),
+        ending_census=census,
+        blank_census=blank_census,
     )
+
+
+def _without_rows(columns: "list[list[str]]", rows: "list[int]") -> "list[list[str]]":
+    """The columns with the records at ``rows`` (ascending) taken out."""
+    if not rows:
+        return columns
+    skip = [False for _row in range(len(columns[0]) if columns else 0)]
+    for row in rows:
+        skip[row] = True
+    return [
+        [column[row] for row in range(len(column)) if not skip[row]]
+        for column in columns
+    ]
+
+
+def census_of(runs: "list[EndingRun] | tuple[EndingRun, ...]") -> "tuple[EndingRun, ...]":
+    """How many lines end each way, in `ENDINGS` order, leaving out endings no line has."""
+    counts = [0 for _name in ENDINGS]
+    for run in runs:
+        for index in range(len(ENDINGS)):
+            if ENDINGS[index] == run.ending:
+                counts[index] = counts[index] + run.lines
+    return tuple(
+        [
+            EndingRun(ending=ENDINGS[index], lines=counts[index])
+            for index in range(len(ENDINGS))
+            if counts[index]
+        ]
+    )
+
+
+def blank_census_of(
+    places: "list[BlankPlace] | tuple[BlankPlace, ...]",
+) -> "BlankSpread | None":
+    """The blank lines counted: first place, last place, how many, what most hold."""
+    if not places:
+        return None
+    total = 0
+    held: dict[str, int] = {}
+    order: list[str] = []
+    for place in places:
+        total = total + place.lines
+        if place.text not in held:
+            held[place.text] = 0
+            order += [place.text]
+        held[place.text] = held[place.text] + place.lines
+    text = order[0]
+    for found in order:
+        if held[found] > held[text]:
+            text = found
+    return BlankSpread(
+        first=places[0].after,
+        last=places[len(places) - 1].after,
+        lines=total,
+        text=text,
+    )
+
+
+def spread_places(spread: BlankSpread) -> "tuple[BlankPlace, ...]":
+    """Where a twin writes counted blank lines: evenly from the first place to the last.
+
+    The k-th of n lines stands after ``first + k * (last - first) // (n - 1)``
+    records, so a file with one blank line after each of its records --
+    double spacing -- is written exactly as it was.
+    """
+    places: list[BlankPlace] = []
+    span = spread.last - spread.first
+    for index in range(spread.lines):
+        after = spread.first
+        if spread.lines > 1:
+            after = spread.first + (index * span) // (spread.lines - 1)
+        last = len(places) - 1
+        if last >= 0 and places[last].after == after:
+            places[last] = BlankPlace(after=after, lines=places[last].lines + 1, text=spread.text)
+        else:
+            places += [BlankPlace(after=after, lines=1, text=spread.text)]
+    return tuple(places)
+
+
+def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
+    """Each line's ending, for counted line endings: the rarer spread evenly.
+
+    The ending most lines have (the earlier in `ENDINGS` on a tie) ends
+    every line that no rarer one takes. Each rarer ending, in `ENDINGS`
+    order, takes its c lines at the middle of c equal stretches of the
+    file, the next free line where that one is taken. Every ending is
+    written on exactly as many lines as the census says.
+    """
+    total = 0
+    most = 0
+    for index in range(len(census)):
+        total = total + census[index].lines
+        if census[index].lines > census[most].lines:
+            most = index
+    if not census:
+        return []
+    endings = [census[most].ending for _line in range(total)]
+    taken = [False for _line in range(total)]
+    low = 0
+    for index in range(len(census)):
+        if index == most:
+            continue
+        count = census[index].lines
+        cursor = 0
+        for step in range(count):
+            target = ((2 * step + 1) * total) // (2 * count)
+            at = max(target, cursor)
+            while at < total and taken[at]:
+                at = at + 1
+            if at >= total:
+                while low < total and taken[low]:
+                    low = low + 1
+                at = low
+            taken[at] = True
+            endings[at] = census[index].ending
+            cursor = at + 1
+    return endings
 
 
 def _spaces_broken(record: Record, spaced: bool) -> bool:
@@ -1977,10 +2248,8 @@ def _blank(
     if last >= 0 and blanks[last].after == after and blanks[last].text == text:
         blanks[last] = BlankPlace(after=after, lines=blanks[last].lines + 1, text=text)
         return
-    if len(blanks) >= MAXIMUM_BLANK_PLACES:
-        raise errors.ProfileError(
-            errors.blank_lines_in_too_many_places(shown, MAXIMUM_BLANK_PLACES)
-        )
+    # No cap here: every place is kept, and `survey` publishes them
+    # counted where there are more than the cap.
     blanks += [BlankPlace(after=after, lines=1, text=text)]
 
 
@@ -2170,16 +2439,19 @@ def twin_text(
             for cell in row
         ]
         lines += [_joined(parts, form)]
+    blank_places = form.blank_lines
+    if form.blank_lines_spread is not None:
+        blank_places = spread_places(form.blank_lines_spread)
     blank_at = 0
     for index in range(len(rows)):
-        while blank_at < len(form.blank_lines) and form.blank_lines[blank_at].after == index:
-            place = form.blank_lines[blank_at]
+        while blank_at < len(blank_places) and blank_places[blank_at].after == index:
+            place = blank_places[blank_at]
             for _line in range(place.lines):
                 lines += [place.text]
             blank_at = blank_at + 1
         lines += [data_line(rows[index], form)]
-    while blank_at < len(form.blank_lines):
-        place = form.blank_lines[blank_at]
+    while blank_at < len(blank_places):
+        place = blank_places[blank_at]
         for _line in range(place.lines):
             lines += [place.text]
         blank_at = blank_at + 1
@@ -2187,6 +2459,8 @@ def twin_text(
     for run in form.line_endings:
         for _line in range(run.lines):
             endings += [ENDING_TEXT[run.ending]]
+    if form.line_endings_spread:
+        endings = [ENDING_TEXT[word] for word in spread_endings(form.line_endings_spread)]
     text = _MARK if form.byte_order_mark else ""
     for index in range(len(lines)):
         text = text + lines[index]
@@ -2233,10 +2507,23 @@ def arranged(
         return columns
     grid = [list(column) for column in columns]
     order = form.row_order
-    if order.column and order.column <= width:
-        grid = [[column[source] for source in _permutation(grid[order.column - 1], order, n_rows)] for column in grid]
-    elif width >= 2:
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    targets = [False for _row in range(n_rows)]
+    if width >= 2 and (empties or not order.column):
         _place_empty_rows(grid, form, n_rows)
+        targets = _empty_targets(form, n_rows)
+    if order.column and order.column <= width:
+        # The records holding nothing stay where they were placed, and
+        # the others are sorted into the rows around them.
+        free = [row for row in range(n_rows) if not targets[row]]
+        key = grid[order.column - 1]
+        placed = _permutation([key[row] for row in free], order, len(free))
+        for place in range(width):
+            column = grid[place]
+            moved = list(column)
+            for index in range(len(free)):
+                moved[free[index]] = column[free[placed[index]]]
+            grid[place] = moved
     for index in range(width):
         if index < len(form.columns) and form.columns[index].sequence_start >= 0:
             grid[index] = sequence_cells(form.columns[index].sequence_start, n_rows)

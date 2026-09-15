@@ -682,7 +682,9 @@ def _agrees_with_the_standard_reader(
     header_pending = headed
     metadata_pending = len(form.header_rows)
     width = len(surveyed.columns)
-    places = [place for place in form.blank_lines if place.text]
+    # Every place, counted or not: past its cap the form publishes the
+    # blank lines counted, and the file still holds each where it stands.
+    places = [place for place in surveyed.every_blank_place if place.text]
     place_at = 0
     place_left = places[0].lines if places else 0
     row = 0
@@ -785,6 +787,7 @@ def _read_authoritatively(
     shown: str,
     first_row: str,
     refusals: str = REFUSALS_MAY_QUOTE,
+    encoding: str = "",
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -802,7 +805,10 @@ def _read_authoritatively(
         raise errors.ProfileError(
             errors.out_of_memory(shown, _file_size(table_path))
         ) from error
-    text, encoding, marked = dialect.decoded(data, shown)
+    if encoding:
+        text, encoding, marked = dialect.decoded_as(data, shown, encoding)
+    else:
+        text, encoding, marked = dialect.decoded(data, shown)
     # The bytes are not needed once they are text, and holding both while
     # the survey fills the table is one file's size of memory for nothing.
     data = b""
@@ -988,8 +994,15 @@ def read_table(
     raw_path: str,
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
+    encoding: str = "",
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``encoding``, where given, is a description's published encoding,
+    and the bytes are read in it wherever they can be
+    (`dialect.decoded_as`); the validator passes it, so a checked file
+    is read the way the description's labels were. Otherwise the
+    encoding is detected (`dialect.decoded`).
 
     Guarantees:
 
@@ -1103,7 +1116,9 @@ def read_table(
     if table_path.is_dir():
         raise errors.ProfileError(errors.path_is_a_folder(shown))
     try:
-        found = _read_authoritatively(table_path, shown, first_row, refusals)
+        found = _read_authoritatively(
+            table_path, shown, first_row, refusals, encoding
+        )
     except PermissionError as error:
         raise errors.ProfileError(
             errors.file_unreadable(shown, f"{error}")

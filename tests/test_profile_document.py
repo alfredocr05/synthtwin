@@ -312,8 +312,15 @@ def test_nothing_that_varies_between_runs_is_written(
 # that one key deleted hashes to the digest this one replaces --
 # dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf
 # -- so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 again, at the repair of landing 2b.9: past their
+# caps the written form publishes line endings and blank lines COUNTED
+# rather than refusing the file, so `source.dialect` gained two keys,
+# `blank_lines_spread: null` and `line_endings_spread: []`, on every
+# description. Checked the same way: this document with those two keys
+# deleted hashes to 37db1d0303a771bfae871bb1ea30c4e8597b4b00b037a3c6f5169786fbdd3aca,
+# the digest this one replaces.
 GOLDEN_SHA256 = (
-    "37db1d0303a771bfae871bb1ea30c4e8597b4b00b037a3c6f5169786fbdd3aca"
+    "6d53a2f4b73e246540f3beee29141a7d4a099f6f19b3b6516a787ad6efb8a6c6"
 )
 
 

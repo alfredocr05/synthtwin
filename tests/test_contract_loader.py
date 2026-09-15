@@ -1217,6 +1217,14 @@ def battery() -> list[Mutation]:
         Mutation("FD1", "a written form one column short", _form_one_column_short),
         Mutation("FD2", "line endings for one line too many", _form_one_line_too_many),
         Mutation(
+            "FD2", "line endings counted out of their listed order",
+            _form_counted_out_of_order,
+        ),
+        Mutation(
+            "FD4", "blank lines counted below the cap on places",
+            _form_blank_lines_counted_below_the_cap,
+        ),
+        Mutation(
             "FD3", "a byte-order mark on Latin-1 text", _form_marked_latin1
         ),
         Mutation(
@@ -1269,6 +1277,23 @@ def _form_one_column_short(document: Document) -> None:
 
 def _form_one_line_too_many(document: Document) -> None:
     _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_counted_out_of_order(document: Document) -> None:
+    """Counts that account for every line, with CRLF listed before LF."""
+    lines = typing.cast(int, _form(document)["line_endings"][0]["lines"])
+    _form(document)["line_endings"] = []
+    _form(document)["line_endings_spread"] = [
+        {"ending": "crlf", "lines": 1},
+        {"ending": "lf", "lines": lines - 1},
+    ]
+
+
+def _form_blank_lines_counted_below_the_cap(document: Document) -> None:
+    _form(document)["blank_lines_spread"] = {
+        "first": 0, "last": 1, "lines": 2, "text": "",
+    }
+    _form(document)["line_endings"][0]["lines"] += 2
 
 
 def _form_marked_latin1(document: Document) -> None:

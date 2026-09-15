@@ -2270,9 +2270,9 @@ def test_a_name_the_two_readers_read_differently_names_positions(
     real = reading._read_authoritatively
 
     def rewrite_after_reading(
-        table_path: object, shown: str, first_row: str, refusals: str
+        table_path: object, shown: str, first_row: str, refusals: str, *rest: str
     ) -> object:
-        found = real(table_path, shown, first_row, refusals)
+        found = real(table_path, shown, first_row, refusals, *rest)
         pathlib.Path(f"{table_path}").write_bytes(
             b"zzmarkerzz,c1\n1,north\n2,south\n"
         )

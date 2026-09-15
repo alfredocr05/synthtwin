@@ -30,8 +30,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "no_data_rows": ("/data/table.csv",),
     "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
-    "line_endings_change_too_often": ("/data/table.csv", 64),
-    "blank_lines_in_too_many_places": ("/data/table.csv", 64),
     "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
