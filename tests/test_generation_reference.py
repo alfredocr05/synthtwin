@@ -177,6 +177,11 @@ BRANCH_CASES = (
     # midnight; the other pins the evenly spread rotation of marks, its
     # tie rule and the withheld pool.
     "midnight_days",
+    # THE FIVE CASES OF LANDING 2b.3: bare dates beside midnight moments,
+    # midnight on two offsets, a column partly at midnight, a withheld pool
+    # spent on the unnamed marks, and a slashed stamp's one permitted mark.
+    "midnight_mixed_forms",
+    "midnight_two_offsets",
     "mixed_marks",
     # The month, added with the second SPAN resolution (plan P4-D4.3
     # item 2). A new transform reaching the twin without an independent
@@ -185,6 +190,9 @@ BRANCH_CASES = (
     "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
+    "partial_midnight",
+    "pooled_marks",
+    "slashed_pool",
     # THE SECOND SPELLING FAMILY OF G10.5, added with revision 5
     # (residuals R-P4-48 and R-P4-68). `unrepresentable_joint` below
     # reaches this role, and every cell it freezes is a digit string
@@ -229,6 +237,11 @@ SEEDS = {
     "joined_readings": 120,
     "midnight_days": 122,
     "mixed_marks": 123,
+    "pooled_marks": 124,
+    "slashed_pool": 125,
+    "midnight_mixed_forms": 126,
+    "partial_midnight": 127,
+    "midnight_two_offsets": 128,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1063,6 +1076,37 @@ def _marks_from_the_first_rank(column, parsed):
     return marks[:parsed]
 
 
+def _named_counts_only(column):
+    """Landing 2b.3's pool withdrawn: the withheld pool back on the commonest mark."""
+    return {
+        name: count
+        for name, count in column.get("datetime_separators", {}).items()
+        if name != "(withheld)"
+    }
+
+
+def _three_marks_everywhere(column):
+    """Landing 2b.3's permitted marks withdrawn: a slashed stamp offered all three."""
+    return gen.MARKS_BY_COMMONNESS
+
+
+def _every_rank_a_moment(column, parsed):
+    """Owner decision 4's narrowing withdrawn: every rank written with a clock."""
+    return [False] * parsed
+
+
+def _no_move_onto_midnight(column, ordinals, shifts):
+    """Landing 2b.3's move onto a midnight withdrawn: the interpolated instants kept."""
+    return list(ordinals)
+
+
+def _days_on_either_clock(column):
+    """Landing 2b.3's shared-clock rule withdrawn: counted in days on either clock."""
+    if column.get("all_at_midnight", False):
+        return "date"
+    return column["resolution"]
+
+
 def _ties_toward_zero(value):
     """G5.4's integer rule with the tie direction taken out."""
     whole = int(value)
@@ -1404,6 +1448,46 @@ CASE_MUTANTS = {
         "upward, and the marks cluster by date",
         attribute="_separator_allocation",
         replacement=_marks_from_the_first_rank,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "pooled_marks": Mutant(
+        branch="landing 2b.3's withheld pool, which is written with the marks "
+        "the census leaves unnamed; the mutant puts it back on the commonest "
+        "named mark, and the space and the t the pool stood for are erased",
+        attribute="mark_weights",
+        replacement=_named_counts_only,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "slashed_pool": Mutant(
+        branch="landing 2b.3's permitted marks, a space alone on a slashed "
+        "stamp; the mutant offers the pool all three, and the cells take marks "
+        "no such table writes",
+        attribute="permitted_marks",
+        replacement=_three_marks_everywhere,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "midnight_mixed_forms": Mutant(
+        branch="the narrowing of owner decision 4, which writes the bare-date "
+        "ranks of a joint column counted in days as bare dates; the mutant "
+        "writes every rank as a moment",
+        attribute="form_allocation",
+        replacement=_every_rank_a_moment,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "partial_midnight": Mutant(
+        branch="landing 2b.3's move onto midnight; the mutant keeps the "
+        "interpolated instants, and the values at midnight owed are not written",
+        attribute="snapped_to_midnight",
+        replacement=_no_move_onto_midnight,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "midnight_two_offsets": Mutant(
+        branch="landing 2b.3's reading of a column wholly at local midnight "
+        "on the shared clock, counted in seconds and moved onto a midnight of "
+        "each rank's own offset; the mutant counts it in days, and a rung "
+        "published at 23:00 lands on the day before",
+        attribute="ordinal_space",
+        replacement=_days_on_either_clock,
         outcome=CHANGES_THE_CELLS,
     ),
     "leap_second_endpoint": Mutant(

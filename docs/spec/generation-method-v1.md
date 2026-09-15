@@ -3344,8 +3344,11 @@ fixed by the published `resolution`, and on a `datetime` column by
 | `quarter` | `YYYY-Qn` | one quarter | `4 * (year - 1970) + (n - 1)` |
 | `month` | `YYYY-MM` | one month | `12 * (year - 1970) + (MM - 1)` |
 
-**A `datetime` column whose `all_at_midnight` is `true` takes the
-`date` row** (stage 2, 2026-09-14, plan P4-D39). Its unit is one day,
+**A `datetime` column on the `local` clock whose `all_at_midnight` is
+`true` takes the `date` row** (stage 2, 2026-09-14, plan P4-D39; on its
+own clock only since landing 2b.3, 2026-09-15 — a column wholly at
+local midnight values on the `utc` clock publishes instants that are not
+values at midnight of that clock, and keeps the `datetime` row, G7.5). Its unit is one day,
 and its ladder, its two ends and every interior rank are day
 ordinals, exactly as for a column of dates; its cells still write a
 clock, at midnight (G7.5). The ruling that stood here — one second on
@@ -3391,7 +3394,8 @@ they are explicitly OUTSIDE the parsed-value representation obligation
 The `P` parsed cells are generated from the published
 `date_percentiles` ladder, `earliest`, `latest`, `earliest_utc_offset`,
 `latest_utc_offset`, `utc_offsets`, `datetimes_read_at`,
-`datetime_separators` and `all_at_midnight`.
+`datetime_separators`, `all_at_midnight`, `n_at_midnight` and, on an
+`iso-mixed` column, `resolution_mix` (landing 2b.3).
 
 ### G7.3 Values: the same stratified inverse transform, in integers
 
@@ -3460,11 +3464,20 @@ floor, with a `(withheld)` key pooling everything below it and a
 
 Allocation, over the `P` parsed cells in ascending rank:
 
+0. A rank G7.5 writes as a bare date is settled first, with no
+   offset: it consumes one from `(none)`, or from `(withheld)` where
+   `(none)` has no count left (landing 2b.3).
 1. Rank `0` takes `earliest_utc_offset` and rank `P - 1` takes
-   `latest_utc_offset`, when each names a real offset — that is, when it
-   is neither `(none)` nor `(withheld)`. Those two consume one from that
-   offset's count. `earliest_utc_offset` and `latest_utc_offset` are
-   EXACT-OBSERVABLE and this is what makes them so.
+   `latest_utc_offset`, where that key has a count left and the rank is
+   not already settled; a key of `(none)` or `(withheld)` is taken too,
+   and writes no offset (corrected at landing 2b.3 to the rule the
+   generator has always applied, which no frozen case reached). Those
+   two consume one from that key's count. `earliest_utc_offset` and
+   `latest_utc_offset` are EXACT-OBSERVABLE and this is what makes them
+   so. On a column G7.5 moves onto a midnight that stands wholly at
+   midnight on the `utc` clock, each rung rank of G7.5 then takes the
+   offset its rung stands at midnight under, where that key has a count
+   left.
 2. The remaining counts are spent over the remaining ranks in ascending
    rank order, taking the offset keys in the profile's own sorted key
    order, `(none)` and `(withheld)` last.
@@ -3635,25 +3648,79 @@ rather than passing it off as an outcome the description asked for.
   description:
 
   1. Take the names of `datetime_separators` other than `(withheld)`,
-     sorted: `lower_t`, `space`, `upper_t`. Where none is named, every
-     cell is written with `T` and the steps below do not run.
-  2. `P` minus the named counts — the `(withheld)` pool, and on an
-     `iso-mixed` column the whole-date cells — is added to the
-     commonest named count, the first name in sorted order winning a
-     tie.
-  3. Every name starts with a credit of zero. For ranks `0 .. P - 1` in
-     order, every name's credit grows by its count, the rank takes the
-     name with the most credit, the first in sorted order winning a tie, and
-     that name's credit falls by `P`. `upper_t` writes `T`, `space` a
-     space, `lower_t` a `t`.
+     sorted: `lower_t`, `space`, `upper_t`, each weighted by its count.
+     Where none is named and nothing is pooled, every cell is written
+     with `T` and the steps below do not run.
+  2. A `(withheld)` pool is split EVENLY over the PERMITTED marks the
+     census leaves unnamed (landing 2b.3) — the three names, or `space`
+     alone on a `month-first-datetime`, `day-first-datetime` or
+     `slashed-iso-datetime` column — each taking the pool divided by
+     their number, and the remainder one each in the order `upper_t`,
+     `space`, `lower_t`; a mark given nothing is left out. Every value
+     of a named mark is counted under its name, so the pooled values
+     wore an unnamed one; writing them with the commonest mark, the rule
+     this replaces, erased that spelling. Each share is below the floor
+     by contract D12. Where no permitted mark is unnamed, the pool is
+     not split.
+  3. The ranks this allocation covers are the ones that write a clock:
+     on an `iso-mixed` column whose `all_at_midnight` is `true`, the
+     ranks the form census gives `iso-date` write none and take no mark.
+     Those ranks less the weights so far — the whole-date cells of any
+     other `iso-mixed` column — are added to the commonest named count,
+     the first name in sorted order winning a tie, or where nothing is
+     named to `upper_t`, or to `space` on a slashed stamp.
+  4. Every mark starts with a credit of zero. For the covered ranks in
+     order, every mark's credit grows by its weight, the rank takes the
+     mark with the most credit, the first in sorted order winning a tie,
+     and that mark's credit falls by the weights' total. `upper_t`
+     writes `T`, `space` a space, `lower_t` a `t`.
 
   The walk draws no word, and it spreads each mark across the date
   range, so the twin invents no link between a moment's date and its
   spelling. The published instants stay in the contract's canonical
   form, space-separated, whatever mark the cells carry.
 
-  Where the census holds a `(withheld)` pool, the report names it as a
-  deviation, with the mark it was written in.
+  A `(withheld)` pool is not a deviation: described again at the same
+  floor the twin pools the same count (landing 2b.3).
+
+- **A column read jointly whose every value stands at midnight writes
+  its whole dates as whole dates** (landing 2b.3, narrowing owner
+  decision 4 and residual R-P4-12). Such a column is generated in whole
+  days, so a bare date spells every rank exactly. Its `resolution_mix`
+  is spent over the ranks by the smooth rotation of step 4 over the two
+  forms, `iso-date` before `iso-datetime` on a tie, after rank `0` and
+  rank `P - 1` are made moments wherever their published offset is a
+  real one; a rank given `iso-date` is written `YYYY-MM-DD`, with no
+  mark, clock or offset. No other column writes a bare date.
+
+- **A column counted in seconds that publishes `n_at_midnight` above
+  nought has that many values moved onto a midnight** (landing 2b.3):
+  one partly at midnight on either clock, or one wholly at local
+  values at midnight on the `utc` clock. After G7.3's instants exist:
+
+  1. The ranks the published tail pins never move: rank `0`, rank
+     `P - 1`, and each interior rung's rank `floor((P - 1) * c / 100)`,
+     which takes its published rung (the first rung wins a shared rank).
+     Every other rank interpolated past a pinned value below or above it
+     is brought back to that value.
+  2. A pinned rank, or one standing between two pinned ranks of one
+     value, whose cell is written at midnight counts toward
+     `n_at_midnight`; midnight is asked of the WRITTEN cell, on the
+     rank's own wall clock and cut to the column's precision.
+  3. What is still owed is spread over the other ranks: each adds the
+     count owed to a credit, and a rank is chosen where the credit
+     reaches the number of those ranks, which is then taken back.
+  4. A chosen rank moves to the local midnight nearest its instant, the
+     earlier on a tie, brought inside the pinned values either side; a
+     rank with no local midnight inside them is left. An unchosen rank
+     written at midnight moves one precision step later, or earlier where
+     later would pass its upper bound.
+  5. A second pass over the unchosen ranks, in rank order, moves as many
+     more as are still owed, by step 4.
+
+  The set of step 1 is stated once in the implementation, so a change to
+  what the tail publishes changes that set and not the construction. A
+  count the two passes cannot reach is a deviation of `n_at_midnight`.
 
   The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
   any other rank.
@@ -3664,9 +3731,13 @@ rather than passing it off as an outcome the description asked for.
   absent cells — the keys of any column's `missing_by_source`, since a
   declaration reaches the whole table — another mark is offered, in
   order: each mark the census names, in sorted order, then the other
-  common form, a space for `T` or `t` and `T` for a space. The first
-  whose spelling is not absent is written (the stage 2 audit,
-  2026-09-14). Any two of them spell the same instant at the same
+  common form, a space for `T` or `t` and `T` for a space; since
+  landing 2b.3 the marks offered first are every mark step 2 writes,
+  the pooled ones included. The first whose spelling is not absent is
+  written (the stage 2 audit, 2026-09-14). A spelling a column's own
+  calendar placeholder or stand-in pass judged absent is not a
+  declaration and is not offered to other columns, unless the judging
+  column also counts cells absent by declaration (landing 2b.3). Any two of them spell the same instant at the same
   precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,
@@ -5972,7 +6043,8 @@ P4-D4.3); a count of the census of written forms
 (`shape_forms`, contract 7.9) a twin's finished cells did not reach,
 which the same landing's own guard found missing from this list on its
 first run; the pooled marks of a datetime separator census, written in
-the commonest named mark (`datetime_separators`, G7.5, plan P4-D39); a
+the marks the census leaves unnamed (G7.5, plan P4-D39, since landing
+2b.3 not a deviation, because the twin pools the same count); a
 shortfall in that census after the absent-spelling exception that no
 rank could give back (`datetime_separators`, G7.5); the values of a
 column of moments left in a spelling the table declares absent because
@@ -5989,7 +6061,10 @@ or more, so that describing the twin again reads it as a column of two
 values or one (`n_distinct_folded`; the stage 2 confirmation review); a
 cell of an `all_at_midnight` column written off midnight, which the
 rule says never happens and a run that finds one has found a defect in
-itself (`all_at_midnight`, G7.5); and **a value left inside a stretch the description says
+itself (`all_at_midnight`, G7.5); a column partly at midnight whose
+twin reaches another count of values at midnight, where the pinned
+ranks leave too little room (`n_at_midnight`, G7.5, landing 2b.3); and
+**a value left inside a stretch the description says
 holds nothing** — named `empty_bins` where the stratum stands in a bin
 the description names, `empty_edges` where it stands only inside a
 published pair, carrying that stretch's two PUBLISHED edges and the
@@ -6038,6 +6113,7 @@ gap keys `empty_bins` and `empty_edges`.
 * `group_separator`
 * `integer_valued`
 * `latest`
+* `n_at_midnight`
 * `max_length`
 * `min_length`
 * `n_all_digits`
@@ -6440,10 +6516,11 @@ the downward rounding of the whole-number interpolation itself, plus
 `time_precision == "minute"`, because such a cell carries no seconds.
 A date, a month, a quarter, a second and a subsecond cell each carry
 their own unit exactly and lose nothing further. On an `all_at_midnight`
-column `Ladder_d` and `O` are day ordinals, `u` is one day and no
-59-second term applies, whatever `time_precision` is (G7.1, stage 2,
-2026-09-14); the validator reads such a column in day units of 86400
-seconds.
+column on the `local` clock `Ladder_d` and `O` are day ordinals, `u` is
+one day and no 59-second term applies, whatever `time_precision` is
+(G7.1, stage 2, 2026-09-14); the validator reads such a column in day
+units of 86400 seconds. One on the `utc` clock is read in seconds, with
+no 59-second term (landing 2b.3).
 
 The achieved rung at percent `c` is the profiler's own selection rule
 (`taxonomy._ordinal_rung`): the ordinal at sorted position
@@ -6472,12 +6549,27 @@ precision, spelled with one of the offsets `utc_offsets` names by name
 (G7.4), and with one of the marks G7.5 allocates. With `W` the number
 of instants that range holds at that precision — days on an
 `all_at_midnight` column — `M` the number of named offsets, or 1 where
-none is named, `S` the number of named separator marks, or 1 where
-none is named, and `n_present` cells in the column at all:
+none is named, `S` the number of marks G7.5 writes — the named ones
+and, where a pool is split, the unnamed permitted marks given a share of
+it — or 1 where none is, `B` one on an `iso-mixed` column whose
+`all_at_midnight` is `true` on the `local` clock and that holds a whole
+date, where a day can also be written bare, and nought otherwise, and
+`n_present` cells in the column at all:
 
 ```
-n_distinct(twin)   <=   min(n_present, W * M * S + n_unparsed)
+n_distinct(twin)   <=   min(n_present, W * (M * S + B) + n_unparsed)
 ```
+
+(`S` counting the pooled marks and `B` were added at landing 2b.3.)
+**On a column G7.5 moves onto a midnight**, some ranks leave their
+windows: at most `n_at_midnight` moved onto a midnight, at most one
+pinned at each of the nine interior rungs, and at most one brought back
+to each pin. Every other rank keeps its window, widened by one step of
+the precision for a rank moved off a midnight it was not owed, so the
+lower end is `F` over those widened windows less `n_at_midnight + 18`,
+and never less than `F` over the windows that give every pinned rank
+its own value and every other rank the span between the pinned values
+either side (landing 2b.3).
 
 Folding can only put two of those spellings onto one — `T` and `t`
 fold together — so both ends bound `n_distinct_folded` as well. The
@@ -7003,7 +7095,12 @@ case passed, which is the failure the count exists to prevent:
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 | `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
-| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written with that commonest mark |
+| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
+| `pooled_marks` | G7.5 step 2: twenty-four `local` moments to the minute, published with `datetime_separators: {"upper_t": 14, "(withheld)": 10}`, whose pool is split five and five over `space` and `lower_t`, the two marks the census leaves unnamed |
+| `slashed_pool` | G7.5 step 2's permitted marks and the `slashed-iso-datetime` member: ten year-first slashed stamps whose every mark is pooled, every one written with a space |
+| `midnight_mixed_forms` | G7.5's whole dates: twenty-four days at midnight read jointly, published with `resolution_mix: {"iso-date": 13, "iso-datetime": 11}` and `datetime_separators: {"space": 11}`, whose forms are spread by the rotation and whose marks fall on the clock-writing ranks alone |
+| `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
+| `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -7318,6 +7415,18 @@ seconds, the rule withdrawn, and the interior ranks then land part-way
 through a day. `mixed_marks` pins the rotation, the tie and the pool:
 its mutant spends the names from the first rank upward, and the marks
 then cluster by date.
+
+**Why the twenty-fourth to the twenty-eighth exist** (landing 2b.3,
+2026-09-15). G7.1, G7.4 and G7.5 changed on that date. `pooled_marks`
+pins the pool's split: its mutant puts the pool back on the commonest
+named mark. `slashed_pool` pins the permitted marks and the new format
+member: its mutant offers a slashed stamp all three marks.
+`midnight_mixed_forms` pins the narrowing of owner decision 4: its
+mutant writes every rank as a moment. `partial_midnight` pins the move
+onto midnight: its mutant keeps the interpolated instants.
+`midnight_two_offsets` pins the reading on the shared clock: its mutant
+counts the column in days, which reads a rung at 23:00 as the day
+before.
 
 ### G14.4 What the vectors do NOT freeze
 

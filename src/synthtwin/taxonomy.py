@@ -6795,6 +6795,8 @@ def _datetime_details(
         resolution = RESOLUTION_DATETIME
     if format_name == "day-first-datetime":
         resolution = RESOLUTION_DATETIME
+    if format_name == "slashed-iso-datetime":
+        resolution = RESOLUTION_DATETIME
     if format_name == "year-quarter":
         resolution = RESOLUTION_QUARTER
     if format_name == "iso-month":
@@ -6828,7 +6830,10 @@ def _datetime_details(
         "utc_offsets": offsets,
         "datetime_separators": _separator_counts(sources, format_name, settings),
         "all_at_midnight": _all_at_midnight(
-            format_name, resolution, reading, sources, settings
+            format_name, resolution, reading, sources, offsets, settings
+        ),
+        "n_at_midnight": _midnight_count(
+            format_name, resolution, reading, sources, offsets, settings
         ),
     }
 
@@ -6875,33 +6880,76 @@ def _all_at_midnight(
     resolution: str,
     reading: str,
     sources: "list[str]",
+    offsets: "dict[str, int]",
     settings: Settings,
 ) -> bool:
     """Whether every parsed cell of a column of moments stands at midnight.
 
     The warehouse spelling of a date with no time is the date plus
     `00:00:00`, and without this fact the twin invents a time of day
-    for every row (plan P4-D39). Asked of the column's LOCAL cell text:
-    a column published on the shared clock is refused outright, because
-    a midnight written with an offset is not a midnight of the instant
-    the ladder publishes. And only where the parsed cells reach the
-    smallest group size, so the statement is about a group and never a
-    handful of rows.
+    for every row (plan P4-D39). Exactly where `_midnight_count` counts
+    every parsed cell, so the statement and the count cannot disagree:
+    asked of the LOCAL cell text, on either clock, and only where the
+    parsed cells reach the smallest group size.
 
     Guarantees: accepts the column's format member, resolution, clock,
-    parsed cells and settings; returns a bool. Determinism: a function
-    of the five. Raises nothing. No I/O of any kind.
+    parsed cells, published offset map and settings; returns a bool.
+    Determinism: a function of the six. Raises nothing. No I/O of any kind.
     """
-    if resolution != RESOLUTION_DATETIME:
-        return False
-    if reading != READ_AT_LOCAL:
-        return False
-    if len(sources) == 0 or len(sources) < settings.small_cell_floor:
-        return False
+    counted = _midnight_count(
+        format_name, resolution, reading, sources, offsets, settings
+    )
+    return counted > 0 and counted == len(sources)
+
+
+def _midnight_count(
+    format_name: str,
+    resolution: str,
+    reading: str,
+    sources: "list[str]",
+    offsets: "dict[str, int]",
+    settings: Settings,
+) -> int:
+    """How many parsed cells of a column of moments stand at midnight.
+
+    A column only PARTLY at midnight -- a date stored as the date plus
+    `00:00:00` beside rows that kept a time of day, or 999 values at midnight and
+    one stray `14:30` -- published nothing about it, so its twin invented
+    a time for nearly every row: 361 real values at midnight of 400 came back as
+    2 (landing 2b.3). A count is published instead, floored on BOTH
+    sides: at least the smallest group size stood at midnight and at
+    least that many did not, or every parsed cell did and the parsed
+    cells reach it; anything else is `0`, which names nothing.
+
+    Asked of each cell's LOCAL text, as `parsing.clock_at_midnight`
+    answers it: a whole date of an `iso-mixed` column counts, and a
+    fraction of zeros does. ON THE SHARED CLOCK TOO (landing 2b.3): a
+    CET export writes `T00:00:00+01:00` in winter and `+02:00` in
+    summer, every cell a local midnight, and the column is published on
+    the shared clock only because it wore two offsets. Every published
+    instant is then a local midnight under an offset the map names, which
+    is what lets a twin write it back. Where the map pools an offset
+    under `(withheld)` that is not so -- a pooled offset is written with
+    none -- and the count is `0`.
+
+    Guarantees: accepts the column's format member, resolution, clock,
+    parsed cells, published offset map and settings; returns a count.
+    Determinism: a function of the six. Raises nothing. No I/O of any kind.
+    """
+    if resolution != RESOLUTION_DATETIME or len(sources) == 0:
+        return 0
+    if reading != READ_AT_LOCAL and parsing.MISSING_WITHHELD in offsets:
+        return 0
+    counted = 0
     for value in sources:
-        if not parsing.clock_at_midnight(value, format_name):
-            return False
-    return True
+        if parsing.clock_at_midnight(value, format_name):
+            counted = counted + 1
+    floor = settings.small_cell_floor
+    if counted == len(sources):
+        return counted if counted >= floor else 0
+    if counted >= floor and len(sources) - counted >= floor:
+        return counted
+    return 0
 
 
 # The joint ISO reading's own name, used where a rule has to tell it

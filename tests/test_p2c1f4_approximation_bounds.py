@@ -464,6 +464,8 @@ STAGE_2_SPELLING_KEYS = (
     "group_separator",
     "datetime_separators",
     "all_at_midnight",
+    # ...and the count of values at midnight (landing 2b.3).
+    "n_at_midnight",
 )
 
 ROLE_SECTIONS = {

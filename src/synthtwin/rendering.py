@@ -1331,24 +1331,41 @@ def _mark_lines(facts: contract.DatetimeFacts) -> "list[str]":
     """
     if facts.resolution != "datetime":
         return []
-    if not _named_census(facts):
-        return [
+    lines: "list[str]" = []
+    if not _named_census(facts) and facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        lines = [
+            "  Between the day and the time of day it writes a space, the one",
+            "  mark that way of writing a date and time uses.",
+        ]
+    elif not _named_census(facts):
+        # A POOLED MARK IS WRITTEN WITH THE MARKS THE CENSUS DOES NOT NAME
+        # (landing 2b.3), so the sentence says that and no more: which
+        # of them the table wrote, the description does not say.
+        lines = [
             "  Every mark your table wrote between the day and the time of",
-            "  day was held by too few values to name, so the twin writes a",
-            "  T there, which may not be the mark your table used.",
+            "  day was held by too few values to name, so the twin spreads",
+            "  those values over the marks a date and time can wear, each on",
+            "  fewer values than the smallest group, which need not be the",
+            "  marks your table used.",
         ]
-    pooled = contract.WITHHELD in facts.datetime_separators
-    if facts.parser_family == "iso-mixed" or pooled:
-        return [
+    elif contract.WITHHELD in facts.datetime_separators:
+        lines = [
             "  Between the day and the time of day it writes the marks the",
-            "  description names; a value whose mark was not named, or that",
-            "  your table wrote as a bare date, takes the mark most of the",
-            "  column wore.",
+            "  description names, each as often as it records them, and gives",
+            "  the values whose mark was too rare to name the marks it does",
+            "  not name, none of them on as many values as the smallest group.",
         ]
-    return [
-        "  Between the day and the time of day it writes the marks your",
-        "  table wrote, each as often as the description records it.",
-    ]
+    else:
+        lines = [
+            "  Between the day and the time of day it writes the marks your",
+            "  table wrote, each as often as the description records it.",
+        ]
+    if facts.parser_family == "iso-mixed" and not facts.all_at_midnight:
+        lines += [
+            "  A value your table wrote as a bare date is written with a time",
+            "  of day, and takes the mark most of the column wore.",
+        ]
+    return lines
 
 
 def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":

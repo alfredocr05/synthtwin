@@ -1077,6 +1077,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # A statement about every parsed cell at once, and a real yes or no
     # (plan P4-D39): a count standing in for it is refused.
     ("columns", _EACH, "all_at_midnight"): _FLAG,
+    # ...and how many parsed cells stood at midnight, a group on both
+    # sides of the floor or nothing at all (landing 2b.3).
+    ("columns", _EACH, "n_at_midnight"): _ZERO_OR_AT_THE_FLOOR,
     ("columns", _EACH, "earliest"): _MOMENT_TEXT,
     ("columns", _EACH, "latest"): _MOMENT_TEXT,
     ("columns", _EACH, "earliest_utc_offset"): _OFFSET,

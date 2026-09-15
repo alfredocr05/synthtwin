@@ -655,6 +655,9 @@ _LISTING_WORDS = {
     "datetime.all_at_midnight": (
         "whether every moment your column recorded stood at midnight"
     ),
+    "datetime.n_at_midnight": (
+        "how many moments your column recorded stood at midnight"
+    ),
     "numeric.n_distinct_values": (
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"

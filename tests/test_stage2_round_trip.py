@@ -36,6 +36,10 @@ FACTS = (
     "group_separator",
     "datetime_separators",
     "all_at_midnight",
+    # ...and the two landing 2b.3 made the twin keep: the count of values
+    # at midnight and the census of written forms.
+    "n_at_midnight",
+    "resolution_mix",
     "format",
     "resolution",
     "time_precision",
@@ -256,33 +260,66 @@ def test_every_stage_2_fact_comes_back_from_the_twin(
                 assert cell[11:16] == "00:00", (shape, cell)
 
 
-def test_a_mark_held_by_too_few_values_is_written_with_the_commonest(
+def test_a_mark_held_by_too_few_values_comes_back_held_back(
     tmp_path: pathlib.Path,
 ) -> None:
-    """By design the pooled marks do not come back: the report says so."""
+    """The pooled marks are written with the mark the census leaves unnamed.
+
+    Until landing 2b.3 this test pinned the loss: the six `t` were written
+    with the commonest mark and the twin came back as 206 spaces. Every
+    value of a named mark is counted under its name, so the six wore the
+    one mark the census does not name, and that is what the twin writes.
+    """
     cells = _moments(200, " ", 31) + _moments(34, "T", 32) + _moments(6, "t", 33)
-    first, second, written, twin_exit, _real = _round_trip(
-        tmp_path / "pooled", cells, ("--smallest-group", "30"), False
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "pooled", cells, ("--smallest-group", "30"), True
     )
     assert first["datetime_separators"] == {"(withheld)": 6, "space": 200, "upper_t": 34}
-    assert second["datetime_separators"] == {"space": 206, "upper_t": 34}
+    assert second["datetime_separators"] == first["datetime_separators"]
+    assert sum(1 for cell in written if cell[10] == "t") == 6
     report = (tmp_path / "pooled" / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert "datetime_separators" in report
-    assert twin_exit == 0
+    assert "'value' -- datetime_separators" not in report
+    assert (twin_exit, real_exit) == (0, 0)
 
 
-def test_a_column_of_dates_and_midnight_moments_is_written_as_moments(
+def test_a_column_of_dates_and_midnight_moments_keeps_both_forms(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Every value stays at midnight; the bare dates gain a midnight clock (carried)."""
+    """Owner decision 4 narrowed: the bare dates stay bare, the moments stay at midnight.
+
+    Until landing 2b.3 this test pinned the loss: every cell came back as a
+    moment. A column whose every value stands at midnight is generated in
+    whole days, so a bare date spells each of its ranks exactly.
+    """
     cells = _days(120, "", 41) + _days(120, " 00:00:00", 42)
-    first, second, written, twin_exit, _real = _round_trip(
-        tmp_path / "mixed", cells, (), False
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "mixed", cells, (), True
     )
     assert first["format"] == "iso-mixed" and first["all_at_midnight"] is True
-    assert second["format"] == "iso-datetime"
-    assert all(len(cell) == 19 and cell.endswith(" 00:00:00") for cell in written)
-    assert twin_exit == 0
+    assert second["format"] == "iso-mixed"
+    assert second["resolution_mix"] == first["resolution_mix"] == {"iso-date": 120, "iso-datetime": 120}
+    assert sum(1 for cell in written if len(cell) == 10) == 120
+    assert sum(1 for cell in written if len(cell) == 19 and cell.endswith(" 00:00:00")) == 120
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def _only_the_marks_missed(folder: pathlib.Path) -> "list[str]":
+    """The MISSED subchecks of a twin's quality report, by fact.
+
+    Since landing 2b.3 the census of marks is an obligation, so the
+    absent-spelling repair's shortfall -- a deviation the twin's own
+    report already names -- is also a miss of `datetime_separators`.
+    That is the consistent outcome, and these tests pin that it is the
+    ONLY one.
+    """
+    text = (folder / "check-twin" / "real-twin-quality.txt").read_text(encoding="utf-8")
+    return sorted(
+        {
+            line.split("[")[1].split("]")[0]
+            for line in text.splitlines()
+            if line.rstrip().endswith(": MISSED") and "[" in line
+        }
+    )
 
 
 def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
@@ -312,7 +349,8 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     assert moved > 0
     report = (tmp_path / "declared" / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "datetime_separators" in report
-    assert twin_exit == 0
+    assert twin_exit == 3
+    assert _only_the_marks_missed(tmp_path / "declared") == ["datetime.datetime_separators"]
 
 
 def test_a_repair_never_turns_a_column_of_dates_into_two_values(
@@ -334,7 +372,8 @@ def test_a_repair_never_turns_a_column_of_dates_into_two_values(
     )
     assert first["role"] == "datetime"
     assert second["role"] == "datetime", second["role"]
-    assert twin_exit == 0
+    assert twin_exit == 3
+    assert _only_the_marks_missed(tmp_path / "three") == ["datetime.datetime_separators"]
 
 
 def test_labels_beside_decimal_comma_numbers_stay_labels(tmp_path: pathlib.Path) -> None:
@@ -428,7 +467,8 @@ def test_a_case_only_respelling_never_turns_moments_into_two_values(
     assert second["role"] == "datetime", second["role"]
     assert isinstance(second["n_distinct_folded"], int)
     assert second["n_distinct_folded"] >= 3
-    assert twin_exit == 0
+    assert twin_exit == 3
+    assert _only_the_marks_missed(tmp_path / "case") == ["datetime.datetime_separators"]
     report = (tmp_path / "case" / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "datetime_separators" in report
 

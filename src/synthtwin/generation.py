@@ -3655,11 +3655,19 @@ def _ordinal_space(facts: contract.DatetimeFacts) -> str:
     nearly every row; counted in days, every rank is a whole day and the
     cell is written back with a midnight clock (`_space_cell`).
 
+    ON ITS OWN CLOCK ONLY (landing 2b.3). A column on the shared clock
+    whose every value stands at a LOCAL midnight -- a CET export writing
+    `T00:00:00+01:00` in winter and `+02:00` in summer -- publishes
+    instants that do not stand at midnight on the shared clock, so its day is
+    not the day its published text names. It is counted in seconds like
+    every other column on that clock, and `_snapped_to_midnight` puts
+    each rank on a midnight of its own offset.
+
     Guarantees: accepts loaded datetime facts; returns a member of the
     resolution vocabulary. Determinism: a function of the facts. Raises
     nothing. No I/O of any kind.
     """
-    if facts.all_at_midnight:
+    if facts.all_at_midnight and facts.datetimes_read_at == "local":
         return "date"
     return facts.resolution
 
@@ -3677,7 +3685,7 @@ def _space_cell(
     and a mark; returns the cell text. Whole-number arithmetic only. No
     I/O of any kind.
     """
-    if facts.all_at_midnight:
+    if _ordinal_space(facts) == "date" and facts.resolution == "datetime":
         return _cell_of_ordinal(
             ordinal * 86400,
             "datetime",
@@ -7816,7 +7824,7 @@ def _is_the_same_candidate(
 def _every_hole_spelling(
     profile: contract.Profile,
 ) -> "tuple[str, ...]":
-    """Every spelling ANY column of this document calls absent.
+    """Every spelling ANY column of this document calls absent BY DECLARATION.
 
     A `--missing-value` declaration is made once and reaches the whole
     table, so a spelling one column publishes among its absent cells
@@ -7825,16 +7833,62 @@ def _every_hole_spelling(
     column's holes did not, and wrote one column's hole into another
     column as a present value (review round 5 finding 3).
 
+    A JUDGEMENT IS NOT A DECLARATION, AND IT DOES NOT REACH THE TABLE
+    (landing 2b.3). The calendar placeholder pass and the stand-in number
+    pass judge each column on its own: a discharge column whose
+    `1900-01-01 00:00:00` cells stood far from its other dates read them
+    as absent, while a birth column holding 187 cells of the same
+    spelling kept every one of them as a date. Handed to every column,
+    that spelling made the birth column's twin write its 75 values on
+    that day with a `T` rather than the space the column wrote, and the
+    census came back short with a deviation. So a spelling a judged pass
+    alone put there (`_judged_here_alone`) stays the business of the
+    column that judged it, which still steps around it through its own
+    `_hole_spellings`.
+
     Used where a spelling is CHOSEN, never where one is recounted: a
     recount asks what THIS column's description says, which is the
     narrower question `_wears_a_published_hole` answers.
     """
     found: "list[str]" = []
     for column in profile.columns:
+        comma = _declared_a_decimal_comma(column, profile)
         for spelling in _hole_spellings(column):
+            if _judged_here_alone(column, spelling, comma, profile):
+                continue
             if spelling not in found:
                 found += [spelling]
     return tuple(sorted(found))
+
+
+def _judged_here_alone(
+    column: contract.ColumnBlock,
+    spelling: str,
+    decimal_comma: bool,
+    profile: contract.Profile,
+) -> bool:
+    """Whether a published hole spelling is ONE column's judgement only.
+
+    A judged pass put it there (`_a_judged_pass_put_it_there`), AND no
+    declaration can have: the table declared no missing value at all, or
+    this column counts no cell absent by declaration. The second half is
+    what keeps a person's own `--missing-value 1900-01-01T00:00:00` from
+    losing its table-wide reach when the same column also holds a judged
+    `1900-01-01 00:00:00`: the judged test matches by the written DAY,
+    so it answers yes for both keys, and the description has no per-key
+    record of which was typed. Where a column holds both kinds, every
+    key that shares a judged day keeps its reach, which is the old and
+    conservative answer for exactly that column.
+
+    Guarantees: accepts one column, a spelling it publishes, whether it
+    was declared a decimal-comma column, and the description; returns a
+    bool. Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    if not _a_judged_pass_put_it_there(column, spelling, decimal_comma):
+        return False
+    if profile.settings.declared_missing_values.n_declared <= 0:
+        return True
+    return column.missing_by_class.declared_missing <= 0
 
 
 def _hole_spellings(
@@ -11490,25 +11544,18 @@ def _datetime_content(
     ]
     first = _ordinal_of(facts.earliest, space)
     last = _ordinal_of(facts.latest, space)
-    offsets, notes = _offset_allocation(column, facts, parsed)
-    marks, marked = _separator_allocation(column, facts, parsed)
-    notes = notes + marked
-    # The spellings ANY column publishes among its absent cells, so that
-    # no cell this run writes wears one (review item P4-DATE-F2). Its own
-    # column's alone was enough while every stamp wore a `T`; once a cell
-    # wears the source's space, a spelling another column declares
-    # absent can be one this column writes (stage 2 review item 1).
-    holes = _all_holes_of(plan)
-    cells: list[str] = []
+    whole = _form_allocation(facts, parsed)
+    # EVERY RANK'S INSTANT FIRST, then the offsets, the marks and the
+    # move to midnight, then the cells (landing 2b.3). The words are
+    # spent in exactly the order they always were, so a column this
+    # landing does not touch writes the same bytes.
+    ordinals: list[int] = []
     taken = 0
     for rank in range(parsed):
-        end = ""
         if rank == 0:
             ordinal = first
-            end = facts.earliest
         elif rank == parsed - 1 and parsed >= 2:
             ordinal = last
-            end = facts.latest
         else:
             word = words[taken]
             taken = taken + 1
@@ -11520,14 +11567,50 @@ def _datetime_content(
             ordinal = ladder[step] + (
                 above * (ladder[step + 1] - ladder[step])
             ) // span
+        ordinals += [ordinal]
+    snapping = _snaps_to_midnight(facts)
+    pins: "dict[int, str]" = {}
+    if snapping:
+        pinned = _rung_pins(facts, parsed)
+        for rank in sorted(pinned):
+            ordinals[rank] = pinned[rank][0]
+            if facts.all_at_midnight and pinned[rank][1]:
+                pins[rank] = pinned[rank][1]
+    offsets, notes = _offset_allocation(column, facts, parsed, whole, pins)
+    marks, marked = _clock_marks(column, facts, whole)
+    notes = notes + marked
+    if snapping:
+        ordinals = _snapped_to_midnight(facts, ordinals, offsets)
+    # The spellings ANY column publishes among its absent cells, so that
+    # no cell this run writes wears one (review item P4-DATE-F2). Its own
+    # column's alone was enough while every stamp wore a `T`; once a cell
+    # wears the source's space, a spelling another column declares
+    # absent can be one this column writes (stage 2 review item 1).
+    holes = _all_holes_of(plan)
+    cells: list[str] = []
+    for rank in range(parsed):
+        end = ""
+        if rank == 0:
+            end = facts.earliest
+        elif rank == parsed - 1 and parsed >= 2:
+            end = facts.latest
+        ordinal = ordinals[rank]
         offset = offsets[rank]
         if end:
-            text = _endpoint_cell(facts, end, offset, marks[rank])
-            if _is_real_offset(offset) and offset:
-                text = f"{text}{offset}"
-            cells += [_kept_datetime_cell(text, holes, _named_marks(facts))]
+            if whole[rank]:
+                # A BARE-DATE END is its published day and nothing more:
+                # it carries no offset, so its day is the same on either
+                # clock (landing 2b.3).
+                text = end[0:10]
+            else:
+                text = _endpoint_cell(facts, end, offset, marks[rank])
+                if _is_real_offset(offset) and offset:
+                    text = f"{text}{offset}"
+            cells += [_kept_datetime_cell(text, holes, _offered_marks(facts))]
             continue
-        kept = _interior_cell(facts, ordinal, offset, marks[rank], holes)
+        kept = _interior_cell(
+            facts, ordinal, offset, marks[rank], holes, whole[rank]
+        )
         if space != "datetime" and _is_a_hole_spelling(kept, holes):
             window = (
                 max(first, _ordinal_at(ladder, rank, parsed) - 1),
@@ -11539,7 +11622,9 @@ def _datetime_content(
                     for other in (ordinal - away, ordinal + away):
                         if other < low or other > high:
                             continue
-                        tried = _interior_cell(facts, other, offset, marks[rank], holes)
+                        tried = _interior_cell(
+                            facts, other, offset, marks[rank], holes, whole[rank]
+                        )
                         if not _is_a_hole_spelling(tried, holes):
                             found = tried
                             break
@@ -11561,6 +11646,7 @@ def _datetime_content(
             column, facts, "latest", facts.latest, cells[parsed - 1], holes
         )
     notes = notes + _midnight_notes(column, facts, cells)
+    notes = notes + _midnight_count_notes(column, facts, cells)
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
@@ -11586,6 +11672,7 @@ def _interior_cell(
     offset: str,
     mark: str,
     holes: "tuple[str, ...]",
+    whole: bool = False,
 ) -> str:
     """One interior cell of a column of dates, from its ordinal (G7.5).
 
@@ -11593,21 +11680,35 @@ def _interior_cell(
     and allocated mark, and passes through the absent-spelling exception.
     Factored out so the step off a wholly absent unit can try a
     neighbouring unit by the same route (stage 2 confirmation review).
+    A rank `_form_allocation` gives a bare date is written as its day
+    alone, `YYYY-MM-DD`, with no mark, clock or offset (landing 2b.3).
 
-    Guarantees: accepts the facts, an ordinal, an offset, a mark and every
-    absent spelling; returns the cell text. No I/O of any kind.
+    Guarantees: accepts the facts, an ordinal, an offset, a mark, every
+    absent spelling and whether the rank is a bare date; returns the cell
+    text. No I/O of any kind.
     """
     local = ordinal
     if (
         facts.datetimes_read_at == "utc"
         and facts.resolution == "datetime"
-        and not facts.all_at_midnight
+        and _ordinal_space(facts) != "date"
     ):
         local = ordinal + _offset_seconds(offset)
+    if whole:
+        day = local
+        if _ordinal_space(facts) != "date":
+            # Counted in seconds on the shared clock: the rank already
+            # stands at a midnight of its own day (`_snapped_to_midnight`).
+            day = local // 86400
+        return _kept_datetime_cell(
+            _cell_of_ordinal(day, "date", "date", 0, mark),
+            holes,
+            _offered_marks(facts),
+        )
     text = _space_cell(local, facts, mark)
     if _is_real_offset(offset) and offset:
         text = f"{text}{offset}"
-    return _kept_datetime_cell(text, holes, _named_marks(facts))
+    return _kept_datetime_cell(text, holes, _offered_marks(facts))
 
 
 def _parser_family(resolution: str) -> str:
@@ -11630,7 +11731,13 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     comparable, character for character, with `earliest` and `latest`
     themselves. None says the cell did not read as a date at all.
     """
-    found = parsing.parse_datetime(text, _parser_family(facts.resolution))
+    family = _parser_family(facts.resolution)
+    if facts.parser_family == contract.FORMAT_ISO_MIXED:
+        # A column read jointly is read back jointly, so a bare date the
+        # twin writes reads as midnight of its day (landing 2b.3); a cell
+        # with a clock reads exactly as the `iso-datetime` reader reads it.
+        family = contract.FORMAT_ISO_MIXED
+    found = parsing.parse_datetime(text, family)
     if found is None:
         return None
     if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
@@ -11763,12 +11870,17 @@ def _separator_allocation(
     `lower_t` on the earliest dates. The rotation draws no random word,
     so no other cell of the twin moves.
 
-    Ranks the named counts do not cover -- the withheld pool, and on an
-    `iso-mixed` column the ranks standing for its whole dates, since the
-    twin writes a clock on every parsed cell -- are added to the
-    commonest named mark. A withheld pool is named in the report, as
-    the offsets' own pool is. A column that writes no clock gets `T` on
-    every rank, which no cell of it uses.
+    Ranks the named counts do not cover on an `iso-mixed` column -- the
+    ranks standing for its whole dates, where the twin writes them with a
+    clock -- are added to the commonest named mark. A column that writes
+    no clock gets `T` on every rank, which no cell of it uses.
+
+    A WITHHELD POOL IS WRITTEN WITH THE MARKS THE CENSUS LEAVES UNNAMED
+    (landing 2b.3; `_pooled_marks`). Every value of a named mark is
+    counted under that name, so the pooled values wore marks the census
+    does NOT name, and writing them with the commonest one erased that
+    spelling: 870 `T`, 22 space and 8 `t` came back as 878 `T` and 22
+    space, and code handling the `t` never met one on the twin.
 
     Guarantees: accepts the column, its loaded datetime facts and the
     number of parsed cells; returns one mark per rank and the deviations
@@ -11781,25 +11893,7 @@ def _separator_allocation(
         return marks, notes
     census = facts.datetime_separators
     if contract.WITHHELD in census:
-        reason = (
-            "The description does not say which mark those values wore, "
-            "so the twin writes them with the mark most of the column wore."
-        )
-        if not _named_marks(facts):
-            reason = (
-                "The description names no mark at all, because every mark "
-                "was held by too few values, so the twin writes a T."
-            )
-        notes += [
-            _deviation(
-                column.name,
-                "datetime_separators",
-                f"{census[contract.WITHHELD]} values whose mark between "
-                f"the day and the clock was held back",
-                f"written with '{_commonest_mark(facts)}'",
-                reason,
-            )
-        ]
+        return _pooled_marks(facts, parsed), notes
     names = [name for name in sorted(census) if name != contract.WITHHELD]
     if not names:
         return marks, notes
@@ -11827,6 +11921,140 @@ def _separator_allocation(
         credit[best] = credit[best] - total
         marks[rank] = parsing.SEPARATOR_MARKS[best]
     return marks, notes
+
+
+# The three marks from the one tables write most to the one they write
+# least. It orders the permitted marks a withheld pool is split over, so
+# a remainder never lands first on the rarest spelling (landing 2b.3).
+_MARKS_BY_COMMONNESS = (
+    parsing.SEPARATOR_UPPER_T,
+    parsing.SEPARATOR_SPACE,
+    parsing.SEPARATOR_LOWER_T,
+)
+
+
+def _permitted_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
+    """The marks this column's own reader accepts, commonest first.
+
+    The contract's D12 list: all three on an ISO reading, and a space
+    alone on a slashed stamp, whose reader splits day and clock on one
+    space and takes nothing else.
+
+    Guarantees: accepts loaded datetime facts; returns census names.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        return (parsing.SEPARATOR_SPACE,)
+    return _MARKS_BY_COMMONNESS
+
+
+def _mark_weights(facts: contract.DatetimeFacts) -> "dict[str, int]":
+    """How many values each mark is written on, the pool split (landing 2b.3).
+
+    Every named count as published. A withheld pool is split EVENLY over
+    the permitted marks the census leaves unnamed, a remainder going one
+    each to those marks in `_MARKS_BY_COMMONNESS` order; a mark given no
+    value is left out. Each share is at most the floor less one, because
+    the contract's D12 bounds the pool by exactly that times the number
+    of unnamed marks -- so the twin, described again at the same floor,
+    names no mark the real table did not and pools the same count. Where
+    the census leaves no permitted mark unnamed, which D12 refuses, the
+    pool is not split at all.
+
+    Guarantees: accepts loaded datetime facts; returns census names
+    mapped to positive counts. Determinism: a function of the facts.
+    Raises nothing. No I/O of any kind.
+    """
+    census = facts.datetime_separators
+    weights: dict[str, int] = {}
+    for name in sorted(census):
+        if name != contract.WITHHELD:
+            weights[name] = census[name]
+    if contract.WITHHELD not in census:
+        return weights
+    unnamed: list[str] = []
+    for name in _permitted_marks(facts):
+        if name not in census:
+            unnamed += [name]
+    if not unnamed:
+        return weights
+    pool = census[contract.WITHHELD]
+    share = pool // len(unnamed)
+    rest = pool - share * len(unnamed)
+    for place in range(len(unnamed)):
+        given = share
+        if place < rest:
+            given = given + 1
+        if given > 0:
+            weights[unnamed[place]] = given
+    return weights
+
+
+def _pooled_marks(facts: contract.DatetimeFacts, parsed: int) -> "list[str]":
+    """The marks of a column whose census holds a withheld pool (landing 2b.3).
+
+    `_mark_weights` gives every mark its count, the pool spent on the
+    unnamed ones. Ranks those counts still leave over -- the whole-date
+    cells of an `iso-mixed` column written with a clock -- go to the
+    commonest named mark, the first in sorted order on a tie, or where
+    nothing is named to the first permitted mark in `_MARKS_BY_COMMONNESS`
+    order: a `T` on an ISO reading and a space on a slashed stamp. The
+    ranks then take their marks by the same smooth weighted rotation as
+    every other census, so each mark is spread over the whole range and
+    no word is drawn.
+
+    Guarantees: accepts loaded datetime facts and the number of parsed
+    cells; returns one mark per rank. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    weights = _mark_weights(facts)
+    covered = 0
+    for name in weights:
+        covered = covered + weights[name]
+    if covered < parsed:
+        top = ""
+        for name in sorted(facts.datetime_separators):
+            if name == contract.WITHHELD:
+                continue
+            if not top or facts.datetime_separators[name] > facts.datetime_separators[top]:
+                top = name
+        if not top:
+            top = _permitted_marks(facts)[0]
+        if top in weights:
+            weights[top] = weights[top] + (parsed - covered)
+        else:
+            weights[top] = parsed - covered
+    names = sorted(weights)
+    total = 0
+    for name in names:
+        total = total + weights[name]
+    credit: dict[str, int] = {name: 0 for name in names}
+    marks = ["T" for _rank in range(parsed)]
+    for rank in range(parsed):
+        for name in names:
+            credit[name] = credit[name] + weights[name]
+        best = names[0]
+        for name in names:
+            if credit[name] > credit[best]:
+                best = name
+        credit[best] = credit[best] - total
+        marks[rank] = parsing.SEPARATOR_MARKS[best]
+    return marks
+
+
+def _offered_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
+    """The marks the absent-spelling exception may offer a cell (landing 2b.3).
+
+    The marks this column's allocation writes: its named marks, and where
+    a pool is split, the unnamed marks given a share of it. Offering the
+    named marks alone switched a pooled `t` that met an absent spelling
+    to a named mark, which silently undid the pool's spelling.
+
+    Guarantees: accepts loaded datetime facts; returns census names in
+    sorted order. Determinism: a function of the facts. Raises nothing.
+    No I/O of any kind.
+    """
+    return tuple(sorted(_mark_weights(facts)))
 
 
 def _all_holes_of(plan: "_ColumnPlan") -> "tuple[str, ...]":
@@ -12242,7 +12470,10 @@ def _midnight_notes(
         return []
     off = 0
     for cell in cells:
-        if not parsing.clock_at_midnight(cell, "iso-datetime"):
+        # Read jointly, so a bare date counts as midnight of its day, as
+        # the describing step counts it (landing 2b.3); a cell with a clock
+        # answers exactly as it does under `iso-datetime`.
+        if not parsing.clock_at_midnight(cell, contract.FORMAT_ISO_MIXED):
             off = off + 1
     if off == 0:
         return []
@@ -12259,8 +12490,47 @@ def _midnight_notes(
     ]
 
 
+def _midnight_count_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Name a column partly at midnight whose twin reaches another count.
+
+    A RECOUNT of the cells this run wrote, asked as the describing step
+    asks it, against the published `n_at_midnight` (landing 2b.3). A
+    column wholly at midnight is recounted by `_midnight_notes`.
+
+    Guarantees: accepts the column, its facts and the parsed cells
+    written; returns at most one deviation. No I/O of any kind.
+    """
+    if facts.n_at_midnight <= 0 or facts.all_at_midnight:
+        return []
+    found = 0
+    for cell in cells:
+        if parsing.clock_at_midnight(cell, contract.FORMAT_ISO_MIXED):
+            found = found + 1
+    if found == facts.n_at_midnight:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "n_at_midnight",
+            f"{facts.n_at_midnight} values at midnight",
+            f"{found} of the twin's values stand at midnight",
+            "The values the published ladder pins left too little room "
+            "between them to move every one of these values onto a "
+            "midnight, so the twin holds this many.",
+        )
+    ]
+
+
 def _offset_allocation(
-    column: contract.ColumnBlock, facts: contract.DatetimeFacts, parsed: int
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    parsed: int,
+    whole: "list[bool] | None" = None,
+    pins: "dict[int, str] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Which offset every parsed cell carries (method G7.4).
 
@@ -12269,15 +12539,39 @@ def _offset_allocation(
     is spent over the remaining ranks in ascending order, taking the
     offset keys in the description's own sorted order with the two
     marker keys last.
+
+    A RANK WRITTEN AS A BARE DATE IS SETTLED FIRST, WITH NO OFFSET
+    (landing 2b.3). A whole date carries none, and the describing step
+    counts it under `(none)`, so each takes one from `(none)` -- from the
+    `(withheld)` pool where `(none)` was too rare to name -- before the
+    ends are pinned; `_form_allocation` has already given a moment to an
+    end whose published offset is a real one.
+
+    AND A RUNG RANK OF A COLUMN AT MIDNIGHT ON THE SHARED CLOCK TAKES THE
+    OFFSET ITS RUNG STANDS AT MIDNIGHT UNDER (landing 2b.3; `pins`), after
+    the ends and before the rest: a rank written under the other offset
+    lands an hour away from the published instant.
     """
     left = {key: facts.utc_offsets[key] for key in facts.utc_offsets}
     given = ["" for _rank in range(parsed)]
     settled = [False for _rank in range(parsed)]
     notes: list[Deviation] = []
+    if whole is not None:
+        for rank in range(parsed):
+            if not whole[rank]:
+                continue
+            for key in (contract.NO_OFFSET, contract.WITHHELD):
+                if key in left and left[key] > 0:
+                    left[key] = left[key] - 1
+                    break
+            settled[rank] = True
     if parsed >= 1:
         _pin_offset(0, facts.earliest_utc_offset, given, settled, left)
     if parsed >= 2:
         _pin_offset(parsed - 1, facts.latest_utc_offset, given, settled, left)
+    if pins is not None:
+        for rank in sorted(pins):
+            _pin_offset(rank, pins[rank], given, settled, left)
     keys = [key for key in sorted(left) if _is_real_offset(key)]
     keys = keys + [key for key in sorted(left) if not _is_real_offset(key)]
     open_ranks = [rank for rank in range(parsed) if not settled[rank]]
@@ -12302,6 +12596,331 @@ def _offset_allocation(
             )
         ]
     return given, notes
+
+
+def _snaps_to_midnight(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's ranks are moved onto a midnight (landing 2b.3).
+
+    A column of moments counted in seconds that publishes values at
+    midnight: one only partly at midnight on either clock, or one wholly
+    at midnight on the shared clock. A column wholly at midnight on its
+    own clock is counted in days instead (`_ordinal_space`) and is not
+    moved.
+
+    Guarantees: accepts loaded datetime facts; returns a bool.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    return (
+        facts.resolution == "datetime"
+        and _ordinal_space(facts) == "datetime"
+        and facts.n_at_midnight > 0
+    )
+
+
+def _rung_rank(percent: int, parsed: int) -> int:
+    """The rank a published rung is read off (method G12.4, taxonomy)."""
+    return min(parsed - 1, ((parsed - 1) * percent) // 100)
+
+
+def _ranks_the_tail_pins(parsed: int) -> "list[bool]":
+    """Which ranks the published tail pins, one flag per rank (landing 2b.3).
+
+    THE ONE PLACE THIS SET IS STATED. Today it is the two ends, which
+    method G7.3 writes exactly as published, and the rank each of the
+    nine interior rungs is read off, which the checker holds to its
+    published value's window. The move to midnight never changes one of
+    these ranks and never carries another rank past one, so every rung is
+    read off the same value it would have been. A later landing that
+    changes what the tail publishes changes this set, and nothing else.
+
+    Guarantees: accepts the number of parsed cells; returns one flag per
+    rank. Determinism: a function of the count. Raises nothing. No I/O.
+    """
+    flags = [False for _rank in range(parsed)]
+    if parsed == 0:
+        return flags
+    flags[0] = True
+    flags[parsed - 1] = True
+    for step in range(1, len(_PCT) - 1):
+        flags[_rung_rank(_PCT[step], parsed)] = True
+    return flags
+
+
+def _midnight_offset(seconds: int, facts: contract.DatetimeFacts) -> str:
+    """The published offset under which an instant is a local midnight, or "".
+
+    The real offsets in sorted order first and then `(none)`; the first
+    whose wall clock reads `00:00:00` at this instant. Two offsets that
+    both do are a whole number of days apart, which no offset pair is, or
+    the same number of seconds, which write the same day.
+    """
+    for key in sorted(facts.utc_offsets):
+        if _is_real_offset(key) and (seconds + _offset_seconds(key)) % 86400 == 0:
+            return key
+    if contract.NO_OFFSET in facts.utc_offsets and seconds % 86400 == 0:
+        return contract.NO_OFFSET
+    return ""
+
+
+def _rung_pins(
+    facts: contract.DatetimeFacts, parsed: int
+) -> "dict[int, tuple[int, str]]":
+    """The rung ranks of a column whose ranks are moved onto a midnight.
+
+    Each interior rung's rank takes the rung's own published instant, as
+    the two ends take theirs (landing 2b.3), so every rung is written back
+    exactly and a rung the real column held at midnight counts toward
+    `n_at_midnight` where an interpolated rank beside it would not -- 999
+    values at midnight and one stray time came back as 991 without it. Beside the
+    instant comes the offset it stands at a local midnight under, or ""
+    where none does; `_offset_allocation` gives a rung rank that offset
+    on a column wholly at midnight on the shared clock, where a rank
+    given the other offset lands an hour from its published instant.
+
+    Guarantees: accepts loaded datetime facts and the parsed count;
+    returns rank to (instant in seconds on the column's clock, offset
+    key). Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    pinned: "dict[int, tuple[int, str]]" = {}
+    for step in range(1, len(_PCT) - 1):
+        rank = _rung_rank(_PCT[step], parsed)
+        if rank <= 0 or rank >= parsed - 1 or rank in pinned:
+            continue
+        seconds = _ordinal_of(facts.date_percentiles.rungs[step], "datetime")
+        pinned[rank] = (seconds, _midnight_offset(seconds, facts))
+    return pinned
+
+
+def _snapped_to_midnight(
+    facts: contract.DatetimeFacts, ordinals: "list[int]", offsets: "list[str]"
+) -> "list[int]":
+    """Move the published count of ranks onto a midnight (landing 2b.3, P4-D39).
+
+    A column partly at midnight was generated in seconds and every
+    interpolated rank landed part-way through a day: 361 real values at midnight of
+    400 came back as 2. The construction keeps the interpolation and then:
+
+    1. The ranks the published tail pins (`_ranks_the_tail_pins`) never
+       move: the ends and, by `_rung_pins`, each rung rank at its published
+       rung. Those that stand at midnight count toward the published
+       `n_at_midnight`. Any other rank interpolated past a pinned value is
+       brought back to it, and a rank between two pinned ranks of one
+       value stands on that value and counts as they do.
+    2. The rest owed is spread over the other ranks by the smooth rotation
+       -- each rank adds the count owed to a credit and is chosen where the
+       credit reaches the number of such ranks, which is then taken back --
+       so the values at midnight fall evenly over the range and no word is drawn.
+    3. A chosen rank moves to the midnight of its own wall clock nearest to
+       its instant, the earlier on a tie, and never past the pinned rank
+       below or above it: where that nearest midnight lies outside them it
+       takes the nearest one inside, and where there is none it is left.
+    4. A rank not chosen whose cell would still be written at midnight --
+       an instant within the first minute of a day, on a column written to
+       the minute -- is moved one step of the precision later, or earlier
+       where later would pass a pinned rank.
+    5. A second pass takes what is still owed from the unchosen ranks, in
+       rank order, by rule 3.
+
+    "Midnight" is asked of the WRITTEN cell, at the column's precision and
+    on the rank's own offset, as the describing step asks it; a count the
+    two passes cannot reach is named by `_midnight_count_notes`.
+
+    Guarantees: accepts the facts, one instant per rank in seconds on the
+    column's clock and one offset per rank; returns the instants moved.
+    Linear in the number of ranks. Determinism: a function of the three;
+    draws no word. Raises nothing. No I/O of any kind.
+    """
+    parsed = len(ordinals)
+    moved = [value for value in ordinals]
+    if parsed == 0:
+        return moved
+    step = 60 if facts.time_precision == "minute" else 1
+    shifts = [0 for _rank in range(parsed)]
+    if facts.datetimes_read_at == "utc":
+        for rank in range(parsed):
+            shifts[rank] = _offset_seconds(offsets[rank])
+    pinned = _ranks_the_tail_pins(parsed)
+    lows = [0 for _rank in range(parsed)]
+    highs = [0 for _rank in range(parsed)]
+    below = moved[0]
+    for rank in range(parsed):
+        if pinned[rank]:
+            below = moved[rank]
+        lows[rank] = below
+    above = moved[parsed - 1]
+    for rank in range(parsed - 1, -1, -1):
+        if pinned[rank]:
+            above = moved[rank]
+        highs[rank] = above
+    # A rank interpolated past a pinned rung is brought back to it, so no
+    # rank stands on the far side of a value the tail pins and every rung
+    # is still read off its own rank.
+    for rank in range(parsed):
+        if not pinned[rank]:
+            moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
+    owed = facts.n_at_midnight
+    free: list[int] = []
+    for rank in range(parsed):
+        # A rank between two pinned ranks holding one value has nowhere
+        # else to stand, and counts exactly as they do.
+        if pinned[rank] or lows[rank] == highs[rank]:
+            if _written_at_midnight(moved[rank], shifts[rank], step):
+                owed = owed - 1
+        else:
+            free += [rank]
+    wanted = max(0, min(owed, len(free)))
+    chosen = [False for _rank in range(parsed)]
+    credit = 0
+    for rank in free:
+        credit = credit + wanted
+        if credit >= len(free):
+            credit = credit - len(free)
+            chosen[rank] = True
+    reached = 0
+    for rank in free:
+        if chosen[rank]:
+            found = _nearest_midnight(moved[rank], shifts[rank], lows[rank], highs[rank])
+            if found is not None:
+                moved[rank] = found
+                reached = reached + 1
+            continue
+        if _written_at_midnight(moved[rank], shifts[rank], step):
+            if moved[rank] + step <= highs[rank]:
+                moved[rank] = moved[rank] + step
+            elif moved[rank] - step >= lows[rank]:
+                moved[rank] = moved[rank] - step
+    for rank in free:
+        if reached >= wanted:
+            break
+        if chosen[rank] or _written_at_midnight(moved[rank], shifts[rank], step):
+            continue
+        found = _nearest_midnight(moved[rank], shifts[rank], lows[rank], highs[rank])
+        if found is not None:
+            moved[rank] = found
+            reached = reached + 1
+    return moved
+
+
+def _written_at_midnight(ordinal: int, shift: int, step: int) -> bool:
+    """Whether a cell written from this instant reads as midnight.
+
+    Moved onto its own wall clock by `shift` seconds and cut to the
+    column's precision, whose step is `step` seconds, as `_cell_of_ordinal`
+    cuts it.
+    """
+    local = ordinal + shift
+    return (local - local % step) % 86400 == 0
+
+
+def _nearest_midnight(
+    ordinal: int, shift: int, lowest: int, highest: int
+) -> "int | None":
+    """The instant of the local midnight nearest `ordinal` inside the bounds.
+
+    A local midnight is a whole day on the rank's own wall clock. The
+    nearest one is taken, the earlier on a tie, then brought inside
+    `[lowest, highest]`; None where no local midnight lies inside at all.
+    """
+    local = ordinal + shift
+    day = local - local % 86400
+    if local - day > day + 86400 - local:
+        day = day + 86400
+    first = (lowest + shift) + (-(lowest + shift)) % 86400
+    last = (highest + shift) - (highest + shift) % 86400
+    if first > last:
+        return None
+    if day < first:
+        day = first
+    if day > last:
+        day = last
+    return day - shift
+
+
+def _form_allocation(facts: contract.DatetimeFacts, parsed: int) -> "list[bool]":
+    """Which ranks a column mixing bare dates and moments writes as bare dates.
+
+    NARROWING OWNER DECISION 4 WHERE ITS REASON NO LONGER HOLDS (landing
+    2b.3, plan P4-D39 and residual R-P4-12). The decision wrote every cell
+    of an `iso-mixed` column at the finer form because a date-form cell
+    cannot spell an interior value published at the second. A column
+    whose every value stands at midnight is generated in whole DAYS
+    (`_ordinal_space`), so every rank IS a day and a bare date spells it
+    exactly -- and writing such a column wholly as moments turned 1,900
+    bare dates of 2,000 into moments, so code testing a cell's length or
+    parsing it with a date-only format met a different column on the twin.
+
+    So on exactly that column the published `resolution_mix` is spent over
+    the ranks by the smooth weighted rotation the marks use: the two forms
+    sorted, `iso-date` before `iso-datetime`, each rank adding both counts
+    to their credits, taking the form with more credit -- `iso-date` on a
+    tie -- and giving the total back. An end whose published offset is a
+    real one wrote a clock, so it is a moment before the rotation starts
+    and its form is taken off the moment count. No word is drawn. Every
+    other column writes no bare date, exactly as before.
+
+    Guarantees: accepts loaded datetime facts and the number of parsed
+    cells; returns one flag per rank, true where the rank is a bare date.
+    Determinism: a function of the two. Raises nothing. No I/O of any kind.
+    """
+    whole = [False for _rank in range(parsed)]
+    if facts.parser_family != contract.FORMAT_ISO_MIXED or parsed == 0:
+        return whole
+    if not facts.all_at_midnight:
+        return whole
+    pinned: list[int] = []
+    if _is_real_offset(facts.earliest_utc_offset):
+        pinned += [0]
+    if parsed >= 2 and _is_real_offset(facts.latest_utc_offset):
+        pinned += [parsed - 1]
+    dates = facts.resolution_mix["iso-date"]
+    moments = max(0, facts.resolution_mix["iso-datetime"] - len(pinned))
+    total = dates + moments
+    credit_dates = 0
+    credit_moments = 0
+    for rank in range(parsed):
+        if rank in pinned:
+            continue
+        credit_dates = credit_dates + dates
+        credit_moments = credit_moments + moments
+        if credit_dates >= credit_moments:
+            whole[rank] = True
+            credit_dates = credit_dates - total
+        else:
+            credit_moments = credit_moments - total
+    return whole
+
+
+def _clock_marks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    whole: "list[bool]",
+) -> "tuple[list[str], list[Deviation]]":
+    """The marks of the ranks that write a clock, and a placeholder elsewhere.
+
+    The census counts exactly the cells that wrote a clock (contract D13),
+    so it is spent over those ranks alone, in rank order; a bare-date rank
+    carries a `T` no cell of it writes (landing 2b.3). Where no rank is a
+    bare date this is `_separator_allocation` over every rank, unchanged.
+
+    Guarantees: accepts the column, its facts and one flag per rank;
+    returns one mark per rank and the allocation's deviations.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    clocked = 0
+    for flag in whole:
+        if not flag:
+            clocked = clocked + 1
+    spent, notes = _separator_allocation(column, facts, clocked)
+    if clocked == len(whole):
+        return spent, notes
+    marks = ["T" for _flag in whole]
+    taken = 0
+    for rank in range(len(whole)):
+        if whole[rank]:
+            continue
+        marks[rank] = spent[taken]
+        taken = taken + 1
+    return marks, notes
 
 
 def _pin_offset(
@@ -21991,6 +22610,86 @@ def _datetime_window(
     return (lows, highs)
 
 
+def _widened_for_midnight(
+    ladder: "list[int]", lows: "list[int]", highs: "list[int]", held: int
+) -> "tuple[list[int], list[int]]":
+    """The rank windows a column moved onto a midnight can actually reach.
+
+    G12.5's lower end counts ranks whose windows cannot share an instant.
+    A column `_snapped_to_midnight` moves may carry a rank anywhere between
+    the pinned ranks either side of it (landing 2b.3), so a window of G12.4
+    no longer bounds it: a CET column of 2,000 values at midnight over sixty days,
+    faithfully written, held 61 different values against a lower end of
+    981. So a pinned rank's window is its own published value -- an end, or
+    the rung its rank is read off -- and every other rank's runs from the
+    pinned value below it to the pinned value above.
+
+    Guarantees: accepts the published ladder in the column's own units,
+    G12.4's windows and the number of dated cells; returns the widened
+    windows. Linear. Determinism: a function of the four. Raises nothing.
+    """
+    if held == 0:
+        return (lows, highs)
+    pinned = _ranks_the_tail_pins(held)
+    values = [0 for _rank in range(held)]
+    values[0] = ladder[0]
+    values[held - 1] = ladder[10]
+    seen: dict[int, int] = {0: 1, held - 1: 1}
+    for step in range(1, len(_PCT) - 1):
+        rank = _rung_rank(_PCT[step], held)
+        if rank not in seen:
+            seen[rank] = 1
+            values[rank] = ladder[step]
+    widened_lows = [0 for _rank in range(held)]
+    widened_highs = [0 for _rank in range(held)]
+    below = values[0]
+    for rank in range(held):
+        if pinned[rank]:
+            below = values[rank]
+        widened_lows[rank] = below
+    above = values[held - 1]
+    for rank in range(held - 1, -1, -1):
+        if pinned[rank]:
+            above = values[rank]
+        widened_highs[rank] = above
+    return (widened_lows, widened_highs)
+
+
+def _apart_at_least(
+    ladder: "list[int]",
+    facts: contract.DatetimeFacts,
+    lows: "list[int]",
+    highs: "list[int]",
+    held: int,
+) -> int:
+    """G12.5's lower end: how many different instants the twin must hold.
+
+    The ranks whose G12.4 windows are pairwise separate (`_forced_apart`).
+    ON A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3) some
+    ranks leave their windows, and exactly these: at most `n_at_midnight`
+    moved onto a midnight, at most one pinned at each of the nine interior
+    rungs and at most one brought back to each of those pins -- every other
+    rank keeps its window, widened by one step of the precision for a rank
+    moved off a midnight it was not owed. Taking k windows out of a
+    separate set leaves at least its size less k, so the lower end is the
+    widened count less those ranks; and never less than the count over the
+    windows `_widened_for_midnight` gives every rank, which no move leaves.
+
+    Guarantees: accepts the ladder in the column's own units, the facts,
+    G12.4's windows and the dated count; returns a count. Linear.
+    Determinism: a function of the five. Raises nothing. No I/O.
+    """
+    if not _snaps_to_midnight(facts):
+        return _forced_apart(lows, highs)
+    step = 60 if facts.time_precision == "minute" else 1
+    stepped = _forced_apart(
+        [low - step for low in lows], [high + step for high in highs]
+    )
+    moved = facts.n_at_midnight + 2 * (len(_PCT) - 2)
+    pinned_lows, pinned_highs = _widened_for_midnight(ladder, lows, highs, held)
+    return max(stepped - moved, _forced_apart(pinned_lows, pinned_highs))
+
+
 def _forced_apart(lows: "list[int]", highs: "list[int]") -> int:
     """How many different instants the published ladder FORCES.
 
@@ -22022,13 +22721,20 @@ def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
         if _is_real_offset(offset):
             carried = carried + 1
     # ...times the marks between day and clock it writes (plan P4-D39):
-    # one instant can wear each named mark, and the withheld pool is
-    # written with one of those, so it adds none.
-    marked = 0
-    for name in facts.datetime_separators:
-        if name != contract.WITHHELD:
-            marked = marked + 1
-    return max(1, carried) * max(1, marked)
+    # one instant can wear each mark the allocation writes, which since
+    # landing 2b.3 includes the unnamed marks a withheld pool is spent on.
+    marked = len(_mark_weights(facts))
+    # ...and once more as a bare date, on a column that writes its
+    # bare-date ranks as bare dates (landing 2b.3): a whole date carries
+    # neither an offset nor a mark, so it adds one spelling per day.
+    bare = 0
+    if (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and _ordinal_space(facts) == "date"
+        and facts.resolution_mix["iso-date"] > 0
+    ):
+        bare = 1
+    return max(1, carried) * max(1, marked) + bare
 
 
 def _clock_approximations(
@@ -22206,7 +22912,7 @@ def _datetime_approximations(
     # for a cell that did not read as a date is a different spelling
     # from every other cell of the column, so both ends carry them.
     stand_ins = len(present) - held
-    lowest_count = _forced_apart(lows, highs) + stand_ins
+    lowest_count = _apart_at_least(ladder, facts, lows, highs, held) + stand_ins
     reachable = ladder[10] - ladder[0] + 1
     unit = _precision_slack(facts) + 1
     reachable = (reachable + unit - 1) // unit
