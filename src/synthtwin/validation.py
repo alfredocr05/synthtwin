@@ -5376,9 +5376,6 @@ def _column_checks(
     # other, and a twin whose every cell was exactly what the
     # description asked for came back with its style census MISSED.
     block = _column_at(redescribed, column.position)
-    cells = _cells_read_as_declared(
-        description, column, cells, block if block is not None else {}
-    )
     split = _column_at(over_the_split, column.position)
     return _obligations(
         description,
@@ -5543,18 +5540,21 @@ def _obligations(
     # standing beside the census it is compared with.
     own_settings = settings_for(description)
     split_settings = settings_over_the_split(description)
-    own_cells = _cells_that_description_reads(
+    comma = column.name in description.settings.forced_decimal_commas
+    own_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         block,
         cells,
         own_settings.kept_values,
         own_settings.declared_missing_values,
-    )
-    split_cells = _cells_that_description_reads(
+        comma,
+    ))
+    split_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         split,
         cells,
         split_settings.kept_values,
         split_settings.declared_missing_values,
-    )
+        comma,
+    ))
     gated = _universal_checks(column, block, mine)
     gated = gated + _role_checks(column, block, own_cells, floor, mine)
     measured = _universal_checks(column, split, mine)
@@ -5567,6 +5567,7 @@ def _cells_that_description_reads(
     cells: "list[str]",
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
+    decimal_comma: bool = False,
 ) -> "list[str]":
     """The cells the file's OWN description counts as values, plus its blanks.
 
@@ -5683,7 +5684,9 @@ def _cells_that_description_reads(
     - Determinism: a fixed function of those four.
     - Errors raised: none.
     """
-    holes = _holes_by_the_description(block, cells, kept, declared)
+    holes = _holes_by_the_description(
+        block, cells, kept, declared, decimal_comma
+    )
     read: list[str] = []
     for index, cell in enumerate(cells):
         if not holes[index]:
@@ -5696,6 +5699,7 @@ def _holes_by_the_description(
     cells: "list[str]",
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
+    decimal_comma: bool = False,
 ) -> "list[bool]":
     """Which cells the file's own description reads as non-blank holes.
 
@@ -5736,7 +5740,11 @@ def _holes_by_the_description(
     kept_spellings_folded: dict[str, int] = {}
     kept_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in kept:
-        number = taxonomy.exact_of_spelling(spelling)
+        number = taxonomy.exact_of_spelling(
+            parsing.written_with_a_decimal_comma(spelling)
+            if decimal_comma
+            else spelling
+        )
         if number is None:
             # The producer matches a declaration that names no number by
             # its folded spelling, and one that names a number by the
@@ -5750,7 +5758,11 @@ def _holes_by_the_description(
     declared_folded: dict[str, int] = {}
     declared_numbers: list[tuple[int, tuple[str, ...], int]] = []
     for spelling in declared:
-        number = taxonomy.exact_of_spelling(spelling)
+        number = taxonomy.exact_of_spelling(
+            parsing.written_with_a_decimal_comma(spelling)
+            if decimal_comma
+            else spelling
+        )
         if number is None:
             declared_folded[parsing.folded(spelling)] = 1
         else:
@@ -5765,7 +5777,11 @@ def _holes_by_the_description(
         is_hole = False
         undecided = False
         if body:
-            exact = taxonomy.exact_of_spelling(cell)
+            exact = taxonomy.exact_of_spelling(
+                parsing.written_with_a_decimal_comma(cell)
+                if decimal_comma
+                else cell
+            )
             stand_in = _stand_in_of(exact)
             # The producer's own order: what the settings name as data
             # beats every rule below it, what they name as "no value"
@@ -6090,7 +6106,6 @@ def _cells_read_as_declared(
     description: contract.Profile,
     column: contract.ColumnBlock,
     cells: "list[str]",
-    block: "dict[str, object]",
 ) -> "list[str]":
     """One column's cells in the spelling its description was made from.
 
@@ -6127,18 +6142,9 @@ def _cells_read_as_declared(
     # as a number the column never held: the source file itself came
     # back MISSING its own style obligation, with twenty numbers in a
     # recount of a column published as holding one hundred and eighty.
-    holes = _holes_by_the_description(
-        block,
-        cells,
-        kept_spellings(description),
-        declared_spellings(description),
-    )
     compound = isinstance(column.facts, contract.CompoundFacts)
     swapped: "list[str]" = []
     for place in range(len(cells)):
-        if holes[place]:
-            swapped += [cells[place]]
-            continue
         read = parsing.written_with_a_decimal_comma(cells[place])
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
         # the rule the writeback follows (review round 4 of landing L8,
@@ -6147,7 +6153,12 @@ def _cells_read_as_declared(
         # `E11.9` would be read as `E119` and the half's published
         # spelling would never be found. A cell of this role is
         # translated only where the translation makes it a number.
-        if compound and parsing.classify_number(read) != parsing.NUMBER:
+        if (
+            compound
+            and parsing.classify_number(read) != parsing.NUMBER
+            and parsing.classify_number(cells[place])
+            == parsing.classify_number(read)
+        ):
             swapped += [cells[place]]
             continue
         swapped += [read]

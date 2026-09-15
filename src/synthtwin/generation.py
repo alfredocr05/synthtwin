@@ -7528,7 +7528,7 @@ def _read_as_described(
             if _wears_this_hole(cell, hole, True):
                 keep = True
         if keep:
-            read += [cell]
+            read += [_described_spelling(cell)]
             continue
         swapped = parsing.written_with_a_decimal_comma(cell)
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED HERE EITHER,
@@ -7541,11 +7541,53 @@ def _read_as_described(
         # that were false of the file it had just written: both label
         # counts and both outer counts, each one short.
         if _labels_beside_numbers(column):
-            if parsing.classify_number(swapped) != parsing.NUMBER:
+            if parsing.classify_number(swapped) != parsing.NUMBER and (
+                parsing.classify_number(cell)
+                == parsing.classify_number(swapped)
+            ):
                 read += [cell]
                 continue
         read += [swapped]
     return read
+
+
+def _described_spelling(cell: str) -> str:
+    """PROTOTYPE: a hole or hole key in the reading the description used."""
+    swapped = parsing.written_with_a_decimal_comma(cell)
+    if parsing.exact_of_spelling(swapped) is not None:
+        return swapped
+    return cell
+
+
+def _described_view(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> contract.ColumnBlock:
+    """PROTOTYPE: the column whose hole keys are in the described reading."""
+    if not _declared_a_decimal_comma(column, profile):
+        return column
+    keys: "dict[str, int]" = {}
+    for spelling in sorted(column.missing_by_source):
+        key = _described_spelling(spelling)
+        keys[key] = (keys[key] if key in keys else 0) + column.missing_by_source[spelling]
+    return dataclasses.replace(column, missing_by_source=keys)
+
+
+def _described_halves(
+    view: contract.ColumnBlock, written: "list[str]", measured: "list[str]"
+) -> "tuple[list[str], list[str]]":
+    """PROTOTYPE: a compound column's present cells split by the described reading."""
+    holes = _hole_spellings(view)
+    numbers: "list[str]" = []
+    labels: "list[str]" = []
+    for place in range(len(written)):
+        read = measured[place]
+        if read == "" or _wears_a_published_hole(read, holes):
+            continue
+        if parsing.classify_number(read) == parsing.NUMBER:
+            numbers += [written[place]]
+        else:
+            labels += [written[place]]
+    return numbers, labels
 
 
 def _spelled_with_a_decimal_comma(
@@ -11479,25 +11521,34 @@ def _datetime_content(
                 above * (ladder[step + 1] - ladder[step])
             ) // span
         offset = offsets[rank]
-        # An end is written from the PUBLISHED instant's own fields, on
-        # either clock and with no case that declines; only the ranks
-        # between them travel through the ordinal space, which is exact
-        # for every second the space has a place for (G7.3, G7.5).
         if end:
-            written = _endpoint_cell(facts, end, offset, marks[rank])
-        else:
-            local = ordinal
-            if (
-                facts.datetimes_read_at == "utc"
-                and facts.resolution == "datetime"
-                and not facts.all_at_midnight
-            ):
-                local = ordinal + _offset_seconds(offset)
-            written = _space_cell(local, facts, marks[rank])
-        text = written
-        if _is_real_offset(offset) and offset:
-            text = f"{text}{offset}"
-        cells += [_kept_datetime_cell(text, holes, _named_marks(facts))]
+            text = _endpoint_cell(facts, end, offset, marks[rank])
+            if _is_real_offset(offset) and offset:
+                text = f"{text}{offset}"
+            cells += [_kept_datetime_cell(text, holes, _named_marks(facts))]
+            continue
+        kept = _interior_cell(facts, ordinal, offset, marks[rank], holes)
+        if space != "datetime" and _is_a_hole_spelling(kept, holes):
+            window = (
+                max(first, _ordinal_at(ladder, rank, parsed) - 1),
+                min(last, _ordinal_at(ladder, rank + 1, parsed)),
+            )
+            for low, high in (window, (first, last)):
+                found = ""
+                for away in range(1, len(holes) + 2):
+                    for other in (ordinal - away, ordinal + away):
+                        if other < low or other > high:
+                            continue
+                        tried = _interior_cell(facts, other, offset, marks[rank], holes)
+                        if not _is_a_hole_spelling(tried, holes):
+                            found = tried
+                            break
+                    if found:
+                        break
+                if found:
+                    kept = found
+                    break
+        cells += [kept]
     cells, balanced = _rebalanced_marks(column, marks, cells, holes)
     notes = notes + balanced
     notes = notes + _worn_hole_notes(column, cells, holes)
@@ -11527,6 +11578,36 @@ def _datetime_content(
             )
         ]
     return cells, notes
+
+
+def _interior_cell(
+    facts: contract.DatetimeFacts,
+    ordinal: int,
+    offset: str,
+    mark: str,
+    holes: "tuple[str, ...]",
+) -> str:
+    """One interior cell of a column of dates, from its ordinal (G7.5).
+
+    The ordinal is written in the column's own space, carries its offset
+    and allocated mark, and passes through the absent-spelling exception.
+    Factored out so the step off a wholly absent unit can try a
+    neighbouring unit by the same route (stage 2 confirmation review).
+
+    Guarantees: accepts the facts, an ordinal, an offset, a mark and every
+    absent spelling; returns the cell text. No I/O of any kind.
+    """
+    local = ordinal
+    if (
+        facts.datetimes_read_at == "utc"
+        and facts.resolution == "datetime"
+        and not facts.all_at_midnight
+    ):
+        local = ordinal + _offset_seconds(offset)
+    text = _space_cell(local, facts, mark)
+    if _is_real_offset(offset) and offset:
+        text = f"{text}{offset}"
+    return _kept_datetime_cell(text, holes, _named_marks(facts))
 
 
 def _parser_family(resolution: str) -> str:
@@ -11812,6 +11893,16 @@ def _rebalanced_marks(
             worn[cell] = worn[cell] + 1
         else:
             worn[cell] = 1
+    # ...and the same count once case is ignored, which is how the reading
+    # that names a column's kind counts its values (stage 2 confirmation
+    # review: a `t` beside a `T` of the same day is one value).
+    folded_worn: dict[str, int] = {}
+    for cell in fixed:
+        key = parsing.folded(cell)
+        if key in folded_worn:
+            folded_worn[key] = folded_worn[key] + 1
+        else:
+            folded_worn[key] = 1
     for rank in range(len(fixed)):
         cell = fixed[rank]
         if rank in moved or rank >= len(wanted) or len(cell) < 11:
@@ -11839,7 +11930,21 @@ def _rebalanced_marks(
             # values, and five cells of three spellings came back as a
             # column of two values -- binary, not a date. Such a rank
             # waits: once another rank repeats its spelling it can go.
-            if worn[candidate] < 2 and changed in worn and worn[changed] > 0:
+            was = parsing.folded(candidate)
+            becomes = parsing.folded(changed)
+            merges = (
+                was != becomes
+                and folded_worn[was] < 2
+                and becomes in folded_worn
+                and folded_worn[becomes] > 0
+            )
+            if (
+                worn[candidate] < 2 and changed in worn and worn[changed] > 0
+            ) or merges:
+                # NOR ONE VALUE FEWER ONCE CASE IS IGNORED (stage 2
+                # confirmation review): ten cells of three case-folded
+                # values came back as a column of two, and a column of
+                # two values is binary whatever its dates.
                 if waiting < 0:
                     waiting = at - 1
                 continue
@@ -11850,6 +11955,11 @@ def _rebalanced_marks(
                 worn[changed] = worn[changed] + 1
             else:
                 worn[changed] = 1
+            folded_worn[was] = folded_worn[was] - 1
+            if becomes in folded_worn:
+                folded_worn[becomes] = folded_worn[becomes] + 1
+            else:
+                folded_worn[becomes] = 1
             break
         place[pair] = at if waiting < 0 else waiting
     owed_counts: dict[str, int] = {}
@@ -11878,8 +11988,9 @@ def _rebalanced_marks(
             _marks_in_words(written_counts),
             "A value written with its published mark would have read as "
             "an absent cell, and no value allocated the mark it took "
-            "could give that mark back without reading as absent itself, "
-            "so the twin writes the marks in these numbers.",
+            "could give that mark back without reading as absent itself "
+            "or leaving the column fewer different values, so the twin "
+            "writes the marks in these numbers.",
         )
     ]
 
@@ -11975,6 +12086,47 @@ def _held_back_absence_remarks(
     ]
 
 
+def _kind_notes(
+    column: contract.ColumnBlock, content: "list[str]"
+) -> "list[Deviation]":
+    """Name a twin whose values collapse to two, so it reads as another kind.
+
+    The profiler calls a column of exactly two different values -- case
+    ignored -- binary, and one of a single value constant, before it asks
+    whether they are dates or numbers. A twin whose present values fall
+    to two where the real column held three or more is therefore read
+    back as a different kind of column, and the distinct-count window,
+    which can reach down to two, did not always say so (stage 2
+    confirmation review: a column of plain dates and a column of
+    midnight moments at a raised floor both collapsed silently).
+
+    Guarantees: accepts the column and its present cells; returns at most
+    one deviation. No I/O of any kind.
+    """
+    if column.role == "constant" or column.role == "binary":
+        return []
+    if column.n_distinct_folded < 3:
+        return []
+    found: dict[str, int] = {}
+    for cell in content:
+        if cell:
+            found[parsing.folded(cell)] = 1
+    if len(found) >= 3:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "n_distinct_folded",
+            f"{column.n_distinct_folded}",
+            f"{len(found)}",
+            "The twin's values came to two or fewer once case is ignored, "
+            "so describing the twin again reads it as a column of two "
+            "values, or of one, rather than the kind of column the "
+            "description names.",
+        )
+    ]
+
+
 def _grouping_notes(
     column: contract.ColumnBlock, floor: int, content: "list[str]"
 ) -> "list[Deviation]":
@@ -11986,22 +12138,65 @@ def _grouping_notes(
     again then publishes no mark -- a stage-2 fact lost with nothing said
     (stage 2 closure review: ten cells, two grouped, floor two).
 
+    EVERY NUMERIC BLOCK, NOT ONLY A PLAIN COLUMN'S. The same loss on an
+    affixed column's cores, on one wrapper of a set, or on the numeric
+    half of a column of numbers and labels was silent. Each block is
+    recounted over the population a re-description reads it from: the
+    cores each wrapper's cells hold by the longest-wrapper rule
+    (`_cores_worn`), and the cells reading as numbers for the numeric
+    half (which `grouping_proven` already filters to). A joined
+    position cannot publish a mark: a part holding a comma does not
+    split.
+
     Guarantees: accepts the column, the smallest group size and the
     present cells as written before any decimal-comma exchange; returns
-    at most one deviation. No I/O of any kind.
+    at most one deviation per numeric block. No I/O of any kind.
     """
     facts = column.facts
-    if not isinstance(facts, contract.NumericFacts):
+    if isinstance(facts, contract.NumericFacts):
+        return _grouping_block_notes(column, facts, floor, content)
+    if isinstance(facts, contract.CompoundFacts):
+        half = _grouping_block_notes(column, facts.numbers, floor, content)
+        return [
+            dataclasses.replace(
+                note,
+                fact=f"numbers.{note.fact}",
+                note=f"The numbers in these cells: {note.note}",
+            )
+            for note in half
+        ]
+    if isinstance(facts, contract.AffixedFacts):
+        held = _cores_worn(facts, content)
+        blocks = [facts.numbers] + [one.numbers for one in facts.affix_variants]
+        vocabulary = _vocabulary_of(facts)
+        notes: "list[Deviation]" = []
+        for step in range(len(vocabulary)):
+            notes = notes + _wrapper_notes(
+                step - 1,
+                _grouping_block_notes(
+                    column, blocks[step], floor, held[vocabulary[step]]
+                ),
+            )
+        return notes
+    return []
+
+
+def _grouping_block_notes(
+    column: contract.ColumnBlock,
+    block: contract.NumericFacts,
+    floor: int,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """One numeric block's grouping recount, named with the bare key."""
+    if block.group_separator == "":
         return []
-    if facts.group_separator == "":
-        return []
-    if taxonomy.grouping_proven(content, floor):
+    if taxonomy.grouping_proven(cells, floor):
         return []
     return [
         _deviation(
             column.name,
             "group_separator",
-            f"'{facts.group_separator}'",
+            f"'{block.group_separator}'",
             "too few of the twin's own numbers to prove it",
             "The twin writes the mark on every number of four figures or "
             "more, but the published ladder gave it too few of them to "
@@ -18611,6 +18806,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         notes = notes + _grouping_notes(
             column, profile.settings.small_cell_floor, content
         )
+        notes = notes + _kind_notes(column, content)
         content = content + _absent_cells(
             column, _declared_a_decimal_comma(column, profile)
         )
@@ -18682,6 +18878,8 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # constant or a label it translates the published spelling; on
         # an undeclared column it changes nothing at all.
         measured = _read_as_described(column, profile, spelled)
+        view = _described_view(column, profile)
+        halves = _described_halves(view, written, measured)
         # COUNTED ON THE CELLS AS WRITTEN, and measured on the cells as
         # DESCRIBED, which is the same split the profiler makes and the
         # validator now makes (review item P4-G3-R4-F1). Presence is
@@ -18716,28 +18914,28 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 spelled,
                 _declared_a_decimal_comma(column, profile),
             )
-            + _value_count_notes(column, measured)
-            + _half_distinct_notes(column, written)
-            + _form_notes(column, written)
-            + _level_form_notes(column, written)
-            + _class_notes(column, measured)
+            + _value_count_notes(view, measured)
+            + _half_distinct_notes(column, written, halves)
+            + _form_notes(column, written, halves)
+            + _level_form_notes(column, written, halves)
+            + _class_notes(view, measured)
             + _alphabet_notes(column, written)
-            + _extreme_notes(column, measured)
+            + _extreme_notes(view, measured)
             + _width_notes(column, written)
-            + _fraction_notes(column, measured)
-            + _pad_notes(column, measured)
-            + _field_notes(column, measured)
-            + _whole_notes(column, measured)
-            + _magnitude_notes(column, measured)
-            + _style_notes(column, measured)
-            + _mix_notes(column, measured)
+            + _fraction_notes(view, measured)
+            + _pad_notes(view, measured)
+            + _field_notes(view, measured)
+            + _whole_notes(view, measured)
+            + _magnitude_notes(view, measured)
+            + _style_notes(view, measured)
+            + _mix_notes(view, measured)
             + _agreement_notes(column, written)
         )
         # Every APPROXIMATED fact of this column, measured on the cells
         # just written and checked against both ends of the bound
         # method G12 fixes for it. One that landed outside its bound is
         # a fact the twin did not hold, so it joins the deviations too.
-        approximated_here = _approximations(column, each, measured)
+        approximated_here = _approximations(view, each, measured)
         # AND A FACT THAT LANDED INSIDE ITS OWN BOUND IS NOT A FACT THE
         # TWIN MISSED (residual R-P4-152). The two sections disagreed
         # about one number on the same page: the deviations section said
@@ -19623,7 +19821,8 @@ def _field_notes(
 
 
 def _half_distinct_notes(
-    column: "contract.ColumnBlock", written: "list[str]"
+    column: "contract.ColumnBlock", written: "list[str]",
+    halves: "tuple[list[str], list[str]] | None" = None,
 ) -> "list[Deviation]":
     """The numeric half's two counts of different cells, recounted.
 
@@ -19642,12 +19841,11 @@ def _half_distinct_notes(
     facts = column.facts
     if not isinstance(facts, contract.CompoundFacts):
         return []
-    holes = _hole_spellings(column)
+    if halves is None:
+        halves = _described_halves(column, written, written)
     raw: "dict[str, int]" = {}
     folded: "dict[str, int]" = {}
-    for cell in _present_of(written, holes):
-        if parsing.classify_number(cell) != parsing.NUMBER:
-            continue
+    for cell in halves[0]:
         raw[cell] = 1
         folded[parsing.folded(parsing.trimmed(cell))] = 1
     # AND THE LABEL HALF'S TWO, on the same terms. Its shortfall is a
@@ -19659,9 +19857,7 @@ def _half_distinct_notes(
     # (review round 4 of this landing, item 3).
     label_raw: "dict[str, int]" = {}
     label_folded: "dict[str, int]" = {}
-    for cell in _present_of(written, holes):
-        if parsing.classify_number(cell) == parsing.NUMBER:
-            continue
+    for cell in halves[1]:
         label_raw[cell] = 1
         label_folded[parsing.folded(parsing.trimmed(cell))] = 1
     notes: "list[Deviation]" = []
@@ -19709,7 +19905,8 @@ def _half_distinct_notes(
 
 
 def _label_half_of(
-    column: "contract.ColumnBlock", written: "list[str]"
+    column: "contract.ColumnBlock", written: "list[str]",
+    halves: "tuple[list[str], list[str]] | None" = None,
 ) -> "tuple[contract.ColumnBlock, list[str]] | None":
     """A compound column's LABEL half, as a column and its own cells.
 
@@ -19725,6 +19922,8 @@ def _label_half_of(
     facts = column.facts
     if not isinstance(facts, contract.CompoundFacts):
         return None
+    if halves is not None:
+        return (contract.compound_labels_view(column), list(halves[1]))
     mine: "list[str]" = []
     for cell in written:
         if parsing.classify_number(cell) != parsing.NUMBER:
@@ -19733,7 +19932,8 @@ def _label_half_of(
 
 
 def _form_notes(
-    column: contract.ColumnBlock, written: "list[str]"
+    column: contract.ColumnBlock, written: "list[str]",
+    halves: "tuple[list[str], list[str]] | None" = None,
 ) -> "list[Deviation]":
     """Name a published written form the twin's cells did not reach.
 
@@ -19762,7 +19962,7 @@ def _form_notes(
     # about it (review round 2 of this landing, item 5). The half is
     # handed over as the column it is, with the cells the split puts in
     # it, and the whole body below then runs unchanged.
-    half = _label_half_of(column, written)
+    half = _label_half_of(column, written, halves)
     if half is not None:
         return _form_notes(half[0], half[1])
     facts = column.facts
@@ -19832,7 +20032,8 @@ def _form_notes(
 
 
 def _level_form_notes(
-    column: contract.ColumnBlock, written: "list[str]"
+    column: contract.ColumnBlock, written: "list[str]",
+    halves: "tuple[list[str], list[str]] | None" = None,
 ) -> "list[Deviation]":
     """Name a level whose cells did not reach its own form count.
 
@@ -19857,7 +20058,7 @@ def _level_form_notes(
     """
     # ...AND THE SAME FOR THE PER-LEVEL HALF OF THE CENSUS, on the same
     # terms and for the same reason.
-    half = _label_half_of(column, written)
+    half = _label_half_of(column, written, halves)
     if half is not None:
         return _level_form_notes(half[0], half[1])
     facts = column.facts

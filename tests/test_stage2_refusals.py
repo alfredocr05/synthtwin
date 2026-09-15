@@ -26,12 +26,12 @@ def _exit_of(argv: "list[str]") -> int:
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        cli.main()
+        code = cli.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:
         sys.argv = before
-    return 0
+    return code
 
 
 def _described(

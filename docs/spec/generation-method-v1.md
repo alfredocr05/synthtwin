@@ -3676,11 +3676,20 @@ rather than passing it off as an outcome the description asked for.
   `n_present` falls and, where the cell was an endpoint, an
   EXACT-OBSERVABLE end walks out of the twin over a separator nobody
   chose. The exception is asked ONLY at that collision, so no other
-  cell and no frozen vector moves. Where EVERY offer is absent too the
-  allocated form stands, G12's endpoint entry names a lost end, and the
-  report names every value left in an absent spelling as a deviation of
-  `n_present`: this rule declines to invent a spelling the description
-  does not make possible.
+  cell and no frozen vector moves. Where EVERY offer is absent too, an
+  interior rank of a column counted in whole units -- dates, months,
+  quarters, and a column whose every moment stands at midnight -- is
+  stepped to the nearest unit whose spelling is not absent, earlier
+  before later, first inside its own G12.4 window and then inside
+  `[earliest, latest]` (stage 2 confirmation review, 2026-09-15: a day
+  declared absent in all three of its spellings otherwise received eight
+  values, which read back as absent cells). A rank inside its window
+  stays inside every rung's bound, because the window never falls below
+  the unit before the rank's own. Only where no unit qualifies, or on a
+  column written to the second, does the allocated form stand, G12's
+  endpoint entry name a lost end, and the report name every value left
+  in an absent spelling as a deviation of `n_present`: this rule
+  declines to invent a spelling the description does not make possible.
 
   **And the census is given back** (stage 2 review, 2026-09-14; the
   stage 2 audit, 2026-09-14). Each cell whose mark that exception
@@ -3688,10 +3697,13 @@ rather than passing it off as an outcome the description asked for.
   order, that was allocated the mark the changed cell now wears, still
   wears it, was neither changed nor given a mark before, and whose new
   spelling is not absent. A repeated spelling is allowed, but no change
-  may leave the column one spelling fewer: a rank whose spelling is the
-  last copy of its kind is passed over while the spelling it would take
-  is already written (stage 2 closure review: five cells of three
-  spellings otherwise came back as two values). The walk is linear: each
+  may leave the column one spelling fewer, nor one value fewer once
+  upper and lower case are ignored: a rank whose spelling is the last
+  copy of its kind, literally or folded, is passed over while the
+  spelling it would take is already written (stage 2 closure review:
+  five cells of three spellings came back as two values; stage 2
+  confirmation review: a `t` given to the last copy of a day beside that
+  day's `T` folded ten cells of three values into two, which is binary). The walk is linear: each
   pair of marks keeps its own place in its list of ranks.
   The finished marks are then counted against the allocation, and a
   shortfall no rank could take is a deviation of `datetime_separators`.
@@ -5966,8 +5978,15 @@ rank could give back (`datetime_separators`, G7.5); the values of a
 column of moments left in a spelling the table declares absent because
 every mark offered was absent too (`n_present`, G7.5); a column of
 numbers whose own twin cells reach too few four-figure values to prove
-the mark it writes, at the published smallest group size
-(`group_separator`, G6.1; the stage 2 closure review, 2026-09-14); a
+the mark it writes, at the published smallest group size -- a column of
+numbers, the cores each wrapper of an affixed column wears, or the
+numeric half of a column of numbers and labels
+(`group_separator`, `affix_variants[<n>].numbers.group_separator`,
+`numbers.group_separator`, G6.1; the stage 2 closure and confirmation
+reviews, 2026-09-14 and 2026-09-15); a column whose twin values come to
+two or fewer once case is ignored where the description counts three
+or more, so that describing the twin again reads it as a column of two
+values or one (`n_distinct_folded`; the stage 2 confirmation review); a
 cell of an `all_at_midnight` column written off midnight, which the
 rule says never happens and a run that finds one has found a defect in
 itself (`all_at_midnight`, G7.5); and **a value left inside a stretch the description says

@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 4,544 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| suite | 4,573 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu and Windows. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. `ultra` is valid and verified; do not substitute `high` |
@@ -112,6 +112,13 @@ ones.
 - **Twins of date columns spread their values across days too
   evenly**: on 400 rows the day-to-day variance was about a third of
   the real table's. It predates stage 2 and bears on the second goal.
+- **The validator can call a faithful numeric twin MISSED** on a
+  percentile rung: it estimates the widest stratum from the description,
+  the generator uses the real one, and on a 2,000-row column 6 seeds of
+  8 were accused. It predates stage 2 and bears on the second goal.
+- **A small column of numbers and labels that falls to a free-text or
+  long-tail role** writes stand-ins that cannot reproduce its numeric
+  forms. It predates stage 2.
 - **The description names individuals.** On a 1,200-row table the
   published maximum of two columns was held by exactly one subject.
   A population floor cannot fix this; the extremes must stop being

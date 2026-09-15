@@ -50,12 +50,12 @@ def _exit_of(argv: "list[str]") -> int:
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        cli.main()
+        code = cli.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:
         sys.argv = before
-    return 0
+    return code
 
 
 def _round_trip(
@@ -394,3 +394,129 @@ def test_an_ordinary_blank_raises_no_warning_about_absent_spellings(
     assert "counted in a group too small to name" not in report
     assert "missing_by_class" not in report
     assert twin_exit == 0
+
+
+@pytest.mark.parametrize("seed", ["0", "4", "31"])
+def test_a_case_only_respelling_never_turns_moments_into_two_values(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The confirmation review's reproduction: a `t` beside a `T` is one value.
+
+    Ten cells of three case-folded values, with one lower-case spelling
+    declared absent. The census repair used to hand a last copy the mark
+    that folded it onto an existing value, and the twin read back as a
+    column of two values -- binary -- with nothing said. Every seed from
+    0 to 31 did it.
+    """
+    cells = (
+        ["2025-01-01 00:00:00"] * 2
+        + ["2025-01-02 00:00:00"]
+        + ["2025-01-02T00:00:00"] * 2
+        + ["2025-01-02t00:00:00"]
+        + ["2025-01-01t00:00:00"] * 4
+    )
+    first, second, _written, twin_exit, _real = _round_trip(
+        tmp_path / "case",
+        cells,
+        ("--missing-value", "2025-01-01t00:00:00"),
+        False,
+        seed=seed,
+    )
+    assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == (
+        "datetime", 4, 3
+    )
+    assert second["role"] == "datetime", second["role"]
+    assert isinstance(second["n_distinct_folded"], int)
+    assert second["n_distinct_folded"] >= 3
+    assert twin_exit == 0
+    report = (tmp_path / "case" / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert "datetime_separators" in report
+
+
+@pytest.mark.parametrize("seed", ["0", "4"])
+def test_a_day_whose_every_spelling_is_absent_gets_no_value(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The confirmation review's reproduction: a wholly absent day is stepped past.
+
+    January 2 is written three ways and every one is declared absent, so
+    no value of the twin may land on it: a whole-day rank that would is
+    moved to the nearest present day inside its own window, and the twin
+    holds as many values as the real table.
+    """
+    cells = (
+        ["2025-01-01 00:00:00"] * 20
+        + ["2025-01-03 00:00:00"] * 20
+        + ["2025-01-04 00:00:00"] * 20
+        + ["2025-01-02 00:00:00"] * 5
+        + ["2025-01-02T00:00:00"] * 5
+        + ["2025-01-02t00:00:00"] * 5
+    )
+    flags = (
+        "--missing-value", "2025-01-02 00:00:00",
+        "--missing-value", "2025-01-02T00:00:00",
+        "--missing-value", "2025-01-02t00:00:00",
+    )
+    first, second, written, twin_exit, _real = _round_trip(
+        tmp_path / "absent-day", cells, flags, True, seed=seed
+    )
+    assert second["n_present"] == first["n_present"] == 60
+    assert second["n_missing"] == first["n_missing"] == 15
+    assert twin_exit == 0
+    present = [cell for cell in written if cell and not cell.startswith("2025-01-02")]
+    assert len(present) == 60
+
+
+def test_a_column_of_dates_that_collapses_to_two_days_is_named(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A twin read back as a column of two values says so (confirmation review)."""
+    cells = ["2025-01-01"] * 10 + ["2025-01-02", "2025-01-03"]
+    first, second, _written, _twin_exit, _real = _round_trip(
+        tmp_path / "days", cells, (), False, seed="0"
+    )
+    assert first["role"] == "datetime"
+    report = (tmp_path / "days" / "real-twin-report.txt").read_text(encoding="utf-8")
+    if second["role"] != "datetime":
+        assert "n_distinct_folded" in report
+
+
+def test_no_stage_2_test_throws_away_what_the_command_returned() -> None:
+    """`cli.main()` RETURNS its exit code, and a call that drops it tests nothing.
+
+    Found by the stage 2 confirmation review: four helpers called it as a
+    bare statement and fell through to success, so a validation that
+    missed an obligation passed the gate test.
+    """
+    import ast
+
+    folder = pathlib.Path(__file__).resolve().parent
+    dropped = []
+    for path in sorted(folder.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # A call inside `with pytest.raises(...)` returns nothing to read:
+        # it is expected to raise, and the block checks what it raised.
+        expecting: "set[int]" = set()
+        for block in ast.walk(tree):
+            if not isinstance(block, ast.With):
+                continue
+            for item in block.items:
+                context = item.context_expr
+                if (
+                    isinstance(context, ast.Call)
+                    and isinstance(context.func, ast.Attribute)
+                    and context.func.attr == "raises"
+                ):
+                    for inner in ast.walk(block):
+                        expecting.add(id(inner))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
+                continue
+            if id(node) in expecting:
+                continue
+            called = node.value.func
+            if isinstance(called, ast.Attribute) and called.attr == "main":
+                if isinstance(called.value, ast.Name) and called.value.id == "cli":
+                    dropped += [f"{path.name}:{node.lineno}"]
+    assert dropped == [], dropped
+

@@ -268,3 +268,25 @@ def test_the_census_repair_takes_a_repeated_spelling_and_stays_linear() -> None:
     assert notes == []
     assert holes[0] not in fixed
     assert spent < 10.0, spent
+
+
+def test_the_census_repair_never_folds_two_values_into_one() -> None:
+    """A last copy is never handed a mark that folds it onto another value."""
+    from synthtwin import parsing
+
+    oracle = _oracle()
+    column = typing.cast(contract.ColumnBlock, types.SimpleNamespace(name="c"))
+    wanted = [" ", "T", "t", " ", "T", " "]
+    days = [20089, 20089, 20089, 20090, 20090, 20090]
+    cells = [
+        generation._cell_of_ordinal(day * 86400, "datetime", "second", 0, wanted[rank])
+        for rank, day in enumerate(days)
+    ]
+    holes = ("2025-01-01t00:00:00",)
+    named = ("lower_t", "space", "upper_t")
+    kept = [generation._kept_datetime_cell(cell, holes, named) for cell in cells]
+    fixed, notes = generation._rebalanced_marks(column, wanted, kept, holes)
+    assert len({parsing.folded(cell) for cell in fixed}) == 3, fixed
+    assert [note.fact for note in notes] == ["datetime_separators"]
+    assert oracle["rebalance_marks"](wanted, kept, set(holes)) == fixed
+

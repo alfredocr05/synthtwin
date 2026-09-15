@@ -6,6 +6,51 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: what a confirmation review found after stage 2 closed (2026-09-15)
+
+**An independent review of the committed stage 2 answered "not fixed",
+and six verifiers reproduced every finding.** Five are fixed here; two
+older ones are carried.
+
+- **A column of dates could still read back as a column of two values.**
+  The census repair guarded literal spellings, so it handed the last copy
+  of a day a `t` beside that day's `T`, and ten cells of three values,
+  case ignored, came back binary with nothing said, on every seed. The
+  repair now never leaves a column one value fewer once case is ignored,
+  the oracle mirrors it, and a twin whose values fall to two where the
+  description counts three or more is named.
+- **Decimal-comma recounts mixed two readings.** The generator's own
+  report and the validator read absence and class in the ordinary
+  grammar, so labels beside decimal-comma numbers were counted as numbers
+  and a grouped `-999.000` as the absent `-999,000`: the report listed
+  false deviations, and the real table failed its own description. Both
+  now read a declared column in its own grammar and translate only what
+  is left. This predates stage 2.
+- **A lost thousands mark on a currency, unit or labelled column was
+  silent.** The warning now covers the cores of every wrapper of an
+  affixed column and the numeric half of a column of numbers and labels.
+- **The round-trip tests could not see a failed check.** `cli.main()`
+  returns its exit code, and the helpers dropped it, so a validation that
+  missed an obligation passed. They read it now, and a test fails if any
+  test drops a command's result again. That is how the decimal-comma
+  failure above came to light.
+- **A day declared absent in every spelling still received values.** A
+  whole-unit rank that lands on such a day now steps to the nearest
+  present day inside its own window, and the oracle mirrors it.
+
+Each fix is pinned by a test built from the review's reproduction and
+mutation-checked by withdrawing it.
+
+**Carried, confirmed older than stage 2:**
+
+- the validator estimates the widest stratum of a numeric column from the
+  description while the generator uses the real one, so it can call a
+  faithful twin's percentile rung MISSED -- on a 2,000-row column, 6 seeds
+  of 8; this bears on the reliability of statistics and belongs to a
+  later stage;
+- a small column of numbers and labels that falls to a free-text or
+  long-tail role writes stand-ins that cannot reproduce its numeric forms.
+
 ### Fixed: stage 2 closed after an independent audit (2026-09-14)
 
 **The audit found stage 2 was not done.** Five probes and a verifier who

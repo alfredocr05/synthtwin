@@ -37,12 +37,14 @@ def _run(argv: "list[str]") -> None:
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        cli.main()
+        code = cli.main()
     except SystemExit as stop:
         if stop.code not in (None, 0):
             raise AssertionError(f"{argv} exited {stop.code}") from stop
     finally:
         sys.argv = before
+    if code != 0:
+        raise AssertionError(f"{argv} returned {code}")
 
 
 def _profile_of(

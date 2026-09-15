@@ -3031,6 +3031,7 @@ def _datetime_content(column):
             and resolution == "datetime"
             and not midnight
         ) else 0
+        named = [name for name in column.get("datetime_separators", {}) if name != "(withheld)"]
         if endpoint is not None:
             text = endpoint_cell(
                 endpoint,
@@ -3040,26 +3041,57 @@ def _datetime_content(column):
                 moved,
                 mark=marks[rank],
             )
-        elif midnight:
-            # A whole day, written with a midnight clock at the published
-            # precision (plan P4-D39).
-            text = precision_form(
-                ordinal * 86400,
-                "datetime",
-                column["time_precision"],
-                column["subsecond_digits"],
-                mark=marks[rank],
+            content.append(kept_cell(text + suffix, holes, named))
+            continue
+
+        def spell(unit, mark=marks[rank], suffix=suffix, moved=moved):
+            if midnight:
+                # A whole day, written with a midnight clock at the
+                # published precision (plan P4-D39).
+                body = precision_form(
+                    unit * 86400,
+                    "datetime",
+                    column["time_precision"],
+                    column["subsecond_digits"],
+                    mark=mark,
+                )
+            else:
+                body = precision_form(
+                    unit + moved,
+                    resolution,
+                    column["time_precision"],
+                    column["subsecond_digits"],
+                    mark=mark,
+                )
+            return kept_cell(body + suffix, holes, named)
+
+        written = spell(ordinal)
+        folded = {hole.strip().lower() for hole in holes}
+        if space != "datetime" and written.strip().lower() in folded:
+            # G7.5's step off a unit that wears only absent spellings: the
+            # nearest unit, earlier before later, first inside this rank's
+            # own window and then inside the published range.
+            first = ordinal_of(column["earliest"], space)
+            last = ordinal_of(column["latest"], space)
+            window = (
+                max(first, interpolated_ordinal(rank * TWO64, parsed * TWO64, rungs) - 1),
+                min(last, interpolated_ordinal((rank + 1) * TWO64, parsed * TWO64, rungs)),
             )
-        else:
-            text = precision_form(
-                ordinal + moved,
-                resolution,
-                column["time_precision"],
-                column["subsecond_digits"],
-                mark=marks[rank],
-            )
-        named = [name for name in column.get("datetime_separators", {}) if name != "(withheld)"]
-        content.append(kept_cell(text + suffix, holes, named))
+            for low, high in (window, (first, last)):
+                chosen = None
+                for away in range(1, len(holes) + 2):
+                    for other in (ordinal - away, ordinal + away):
+                        if low <= other <= high:
+                            candidate = spell(other)
+                            if candidate.strip().lower() not in folded:
+                                chosen = candidate
+                                break
+                    if chosen is not None:
+                        break
+                if chosen is not None:
+                    written = chosen
+                    break
+        content.append(written)
     content = rebalance_marks(marks, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
@@ -3171,6 +3203,13 @@ def rebalance_marks(wanted, cells, holes):
                 continue
             # A repair never leaves the column one spelling fewer.
             if cells.count(candidate) < 2 and changed in cells:
+                continue
+            # ...nor one value fewer once case is ignored, which is what
+            # the reading that names a column's kind counts.
+            was, becomes = candidate.strip().casefold(), changed.strip().casefold()
+            if was != becomes and sum(
+                1 for cell in cells if cell.strip().casefold() == was
+            ) < 2 and any(cell.strip().casefold() == becomes for cell in cells):
                 continue
             cells[other] = changed
             touched.add(other)
@@ -8264,7 +8303,11 @@ DEFINITIONS = {
     "space) unless that is absent too, and the mark it owed is handed to the "
     "first rank, in rank order, allocated the mark it now wears whose new "
     "text is not absent and whose change leaves the column no spelling "
-    "fewer; no rank is touched twice. No frozen case declares an absent spelling, so that exception "
+    "fewer, nor one value fewer once case is ignored; no rank is touched "
+    "twice. An interior rank of a column counted in whole units whose unit "
+    "wears only absent spellings steps to the nearest unit, earlier before "
+    "later, inside its own window and then inside the published range. "
+    "No frozen case declares an absent spelling, so that exception "
     "is pinned by the agreement test rather than by committed cells (G7.5).",
     "grid_packing": "the published families of counts over one set of cells "
     "are MARGINS of one packing, never one walk after another: every group "

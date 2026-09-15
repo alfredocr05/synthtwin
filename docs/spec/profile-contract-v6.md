@@ -6284,10 +6284,17 @@ published 113 different cells and its twin held 56 at every seed.
 **A DECLARED DECIMAL COMMA REACHES THIS ROLE'S NUMERIC HALF** (plan
 P4-D34). Both halves are read under the declaration the column was
 described with, the twin spells the half's numbers with a comma, and
-the validator reads them back that way. The LABEL half is never
-translated: both sides translate a cell of this role only where the
-translation makes it a number, so a marker spelled `E11.9` keeps its
-dot. Before this the profiler split the cells under the comma grammar
+the validator reads them back that way. A published label is never
+rewritten, in the description or in the twin. When either checking side
+recounts a declared column -- the generator's own report and the
+validator alike -- it reads each cell's class, and every absent
+spelling's identity, under the declared grammar on the file's own text,
+and translates a cell to a point only after the absent cells are set
+aside. So a label such as `1,234,567`, which the ordinary reader takes
+for a number, is counted as a label, a marker spelled `E11.9` keeps its
+dot, and a grouped `-999.000` is a number rather than the absent
+`-999,000` (stage 2 confirmation review, 2026-09-15; the recounts had
+mixed the two readings since before stage 2). Before this the profiler split the cells under the comma grammar
 and then re-read the halves without it, which left an empty numeric
 half and ended the run in an internal error.
 

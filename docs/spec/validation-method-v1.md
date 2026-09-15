@@ -1136,6 +1136,17 @@ comma under either published mark. The listing says the description
 records the mark the real column's numbers were found to carry between
 thousands, or that none was found.
 
+**Amended 2026-09-15 (stage 2 confirmation review): a declared column is
+read in its own grammar before it is translated.** Which cells are
+absent is decided on the file's own text with every exact identity --
+the cell's, a kept value's, a declared missing value's -- read under the
+declared decimal comma, and only the cells left are translated to a
+point. On a column of numbers and labels a cell whose declared reading
+is not a number stays a label. Reading the translated list against
+untranslated absent spellings had dropped a grouped `-999.000` as the
+absent `-999,000`, and counting `1,234,567` beside the numbers as a
+plain number had missed `styles.remainder` on the real table itself.
+
 **V3.4-A2 And the measurement taken in that space is the CONSTRUCTION's
 own, written from the method and compared with the generator's writing
 of it** (2026-08-14, review items P3-V4-F4 and P3-V4-F5; the plan's
