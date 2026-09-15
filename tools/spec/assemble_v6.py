@@ -1,18 +1,36 @@
-'''Assemble the version 6 contract from its section files.
+'''Assemble the version 6 contract from its section files -- REFUSED.
 
-The sections are written and checked independently -- that is what lets
-each be verified against source without its checker holding the whole
-document in mind -- and this script is where they become one document.
-It is kept because the assembly is not a one-time act: a repair lands in
-a section and the document is rebuilt, so that no fix ever exists only
-in the assembled copy.
+THIS SCRIPT NO LONGER WRITES ANYTHING (residual R-P4-113). It was
+written so that a repair would land in a section file under
+`docs/spec/v6-build/` and the document would be rebuilt from them. That
+is not what happened: every repair since 2026-08-26, stage 2's
+included, went straight into `docs/spec/profile-contract-v6.md`, and
+the section files did not move. Run on the tree of 2026-09-15 the
+rebuild wrote 385 lines and deleted 3,375 of the shipped contract,
+silently discarding every one of those repairs.
 
-Run  over the result. It must report zero
-items before the document is called finished.
+Which copy is the source is the owner's question and is not answered
+here: either the sections become the source again, which means carrying
+every repair back into them, or the assembled document is declared the
+source and the section files and this script are retired. Until the
+owner answers, the rebuild refuses to run, so that the one command that
+could throw the shipped contract away cannot be run by accident. The
+section files are left exactly as they are.
+
+The mechanical checks over the shipped document are
+`tools/spec/check_assembly.py`, which `tests/test_contract_self_check.py`
+runs on every suite.
+
+The rebuild itself is not kept here: it wrote the shipped document
+from the section files, and it stands in this file's history at commit
+53bb012 for whichever answer the owner gives.
 '''
-from pathlib import Path
+import sys
 
-B = Path("docs/spec/v6-build")
+# The order the section files were assembled in, kept because it is the
+# one record of which section of the shipped document came from which
+# file.
+
 ORDER = [
     ("s1", "scope, authority, completeness; terms"),
     ("s3", "encoding and canonical serialization"),
@@ -44,47 +62,21 @@ ORDER = [
     ("a14app", "appendix: every enumeration in one place"),
 ]
 
-HEADER = """# Profile contract, version 6 — the normative specification
-
-**Status:** revision 6, 2026-08-21 — the first COMPLETE statement of
-this format. **Not ratified.** It is reviewed adversarially before the
-implementation it anchors is written, under the standing process:
-plans and specifications before the artifacts they anchor. It joins
-the disposition seal at its own landing.
-
-**This document is self-contained.** It carries nothing by reference
-from version 4 or version 5, replaces nothing by name, and holds no
-table of replacements. Every rule, key, enumeration, invariant,
-disposition and loader obligation that governs a version 6 description
-is written HERE, at its own wording, once. Section 1 states that rule
-and what it cost.
-
-**Authority.** The Phase 4 plan `docs/plans/phase-4-columns.md` is the
-authority for every decision here; this document is the normative
-statement of what a version 6 description may contain. Where the two
-disagree the plan governs and this document is defective. The plan's
-amendments A-P4-1 through A-P4-12 are part of the ratified text this
-document transcribes.
-
-**Versions 4 and 5 keep their sealed text** and keep governing the
-descriptions written under them. Nothing here edits what they require.
-
----
-
-"""
+REFUSAL = (
+    "tools/spec/assemble_v6.py refuses to run (residual R-P4-113): the"
+    " section files in docs/spec/v6-build/ stopped moving on 2026-08-26"
+    " while every repair since went into docs/spec/profile-contract-v6.md,"
+    " so a rebuild would throw those repairs away. Which of the two copies"
+    " is the source is a question for the owner, and nothing is written"
+    " until it is answered."
+)
 
 
 def build() -> int:
-    missing = [n for n, _ in ORDER if not (B / f"{n}.md").exists()]
-    assert not missing, f"missing sections: {missing}"
-    parts = []
-    for name, subject in ORDER:
-        body = (B / f"{name}.md").read_text(encoding="utf-8").strip()
-        parts.append(f"<!-- {name}: {subject} -->\n\n{body}")
-    text = HEADER + "\n\n---\n\n".join(parts) + "\n"
-    Path("docs/spec/profile-contract-v6.md").write_text(text, encoding="utf-8")
-    return len(ORDER)
+    """Refuse, and name why. Writes nothing, reads nothing."""
+    raise SystemExit(REFUSAL)
 
 
 if __name__ == "__main__":
-    print(f"assembled {build()} sections")
+    print(REFUSAL, file=sys.stderr)
+    raise SystemExit(2)

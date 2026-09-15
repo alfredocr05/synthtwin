@@ -241,8 +241,10 @@ ROLE_LONG_TAIL = "long_tail_labels"
 ROLE_COMPOUND = "numbers_with_labels"
 # THE FOURTEENTH ROLE (plan P4-D21). Two or more numbers written
 # in one cell, joined by one repeated separator: `120/80`, `12-05-3`.
-# It is reached ONLY where the person names the column, and never from
-# the values -- see `_joined_reading` for the measurement that says why.
+# Its full reading is reached ONLY where the person names the column --
+# see `_joined_reading` for the measurement that says why -- and one
+# shape, two plain whole numbers joined by a slash, is read from the
+# values by rule 9c (plan P4-D40).
 ROLE_JOINED = "joined_numbers"
 ROLE_TEXT = "free_text"
 
@@ -7223,7 +7225,49 @@ def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
     return parts
 
 
-def _joined_reading(cells: _Cells) -> "_Joined | None":
+def _reads_as_a_plain_whole(text: str) -> bool:
+    """Whether one part of a cell is figures alone, with no leading zero.
+
+    The part shape rule 9c reads from the values (plan P4-D40): no
+    point, no sign, and no padding. A padded part (`007`) is how a code
+    is written far more often than a measurement, and a part with a
+    point is a ratio the declaration reads and this rule leaves alone.
+    Figures are tested against fixed ASCII for the reason
+    `_reads_as_one_number` gives.
+    """
+    if not text:
+        return False
+    for character in text:
+        if not ("0" <= character <= "9"):
+            return False
+    if len(text) > 1 and text[0] == "0":
+        return False
+    return True
+
+
+def _split_for_reading(
+    value: str, separator: str, plain_pair: bool
+) -> "list[str] | None":
+    """The parts of one cell under one separator for one reading, or None.
+
+    Under the declaration every split `splits_into_numbers` accepts is
+    read. Under rule 9c only a PAIR of plain whole numbers is, and any
+    other cell is left unparsed.
+    """
+    split = splits_into_numbers(value, separator)
+    if split is None or not plain_pair:
+        return split
+    if len(split) != 2:
+        return None
+    for part in split:
+        if not _reads_as_a_plain_whole(part):
+            return None
+    return split
+
+
+def _joined_reading(
+    cells: _Cells, plain_pair: bool = False
+) -> "_Joined | None":
     """The one joined-number reading this column wears, or None.
 
     Guarantees:
@@ -7250,6 +7294,17 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     nothing in either says which. So the caller asks only under the
     declaration, exactly as `taxonomy._decide`'s RULE 5 has said since
     review item P1-R6-F7 that such a thing must be.
+
+    ONE SHAPE IS READ WITHOUT IT, and ``plain_pair`` asks for it (plan
+    P4-D40, 2026-09-15, which narrows P4-D21). A column every other rule
+    declined, whose cells are TWO plain whole numbers joined by a slash
+    -- `128/79`, `120 / 80` -- is read here from its values. It wears
+    none of the shapes the measurement above found: a date or a clock
+    is claimed by an earlier rule, and the codes it names are joined by
+    a hyphen and padded. Such a column was free text, which publishes
+    nothing, so its twin held stand-in text where a blood pressure was;
+    the question the questions file puts is still put, with `code` and
+    `identifier` offered beside the reading taken.
     """
     present = cells.present
     n_present = len(present)
@@ -7258,6 +7313,8 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     needed = _needed(cells.settings.minimum_parse_rate, n_present)
     tried: "list[str]" = []
     for mark in JOINED_SEPARATORS:
+        if plain_pair and mark != "/":
+            continue
         for spacing in range(len(JOINED_SPACINGS)):
             tried += [
                 JOINED_SPACINGS[spacing] + mark + JOINED_TAILINGS[spacing]
@@ -7265,7 +7322,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
     for separator in tried:
         counted: "dict[int, int]" = {}
         for value in present:
-            split = splits_into_numbers(value, separator)
+            split = _split_for_reading(value, separator, plain_pair)
             if split is not None:
                 width = len(split)
                 counted[width] = counted[width] + 1 if width in counted else 1
@@ -7275,7 +7332,7 @@ def _joined_reading(cells: _Cells) -> "_Joined | None":
             columns: "list[list[str]]" = [[] for _each in range(width)]
             worn = 0
             for value in present:
-                split = splits_into_numbers(value, separator)
+                split = _split_for_reading(value, separator, plain_pair)
                 if split is None or len(split) != width:
                     continue
                 worn = worn + 1
@@ -7383,7 +7440,11 @@ def _joined_verdict(
     notes: "list[Note]",
     remarks: "list[Note]",
 ) -> _Verdict:
-    """The verdict for a declared column of joined whole numbers."""
+    """The verdict for a column of numbers joined in one cell.
+
+    Reached by the declaration (rule 0c) or, for a pair of plain whole
+    numbers joined by a slash, from the values (rule 9c).
+    """
     return _Verdict(
         role=ROLE_JOINED,
         evidence=note(
@@ -9128,6 +9189,7 @@ def _decide(
     forced_code: bool = False,
     forced_measurement: bool = False,
     probing: bool = False,
+    described_as_pair: bool = False,
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -9137,6 +9199,13 @@ def _decide(
     nothing else, so the question is asked exactly once and this
     function cannot call itself without end. Every other caller leaves
     it false and gets the ordinary reading.
+
+    ``described_as_pair`` says the DESCRIPTION a file is being checked
+    against read this column as a slashed pair of plain whole numbers
+    from its values (rule 9c, plan P4-D40). Only the validator sets it,
+    and it moves rule 9c's reading to just before rule 9b and changes
+    nothing else; see the comment at that point for why. Every other
+    caller leaves it false.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -9177,6 +9246,11 @@ def _decide(
     8. clock times, in one of two forms, at the parse rate --
        `time_of_day`;
     9. a number wearing one shared piece of text -- `affixed_number`;
+    9b. a long tail of labels -- `long_tail_labels`;
+    9c. TWO PLAIN WHOLE NUMBERS JOINED BY A SLASH in every cell but the
+       parse line's remainder -- `joined_numbers` read from the values
+       (plan P4-D40). Last before the fallback, so it claims only a
+       column that would otherwise publish nothing;
     10. everything else -- `free_text`, which publishes nothing.
 
     RULES 8 AND 9 SIT WHERE THEY DO ON PURPOSE. Both are tested last
@@ -9772,6 +9846,27 @@ def _decide(
     # no idea what a chapter is. Hierarchy is not modelled; it is a
     # consequence of holding the right values the right number of
     # times.
+    # ...UNLESS THE DESCRIPTION BEING CHECKED ALREADY READ THIS COLUMN AS
+    # A SLASHED PAIR (plan P4-D40; validation method V2.2-A2). Rule 9c
+    # stands after rule 9b, so whether a column of slashed pairs is read
+    # as two numbers or as a long tail turns on whether one whole reading
+    # repeats in the long-tail line's count of rows -- and that is a
+    # property of the SAMPLE, not of the column. Measured on a blood
+    # pressure of 5,000 rows: the real column's commonest reading
+    # repeated 9 times, a faithful twin's, whose two positions are paired
+    # at random, 12 and 14 times, so the twin re-read as a long tail and
+    # `synthtwin validate` called the role MISSED on 22 round trips of 80
+    # between 1,200 and 5,000 rows, where the declared column passed on
+    # the same cells. Checking a file is asking whether it matches the
+    # description, so the file is read the way the description was read,
+    # exactly as a declaration is carried over. It can still fail: a
+    # file whose cells are not such pairs is not read as them, and falls
+    # to the rules below.
+    if described_as_pair and not forced_code:
+        described_pair = _joined_reading(cells, plain_pair=True)
+        if described_pair is not None:
+            return _joined_verdict(cells, described_pair, notes, remarks)
+
     covering = _levels_covering(cells.folded_counts, settings)
     if covering > 0 or forced_code:
         levels = _levels(
@@ -9799,6 +9894,28 @@ def _decide(
             notes=notes,
             remarks=remarks,
         )
+
+    # RULE 9c -- TWO PLAIN WHOLE NUMBERS JOINED BY A SLASH, read from
+    # the values (plan P4-D40, 2026-09-15, narrowing P4-D21). A blood
+    # pressure written `128/79` beside 1,999 others was free text at
+    # 300 rows and at 2,000: this rule was asked only under
+    # `--measurement`, so without the declaration its twin held stand-in
+    # text and neither position's ladder was ever described or checked.
+    #
+    # IT CLAIMS ONLY WHAT WOULD OTHERWISE PUBLISH NOTHING. It sits after
+    # every rule that publishes a value, so no column those rules read
+    # today moves; and it reads one shape, which none of the columns
+    # P4-D21 measured wears: a date and a clock are claimed by rules 5
+    # and 8, the laboratory code `1923-1` and the drug code
+    # `00052-0052-52` are joined by a hyphen, and a padded part such as
+    # `007` or a part with a point is left to the declaration. A code
+    # written as two slashed figures is still a code this rule cannot
+    # tell from a measurement, which is why the questions file goes on
+    # asking about the column with `code` and `identifier` offered.
+    if not forced_code:
+        paired = _joined_reading(cells, plain_pair=True)
+        if paired is not None:
+            return _joined_verdict(cells, paired, notes, remarks)
 
     # RULE 10 -- everything else is free text, which publishes nothing.
     #
@@ -10822,6 +10939,7 @@ def profile_column(
     forced_code: bool = False,
     forced_measurement: bool = False,
     forced_decimal_comma: bool = False,
+    described_as_pair: bool = False,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -10846,6 +10964,11 @@ def profile_column(
       NUMBER each cell holds, so `-999` covers a file that writes
       `-999.00`; any other declaration is compared with the spelling,
       after trimming and case folding (review item P1-R6-F9).
+    - ``described_as_pair`` is not a declaration and no person sets it:
+      the validator sets it on a column its description read as a
+      slashed pair of whole numbers from the values, so the checked
+      file is read the way the description was (plan P4-D40,
+      validation method V2.2-A2). `_decide` states what it moves.
     - Errors raised: TypeError if a value is not text (an internal
       invariant: both readers produce text), and ValueError when the
       settings name one value BOTH as data and as "no value" -- there
@@ -10968,6 +11091,7 @@ def profile_column(
             forced_identifier,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
             reading = _remainder_reading(present, settings)
@@ -11021,6 +11145,7 @@ def profile_column(
             forced_identifier,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
         if trial.role == ROLE_AFFIXED:
             before = len(present)
@@ -11096,6 +11221,7 @@ def profile_column(
             after_days=judged_over_days,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(

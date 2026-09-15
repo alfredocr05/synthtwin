@@ -213,7 +213,15 @@ ventilator ratio such as `1:1.5`.
 synthtwin reads each number separately and publishes a range and an
 average for each one, so the twin's cells hold believable readings
 instead of digits in the right shape. Without it such a column is
-described as text and its twin carries no readings at all. Use it only
+described as text and its twin carries no readings at all -- except two
+whole numbers joined by a slash (`128/79`), which are read this way from
+their values and are still asked about, as long as no one reading repeats
+in eleven rows or more (or in as many rows as your publication floor, if
+that is higher). A long column of such readings, or readings rounded to
+the nearest 5, usually repeats past that line and is described as labels
+instead, so name it here. An unpadded month and year (`4/2020`) or a
+register number (`2019/4821`) is read the same way, so answer `code` for
+those in the questions file. Use it only
 where the numbers are quantities: a lab code such as `1923-1` and a drug
 code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers

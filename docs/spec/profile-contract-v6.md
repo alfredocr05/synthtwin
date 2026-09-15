@@ -2773,20 +2773,26 @@ takes is decided by testing these rules in order, first match wins:
 9. `time_of_day`;
 10. `affixed_number`;
 11. `long_tail_labels`;
-12. `free_text`.
+12. `joined_numbers`, read from the values in the one shape section
+    6.15 names — two plain whole numbers joined by a slash;
+13. `free_text`.
 
-Thirteen roles in twelve rules: `count` and `continuous` are decided by
-one rule, which then chooses between the two.
+Fourteen roles in thirteen rules: `count` and `continuous` are decided
+by one rule, which then chooses between the two. `joined_numbers` is
+also reached by the person's declaration ahead of the rules that read
+values, in its full reading, as section 6.15 states.
 
-**Why rules 9 through 11 sit after `categorical`.** They are tested
+**Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
 declined; no column an earlier rule can claim is diverted into one of
 them, and no earlier rule's reach depends on them. Their internal order
 is `time_of_day` before `affixed_number` — clock text rarely splits as
 an affixed number, but the time reading is the more specific claim —
 and `affixed_number` before `long_tail_labels`, because a distribution
-beats labels where both could fire, with `long_tail_labels` last before
-the fallback.
+beats labels where both could fire. `joined_numbers` comes last before
+the fallback (plan P4-D40): a column of slashed pairs that repeat often
+enough to be labels keeps the label reading it had, and the rule claims
+only a column that would otherwise publish nothing.
 
 **The order is a PRODUCER rule.** It decides what a producer writes. A
 loader holds one document and never the table it describes, so it
@@ -4211,8 +4217,8 @@ consumer off the role name.
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
 | `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`; published only when EVERY bin clears the floor | REPORT-ONLY |
-| `empty_bins` | array | C6-32 to C6-33 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
-| `empty_edges` | array | C6-33a to C6-33b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
+| `empty_bins` | array | C6-122 to C6-123 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
+| `empty_edges` | array | C6-123a to C6-123b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
 
 Twenty-six keys. Every one is present in every block of these two
 roles — this format has no optional keys — and every key not listed
@@ -4373,6 +4379,34 @@ which cannot occur on these roles by Q3.
 `n_negative_unrepresentable <= n_negative`.
 
 **Invariant Q11 (`n_zero` bound).** `n_zero <= n_numeric`.
+
+**Invariant Q16 (`kurtosis` nulls and bound).** `kurtosis` is `null`
+when `n_used_in_statistics < 4`, and when every parsed value is
+identical. It is a number otherwise, and for the `n` values the
+statistics used that number lies between 1 and `n - 2 + 1/(n - 1)`,
+which is where every sample of `n` values lies whatever the values
+are: the upper end is reached exactly when one value stands apart from
+`n - 1` equal ones.
+
+**Invariant Q17 (`n_distinct_values` bound).**
+`n_distinct_values <= n_numeric`, and `n_distinct_values >= 1` wherever
+`n_used_in_statistics > 0`. The bound is against the numeric cells and
+not against `n_distinct`, because the same block is read at three
+grains -- a column, one position of a `joined_numbers` column, and the
+cores of an `affixed_number` column -- and only the first of them has a
+spelling count over the same cells.
+
+**Invariant Q18 (`mode` and `mode_count` stand together).** `mode` is
+`null` exactly when `mode_count` is 0. Where `mode` is a number,
+`2 <= mode_count <= n_numeric`: one cell is not a mode, and no more
+cells can hold the commonest number than read as a number at all.
+
+**Invariant Q19 (`percentiles_between` never goes down).**
+`percentiles_between` names exactly the ninety percents from 1 to 99
+that `percentiles` does not name, each holding a number or `null`; and
+walking the hundred and one rungs of the named ladder and this one
+together in percent order, passing over every `null`, no rung is smaller than the
+rung before it.
 
 **Where else this family is enforced.** On `affixed_number` every
 invariant of this section is read over the CORES, with
@@ -5313,8 +5347,8 @@ refused rather than read.
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
 | `value_histogram` | object | C6-31 | the CORES falling in each bin between the core ends; published only when every bin clears the floor | REPORT-ONLY |
-| `empty_bins` | array | C6-32 to C6-33 | which of those same bins hold none of the CORES, ascending; published whatever the floor is | REPORT-ONLY |
-| `empty_edges` | array | C6-33a to C6-33b | one `[below, above]` pair per run of those empty bins, read over the CORES | REPORT-ONLY |
+| `empty_bins` | array | C6-122 to C6-123 | which of those same bins hold none of the CORES, ascending; published whatever the floor is | REPORT-ONLY |
+| `empty_edges` | array | C6-123a to C6-123b | one `[below, above]` pair per run of those empty bins, read over the CORES | REPORT-ONLY |
 | `affix_variants` | array | C6-7a below | the OTHER wrappers this column's cells wear, each with the count wearing it, ascending by their own text; empty on a column wearing one | EXACT-OBSERVABLE |
 | `n_core_distinct` | count | AF10 | how many DIFFERENT cores the cells carry | EXACT-OBSERVABLE |
 | `n_core_distinct_folded` | count | AF10 | the same over the folded identities | EXACT-OBSERVABLE |
@@ -6113,16 +6147,51 @@ one decimal point, and that point may be neither the first character
 nor the last; a part with no figure, two points, an exponent or a sign
 is refused and the cell is not read by this role.
 
-**IT IS REACHED BY DECLARATION AND NEVER FROM THE VALUES**, and the
-reason is a measurement rather than a caution (plan P4-D21). A rule
-reading the values would claim a date (`2023-02-12` is three whole
+**IT IS REACHED BY DECLARATION, AND FROM THE VALUES IN ONE SHAPE
+ONLY**, and the reason is a measurement rather than a caution (plan
+P4-D21, narrowed by P4-D40 on 2026-09-15). A rule reading every joined
+shape from the values would claim a date (`2023-02-12` is three whole
 numbers joined by `-`), a clock time (`09:30` is two joined by `:`),
 and — past any rule order that could save those two — a laboratory code
 (`1923-1`) and a drug code (`00052-0052-52`), which are CODES.
 Claiming those would publish the smallest and largest of their parts,
-which are fragments of real codes. A blood pressure and a laboratory
-code are both figures joined by a mark and nothing in either says
-which, so the person says which, with `--measurement`.
+which are fragments of real codes. So the full reading of this section
+is the person's to ask for, with `--measurement`.
+
+**The one shape read without the declaration** is rule 12 of section
+5.2's order, tested last before `free_text`, so it claims only a column
+that would otherwise publish nothing. At least the parse-line count of
+the present cells are each exactly TWO parts joined by a slash — the
+separator `/`, `/ ` or ` / ` — and each part is figures alone with no
+point, no sign, and no leading zero on a part of two or more figures.
+Every other present cell is counted in `n_unparsed`. None of the
+columns P4-D21 measured wears that shape: the full date and the clock are
+claimed by earlier rules, both codes are joined by a hyphen and one is
+padded, and a part carrying a point is left to the declaration. A
+blood pressure written `128/79` was `free_text` at 300 rows and at
+2,000 until this rule, so its twin held stand-in text and neither
+position was described. A coding system written as two slashed figures
+is still a code this rule cannot tell from a measurement, so every
+column read this way is asked about in the questions file, with codes
+and record numbers offered beside the reading taken.
+
+**What rule 12 does not reach, stated at its size.** It stands after
+`long_tail_labels`, so a column of such pairs in which one whole reading
+covers the long-tail line (the publication floor or eleven, whichever is
+larger) is a long tail and not this role. Measured on 2026-09-15: a
+blood pressure of 6,000 or 12,000 rows, and one charted to the nearest 5
+at 300 and 2,000 rows, is `long_tail_labels`, so neither position is
+described; between about 3,500 and 5,000 rows of plain readings, and
+1,200 and 1,600 of readings charted to the nearest even number, which of
+the two roles a column takes turns on its sample. The declaration reads
+every one of them. Nor is every slashed pair a date: a month and year
+written without padding (`4/2020`) is no date form this contract reads,
+so a column of them that no earlier rule claims is read by rule 12, and
+so is a register number written as year and serial (`2019/4821`); both
+are asked about. A file checked against a description that took this
+reading from the values is read the same way, ahead of the long-tail
+rule (validation method V2.2-A2), so a faithful twin whose randomly
+paired readings cross the line is not reported as another role.
 
 **The eight keys this role adds**, and no ninth; the forbidden-key
 matrix of 6.11 is what stops one:
@@ -6631,7 +6700,7 @@ purpose. Add `W-P` to that list's producer rows.]
 
 #### 7.4.8 `shape_form_cells` — the level's own form count
 
-**C6-96 (what it counts).** `shape_form_cells` is how many of the
+**C6-124 (what it counts).** `shape_form_cells` is how many of the
 level's present rows wrote the label in the LABEL'S OWN WRITTEN FORM,
 where a written form is what 7.9 defines. It is REQUIRED on every entry
 of `levels` on the four label roles and FORBIDDEN everywhere else, and
@@ -7205,7 +7274,7 @@ edge belongs to the LOWER bin while the arithmetic put it in the
 upper. A producer written to that sentence and the shipped loader
 would place a boundary value in different bins.
 
-**C6-32 (where it lives, and what it holds).** A `count`, `continuous`
+**C6-122 (where it lives, and what it holds).** A `count`, `continuous`
 or `affixed_number` block carries `empty_bins` as a key of the BLOCK,
 a sibling of `value_histogram`, and forbidden on every other role. It
 is an ARRAY of bin numbers, ascending, each named once, naming every
@@ -7248,7 +7317,7 @@ thirteen bins, and at a floor of two, three, five or eleven it names
 none. `empty_bins` names the same nineteen empty bins at every one of
 those floors.
 
-**C6-33 (invariants).** One binds, and its identifier is Q20. Three
+**C6-123 (invariants).** One binds, and its identifier is Q20. Three
 conditions, each refusing a description of a column no table holds:
 
 - **Each bin is named once and in ascending order.** Order is not
@@ -7323,7 +7392,7 @@ census is counted with and from the same values.
 
 ### 7.11a `empty_edges`
 
-**C6-33a (where it lives, and what it holds).** Every block that
+**C6-123a (where it lives, and what it holds).** Every block that
 carries `empty_bins` carries `empty_edges` beside it, and it is
 forbidden wherever `empty_bins` is. It is an ARRAY of PAIRS. Each pair
 is `[below, above]`, two numbers, `below` strictly less than `above`.
@@ -7394,10 +7463,10 @@ and the same two values are already published as candidates for a
 ladder rung. There is no group here for a floor to protect.
 
 **AND WHERE THERE IS NO STRETCH THE LIST IS EMPTY.** `empty_bins`
-empty means `empty_edges` empty, which C6-33b's first condition states
+empty means `empty_edges` empty, which C6-123b's first condition states
 as an identity rather than as a special case.
 
-**C6-33b (invariants).** One binds, and its identifier is Q21. Five
+**C6-123b (invariants).** One binds, and its identifier is Q21. Five
 conditions, each refusing a description of a column no table holds:
 
 - **As many pairs as `empty_bins` has runs.** Runs are counted on the
@@ -7992,6 +8061,10 @@ as those keys' own published meanings have them.
 | Q9 | `numeric_share == (n_numeric + n_out_of_range + n_contradictory) / n_present`, a share of the present cells, and `0.0` where `n_present` is 0 — which Q3 forbids on these roles | yes |
 | Q10 | `n_negative_unrepresentable <= n_out_of_range` and `n_negative_unrepresentable <= n_negative` | yes |
 | Q11 | `n_zero <= n_numeric` | yes |
+| Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)` | yes |
+| Q17 | `n_distinct_values <= n_numeric`, and `n_distinct_values >= 1` wherever `n_used_in_statistics > 0` | yes |
+| Q18 | `mode` is `null` exactly when `mode_count` is 0, and where `mode` is a number `2 <= mode_count <= n_numeric` | yes |
+| Q19 | `percentiles_between` names exactly the ninety percents `percentiles` does not, each a number or `null`, and the hundred and one rungs of the named ladder and this one in percent order, `null`s passed over, never go down | yes |
 
 **Q5, Q6 and Q7 all turn on "every parsed value is identical".** The
 numeric roles fix that test where they state those three rules —
