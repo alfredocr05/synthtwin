@@ -174,13 +174,24 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
 
 # Each case was measured to cross the line: the real table is read as
 # joined numbers, and a plain re-profile of its twin reads a long tail.
-# All four exited 3 on the twin before the validator carried the reading
-# over (commit ccffc6b), and the declared column passed on the same cells.
+# All four as first chosen exited 3 on the twin before the validator
+# carried the reading over (commit ccffc6b), and the declared column
+# passed on the same cells.
+# TWO WERE RE-CHOSEN when landing 2b.1 merged into the integration of
+# landings 2b.1 to 2b.5, as this landing's merge notes said they might
+# be: its stratum cap holds a twin's repeated pairs down, so the twins of
+# `pressure-4500-seed-6` (top repeat 9) and `even-pressure-1600-seed-7`
+# (10) no longer crossed, and the test failed loudly as it should.
+# `pressure-4500-seed-8` (real top repeat 9, twin 12) and
+# `even-pressure-1400-seed-9` (real 10, twin 13) cross on the merged tree;
+# at 1,600 even-rounded rows no seed tried crosses any more. The two
+# replacements were measured on the merged tree only, where the reading
+# is already carried over, not against the validator before ccffc6b.
 NEAR_THE_LINE = [
     ("pressure-5000-seed-3", "plain", 5000, 3, "3"),
-    ("pressure-4500-seed-6", "plain", 4500, 6, "3"),
+    ("pressure-4500-seed-8", "plain", 4500, 8, "3"),
     ("even-pressure-1200-seed-5", "even", 1200, 5, "3"),
-    ("even-pressure-1600-seed-7", "even", 1600, 7, "3"),
+    ("even-pressure-1400-seed-9", "even", 1400, 9, "3"),
 ]
 
 
