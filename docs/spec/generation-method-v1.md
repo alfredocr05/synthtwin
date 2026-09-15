@@ -4148,6 +4148,123 @@ leading segment answer plausibly and wrongly.
   spelling built to look like a code no longer has them by
   construction, so each candidate is tested against all four and
   stepped past where it fails, exactly as a collision is.
+- **"Does not read as a number" is the property of a stand-in owing
+  ORDINARY TEXT, and only of one** (landing 2b.4). A held-back level the
+  class debt of G8.3a gives a numeric class must read as that class, so
+  for it the number property turns round and G8.3a states the rest.
+
+### G8.3a The classes the held-back levels owe
+
+**A held-back level that was a number is written as a number** (landing
+2b.4). The published spellings of G8.1 and G8.2 are on the page first,
+and each reads as one of the four classes of G10.2; what is left of
+`n_numeric`, `n_out_of_range` and `n_contradictory` after them is OWED
+by the held-back levels, counted over the twin's own cells exactly as
+G8.3's form debt is. Before this section every held-back level was
+written as a word, which broke G10.2 on the column a real table most
+often has: a column of readings beside two labels, 1,200 rows at a
+floor of twenty, published 853 numbers and its twin held 359, so code
+converting that column's non-label cells to numbers crashed on the twin
+and the twin failed its own validation. A column is read with its own
+grammar throughout: on a column declared `--decimal-comma` a cell is a
+number when it is one under that reading.
+
+1. **Which levels pay which class, BEFORE any form.** The class decides
+   how every cell parses, so it is settled first. The sizes are taken
+   largest first and each class debt is settled by an exact subset of
+   them, read off the reachable sums, the larger debt first and then the
+   smaller first, exactly as G8.3 settles a form debt. Where neither
+   order settles every class debt, or the sizes times the largest debt
+   pass 2^24, one pass gives each size, largest first, to the class
+   owing the most that the size does not overpay and that can still
+   supply a spelling. A number's supply is how many numbers step 3 can
+   still give.
+2. **Which form each paying level wears.** The census forms whose first
+   filling (`_filled_form` at step zero) reads as a class are settled
+   over that class's levels ALONE, by G8.3's arrangement, with each
+   form's supply counted by the walk of step 3 for numbers and by
+   G8.3's own walk for the other two classes. A level given no form
+   wears none the census names, because a spelling of a named form counts
+   toward that form and a level settled without it would overpay it. A form
+   whose spellings read as a numeric class is then taken out of the
+   word debt: it is paid inside its class or not at all.
+3. **What a number is.** The walk starts from the PUBLISHED numbers: the
+   published spellings reading as numbers that are plain decimals -- an
+   optional minus, figures, and at most one point followed by figures.
+   Their finest count of figures after the point is `P`, and the
+   smallest and the largest of them are the two ENDS. A level is
+   written at `P` places, or, where it wears a form, at that form's own
+   count of figures after its point, the ends rounded outward to it.
+   The walk has two parts, and the GAPS come first:
+   - the values strictly between the two ends that no published number
+     holds, nearest an end first, and the low end before the high end
+     at each distance -- because a held-back reading is as often inside
+     the published span as beyond it: at a floor of twenty that
+     1,200-row column held nineteen of its sixty held-back numbers
+     inside it;
+   - then OUTWARD, one step below the smaller end, one above the
+     larger, two below, and so on.
+
+   The paying levels take their numbers LARGEST FIRST, ties by the
+   list's order, each debt walking the ladder with a cursor of its own
+   so a value one debt refuses is still there for another. A number is
+   written with a minus where negative, its whole part as the figures
+   it has -- no leading zero invented -- and exactly its places after
+   the point, with the column's own decimal mark.
+
+   **The sign rule.** A negative needs a published negative. A positive
+   needs a published positive, or a published zero and no published
+   negative, which is a column of counts whose only published number is
+   zero. Zero needs a published zero, or published numbers on both
+   sides of it. A value breaking the rule is stepped past; once both
+   outward sides break it the walk has ended.
+
+   **The refusals.** A candidate is stepped past where it is already
+   written in the column, raw or folded; where its value is `-9999`,
+   `-999` or `9999`, the three the profiler can read as a missing-value
+   sentinel; where it is a spelling this column or the vocabulary reads
+   as absent; where it reads as a date; where it carries a quote, or a
+   comma on a column not read with one; and where it opens with `=`,
+   `+` or `@`. A minus is how a negative is written, not a formula.
+
+   A level whose form has no number left keeps its class without the
+   form. A level that finds no number at all is written as G8.3's
+   neutral label, and the report names the shortfall with the reason
+   that the supply ran out -- not the reason that a count fell part-way
+   inside a group, which is the other one and which is given only
+   where no exact split was found. **Where the column published no
+   number at all**, nothing places them: the walk starts at zero, holds
+   only positive numbers, takes its places from the number-reading
+   forms the census still owes, and so counts upward from the smallest
+   step those forms write; the report says that nothing published
+   places them.
+4. **Out of range and contradictory** levels take G10.3's
+   constructions, `ke999` and `(-k)` with `k` advancing on every
+   refusal, or their form's own spellings, held to the same refusals.
+
+**What a made-up number carries.** It is worked out from the published
+numbers alone. A gap value or an outward step can equal a value the
+real column held back, and nothing here prevents that; but no fact
+below the floor reaches it, and which held-back level is written as a
+number is this method's own choice by exact subset over the published
+sizes.
+
+**The label half of a compound column owes no class.** The contract's
+view of that half publishes `n_numeric` 0 and every cell a label, so
+its debt is nought and none of its stand-ins is a number; a test holds
+the view to that.
+
+**What it was measured to hold.** Twenty-seven runs over three seeds --
+one-decimal readings of 400 to 2,500 rows at floors of eleven and
+twenty, answers from one to five beside two labels at 150 rows, ages
+beside one label at 1,200 rows, integers beside comments at 1,000 rows
+and coded amounts beside two labels at 200 -- met `n_numeric` and `n_not_numeric` in every
+run, kept the real table's role when the twin was described again, and
+validated with nothing missed for both the twin and the real table;
+the mean of the twin's numbers stayed within 0.43 of the real table's
+standard deviation of them, and that standard deviation within 15%.
+The widest miss was the integers beside comments, whose column
+published two of its numbers.
 
 ### G8.4 The order of `content`
 
@@ -4747,6 +4864,65 @@ any that could not be met:
    EXACT-OBSERVABLE by construction on every role. A group may answer
    for a class only where some band can write that class at that group's
    length.
+
+   **How a number is spelled, and how many spellings a family holds**
+   (landing 2b.4). In figures alone a number of `L` figures is written
+   with NO INVENTED LEADING ZERO FIRST: `0` to `9` at one figure, and at
+   two or more the spellings that do not open with a zero, `10` to
+   `99`, before those that do, `00` to `09`, so the family still holds
+   `10^L`. In the code band a number of two characters is a minus and a
+   figure; of `L >= 3` it is `L - 2` figures spelled the same way, an
+   `e`, and one last figure taken in the order `1 0 2 3 4 5 6 7 8 9`. In
+   the wide band a number of two characters is a figure and a point; of
+   `L >= 3` it is `L - 2` figures, a point, and one last figure in the
+   order `5 0 1 2 3 4 6 7 8 9`. Those two bands hold ten at two
+   characters and `10^(L - 1)` at `L >= 3`. The last figure used to be
+   a constant -- `e1` and `.5` -- which spent a character on nothing
+   and left ten spellings where a hundred exist: a column of readings
+   written `7.2` beside comments, with twenty-five different
+   three-character numbers, was refused. And the first number of every
+   width used to be all zeros, so integers beside comments came back
+   spelled `000...0001` across forty-four characters.
+
+   **3a. A number's length is its own** (landing 2b.4). A column of
+   text publishes no length for its numbers, only for its cells, and
+   the average of those is set by the words. So once the packing below
+   has settled every group's class and band, each group that reads as a
+   number and carries NO published end takes a length of its own,
+   largest group first, ties by group order, inside the published ends:
+   the length of the census form step 7 settles it to wear, where it is
+   given one; otherwise the SHORTEST length at or above its band's
+   shortest -- one figure, a minus and a figure, a figure, a point and a
+   figure -- at which its band still has a number with no leading zero
+   to give. Every other group is then walked toward the published
+   average and word count by step 5, with those lengths held and each
+   of those groups holding one word. A group carrying an end keeps it.
+   **The report says what this cannot do**: a column of text publishes
+   how many of its cells are numbers and nothing about what those
+   numbers are, so a twin holding any names that nothing published
+   places them -- a mean or a range computed over them means nothing
+   about the table. Integers near a hundred and twenty beside comments
+   came back with a mean near fifty and every check passing; the line
+   is what stops that being silent, and no validation obligation is
+   raised for it, because the description carries no fact to check.
+
+   **3b. A number stands in the band its forms are written in**
+   (landing 2b.4). The packing meets the class and alphabet counts and
+   knows no form, and filling the number row's code cell before its
+   wide cell can put numbers written `7.2` in the code band, where no
+   spelling is `%.%`. So where a census form that reads as a number
+   still owes cells in one band, a group of ordinary text carrying no
+   end in that band is EXCHANGED with number groups carrying no end in a
+   band holding more numbers than its own forms owe, whose sizes make
+   the text group's size exactly -- read off the reachable sums -- and
+   which can each stand in the other's band at their lengths. Cells
+   leave and enter each band in equal numbers and each class keeps its
+   own, so every class count and every alphabet count stays exactly
+   where the packing put it. The text groups are offered smallest first,
+   and no exchange passes what the forms owe. Where none exists the
+   census is missed and the report names it: on a column whose only
+   single-cell text group carries an end, one cell of a number form can
+   stay unpaid.
 4. **The alphabets.** `n_all_digits` cells are written from `DIGITS`;
    a further `n_code_alphabet - n_all_digits` cells from `CODE`, each
    carrying at least one non-digit character at its leftmost position so
@@ -5068,6 +5244,24 @@ for.
    form and this paragraph is vacuous there — which is every free-text
    column the free-text promise was written for.
 
+   **A FORM IS OFFERED ONLY TO A GROUP OF THE CLASS IT READS AS**
+   (landing 2b.4). A form's class is the class its first filling reads
+   as. An ask a group could never meet still spent the form's debt and
+   the length budget, so a column of readings beside comments owing
+   forty-four cells of `%.%` gave that form to one group. Ordinary text
+   is offered the text forms by the walk above. **A number's form is
+   SETTLED, not asked**: inside each band, the number-reading forms that
+   band's spellings wear are settled over that band's number groups by
+   an exact subset of their sizes, as G8.3 settles a label column's
+   forms — a group carrying a published end first, and only for a form
+   of exactly its length — and a group no form needs wears none. Asked
+   group by group, the form owing most overpaid: eleven cells of `%%.%`
+   were handed groups of seven and six. A form's spelling that reads as
+   a number is refused where it opens with a zero before another figure,
+   as the family's own numbers are, and a number whose settled form has
+   already been paid is written without one rather than asked for
+   another.
+
    **The stride matters and is part of the rule.** Two hundred and
    forty values taken in counting order out of a form holding a hundred
    thousand leave every position but the lowest at zero, so every cell
@@ -5297,6 +5491,13 @@ classifies back into its own class through the shipped
 `parsing.classify_number`, and a test asserts exactly that over every
 constructed spelling.
 
+**The label roles construct their classes too** (landing 2b.4). Their
+published spellings carry their own classes, and the held-back levels
+pay what is left of the three numeric counts by G8.3a. Until that
+section existed every held-back level was written as a word, so this
+partition was held on every role but the four that most often hold
+numbers beside words, and a twin's own validation said so.
+
 ### G10.3 The three straggler constructions
 
 Distinctness inside a class is supplied by advancing `k` from 1; the
@@ -5340,6 +5541,11 @@ does not steer values away from those three numbers — doing so would
 distort a distribution to protect a re-profiling artifact — and the
 report names `sentinel_verdicts` as REPORT-ONLY. This is a residual, not
 a defect, and it is named as one in G13.
+
+**The one construction that DOES step past them is G8.3a's**: a
+held-back number of a column of labels is chosen from a walk rather
+than placed on a distribution, so refusing `-9999`, `-999` and `9999`
+there costs a step of the walk and moves no published fact.
 
 ### G10.4 Unparsed datetime stand-ins
 
@@ -5958,7 +6164,9 @@ that could not fall below its raw count
 (G6.5); a
 datetime reading that fell from `utc` to `local` because every offset
 was withheld (G7.4); the invented spellings behind withheld label
-variants (G8.2) and withheld levels (G8.3); identifier duplicates and
+variants (G8.2) and withheld levels (G8.3), including the numbers
+written for held-back numbers and whether anything published places
+them (`suppressed_levels`, G8.3a); identifier duplicates and
 the three distinctness facts they cost (G9.6); a word count brought down
 to what its own length carries on a group carrying NEITHER published
 word extreme, the two carrying groups being settled by a refusal instead
@@ -6970,9 +7178,10 @@ added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
 (residual R-P4-17, now closed), and one for the second spelling family
 of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68), and
 two for the mark between a moment's day and its clock and the day unit
-of a column at midnight (plan P4-D39).
-**All twenty-three are required.** The
-first nine are the first committed file and the last fourteen the second
+of a column at midnight (plan P4-D39), and one for the class debt of a
+column of labels (G8.3a, landing 2b.4).
+**All twenty-four are required.** The
+first nine are the first committed file and the last fifteen the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -6992,7 +7201,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_whole_numbers` | G9.6 with `all_whole_numbers: true` reaching all three bands, and the whole-group alphabet packing |
 | `unrepresentable_joint` | G10.5's three margins packed together, on the six-row column of its step 2 whose out-of-range cell no two of them place |
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
-| `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land |
+| `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
@@ -7004,6 +7213,7 @@ case passed, which is the failure the count exists to prevent:
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 | `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written with that commonest mark |
+| `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`; and the word left over written in `@@-@@` |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -7318,6 +7528,24 @@ seconds, the rule withdrawn, and the interior ranks then land part-way
 through a day. `mixed_marks` pins the rotation, the tie and the pool:
 its mutant spends the names from the first rank upward, and the marks
 then cluster by date.
+
+**Why the twenty-fourth exists** (landing 2b.4). Every label case
+before it published no number, so G8.3a -- a held-back number written
+as a number -- could be withdrawn with every committed byte unchanged,
+and until that landing the method had no such rule at all.
+`label_numbers` reaches each of its steps once: the class split, the
+forms inside a class, the gap before the outward step, the number that
+must wear no named form, and the word left over. Its mutant withdraws
+the gaps, so the largest held-back level is written below the smallest
+published number instead of beside it. Writing it moved the oracle
+too: its stand-in walk was one greedy pass over the neediest form with
+one counter for both kinds of spelling, not G8.3's exact settlement
+with a cursor per form, and the two label cases already committed
+happened to give the same bytes under both. The oracle carries the
+settlement now. It still states no reading of G9.5 step 7's forms, and
+steps 3a's form lengths and 3b's band exchange act only where a column
+of text names a form, so it refuses to freeze such a case rather than
+reason around one.
 
 ### G14.4 What the vectors do NOT freeze
 

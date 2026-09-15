@@ -165,6 +165,12 @@ BRANCH_CASES = (
     # the method and the only place synthtwin reproduces structure
     # between two quantities at all.
     "joined_readings",
+    # THE CLASS DEBT OF A COLUMN OF LABELS (method G8.3a, landing 2b.4).
+    # Every earlier label case publishes no number, so the rule that
+    # writes a held-back number AS a number -- stepped from the published
+    # numbers, gaps first -- could be withdrawn with every committed byte
+    # unchanged.
+    "label_numbers",
     "leap_second_endpoint",
     # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). Every other case here exercises a role Phase 1 to 3
@@ -229,6 +235,7 @@ SEEDS = {
     "joined_readings": 120,
     "midnight_days": 122,
     "mixed_marks": 123,
+    "label_numbers": 124,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1081,6 +1088,30 @@ def _a_one_digit_exponent(digits, decpt, marker):
     return f"{body}{marker}{'-' if power < 0 else '+'}{abs(power)}"
 
 
+def _outward_without_the_gaps(ladder, places, position):
+    """G8.3a's walk with its first part withdrawn: outward steps only.
+
+    The method takes the values BETWEEN the published numbers that no
+    published number holds before it steps beyond either end, because a
+    held-back reading is as often inside the published span as outside
+    it. This steps outward from the first position, so the largest
+    held-back group is written below the smallest published number
+    instead of in the gap beside it.
+    """
+    step = position // 2 + 1
+    low = gen.rescaled(ladder["lowest"], ladder["places"], places, True) - step
+    high = gen.rescaled(ladder["highest"], ladder["places"], places, False) + step
+    if not ladder["anchored"]:
+        low, high = -step, step
+    low_held = gen.sign_held(low, ladder["signs"])
+    high_held = gen.sign_held(high, ladder["signs"])
+    if not low_held and not high_held:
+        return ("end",)
+    if position % 2 == 0:
+        return ("here", low) if low_held else ("skip",)
+    return ("here", high) if high_held else ("skip",)
+
+
 def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
     """G8.3's stand-in walk, started one spelling along.
 
@@ -1380,6 +1411,15 @@ CASE_MUTANTS = {
         "stand-in",
         attribute="invented_levels",
         replacement=_levels_from_the_second_spelling,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "label_numbers": Mutant(
+        branch="G8.3a's walk for a held-back number, which fills the "
+        "gaps between the published numbers before it steps beyond "
+        "either end; the mutant steps outward from the start, so the "
+        "largest held-back group leaves the gap and every number moves",
+        attribute="outward_at",
+        replacement=_outward_without_the_gaps,
         outcome=CHANGES_THE_CELLS,
     ),
     "label_variants": Mutant(

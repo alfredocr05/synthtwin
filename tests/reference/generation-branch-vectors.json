@@ -1,5 +1,5 @@
 {
-  "case_set": "The 14 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, and the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
+  "case_set": "The 15 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at, and the class debt of a column of labels, whose held-back numbers are written as numbers stepped from the published ones. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -876,9 +876,9 @@
     },
     "free_text_joint": {
       "cells": [
-        "00",
+        "0",
         "!!",
-        "00",
+        "0",
         "A"
       ],
       "column": {
@@ -886,16 +886,16 @@
         "length": {
           "max": 2,
           "mean": {
-            "decimal": "1.75",
-            "exact": "7/4",
-            "float64": 1.75,
+            "decimal": "1.25",
+            "exact": "5/4",
+            "float64": 1.25,
             "proof": "nearest"
           },
           "min": 1,
           "p50": {
-            "decimal": "2",
-            "exact": "2",
-            "float64": 2.0,
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
             "proof": "nearest"
           }
         },
@@ -950,10 +950,10 @@
       "content": [
         "A",
         "!!",
-        "00",
-        "00"
+        "0",
+        "0"
       ],
-      "csv_bytes": "00\n!!\n00\nA\n",
+      "csv_bytes": "0\n!!\n0\nA\n",
       "float64": [],
       "why": "the joint class-and-alphabet packing of G9.5 steps 3 and 4 on a column where two separate walks cannot both land. The class counts alone permit the doubled group to answer for either class; the alphabet counts alone permit either split of the singletons. A walk that settled the classes first would take the two singletons for the two numeric cells -- the smallest sizes for the count that is reached first -- and leave the doubled group owing one code-alphabet cell and one wide cell, which one group covering two cells cannot do. The joint packing gives the doubled group the figures and the two singletons the other two bands, which meets every quota of both margins exactly. The permissions are the rule's own: a cell of ordinary text cannot be written in figures alone because figures alone read as a number, and a cell whose leftmost character is a non-digit of the code alphabet is not a number at all.",
       "word_budget": {
@@ -2482,6 +2482,226 @@
         "6838773607184501349",
         "2127311776424462157",
         "16897824151333146762"
+      ]
+    },
+    "label_numbers": {
+      "cells": [
+        "ab-cd",
+        "5.0",
+        "ab-cd",
+        "5.1",
+        "5.1",
+        "ab-cd",
+        "5.3",
+        "5.2",
+        "5.2",
+        "5.3",
+        "ab-cd",
+        "10.0",
+        "5.2",
+        "5.1",
+        "5.3",
+        "ab-cd",
+        "5.1",
+        "ab-cd",
+        "5.1",
+        "5.0",
+        "5.3",
+        "ab-cd",
+        "5.3",
+        "5.1",
+        "5.3",
+        "ab-cd",
+        "5.3",
+        "5.1",
+        "5.1",
+        "5.0",
+        "ab-cd",
+        "5.3",
+        "ab-cd",
+        "ab-cd",
+        "5.1",
+        "5.1",
+        "5.1",
+        "ab-cd",
+        "10.0",
+        "5.3",
+        "5.3",
+        "5.2",
+        "5.3",
+        "AA-AA"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "level_ceiling": 20,
+        "levels": [
+          {
+            "count": 12,
+            "label": "ab-cd",
+            "shape_form_cells": 12,
+            "variants": {
+              "ab-cd": 12
+            },
+            "variants_withheld": {}
+          },
+          {
+            "count": 11,
+            "label": "5.1",
+            "shape_form_cells": 11,
+            "variants": {
+              "5.1": 11
+            },
+            "variants_withheld": {}
+          },
+          {
+            "count": 11,
+            "label": "5.3",
+            "shape_form_cells": 11,
+            "variants": {
+              "5.3": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 7,
+        "n_distinct_folded": 7,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 13,
+        "n_numeric": 31,
+        "n_out_of_range": 0,
+        "n_present": 44,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "categorical",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "%.%": 29,
+          "(withheld)": 2,
+          "@@-@@": 13
+        },
+        "statistical_type": "categorical",
+        "structural_role": "data",
+        "suppressed_level_counts": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "suppressed_levels": 4,
+        "suppressed_rows": 10
+      },
+      "content": [
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.1",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "5.3",
+        "AA-AA",
+        "10.0",
+        "10.0",
+        "5.0",
+        "5.0",
+        "5.0",
+        "5.2",
+        "5.2",
+        "5.2",
+        "5.2"
+      ],
+      "csv_bytes": "ab-cd\n5.0\nab-cd\n5.1\n5.1\nab-cd\n5.3\n5.2\n5.2\n5.3\nab-cd\n10.0\n5.2\n5.1\n5.3\nab-cd\n5.1\nab-cd\n5.1\n5.0\n5.3\nab-cd\n5.3\n5.1\n5.3\nab-cd\n5.3\n5.1\n5.1\n5.0\nab-cd\n5.3\nab-cd\nab-cd\n5.1\n5.1\n5.1\nab-cd\n10.0\n5.3\n5.3\n5.2\n5.3\nAA-AA\n",
+      "float64": [],
+      "why": "the class debt of G8.3a: a held-back level that was a number is written as a number. The published spellings pay twenty-two of the thirty-one numbers; the four held-back levels owe nine, which the sizes four, three and two make exactly, so the level of one row stays a word. Inside the number class `%.%` still owes seven, which four and three make, so the level of two wears no named form. The numbers come from the published ones: the one value strictly between them that none holds, `5.2`, goes to the largest level, the first step outward, `5.0`, to the next, and the level wearing no named form walks past every value `%.%` writes to `10.0`. The word takes the first spelling of `@@-@@`. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "word_budget": {
+        "content": 0,
+        "placement": 43
+      },
+      "words": [
+        "14485363227759379260",
+        "14496546446215838655",
+        "17877404087858154871",
+        "13799267182700036431",
+        "12092778006306275581",
+        "17319362901013630541",
+        "3294855028839219168",
+        "10858624428905468031",
+        "8168203010090694442",
+        "6435093561335128686",
+        "6104571710385768880",
+        "2939833306085970469",
+        "18252379738369854919",
+        "4742856688619991640",
+        "13203531316936026217",
+        "9331933324833785766",
+        "12250691627341533157",
+        "12955931837302369919",
+        "960710691341638366",
+        "1108584512337328690",
+        "17438679814386998998",
+        "4618150261496032979",
+        "7485577089883912648",
+        "5090626598207926334",
+        "5546068173886288405",
+        "6763907908498900843",
+        "2744688177708167075",
+        "6425753487679248711",
+        "11015110302746343300",
+        "18339080949187871663",
+        "3417281073695313348",
+        "18320094770021572713",
+        "14492109870859816788",
+        "8266784616822606329",
+        "15687942191941692266",
+        "15880471324755436178",
+        "17841136179427949105",
+        "3153720365097832194",
+        "12904746883321067555",
+        "15289589415482460436",
+        "11790829620896665457",
+        "16118600836855221284",
+        "14339110349838762356"
       ]
     },
     "leap_second_endpoint": {
