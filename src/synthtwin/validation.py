@@ -511,20 +511,32 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
     "to write them the same way: a file that writes them all one way "
     "misses no obligation this description makes"
 )
-_NOT_CHECKABLE_DATETIME_SEPARATORS = (
-    "the description records which mark each of the real column's "
-    "moments wore between the day and the time of day, and how many wore "
-    "each, and the twin writes those marks without being held to them: a "
-    "file is read the same way whichever mark its moments wear, so a file "
-    "that writes them all one way misses no obligation this description "
-    "makes"
+# THE MARKS AND MIDNIGHT WERE LISTINGS UNTIL LANDING 2b.3, and the two
+# sentences they carried are kept here as the record of what changed:
+# "the twin writes those marks without being held to them: a file is read
+# the same way whichever mark its moments wear" and "the twin keeps a
+# column that did at midnight without being held to it". Rewriting every
+# twin cell of a space column to a `T` and moving every interior clock of
+# a midnight column to 09:30 both passed with nothing missed, so code
+# splitting on the space, or reading a date-only field, met a column the
+# real table does not have. Goal 1 of the owner's 2026-09-12 ruling --
+# code developed on the twin runs unchanged on the real table -- is what
+# makes them obligations: `_mark_checks` and `_midnight_checks`. What is
+# still LISTED is where the description sets no obligation at all.
+_NOT_CHECKABLE_NO_CLOCK = (
+    "the description records the marks and the values at midnight of a column's "
+    "moments only where they write a time of day, and this column's "
+    "values write none, so there is nothing of either for a file to carry"
 )
-_NOT_CHECKABLE_ALL_AT_MIDNIGHT = (
-    "the description records whether every moment of the real column "
-    "stood at midnight, and the twin keeps a column that did at midnight "
-    "without being held to it: a file is read the same way whatever time "
-    "of day its moments name, so a file whose moments stand elsewhere "
-    "misses no obligation this description makes"
+_NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
+    "the description does not say that every moment of the real column "
+    "stood at midnight, so it asks nothing of the time of day a file's "
+    "moments name as a whole"
+)
+_NOT_CHECKABLE_NO_MIDNIGHT_COUNT = (
+    "the description counts no values at midnight, because none stood "
+    "there or because too few stood there, or too few did not, for the "
+    "count to be published, so it asks no file for a number of them"
 )
 # THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
 # the sentence it carried is kept here as the record of what changed:
@@ -1865,6 +1877,15 @@ def _named_in_the_columns(
     found: dict[str, int] = {}
     for column in description.columns:
         for spelling in sorted(column.missing_by_source):
+            # A JUDGEMENT IS NOT A DECLARATION (landing 2b.3). A spelling
+            # a column's own calendar placeholder or stand-in pass read as
+            # absent was never typed after `--missing-value`, and reading
+            # it as a table-wide declaration made the REAL table fail its
+            # own description: a birth column holding 187 present cells
+            # of the discharge column's judged `1900-01-01 00:00:00` had
+            # them re-described as absent, and 24 obligations missed.
+            if _judged_here_alone(column, spelling, description):
+                continue
             # The membership question is asked in ONE place for the whole
             # package (`taxonomy.is_published_vocabulary`), because the
             # summary and the command line now ask it too: they tell a
@@ -1876,6 +1897,56 @@ def _named_in_the_columns(
                 continue
             found[spelling] = 1
     return tuple(sorted(found))
+
+
+def _judged_here_alone(
+    column: contract.ColumnBlock,
+    spelling: str,
+    description: contract.Profile,
+) -> bool:
+    """Whether a published hole spelling is ONE column's judgement only.
+
+    THE GENERATOR'S RULE, WRITTEN OUT HERE (V1.4 forbids the import, and
+    a test walks both writings together). A judged pass put it there
+    (`_one_judged_candidate`), AND no declaration can have: the table
+    declared no missing value, or this column counts no cell absent by
+    declaration, or the keys denoting the judged candidate -- with the
+    column's pooled hole spellings added -- hold no more cells than the
+    verdict's `n_occurrences`. A declared cell is taken out before any
+    pass judges, so every declared cell spelled on the candidate's day
+    puts the keys above that count. A `NA` declared in the judging
+    column no longer carries a judged `1900-01-01 00:00:00` to the whole
+    table (repair pass of landing 2b.3), and a person's own
+    `1900-01-01T00:00:00` beside it still reaches every column.
+
+    Guarantees: accepts one column, a spelling it publishes and the
+    description; returns a bool. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    comma = False
+    for named in description.settings.forced_decimal_commas:
+        if named == column.name:
+            comma = True
+    if not _one_judged_candidate(column, spelling, comma):
+        return False
+    if description.settings.declared_missing_values.n_declared <= 0:
+        return True
+    if column.missing_by_class.declared_missing <= 0:
+        return True
+    judged = 0
+    held = column.n_missing_withheld
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        if not _denotes_the_candidate(spelling, verdict.candidate, comma):
+            continue
+        judged = judged + verdict.n_occurrences
+        for key in sorted(column.missing_by_source):
+            if _denotes_the_candidate(key, verdict.candidate, comma):
+                held = held + column.missing_by_source[key]
+    return held <= judged
 
 
 def _own_declarations_recovered(description: contract.Profile) -> int:
@@ -6261,21 +6332,36 @@ def _one_judged_candidate(
             continue
         if verdict.candidate == contract.WITHHELD:
             continue
-        candidate = verdict.candidate
-        if candidate in parsing.calendar_placeholders():
-            for name in parsing.DATE_FORMATS:
-                if parsing.placeholder_day_of(spelling, name) == candidate:
-                    return True
-            continue
-        read = spelling
-        if comma:
-            read = parsing.written_with_a_decimal_comma(spelling)
-        held = parsing.exact_of_spelling(read)
-        if held is None:
-            continue
-        if held == parsing.exact_of_spelling(candidate):
+        if _denotes_the_candidate(spelling, verdict.candidate, comma):
             return True
     return False
+
+
+def _denotes_the_candidate(spelling: str, candidate: str, comma: bool) -> bool:
+    """Whether one hole spelling denotes one judged candidate.
+
+    A calendar placeholder is compared as the day the spelling writes in
+    any date format, and a stand-in number as the exact number the
+    spelling reads as, under a declared decimal comma where there is one.
+    Written out of `_one_judged_candidate` so the count of cells sharing
+    a candidate asks the same question (repair pass of landing 2b.3).
+
+    Guarantees: accepts a spelling, a candidate and whether the column
+    was declared a decimal-comma column; returns a bool. Raises nothing.
+    No I/O of any kind.
+    """
+    if candidate in parsing.calendar_placeholders():
+        for name in parsing.DATE_FORMATS:
+            if parsing.placeholder_day_of(spelling, name) == candidate:
+                return True
+        return False
+    read = spelling
+    if comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    held = parsing.exact_of_spelling(read)
+    if held is None:
+        return False
+    return held == parsing.exact_of_spelling(candidate)
 
 
 def _hole_spelling_checks(
@@ -11409,7 +11495,157 @@ def _datetime_checks(
             )
         ]
     checks = checks + _offset_checks(column, facts, block, floor, mine)
+    checks = checks + _mark_checks(column, facts, block, floor)
+    checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(column, facts, block)
+    return checks
+
+
+def _mark_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """The census of marks between day and clock, held (landing 2b.3).
+
+    Measured off the file's OWN description, made by the profiler's own
+    producer under the same declarations and floor, so the real table
+    meets its description by construction and no second recount of marks
+    exists to part from the first.
+
+    Each mark the census names is a count governed by the floor, with the
+    withheld pool as its window's width, on the precedent of the offsets
+    and styles beside it (`_floor_governed`, review item P3-V7-F2): a
+    pooled value names no mark, so a file may give it one. And the values
+    wearing a mark the census does NOT name are bounded by that pool,
+    which is the only check that catches a column of spaces rewritten
+    with a `T`, since a check per published name never looks at a name
+    nobody published.
+
+    ON A COLUMN READ JOINTLY, the whole dates of the real table wrote no
+    clock and so no mark, and a file that writes them with a clock has
+    cells whose mark the description never counted: the clock-writing
+    cells a file holds beyond the published count widen both bounds by
+    that many.
+
+    Guarantees: accepts the column, its facts, the file's re-described
+    block and the floor; returns a check per named mark and one for the
+    unnamed ones, or none where the column writes no clock. No I/O.
+    """
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return []
+    name = column.name
+    census = facts.datetime_separators
+    measured = _map_at(block, "datetime_separators")
+    pool = 0
+    published_total = 0
+    for key in census:
+        published_total = published_total + census[key]
+        if key == contract.WITHHELD:
+            pool = census[key]
+    extra = 0
+    # Only where the twin still writes whole dates with a clock (R-P4-12):
+    # a joint column wholly at midnight writes them bare (repair pass of
+    # landing 2b.3), and widening it there let a file write 1,900 bare
+    # dates of 2,000 with a mark the census never names and pass.
+    if (
+        measured is not None
+        and facts.parser_family == contract.FORMAT_ISO_MIXED
+        and not facts.all_at_midnight
+    ):
+        measured_total = 0
+        for key in measured:
+            measured_total = measured_total + measured[key]
+        extra = max(0, measured_total - published_total)
+    checks: "list[Check]" = []
+    for key in sorted(census):
+        if key == contract.WITHHELD:
+            continue
+        checks += [
+            _floor_governed(
+                name,
+                "datetime.datetime_separators",
+                f"marks.{key}",
+                census[key],
+                measured,
+                key,
+                floor,
+                pool + extra,
+            )
+        ]
+    bound = pool + extra
+    if measured is None:
+        checks += [
+            Check(
+                name,
+                "datetime.datetime_separators",
+                "marks.unnamed",
+                WITHHELD,
+                f"at most {_shown_count(bound)}",
+                "",
+                _GATE_CLOSED,
+            )
+        ]
+        return checks
+    unnamed = 0
+    for key in measured:
+        if key == contract.WITHHELD or key not in census:
+            unnamed = unnamed + measured[key]
+    checks += [
+        Check(
+            name,
+            "datetime.datetime_separators",
+            "marks.unnamed",
+            HELD if unnamed <= bound else MISSED,
+            f"at most {_shown_count(bound)}",
+            _shown_count(unnamed),
+        )
+    ]
+    return checks
+
+
+def _midnight_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """Midnight, held where the description publishes it (landing 2b.3).
+
+    `all_at_midnight` is compared only where it is published TRUE: a false
+    statement says only that not every value stood there, which asks a
+    file nothing. `n_at_midnight` is compared where it is published above
+    nought. Both are read off the file's own description, which asks each
+    cell's local clock at its own precision exactly as the description of
+    the real table did -- the day-unit reading of a midnight column cannot
+    see a time of day, which is why these are checks of their own.
+
+    Guarantees: accepts the column, its facts and the re-described block;
+    returns at most two checks. No I/O of any kind.
+    """
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return []
+    name = column.name
+    checks: "list[Check]" = []
+    if facts.all_at_midnight:
+        found = _truth_at(block, "all_at_midnight")
+        shown = None
+        if found is not None:
+            shown = "true" if found else "false"
+        checks += [
+            _exact(name, "datetime.all_at_midnight", "midnight.all", "true", shown)
+        ]
+    if facts.n_at_midnight > 0:
+        seen = _count_at(block, "n_at_midnight")
+        checks += [
+            _exact(
+                name,
+                "datetime.n_at_midnight",
+                "midnight.count",
+                _shown_count(facts.n_at_midnight),
+                None if seen is None else _shown_count(seen),
+            )
+        ]
     return checks
 
 
@@ -11781,6 +12017,25 @@ def _datetime_distinct_window(
     lows, highs = _rank_windows(facts, dated)
     separate = _ranks_forced_apart(lows, highs)
     step = _precision_step(facts)
+    if (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and not _counts_in_days(facts)
+        and facts.n_at_midnight > 0
+    ):
+        # A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3):
+        # at most `n_at_midnight` moved, one pinned at each interior rung
+        # and one brought back to each pin leave their windows; every
+        # other rank keeps its window widened by one step. So the separate
+        # count over those widened windows, less the ranks that may leave,
+        # and never less than the count over `_widened_for_midnight`.
+        stepped = _ranks_forced_apart(
+            [low - step for low in lows], [high + step for high in highs]
+        )
+        moved = facts.n_at_midnight + 2 * (len(_LADDER_KEYS) - 2)
+        pinned_lows, pinned_highs = _widened_for_midnight(facts, dated)
+        separate = max(
+            stepped - moved, _ranks_forced_apart(pinned_lows, pinned_highs)
+        )
     earliest = _ordinal_of(facts.earliest, facts.resolution)
     latest = _ordinal_of(facts.latest, facts.resolution)
     room = (latest - earliest) // step + 1
@@ -11790,6 +12045,52 @@ def _datetime_distinct_window(
     )
     lower = min(separate + facts.n_unparsed, upper)
     return (float(lower), float(upper))
+
+
+def _widened_for_midnight(
+    facts: contract.DatetimeFacts, dated: int
+) -> "tuple[list[int], list[int]]":
+    """The rank windows of a column whose ranks are moved onto a midnight.
+
+    THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4;
+    landing 2b.3, method G12.5). A column publishing values at midnight
+    and counted in seconds has its ranks moved onto a midnight between the
+    ranks the published tail pins -- the two ends and the rank each of the
+    nine interior rungs is read off, each held at its published value -- so
+    a rank can stand anywhere from the pinned value below it to the pinned
+    value above. Those are its windows for the count of ranks forced
+    apart; the rung checks keep G12.4's own windows.
+
+    Guarantees: accepts the facts and the dated count; returns one window
+    per rank in this reading's own units. Linear. Determinism: a function
+    of the two. Raises nothing. No I/O of any kind.
+    """
+    ladder = _ladder_ordinals(facts)
+    step = _space_unit(facts)
+    last = len(_LADDER_KEYS) - 1
+    values: dict[int, int] = {0: step * ladder[0]}
+    if dated >= 2:
+        values[dated - 1] = step * ladder[last]
+    for place in range(1, last):
+        rank = _rung_rank(_LADDER_PERCENTS[place], dated)
+        if rank not in values:
+            values[rank] = step * ladder[place]
+    lows: list[int] = []
+    highs: list[int] = []
+    below = values[0]
+    for rank in range(dated):
+        if rank in values:
+            below = values[rank]
+        lows += [below]
+    above = values[dated - 1] if dated >= 2 else values[0]
+    reversed_highs: list[int] = []
+    for rank in range(dated - 1, -1, -1):
+        if rank in values:
+            above = values[rank]
+        reversed_highs += [above]
+    for rank in range(dated):
+        highs += [reversed_highs[dated - 1 - rank]]
+    return (lows, highs)
 
 
 def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
@@ -11827,13 +12128,32 @@ def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
         else:
             named = named + 1
     # ...times the marks between day and clock the column writes (plan
-    # P4-D39): one instant can wear each named mark, and the withheld
-    # pool is written with one of those, so it adds none.
+    # P4-D39): one instant can wear each named mark, and since landing
+    # 2b.3 each unnamed mark a withheld pool is written with -- as many
+    # of the marks the column's reader permits as the pool has values.
     marked = 0
     for key in facts.datetime_separators:
         if key != contract.WITHHELD:
             marked = marked + 1
-    return max(1, named + unnamed) * max(1, marked)
+    if contract.WITHHELD in facts.datetime_separators:
+        permitted = len(parsing.DATETIME_SEPARATORS)
+        if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+            permitted = 1
+        marked = marked + min(
+            max(0, permitted - marked),
+            facts.datetime_separators[contract.WITHHELD],
+        )
+    # ...and once more as a bare date, on an `iso-mixed` column counted in
+    # days that holds any (landing 2b.3): a whole date carries neither an
+    # offset nor a mark, so it adds exactly one spelling per day.
+    bare = 0
+    if (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and _counts_in_days(facts)
+        and facts.resolution_mix["iso-date"] > 0
+    ):
+        bare = 1
+    return max(1, named + unnamed) * max(1, marked) + bare
 
 
 def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
@@ -11957,9 +12277,15 @@ def _counts_in_days(facts: contract.DatetimeFacts) -> bool:
     """
     if facts.resolution == taxonomy.RESOLUTION_DATE:
         return True
+    # ON ITS OWN CLOCK ONLY (landing 2b.3). A column wholly at a LOCAL
+    # midnight on the shared clock publishes instants that are not
+    # values at midnight of that clock, and the generator counts it in seconds, so
+    # this reading does too: a day unit would floor `2024-03-09 23:00:00`
+    # into the wrong day and hide a twin written a day early.
     return (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and facts.all_at_midnight
+        and facts.datetimes_read_at == "local"
     )
 
 
@@ -12786,21 +13112,50 @@ def _listings(
                     "",
                     _NOT_CHECKABLE_RESOLUTION_MIX,
                 ),
-                # REPORT-ONLY, LISTED on every datetime column and never
-                # silent (plan P4-D39), as the form census beside them.
-                Listing(
-                    column.name,
-                    "datetime.datetime_separators",
-                    "",
-                    _NOT_CHECKABLE_DATETIME_SEPARATORS,
-                ),
-                Listing(
-                    column.name,
-                    "datetime.all_at_midnight",
-                    "",
-                    _NOT_CHECKABLE_ALL_AT_MIDNIGHT,
-                ),
             ]
+            # CHECKED since landing 2b.3 wherever the description sets an
+            # obligation (`_mark_checks`, `_midnight_checks`), and LISTED,
+            # never silent, wherever it sets none.
+            if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.datetime_separators",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.all_at_midnight",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.n_at_midnight",
+                        "",
+                        _NOT_CHECKABLE_NO_CLOCK,
+                    ),
+                ]
+            else:
+                if not facts.all_at_midnight:
+                    listings += [
+                        Listing(
+                            column.name,
+                            "datetime.all_at_midnight",
+                            "",
+                            _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT,
+                        )
+                    ]
+                if facts.n_at_midnight <= 0:
+                    listings += [
+                        Listing(
+                            column.name,
+                            "datetime.n_at_midnight",
+                            "",
+                            _NOT_CHECKABLE_NO_MIDNIGHT_COUNT,
+                        )
+                    ]
             listings = listings + _endpoint_listings(column, facts, corners)
         # EVERY ROLE THAT CARRIES A QUANTITATIVE BLOCK, AND NOT ONLY
         # THE TWO THAT ARE ONE (review item P4-G6-R4-F1). These

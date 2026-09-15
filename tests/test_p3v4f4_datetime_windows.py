@@ -385,7 +385,9 @@ def _compare_the_envelopes(
     lows, highs = generation._datetime_window(
         ladder, facts, len(written)
     )
-    lowest = generation._forced_apart(lows, highs)
+    # The construction's own lower end, which on a column moved onto
+    # values at midnight is not G12.4's windows alone (landing 2b.3).
+    lowest = generation._apart_at_least(ladder, facts, lows, highs, len(written))
     reachable = ladder[10] - ladder[0] + 1
     unit = generation._precision_slack(facts) + 1
     reachable = (reachable + unit - 1) // unit

@@ -40,10 +40,11 @@ def _facts(
     midnight: bool = False,
     precision: str = "second",
     digits: int = 0,
+    family: str = "iso-datetime",
 ) -> contract.DatetimeFacts:
     """Datetime facts carrying only what these two rules read."""
     return contract.DatetimeFacts(
-        parser_family="iso-datetime",
+        parser_family=family,
         resolution="datetime",
         time_precision=precision,
         subsecond_digits=digits,
@@ -61,18 +62,33 @@ def _facts(
     )
 
 
-def _census(draw: random.Random) -> "tuple[dict[str, int], int]":
-    census: dict[str, int] = {}
+SLASHED = ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime")
+
+
+def _census(draw: random.Random) -> "tuple[dict[str, int], int, str]":
+    if draw.random() < 0.2:
+        # A slashed stamp: its reader takes a space and nothing else, so
+        # its census is a space count, a pool, or both (contract D13).
+        family = draw.choice(SLASHED)
+        census: dict[str, int] = {}
+        if draw.random() < 0.5:
+            census["space"] = draw.randint(1, 40)
+        if "space" not in census or draw.random() < 0.3:
+            census["(withheld)"] = draw.randint(1, 12)
+        return census, sum(census.values()), family
+    census = {}
     for name in NAMES:
         if draw.random() < 0.65:
             census[name] = draw.randint(1, 40)
-    if draw.random() < 0.3:
+    # A pool only where a mark is left unnamed, which is the only census
+    # the contract's D12 admits with one (landing 2b.3 spends it there).
+    if len(census) < len(NAMES) and draw.random() < 0.4:
         census["(withheld)"] = draw.randint(1, 12)
     total = sum(census.values())
     # Some columns carry more parsed ranks than the census counts, as a
     # joint ISO column's whole dates do.
     extra = draw.randint(1, 15) if draw.random() < 0.3 else 0
-    return census, total + extra
+    return census, max(1, total + extra), draw.choice(("iso-datetime", "iso-mixed"))
 
 
 def test_the_rotation_of_marks_agrees_with_the_oracle() -> None:
@@ -81,17 +97,28 @@ def test_the_rotation_of_marks_agrees_with_the_oracle() -> None:
     column = types.SimpleNamespace(name="seen_at")
     draw = random.Random(39)
     compared = 0
+    pooled = 0
     for _trial in range(6000):
-        census, parsed = _census(draw)
+        census, parsed, family = _census(draw)
+        facts = _facts(census, family=family)
         mine, _notes = generation._separator_allocation(
-            typing.cast(contract.ColumnBlock, column), _facts(census), parsed
+            typing.cast(contract.ColumnBlock, column), facts, parsed
         )
         theirs = oracle["_separator_allocation"](
-            {"resolution": "datetime", "datetime_separators": census}, parsed
+            {"resolution": "datetime", "format": family, "datetime_separators": census},
+            parsed,
         )
-        assert mine == theirs, (census, parsed)
+        assert mine == theirs, (census, parsed, family)
+        # ...and the marks the absent-spelling exception offers are the
+        # marks the allocation writes, in both writings.
+        assert generation._offered_marks(facts) == tuple(
+            sorted(oracle["mark_weights"]({"format": family, "datetime_separators": census}))
+        ), (census, family)
+        if "(withheld)" in census:
+            pooled += 1
         compared += 1
     assert compared == 6000
+    assert pooled > 1000, pooled
 
 
 def test_each_named_mark_is_written_its_published_number_of_times() -> None:
@@ -99,13 +126,14 @@ def test_each_named_mark_is_written_its_published_number_of_times() -> None:
     column = typing.cast(contract.ColumnBlock, types.SimpleNamespace(name="c"))
     census = {"lower_t": 11, "space": 11, "(withheld)": 2}
     marks, notes = generation._separator_allocation(column, _facts(census), 24)
-    # A tie between two names goes to the earliest in sorted order, and
-    # the withheld pool is written with it.
-    assert marks.count("t") == 13 and marks.count(" ") == 11
-    assert [note.fact for note in notes] == ["datetime_separators"]
+    # Each named mark exactly its count, and the withheld pool on the one
+    # mark the census leaves unnamed (landing 2b.3): every value of a named
+    # mark is counted under its name, so the pooled values wore another.
+    assert (marks.count("t"), marks.count(" "), marks.count("T")) == (11, 11, 2)
+    assert notes == []
     # Spread, not spent from the first rank: neither half of the ranks
     # holds all of one mark.
-    assert 0 < marks[:12].count("t") < 13
+    assert 0 < marks[:12].count("t") < 11
     wide = {"space": 300, "upper_t": 50, "lower_t": 50}
     spread, _ = generation._separator_allocation(column, _facts(wide), 400)
     for part in range(4):
@@ -139,11 +167,24 @@ def test_a_midnight_column_is_counted_in_days_by_both() -> None:
     oracle = _oracle()
     for midnight in (True, False):
         facts = _facts({"space": 12}, midnight)
-        column = {"resolution": "datetime", "all_at_midnight": midnight}
+        column = {
+            "resolution": "datetime",
+            "all_at_midnight": midnight,
+            "datetimes_read_at": "local",
+        }
         assert generation._ordinal_space(facts) == oracle["ordinal_space"](
             column
         )
     assert generation._ordinal_space(_facts({}, True)) == "date"
+    # ON ITS OWN CLOCK ONLY (landing 2b.3): a column wholly at local
+    # values at midnight on the shared clock is counted in seconds by both.
+    import dataclasses
+
+    shared = dataclasses.replace(_facts({"upper_t": 12}, True), datetimes_read_at="utc")
+    assert generation._ordinal_space(shared) == "datetime"
+    assert oracle["ordinal_space"](
+        {"resolution": "datetime", "all_at_midnight": True, "datetimes_read_at": "utc"}
+    ) == "datetime"
 
 
 def test_the_generator_and_the_checker_count_a_midnight_column_in_days() -> None:

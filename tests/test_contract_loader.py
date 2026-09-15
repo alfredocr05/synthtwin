@@ -176,6 +176,31 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def whole_dates_carrying_offsets(_column: str) -> Change:
+    """Read a column of stamps jointly, every value a whole date (D16).
+
+    Its offsets stay the two real ones the stamps carried, so the whole
+    dates would each have to wear one, which no whole date can.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(
+            format="iso-mixed",
+            resolution_mix={"iso-date": parsed, "iso-datetime": 0},
+            datetime_separators={},
+        )
+    return change
+
+
+def counted_past_the_values(_column: str) -> Change:
+    """Count more values at midnight than a column has (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = int(block["n_present"]) + 1
+    return change
+
+
 def lower_a_finer_rung(_column: str, _rung: str) -> Change:
     """Push one rung of the finer ladder below the one before it.
 
@@ -868,6 +893,22 @@ def battery() -> list[Mutation]:
         Mutation(
             "D14", "a column of whole dates said to stand at midnight",
             edit("recorded_on", all_at_midnight=True),
+        ),
+        Mutation(
+            "D14", "stamps on the shared clock said to stand at midnight",
+            edit("logged_at", all_at_midnight=True),
+        ),
+        Mutation(
+            "D15", "more values counted at midnight than the column holds",
+            counted_past_the_values("logged_at"),
+        ),
+        Mutation(
+            "D15", "a count of values at midnight on a column that writes no clock",
+            edit("recorded_on", n_at_midnight=12),
+        ),
+        Mutation(
+            "D16", "whole dates counted beside offsets only moments carry",
+            whole_dates_carrying_offsets("logged_at"),
         ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),

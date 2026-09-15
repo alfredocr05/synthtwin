@@ -471,6 +471,9 @@ DATETIME_KEYS = (
     "utc_offsets",
     "datetime_separators",
     "all_at_midnight",
+    # How many parsed cells stood at midnight, floored on both sides
+    # (landing 2b.3, invariant D15).
+    "n_at_midnight",
 )
 
 NUMERIC_KEYS = (
@@ -702,6 +705,7 @@ DATE_FORMATS = (
     "dotted-two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
+    "slashed-iso-datetime",
     "year-quarter",
     "iso-mixed",
 )
@@ -719,7 +723,12 @@ FORMAT_ISO_MIXED = "iso-mixed"
 # column no table can hold. That is a rule about the FORMAT and not
 # about the resolution, which is why D6 and D9 each need a clause of
 # their own for it (review item P4-DATE4-F1).
-CLOCK_FORM_MEMBERS = ("month-first-datetime", "day-first-datetime")
+CLOCK_FORM_MEMBERS = (
+    "month-first-datetime",
+    "day-first-datetime",
+    # The year-first stamp reads its clock the same way (landing 2b.3).
+    "slashed-iso-datetime",
+)
 
 RESOLUTIONS = ("date", "datetime", "quarter", "month")
 
@@ -1100,9 +1109,20 @@ INVARIANTS = {
         "its decimals with a comma, and never with a comma there"
     ),
     "D14": (
-        "a column said to stand at midnight is a column of moments on its "
-        "own clock, large enough to be a group, whose published moments "
-        "all stand at midnight"
+        "a column said to stand at midnight is a column of moments large "
+        "enough to be a group, whose published moments all stand at "
+        "midnight of their own day, and on the shared clock one that holds "
+        "back no offset"
+    ),
+    "D15": (
+        "the count of values at midnight is nought, or at least the "
+        "smallest group size on both sides of it, or every value, and it "
+        "is every value exactly where the column is said to stand at "
+        "midnight"
+    ),
+    "D16": (
+        "a column mixing whole dates with moments counts at least as many "
+        "values with no offset as it holds whole dates"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -1763,6 +1783,9 @@ class DatetimeFacts:
     resolution_mix: "dict[str, int]"
     datetime_separators: "dict[str, int]"
     all_at_midnight: bool
+    # How many parsed cells stood at midnight, or 0 where either side of
+    # the count falls below the floor (landing 2b.3, invariant D15).
+    n_at_midnight: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5516,6 +5539,8 @@ def _datetime_facts(
         wanted = "datetime"
     elif parser_family == "day-first-datetime":
         wanted = "datetime"
+    elif parser_family == "slashed-iso-datetime":
+        wanted = "datetime"
     elif parser_family == FORMAT_ISO_MIXED:
         # THE JOINT READING PUBLISHES AT THE FINER OF THE TWO FORMS it
         # joins. A column holding both `2024-03-15` and
@@ -5770,8 +5795,30 @@ def _datetime_facts(
     if midnight:
         _stands_at_midnight(
             where, floor, resolution, clock, n_present - unparsed,
-            earliest, latest, ladder,
+            earliest, latest, ladder, offsets, earliest_offset, latest_offset,
         )
+    at_midnight = _whole(mapping["n_at_midnight"], "n_at_midnight", where, 0)
+    _counted_at_midnight(
+        where, floor, resolution, clock, n_present - unparsed, midnight,
+        at_midnight, offsets,
+    )
+    if parser_family == FORMAT_ISO_MIXED:
+        # D16: A WHOLE DATE CARRIES NO OFFSET (landing 2b.3). Every
+        # whole-date cell is counted under `(none)`, or pooled with it
+        # under `(withheld)` where too few rows wore no offset, so a
+        # description giving whole dates more than those two hold asks a
+        # twin to write a whole date with an offset, which no cell can.
+        without = 0
+        for key in (NO_OFFSET, WITHHELD):
+            if key in offsets:
+                without = without + offsets[key]
+        if mix["iso-date"] > without:
+            raise _broken(
+                "D16",
+                where,
+                f"{mix['iso-date']} values are counted as whole dates",
+                f"only {without} values are counted with no offset",
+            )
     return DatetimeFacts(
         parser_family=parser_family,
         resolution=resolution,
@@ -5788,7 +5835,88 @@ def _datetime_facts(
         utc_offsets=offsets,
         datetime_separators=separators,
         all_at_midnight=midnight,
+        n_at_midnight=at_midnight,
     )
+
+
+def _counted_at_midnight(
+    where: str,
+    floor: int,
+    resolution: str,
+    clock: str,
+    parsed: int,
+    midnight: bool,
+    counted: int,
+    offsets: "dict[str, int]",
+) -> None:
+    """D15: the count of values at midnight is one a producer can write.
+
+    Nought names nothing. Otherwise it is at most the parsed cells, at
+    least the floor, and either every parsed cell or leaves at least the
+    floor off midnight, so neither side of the count is a group smaller
+    than the floor. It is every parsed cell EXACTLY where the column is
+    said to stand at midnight, which is how the statement and the count
+    cannot disagree; below the floor both are empty, so the statement's
+    own floor is not contradicted. And like the statement it is refused
+    on a column that writes no clock, or on the shared clock where an
+    offset is held back.
+
+    Guarantees: accepts the facts already read; returns nothing. Raises
+    ProfileError for D15. No I/O of any kind.
+    """
+    if counted == 0:
+        if midnight:
+            raise _broken(
+                "D15",
+                where,
+                "no value is counted at midnight",
+                "every value is said to stand at midnight",
+            )
+        return
+    if resolution != "datetime":
+        raise _broken(
+            "D15",
+            where,
+            f"{counted} values are counted at midnight",
+            f"the dates are published at '{resolution}', which writes no clock",
+        )
+    if clock != "local" and WITHHELD in offsets:
+        raise _broken(
+            "D15",
+            where,
+            f"{counted} values are counted at midnight",
+            "the dates are on the shared clock and an offset is held back",
+        )
+    if counted > parsed:
+        raise _broken(
+            "D15",
+            where,
+            f"{counted} values are counted at midnight",
+            f"{parsed} of the column's values were read as dates",
+        )
+    if counted < floor:
+        raise _broken(
+            "D15",
+            where,
+            f"{counted} values are counted at midnight",
+            f"the smallest group size is {floor}",
+        )
+    if counted < parsed and parsed - counted < floor:
+        raise _broken(
+            "D15",
+            where,
+            f"{parsed - counted} values are counted off midnight",
+            f"the smallest group size is {floor}",
+        )
+    if (counted == parsed) != midnight:
+        raise _broken(
+            "D15",
+            where,
+            f"{counted} of {parsed} values are counted at midnight",
+            "the column is said to stand at midnight"
+            if midnight
+            else "the column is said not to stand wholly at midnight",
+        )
 
 
 def _separator_census(
@@ -5891,6 +6019,9 @@ def _stands_at_midnight(
     earliest: str,
     latest: str,
     ladder: DateLadder,
+    offsets: "dict[str, int]",
+    earliest_offset: str,
+    latest_offset: str,
 ) -> None:
     """D14: a column said to stand at midnight can be one.
 
@@ -5899,10 +6030,17 @@ def _stands_at_midnight(
     it wrote no fraction; what a loader CAN refuse is a description whose
     own published moments, clock or size contradict the statement.
 
+    ON THE SHARED CLOCK TOO (landing 2b.3). A published instant is then a
+    moment on the shared clock, and it stands at midnight of its own day
+    where some offset the map names moves it there -- `2024-03-09
+    23:00:00` under `+01:00`; each END under the offset published for
+    that end. A map holding an offset back is refused, because a pooled
+    offset is written with none and no midnight of it can be written.
+
     Guarantees: accepts the facts already read; returns nothing. Raises
     ProfileError for D14. No I/O of any kind.
     """
-    if resolution != "datetime" or clock != "local":
+    if resolution != "datetime" or (clock != "local" and WITHHELD in offsets):
         raise _broken(
             "D14",
             where,
@@ -5917,22 +6055,44 @@ def _stands_at_midnight(
             f"all {parsed} values are said to stand at midnight",
             f"the smallest group size is {floor}",
         )
-    for moment in (earliest, latest):
-        if moment[len(moment) - 8 :] != "00:00:00":
+    for moment, offset in ((earliest, earliest_offset), (latest, latest_offset)):
+        keys: "tuple[str, ...]" = (offset,)
+        if clock == "local":
+            keys = (NO_OFFSET,)
+        if not _local_midnight_under(moment, keys):
             raise _broken(
                 "D14",
                 where,
                 f"the column's value {moment} is published",
                 "every value is said to stand at midnight",
             )
+    named: "tuple[str, ...]" = (NO_OFFSET,)
+    if clock != "local":
+        named = tuple(sorted(offsets))
     for rung in ladder.rungs:
-        if rung[len(rung) - 8 :] != "00:00:00":
+        if not _local_midnight_under(rung, named):
             raise _broken(
                 "D14",
                 where,
                 f"the ladder of dates holds {rung}",
                 "every value is said to stand at midnight",
             )
+
+
+def _local_midnight_under(moment: str, offsets: "tuple[str, ...]") -> bool:
+    """Whether a published moment is a midnight under one of these offsets.
+
+    Each offset moves the moment onto its own wall clock, and the moment
+    stands at midnight where that clock reads `00:00:00`; the two marker
+    keys move it by nothing. Whole-number arithmetic only.
+    """
+    if len(moment) < 19:
+        return False
+    seconds = _minute_of(moment) + int(moment[17:19])
+    for offset in offsets:
+        if (seconds + _offset_seconds(offset)) % 86400 == 0:
+            return True
+    return False
 
 
 def _minute_of(canonical: str) -> int:

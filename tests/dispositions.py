@@ -460,6 +460,7 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "group_separator"),
     ("datetime", "datetime_separators"),
     ("datetime", "all_at_midnight"),
+    ("datetime", "n_at_midnight"),
 )
 
 
@@ -800,10 +801,17 @@ REGISTRY += (
         plan_region="group-separator",
         aliases=(),
     ),
+    # EXACT-OBSERVABLE SINCE LANDING 2b.3. Both were REPORT-ONLY on the
+    # ground that a file is read the same way whatever its marks and its
+    # clocks; measured, a space column rewritten with a `T` and a midnight
+    # column moved to 09:30 both passed with nothing missed, which leaves
+    # goal 1 of the owner's 2026-09-12 ruling unchecked. The quality report
+    # measures both off the file's own description now, and lists them
+    # only where the description sets no obligation.
     Fact(
         "datetime",
         "datetime_separators",
-        REPORT_ONLY,
+        EXACT_OBSERVABLE,
         plan_words="the mark a moment writes between its day and its clock",
         plan_region="moment-spellings",
         aliases=(),
@@ -811,8 +819,18 @@ REGISTRY += (
     Fact(
         "datetime",
         "all_at_midnight",
-        REPORT_ONLY,
+        EXACT_OBSERVABLE,
         plan_words="a column whose every moment stands at midnight",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    # ...and the count of values at midnight a column only partly at
+    # midnight publishes (landing 2b.3), floored on both sides.
+    Fact(
+        "datetime",
+        "n_at_midnight",
+        EXACT_OBSERVABLE,
+        plan_words="how many of a column's moments stand at midnight",
         plan_region="moment-spellings",
         aliases=(),
     ),

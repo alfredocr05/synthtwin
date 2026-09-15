@@ -1143,10 +1143,62 @@ a midnight clock, so this method reads it in the space of a column of
 dates: its step, its reading allowance `u` and the unit it names a
 distance in are a day's, whatever precision its midnight clock is
 written at. A measured value off midnight in such a column is named in
-seconds rather than rounded into a day it is not. The fact itself is
-REPORT-ONLY and is listed, never checked, so a file whose moments stand
-elsewhere misses no obligation; what the day space prevents is a
-conforming twin being called out of place by windows drawn in seconds.
+seconds rather than rounded into a day it is not. What the day space
+prevents is a conforming twin being called out of place by windows
+drawn in seconds. **On its own clock only** (landing 2b.3, 2026-09-15):
+a column wholly at local midnight on the `utc` clock publishes instants
+that do not stand at midnight on that clock, and is read in seconds.
+
+**Amended 2026-09-15 (landing 2b.3): the marks and the values at midnight are
+obligations.** They were listed, never checked, and a space column
+rewritten with a `T` and a midnight column moved to 09:30 both passed
+with nothing missed. Each is now measured off the file's OWN
+description, made by the same producer under the same declarations and
+floor, so the real table meets its description by construction:
+
+- every mark `datetime_separators` names is a floor-governed count
+  (`marks.<name>`), its window running from the published count to the
+  published count plus the `(withheld)` pool — the precedent of the
+  offsets and the styles — and on an `iso-mixed` column not wholly at
+  midnight plus the clock-writing cells the file holds beyond the
+  published total, whose marks the description never counted (a joint
+  column wholly at midnight writes its whole dates bare, so there the
+  pool alone bounds them: repair pass of landing 2b.3, where 1,900 bare
+  dates of 2,000 rewritten with a `T` passed);
+- the values wearing a mark the census does NOT name, the file's own
+  pool included, are at most that same width (`marks.unnamed`), which is
+  the only check that sees a mark nobody published;
+- `all_at_midnight` is compared where it is published `true`
+  (`midnight.all`), and `n_at_midnight` where it is published above
+  nought (`midnight.count`);
+- each of the three is LISTED where the description sets it no
+  obligation: all three on a column that writes no clock, the statement
+  where it is published `false`, and the count where it is nought.
+
+On a column whose ranks the generator moves onto a midnight, G12.5's
+lower end is the one the generation method states for that column:
+the separate windows widened by one precision step less the ranks the
+move may carry out of theirs, and never less than the pinned values
+allow.
+
+**Amended 2026-09-15 (landing 2b.3): a judged spelling is not a
+declaration.** A `missing_by_source` key a column's own calendar
+placeholder or stand-in pass put there is left out of the declared
+spellings, and so out of the settings the file is described under,
+wherever the table declared no missing value or that column counts no
+cell absent by declaration. A birth column holding 187 present cells of
+a discharge column's judged `1900-01-01 00:00:00` had them described as
+absent, and the real table missed 24 obligations of its own
+description. Where the judging column also counts declared cells, the
+key is left out too unless a declared cell can share the judged day: the
+keys denoting the judged candidate, with the column's pooled hole
+spellings added, hold more cells than the verdict's `n_occurrences`,
+which counts only the cells the pass took, since a declared cell is taken
+out before any pass judges. There every key sharing that day stays a
+declaration and a person's own word is never narrowed. A declared `NA`
+shares no day with a placeholder, so it no longer carries a judged
+spelling to the table (repair pass of landing 2b.3: the real table had
+missed 12 obligations).
 
 **Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
 grouped spelling of every value, whatever `group_separator` publishes.**

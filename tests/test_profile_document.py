@@ -303,8 +303,11 @@ def test_nothing_that_varies_between_runs_is_written(
 # to every numeric block; part two added `all_at_midnight: false` and
 # `datetime_separators: {}` to `recorded_on`, the one datetime column.
 # Read as a diff of the two documents: nothing else moved.
+# RE-RECORDED 2026-09-15 (landing 2b.3): `n_at_midnight: 0` added to
+# `recorded_on`, the one datetime column, which writes no clock; read as
+# a diff of the two documents, nothing else moved.
 GOLDEN_SHA256 = (
-    "dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf"
+    "3e99e46d047f1a600ce485ef9c257f5b144f00f7a5cac914cf3d9dbffc334989"
 )
 
 

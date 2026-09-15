@@ -1206,7 +1206,8 @@ contract:
 `two-digit-day-first-date`, `dotted-two-digit-month-first-date`,
    `dotted-two-digit-day-first-date`, `year-quarter`, `slashed-iso-date`,
    `iso-month`, `iso-mixed`, `month-first-datetime`,
-   `day-first-datetime` — the nineteen `format` members — and
+   `day-first-datetime`, `slashed-iso-datetime` — the twenty `format`
+   members — and
    `day-first`, `month-first`, the two reading names the
    day-and-month remark needs, and `hours_and_minutes`,
    `hours_minutes_and_seconds`, the two clock words NF46 names a form
@@ -1442,11 +1443,11 @@ examples is closed:
 | `year-quarter` | `2024-Q1` |
 
 A format name with no row of its own is written out as itself, so
-`slashed-iso-date`, `iso-month`, `iso-mixed`, `month-first-datetime`
-and `day-first-datetime` render as their own wire spellings. The
-rendering is therefore fixed for all nineteen members and two
-implementations cannot diverge, but the five that fall through the
-table read badly ("are dates written as slashed-iso-date"), and an
+`slashed-iso-date`, `iso-month`, `iso-mixed`, `month-first-datetime`,
+`day-first-datetime` and `slashed-iso-datetime` render as their own
+wire spellings. The rendering is therefore fixed for all twenty members
+and two implementations cannot diverge, but the six that fall through
+the table read badly ("are dates written as slashed-iso-date"), and an
 example for each of them should be fixed and added to this table.
 
 **NF12. `evidence_counts_things`** — arity 1. Argument 1: numeric-looking
@@ -3529,11 +3530,11 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: fifteen.**
+**Added keys: sixteen.**
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `format` | string | one of the NINETEEN members of the table below | the parser family that read the REAL file |
+| `format` | string | one of the TWENTY members of the table below | the parser family that read the REAL file |
 | `resolution` | string | `date`, `datetime`, `quarter`, `month` | which canonical form the published datetimes are written in |
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
@@ -3547,13 +3548,14 @@ ISO reading below may still claim the column.
 | `utc_offsets` | object | offset → count | how often each UTC offset appeared, under the floor |
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
 | `datetime_separators` | object | `lower_t`, `space`, `upper_t` or `(withheld)` → count | how many parsed cells wrote each mark between the day and the clock, under the floor; `{}` where `resolution` is not `datetime` |
-| `all_at_midnight` | boolean | — | `true` where every parsed cell of a `local` datetime column names exactly midnight and the parsed cells reach the floor |
+| `all_at_midnight` | boolean | — | `true` where every parsed cell of a datetime column names exactly midnight on its own wall clock, the parsed cells reach the floor, and on the `utc` clock no offset is pooled |
+| `n_at_midnight` | integer ≥ 0 | — | how many parsed cells name exactly midnight on their own wall clock, where at least the floor did and at least the floor did not, or every parsed cell did and they reach the floor; `0` otherwise |
 
 **Four closed vocabularies stand in that table** — `format` with
-NINETEEN members, `resolution` with FOUR, `time_precision` with SIX,
+TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
 the `datetime_separators` names with THREE — and the first three are
 each written again below inside a table that BINDS it: the
-nineteen formats are the rows of the next table, where D1 fixes each one's
+twenty formats are the rows of the next table, where D1 fixes each one's
 resolution; the four resolutions are the rows of the canonical-forms
 table, which fixes what each one's instants are written as, and of D6's
 table; and the six precisions are named in D6's table, which admits no
@@ -3565,7 +3567,7 @@ that rule catches. Section 14 indexes all four.
 
 ##### The format vocabulary, its readings and its resolutions
 
-Nineteen members, each with the shape it reads and the `resolution` it
+Twenty members, each with the shape it reads and the `resolution` it
 requires:
 
 | `format` | reads | `resolution` |
@@ -3589,6 +3591,7 @@ requires:
 | `iso-mixed` | the joint ISO family reading below | `datetime` |
 | `month-first-datetime` | a slashed month-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
 | `day-first-datetime` | a slashed day-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
+| `slashed-iso-datetime` | a `slashed-iso-date` (`YYYY/MM/DD`, fields padded), one space, then a clock in one of the two forms the `time_of_day` role fixes (landing 2b.3) | `datetime` |
 
 **C6-D8P (the century a two-figure year is read into).** A year
 written with two figures does not carry its century. `00` to `68` are
@@ -3604,7 +3607,7 @@ table reaching further back than 1969.
 total: every member of the format vocabulary appears exactly once, a
 document whose pair is not a row does not conform, and a loader refuses
 it naming both the format and the resolution it found. Totality is the
-point of writing all nineteen rows out. A partial binding — one that
+point of writing all twenty rows out. A partial binding — one that
 named the resolutions of some members and left the rest unbound — would
 let a document pair `format: iso-date` with `resolution: datetime` and
 be refused by no rule at all, so a whole-date source could be routed as
@@ -3757,24 +3760,37 @@ letter t. A name is published only where its count reaches
 `small_cell_floor`; the rest pool under `(withheld)`, exactly as on
 `utc_offsets`. Only a cell that writes a clock is counted, so the map
 is `{}` where `resolution` is not `datetime`, and the whole-date cells
-of an `iso-mixed` column are left out. A `month-first-datetime` or
-`day-first-datetime` cell counts as `space`, the one mark its reader
-takes. D12 and D13 hold the map.
+of an `iso-mixed` column are left out. A `month-first-datetime`,
+`day-first-datetime` or `slashed-iso-datetime` cell counts as `space`,
+the one mark its reader takes. D12 and D13 hold the map.
 
 **C6-25b (`all_at_midnight`).** Every datetime block carries
 `all_at_midnight`. It is `true` only where `resolution` is `datetime`,
-`datetimes_read_at` is `local`, the parsed cells number at least
-`small_cell_floor`, and every parsed cell names exactly midnight:
-clock `00:00`, seconds `00`, every fractional digit zero. A whole-date
-cell of an `iso-mixed` column counts as midnight. It is `false`
-everywhere else. D14 holds the flag.
+the parsed cells number at least `small_cell_floor`, and every parsed
+cell names exactly midnight on its own wall clock: clock `00:00`,
+seconds `00`, every fractional digit zero. A whole-date cell of an
+`iso-mixed` column counts as midnight. On the `utc` clock it is asked of
+the same local cell text, and only where `utc_offsets` pools no offset
+under `(withheld)` (landing 2b.3): a column wearing `+01:00` in winter
+and `+02:00` in summer at midnight is a column at midnight. It is
+`false` everywhere else. D14 holds the flag.
 
-**`datetime_separators` is REPORT-ONLY, and so is `all_at_midnight`**
-(plan P4-D39, added after the freeze). A moment is read the same way
-whichever mark it wears, and a file whose clocks are not at midnight
-is read the same way too, so a file is held to neither. What they buy
-is code meeting the same spelling on the twin as on the real table, and
-a date-only field that stays a date.
+**C6-25c (`n_at_midnight`, landing 2b.3).** Every datetime block
+carries `n_at_midnight`: how many parsed cells name exactly midnight on
+their own wall clock, by C6-25b's test, published where at least
+`small_cell_floor` did and at least that many did not, or where every
+parsed cell did and they number at least `small_cell_floor`; `0`
+everywhere else, including every column whose `resolution` is not
+`datetime` and every `utc` column pooling an offset. It is every parsed
+cell exactly where `all_at_midnight` is `true`. D15 holds the count.
+
+**The census and both midnight facts are EXACT-OBSERVABLE** (plan
+P4-D39, added after the freeze; held to a file since landing 2b.3). A
+file's own description, made by the same producer, is compared with the
+published census, with the statement where it is published `true` and
+with the count where it is above nought. What they buy is code meeting
+the same spelling on the twin as on the real table, a date-only field
+that stays a date, and a column partly at midnight that stays so.
 
 ##### The canonical forms, the ranges and the offsets
 
@@ -3903,8 +3919,9 @@ date at all. Under D1 this reaches every member of the format
 vocabulary but TWO: only `iso-datetime` and `iso-mixed` may carry an
 offset at all. The paragraph named four until 2026-08-22, which
 contradicted its own opening sentence in the same breath (review item
-P4-DATE5-F4): the two slashed stamp members reach `datetime`
-resolution, so a reader that took the four-member list would accept
+P4-DATE5-F4): the slashed stamp members -- two then, three since
+landing 2b.3 -- reach `datetime` resolution, so a reader that took the
+four-member list would accept
 `03/17/2024 14:05+02:00` as a cell of a conforming column, and the
 named parser refuses that cell because its clock grammar stops after
 the minutes or the seconds.
@@ -3988,24 +4005,42 @@ remainder is non-zero. A pool is made of marks each written by fewer
 rows than the floor, so the `(withheld)` count is at most (floor − 1)
 times the number of permitted marks the census leaves unnamed. The
 permitted marks are the three names, or `space` alone on a
-`month-first-datetime` or `day-first-datetime` column (the stage 2
-audit, 2026-09-14).
+`month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime`
+column (the stage 2 audit, 2026-09-14; landing 2b.3).
 
 **Invariant D13 (the separator totals).** `datetime_separators` is
 `{}` where `resolution` is not `datetime`. On a datetime column whose
 `format` is not `iso-mixed` its values sum to
 `n_present - n_unparsed`; on `iso-mixed` they sum to
 `resolution_mix["iso-datetime"]`, the cells that wrote a clock. A
-`month-first-datetime` or `day-first-datetime` column carries only
-`space` or `(withheld)`.
+`month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime`
+column carries only `space` or `(withheld)`.
 
 **Invariant D14 (a column at midnight).** `all_at_midnight` is `true`
-only where `resolution` is `datetime`, `datetimes_read_at` is `local`,
-`n_present - n_unparsed` is at least the floor, and `earliest`,
-`latest` and every rung of `date_percentiles` end in `00:00:00`. The
-rule reads in that one direction: the canonical form drops the
-fraction, so a loader can refuse a `true` no column could carry and
-cannot confirm one (producer obligation MN-P).
+only where `resolution` is `datetime`, `n_present - n_unparsed` is at
+least the floor, `earliest` and `latest` each stand at midnight on the
+wall clock of the offset published for that end, and every rung of
+`date_percentiles` stands at midnight under some offset `utc_offsets`
+names; on the `local` clock that is every one of those instants ending
+in `00:00:00`, and on the `utc` clock the map pools no offset under
+`(withheld)` (landing 2b.3). The rule reads in that one direction: the
+canonical form drops the fraction, so a loader can refuse a `true` no
+column could carry and cannot confirm one (producer obligation MN-P).
+
+**Invariant D15 (the count at midnight, landing 2b.3).**
+`n_at_midnight` is `0`, or it is at most `n_present - n_unparsed`, at
+least the floor, and either every parsed cell or leaves at least the
+floor off midnight. It is not `0` only where `resolution` is `datetime`
+and, on the `utc` clock, the map pools no offset. It equals
+`n_present - n_unparsed` exactly where `all_at_midnight` is `true`, so
+the statement and the count cannot disagree; below the floor both are
+empty, and the statement's own floor is not contradicted.
+
+**Invariant D16 (whole dates wear no offset, landing 2b.3).** On a
+column whose `format` is `iso-mixed`, `resolution_mix["iso-date"]` is
+at most the count of `utc_offsets` under `(none)` and `(withheld)`
+together: every whole-date cell carries no offset, and is counted
+there.
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -4025,13 +4060,24 @@ a date-only column writes `2024-03-15`, a month column writes
 `2024-03`, a quarter column writes `2024-Q1`, and an offset is written
 only where the profile records a real one. A column whose `format` is
 `iso-mixed` writes every parsed cell at the finest recorded form, its
-mix recorded and not reproduced. A datetime cell carries, between its
-day and its clock, the mark method G7.5 allocates from
-`datetime_separators`: ranks the named counts do not cover take the
-commonest named mark, or `T` where no name is published. A column
-whose `all_at_midnight` is `true` is generated in whole days, and every
-cell is written as its day with a midnight clock at the column's
-`time_precision` and `subsecond_digits`. The rule is scoped to twin CSV cells
+mix recorded and not reproduced, EXCEPT where its `all_at_midnight` is
+`true` (landing 2b.3, narrowing owner decision 4): there its
+`resolution_mix` is spent over the ranks and a whole-date rank is
+written as its bare day, after every rank whose instant the published
+tail fixes takes the form and the offset that instant stands at
+midnight under (repair pass of landing 2b.3). A datetime cell carries, between its day and
+its clock, the mark method G7.5 allocates from `datetime_separators`:
+a withheld pool is written with the permitted marks the census leaves
+unnamed (landing 2b.3), and ranks the counts still do not cover take
+the commonest named mark, or where none is named `T` on an ISO reading
+and a space on a slashed stamp. A column on the `local` clock whose
+`all_at_midnight` is `true` is generated in whole days, and every cell
+is written as its day with a midnight clock at the column's
+`time_precision` and `subsecond_digits`; a column counted in seconds
+that publishes `n_at_midnight` above nought has that many of its
+cells moved onto a midnight of its own wall clock (landing 2b.3), and
+one that publishes nought has an accidental value at midnight moved one
+step of its precision off (repair pass of landing 2b.3). The rule is scoped to twin CSV cells
 and does not touch the profile's own canonical serialization: a
 published instant stays space-separated whatever mark the cells
 carry.
@@ -4868,6 +4914,7 @@ rather than a list of its own, so the two cannot part again.
 | `resolution_mix` | | | | | | | ● | | | | | | | | |
 | `datetime_separators` | | | | | | | ● | | | | | | | | |
 | `all_at_midnight` | | | | | | | ● | | | | | | | | |
+| `n_at_midnight` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -5674,8 +5721,9 @@ Both are load-bearing: the first is why every value an interpolation
 can reach has a canonical spelling in the column's own form and no
 generated cell is ever truncated or widened to fit, the second is why
 the ladder can be checked as written text. These are also the two
-forms the `month-first-datetime` and `day-first-datetime` members of
-the format vocabulary read as the tail of a slashed date; they are
+forms the `month-first-datetime`, `day-first-datetime` and
+`slashed-iso-datetime` members of the format vocabulary read as the
+tail of a slashed date; they are
 enumerated here and nowhere else.
 
 **One form must clear the line; cells of the other are counted, not
@@ -5863,11 +5911,11 @@ forbidden-key matrix of section 6.11 carries the same listing for this
 role and for the other twelve; three groups are named here because a
 reader will expect them and their absence is a decision.
 
-- **The other twelve datetime keys.** `format`, `resolution`,
+- **The other thirteen datetime keys.** `format`, `resolution`,
   `resolution_mix`, `time_precision`, `subsecond_digits`,
   `datetimes_read_at`, `earliest_utc_offset`, `latest_utc_offset`,
-  `date_percentiles`, `utc_offsets`, `datetime_separators` and
-  `all_at_midnight` are `datetime`'s. `clock_form`
+  `date_percentiles`, `utc_offsets`, `datetime_separators`,
+  `all_at_midnight` and `n_at_midnight` are `datetime`'s. `clock_form`
   answers the form question here, and a clock with no date carries no
   zone: an offset moves an instant, and this role publishes none.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
@@ -8104,20 +8152,22 @@ it answers to.
 
 | id | statement | loader? |
 |---|---|---|
-| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all NINETEEN members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime` and `day-first-datetime` take `datetime` | yes |
+| D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all TWENTY members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
-| D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
-| D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime` and `day-first-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those two members permit `minute` and `second` and not `subsecond` | yes |
+| D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`, `slashed-iso-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
+| D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
 | D7 | `subsecond_digits > 0` implies `time_precision == "subsecond"`, and `time_precision == "subsecond"` implies `subsecond_digits > 0` | yes |
 | D8 | `n_unparsed < n_present` — the checkable form of "the ladder covers the parsed cells", so both endpoints are always real values | yes |
-| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the two slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4) | yes |
+| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime` or `day-first-datetime` column | yes |
-| D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime` or `day-first-datetime` column carries only `space` or `(withheld)` | yes |
-| D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `datetimes_read_at` is `local`, `n_present - n_unparsed` is at least the floor, and `earliest`, `latest` and every `date_percentiles` rung end in `00:00:00`; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column | yes |
+| D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
+| D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
+| D15 | `n_at_midnight` is `0`, or at most `n_present - n_unparsed`, at least the floor, and every parsed cell or at least the floor short of it; not `0` only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
+| D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 
@@ -8279,7 +8329,8 @@ document, never the table it describes.
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of cells whose mark too few shared | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
-| MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
+| MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight on its own wall clock, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
+| NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
@@ -8615,14 +8666,15 @@ form, the stand-in is written in it (7.9.1).
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | REPORT-ONLY — it names the real file's parser family across all nineteen members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
-| `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12) |
+| `format` | REPORT-ONLY — it names the real file's parser family across all twenty members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
+| `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
 
-`datetime_separators` and `all_at_midnight` have no row here: both
-were added after the freeze and are REPORT-ONLY under plan P4-D39,
-as `group_separator` is under P4-D38 with no row in 9.4.
+`datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
+row here: all three were added after the freeze and are EXACT-OBSERVABLE
+under plan P4-D39 since landing 2b.3, as `group_separator` is disposed
+under P4-D38 with no row in 9.4.
 
 Datetime cardinality has its own explicit bound so that one
 implementation cannot bound datetime distinctness while another
@@ -9414,7 +9466,9 @@ a marked row.
    endpoint policy, newly reaching columns that were free text.
 5. **Every ROLE-ADDED fact a datetime block publishes**, on every
    column the five calendar members `slashed-iso-date`, `iso-month`,
-   `iso-mixed`, `month-first-datetime` and `day-first-datetime`, the
+   `iso-mixed`, `month-first-datetime` and `day-first-datetime` -- and,
+   since landing 2b.3, the year-first stamp `slashed-iso-datetime`,
+   whose column was free text and now publishes every fact below --, the
    unpadded reading of the slashed month and day fields, the SIX
    members of plan P4-D15 — `textual-day-first-date`,
    `textual-month-first-date`, `dotted-month-first-date`,
@@ -10075,7 +10129,7 @@ never edited to change what it requires, and a description is governed
 by exactly one version's documents.
 
 **13.35 Inherited invariants keep their exact identifiers.** `D1` binds
-nineteen formats rather than six and is still `D1`. This is not a style
+twenty formats rather than six and is still `D1`. This is not a style
 preference: the sealed generation method, the validation method and the
 test suite cite these by name, and a document that renames them
 silently breaks every citation pointing at it. New checkable rules join
@@ -10317,7 +10371,7 @@ count and the blank count live in `n_missing_withheld` and
 
 ### 14.6 Datetime and clock
 
-**`format` — 19** (6.6.2), each with the `resolution` it requires:
+**`format` — 20** (6.6.2), each with the `resolution` it requires:
 
 | `format` | `resolution` |
 |---|---|
@@ -10340,6 +10394,7 @@ count and the blank count live in `n_missing_withheld` and
 | `iso-mixed` | `datetime` |
 | `month-first-datetime` | `datetime` |
 | `day-first-datetime` | `datetime` |
+| `slashed-iso-datetime` | `datetime` |
 
 **`resolution` — 4:** `date`, `datetime`, `quarter`, `month`.
 **`time_precision` — 6:** `subsecond`, `second`, `minute`, `date`,
@@ -10351,7 +10406,8 @@ column exactly the column's own member; on an `iso-mixed` column
 exactly `iso-date` and `iso-datetime`. No other key set conforms.
 **`datetime_separators` keys — 3**, plus the pooled key (6.6.2, D12):
 `lower_t`, `space`, `upper_t`; and `(withheld)`.
-**`all_at_midnight`** is a boolean, on the `datetime` block alone.
+**`all_at_midnight`** is a boolean, and **`n_at_midnight`** a count
+(landing 2b.3), on the `datetime` block alone.
 
 ### 14.7 Numeric spelling
 
@@ -10438,8 +10494,8 @@ nested forms, 5 bound affix strings.
 | NG54 | `remark_two_readings_both_fit` | 1 |
 | NG55 | `remark_a_letter_against_the_digits` | 1 |
 
-**The package-word vocabulary — 23**, the whole of the second argument
-class (4.5.1): the nineteen `format` members of 14.6, plus `day-first`
+**The package-word vocabulary — 24**, the whole of the second argument
+class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
 and `month-first`, the two reading names the day-and-month remark
 needs, plus `hours_and_minutes` and `hours_minutes_and_seconds`, the
 two clock words NF46 names a form by. **The count read nineteen and

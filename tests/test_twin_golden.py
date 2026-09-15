@@ -154,6 +154,10 @@ GROUP_SEPARATOR_FACT = "numeric.group_separator"
 # datetime column. The demonstration has one, `recorded_on`.
 DATETIME_SEPARATORS_FACT = "datetime.datetime_separators"
 ALL_AT_MIDNIGHT_FACT = "datetime.all_at_midnight"
+# ...and the SEVENTH (landing 2b.3): the count of values at midnight,
+# listed where the description publishes none, which on `recorded_on` --
+# a column of dates that writes no clock -- is always.
+N_AT_MIDNIGHT_FACT = "datetime.n_at_midnight"
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     EMPTY_BIN_FACT,
@@ -161,6 +165,7 @@ LISTINGS_ADDED_SINCE = (
     GROUP_SEPARATOR_FACT,
     DATETIME_SEPARATORS_FACT,
     ALL_AT_MIDNIGHT_FACT,
+    N_AT_MIDNIGHT_FACT,
 )
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
@@ -398,14 +403,18 @@ def test_widening_the_demonstration_lost_no_obligation(
         "reading|numeric.group_separator|",
         "visits|numeric.group_separator|",
     ]
-    # ...and the two datetime listings, on the one datetime column.
+    # ...and the three datetime listings, on the one datetime column,
+    # which writes no clock and so carries no obligation of any of them.
     assert sorted(
         entry
         for entry in listings
-        if DATETIME_SEPARATORS_FACT in entry or ALL_AT_MIDNIGHT_FACT in entry
+        if DATETIME_SEPARATORS_FACT in entry
+        or ALL_AT_MIDNIGHT_FACT in entry
+        or N_AT_MIDNIGHT_FACT in entry
     ) == [
         "recorded_on|datetime.all_at_midnight|",
         "recorded_on|datetime.datetime_separators|",
+        "recorded_on|datetime.n_at_midnight|",
     ]
     # ...and the empty-bin listings are named the same way, and the
     # list is SHORTER than the four above rather than equal to it,
@@ -735,8 +744,12 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # RE-RECORDED 2026-09-14 (plan P4-D39): two keys added to `recorded_on`,
 # `all_at_midnight: false` and `datetime_separators: {}`, and nothing else;
 # the twin digest below did not move.
+# RE-RECORDED 2026-09-15 (landing 2b.3): one key added to `recorded_on`,
+# `n_at_midnight: 0`, the count of values at midnight a column that writes
+# no clock publishes as nought; read as a diff of the two documents,
+# nothing else moved, and the twin and report digests below did not move.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "7ef031ed5ecf5785ec559de3b494ec4f7bdec7bd3f48a4aef17cd6bec915a1fc"
+    "8efd5a7094a75671a8510b742434d68203447c71adc73bf5643356261cda6fd6"
 )
 
 
@@ -1702,8 +1715,14 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # RE-RECORDED AGAIN 2026-09-14 (stage 2 audit): the reason printed beside
 # each `numeric.group_separator` listing now says the mark was FOUND, not
 # WRITTEN; ten lines changed and nothing else.
+# RE-RECORDED 2026-09-15 (landing 2b.3): the marks and the values at midnight are
+# obligations wherever a column writes a clock, and `recorded_on` writes
+# none, so its two listings now give that reason in one sentence and a
+# third listing, `datetime.n_at_midnight`, joins them, raising the
+# not-checkable count from 148 to 149. Read as a diff: those five lines
+# and the two counts moved, and no verdict and no check moved.
 GOLDEN_QUALITY_SHA256 = (
-    "c858edb09162b3da21d8929f8cb954d60a34adc321a143616226de2a27546db4"
+    "8f41e524d5f004d917881f16c97174fac22f56243916aea77db14237e0817656"
 )
 
 

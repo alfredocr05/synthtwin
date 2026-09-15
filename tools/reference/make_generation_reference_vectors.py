@@ -3674,46 +3674,89 @@ def _datetime_content(column):
         ordinal_of(column["date_percentiles"][key], space)
         for key in LADDER_KEYS
     ]
-    offsets = _offset_allocation(column, parsed)
-    marks = _separator_allocation(column, parsed)
-    holes = set(column.get("missing_by_source", {}))
+    # A column mixing bare dates with moments whose every value stands at
+    # midnight writes its bare-date ranks as bare dates (landing 2b.3);
+    # the census of marks is spent over the ranks that write a clock.
+    whole = form_allocation(column, parsed)
     words = iter(column["_content_words"])
+    # Every rank's instant first, the words spent in rank order exactly as
+    # before (landing 2b.3); the two ends' ordinals are never written.
+    ordinals = []
+    for rank in range(parsed):
+        if rank == 0:
+            ordinals.append(ordinal_of(column["earliest"], space))
+        elif rank == parsed - 1 and parsed >= 2:
+            ordinals.append(ordinal_of(column["latest"], space))
+        else:
+            ordinals.append(
+                interpolated_ordinal(rank * TWO64 + next(words), parsed * TWO64, rungs)
+            )
+    snapping = snaps_to_midnight(column)
+    offset_pins = {}
+    if snapping:
+        for rank, (seconds, _keys) in sorted(rung_pins(column, parsed).items()):
+            ordinals[rank] = seconds
+        if column["all_at_midnight"]:
+            for rank, keys in instant_offsets(column, parsed).items():
+                if 0 < rank < parsed - 1 and keys:
+                    offset_pins[rank] = keys
+    offsets = _offset_allocation(column, parsed, whole, offset_pins)
+    clock_marks = iter(_separator_allocation(column, whole.count(False)))
+    marks = ["T" if flag else next(clock_marks) for flag in whole]
+    if snapping:
+        shifts = [
+            offset_form(offsets[rank])[1] if column["datetimes_read_at"] == "utc" else 0
+            for rank in range(parsed)
+        ]
+        ordinals = snapped_to_midnight(column, ordinals, shifts)
+    elif moves_off_midnight(column):
+        shifts = [
+            offset_form(offsets[rank])[1] if column["datetimes_read_at"] == "utc" else 0
+            for rank in range(parsed)
+        ]
+        ordinals = nudged_off_midnight(column, ordinals, shifts)
+    holes = set(column.get("missing_by_source", {}))
     content = []
     for rank in range(parsed):
         # Ranks 0 and P-1 are the two published ends, and they are built
         # from the endpoint's own fields rather than from an ordinal
         # (G7.5): the ordinal space has no place for an `SS` of `60`.
         endpoint = None
-        ordinal = None
+        ordinal = ordinals[rank]
         if rank == 0:
             endpoint = column["earliest"]
         elif rank == parsed - 1 and parsed >= 2:
             endpoint = column["latest"]
-        else:
-            ordinal = interpolated_ordinal(
-                rank * TWO64 + next(words), parsed * TWO64, rungs
-            )
         suffix, shift = offset_form(offsets[rank])
         moved = shift if (
             column["datetimes_read_at"] == "utc"
             and resolution == "datetime"
             and not midnight
         ) else 0
-        named = [name for name in column.get("datetime_separators", {}) if name != "(withheld)"]
+        named = sorted(mark_weights(column))
         if endpoint is not None:
-            text = endpoint_cell(
-                endpoint,
-                resolution,
-                column["time_precision"],
-                column["subsecond_digits"],
-                moved,
-                mark=marks[rank],
-            )
+            if whole[rank]:
+                text = endpoint[:10]
+            else:
+                text = endpoint_cell(
+                    endpoint,
+                    resolution,
+                    column["time_precision"],
+                    column["subsecond_digits"],
+                    moved,
+                    mark=marks[rank],
+                )
             content.append(kept_cell(text + suffix, holes, named))
             continue
 
-        def spell(unit, mark=marks[rank], suffix=suffix, moved=moved):
-            if midnight:
+        def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank]):
+            if bare:
+                # A bare date: the day alone, with no mark, clock or offset.
+                # Counted in seconds, the rank already stands at a midnight
+                # of its own wall clock (landing 2b.3).
+                day = unit if space == "date" else (unit + moved) // 86400
+                body = precision_form(day, "date", "date", 0, mark=mark)
+            elif midnight:
                 # A whole day, written with a midnight clock at the
                 # published precision (plan P4-D39).
                 body = precision_form(
@@ -3771,39 +3814,298 @@ MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
 def ordinal_space(column):
     """The resolution a column's ordinals are counted in (plan P4-D39).
 
-    A column of moments that all stand at midnight is counted in whole
-    days, as a column of dates is; every other column in its own
-    resolution.
+    A column of moments that all stand at midnight ON ITS OWN CLOCK is
+    counted in whole days, as a column of dates is; every other column,
+    one wholly at local midnight on the shared clock included, in its own
+    resolution (landing 2b.3).
     """
-    if column.get("all_at_midnight", False):
+    if column.get("all_at_midnight", False) and column.get("datetimes_read_at") == "local":
         return "date"
     return column["resolution"]
+
+
+def snaps_to_midnight(column):
+    """Whether a column's ranks are moved onto a midnight (landing 2b.3).
+
+    A column of moments counted in seconds that publishes a positive
+    n_at_midnight: partly at midnight on either clock, or wholly at local
+    values at midnight on the shared clock.
+    """
+    return (
+        column["resolution"] == "datetime"
+        and ordinal_space(column) == "datetime"
+        and column.get("n_at_midnight", 0) > 0
+    )
+
+
+def moves_off_midnight(column):
+    """Whether accidental values at midnight are moved off (repair pass of landing
+    2b.3): a column of moments counted in seconds publishing n_at_midnight 0."""
+    return (
+        column["resolution"] == "datetime"
+        and ordinal_space(column) == "datetime"
+        and column.get("n_at_midnight", 0) == 0
+        and not column.get("all_at_midnight", False)
+    )
+
+
+def nudged_off_midnight(column, ordinals, shifts):
+    """Written from the statement: in rank order, each rank the tail does not
+    pin whose written cell is at midnight moves one precision step later
+    where that stays below the next rank's instant, else one step earlier
+    where that stays above the previous rank's, else stays."""
+    parsed = len(ordinals)
+    moved = list(ordinals)
+    step = 60 if column["time_precision"] == "minute" else 1
+    pinned = ranks_the_tail_pins(parsed)
+    for rank in range(parsed):
+        if pinned[rank] or not written_at_midnight(moved[rank], shifts[rank], step):
+            continue
+        if rank + 1 < parsed and moved[rank] + step < moved[rank + 1]:
+            moved[rank] += step
+        elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
+            moved[rank] -= step
+    return moved
+
+
+def rung_rank(percent, parsed):
+    """The rank a published rung is read off: floor((P - 1) * c / 100)."""
+    return min(parsed - 1, ((parsed - 1) * percent) // 100)
+
+
+def ranks_the_tail_pins(parsed):
+    """The ranks the published tail pins: the two ends and each rung's rank."""
+    flags = [False] * parsed
+    if parsed:
+        flags[0] = True
+        flags[parsed - 1] = True
+        for percent in PCT[1:-1]:
+            flags[rung_rank(percent, parsed)] = True
+    return flags
+
+
+def midnight_offsets(seconds, column):
+    """Every published offset -- real offsets sorted, then (none) -- under
+    whose wall clock this instant reads 00:00:00, in that order."""
+    found = [
+        key
+        for key in sorted(column["utc_offsets"])
+        if key not in ("(none)", "(withheld)") and (seconds + offset_form(key)[1]) % 86400 == 0
+    ]
+    if "(none)" in column["utc_offsets"] and seconds % 86400 == 0:
+        found.append("(none)")
+    return tuple(found)
+
+
+def rung_pins(column, parsed):
+    """Each interior rung's rank, with the rung's own instant and every
+    offset it stands at a local midnight under (none where it stands at none)."""
+    pins = {}
+    for place in range(1, len(PCT) - 1):
+        rank = rung_rank(PCT[place], parsed)
+        if rank <= 0 or rank >= parsed - 1 or rank in pins:
+            continue
+        seconds = ordinal_of(column["date_percentiles"][LADDER_KEYS[place]], "datetime")
+        pins[rank] = (seconds, midnight_offsets(seconds, column))
+    return pins
+
+
+def instant_offsets(column, parsed):
+    """The ranks whose instant the published tail fixes, with their offsets
+    (repair pass of landing 2b.3), written from the statement.
+
+    The two ends, each with its published offset.  On a column moved onto
+    a midnight, also each rung rank and each rank strictly between two
+    pinned ranks -- the ends and the rung ranks -- that stand on one
+    instant, each with every offset that instant is a midnight under.
+    """
+    fixed = {}
+    if parsed == 0:
+        return fixed
+    fixed[0] = (column["earliest_utc_offset"],)
+    if parsed >= 2:
+        fixed[parsed - 1] = (column["latest_utc_offset"],)
+    if not snaps_to_midnight(column):
+        return fixed
+    instants = {0: ordinal_of(column["earliest"], "datetime")}
+    if parsed >= 2:
+        instants[parsed - 1] = ordinal_of(column["latest"], "datetime")
+    for rank, (seconds, keys) in rung_pins(column, parsed).items():
+        instants[rank] = seconds
+        fixed[rank] = keys
+    ranks = sorted(instants)
+    for low, high in zip(ranks, ranks[1:]):
+        if instants[low] == instants[high]:
+            for rank in range(low + 1, high):
+                fixed[rank] = midnight_offsets(instants[low], column)
+    return fixed
+
+
+def written_at_midnight(ordinal, shift, step):
+    """Whether the cell written from this instant, on its own wall clock and
+    cut to the precision's step, reads as midnight."""
+    local = ordinal + shift
+    return (local - local % step) % 86400 == 0
+
+
+def nearest_midnight(ordinal, shift, lowest, highest):
+    """The instant of the nearest local midnight (the earlier on a tie),
+    brought inside [lowest, highest]; None where none lies inside."""
+    local = ordinal + shift
+    day = local - local % 86400
+    if local - day > day + 86400 - local:
+        day += 86400
+    first = -((-(lowest + shift)) // 86400) * 86400
+    last = ((highest + shift) // 86400) * 86400
+    if first > last:
+        return None
+    return min(max(day, first), last) - shift
+
+
+def snapped_to_midnight(column, ordinals, shifts):
+    """The move onto a midnight (landing 2b.3), written from its statement.
+
+    Pinned ranks never move; every other rank is first brought inside the
+    pinned values either side of it.  A pinned rank, or one between two
+    pinned ranks of one value, that stands at midnight counts toward
+    n_at_midnight.  What is still owed is spread over the other ranks by
+    the smooth rotation (credit += owed; chosen where credit reaches the
+    number of those ranks, which is taken back).  A chosen rank moves to
+    its nearest local midnight inside its bounds; an unchosen rank written
+    at midnight moves one precision step later, or earlier where later
+    would pass its upper bound; then a second pass over the unchosen ranks,
+    in rank order, takes what is still owed.
+    """
+    parsed = len(ordinals)
+    moved = list(ordinals)
+    if parsed == 0:
+        return moved
+    step = 60 if column["time_precision"] == "minute" else 1
+    pinned = ranks_the_tail_pins(parsed)
+    lows = [0] * parsed
+    highs = [0] * parsed
+    below = moved[0]
+    for rank in range(parsed):
+        if pinned[rank]:
+            below = moved[rank]
+        lows[rank] = below
+    above = moved[parsed - 1]
+    for rank in reversed(range(parsed)):
+        if pinned[rank]:
+            above = moved[rank]
+        highs[rank] = above
+    for rank in range(parsed):
+        if not pinned[rank]:
+            moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
+    owed = column["n_at_midnight"]
+    free = []
+    for rank in range(parsed):
+        if pinned[rank] or lows[rank] == highs[rank]:
+            if written_at_midnight(moved[rank], shifts[rank], step):
+                owed -= 1
+        else:
+            free.append(rank)
+    wanted = max(0, min(owed, len(free)))
+    chosen = set()
+    credit = 0
+    for rank in free:
+        credit += wanted
+        if credit >= len(free):
+            credit -= len(free)
+            chosen.add(rank)
+    reached = 0
+    for rank in free:
+        if rank in chosen:
+            found = nearest_midnight(moved[rank], shifts[rank], lows[rank], highs[rank])
+            if found is not None:
+                moved[rank] = found
+                reached += 1
+            continue
+        if written_at_midnight(moved[rank], shifts[rank], step):
+            if moved[rank] + step <= highs[rank]:
+                moved[rank] += step
+            elif moved[rank] - step >= lows[rank]:
+                moved[rank] -= step
+    for rank in free:
+        if reached >= wanted:
+            break
+        if rank in chosen or written_at_midnight(moved[rank], shifts[rank], step):
+            continue
+        found = nearest_midnight(moved[rank], shifts[rank], lows[rank], highs[rank])
+        if found is not None:
+            moved[rank] = found
+            reached += 1
+    return moved
+
+
+SLASHED_STAMPS = ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime")
+MARKS_BY_COMMONNESS = ("upper_t", "space", "lower_t")
+
+
+def permitted_marks(column):
+    """The marks a column's own reader accepts, commonest first (contract D12).
+
+    All three on an ISO reading; a space alone on a slashed stamp.
+    """
+    if column["format"] in SLASHED_STAMPS:
+        return ("space",)
+    return MARKS_BY_COMMONNESS
+
+
+def mark_weights(column):
+    """How many values each mark is written on (plan P4-D39, landing 2b.3).
+
+    Written from the statement: every named count as published, and a
+    withheld pool split EVENLY over the permitted marks the census leaves
+    unnamed, a remainder going one each to those marks in the order
+    upper_t, space, lower_t; a mark given no value is left out.  Where
+    the census leaves no permitted mark unnamed the pool is not split.
+    """
+    census = column.get("datetime_separators", {})
+    weights = {name: count for name, count in census.items() if name != "(withheld)"}
+    if "(withheld)" not in census:
+        return weights
+    unnamed = [name for name in permitted_marks(column) if name not in census]
+    if not unnamed:
+        return weights
+    share, rest = divmod(census["(withheld)"], len(unnamed))
+    for place, name in enumerate(unnamed):
+        given = share + (1 if place < rest else 0)
+        if given > 0:
+            weights[name] = given
+    return weights
 
 
 def _separator_allocation(column, parsed):
     """Which mark each rank carries between day and clock (plan P4-D39).
 
     A smooth weighted rotation, written here from its statement rather
-    than from the implementation: every rank adds each named count to
-    that name's credit, the name holding the most credit is chosen --
+    than from the implementation: every rank adds each mark's weight to
+    that mark's credit, the mark holding the most credit is chosen --
     the first in sorted order among equals -- and the weights' total is
-    taken back from it.  Ranks the named counts leave over are added to
-    the commonest name's weight.  No rank is pinned, and no word is
-    drawn.
+    taken back from it.  The weights are ``mark_weights``: the named
+    counts, and a withheld pool spent on the unnamed permitted marks
+    (landing 2b.3).  Ranks those weights leave over are added to the
+    commonest named mark's weight, or where nothing is named to the first
+    permitted mark in the order upper_t, space, lower_t.  No rank is
+    pinned, and no word is drawn.
     """
     if column["resolution"] != "datetime" or parsed == 0:
         return ["T"] * parsed
-    named = {
-        name: count
-        for name, count in column.get("datetime_separators", {}).items()
-        if name != "(withheld)"
-    }
-    if not named:
+    census = column.get("datetime_separators", {})
+    named = {name: count for name, count in census.items() if name != "(withheld)"}
+    if not named and "(withheld)" not in census:
         return ["T"] * parsed
-    order = sorted(named)
-    commonest = max(order, key=lambda name: (named[name], -order.index(name)))
-    weights = dict(named)
-    weights[commonest] += max(0, parsed - sum(named.values()))
+    weights = mark_weights(column)
+    if named:
+        order = sorted(named)
+        top = max(order, key=lambda name: (named[name], -order.index(name)))
+    else:
+        top = permitted_marks(column)[0]
+    left = parsed - sum(weights.values())
+    if left > 0:
+        weights[top] = weights.get(top, 0) + left
+    order = sorted(weights)
     total = sum(weights.values())
     credit = dict.fromkeys(order, 0)
     marks = []
@@ -3885,15 +4187,87 @@ def rebalance_marks(wanted, cells, holes):
     return cells
 
 
-def _offset_allocation(column, parsed):
-    """Which offset each rank carries -- method section G7.4."""
+def form_allocation(column, parsed):
+    """Which ranks are written as bare dates (landing 2b.3, plan P4-D39).
+
+    Written from the statement: only on an iso-mixed column whose every
+    value stands at midnight.  The ranks whose instant is published are
+    settled first, in rank order -- the ranks ``instant_offsets`` names,
+    with the offsets it gives them.  One with offsets, none of
+    them a marker key, is a moment; on the shared clock, one that may
+    carry (none) or (withheld) is a bare date while iso-date has a count
+    left (repair pass of landing 2b.3).  Each takes one from its form's
+    count.  The other ranks, in order, take the two forms by the smooth
+    weighted rotation -- both counts added to their credits, the form with
+    more credit taken (iso-date on a tie), the total given back.
+    """
+    whole = [False] * parsed
+    if column["format"] != "iso-mixed" or parsed == 0:
+        return whole
+    if not column.get("all_at_midnight", False):
+        return whole
+    published = instant_offsets(column, parsed)
+    dates = column["resolution_mix"]["iso-date"]
+    moments = column["resolution_mix"].get("iso-datetime", 0)
+    pinned = set()
+    for rank in sorted(published):
+        keys = published[rank]
+        if not keys:
+            continue
+        if all(key not in ("(none)", "(withheld)") for key in keys):
+            pinned.add(rank)
+            moments = max(0, moments - 1)
+        elif column["datetimes_read_at"] == "utc" and dates > 0:
+            pinned.add(rank)
+            whole[rank] = True
+            dates -= 1
+    weights = {"iso-date": dates, "iso-datetime": moments}
+    order = sorted(weights)
+    total = sum(weights.values())
+    credit = dict.fromkeys(order, 0)
+    for rank in range(parsed):
+        if rank in pinned:
+            continue
+        for name in order:
+            credit[name] += weights[name]
+        chosen = max(order, key=lambda name: (credit[name], -order.index(name)))
+        credit[chosen] -= total
+        whole[rank] = chosen == "iso-date"
+    return whole
+
+
+def _offset_allocation(column, parsed, whole=None, pins=None):
+    """Which offset each rank carries -- method section G7.4.
+
+    A rank written as a bare date carries no offset: it is settled first,
+    taking one from (none), or from (withheld) where (none) is spent
+    (landing 2b.3).  An END takes the key published for it, a marker key
+    included, which then writes no offset.  A rung rank of a column wholly
+    at local midnight on the shared clock takes, after the ends, the first
+    offset in ``pins`` that has a count left.
+    """
     remaining = dict(column["utc_offsets"])
     allocated = [None] * parsed
+    for rank, bare in enumerate(whole or []):
+        if not bare:
+            continue
+        for key in ("(none)", "(withheld)"):
+            if remaining.get(key, 0) > 0:
+                remaining[key] -= 1
+                break
+        allocated[rank] = "(none)"
     for rank, field in ((0, "earliest_utc_offset"), (parsed - 1, "latest_utc_offset")):
         named = column[field]
-        if named not in ("(none)", "(withheld)") and remaining.get(named, 0) > 0:
+        if allocated[rank] is not None:
+            continue
+        if remaining.get(named, 0) > 0:
             allocated[rank] = named
             remaining[named] -= 1
+    for rank, keys in sorted((pins or {}).items()):
+        for key in keys:
+            if allocated[rank] is None and remaining.get(key, 0) > 0:
+                allocated[rank] = key
+                remaining[key] -= 1
     def key(name):
         return (name in ("(none)", "(withheld)"), name)
     for rank in range(parsed):
@@ -6357,7 +6731,10 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # of dates carries it and a loader refuses a block that does not.
     if role == "datetime":
         parsed = block["n_present"] - block["n_unparsed"]
-        block["resolution_mix"] = {block["format"]: parsed}
+        # A case reading its column jointly states its own form census
+        # (landing 2b.3); every other case publishes its one form.
+        if "resolution_mix" not in block:
+            block["resolution_mix"] = {block["format"]: parsed}
         # ...and the census of marks between day and clock, and the
         # midnight statement (plan P4-D39), defaulted to what every cell
         # frozen before them already wears: a `T` on each parsed cell of a
@@ -6370,6 +6747,10 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
             )
         if "all_at_midnight" not in block:
             block["all_at_midnight"] = False
+        # ...and the count of values at midnight (landing 2b.3), which a
+        # case states only where its column is partly at midnight.
+        if "n_at_midnight" not in block:
+            block["n_at_midnight"] = parsed if block["all_at_midnight"] else 0
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -7259,7 +7640,8 @@ def _mixed_marks():
         "back, so it pins three rules at once: the named marks are spread "
         "evenly over the ranks rather than spent from the earliest rank "
         "upward, the earliest name in sorted order is the commonest on a "
-        "tie, and the withheld pool is written with that commonest mark. A "
+        "tie, and since landing 2b.3 the withheld pool is written with the "
+        "one mark the census leaves unnamed, a capital T. A "
         "walk that spent the names from the first rank upward would write "
         "every lower-case t on the earliest dates and every space on the "
         "latest, making up a link between how early a moment is and how it "
@@ -8513,6 +8895,307 @@ def _joined_readings():
         "claims": claims,
     }
 
+def _pooled_marks():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="minute",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-05-01 06:30:00", latest="2024-05-24 21:45:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-05-01 06:30:00",
+            "p01": "2024-05-01 06:30:00",
+            "p05": "2024-05-02 09:15:00",
+            "p10": "2024-05-03 13:40:00",
+            "p25": "2024-05-06 11:55:00",
+            "p50": "2024-05-12 12:35:00",
+            "p75": "2024-05-18 08:50:00",
+            "p90": "2024-05-21 17:05:00",
+            "p95": "2024-05-22 10:55:00",
+            "p99": "2024-05-23 14:20:00",
+            "max": "2024-05-24 21:45:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 24},
+        resolution_mix={"iso-datetime": 24},
+        datetime_separators={"upper_t": 14, "(withheld)": 10},
+        all_at_midnight=False, n_at_midnight=0,
+    )
+    return {
+        "why": (
+            "the withheld pool of landing 2b.3. The census names one mark at "
+            "fourteen values and holds ten back, and every value of a named mark is "
+            "counted under its name, so the ten wore the two marks it leaves "
+            "unnamed: they are split evenly over those two, five a space and five a "
+            "lower-case t, and spread by the same rotation as the named mark. The "
+            "rule this overturns wrote the pool with the commonest mark, erasing "
+            "the two spellings; this case's mutant is that rule."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
+
+def _slashed_pool():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=10, n_missing=0, n_distinct=10, n_distinct_folded=10,
+        n_numeric=0, n_not_numeric=10, n_out_of_range=0, n_contradictory=0,
+        format="slashed-iso-datetime", resolution="datetime", time_precision="minute",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-06-03 08:10:00", latest="2024-06-28 11:50:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-06-03 08:10:00",
+            "p01": "2024-06-03 08:10:00",
+            "p05": "2024-06-03 08:10:00",
+            "p10": "2024-06-03 08:10:00",
+            "p25": "2024-06-08 09:05:00",
+            "p50": "2024-06-13 07:55:00",
+            "p75": "2024-06-19 10:45:00",
+            "p90": "2024-06-25 16:25:00",
+            "p95": "2024-06-25 16:25:00",
+            "p99": "2024-06-25 16:25:00",
+            "max": "2024-06-28 11:50:00",
+        },
+        n_unparsed=0, utc_offsets={"(withheld)": 10},
+        resolution_mix={"slashed-iso-datetime": 10},
+        datetime_separators={"(withheld)": 10},
+        all_at_midnight=False, n_at_midnight=0,
+    )
+    return {
+        "why": (
+            "the permitted marks of a slashed stamp, landing 2b.3. Ten year-first "
+            "slashed stamps whose every mark is pooled: the reader of that form "
+            "splits the day from the clock on one space and takes nothing else, so "
+            "the pool is spent on the space alone and every cell carries one. It is "
+            "also the first frozen case for the slashed-iso-datetime member. "
+            "Offered all three marks, as an ISO stamp is, the cells take a T and a "
+            "t that no such table could write; this case's mutant is that offer."
+        ),
+        "column": column,
+        "rows": 10,
+        "identifier_declared": False,
+    }
+
+
+def _midnight_mixed_forms():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-mixed", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-01-04 00:00:00", latest="2024-12-16 00:00:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-01-04 00:00:00",
+            "p01": "2024-01-04 00:00:00",
+            "p05": "2024-01-19 00:00:00",
+            "p10": "2024-02-02 00:00:00",
+            "p25": "2024-03-25 00:00:00",
+            "p50": "2024-06-27 00:00:00",
+            "p75": "2024-09-18 00:00:00",
+            "p90": "2024-11-05 00:00:00",
+            "p95": "2024-11-20 00:00:00",
+            "p99": "2024-12-02 00:00:00",
+            "max": "2024-12-16 00:00:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 24},
+        resolution_mix={"iso-date": 13, "iso-datetime": 11},
+        datetime_separators={"space": 11},
+        all_at_midnight=True, n_at_midnight=24,
+    )
+    return {
+        "why": (
+            "the narrowing of owner decision 4, landing 2b.3. Twenty-four days at "
+            "midnight read jointly, thirteen written as bare dates and eleven with "
+            "a midnight clock: the column is counted in whole days, so every rank "
+            "is a day a bare date spells exactly, and the form census is spent over "
+            "the ranks by the smooth rotation, the census of marks over the ranks "
+            "that write a clock. Writing every rank as a moment, as decision 4 did "
+            "for every joint column, is this case's mutant."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
+
+def _partial_midnight():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-03-01 00:00:00", latest="2024-03-30 15:31:16",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-03-01 00:00:00",
+            "p01": "2024-03-01 00:00:00",
+            "p05": "2024-03-02 09:14:07",
+            "p10": "2024-03-03 00:00:00",
+            "p25": "2024-03-06 16:40:12",
+            "p50": "2024-03-13 18:05:58",
+            "p75": "2024-03-21 10:59:41",
+            "p90": "2024-03-26 00:00:00",
+            "p95": "2024-03-27 12:07:50",
+            "p99": "2024-03-29 00:00:00",
+            "max": "2024-03-30 15:31:16",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 24},
+        resolution_mix={"iso-datetime": 24},
+        datetime_separators={"space": 24},
+        all_at_midnight=False, n_at_midnight=12,
+    )
+    return {
+        "why": (
+            "the move onto midnight of landing 2b.3. Twenty-four moments to the "
+            "second, twelve of them at midnight: the ranks are interpolated in "
+            "seconds, each rung rank takes its published rung, the values at midnight still "
+            "owed are spread over the other ranks by the smooth rotation, and each "
+            "chosen rank moves to its nearest midnight without passing a pinned "
+            "rank. Keeping the interpolated instants, which put nearly every value "
+            "part-way through a day, is this case's mutant."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
+
+def _midnight_two_offsets():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="utc",
+        earliest="2024-01-07 23:00:00", latest="2024-06-27 22:00:00",
+        earliest_utc_offset="+01:00", latest_utc_offset="+02:00",
+        date_percentiles={
+            "min": "2024-01-07 23:00:00",
+            "p01": "2024-01-07 23:00:00",
+            "p05": "2024-01-21 23:00:00",
+            "p10": "2024-02-04 23:00:00",
+            "p25": "2024-03-03 23:00:00",
+            "p50": "2024-03-28 23:00:00",
+            "p75": "2024-05-14 22:00:00",
+            "p90": "2024-06-11 22:00:00",
+            "p95": "2024-06-18 22:00:00",
+            "p99": "2024-06-23 22:00:00",
+            "max": "2024-06-27 22:00:00",
+        },
+        n_unparsed=0, utc_offsets={"+01:00": 12, "+02:00": 12},
+        resolution_mix={"iso-datetime": 24},
+        datetime_separators={"upper_t": 24},
+        all_at_midnight=True, n_at_midnight=24,
+    )
+    return {
+        "why": (
+            "midnight on two offsets, landing 2b.3. Twenty-four local midnight values, "
+            "the winter days written at +01:00 and the summer days at +02:00, "
+            "published on the shared clock: the column is counted in seconds, each "
+            "rung rank takes its rung and the offset that rung is a midnight under, "
+            "and every rank moves onto a midnight of its own offset. Counting it in "
+            "days on the shared clock, which reads 23:00 as the day before, is this "
+            "case's mutant."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
+
+def _midnight_bare_offsets():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-mixed", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="utc",
+        earliest="2024-04-30 22:00:00", latest="2024-05-07 00:00:00",
+        earliest_utc_offset="+02:00", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-04-30 22:00:00",
+            "p01": "2024-04-30 22:00:00",
+            "p05": "2024-05-01 00:00:00",
+            "p10": "2024-05-01 22:00:00",
+            "p25": "2024-05-02 22:00:00",
+            "p50": "2024-05-02 22:00:00",
+            "p75": "2024-05-06 00:00:00",
+            "p90": "2024-05-06 00:00:00",
+            "p95": "2024-05-06 00:00:00",
+            "p99": "2024-05-06 22:00:00",
+            "max": "2024-05-07 00:00:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 13, "+02:00": 11},
+        resolution_mix={"iso-date": 13, "iso-datetime": 11},
+        datetime_separators={"upper_t": 11},
+        all_at_midnight=True, n_at_midnight=24,
+    )
+    return {
+        "why": (
+            "the repair pass of landing 2b.3. Twenty-four values at local midnight read "
+            "jointly on the shared clock, thirteen bare dates and eleven moments at "
+            "T00:00:00+02:00, whose rungs stand at 22:00 where a moment stood and at "
+            "00:00 where a bare date did, with seven ranks between p25 and p50 on one "
+            "22:00 instant and five between p75 and p95 on one midnight of the shared "
+            "clock. Every rank whose instant the tail fixes takes the form and the "
+            "offset that instant stands at midnight under before the rotation spends "
+            "the rest. Settling only the two ends, which wrote rung ranks as the day "
+            "before and moments at T02:00:00+02:00, is this case's mutant."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
+
+def _accidental_midnight():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="minute",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-05-08 05:08:00", latest="2024-05-11 17:38:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={
+            "min": "2024-05-08 05:08:00",
+            "p01": "2024-05-08 05:08:00",
+            "p05": "2024-05-08 07:58:00",
+            "p10": "2024-05-08 11:48:00",
+            "p25": "2024-05-08 22:18:00",
+            "p50": "2024-05-09 20:48:00",
+            "p75": "2024-05-10 18:58:00",
+            "p90": "2024-05-11 06:28:00",
+            "p95": "2024-05-11 10:18:00",
+            "p99": "2024-05-11 13:58:00",
+            "max": "2024-05-11 17:38:00",
+        },
+        n_unparsed=0, utc_offsets={"(none)": 24},
+        resolution_mix={"iso-datetime": 24},
+        datetime_separators={"space": 24},
+        all_at_midnight=False, n_at_midnight=0,
+    )
+    return {
+        "why": (
+            "the repair pass of landing 2b.3. Twenty-four moments to the minute, none "
+            "at midnight, published with n_at_midnight 0 at a floor of one: the "
+            "interpolation lands one rank within the first minute of a day, and that "
+            "rank moves one step later, below the next rank's instant, so the twin "
+            "holds no value at midnight either. Keeping the accidental midnight, which "
+            "read back as a count of one, is this case's mutant."
+        ),
+        "column": column,
+        "rows": 24,
+        "identifier_declared": False,
+    }
+
 
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
@@ -8531,6 +9214,21 @@ BRANCH_CASE_BUILDERS = {
     "label_number_tiers": _label_number_tiers,
     "midnight_days": _midnight_days,
     "mixed_marks": _mixed_marks,
+    # The five cases of landing 2b.3: a withheld pool spent on the unnamed
+    # marks, a slashed stamp's one permitted mark, bare dates beside
+    # midnight moments, a column partly at midnight, and midnight on two
+    # offsets.
+    "pooled_marks": _pooled_marks,
+    "slashed_pool": _slashed_pool,
+    "midnight_mixed_forms": _midnight_mixed_forms,
+    "partial_midnight": _partial_midnight,
+    "midnight_two_offsets": _midnight_two_offsets,
+    # The two cases of landing 2b.3's repair pass: bare dates beside moments at
+    # local midnight on a real offset, whose published instants settle their form
+    # and offset first, and an accidental midnight moved off a column that
+    # publishes none.
+    "midnight_bare_offsets": _midnight_bare_offsets,
+    "accidental_midnight": _accidental_midnight,
 }
 
 CASE_SETS = {
@@ -8885,6 +9583,116 @@ GIVEN_WORDS = {
         9722210440181412196, 1318698826428569177, 10758849686013811633,
         4388598467465224327, 14111088605365728606, 3202938355627100572,
     ),
+    "pooled_marks": (
+        14485363227759379260, 14496546446215838655, 17877404087858154871,
+        13799267182700036431, 12092778006306275581, 17319362901013630541,
+        3294855028839219168, 10858624428905468031, 8168203010090694442,
+        6435093561335128686, 6104571710385768880, 2939833306085970469,
+        18252379738369854919, 4742856688619991640, 13203531316936026217,
+        9331933324833785766, 12250691627341533157, 12955931837302369919,
+        960710691341638366, 1108584512337328690, 17438679814386998998,
+        4618150261496032979, 7485577089883912648, 5090626598207926334,
+        5546068173886288405, 6763907908498900843, 2744688177708167075,
+        6425753487679248711, 11015110302746343300, 18339080949187871663,
+        3417281073695313348, 18320094770021572713, 14492109870859816788,
+        8266784616822606329, 15687942191941692266, 15880471324755436178,
+        17841136179427949105, 3153720365097832194, 12904746883321067555,
+        15289589415482460436, 11790829620896665457, 16118600836855221284,
+        14339110349838762356, 3346176665544244880, 11953169525016169803,
+    ),
+    "slashed_pool": (
+        15712004738899576826, 9106234749995103221, 7197214430348145549,
+        3313175008234788654, 1858441125794321210, 14392887498122039256,
+        14505558076215610779, 16068856989174244207, 5942574399079652759,
+        2192282604479703364, 11260024226675101652, 13534188194726011293,
+        4063389463222510494, 14541140093590011962, 5139732853110514003,
+        1004173694524156974, 4999747325177310008,
+    ),
+    "midnight_mixed_forms": (
+        113928492773646949, 17372370786837566977, 1219843214052797780,
+        18060177847918427891, 2269749036259349544, 1894645877340042640,
+        15072375343841275966, 17346076489125329089, 9786844728708983233,
+        2313887177159651904, 14383211509980887204, 1891469827612902315,
+        1918039791416009201, 8866012333022508572, 3304104628595658101,
+        5361620680766448462, 2128419656908236178, 13372904720345244078,
+        8759118553313331063, 13069717736981496796, 6138377388608102850,
+        17738937843285025801, 16667688310731956123, 17093977340954483409,
+        5384618276592245486, 8995304594082110260, 8135910953244645417,
+        16621120088989500265, 14548498363494084155, 4169421069517691136,
+        14648778205617844717, 6737328632369445978, 375313268482488846,
+        12411956739066342091, 18299847717392466046, 14808335859639834358,
+        11864420252033652509, 5003249159363248133, 10869925071936347938,
+        3426327052426443793, 14627413773893209962, 6434163649656049356,
+        3201641117064018439, 8953199931265607348, 3374173106152786677,
+    ),
+    "partial_midnight": (
+        1152304788140580860, 3867042428245129712, 5521709652331476041,
+        16787588637765382555, 5839333488759457276, 10801019328581594845,
+        17705012502391288466, 15020103291960895461, 4943810138468162983,
+        877893562404209578, 16922643984788468846, 3306002626557328184,
+        17502856997231273229, 7897228658841342621, 14826654116142264846,
+        5793616776277113670, 10796600254155222444, 7765144065563217641,
+        6715930928981767690, 16153726339302755246, 1646178210335255695,
+        11111103851345892514, 15010111191794066299, 2975547439463384818,
+        17642205489684340623, 13212108929575244868, 14895492880472523042,
+        4192985432969924647, 9820426250463759087, 10234548067267463062,
+        5189587264895563080, 2452702763937307337, 10205308364826528282,
+        14316190813908941328, 15202294529749275567, 4195364331076296629,
+        12775844997860775945, 8647740450583316597, 17918419582921289744,
+        8290940002445848808, 16147188500045453846, 10018618111265336882,
+        10632733031110977480, 3763983169410323083, 15701824487642497391,
+    ),
+    "midnight_two_offsets": (
+        12159711863008289878, 8709007662888919493, 7997898239127022494,
+        7451265919803795170, 1470248478108607712, 10818965659882411781,
+        16981746518262132939, 15548278071263449747, 9419688407408251252,
+        7614032419161006808, 16046008259160574575, 6387722803170484949,
+        15119183407783803397, 12885227414193446729, 1987203789594237335,
+        4632279376113977152, 18045010286009548665, 862031965623451883,
+        5744765592436122078, 446953054251727269, 18317086482641423628,
+        17822566509887301813, 9910238047150026831, 18244926176802880538,
+        5416248856541669996, 1095152913536448474, 10708723326105226653,
+        4509920326808090827, 6941920607344609533, 7092262075666499652,
+        17071520747136474617, 14106376023458908189, 261922282994547843,
+        16270548520809097675, 16511931872268775318, 3503721415149997583,
+        7182340396267010647, 10134588438343447637, 3433681718526137788,
+        2159141692022912887, 11722352740023183471, 2331279634929741441,
+        17681242563859316791, 10856412895652481, 12549459677246770462,
+    ),
+    "midnight_bare_offsets": (
+        7089385755461974538, 4314764982914698682, 16567534149198797734,
+        16464795469777924000, 14318121936348965621, 14620420000527275332,
+        16782936558013819173, 6593487092538202917, 16926022121086143958,
+        5291891043476227775, 3580209385984035972, 17785491288986074348,
+        856540425896113702, 11674233117865919641, 17240571081310899840,
+        13807000861013954160, 14524779962867225389, 6486544850949051387,
+        3673561687381706519, 12801222241337981710, 6856693191474359356,
+        10595972535340100382, 16923529454583407121, 5876904505267725559,
+        15121633124576497790, 14328305676225814364, 960200242413647887,
+        17892645618493081823, 8763750044574266882, 3135842330771061634,
+        7376019224115783948, 6743593554889592790, 4587082567632806684,
+        928840032145345843, 8611965826350869657, 15952738046520582940,
+        15170548298862574888, 18078340560188216414, 17961755548169570166,
+        1709256287998433444, 2601830613986780518, 16802502615291089435,
+        5371919591216636188, 10726450709361837683, 10163254344864448410,
+    ),
+    "accidental_midnight": (
+        8361547462881463300, 1439470239444836477, 5643624778869385107,
+        7508891442020028448, 13896387288569281756, 8419329016146831055,
+        174944720312643723, 9347709944107655906, 13190512531707830664,
+        8329392936970135, 7677624977632361876, 14028837922008868156,
+        12881720920323991545, 3217557313667879248, 17647314000776884646,
+        8849343174259228008, 8835445705277311622, 6284314475291354904,
+        14462896666750929133, 14736108205338084834, 801973022718808252,
+        8073300596020938055, 11246973995395875921, 15416282733469397854,
+        7010410552110536197, 3087890539577173792, 2597332005715184120,
+        947460919357300690, 10949984764149715151, 6322083284058942417,
+        3489198260462900218, 17113399566349669660, 4529163520384161002,
+        4645199681965722341, 8559493826951877565, 12565258668630052830,
+        15684492838078002813, 10158249447416264913, 8778210800349277997,
+        2350165068184227762, 17009699058798045745, 14049494365643690194,
+        1297445315951002519, 5661899464629933938, 15148421627120523707,
+    ),
 }
 
 
@@ -8965,6 +9773,8 @@ INTEGER_COLUMN_KEYS = frozenset({
     "n_distinct_values",
     "n_left_out_of_statistics", "n_rows", "suppressed_levels",
     "suppressed_rows", "level_ceiling", "subsecond_digits", "n_unparsed",
+    # How many parsed cells stood at midnight (landing 2b.3).
+    "n_at_midnight",
     "min_length", "max_length", "n_all_digits", "n_code_alphabet", "count",
     "n_occurrences", "n_whole", "n_fraction", "n_whole_unknown",
     "n_positive", "n_sign_unknown",

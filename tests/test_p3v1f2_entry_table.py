@@ -4919,6 +4919,15 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "precision.time_precision"): "datetime.time_precision",
     ("datetime", "presence.n_missing"): "universal.n_missing",
     ("datetime", "presence.n_present"): "universal.n_present",
+    # THE MARKS, obligations since landing 2b.3. Only the corner fixture
+    # of withheld offsets holds a column whose values write a clock, and
+    # its census names one mark, so these two subchecks are the sites the
+    # shipped table files; a line for a site no fixture files asserts
+    # nothing and is refused below. The other two marks and the two
+    # midnight checks are held by `tests/test_stage2_timestamp_spellings.py`,
+    # each shown able to fail on a real round trip.
+    ("datetime", "marks.upper_t"): "datetime.datetime_separators",
+    ("datetime", "marks.unnamed"): "datetime.datetime_separators",
     # -- document ----------------------------------------------------------
     ("document", "bytes.byte-order-mark"): "document.encoding",
     ("document", "bytes.line-endings"): "document.line-endings",
@@ -5345,11 +5354,14 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.sentinel_verdicts",
     ),
     "datetime": (
-        # REPORT-ONLY (plan P4-D39): the census of marks between day and
-        # clock, and whether every moment stands at midnight, listed on
-        # every datetime column as the form census beside them is.
+        # CHECKED since landing 2b.3 where the description sets an
+        # obligation, and LISTED where it sets none: every fixture's
+        # column of dates here writes no clock, so all three are listed
+        # on it, and the corner column of withheld offsets lists the two
+        # midnight facts beside its checked marks.
         "datetime.all_at_midnight",
         "datetime.datetime_separators",
+        "datetime.n_at_midnight",
         "datetime.format",
         "datetime.resolution_mix",
         "universal.detection_evidence",

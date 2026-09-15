@@ -185,6 +185,16 @@ DATE_FORMATS = (
     "dotted-two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
+    # THE YEAR-FIRST SLASHED STAMP (landing 2b.3). `2024/03/17 14:05` is
+    # how a great many exports write a moment, and no member read it: the
+    # date-only `slashed-iso-date` needs exactly ten characters and the
+    # two slashed stamps above need the year last. A column of them was
+    # read as free text and its twin wrote made-up strings. The year
+    # leads, so the reading is as unambiguous as `slashed-iso-date`'s,
+    # and its clock is the time-of-day role's two forms, as the two
+    # slashed stamps' is. AFTER every member a column already read under,
+    # so no spelling that reads today changes its reading.
+    "slashed-iso-datetime",
     "year-quarter",
     # LAST, AND THAT IS THE RULE RATHER THAN A PLACE IN A LIST. The
     # single-format pass runs first and its verdict stands wherever it
@@ -193,6 +203,15 @@ DATE_FORMATS = (
     # where NO single format clears does the joint reading get a turn,
     # which is what putting it after every other member means.
     "iso-mixed",
+)
+
+# The three readings whose clock stands after ONE space and is the
+# time-of-day role's own two forms, with no fraction and no offset (plan
+# amendment A-P4-1 item 2; the year-first stamp since landing 2b.3).
+SLASHED_STAMPS = (
+    "month-first-datetime",
+    "day-first-datetime",
+    "slashed-iso-datetime",
 )
 
 _FORMAT_EXAMPLES = {
@@ -214,6 +233,7 @@ _FORMAT_EXAMPLES = {
     "dotted-two-digit-day-first-date": "17.03.24 (day first)",
     "month-first-datetime": "03/17/2024 14:05 (month first)",
     "day-first-datetime": "17/03/2024 14:05 (day first)",
+    "slashed-iso-datetime": "2024/03/17 14:05",
     "year-quarter": "2024-Q1",
 }
 
@@ -2358,6 +2378,30 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         if clock is None:
             return None
         return f"{date_part} {clock}", ""
+    if format_name == "slashed-iso-datetime":
+        # A `slashed-iso-date`, ONE space, then a clock in the time-of-day
+        # role's two forms (landing 2b.3). Both halves are read by readers
+        # this module already has, exactly as the two slashed stamps
+        # above are built, so a stamp this accepts is one whose date half
+        # `slashed-iso-date` accepts and whose clock half `clock_form`
+        # does; a fraction, an offset or a second space is refused.
+        mark = 0
+        place = 0
+        for character in body:
+            if character == " ":
+                mark = place
+            place = place + 1
+        if mark != 10:
+            return None
+        whole = parse_datetime(body[0:mark], "slashed-iso-date")
+        if whole is None:
+            return None
+        if clock_form(body[mark + 1 :]) is None:
+            return None
+        clock = _parse_clock(body[mark + 1 :])
+        if clock is None:
+            return None
+        return f"{whole[0]} {clock}", ""
     if format_name == "iso-month":
         # A MONTH NAMES A SPAN, WHICH IS WHY IT HAS A SPACE OF ITS OWN
         # (plan P4-D4.3 item 2). `2024-03` is not a day and turning it
@@ -2908,10 +2952,7 @@ def _clock_of(text: str, format_name: str) -> "str | None":
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
     body = text.strip()
-    if (
-        format_name == "month-first-datetime"
-        or format_name == "day-first-datetime"
-    ):
+    if format_name in SLASHED_STAMPS:
         # THE SLASHED STAMPS ANSWER FROM THEIR OWN TEXT. Their date
         # half is not ten characters wide, so the ISO cut below finds
         # nothing; the clock is what stands after the one space, and it
@@ -3024,10 +3065,7 @@ def datetime_separator(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if _clock_of(text, format_name) is None:
         return None
-    if (
-        format_name == "month-first-datetime"
-        or format_name == "day-first-datetime"
-    ):
+    if format_name in SLASHED_STAMPS:
         return SEPARATOR_SPACE
     if parse_datetime(text, "iso-datetime") is None:
         return None
