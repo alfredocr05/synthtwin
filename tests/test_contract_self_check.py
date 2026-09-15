@@ -4,8 +4,9 @@ WHY THIS FILE EXISTS (residual R-P4-113). `tools/spec/check_assembly.py`
 was written to settle what a reader cannot: that every identifier the
 contract defines is defined once, and that every identifier it cites is
 defined somewhere. It read the section files under `docs/spec/v6-build/`
-by default, which stopped moving on 2026-08-26, and nothing ran it on
-the document that ships. On that document it reported seventeen items.
+by default -- a folder that stopped moving on 2026-08-26 and was deleted,
+with its assembler, when R-P4-113 closed -- and nothing ran it on the
+document that ships. On that document it reported seventeen items.
 Seven were real -- C6-32, C6-33 and C6-96 each named two different
 rules, and invariants Q16 to Q19 were cited and never written -- and ten
 were the checker not knowing three shapes the document defines in: a
@@ -138,3 +139,18 @@ def test_a_landing_name_is_struck_only_after_the_word_landing(
     text = "The ladder rule L7 binds here.\n"
     items = _items(_copy(tmp_path, text))
     assert any("cites L7" in item for item in items), items
+
+
+def test_the_checker_reads_the_shipped_contract_by_default(
+    monkeypatch, capsys
+) -> None:
+    """R-P4-113 closed with the assembled contract as the only source.
+
+    The build folder the checker once read by default is deleted, so a
+    default still naming it would stop the tool with "no such folder";
+    run with no argument, it must check the document that ships and find
+    nothing wrong there.
+    """
+    monkeypatch.setattr("sys.argv", ["check_assembly.py"])
+    assert check_assembly.main() == 0
+    assert "1 sections, 0 items" in capsys.readouterr().out

@@ -5171,7 +5171,7 @@ declaration for only one of them.
   that stage already places exactly. It is design work and not a
   repair, which is why it is a residual.
 
-- **R-P4-113 — OPEN (opened 2026-09-01 by landing L6; PRE-EXISTING).**
+- **R-P4-113 — CLOSED 2026-09-15, the assembled contract is the only source (opened 2026-09-01 by landing L6; PRE-EXISTING).**
   THE CONTRACT ASSEMBLER REBUILDS A DOCUMENT FIVE DAYS STALE, AND
   NOTHING SAYS SO.
 
@@ -5223,6 +5223,20 @@ declaration for only one of them.
   with a duplicated identifier turning that test red. On the build
   folder it reports one item more than before, a real duplicate P5
   between two draft sections that the old recogniser could not see.
+
+  **2026-09-15, CLOSED at the integration of landings 2b.1 to 2b.5: the
+  assembled contract is the only source.** The recommendation put to
+  the owner -- declare the assembled document the source and retire the
+  build folder and its tools -- drew no objection. So
+  `docs/spec/profile-contract-v6.md` is the one copy of the contract,
+  and a repair to it is made in it. The section folder
+  `docs/spec/v6-build/` and its assembler `tools/spec/assemble_v6.py`
+  are deleted; every path to them above records what stood there, and
+  none of them exists any more. `tools/spec/check_assembly.py` stays,
+  because it checks a document rather than building one: its default
+  is now the assembled contract, where it reports zero items, and
+  `tests/test_contract_self_check.py` holds it at zero and pins that
+  default.
 
 - **R-P4-124 — OPEN (opened 2026-09-01 by landing L7's own mutation
   run).** THREE RULES OF THE PROPOSAL STEP STAY SILENT.
@@ -10592,11 +10606,12 @@ changes a shipped sentence and the contract still says both things.
 form of the all-different remark: this plan's own P4-D4.1 ("the
 all-different remark additionally extends to this role verbatim", two
 lines after naming the all-different TEXT remark) and
-`docs/spec/v6-build/r5a2.md`. One passage gives it the NUMBERS form:
+the draft section `r5a2.md` of `docs/spec/v6-build/`, a folder since
+deleted (R-P4-113). One passage gives it the NUMBERS form:
 contract C6-81, which assigns one form to the roles described as
 numbers — `count`, `continuous` and `affixed_number` — and one to
 `free_text`. The project's own derivation notes for the section
-(`r5a_meta.md`) already record the conflict and name the owed act:
+(`r5a_meta.md`, in that deleted folder) already record the conflict and name the owed act:
 section 4.5 must move the sentence or say why not. It was never done.
 
 **Why the numbers form is what ships.** The free-text form says

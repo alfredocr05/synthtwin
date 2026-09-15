@@ -24,9 +24,11 @@ The checks here are the ones a machine can settle and a reader cannot:
    enumeration has N members and then writes the members out, the two
    are compared.
 
-Run it against the build folder while sections are being written, and
-against the assembled document before it lands: the argument may name
-a folder of section files or one document. The shipped contract is
+It reads the assembled contract, `docs/spec/profile-contract-v6.md`, by
+default: that document is the only source since residual R-P4-113
+closed, when the section build folder and its assembler were deleted.
+The argument may still name another document or a folder of section
+files. The shipped contract is
 checked on every suite by `tests/test_contract_self_check.py`, which
 holds it to zero items. It exits non-zero on
 any item, so it can be a gate rather than a report somebody reads.
@@ -360,8 +362,9 @@ def main() -> int:
     parser.add_argument(
         "folder",
         nargs="?",
-        default="docs/spec/v6-build",
-        help="a folder of section files, or one assembled document",
+        default="docs/spec/profile-contract-v6.md",
+        help="the assembled contract by default, which is the only source;"
+        " or another document, or a folder of section files",
     )
     parser.add_argument(
         "--counts",
