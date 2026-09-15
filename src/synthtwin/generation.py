@@ -2372,6 +2372,21 @@ def _with_zeros(spelling: str, order: int) -> str:
     return f"{lead}{'0' * order}{body}"
 
 
+def _grouping_mark(facts: contract.NumericFacts) -> str:
+    """The mark a cell is grouped with BEFORE any decimal-comma swap.
+
+    A column's published mark is `,` or, under a declared decimal comma,
+    `.`. Cells are written with a point and grouped with a comma, and a
+    decimal-comma column then has the two exchanged by
+    `_spelled_with_a_decimal_comma`, so both published marks group with a
+    comma here.
+
+    Guarantees: accepts one numeric block; returns "," or "". No I/O.
+    """
+    if facts.group_separator == "," or facts.group_separator == ".":
+        return ","
+    return ""
+
 def _styled_number(
     value: float,
     style: str,
@@ -7537,76 +7552,60 @@ def _spelled_with_a_decimal_comma(
     column: contract.ColumnBlock,
     profile: contract.Profile,
     content: "list[str]",
+    numeric: "list[bool]",
 ) -> "list[str]":
     """Write a declared column's numbers with a comma for the point.
 
     THE INVERSE OF THE READING, and exact rather than approximately so.
     The profiler read this column by dropping every `.` and turning
-    every `,` into a point; a twin's numeric cell carries no thousands
-    separator at all -- the forms the method writes are the plain, the
-    decimal and the leading-zero ones -- so turning its single point
-    back into a comma restores exactly what the reading consumed. The
-    grouping marks of the real column are NOT restored, because nothing
-    published says where they fell, and making them up would be a
-    spelling the description never claimed.
+    every `,` into a point. A twin's numeric cell is written with a point
+    and, where the description publishes a mark between thousands, is
+    grouped with a comma (`_grouping_mark`), so EXCHANGING the two marks
+    restores exactly what the reading consumed: `42,037.34` becomes
+    `42.037,34`, the grouping the column's `group_separator` of `.`
+    published. A column publishing no mark gets no grouping, because
+    nothing published says where it fell (stage 2 closure).
+
+    ONLY THE CELLS THE NUMERIC MACHINERY WROTE, and the caller says
+    which (`numeric`, one flag per cell). The first version of the
+    exchange decided it from the text: a label beside the numbers that
+    reads as a number under the ordinary grammar, `1,234,567`, was
+    exchanged into `1.234.567` and came back as a measurement; and a
+    grouped number written before the exchange, `-999,000`, matched an
+    absent spelling and was left unexchanged, so a published end walked
+    out of the twin (stage 2 closure review). An absent cell and a label
+    are never exchanged; a number always is.
 
     WHY ONLY THE PLAIN NUMERIC ROLES. The swap is applied where the
     cells were written by the numeric machinery and are therefore
-    numbers this method spelled. A declared column that fell short of
-    the parse line is described by a label or text role, its cells are
-    spellings rather than numbers, and rewriting a character inside one
-    of those would corrupt a value the description publishes exactly.
-    The affixed and joined roles are excluded for the same reason and
-    are named as residual R-P4-52: their cells carry a number inside a
-    larger spelling, and which of that spelling's marks is a decimal
-    point is a question this declaration does not answer.
+    numbers this method spelled; `contract.a_decimal_comma_reaches`
+    decides which roles those are.
 
-    Guarantees: accepts one column's block, the loaded description and
-    the cells just written; returns the cells, unchanged unless the
-    column was named in `settings.forced_decimal_commas`. Determinism:
-    a fixed function of those three. Raises nothing. No I/O.
+    Guarantees: accepts the column, the profile, the cells as arranged
+    and one flag per cell; returns the cells as written out. Determinism:
+    a function of the four. Raises ProfileError if a cell is not text.
+    No I/O of any kind.
     """
     if not _declared_a_decimal_comma(column, profile):
         return content
     if not contract.a_decimal_comma_reaches(column):
         return content
-    # A CELL THAT IS NOT A NUMBER IS LEFT EXACTLY AS IT WAS (review
-    # item P4-G3-R3-F1). The swap runs over the finished column, which
-    # carries this column's ABSENT cells as well as its numbers, and
-    # `_absent_cells` promises to reproduce each published
-    # `missing_by_source` spelling character for character. A hole
-    # spelled `.` is not a decimal point in a number; turning it into
-    # `,` writes a twin whose two hundred cells are all present against
-    # a published one hundred and eighty, re-describes as
-    # `long_tail_labels` rather than `continuous`, and misses seven
-    # obligations -- while the twin's own report, which recounts the
-    # cells BEFORE this swap, says nothing at all. The two pages of one
-    # run disagreeing is the shape this whole round keeps finding.
-    holes = _hole_spellings(column)
     spelled: "list[str]" = []
-    for cell in content:
+    for place in range(len(content)):
+        cell = content[place]
         if not isinstance(cell, str):
             raise errors.ProfileError(_INTERNAL_NOT_TEXT)
-        keep = not cell
-        for hole in holes:
-            if cell == hole:
-                keep = True
-        if keep:
+        if not cell or place >= len(numeric) or not numeric[place]:
             spelled += [cell]
             continue
-        # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED. The swap
-        # runs over the finished column, and half of this role's cells
-        # are words the description publishes exactly: a marker spelled
-        # `E11.9` would leave as `E11,9`, which is not the spelling the
-        # description carries. Only cells that ARE numbers in the form
-        # the numeric machinery just wrote them in are swapped.
-        if _labels_beside_numbers(column):
-            if parsing.classify_number(cell) != parsing.NUMBER:
-                spelled += [cell]
-                continue
         swapped = ""
         for letter in cell:
-            swapped = swapped + ("," if letter == "." else letter)
+            if letter == ".":
+                swapped = swapped + ","
+            elif letter == ",":
+                swapped = swapped + "."
+            else:
+                swapped = swapped + letter
         spelled += [swapped]
     return spelled
 
@@ -11189,7 +11188,7 @@ def _number_cells(
                 facts.integer_valued,
                 widths[index],
                 pads[index],
-                facts.group_separator,
+                _grouping_mark(facts),
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -11258,7 +11257,7 @@ def _number_cells(
                     facts.integer_valued,
                     widths[index],
                     pads[index],
-                    facts.group_separator,
+                    _grouping_mark(facts),
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
@@ -11498,9 +11497,10 @@ def _datetime_content(
         text = written
         if _is_real_offset(offset) and offset:
             text = f"{text}{offset}"
-        cells += [_kept_datetime_cell(text, holes)]
+        cells += [_kept_datetime_cell(text, holes, _named_marks(facts))]
     cells, balanced = _rebalanced_marks(column, marks, cells, holes)
     notes = notes + balanced
+    notes = notes + _worn_hole_notes(column, cells, holes)
     if parsed >= 1:
         notes = notes + _endpoint_notes(
             column, facts, "earliest", facts.earliest, cells[0], holes
@@ -11561,34 +11561,27 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     return found[0]
 
 
-def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
-    """The same instant, spelled so the twin's own reader still sees it.
+def _kept_datetime_cell(
+    text: str, holes: "tuple[str, ...]", named: "tuple[str, ...]"
+) -> str:
+    """Keep a written moment from wearing a spelling the table calls absent.
 
-    THE COLLISION IS THE TWIN'S OWN DOING, WHICH IS WHY IT CAN BE
-    UNDONE (review item P4-DATE-F2). A real table can hold a present
-    cell at midnight written `2024-01-01` and, in the same column,
-    eleven absent cells the person declared as `2024-01-01T00:00:00`.
-    Those are two spellings and the description carries both facts
-    honestly. The twin then writes every parsed cell at the column's
-    finest precision, reaches for the second spelling, and hands back a
-    cell its OWN description reads as absent -- so an exact endpoint
-    walks out of the twin over a separator nobody chose.
+    A cell whose text is an absent spelling of any column is offered
+    another mark between its day and its clock: first each mark the
+    column's own census names, in the census's order, and then the other
+    common form -- a space for a `T` or a `t`, a `T` for a space. The
+    first that is not itself absent is written. Offering the census's
+    marks first means a column that wrote only spaces and a few `t`
+    never gains a `T` it never wrote (stage 2 audit). Where every offer
+    is absent too, the cell keeps its text and `_worn_hole_notes` names
+    it: this declines to invent a spelling the description does not
+    make possible.
 
-    The date reader accepts three separators between the day and the
-    time, and the cell carries the one `_separator_allocation` gave its
-    rank (plan P4-D39). This is asked only where that spelling is one the
-    column publishes among its absent cells, and then the OTHER of the
-    two common forms is offered -- a space for a `T` or a `t`, a `T` for
-    a space -- which reads back as the same instant at the same precision
-    on the same clock. Where BOTH
-    spellings are declared absent, nothing here can help and the
-    original is returned so that the recount names the loss rather than
-    hiding it behind a third spelling.
-
-    Guarantees: accepts a written cell and the column's own absent
-    spellings; returns that cell or an equivalent one. Determinism: a
-    function of the two. Raises TypeError if handed anything that is
-    not a string instance. No I/O of any kind.
+    Guarantees: accepts one written cell, every absent spelling and the
+    census's named marks; returns that cell or one differing only in the
+    character between its day and its clock. Determinism: a function of
+    the three. Raises TypeError if the cell is not a string instance. No
+    I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError("a twin cell reached the spelling rule as something else")
@@ -11596,15 +11589,24 @@ def _kept_datetime_cell(text: str, holes: "tuple[str, ...]") -> str:
         return text
     if len(text) < 11:
         return text
-    if text[10] == "T" or text[10] == "t":
-        other = f"{text[0:10]} {text[11:]}"
-    elif text[10] == " ":
-        other = f"{text[0:10]}T{text[11:]}"
-    else:
+    mark = text[10]
+    if mark != "T" and mark != "t" and mark != " ":
         return text
-    if _is_a_hole_spelling(other, holes):
-        return text
-    return other
+    offers: list[str] = []
+    for name in parsing.DATETIME_SEPARATORS:
+        other = parsing.SEPARATOR_MARKS[name]
+        if name in named and other != mark:
+            offers += [other]
+    fallback = " "
+    if mark == " ":
+        fallback = "T"
+    if fallback not in offers:
+        offers += [fallback]
+    for other in offers:
+        changed = f"{text[0:10]}{other}{text[11:]}"
+        if not _is_a_hole_spelling(changed, holes):
+            return changed
+    return text
 
 
 def _endpoint_notes(
@@ -11698,6 +11700,15 @@ def _separator_allocation(
         return marks, notes
     census = facts.datetime_separators
     if contract.WITHHELD in census:
+        reason = (
+            "The description does not say which mark those values wore, "
+            "so the twin writes them with the mark most of the column wore."
+        )
+        if not _named_marks(facts):
+            reason = (
+                "The description names no mark at all, because every mark "
+                "was held by too few values, so the twin writes a T."
+            )
         notes += [
             _deviation(
                 column.name,
@@ -11705,9 +11716,7 @@ def _separator_allocation(
                 f"{census[contract.WITHHELD]} values whose mark between "
                 f"the day and the clock was held back",
                 f"written with '{_commonest_mark(facts)}'",
-                "The description does not say which mark those values "
-                "wore, so the twin writes them with the mark most of the "
-                "column wore.",
+                reason,
             )
         ]
     names = [name for name in sorted(census) if name != contract.WITHHELD]
@@ -11767,11 +11776,18 @@ def _rebalanced_marks(
     spelling is one the table declares absent, and that moves the census
     by one in each of two names. This walks the ranks in ascending order
     and, for each cell whose mark was changed, gives the owed mark to the
-    first other rank that holds the surplus mark as its own allocation,
-    was not itself changed, and whose new spelling is neither absent nor
-    already written. A rank changed here is never changed again. Then the
-    finished cells are recounted against the allocation, and a shortfall
-    no rank could absorb is named rather than left silent.
+    first rank, in rank order, that was allocated the mark the changed
+    cell now wears, still wears it, was not itself changed or given a
+    mark before, and whose new spelling is not absent. A repeated
+    spelling is allowed: a column of midnight dates repeats its values,
+    and refusing a repeat gave up where a rank could take the mark
+    (stage 2 audit). Then the finished cells are recounted against the
+    allocation, and a shortfall no rank could absorb is named.
+
+    LINEAR, NOT QUADRATIC (stage 2 audit: 80,000 rows took 18.9 s against
+    2.9 s). A rank passed over for one pair of marks stays unfit for that
+    pair -- it was given a mark, was itself changed, or its respelling is
+    absent -- so each pair keeps its own place in its list of ranks.
 
     Guarantees: accepts the column, one allocated mark per parsed rank,
     the parsed cells as written and every absent spelling; returns the
@@ -11779,31 +11795,63 @@ def _rebalanced_marks(
     draws no word. No I/O of any kind.
     """
     fixed: list[str] = [cell for cell in cells]
-    seen: dict[str, int] = {cell: 1 for cell in fixed}
+    by_mark: dict[str, list[int]] = {}
+    for rank in range(len(fixed)):
+        if rank >= len(wanted) or len(fixed[rank]) < 11:
+            continue
+        mark = wanted[rank]
+        if mark in by_mark:
+            by_mark[mark] += [rank]
+        else:
+            by_mark[mark] = [rank]
+    place: dict[str, int] = {}
     moved: dict[int, int] = {}
+    worn: dict[str, int] = {}
+    for cell in fixed:
+        if cell in worn:
+            worn[cell] = worn[cell] + 1
+        else:
+            worn[cell] = 1
     for rank in range(len(fixed)):
         cell = fixed[rank]
         if rank in moved or rank >= len(wanted) or len(cell) < 11:
             continue
         owed = wanted[rank]
         spare = cell[10]
-        if spare == owed:
+        if spare == owed or spare not in by_mark:
             continue
-        for other in range(len(fixed)):
+        pair = f"{spare}{owed}"
+        at = place[pair] if pair in place else 0
+        waiting = -1
+        ranks = by_mark[spare]
+        while at < len(ranks):
+            other = ranks[at]
+            at += 1
             candidate = fixed[other]
-            if other == rank or other in moved or other >= len(wanted):
-                continue
-            if len(candidate) < 11 or candidate[10] != spare:
-                continue
-            if wanted[other] != spare:
+            if other in moved or candidate[10] != spare:
                 continue
             changed = f"{candidate[0:10]}{owed}{candidate[11:]}"
-            if changed in seen or _is_a_hole_spelling(changed, holes):
+            if _is_a_hole_spelling(changed, holes):
+                continue
+            # NEVER ONE SPELLING FEWER (stage 2 closure review): a repair
+            # that erases the last copy of a spelling while writing one
+            # the column already holds lowers the count of different
+            # values, and five cells of three spellings came back as a
+            # column of two values -- binary, not a date. Such a rank
+            # waits: once another rank repeats its spelling it can go.
+            if worn[candidate] < 2 and changed in worn and worn[changed] > 0:
+                if waiting < 0:
+                    waiting = at - 1
                 continue
             fixed[other] = changed
-            seen[changed] = 1
             moved[other] = 1
+            worn[candidate] = worn[candidate] - 1
+            if changed in worn:
+                worn[changed] = worn[changed] + 1
+            else:
+                worn[changed] = 1
             break
+        place[pair] = at if waiting < 0 else waiting
     owed_counts: dict[str, int] = {}
     written_counts: dict[str, int] = {}
     for rank in range(len(fixed)):
@@ -11829,8 +11877,136 @@ def _rebalanced_marks(
             _marks_in_words(owed_counts),
             _marks_in_words(written_counts),
             "A value written with its published mark would have read as "
-            "an absent cell, and no other value could take that mark in "
-            "its place, so the twin writes the marks in these numbers.",
+            "an absent cell, and no value allocated the mark it took "
+            "could give that mark back without reading as absent itself, "
+            "so the twin writes the marks in these numbers.",
+        )
+    ]
+
+
+def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
+    """The census names a column publishes, the withheld pool left out."""
+    found: list[str] = []
+    for name in sorted(facts.datetime_separators):
+        if name != contract.WITHHELD:
+            found += [name]
+    return tuple(found)
+
+
+def _worn_hole_notes(
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+) -> "list[Deviation]":
+    """Name the values this run left wearing a spelling the table calls absent.
+
+    Where every other mark of a value is declared absent too, the value
+    keeps its spelling and reads back as an absent cell. The ends are
+    named by `_endpoint_notes`; this names every value, so a loss on a
+    column that publishes no absent spelling of its own -- one declared
+    for the whole table -- is said on the column that suffered it (stage
+    2 audit).
+
+    Guarantees: accepts the column, its parsed cells as written and every
+    absent spelling; returns at most one deviation. No I/O of any kind.
+    """
+    worn = 0
+    for cell in cells:
+        if _is_a_hole_spelling(cell, holes):
+            worn = worn + 1
+    if worn == 0:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "n_present",
+            f"{len(cells)} values written",
+            f"{worn} of them wear a spelling the table declares absent",
+            "Every spelling the twin could give these values is declared "
+            "absent somewhere in the table, so they read back as absent "
+            "cells rather than as values.",
+        )
+    ]
+
+
+def _held_back_absence_remarks(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> "list[Remark]":
+    """Say where a declared absent spelling was pooled below the group size.
+
+    A spelling the table declares absent is published only where enough
+    cells wore it. Below that, the description does not say how those
+    cells were spelled, so the twin cannot step around the spelling --
+    and a column of moments now written in the source's own mark, at
+    midnight, can write it exactly. Such a value would read back as
+    absent. It cannot be recounted, because the spelling is exactly
+    what was held back.
+
+    A REMARK, NOT A DEVIATION (stage 2 closure review): no published
+    fact was missed, so filing it as one printed it under facts that
+    "could not be held exactly" beside a column whose every fact was
+    held -- and it fired on an ordinary blank cell pooled at a raised
+    floor, which no twin cell can ever match. It is said only where the
+    table declared missing values at all.
+
+    Guarantees: accepts one column and the profile; returns at most one
+    remark. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return []
+    if facts.resolution != "datetime":
+        return []
+    if profile.settings.declared_missing_values.n_declared <= 0:
+        return []
+    pooled = column.missing_by_class.withheld
+    if pooled <= 0:
+        return []
+    return [
+        _remark(
+            column.name,
+            "absent cells counted in a group too small to name",
+            f"{pooled} absent cells whose spelling is not published",
+            "If one of those absent cells was written as a date and time "
+            "the twin also writes, a value of the twin in that spelling "
+            "reads back as an absent cell. Nothing in the description can "
+            "show whether that happened.",
+        )
+    ]
+
+
+def _grouping_notes(
+    column: contract.ColumnBlock, floor: int, content: "list[str]"
+) -> "list[Deviation]":
+    """Name a twin whose own numbers no longer prove the mark it writes.
+
+    The twin groups every groupable cell of four or more figures, but how
+    many of its values reach four figures is the ladder's to decide. On a
+    small column at a raised floor too few may, and describing the twin
+    again then publishes no mark -- a stage-2 fact lost with nothing said
+    (stage 2 closure review: ten cells, two grouped, floor two).
+
+    Guarantees: accepts the column, the smallest group size and the
+    present cells as written before any decimal-comma exchange; returns
+    at most one deviation. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.NumericFacts):
+        return []
+    if facts.group_separator == "":
+        return []
+    if taxonomy.grouping_proven(content, floor):
+        return []
+    return [
+        _deviation(
+            column.name,
+            "group_separator",
+            f"'{facts.group_separator}'",
+            "too few of the twin's own numbers to prove it",
+            "The twin writes the mark on every number of four figures or "
+            "more, but the published ladder gave it too few of them to "
+            "prove the mark to a reader of the twin, so describing the "
+            "twin again would publish none.",
         )
     ]
 
@@ -18425,6 +18601,16 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
+        # WHICH CELLS THE NUMERIC MACHINERY WROTE, counted before the
+        # absent cells join them: every present cell of a plain numeric
+        # role, and the numeric half of a column of numbers and labels,
+        # which `_compound_content` writes first (stage 2 closure review).
+        numbers_written = len(content)
+        if isinstance(column.facts, contract.CompoundFacts):
+            numbers_written = contract.compound_numbers_view(column).n_present
+        notes = notes + _grouping_notes(
+            column, profile.settings.small_cell_floor, content
+        )
         content = content + _absent_cells(
             column, _declared_a_decimal_comma(column, profile)
         )
@@ -18464,7 +18650,12 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # So the twin is MEASURED in the spelling its description was
         # made from, which is the same spelling `validate` re-describes
         # it in, and only the bytes that leave differ.
-        spelled = _spelled_with_a_decimal_comma(column, profile, written)
+        spelled = _spelled_with_a_decimal_comma(
+            column,
+            profile,
+            written,
+            [order[place] < numbers_written for place in range(profile.n_rows)],
+        )
         columns += [tuple(spelled)]
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
@@ -18572,6 +18763,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # are properties of the finished cells, and every published
         # fact of the column can be met exactly while one is true.
         remarked = remarked + list(each.remarks)
+        remarked = remarked + _held_back_absence_remarks(column, profile)
         outcomes += [
             ColumnOutcome(
                 name=column.name,
@@ -19924,17 +20116,38 @@ def _mix_notes(
             f"{with_a_time} carried a time of day",
             f"{counted['iso-date']} of the twin's are written as a whole "
             f"date and {counted['iso-datetime']} carry a time of day",
-            "The real column mixed the two ways of writing a date and "
-            "the twin writes them all the same way, at the finer of the "
-            "two, so code that reads these cells as text -- taking the "
-            "first ten characters, or testing how long a cell is -- can "
-            "behave differently here than on the real table. Code that "
-            "reads them as dates is unaffected: every cell of the twin "
-            "reads back as the same moment it would on the real table's "
-            "own terms, with a cell that carried no time of day placed "
-            "at midnight.",
+            _mix_reason(facts),
         )
     ]
+
+
+def _mix_reason(facts: contract.DatetimeFacts) -> str:
+    """Why a column mixing whole dates and moments reads differently.
+
+    The claim that code reading the cells as dates is unaffected held
+    only where every whole date comes back at midnight, which is a
+    column whose every value stood there (stage 2 audit: 382 real values
+    at midnight came back as 18).
+    """
+    head = (
+        "The real column mixed the two ways of writing a date and the twin "
+        "writes them all the same way, at the finer of the two, so code "
+        "that reads these cells as text -- taking the first ten "
+        "characters, or testing how long a cell is -- can behave "
+        "differently here than on the real table."
+    )
+    if facts.all_at_midnight:
+        return (
+            f"{head} Every value of the real column stood at midnight, and "
+            "every value of the twin does too, so code that reads them as "
+            "dates reads the same days."
+        )
+    return (
+        f"{head} Code that reads them as dates can differ too: a whole date "
+        "of the real table is given a time of day here, and a parse that "
+        "expects one format on every cell can succeed on the twin and fail "
+        "on the real table."
+    )
 
 
 def _style_notes(

@@ -686,8 +686,8 @@ _LISTING_WORDS = {
         "written with"
     ),
     "numeric.group_separator": (
-        "the mark your column wrote between thousands, or that it wrote "
-        "none"
+        "the mark your column's numbers were found to carry between "
+        "thousands, or that none was found"
     ),
 }
 

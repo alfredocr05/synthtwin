@@ -1095,6 +1095,10 @@ INVARIANTS = {
         "the marks between day and clock are counted over exactly the "
         "values that write a clock"
     ),
+    "GS1": (
+        "a column groups its thousands with a point only where it writes "
+        "its decimals with a comma, and never with a comma there"
+    ),
     "D14": (
         "a column said to stand at midnight is a column of moments on its "
         "own clock, large enough to be a group, whose published moments "
@@ -6654,10 +6658,11 @@ def _group_separator(mapping: "dict[str, object]", where: str) -> str:
 
     A SPELLING, NOT A COUNT, so it carries no floor of its own: it
     names how the column's numbers were written, not how many cells
-    any value had. Only the comma is accepted today; a space- or
-    apostrophe-grouped column is not read as grouped at all, so no
-    description can carry one and a file claiming otherwise is refused
-    rather than half-honoured.
+    any value had. A comma, or a point on a column that writes its
+    decimals with a comma (GS1 holds the two to the declaration), is
+    accepted; a space- or apostrophe-grouped column is not read as
+    grouped at all, so no description can carry one and a file claiming
+    otherwise is refused rather than half-honoured.
 
     Guarantees: accepts the numeric mapping and where it sits; returns
     the empty string or one accepted mark. Determinism: a fixed
@@ -6667,12 +6672,12 @@ def _group_separator(mapping: "dict[str, object]", where: str) -> str:
     value = mapping["group_separator"]
     if not isinstance(value, str):
         raise _wrong_type("group_separator", where, value, "a piece of text")
-    if value != "" and value != ",":
+    if value != "" and value != "," and value != ".":
         raise _out_of_range(
             "group_separator",
             where,
             f"'{value}'",
-            _listed(("", ",")),
+            _listed(("", ",", ".")),
         )
     return value
 
@@ -8732,6 +8737,60 @@ def _columns(
     return tuple(blocks)
 
 
+def _group_marks_agree(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """GS1: a mark between thousands agrees with the column's decimal mark.
+
+    A `.` is the mark of a column declared to write its decimals with a
+    comma, and a `,` never is: under that declaration the twin would
+    write `23,648,37`, which no reader takes for a number. Whether the
+    declaration reaches a column is `a_decimal_comma_reaches`' answer and
+    no other, so a labelled column's numbers may carry a `.` and an
+    affixed or joined column's never do (the first version refused the
+    profiler's own labelled column: stage 2 closure).
+
+    Guarantees: accepts every column and the settings; returns nothing.
+    Raises ProfileError for GS1. No I/O of any kind.
+    """
+    for column in columns:
+        facts = column.facts
+        blocks: "list[NumericFacts]" = []
+        if isinstance(facts, (NumericFacts,)):
+            blocks += [facts]
+        elif isinstance(facts, (AffixedFacts,)):
+            blocks += [facts.numbers]
+            for wrapper in facts.affix_variants:
+                blocks += [wrapper.numbers]
+        elif isinstance(facts, (CompoundFacts,)):
+            blocks += [facts.numbers]
+        elif isinstance(facts, (JoinedFacts,)):
+            for part in facts.parts:
+                blocks += [part]
+        declared = (
+            column.name in settings.forced_decimal_commas
+            and a_decimal_comma_reaches(column)
+        )
+        for block in blocks:
+            mark = block.group_separator
+            if declared and mark == ",":
+                raise _broken(
+                    "GS1",
+                    f"in the block for the column named '{column.name}'",
+                    "the mark between thousands is a comma",
+                    "the column is declared to write its decimals with a "
+                    "comma",
+                )
+            if not declared and mark == ".":
+                raise _broken(
+                    "GS1",
+                    f"in the block for the column named '{column.name}'",
+                    "the mark between thousands is a point",
+                    "only a column declared to write its decimals with a "
+                    "comma groups with a point",
+                )
+
+
 def _cross_checks(
     columns: "tuple[ColumnBlock, ...]",
     settings: SettingsBlock,
@@ -8780,6 +8839,7 @@ def _cross_checks(
                 f"'{name}' is named as writing its numbers with a comma",
                 "this table has no column of that name",
             )
+    _group_marks_agree(columns, settings)
     # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
     # P4-G3-R3-F3). The contract forbids the overlap and nothing
     # enforced it, so a hand-written description could name a column

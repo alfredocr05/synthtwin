@@ -780,12 +780,13 @@ COMMAND_BEARING = (
 # MOVED 2026-09-11 WHEN PHASE 4 CLOSED. The pairing is the point: the
 # sentence in the file and the expected wording here change in one
 # commit, so a phase that advances cannot leave one surface behind.
-# `CLAUDE.md` names the phase that is RUNNING, which is now 5;
-# `README.md` names where a reader stands, which is a closed Phase 4
-# with Phase 5 not started.
+# `CLAUDE.md` names the phase that is RUNNING, which is Phase 4 again:
+# the owner reopened it on 2026-09-12 and `docs/STATE.md` is its plan of
+# record. `README.md` names where a reader stands, which is that Phase 4
+# with Phase 5 waiting on it. MOVED AGAIN 2026-09-14 at stage 2's close.
 PHASE_STATEMENTS = (
-    ("CLAUDE.md", "the current phase is phase 5"),
-    ("README.md", "status: early (phase 4 closed; phase 5 next)"),
+    ("CLAUDE.md", "the current phase is phase 4, reopened 2026-09-12"),
+    ("README.md", "status: early (phase 4 reopened 2026-09-12; phase 5 waits on it)"),
 )
 
 # Where the dependency count is stated, and what it must name. The
@@ -947,6 +948,63 @@ def test_claim_bearing_surfaces_state_the_qualified_claim() -> None:
         + "\n\nAll four parts are load-bearing: provenance alone reads "
         "as the promise that was withdrawn, and naming only the profile "
         "reads as permission for the twin and the report."
+    )
+
+
+# THE RUN CLAIM, AND THE FOUR SURFACES THAT SHIP IT. Code developed on
+# the twin is MEANT to run unchanged on the real table; nothing here
+# guarantees that it will, because a step that depends on more than
+# the description publishes can succeed on the twin and fail on the
+# real table. The unqualified form -- code
+# written on the twin RUNS on your table -- is a promise, and these are
+# the surfaces a person reads before trusting it: the front page, the
+# package docstring, the command's help and the report beside the twin.
+_RUN_CLAIM_SURFACES = (
+    "README.md",
+    "src/synthtwin/__init__.py",
+    "src/synthtwin/cli.py",
+    "src/synthtwin/rendering.py",
+)
+_RUN_CLAIM_QUALIFIED = "meant to run unchanged"
+# Lowercase, because `_text` is: the retired forms were "on the twin
+# RUNS" and "twin **runs**", and reading them lowercased also refuses
+# the same promise without the emphasis.
+_RUN_CLAIM_RETIRED = ("on the twin runs", "twin **runs**")
+
+
+def _run_claim_defects(relative: str, text: str) -> "list[str]":
+    """What one surface's text gets wrong about the run claim."""
+    defects: list[str] = []
+    if _RUN_CLAIM_QUALIFIED not in text:
+        defects.append(f"{relative} does not say {_RUN_CLAIM_QUALIFIED!r}")
+    defects.extend(
+        f"{relative} still says {retired!r}"
+        for retired in _RUN_CLAIM_RETIRED
+        if retired in text
+    )
+    return defects
+
+
+def test_every_surface_that_ships_the_run_claim_qualifies_it() -> None:
+    """Each surface that ships the run claim says it is MEANT to run.
+
+    Read through `_text`, so whitespace is collapsed and a report's
+    sentence split across two string literals is read as it prints --
+    `rendering.py` wraps this very sentence between "is meant to" and
+    "run unchanged". The retired unqualified form must be gone as well
+    as the qualified one present: a surface carrying both would still
+    make the promise.
+    """
+    defects = [
+        defect
+        for relative in _RUN_CLAIM_SURFACES
+        for defect in _run_claim_defects(relative, _text(relative))
+    ]
+    assert not defects, (
+        "the run claim is shipped unqualified somewhere a person reads "
+        "it. Code developed on the twin is meant to run unchanged on the "
+        "real table, and nothing guarantees it does:\n  "
+        + "\n  ".join(defects)
     )
 
 
@@ -6385,6 +6443,10 @@ _OBLIGATION_NAMES = (
     r"\bprotected health information\b",
     r"\bphi\b",
     r"\bprivacy (?:issues?|concerns?|risks?)\b",
+    # STAGE 2 AUDIT (2026-09-14): the same compound, in the two nouns
+    # the clearance shapes below are said with. Not a bare noun: the
+    # `privacy` is what makes it a regime, as it is two lines up.
+    r"\bprivacy (?:implications?|problems?)\b",
 )
 
 # The claim that an obligation has been LIFTED. Deliberately not here:
@@ -6449,6 +6511,66 @@ _EXEMPTION_MARKS = _EXEMPTION_MARKS + (
     r"\bcompliant with\b",
     r"\bsafe under\b",
     r"\bfree (?:of|from)\b",
+)
+
+# STAGE 2 AUDIT (2026-09-14). A measured audit found seven wordings a
+# person writes without thinking that walked past every mark above, and
+# they fall into four shapes: the regime is DISMISSED ("is not an
+# issue", "no implications"), the twin is CLEARED of the regime's
+# subject ("contains no PHI", "is HIPAA-exempt"), the regime is MET
+# ("satisfies HIPAA"), and the regime is lifted in a CONTRACTION
+# ("doesn't apply"). The last is repaired by `_uncontracted` below and
+# not by a mark, because every negated mark above was already right and
+# only the spelling was missed.
+#
+# EACH IS A SHAPE, ANCHORED WHERE A BARE WORD WOULD REPORT HONEST PROSE,
+# and the anchors are measured rather than argued:
+#
+#   * `satisfy` bare reported the phase-4 plan's true sentence about
+#     the tool's ability to "satisfy a review board that asks for a
+#     small-cell rule" -- a real control meeting a real request, which
+#     is the opposite of the claim. So it reads only with the regime's
+#     acronym as its direct object, and never after `not`.
+#   * `does not cover` bare is refused by the round-2 floor ("this
+#     contract does not cover institutional requirements"), so it
+#     reads only with the REGIME as its subject.
+#   * `is not relevant` bare would report "being synthetic is not
+#     relevant to whether hipaa applies", which is the honest form of
+#     the whole instruction; so it too reads only with the regime as
+#     its subject.
+#   * the PHI shapes carry their own regime word, as the stage-2 suffix
+#     form does, so "the twin contains no value of the table" is not a
+#     candidate at all.
+_REGIME_SUBJECT = (
+    r"(?:hipaa|gdpr|hitech|rules?|laws?|regulations?|polic(?:y|ies)"
+    r"|requirements?|agreements?)"
+)
+_PHI = r"(?:phi|protected health information)"
+_EXEMPTION_MARKS = _EXEMPTION_MARKS + (
+    # Dismissed.
+    r"\b(?:is|are) not (?:really |even )?(?:an? )?(?:issue|concern|problem|worry)s?\b",
+    r"\bno (?:[a-z'-]+ ){0,3}?problems?\b",
+    r"\bno (?:[a-z'-]+ ){0,2}?implications?\b",
+    r"\b(?:is|are) not applicable\b",
+    r"\b" + _REGIME_SUBJECT + r" (?:is|are) not relevant\b",
+    # Cleared.
+    r"\b(?:hipaa|gdpr|hitech|phi|privacy|compliance|regulation|regulatory)[- ]exempt\b",
+    (
+        r"\b(?:contains?|includes?|holds?|has|have|carr(?:y|ies)"
+        r"|there (?:is|are)) no " + _PHI + r"\b"
+    ),
+    r"\bno " + _PHI + r" (?:is|are) (?:involved|present|included|contained)\b",
+    r"\b(?:does|do) not (?:contain|include|hold|carry) (?:any )?" + _PHI + r"\b",
+    # Met.
+    (
+        r"(?<!not )(?<!never )(?<!not necessarily )(?<!not always )"
+        r"(?<!not automatically )(?<!not by itself )"
+        r"\b(?:satisf(?:y|ies|ied)|meets?) (?:the )?(?:hipaa|gdpr|hitech)\b"
+    ),
+    # Lifted, in the forms the list above did not hold.
+    r"\b" + _REGIME_SUBJECT + r" (?:does|do) not (?:cover|reach)\b",
+    r"\b(?:does|do) not fall (?:under|within)\b",
+    r"\b(?:will|would) not apply\b",
 )
 _STILL_BOUND_MARKS = (
     r"\bapply to all five\b",
@@ -6551,6 +6673,38 @@ _EXEMPTIONS_THAT_MUST_TRIP = (
     "the twin is safe under gdpr because the rows are synthetic.",
     "the twin is free of privacy risks.",
     "the twin is phi-free.",
+    # Stage 2 audit, 2026-09-14. The first seven are the audit's own
+    # wordings; the rest are close variants a person would write. Every
+    # one was measured passing `_grants_an_exemption` before the repair.
+    "hipaa doesn't apply to the twin.",
+    "hipaa is not an issue here.",
+    "hipaa isn't a concern for synthetic data.",
+    "there are no hipaa implications.",
+    "the twin is hipaa-exempt.",
+    "the twin contains no phi.",
+    "synthetic data satisfies hipaa.",
+    "gdpr doesn't cover the twin.",
+    "the rows are synthetic so there are no privacy implications.",
+    (
+        "no protected health information is involved because the data "
+        "is synthetic."
+    ),
+    "the twin poses no hipaa problem.",
+    "the twin poses no privacy problem.",
+    "privacy rules don't apply to the twin.",
+    "hipaa won't apply to synthetic data.",
+    "hipaa is not a problem for the twin.",
+    "hipaa isn't applicable to the twin.",
+    "gdpr isn't relevant to the twin.",
+    "the twin has no hipaa implications.",
+    "the twin is gdpr-exempt.",
+    "the twin contains no protected health information.",
+    "there is no phi in the twin.",
+    "the twin doesn't contain any phi.",
+    "synthetic data satisfies gdpr.",
+    "the twin meets hipaa requirements.",
+    "the twin doesn't fall under hipaa.",
+    "hipaa does not cover synthetic rows.",
 )
 
 # SENTENCES THAT MUST NOT TRIP IT, kept beside the floor because a ban
@@ -6558,6 +6712,8 @@ _EXEMPTIONS_THAT_MUST_TRIP = (
 # one more attack reported this repository's own honest prose.
 _HONEST_AND_MUST_NOT_TRIP = (
     # STAGE 2: the widening must keep these sayable.
+    "being synthetic does not necessarily satisfy hipaa.",
+    "a synthetic table does not automatically satisfy gdpr.",
     "synthtwin offers no formal privacy guarantee.",
     (
         "a published maximum held by one person is a privacy risk, and "
@@ -6597,6 +6753,26 @@ _HONEST_AND_MUST_NOT_TRIP = (
         "privacy policy and institutional approval do not apply to "
         "synthetic twins. privacy policy still applies."
     ),
+    # Stage 2 audit, 2026-09-14: the new marks read the same words, so
+    # the same words in an honest sentence must stay sayable. The first
+    # four carry a new mark and no regime; the rest carry a regime and
+    # the honest neighbour of a new mark.
+    "the twin contains no value of the table.",
+    "a withheld count is not an issue for the loader.",
+    "there are no implications for the twin's cells.",
+    "this satisfies the contract's invariant.",
+    "being synthetic does not satisfy hipaa.",
+    "being synthetic doesn't satisfy hipaa.",
+    "being synthetic is not relevant to whether hipaa applies.",
+    (
+        "the tool's small-cell rule can satisfy a review board that asks "
+        "for one."
+    ),
+    (
+        "whether hipaa applies is not a problem this tool can settle; "
+        "hipaa still applies."
+    ),
+    "a published maximum can have privacy implications.",
 )
 
 
@@ -6764,17 +6940,42 @@ def _cured_after(statements: "list[str]", named: "list[str]") -> bool:
     return False
 
 
+def _uncontracted(text: str) -> str:
+    """The text with every negative contraction written out.
+
+    STAGE 2 AUDIT (2026-09-14): "hipaa doesn't apply to the twin" walked
+    past a family whose `does not apply` mark was right all along, and
+    so did every other negated mark here spelled with an apostrophe.
+    Writing the contraction out repairs all of them at once rather than
+    doubling each mark.
+
+    LOCAL TO THIS FAMILY ON PURPOSE. It is applied inside
+    `_grants_an_exemption` and nowhere else, so `_text` and every other
+    family read exactly what they read before. `won't` and `can't` are
+    written out first because the general rule would leave `wo not` and
+    `ca not`; both apostrophes are read, since a surface may carry
+    either.
+    """
+    text = re.sub(r"\bwon['\u2019]t\b", "will not", text)
+    text = re.sub(r"\bcan['\u2019]t\b", "can not", text)
+    text = re.sub(r"\bshan['\u2019]t\b", "shall not", text)
+    return re.sub(r"n['\u2019]t\b", " not", text)
+
+
 def _grants_an_exemption(text: str) -> "list[tuple[str, str, str]]":
     """Every statement claiming an obligation has stopped binding.
 
     Guarantees:
 
     - Inputs: one surface's text, lowercased and space-collapsed by
-      `_text`.
+      `_text`. Negative contractions are written out here, by
+      `_uncontracted`, so a reported statement reads "does not" where
+      the surface wrote "doesn't".
     - Determinism: a fixed function of that text; nothing is read here.
     - Errors raised: none.
     - Boundary: pure text; opens nothing.
     """
+    text = _uncontracted(text)
     found: list[tuple[str, str, str]] = []
     at = 0
     statements = _STATEMENT_END.split(text)

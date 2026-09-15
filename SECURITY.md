@@ -627,15 +627,15 @@ Stated here so that no reader has to discover them independently:
 
     **A third such place, added 2026-09-14: `group_separator`** on every
     numeric block, the mark a column writes between thousands. It is a
-    single character or empty, and it carries no value and no count. It
-    is published only where the column's convention can be reproduced:
-    never under a declared decimal comma, never where any cell of four
-    or more whole figures in a groupable form was written without the
-    mark, never where a padded or exponent cell holds a comma, and only
-    where the number of cells proving the mark reaches the smallest
-    group size. A column mixing the two conventions therefore publishes
-    nothing, which is what keeps a single cell's spelling from being
-    read off the description.
+    comma, a point (only on a column declared to write its decimals
+    with a comma), or empty, and it carries no value and no count. It
+    is published only where the cells proving the mark reach the
+    smallest group size AND outnumber the cells of four or more whole
+    figures written without it, and never where a padded or exponent
+    cell holds a comma (the stage 2 audit, 2026-09-14). So a published
+    mark says the grouped cells reached the floor and outnumbered the
+    bare ones, and a single grouped cell among bare ones publishes
+    nothing.
 
     **A fourth such place, added 2026-09-14: `datetime_separators`** on
     every datetime block, how many cells wrote each mark between the
@@ -646,6 +646,15 @@ Stated here so that no reader has to discover them independently:
     smallest group size, and the rest are pooled under `(withheld)`. At
     the default size of one a name can stand for a single row's
     spelling, which is the posture the offset map already has.
+
+    **A limit, stated plainly** (the stage 2 audit, 2026-09-14). The
+    marks are a closed list of three, and the offsets are not, so the
+    pool is not always hidden the way the offset map's is. Where the
+    census leaves exactly one permitted mark unnamed, the pooled count
+    can only be that mark's, and it is attributed by elimination. At a
+    raised floor, then, the pool of a census naming two marks is not
+    hidden, and neither is the pool of a slashed stamp column, whose
+    only permitted mark is a space.
 
     **Beside it, `all_at_midnight`**, a yes-or-no statement that every
     moment a column read stood at exactly midnight. It names no value,

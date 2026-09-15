@@ -1313,6 +1313,44 @@ _SPELLINGS_THE_TWIN_KEEPS = (
 )
 
 
+def _named_census(facts: contract.DatetimeFacts) -> bool:
+    """Whether the census of marks names at least one mark."""
+    for name in facts.datetime_separators:
+        if name != contract.WITHHELD:
+            return True
+    return False
+
+
+def _mark_lines(facts: contract.DatetimeFacts) -> "list[str]":
+    """What the twin does with the mark between the day and the clock.
+
+    Said in the one form that is true for the column (stage 2 audit): a
+    column whose census names every value's mark, one with a pooled
+    remainder, one whose every mark was pooled, and one mixing whole
+    dates with moments.
+    """
+    if facts.resolution != "datetime":
+        return []
+    if not _named_census(facts):
+        return [
+            "  Every mark your table wrote between the day and the time of",
+            "  day was held by too few values to name, so the twin writes a",
+            "  T there, which may not be the mark your table used.",
+        ]
+    pooled = contract.WITHHELD in facts.datetime_separators
+    if facts.parser_family == "iso-mixed" or pooled:
+        return [
+            "  Between the day and the time of day it writes the marks the",
+            "  description names; a value whose mark was not named, or that",
+            "  your table wrote as a bare date, takes the mark most of the",
+            "  column wore.",
+        ]
+    return [
+        "  Between the day and the time of day it writes the marks your",
+        "  table wrote, each as often as the description records it.",
+    ]
+
+
 def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
     """The date spelling the twin does not keep (residual R-P2-7).
 
@@ -1335,17 +1373,18 @@ def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
     # THE TWO SPELLINGS PLAN P4-D39 KEEPS, said where a person meets the
     # twin. Only on a column that writes a clock: a whole date has no mark
     # and no time of day to keep.
-    if facts.resolution == "datetime":
-        lines += [
-            "  Between the day and the time of day it writes the marks your",
-            "  table wrote, each as often as the description records it.",
-        ]
+    lines = lines + _mark_lines(facts)
     if facts.all_at_midnight:
         lines += [
             "  Every moment of this column stood at midnight, so every moment",
             "  of the twin's column stands at midnight too.",
         ]
-    if facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS:
+    keeps_the_spelling = facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS
+    if facts.resolution == "datetime" and not _named_census(facts):
+        # With every mark held back the twin writes a T, which need not
+        # be what the table wrote (stage 2 audit).
+        keeps_the_spelling = False
+    if keeps_the_spelling:
         return lines + [
             (
                 f"  Your table's own spelling was read as "

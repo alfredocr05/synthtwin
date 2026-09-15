@@ -1124,6 +1124,18 @@ REPORT-ONLY and is listed, never checked, so a file whose moments stand
 elsewhere misses no obligation; what the day space prevents is a
 conforming twin being called out of place by windows drawn in seconds.
 
+**Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
+grouped spelling of every value, whatever `group_separator` publishes.**
+The mark is REPORT-ONLY and listed, never checked, and a cell reads the
+same with or without it, so a file grouping cells the description found
+no proof for — the real table itself, where its grouped cells fell short
+of the floor or of the majority — is spelled in a permitted form and is
+never MISSED for its commas. Cells reach the check with a declared
+decimal comma already read back to a point, so the grouping offered is a
+comma under either published mark. The listing says the description
+records the mark the real column's numbers were found to carry between
+thousands, or that none was found.
+
 **V3.4-A2 And the measurement taken in that space is the CONSTRUCTION's
 own, written from the method and compared with the generator's writing
 of it** (2026-08-14, review items P3-V4-F4 and P3-V4-F5; the plan's

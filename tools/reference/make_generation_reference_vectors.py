@@ -3058,7 +3058,8 @@ def _datetime_content(column):
                 column["subsecond_digits"],
                 mark=marks[rank],
             )
-        content.append(kept_cell(text + suffix, holes))
+        named = [name for name in column.get("datetime_separators", {}) if name != "(withheld)"]
+        content.append(kept_cell(text + suffix, holes, named))
     content = rebalance_marks(marks, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
@@ -3118,50 +3119,60 @@ def _separator_allocation(column, parsed):
 ALTERNATE_MARK = {"T": " ", "t": " ", " ": "T"}
 
 
-def kept_cell(text, holes):
+def kept_cell(text, holes, named=()):
     """G7.5's absent-spelling exception, written from its statement.
 
-    A cell whose text is a declared absent spelling is offered the other
-    common form -- a space for `T` or `t`, a `T` for a space -- and keeps
-    its own text where that form is absent too.  An absent spelling is
-    matched whatever the case of its letters, as the reading of a file
-    matches it: a `t` stamp is absent where its `T` form is declared.
+    A cell whose text is a declared absent spelling is offered, in turn,
+    each mark the column's census names (in the census's sorted order)
+    and then the other common form -- a space for `T` or `t`, a `T` for a
+    space -- and takes the first whose text is not absent; it keeps its
+    own text where every offer is absent.  An absent spelling is matched
+    whatever the case of its letters, as the reading of a file matches
+    it: a `t` stamp is absent where its `T` form is declared.
     """
-    folded = {hole.lower() for hole in holes}
-    if text.lower() not in folded or len(text) < 11:
+    folded = {hole.strip().lower() for hole in holes}
+    if text.strip().lower() not in folded or len(text) < 11:
         return text
     if text[10] not in ALTERNATE_MARK:
         return text
-    other = text[:10] + ALTERNATE_MARK[text[10]] + text[11:]
-    return text if other.lower() in folded else other
+    offers = [MARK_OF[name] for name in sorted(named) if MARK_OF[name] != text[10]]
+    if ALTERNATE_MARK[text[10]] not in offers:
+        offers.append(ALTERNATE_MARK[text[10]])
+    for mark in offers:
+        other = text[:10] + mark + text[11:]
+        if other.strip().lower() not in folded:
+            return other
+    return text
 
 
 def rebalance_marks(wanted, cells, holes):
     """G7.5's repair of the census after that exception (plan P4-D39).
 
     Each cell whose mark the exception changed hands the mark it owed to
-    the first other rank, in rank order, that was allocated the mark the
-    changed cell now wears, was not itself touched, and whose new text is
-    neither absent nor already written.  No rank is touched twice.
+    the first rank, in rank order, that was allocated the mark the
+    changed cell now wears, still wears it, was not touched before, and
+    whose new text is not absent.  A repeated text is allowed.  No rank
+    is touched twice.
     """
     cells = list(cells)
-    taken = set(cells)
     touched = set()
-    folded = {hole.lower() for hole in holes}
+    folded = {hole.strip().lower() for hole in holes}
     for rank, cell in enumerate(cells):
         if rank in touched or len(cell) < 11 or cell[10] == wanted[rank]:
             continue
         owed, spare = wanted[rank], cell[10]
         for other, candidate in enumerate(cells):
-            if other == rank or other in touched or len(candidate) < 11:
+            if other in touched or len(candidate) < 11:
                 continue
-            if candidate[10] != spare or wanted[other] != spare:
+            if wanted[other] != spare or candidate[10] != spare:
                 continue
             changed = candidate[:10] + owed + candidate[11:]
-            if changed in taken or changed.lower() in folded:
+            if changed.strip().lower() in folded:
+                continue
+            # A repair never leaves the column one spelling fewer.
+            if cells.count(candidate) < 2 and changed in cells:
                 continue
             cells[other] = changed
-            taken.add(changed)
             touched.add(other)
             break
     return cells
@@ -8247,12 +8258,13 @@ DEFINITIONS = {
     "are added to the commonest name's weight. No rank is pinned and no "
     "word is drawn; a column counted in days by ordinal_space is written "
     "with a midnight clock (P4-D39). Where a cell's text is a declared absent "
-    "spelling (matched whatever the case of its letters) it takes the other "
-    "common mark (a space for T or t, a T for a "
+    "spelling (matched whatever the case of its letters) it takes the first "
+    "mark the census names, then the other common mark (a space for T or t, "
+    "a T for a "
     "space) unless that is absent too, and the mark it owed is handed to the "
-    "first other rank, in rank order, allocated the mark it now wears whose "
-    "new text is neither absent nor already written; no rank is touched "
-    "twice. No frozen case declares an absent spelling, so that exception "
+    "first rank, in rank order, allocated the mark it now wears whose new "
+    "text is not absent and whose change leaves the column no spelling "
+    "fewer; no rank is touched twice. No frozen case declares an absent spelling, so that exception "
     "is pinned by the agreement test rather than by committed cells (G7.5).",
     "grid_packing": "the published families of counts over one set of cells "
     "are MARGINS of one packing, never one walk after another: every group "

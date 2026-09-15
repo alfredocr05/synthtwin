@@ -1248,8 +1248,9 @@ exactly one of six **styles**, and in no other form:
 | `exponent_lower` | the value in exponent notation with a lower-case `e` | yes |
 | `exponent_upper` | the value in exponent notation with an upper-case `E` | yes |
 
-**A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table —
-and **never accounting parentheses**, which are reserved for the
+**A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table. Where `group_separator` is `,` or `.`, every `plain` cell, and every `leading_plus` or `decimal` cell at leading-zero order zero, is grouped with a comma, so a column whose proving cells were the majority is written wholly grouped; a `leading_zero` cell, an exponent form and a cell at a raised order are never grouped (the stage 2 audit, 2026-09-14). A column declared to write its decimals with a comma publishes `.`: it is grouped with a comma like any other and then has its points and commas exchanged, so `42,037.34` is written `42.037,34`.
+
+**Never accounting parentheses**, which are reserved for the
 contradictory-notation stand-in of G10.3 and would otherwise change a
 cell's class.
 
@@ -3661,9 +3662,11 @@ rather than passing it off as an outcome the description asked for.
   RELAXING ONE** (review item P4-DATE-F2). Where the cell this rule
   produces is one of the spellings the column publishes among its
   absent cells — the keys of any column's `missing_by_source`, since a
-  declaration reaches the whole table — the other form is
-  written instead: a space where the allocated mark is `T` or `t`, and
-  `T` where it is a space. The two spell the same instant at the same
+  declaration reaches the whole table — another mark is offered, in
+  order: each mark the census names, in sorted order, then the other
+  common form, a space for `T` or `t` and `T` for a space. The first
+  whose spelling is not absent is written (the stage 2 audit,
+  2026-09-14). Any two of them spell the same instant at the same
   precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,
@@ -3673,20 +3676,35 @@ rather than passing it off as an outcome the description asked for.
   `n_present` falls and, where the cell was an endpoint, an
   EXACT-OBSERVABLE end walks out of the twin over a separator nobody
   chose. The exception is asked ONLY at that collision, so no other
-  cell and no frozen vector moves. Where BOTH spellings are published
-  as absent the allocated form stands and G12's endpoint entry names the
-  loss: this rule declines to invent a third spelling to hide a fact
-  the description really does make impossible.
+  cell and no frozen vector moves. Where EVERY offer is absent too the
+  allocated form stands, G12's endpoint entry names a lost end, and the
+  report names every value left in an absent spelling as a deviation of
+  `n_present`: this rule declines to invent a spelling the description
+  does not make possible.
 
-  **And the census is given back** (stage 2 review, 2026-09-14). Each
-  cell whose mark that exception changed hands the mark it owed to the
-  first other rank, in rank order, that was allocated the mark the
-  changed cell now wears, was not itself changed, and whose new
-  spelling is neither absent nor already written; no rank is changed
-  twice. The finished marks are then counted against the allocation,
-  and a shortfall no rank could take is a deviation of
-  `datetime_separators`. A spelling is matched as absent whatever the
-  case of its letters, as the reader matches it.
+  **And the census is given back** (stage 2 review, 2026-09-14; the
+  stage 2 audit, 2026-09-14). Each cell whose mark that exception
+  changed hands the mark it owed to the first other rank, in rank
+  order, that was allocated the mark the changed cell now wears, still
+  wears it, was neither changed nor given a mark before, and whose new
+  spelling is not absent. A repeated spelling is allowed, but no change
+  may leave the column one spelling fewer: a rank whose spelling is the
+  last copy of its kind is passed over while the spelling it would take
+  is already written (stage 2 closure review: five cells of three
+  spellings otherwise came back as two values). The walk is linear: each
+  pair of marks keeps its own place in its list of ranks.
+  The finished marks are then counted against the allocation, and a
+  shortfall no rank could take is a deviation of `datetime_separators`.
+  A spelling is matched as absent whatever the case of its letters, as
+  the reader matches it.
+
+  **A column of moments whose absent cells were pooled** below the
+  group size (`missing_by_class` `(withheld)` above zero), in a table
+  that declared missing values, carries a REMARK in the report (the
+  stage 2 audit, 2026-09-14; a remark since the closure review, which
+  measured it filed as a failed fact beside an ordinary pooled blank):
+  those spellings are not published, so the twin cannot avoid one, and
+  a value written in it reads back as absent.
 - **The fractional digits are zeros.** The profile publishes how MANY
   subsecond digits the finest cell carried and nothing about their
   values — the parser reads and discards the fraction — so any other
@@ -5943,6 +5961,13 @@ P4-D4.3); a count of the census of written forms
 which the same landing's own guard found missing from this list on its
 first run; the pooled marks of a datetime separator census, written in
 the commonest named mark (`datetime_separators`, G7.5, plan P4-D39); a
+shortfall in that census after the absent-spelling exception that no
+rank could give back (`datetime_separators`, G7.5); the values of a
+column of moments left in a spelling the table declares absent because
+every mark offered was absent too (`n_present`, G7.5); a column of
+numbers whose own twin cells reach too few four-figure values to prove
+the mark it writes, at the published smallest group size
+(`group_separator`, G6.1; the stage 2 closure review, 2026-09-14); a
 cell of an `all_at_midnight` column written off midnight, which the
 rule says never happens and a run that finds one has found a defect in
 itself (`all_at_midnight`, G7.5); and **a value left inside a stretch the description says
@@ -5991,6 +6016,7 @@ gap keys `empty_bins` and `empty_edges`.
 * `empty_edges`
 * `field_widths`
 * `fraction_widths`
+* `group_separator`
 * `integer_valued`
 * `latest`
 * `max_length`

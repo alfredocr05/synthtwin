@@ -192,10 +192,22 @@ def test_the_absent_spelling_swap_and_its_repair_agree_with_the_oracle() -> None
         for cell in cells:
             for mark in ("T", " ", "t"):
                 pool += [f"{cell[0:10]}{mark}{cell[11:]}"]
-        holes = tuple(sorted(set(draw.sample(pool, draw.randint(0, 6)))))
-        mine = [generation._kept_datetime_cell(cell, holes) for cell in cells]
+        chosen = sorted(set(draw.sample(pool, draw.randint(0, 6))))
+        # Some absent spellings are published padded with spaces, which the
+        # reading trims (stage 2 closure review item 6).
+        holes = tuple(
+            f" {hole} " if draw.random() < 0.3 else hole for hole in chosen
+        )
+        named = tuple(
+            sorted(
+                draw.sample(["lower_t", "space", "upper_t"], draw.randint(0, 3))
+            )
+        )
+        mine = [
+            generation._kept_datetime_cell(cell, holes, named) for cell in cells
+        ]
         mine, _notes = generation._rebalanced_marks(column, wanted, mine, holes)
-        theirs = [oracle["kept_cell"](cell, set(holes)) for cell in cells]
+        theirs = [oracle["kept_cell"](cell, set(holes), named) for cell in cells]
         theirs = oracle["rebalance_marks"](wanted, theirs, set(holes))
         assert mine == theirs, (wanted, cells, holes)
 
@@ -211,7 +223,8 @@ def test_a_mark_the_swap_took_is_given_back_or_named() -> None:
         for rank in range(4)
     ]
     holes = (cells[0],)
-    kept = [generation._kept_datetime_cell(cell, holes) for cell in cells]
+    named = ("space", "upper_t")
+    kept = [generation._kept_datetime_cell(cell, holes, named) for cell in cells]
     assert kept[0][10] == "T"
     fixed, notes = generation._rebalanced_marks(column, wanted, kept, holes)
     assert sorted(cell[10] for cell in fixed) == sorted(wanted)
@@ -220,6 +233,38 @@ def test_a_mark_the_swap_took_is_given_back_or_named() -> None:
     # Every rank allocated a T is itself an absent spelling once spaced,
     # so nothing can take the owed space: the shortfall is named.
     blocked = holes + tuple(f"{cell[0:10]} {cell[11:]}" for cell in cells)
-    kept = [generation._kept_datetime_cell(cell, blocked) for cell in cells]
+    kept = [generation._kept_datetime_cell(cell, blocked, named) for cell in cells]
     fixed, notes = generation._rebalanced_marks(column, wanted, kept, blocked)
     assert [note.fact for note in notes] == ["datetime_separators"]
+
+
+def test_the_swap_offers_the_census_marks_before_a_mark_nobody_wrote() -> None:
+    """A space column that also wrote a `t` steps to the `t`, never to a `T`."""
+    cell = generation._cell_of_ordinal(19000 * 86400, "datetime", "second", 0, " ")
+    holes = (cell,)
+    assert generation._kept_datetime_cell(cell, holes, ("lower_t", "space"))[10] == "t"
+    assert generation._kept_datetime_cell(cell, holes, ("space",))[10] == "T"
+
+
+def test_the_census_repair_takes_a_repeated_spelling_and_stays_linear() -> None:
+    """Many moments at midnight on one declared-absent day, restored in linear time."""
+    import time
+
+    column = typing.cast(contract.ColumnBlock, types.SimpleNamespace(name="c"))
+    parsed = 40000
+    wanted = [" " if rank % 4 else "T" for rank in range(parsed)]
+    days = [19000 + (rank * 29) // parsed for rank in range(parsed)]
+    cells = [
+        generation._cell_of_ordinal(day * 86400, "datetime", "second", 0, wanted[rank])
+        for rank, day in enumerate(days)
+    ]
+    holes = (generation._cell_of_ordinal(19014 * 86400, "datetime", "second", 0, " "),)
+    named = ("space", "upper_t")
+    started = time.perf_counter()
+    kept = [generation._kept_datetime_cell(cell, holes, named) for cell in cells]
+    fixed, notes = generation._rebalanced_marks(column, wanted, kept, holes)
+    spent = time.perf_counter() - started
+    assert sorted(cell[10] for cell in fixed) == sorted(wanted)
+    assert notes == []
+    assert holes[0] not in fixed
+    assert spent < 10.0, spent

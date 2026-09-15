@@ -273,7 +273,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 5.** Each entry below carries its own
+**The current phase is Phase 4, reopened 2026-09-12.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -313,9 +313,13 @@ running.
   is UNMET and named**: the reference vectors for the width pass and
   the empty-bin pass were not written, so those two branches are
   pinned by tests rather than by a frozen case with a mutant.
+  *Reopened by owner decision 2026-09-12*, because silent defects
+  inside its own charter were still live: the ordered landings in
+  `docs/STATE.md`, the plan of record, repair them before Phase 5
+  starts.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Current, and not
-  started* - this is the phase the twin's one-column-wide bound waits
+  structure and the quality report at full strength. *Next, and not
+  started: it waits on reopened Phase 4* - this is the phase the twin's one-column-wide bound waits
   on, and it inherits sixty-six carried register entries from Phase 4,
   grouped by what a reader would do about them in that plan's closure
   section. Nothing in this brief's "what the twin carries today" may

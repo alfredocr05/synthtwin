@@ -6153,11 +6153,73 @@ def _whole_figures(text: str) -> int:
     if not isinstance(text, str):
         raise TypeError("a whole-figure count was asked of something else")
     body = text.strip()
+    # An accounting negative's brackets are not figures (stage 2 audit):
+    # counted as two, `(123.45)` stood as a bare four-figure cell and
+    # withheld the mark from a whole column of grouped charges.
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = body[1 : len(body) - 1].strip()
     if body[:1] == "+" or body[:1] == "-":
         body = body[1:]
     body = body.replace(",", "")
     point = body.find(".")
     return len(body if point < 0 else body[:point])
+
+
+def grouping_proven(cells: "list[str]", floor: int) -> bool:
+    """Whether written cells prove a comma grouping, by `_group_separator`'s rule.
+
+    The same proof, bareness and majority `_group_separator` asks of a
+    described column, asked of cells written with a point for decimals:
+    the generator's own numbers before any decimal-comma exchange, so it
+    can tell when a twin's cells no longer prove the mark it writes.
+
+    Guarantees: accepts cells and the smallest group size; returns a
+    bool. Determinism: a function of the two. No I/O of any kind.
+    """
+    proven = 0
+    bare = 0
+    for cell in cells:
+        if not isinstance(cell, str):
+            raise TypeError("a grouping recount was handed something else")
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            continue
+        figures = ""
+        for letter in parsing.trimmed(cell):
+            if letter != ",":
+                figures = figures + letter
+        if numeric_style(figures) not in _GROUPABLE_STYLES:
+            continue
+        if _whole_figures(cell) < 4:
+            continue
+        if "," not in cell:
+            bare += 1
+            continue
+        reading = parsing.comma_reading(cell)
+        if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
+            proven += 1
+        else:
+            bare += 1
+    return proven >= 1 and proven >= floor and proven > bare
+
+
+def _marks_exchanged(text: str) -> str:
+    """The cell with its points and commas exchanged, `42.037,34` to `42,037.34`.
+
+    Guarantees: accepts one cell; returns text of the same length.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a mark exchange was asked of something else")
+    out = ""
+    for letter in text:
+        if letter == ".":
+            out = out + ","
+        elif letter == ",":
+            out = out + "."
+        else:
+            out = out + letter
+    return out
 
 
 def _group_separator(cells: _Cells) -> str:
@@ -6169,59 +6231,69 @@ def _group_separator(cells: _Cells) -> str:
     met the real table -- a mean of 412 against a true 918, with no
     error raised.
 
-    PUBLISHED ONLY WHERE THE TWIN CAN REPRODUCE THE COLUMN'S CONVENTION,
-    and review round 1 of this landing is why that condition exists. The
-    first version published a comma wherever ANY cell proved one, and
-    the review measured three ways that made a twin worse than the
-    defect it was repairing. Each is now a refusal to publish:
+    WHAT COUNTS AS PROOF. A cell of four or more whole figures, in a form
+    the writer groups, proves the mark where its comma reads as grouping
+    -- and that includes a lone group such as `12,345`, which could be a
+    decimal comma in some other table but is read as thousands by this
+    one: the statistics already rest on that reading, so refusing it here
+    left the commonest grouped column, whole counts below a million,
+    written bare (stage 2 audit, 400 of 400 cells). A four-figure cell in
+    such a form with no comma is BARE.
 
-    1. **A DECLARED DECIMAL COMMA.** `parsing.groups_thousands` reads a
-       cell's raw text, so under `--decimal-comma` the cell `2,198.92`
-       still reports proven grouping. One straggler `1,234,567` in a
-       declared decimal-comma column published a comma, and the twin
-       then wrote `1,018,44`: zero of 200 cells remained numbers. A
-       column declared to use the comma as its decimal mark is never
-       grouped.
-    2. **A MIXED COLUMN.** With one cell of 200 grouped and the other 199
-       four-figure cells left bare, the twin grouped all 200, and a plain
-       numeric read accepted 199 real cells and none of the twin's. Where
-       any cell of four or more whole figures in a groupable form carries
-       no separator, the convention is not the column's and nothing is
-       published, so the twin keeps the bare spelling most cells use.
-    3. **A FORM THE TWIN WILL NOT GROUP.** A padded or exponent cell
-       holding a comma (`01,234,000`, `1,234,000e1`) published the mark
-       and then lost every comma with no deviation, because the writer
-       never groups those forms. Any comma in such a cell withholds the
-       mark.
+    PUBLISHED ONLY WHERE THE TWIN CAN REPRODUCE THE COLUMN'S CONVENTION:
 
-    And the count of proving cells answers to the smallest group size,
-    exactly as a published form does in `_numeric_styles`.
+    1. **THE MAJORITY OF THE COLUMN.** The proving cells must reach the
+       smallest group size and outnumber the bare cells. One grouped
+       cell among two hundred bare ones publishes nothing (part one's
+       review measured a twin grouping all two hundred), and five bare
+       stragglers among 395 grouped cells no longer strip the mark from
+       the whole column (stage 2 audit: the twin wrote 0 of 400
+       grouped). The twin writes every groupable cell with the mark, so
+       a column mixing the two is written as its majority.
+    2. **A FORM THE TWIN WILL NOT GROUP.** A padded or exponent cell
+       holding the mark (`01,234,000`, `1,234,000e1`) withholds it,
+       because the writer never groups those forms.
+    3. **A DECLARED DECIMAL COMMA** swaps the roles: the cell is read
+       with its point and comma exchanged, and the mark published is
+       `.`, the one `42.037,34` writes. Under that declaration a lone
+       group reads as thousands for the same reason as above.
 
-    Guarantees: accepts the column's tally; returns "," or the empty
-    string. Determinism: a fixed function of the tally, cells taken in
-    their given order. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the column's tally; returns ",", "." or the
+    empty string, "." only under a declared decimal comma. Determinism:
+    a fixed function of the tally, cells taken in their given order.
+    Raises nothing. No I/O of any kind.
     """
-    if cells.decimal_comma:
-        return ""
+    decimal = cells.decimal_comma
     proven = 0
+    bare = 0
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
+        written = cell.text
+        if decimal:
+            written = _marks_exchanged(cell.text)
         style = numeric_style(cell.numeric_text)
         if style not in _GROUPABLE_STYLES:
-            if "," in cell.text:
+            if "," in written:
                 return ""
             continue
-        if _whole_figures(cell.numeric_text) < 4:
+        if _whole_figures(written) < 4:
             continue
-        if "," not in cell.text:
-            return ""
-        if parsing.groups_thousands(cell.text):
+        if "," not in written:
+            bare += 1
+            continue
+        reading = parsing.comma_reading(written)
+        if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
             proven += 1
+        else:
+            bare += 1
     if proven == 0 or proven < cells.settings.small_cell_floor:
         return ""
+    if proven <= bare:
+        return ""
+    if decimal:
+        return "."
     return ","
-
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""

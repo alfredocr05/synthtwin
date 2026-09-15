@@ -413,6 +413,142 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
     return said
 
 
+# THE TWO MARKS A COLUMN OF NUMBERS CAN BE PUBLISHED AS GROUPING WITH.
+# The contract accepts no other non-empty value, and the empty string is
+# the column that proved none, which this page says nothing about.
+_GROUP_MARKS = (",", ".")
+
+
+def _group_separator_lines(column: "dict[str, object]") -> "list[str]":
+    """The mark this column's numbers wore between thousands, in words.
+
+    THE DESCRIPTION PUBLISHES `group_separator` AND THIS PAGE SAID
+    NOTHING OF IT, the gap residual R-P4-26 closed for the widths. A
+    column of charges written `2,198.92` is read as grouped with a
+    comma, the twin writes the comma back, and until this line the
+    only place a person could learn either fact was the JSON. Said out
+    loud, a reader knows the twin's cells carry the mark and that code
+    reading them has to expect it.
+
+    EVERY NUMERIC BLOCK, not only the column's own. An affixed column
+    carries the fact at the top, a joined column once per position and
+    a column of numbers with labels inside its numbers half, so the
+    blocks are found the way `_empty_bin_lines` finds them and each is
+    named where it is not the column itself.
+
+    A mark is a fact about the WRITING and never a value: the line
+    names the mark and no number of the table.
+
+    Guarantees: accepts one column block; returns one line per numeric
+    block publishing a comma or a point, and none where the block
+    publishes the empty string or carries no such key. Determinism: a
+    function of the mapping. Raises nothing. No I/O of any kind.
+    """
+    said: "list[str]" = []
+    for where, block in _quantitative_blocks(column, ""):
+        if "group_separator" not in block:
+            continue
+        mark = block["group_separator"]
+        if mark not in _GROUP_MARKS:
+            continue
+        named = f"{where}: " if where else ""
+        said += [
+            f"    {named}numbers written with '{mark}' between the "
+            f"thousands, and the twin writes '{mark}' between the "
+            f"thousands too"
+        ]
+    return said
+
+
+# The marks a moment can wear between its day and its time of day, in
+# the words this page uses for them and in the order it says them.
+_SEPARATOR_WORDS = (
+    (parsing.SEPARATOR_SPACE, "a space"),
+    (parsing.SEPARATOR_UPPER_T, "a capital T"),
+    (parsing.SEPARATOR_LOWER_T, "a lower-case t"),
+)
+
+
+def _datetime_separator_lines(
+    column: "dict[str, object]", floor: int
+) -> "list[str]":
+    """Which mark stood between the day and the time of day, in words.
+
+    THE DESCRIPTION PUBLISHES A CENSUS OF THESE MARKS (plan P4-D39) AND
+    THIS PAGE SAID NONE OF IT. A warehouse writes `2025-09-04 06:16:00`
+    with a space, and code that splits on that space depends on it; the
+    census is what tells the twin to write it, and a person reading this
+    page is owed the same fact in words.
+
+    A POOLED NAME IS NOT A MARK (the rule `_missing_spelling_words`
+    follows). The census pools every mark worn by fewer rows than the
+    floor under `(withheld)`, so that entry is said as a count of values
+    whose mark is not named, never as a mark of its own.
+
+    A mark is a fact about the WRITING: the line names marks and counts
+    of values and nothing else.
+
+    Guarantees: accepts one datetime column block and the floor it was
+    made under; returns one line where the census names at least one
+    mark or pools any, and none where it is empty or absent -- a column
+    that writes no time of day. Determinism: a function of the mapping
+    and the floor, in a fixed order. Raises nothing. No I/O of any kind.
+    """
+    if "datetime_separators" not in column:
+        return []
+    census = _map_of(column["datetime_separators"])
+    parts: "list[str]" = []
+    for key, words in _SEPARATOR_WORDS:
+        if key in census:
+            parts += [f"{words} in {_count_of(census[key])} value(s)"]
+    # A key this page has no words for is named as the description spells
+    # it rather than dropped: the loader refuses one, but this page is
+    # rendered before the loader has read anything.
+    known = [key for key, _words in _SEPARATOR_WORDS]
+    for key in sorted(census):
+        if key in known or key == parsing.MISSING_WITHHELD:
+            continue
+        parts += [f"'{_text_of(key)}' in {_count_of(census[key])} value(s)"]
+    if parsing.MISSING_WITHHELD in census:
+        pooled = _count_of(census[parsing.MISSING_WITHHELD])
+        parts += [
+            f"{pooled} value(s) whose mark was too rare to name here, "
+            f"because fewer than {floor} value(s) were written with each "
+            f"such mark"
+        ]
+    if not parts:
+        return []
+    return [
+        f"    between the day and the time of day, written with: "
+        f"{_listed(parts)}"
+    ]
+
+
+def _midnight_lines(column: "dict[str, object]") -> "list[str]":
+    """Said where every value of a column of moments stood at midnight.
+
+    THE DESCRIPTION PUBLISHES `all_at_midnight` (plan P4-D39) AND THIS
+    PAGE SAID NOTHING OF IT. A date stored as the date plus `00:00:00`
+    reads as a column of moments, and a reader who sees only its
+    earliest and latest value cannot tell that it is really a column of
+    dates -- nor that the twin keeps every value at midnight rather than
+    making up a time of day for each.
+
+    Guarantees: accepts one datetime column block; returns one line
+    where the block publishes `all_at_midnight` as true, and none where
+    it is false or absent. Determinism: a function of the mapping.
+    Raises nothing. No I/O of any kind.
+    """
+    if "all_at_midnight" not in column:
+        return []
+    if column["all_at_midnight"] is not True:
+        return []
+    return [
+        "    every value stood exactly at midnight, so this column holds "
+        "dates, and the twin keeps every value at midnight too"
+    ]
+
+
 def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
     """The stretches this column held nothing in, in words (P4-D32).
 
@@ -569,6 +705,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         lines += [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     lines = lines + _width_lines(column)
+    lines = lines + _group_separator_lines(column)
     lines = lines + _empty_bin_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
@@ -617,6 +754,8 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 f"latest: {_text_of(column['latest'])}{clock}"
             )
         ]
+        lines = lines + _datetime_separator_lines(column, floor)
+        lines = lines + _midnight_lines(column)
     if role == taxonomy.ROLE_IDENTIFIER:
         # A column is here because the reader of this summary put it
         # here. Saying so keeps the words honest: synthtwin never works

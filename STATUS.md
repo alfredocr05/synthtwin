@@ -1,6 +1,6 @@
 # synthtwin — where the project stands
 
-*Written 2026-08-18; updated 2026-08-20, on branch `phase-4-plan` (pull request #4, CI green).*
+*Written 2026-08-18; updated 2026-09-14, on branch `phase-5-relationships`. Phase 4 reopened on 2026-09-12, and the work is at stage 2 of the plan of record in `docs/STATE.md`.*
 *Version `0.1.0.dev0` — not yet released.*
 
 This is a plain-language status document. It says what synthtwin is, what
@@ -19,6 +19,9 @@ each column behaving like yours.
 
 You develop your analysis against the twin, freely and quickly. Then you
 run the finished code on the real table, inside your safe environment.
+That code is meant to run unchanged there, and nothing here guarantees
+that it will: a step that depends on more than the description
+publishes can succeed on the twin and fail on your table.
 
 ---
 
@@ -30,8 +33,8 @@ run the finished code on the real table, inside your safe environment.
 | **1** | the profiler — read a table, write the description | **done** |
 | **2** | the generator — build the twin from the description alone | **done** |
 | **3** | the whole product through one command, plus the checker | **product done; closed 2026-08-19 without its release** |
-| **4** | every column type, rare categories, missing-data patterns | **closed 2026-09-11**, with sixty-six register entries carried to Phase 5 by name rather than built |
-| **5** | relationships between columns | **next — this is the one that matters most for statistics** |
+| **4** | every column type, rare categories, missing-data patterns | closed 2026-09-11; **reopened 2026-09-12**, because silent within-column defects were still live. It is being finished under the plan of record in `docs/STATE.md` |
+| **5** | relationships between columns | **after Phase 4 — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
 | **7** | **a screen, so none of this needs a terminal** | not started |
 
@@ -160,8 +163,8 @@ blood pressure in the twin is noise. If your table holds several rows per
 subject, the twin gets every column right and describes a subject who
 does not exist.
 
-**Your code will run. Numbers from a multi-column analysis mean nothing
-about your real data.** That is Phase 5, and it has not started.
+**Your code is meant to run, and nothing guarantees it. Numbers from a
+multi-column analysis mean nothing about your real data.** That is Phase 5, and it has not started.
 
 **Also true:** the twin is not a formal privacy mechanism and claims no
 differential-privacy property. Numbers computed on it are not scientific
@@ -259,5 +262,5 @@ its own**, and nothing about how two of them move together.
 
 - `CLAUDE.md` — the charter: the principles and the honest limits
 - `docs/plans/phase-3-product.md` — the Phase 3 plan and every amendment
-- `docs/spec/profile-contract-v5.md` — what a description may contain
+- `docs/spec/profile-contract-v6.md` — what a description may contain
 - `CHANGELOG.md` — what changed, in order

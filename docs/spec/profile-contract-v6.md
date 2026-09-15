@@ -3978,7 +3978,12 @@ ends as well, since they are the same two texts.
 `datetime_separators` is `upper_t`, `space`, `lower_t` or
 `(withheld)`. Every key other than `(withheld)` maps to a count at
 least the floor, and `(withheld)` appears only when the pooled
-remainder is non-zero.
+remainder is non-zero. A pool is made of marks each written by fewer
+rows than the floor, so the `(withheld)` count is at most (floor − 1)
+times the number of permitted marks the census leaves unnamed. The
+permitted marks are the three names, or `space` alone on a
+`month-first-datetime` or `day-first-datetime` column (the stage 2
+audit, 2026-09-14).
 
 **Invariant D13 (the separator totals).** `datetime_separators` is
 `{}` where `resolution` is not `datetime`. On a datetime column whose
@@ -4201,7 +4206,7 @@ consumer off the role name.
 | `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
-| `group_separator` | string | `""` or `","` | the mark the column writes between thousands; `","` only where no declared decimal comma is in force, no groupable cell of four or more whole figures was written bare, no padded or exponent cell holds a comma, and the cells proving the grouping reach `small_cell_floor`; `""` otherwise | REPORT-ONLY (plan P4-D38, added after the freeze) |
+| `group_separator` | string | `""`, `","` or `"."` | the mark the column writes between thousands. A cell PROVES it where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and carries a comma read as grouping, a lone group such as `12,345` included; such a cell with no comma is BARE, and accounting brackets are not figures. The mark is published where the proving cells reach `small_cell_floor` AND outnumber the bare ones, and never where a padded or exponent cell holds a comma. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and the mark is `"."`, the one `42.037,34` writes (GS1). `""` otherwise (the stage 2 audit, 2026-09-14) | REPORT-ONLY (plan P4-D38, added after the freeze) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
@@ -4374,6 +4379,16 @@ invariant of this section is read over the CORES, with
 `n_core_numeric` in place of `n_numeric` (AF7), and nowhere else. The
 four universal cell-census counts answer for the cells on that role as
 on every other.
+
+**Invariant GS1 (the mark between thousands and the decimal mark)**
+(the stage 2 audit, 2026-09-14). `group_separator` is `"."` only on a
+column named in `settings.forced_decimal_commas` that the declaration
+reaches, and is never `","` there. The declaration reaches a column's
+own numbers and the numeric partition of a `numbers_with_labels`
+column; a numeric block nested in an `affixed_number` or
+`joined_numbers` column never carries `"."`. The twin groups such a column with a comma and then
+exchanges its points and commas, so a `","` there would be written
+`23,648,37`, which no reader takes for a number.
 
 ---
 
@@ -5293,7 +5308,7 @@ refused rather than read.
 | `integer_valued` | boolean | — | true when every numeric-looking CORE is whole | EXACT-OBSERVABLE, routed by the FACT and not by role |
 | `n_rows` | integer ≥ 0 | the table's row count where ONE wrapper is worn; the COMMONEST wrapper's own count where a SET is (C6-7b, AF13) | the row count of the population this block describes, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
-| `group_separator` | string | `""` or `","` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous` | REPORT-ONLY (plan P4-D38) |
+| `group_separator` | string | `""` or `","` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous`; never `"."` (GS1) | REPORT-ONLY (plan P4-D38) |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
@@ -6778,10 +6793,11 @@ with a point. A loader checks neither against the other.
 
 EXACT-OBSERVABLE. **The twin writes each named style in its published
 count**, and **may write only the six of 7.5.1, never a seventh** —
-never a thousands separator, which breaks the CSV row, never accounting
-parentheses, excluded by decision 8 and kept for the
-contradictory-notation stand-in. Both are classified by digit form and
-written on no column: a cell standing for `(05)` is written as a signed
+a thousands separator only where `group_separator` publishes one (plan
+P4-D38; a cell holding a comma is quoted and reads back unchanged),
+and never accounting parentheses, excluded by decision 8 and kept for
+the contradictory-notation stand-in. Both are classified by digit form,
+and brackets are written on no column: a cell standing for `(05)` is written as a signed
 leading-zero form, not brackets (R-P2-9: a twin numeric column can be
 punctuated differently from its source).
 
@@ -7978,6 +7994,12 @@ reading NOT identical, so a `null` `skew` at `n_used_in_statistics >=
 only route to these three rows from a parsed document, and a reader who
 supplied a different test would refuse different files.
 
+#### GS1 — `group_separator`, on every numeric block
+
+| id | statement | loader? |
+|---|---|---|
+| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and a block nested in an `affixed_number` or `joined_numbers` column never does | yes |
+
 #### The U family — `numeric_unrepresentable`
 
 | id | statement | loader? |
@@ -8013,7 +8035,7 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the two slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime` or `day-first-datetime` column | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime` or `day-first-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `datetimes_read_at` is `local`, `n_present - n_unparsed` is at least the floor, and `earliest`, `latest` and every `date_percentiles` rung end in `00:00:00`; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 
@@ -9737,8 +9759,9 @@ fidelity decision 10 exists to protect.
 
 **13.3 Accounting parentheses and thousands separators are classified
 by their digit form, not given styles of their own.** The enumeration
-is closed at six and both forms are excluded from twin output by
-decision 8 — a comma breaks the CSV row itself.
+is closed at six. Accounting parentheses are excluded from twin output
+by decision 8; a thousands separator is written only where
+`group_separator` publishes one (plan P4-D38).
 
 **13.4 `numeric_styles` counts the `n_numeric` cells only** (P1), read
 over `n_core_numeric` on `affixed_number`. Out-of-range and

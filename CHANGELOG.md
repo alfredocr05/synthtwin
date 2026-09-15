@@ -6,6 +6,90 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: stage 2 closed after an independent audit (2026-09-14)
+
+**The audit found stage 2 was not done.** Five probes and a verifier who
+re-ran every reproduction measured that grouped whole numbers below a
+million, such as `12,345`, `$12,345` or `+1,234`, still came back bare:
+400 cells of 400. The rule counted a lone group as settling nothing,
+although the statistics already read it as thousands. And the stage's
+own gate, "a round-trip test per shape", had no test behind it: the
+comma witness passed with one grouped cell in six hundred.
+
+**What changed:**
+
+- a lone group now proves the comma, so whole numbers keep it;
+- the mark is published where the proving cells reach the smallest
+  group and outnumber the bare ones, so five bare cells no longer strip
+  it from 395 grouped cells; one grouped cell among many still
+  publishes nothing;
+- an accounting bracket such as `(123.45)` is no longer counted as a
+  figure, which had stripped the mark from a column of grouped charges;
+- a declared decimal-comma column grouped with points, `42.037,34`,
+  publishes `.` and its twin writes it, where the points were dropped
+  although the help promised the twin writes numbers as the table did;
+  the loader refuses a point anywhere else and a comma there (GS1);
+- the checker offers grouped spellings whatever the published mark, so
+  a real table is never missed for commas the description could not
+  prove;
+- the absent-spelling exception offers the marks the column's own
+  census names first, so a column of spaces and `t` never gains a `T`;
+- the census repair allows a repeated spelling, which it had refused on
+  every column of midnight dates, and runs in linear time (80,000 rows
+  had taken 18.9 s against 2.9 s);
+- a value left wearing a spelling the table declares absent is named in
+  the twin's report, and so is a column of moments whose absent cells
+  were pooled below the group size, where no spelling can be avoided;
+- report sentences that overstated are corrected: the marks each
+  written "as often as the description records it" on a column with a
+  pooled or mixed census, and dates reading "the same" on a column that
+  mixes bare dates with moments;
+- the describe-time summary names the mark, the census and the midnight
+  statement, and the claim guard catches contractions and near-synonyms
+  of the exemption it bans.
+
+**One review round then rejected the closure, and was right four times.**
+Allowing a repeated spelling in the census repair could erase the last
+copy of one, and five cells of three spellings came back as a column of
+two values; the repair now never leaves a column one spelling fewer.
+The decimal-comma exchange decided from the text which cells were
+numbers, so a label such as `1,234,567` beside the numbers became a
+measurement and a grouped end matching an absent spelling was left
+unexchanged and lost; the exchange now touches exactly the cells the
+numeric machinery wrote. A small column at a raised floor could lose
+the mark in its twin with nothing said; that is now a named deviation.
+And the warning about pooled absent cells fired on an ordinary blank; it
+is now a remark, raised only where missing values were declared. The
+oracle trims absent spellings as the reader does, a departure test that
+never departed now does, the claim guard lets "does not necessarily
+satisfy" stand, and the contract's GS1 scope matches the loader.
+
+**Measured.** `tests/test_stage2_round_trip.py` describes the twin again
+for 19 shapes -- whole, currency, signed, decimal, straggling, bracketed
+and decimal-comma numbers, millions, the three marks and their mix,
+midnight at three precisions, with a `T` and with an offset -- and finds
+every stage-2 fact returned, the twin checked with nothing missed and,
+where its spelling is a published one, the real table too. The shapes
+designed not to return -- a pooled mark, dates mixed with moments, a day
+declared absent -- are pinned beside it with what they do instead. Each
+new rule is mutation-checked: put back, it turns a test red.
+
+**Carried, not fixed:**
+
+- a number grouped with a space or an apostrophe is read as free text;
+- an accounting bracket or a plus sign on a decimal is not a published
+  number style, so the twin writes a minus and drops the plus, and a
+  real table with brackets misses its own spelling check;
+- a column mixing bare dates with midnight moments is written wholly as
+  moments, and a slashed format is written in ISO form;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- at a raised floor, a withheld mark can be attributed by elimination
+  when only one mark is left unnamed;
+- twins of date columns spread values across days more evenly than real
+  tables (predates stage 2);
+- continuous integration has not run on this branch.
+
 ### Fixed: a moment keeps its own separator, and a date held at midnight stays a date (stage 2, part two, 2026-09-14)
 
 **A stamp written `2025-09-04 06:16:00` came back from the twin as
@@ -147,8 +231,8 @@ under plan P4-D38.
 - no frozen reference case publishes `","`;
 - at a floor of one, a single grouped cell is enough to publish the
   mark;
-- a column grouped with a space or an apostrophe is still read as the
-  wrong number;
+- a column grouped with a space or an apostrophe is read as free text
+  (measured after this entry was written; it said "the wrong number");
 - a moment's own separator and a date held at midnight: part two.
 
 ### Fixed: describing and generating were quadratic, and it was one idiom (stage 1, 2026-09-13)

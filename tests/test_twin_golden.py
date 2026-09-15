@@ -1699,8 +1699,11 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # six numeric positions; part two lists `datetime_separators` and
 # `all_at_midnight` on `recorded_on`, raising the not-checkable count from
 # 146 to 148. No verdict and no check moved.
+# RE-RECORDED AGAIN 2026-09-14 (stage 2 audit): the reason printed beside
+# each `numeric.group_separator` listing now says the mark was FOUND, not
+# WRITTEN; ten lines changed and nothing else.
 GOLDEN_QUALITY_SHA256 = (
-    "775a662cc2e3870108091391dcfd8ab7410e9c233b1d0821229bb61bfffa3fe4"
+    "c858edb09162b3da21d8929f8cb954d60a34adc321a143616226de2a27546db4"
 )
 
 

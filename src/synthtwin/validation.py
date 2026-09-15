@@ -598,8 +598,9 @@ _NOT_CHECKABLE_FIELD_WIDTHS = (
     "no obligation this description makes"
 )
 _NOT_CHECKABLE_GROUP_SEPARATOR = (
-    "the description records the mark the real column wrote between "
-    "thousands, or that it wrote none, and the twin writes that mark "
+    "the description records the mark the real column's numbers were "
+    "found to carry between thousands, or that none was found, and the "
+    "twin writes that mark "
     "without being held to it: a file is read the same way whether its "
     "large numbers carry the mark or not, so a file written without it "
     "misses no obligation this description makes. What the mark buys is "
@@ -9878,7 +9879,14 @@ def _style_checks(
                 cells,
                 facts.integer_valued,
                 _published_widths(facts),
-                facts.group_separator,
+                # Grouped spellings are OFFERED whatever the published
+                # mark (stage 2 audit): the mark is REPORT-ONLY, so a file
+                # grouping cells the description found no proof for --
+                # the real table itself, at a raised floor -- is spelled
+                # in a permitted form, never MISSED. Cells arrive here
+                # with a decimal comma already read back to a point, so
+                # the offer is a comma for both published marks.
+                ",",
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,

@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 4,492 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| suite | 4,544 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu and Windows. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. `ultra` is valid and verified; do not substitute `high` |
@@ -62,7 +62,7 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 | # | landing | gate | wk |
 |---|---|---|---|
 | 1 | **DONE 2026-09-13. The list idiom and the heap merge.** `x = x + [item]` at 661 sites became `x += [item]`; the merge loop became `_merge_down`, a heap over a linked list. Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, 4,200 randomised cases agree with `_merge_nearest`, suite green at 4,406, and `tests/test_growth_is_linear.py` turns red on either defect | done |
-| 2 | **DONE 2026-09-14. The three silent defects.** A column that proves a comma grouping publishes `group_separator` and its twin writes it back; a moment's datetime block publishes the census of marks between day and clock and whether every moment stands at midnight, and the twin writes each mark at its count and keeps a midnight column at midnight. Still carried: a column grouped with a space or an apostrophe; a column only partly at midnight, or at midnight on the shared clock | the twin writes values the way the source wrote them; a round-trip test per shape | 3 |
+| 2 | **DONE 2026-09-14, closed after an independent audit. The three silent defects.** A grouped number keeps its mark: a comma, including whole numbers such as `12,345`, or a point on a declared decimal-comma column; a moment keeps the mark between its day and its clock at each mark's count; a date stored at midnight stays at midnight. Landed in three commits: the comma, the moment and midnight, and the repairs the audit found | MET: `tests/test_stage2_round_trip.py` describes the twin again for 19 shapes and finds every stage-2 fact returned with nothing missed; the four shapes designed not to return are pinned beside it | done |
 | 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared | no published number is held by fewer than the floor; a one-row table is refused | 5 |
 | 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
@@ -102,11 +102,16 @@ ones.
   columns is about 35 minutes, two million by fifty is about three
   hours. Landing 4 closes that by doing the ladder work once per
   distinct value rather than once per row.
-- **A column grouped with a space or an apostrophe is read as free
-  text**, so its twin writes stand-in text, and a column only partly at
-  midnight still gets invented times. The comma, the moment's own separator and the all-midnight
-  column were repaired on 2026-09-14 (landing 2). Carried in
-  `CHANGELOG.md`.
+- **Spellings stage 2 did not reach.** A number grouped with a space or
+  an apostrophe is read as free text; an accounting bracket or a plus
+  sign on a decimal is not a published style, so the twin writes a
+  minus and drops the plus; a column mixing bare dates with midnight
+  moments is written wholly as moments; a column only partly at
+  midnight, or at midnight on the shared clock, still gets invented
+  times. Carried in `CHANGELOG.md`.
+- **Twins of date columns spread their values across days too
+  evenly**: on 400 rows the day-to-day variance was about a third of
+  the real table's. It predates stage 2 and bears on the second goal.
 - **The description names individuals.** On a 1,200-row table the
   published maximum of two columns was held by exactly one subject.
   A population floor cannot fix this; the extremes must stop being

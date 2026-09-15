@@ -862,6 +862,10 @@ def battery() -> list[Mutation]:
             edit("recorded_on", datetime_separators={"space": 240}),
         ),
         Mutation(
+            "GS1", "a column not declared to write a decimal comma grouped with a point",
+            edit("visits", group_separator="."),
+        ),
+        Mutation(
             "D14", "a column of whole dates said to stand at midnight",
             edit("recorded_on", all_at_midnight=True),
         ),
