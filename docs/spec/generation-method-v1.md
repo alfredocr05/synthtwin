@@ -628,11 +628,25 @@ NOT applied: the operations named here are the whole of it.
 
 **AND ON A COLUMN WRITTEN AT ONE FRACTION WIDTH, THE NUMBER THE WRITER
 WOULD WRITE THERE** (landing 2b.1, 2026-09-15). Where `integer_valued`
-is false and G6.5a's WHICH GRID clause finds one grid of `f > 0`
-figures — one width named in `fraction_widths`, covering every numeric
-cell — `v[i]` is replaced by the number its GRID TEXT reads back as:
-the text G6.6's writer gives `v[i]` at `f` figures. A run is then a run
-of one WRITTEN number, and `GridValue(x)` below names this reading.
+is false and the column is on a WRITTEN GRID of `f > 0` figures, `v[i]`
+is replaced by the number its GRID TEXT reads back as: the text G6.6's
+writer gives `v[i]` at `f` figures. A run is then a run of one WRITTEN
+number, and `GridValue(x)` below names this reading. A column is on a
+written grid of `f` figures where `fraction_widths` names the one width
+`f` and either that width covers every numeric cell — G6.5a's WHICH GRID
+clause — or its count and `W`, the point-free count of G5.2's carrier
+step, add up to every numeric cell (landing 2b.1, repair, 2026-09-16).
+The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
+how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
+the grid point whose last `f` figures are zero, so every number of such
+a column is a point of the grid. Read as no grid, its strata did not
+line up with the numbers: at 53bb012 a 2,000-row column of weights
+written this way held 238 cells at full binary precision and 51 leading
+zeros, and a 4,000-row column of temperatures held one number 601 times
+against a `mode_count` of 308. On 96 twins of eight such shapes at 500
+to 4,000 rows the count of twins checked with nothing missed went from 4
+to 70, of cells at full precision from 6,971 to 21, and of leading zeros
+from 736 to 16.
 
 Without it a ladder read at every rank gives nearly every rank a value
 of its own on a column whose values move continuously, the join of
@@ -710,7 +724,8 @@ column held. Write
 ```
 Cap      = mode_count                              where the mode pair is published
          = min(K - n_distinct_values + 1,
-               floor((r + 1) * (K - 1) / 100) + 2) where it is withheld
+               floor((r + 1) * (K - 1) / 100) + 2,
+               F - 1)                              where it is withheld
 Cap_band = max(Cap, ceil(C / M))                   where Cap > 0
 ```
 
@@ -725,6 +740,28 @@ falls in `[a, a + c - 2]` reads exactly that number, which is at least
 `floor((c - 2) * 100 / (K - 1))` rungs, so no run of equal rungs can be
 shorter than that. `ceil(C / M)` stands in only where a band has too few
 strata to fit its cells under the cap at all.
+
+`F` is the description's `small_cell_floor`, and its term stands only
+where `F >= 3` and the description does not itself prove a number held
+by `F` cells or more — neither `ceil(K / n_distinct_values)` nor
+`floor((r - 1) * (K - 1) / 100)` reaches `F`; everywhere else the term
+is absent (landing 2b.1, repair, 2026-09-16). The profiler withholds the
+pair exactly where the commonest number is held by fewer than `F` cells
+or by one, so under a floor of 3 or more the pair's absence proves no
+number was held by more than `F - 1`; under a lower floor it proves only
+that every number is different, which the first term already says. The
+two exceptions are descriptions that contradict that reading: every
+number of a column holds at least `ceil(K / n_distinct_values)` cells
+on average, and the rungs at the two ends of a run of `r` equal rungs
+stand `(K - 1)(r - 1) / 100` type-7 positions apart, with every sorted
+position from just past the first to the second reading that number. A
+withheld pair under the floor was not withheld by it there. Without the
+term, 4,000 amounts described under `--smallest-group 11` came back
+holding one number 45 times and 2,500 thousandths 27 times, where the
+withheld pair proved no real number was held more than 10 times, and
+the twin described again at that floor published a mode pair the real
+column had withheld; with it, 30 twins of five such shapes at 1,000 to
+4,000 rows held none more than 10 times.
 
 The three parts that follow `Over` never stop a run growing: a run
 beside a one-rank transition always has a smaller side of one, so on a
@@ -918,7 +955,20 @@ more can move:
 - the fewest cells the demand needs are moved: taken from the strata of
   that band that cannot carry, in ascending `s`, each down to size 1,
   and shared out over the strata of that band that can carry by the
-  same even split above.
+  same even split above;
+- **except on a column on a written grid (G5.2a step 1)**, where the
+  shares are the same even split but each carrying stratum, in ascending
+  `s`, takes its share from the strata that cannot carry NEAREST to it
+  in `s` — the lower of two equally near — each still down to size 1
+  (landing 2b.1, repair, 2026-09-16). G5.2a lined every stratum of such
+  a column up with the numbers its grid holds, and taking the cells from
+  the lowest strata slid every boundary between those strata and the
+  takers: on 4,000 temperatures written `37` beside `37.4`, 34 cells
+  taken from the bottom left four strata on `35.3`, every stratum up to
+  `38.0` straddling two written numbers, and the twin four numbers
+  short. Taken from the nearest, only the boundaries beside a taker
+  move, and the same column came back with all 34 numbers at every
+  size and seed measured.
 
 **The reach step, taken third** (P2-C5-F3). "Can carry" above is a
 PLAN, not a certainty: every stratum that is neither a pinned end nor
@@ -1124,8 +1174,9 @@ For each stratum `s`, in ascending `s`:
   if v > L[j+1]:  v = L[j+1]
   ```
 
-- **any other stratum of a column written at ONE fraction width** —
-  the grid of G5.2a step 1: the word `w` is drawn exactly as above, and
+- **any other stratum of a column on a written grid** — the grid of
+  G5.2a step 1, which includes a column whose other cells are written
+  with no point: the word `w` is drawn exactly as above, and
   the stratum takes the grid value of the ladder at ONE OF ITS OWN
   RANKS rather than at a share between ranks:
 

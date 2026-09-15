@@ -871,8 +871,13 @@ the stratum described below.
 `mode_count`, AS A CEILING AND NOT AS A CARVE.** Method G5.2a caps every
 stratum at the published count — at one where the pair is withheld and
 every number differs, and otherwise at the most cells the ladder's own
-runs of equal rungs allow — so no number of the twin is held by more
-cells than any number of the real column was. That repaired a defect
+runs of equal rungs allow and, under a publication floor of 3 or more,
+at one fewer than the floor, which is what a withheld pair proves
+(landing 2b.1, repair, 2026-09-16) — so no number of the twin is held by
+more cells than any number of the real column was. Before that last
+term, 2,500 thousandths described under a floor of 11 came back holding
+one number 27 times and published a mode pair the real column had
+withheld. That repaired a defect
 this decision never named: the join of G5.2a step 3 grew one stratum
 without bound on any ladder that moves continuously, and a 4,000-row
 two-figure column publishing a count of 62 held one number 760 times.

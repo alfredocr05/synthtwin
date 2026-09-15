@@ -3563,7 +3563,7 @@ def _numeric_cells(facts: contract.NumericFacts) -> int:
     )
 
 
-def _stratum_bound(facts: contract.NumericFacts) -> int:
+def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     """The most cells method G5.2a lets one stratum hold, from the description.
 
     Written from the rule and never from the generator, which this module
@@ -3595,30 +3595,47 @@ def _stratum_bound(facts: contract.NumericFacts) -> int:
     # same filling the construction reads, so a run of equal rungs is
     # counted here exactly as long as it is there.
     filled = _filled_ladder(facts)
-    if filled is None or numbers < 2:
-        return counted
-    longest = 1
-    run = 1
-    for place in range(1, 101):
-        if filled[place] == filled[place - 1]:
-            run = run + 1
-            longest = max(longest, run)
-        else:
-            run = 1
-    ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
-    if counted > 0:
-        return min(counted, ladder)
-    return ladder
+    bound = counted
+    longest = 0
+    if filled is not None and numbers >= 2:
+        longest = 1
+        run = 1
+        for place in range(1, 101):
+            if filled[place] == filled[place - 1]:
+                run = run + 1
+                longest = max(longest, run)
+            else:
+                run = 1
+        ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
+        bound = min(counted, ladder) if counted > 0 else ladder
+    # AND A WITHHELD PAIR UNDER A FLOOR OF 3 OR MORE PROVES NO NUMBER WAS
+    # HELD BY `floor` CELLS (landing 2b.1, repair): the profiler withholds
+    # the pair exactly there -- wherever the description does not itself
+    # prove such a number, by the fewest cells the commonest number can
+    # hold or by the cells a run of equal rungs forces onto one number.
+    if floor < 3:
+        return bound
+    proven = 0
+    if longest > 1:
+        proven = ((longest - 1) * (numbers - 1)) // 100
+    if facts.n_distinct_values > 0:
+        proven = max(proven, -((-numbers) // facts.n_distinct_values))
+    if proven >= floor:
+        return bound
+    held = floor - 1
+    if bound <= 0:
+        return held
+    return min(bound, held)
 
 
-def _window_stratum(facts: contract.NumericFacts) -> int:
+def _window_stratum(facts: contract.NumericFacts, floor: int) -> int:
     """The widest stratum every rung and moment window reads (G5.6, G12.2).
 
     `_stratum_bound`, read off the block alone, or the numeric cell count
     where nothing bounds a stratum. The generator's twin report reads the
     same number off the same block, so the two reports print one window.
     """
-    bound = _stratum_bound(facts)
+    bound = _stratum_bound(facts, floor)
     if bound > 0:
         return bound
     return _numeric_cells(facts)
@@ -8175,8 +8192,8 @@ def _joined_number_checks(
                 if isinstance(key, str):
                     inner[key] = held[key]
         numbers = facts.parts[place]
-        made = _ladder_checks(column, numbers, inner)
-        made = made + _moment_checks(column, numbers, inner)
+        made = _ladder_checks(column, numbers, inner, floor)
+        made = made + _moment_checks(column, numbers, inner, floor)
         for check in made:
             # THE TWO ENDS ARE ALREADY MEASURED, by
             # `_joined_part_checks`, under the names the entry table
@@ -8999,8 +9016,8 @@ def _numeric_checks(
             None if share is None else _shown_number(share),
         )
     ]
-    checks = checks + _ladder_checks(column, facts, block)
-    checks = checks + _moment_checks(column, facts, block)
+    checks = checks + _ladder_checks(column, facts, block, floor)
+    checks = checks + _moment_checks(column, facts, block, floor)
     checks = checks + _style_checks(column, facts, block, cells, floor)
     return checks
 
@@ -9009,6 +9026,7 @@ def _ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """The eleven rungs: the two ends exact, the nine interior in windows."""
     name = column.name
@@ -9035,7 +9053,7 @@ def _ladder_checks(
     # column's window four strata wide where the construction's was
     # eighty.
     numbers = _numeric_cells(facts)
-    reach = 100 * (_window_stratum(facts) + 2)
+    reach = 100 * (_window_stratum(facts, floor) + 2)
     whole = 100 * numbers
     half = _half_unit(facts)
     for index in range(1, len(_LADDER_KEYS) - 1):
@@ -9102,7 +9120,7 @@ def _rung_end(
 
 
 def _windows_of(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> "dict[str, tuple[float, float]]":
     """The three G12.3 windows this description draws, or none at all.
 
@@ -9122,7 +9140,7 @@ def _windows_of(
     if rungs is None:
         return {}
     numbers = _numeric_cells(facts)
-    widest = _window_stratum(facts)
+    widest = _window_stratum(facts, floor)
     half = _half_unit(facts)
     lows: list[float] = []
     highs: list[float] = []
@@ -9147,7 +9165,7 @@ def _windows_of(
 
 
 def _skew_admits_every_value(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> bool:
     """Whether this description's skew window is the whole attainable range.
 
@@ -9187,7 +9205,7 @@ def _skew_admits_every_value(
     """
     if facts.skew is None:
         return False
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if "skew" not in windows:
         return False
     numbers = _numeric_cells(facts)
@@ -9202,6 +9220,7 @@ def _moment_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     block: "dict[str, object]",
+    floor: int,
 ) -> "list[Check]":
     """`mean`, `std` and `skew`, each against both ends of G12.3.
 
@@ -9218,7 +9237,7 @@ def _moment_checks(
         ("kurtosis", facts.kurtosis),
     )
     checks: list[Check] = []
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if not windows:
         return checks
     for field, value in published:
@@ -9231,12 +9250,14 @@ def _moment_checks(
         # on that description -- `_listings` files it with the sentence
         # that says why -- and never a check, because a check that
         # cannot fail is the vacuity V3.4 refuses by name.
-        if field == "skew" and _skew_admits_every_value(column, facts):
+        if field == "skew" and _skew_admits_every_value(column, facts, floor):
             continue
         # AND THE SAME FOR THE TAIL WEIGHT, for the same reason: where
         # its window is the whole range every sample of this size can
         # take, a comparison against it admits every file there is.
-        if field == "kurtosis" and _tails_admit_every_value(column, facts):
+        if field == "kurtosis" and _tails_admit_every_value(
+            column, facts, floor
+        ):
             continue
         # AND A MOMENT WITH NO WINDOW IS A CENSUS LINE, NOT A WITHHELD
         # CHECK (review item P4-G6-R3-F3). `_within` turns a missing
@@ -9267,7 +9288,7 @@ def _moment_checks(
 
 
 def _tails_admit_every_value(
-    column: "contract.ColumnBlock", facts: "contract.NumericFacts"
+    column: "contract.ColumnBlock", facts: "contract.NumericFacts", floor: int
 ) -> bool:
     """Whether this description's kurtosis window is the whole range.
 
@@ -9279,7 +9300,7 @@ def _tails_admit_every_value(
     """
     if facts.kurtosis is None:
         return False
-    windows = _windows_of(column, facts)
+    windows = _windows_of(column, facts, floor)
     if "kurtosis" not in windows:
         return False
     used = facts.n_used_in_statistics
@@ -12651,6 +12672,7 @@ def _listings(
     description: contract.Profile, headed: bool
 ) -> "list[Listing]":
     """Every REPORT-ONLY obligation, and the ones a predicate strands."""
+    smallest = description.settings.small_cell_floor
     listings = [
         Listing("", f"document.{field}", "", _NOT_CHECKABLE_REPORT_ONLY)
         for field in (
@@ -12800,7 +12822,7 @@ def _listings(
             # Given the whole column's, a listing could stand where a
             # check belongs and the other way about.
             listings = listings + _numeric_listings(
-                _core_column(column), numbers
+                _core_column(column), numbers, smallest
             )
             # AND THE COUNT OF DIFFERENT NUMBERS WHERE ITS ENVELOPE
             # LICENSES EVERY COUNT THE FILE COULD HOLD (V3.5). It is a
@@ -12849,7 +12871,7 @@ def _listings(
         # round P4-A2-R1 showed a re-paired file passing clean without
         # them (plan P4-D29).
         if isinstance(facts, contract.JoinedFacts):
-            listings = listings + _joined_listings(column, facts)
+            listings = listings + _joined_listings(column, facts, smallest)
         # AND THE COMPOUND ROLE, whose numeric half is a block of the
         # same kind: `_quantitative_of` returns None for it too, so
         # without this line a compound column's histogram, its field
@@ -12859,7 +12881,7 @@ def _listings(
         # why the line is written with the role rather than after it.
         if isinstance(facts, contract.CompoundFacts):
             listings = listings + _compound_listings(
-                column, facts, _corner_names(corners, column.name)
+                column, facts, _corner_names(corners, column.name), smallest
             )
         # ...AND EVERY WRAPPER OF A SET, whose block is a block of the
         # same kind (plan P4-D37; review round 3, item 4). The line
@@ -12924,7 +12946,7 @@ def _listings(
                             + CORNER_CITATIONS[corner],
                         )
                     ]
-                for entry in _numeric_listings(inner, one.numbers):
+                for entry in _numeric_listings(inner, one.numbers, smallest):
                     # THE IDENTITY GOES ON THE FACT, because a numeric
                     # listing carries its key there and leaves the
                     # subcheck empty; qualifying the empty one produced
@@ -13003,6 +13025,7 @@ def _compound_listings(
     column: contract.ColumnBlock,
     facts: contract.CompoundFacts,
     mine: "tuple[str, ...]",
+    floor: int,
 ) -> "list[Listing]":
     """What a compound column publishes and no check can measure.
 
@@ -13021,7 +13044,7 @@ def _compound_listings(
     twin, and not one of the three could be made to report MISSED.
     """
     numbers = contract.compound_numbers_view(column)
-    listings = _numeric_listings(numbers, facts.numbers)
+    listings = _numeric_listings(numbers, facts.numbers, floor)
     # AND EVERY HALF COUNT THE ENVELOPE SETTLES, named here with the
     # passage that authorizes it. The check side asks the same
     # question through the same function, so a count cannot be checked
@@ -13084,7 +13107,7 @@ def _compound_listings(
 
 
 def _joined_listings(
-    column: contract.ColumnBlock, facts: contract.JoinedFacts
+    column: contract.ColumnBlock, facts: contract.JoinedFacts, floor: int
 ) -> "list[Listing]":
     """What a joined column publishes and no check can measure.
 
@@ -13106,7 +13129,7 @@ def _joined_listings(
     """
     listings: "list[Listing]" = []
     for place, numbers in enumerate(facts.parts):
-        for entry in _numeric_listings(column, numbers):
+        for entry in _numeric_listings(column, numbers, floor):
             fact = entry.fact
             head = "numeric."
             if fact[: len(head)] == head:
@@ -13126,7 +13149,7 @@ def _joined_listings(
 
 
 def _numeric_listings(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> "list[Listing]":
     """The not-checkable census of one quantitative block.
 
@@ -13264,7 +13287,7 @@ def _numeric_listings(
     # windows and listed here as having no ladder at the same time,
     # each obligation counted twice under contradictory reasons.
     has_ladder = bool(_fine_ladder_points(facts))
-    drawn = _windows_of(column, facts) if has_ladder else {}
+    drawn = _windows_of(column, facts, floor) if has_ladder else {}
     reason = (
         _NOT_CHECKABLE_NO_WINDOW if has_ladder else _NOT_CHECKABLE_NO_LADDER
     )
@@ -13279,11 +13302,11 @@ def _numeric_listings(
         listings += [
             Listing(column.name, f"numeric.{field}", f"moments.{field}", reason)
         ]
-    return listings + _unbounded_style_listings(column, facts)
+    return listings + _unbounded_style_listings(column, facts, floor)
 
 
 def _unbounded_style_listings(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> "list[Listing]":
     """The numeric obligations this description leaves nothing to check.
 
@@ -13314,7 +13337,7 @@ def _unbounded_style_listings(
                 _NOT_CHECKABLE_STYLE_CEILING,
             )
         ]
-    if _skew_admits_every_value(column, facts):
+    if _skew_admits_every_value(column, facts, floor):
         listings += [
             Listing(
                 column.name,
@@ -13333,7 +13356,7 @@ def _unbounded_style_listings(
     # census accounts for every one. Reproduced on 98 zeros beside
     # `5e-324` and `1e-323`, which publishes a kurtosis of 66.1 and
     # named it nowhere.
-    if _tails_admit_every_value(column, facts):
+    if _tails_admit_every_value(column, facts, floor):
         listings += [
             Listing(
                 column.name,

@@ -85,7 +85,9 @@ with tempfile.TemporaryDirectory() as folder:
             continue
         built += 1
         column = loaded.columns[0]
-        now = validation._windows_of(column, column.facts)
+        now = validation._windows_of(
+            column, column.facts, loaded.settings.small_cell_floor
+        )
         if not now:
             continue
         # the shipped deviation, on the same ladder the validator reads

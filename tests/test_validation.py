@@ -3280,7 +3280,9 @@ def test_no_moment_window_is_an_infinity_on_a_large_valued_column(
     """
     described = _describe(tmp_path, _large_valued_table())
     column = described.columns[0]
-    windows = validation._windows_of(column, column.facts)
+    windows = validation._windows_of(
+        column, column.facts, described.settings.small_cell_floor
+    )
     assert windows, "no window was drawn at all"
     for name, (low, high) in windows.items():
         assert math.isfinite(low), (name, low, high)
@@ -3443,7 +3445,9 @@ def test_no_window_drawn_for_an_extreme_column_is_an_infinity(
     # `measure`; this claim is about the columns that HAVE windows.
     if not isinstance(column.facts, contract.NumericFacts):
         pytest.skip(f"{shape} is not a quantitative column")
-    windows = validation._windows_of(column, column.facts)
+    windows = validation._windows_of(
+        column, column.facts, described.settings.small_cell_floor
+    )
     assert windows, shape
     for name, (low, high) in windows.items():
         assert math.isfinite(low), (shape, name, low, high)

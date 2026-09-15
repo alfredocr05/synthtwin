@@ -711,7 +711,7 @@ def test_the_reach_step_and_the_chain_together_place_the_crowded_ladder(
     monkeypatch.setattr(
         generation,
         "_reach_sizes",
-        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+        lambda sizes, bands, rungs, whole, numbers, demand, plus, grid: sizes,
     )
     assert _styles(generation.generate(loaded, 0)) == {
         "plain": 34, "decimal": 48,
@@ -726,7 +726,7 @@ def test_the_reach_step_and_the_chain_together_place_the_crowded_ladder(
     monkeypatch.setattr(
         generation,
         "_reach_sizes",
-        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+        lambda sizes, bands, rungs, whole, numbers, demand, plus, grid: sizes,
     )
     written = _styles(generation.generate(loaded, 0))
     assert written.get("plain", 0) < 34, written
@@ -1000,7 +1000,7 @@ def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
     assert facts.numeric_styles.get("plain", 0) == 0, facts.numeric_styles
     assert generation._style_pool(facts.numeric_styles) == 20
     layout, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     values = [-4.5, -4.0, 15.0, 18.0, 25.0, 60.0]
@@ -1026,7 +1026,7 @@ def test_the_hold_back_takes_the_narrowest_strata(
     """
     column, facts = _pooled_column(tmp_path)
     built, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     # THE SIZES THIS COLUMN'S LADDER GIVES CANNOT TELL THE TWO ORDERS
@@ -1083,7 +1083,7 @@ def test_the_type_is_owed_a_cell_no_stratum_fits_exactly(
     """
     column, facts = _pooled_column(tmp_path)
     built, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     # Every stratum at least two cells wide, so the exact-fit rule above
@@ -1356,7 +1356,10 @@ def test_a_grain_is_laid_out_by_ITS_OWN_count_which_closes_R_P4_112(
     assert part.n_distinct_values == 11, part.n_distinct_values
     assert column.n_distinct == 36, column.n_distinct
     layout, _notes, _content = generation._numeric_layout(
-        generation._part_view(column, 0), part, part.n_distinct_values
+        generation._part_view(column, 0),
+        part,
+        part.n_distinct_values,
+        SETTINGS.small_cell_floor,
     )
     assert len(layout.sizes) == part.n_distinct_values, len(layout.sizes)
     assert len(layout.sizes) != column.n_distinct, len(layout.sizes)
@@ -1726,7 +1729,7 @@ def test_the_carrier_step_is_what_places_the_reviewed_map(
     monkeypatch.setattr(
         generation,
         "_carrier_sizes",
-        lambda sizes, bands, flags, demand, plus_demand: sizes,
+        lambda sizes, bands, flags, demand, plus_demand, grid: sizes,
     )
     written = _styles(generation.generate(loaded, 0))
     assert written.get("plain", 0) < 20, written

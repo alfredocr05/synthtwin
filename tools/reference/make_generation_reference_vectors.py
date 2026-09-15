@@ -942,7 +942,14 @@ def levelled(lengths, cap):
     return sizes
 
 
-def stratum_cap(column, ladder, numeric):
+# THE FLOOR EVERY CASE IS DESCRIBED UNDER.  tests/test_generation_reference.py
+# builds each case's document with `small_cell_floor: 11`, and G5.2a's cap
+# reads that floor where a case's mode pair is withheld; the test holds the
+# two equal.
+CASE_SMALL_CELL_FLOOR = 11
+
+
+def stratum_cap(column, ladder, numeric, floor):
     """The most cells one stratum may hold -- G5.2a.
 
     The published ``mode_count`` where the mode pair is published: no
@@ -953,6 +960,14 @@ def stratum_cap(column, ladder, numeric):
     puts at least ``floor((c - 2) * 100 / (K - 1))`` rungs on itself, so
     with ``r`` the longest run of equal rungs ``c`` is at most
     ``floor((r + 1) * (K - 1) / 100) + 2``.
+
+    And a withheld pair under a publication ``floor`` of 3 or more proves no
+    number was held by ``floor`` cells, so the cap is at most ``floor - 1``
+    -- wherever the description does not itself prove a number held by that
+    many: ``ceil(K / n_distinct_values)`` cells, or the
+    ``floor((r - 1) * (K - 1) / 100)`` a run of ``r`` equal rungs forces onto
+    one number.  A floor under 3 proves only that every number is
+    different, which the count already says.
     """
     if column.get("mode") is not None and column.get("mode_count", 0) > 0:
         return column["mode_count"]
@@ -962,7 +977,7 @@ def stratum_cap(column, ladder, numeric):
     distinct = column.get("n_distinct_values", 0)
     counted = max(1, numeric - distinct + 1) if distinct > 0 else 0
     if ladder is None or numeric < 2:
-        return counted
+        return floored_cap(counted, floor, numeric, distinct, 0)
     longest = 1
     run = 1
     for index in range(1, len(ladder)):
@@ -972,7 +987,28 @@ def stratum_cap(column, ladder, numeric):
         else:
             run = 1
     ladder_bound = ((longest + 1) * (numeric - 1)) // 100 + 2
-    return min(counted, ladder_bound) if counted > 0 else ladder_bound
+    bound = min(counted, ladder_bound) if counted > 0 else ladder_bound
+    return floored_cap(bound, floor, numeric, distinct, longest)
+
+
+def floored_cap(bound, floor, numeric, distinct, longest):
+    """``bound`` lowered to ``floor - 1`` where a floor of 3 or more binds.
+
+    It binds unless the description proves a number held by ``floor`` cells:
+    ``ceil(numeric / distinct)``, or ``floor((longest - 1) * (numeric - 1) /
+    100)`` for a run of ``longest`` equal rungs.  Nought still means no bound.
+    """
+    if floor < 3:
+        return bound
+    proven = 0
+    if longest > 1:
+        proven = (longest - 1) * (numeric - 1) // 100
+    if distinct > 0:
+        proven = max(proven, -(-numeric // distinct))
+    if proven >= floor:
+        return bound
+    held = floor - 1
+    return held if bound <= 0 else min(bound, held)
 
 
 def band_allotment(
@@ -1350,7 +1386,9 @@ def carrier_bands(
     return pair
 
 
-def carrier_split(sizes, bands, ladder, integer_valued, published, zeros, positives):
+def carrier_split(
+    sizes, bands, ladder, integer_valued, published, zeros, positives, fractional=-1
+):
     """The carrier step of method section G5.2 (review item P2-C4-F3).
 
     Three of the six styles can be worn only by a cell whose value has a
@@ -1407,6 +1445,27 @@ def carrier_split(sizes, bands, ladder, integer_valued, published, zeros, positi
             if take <= 0:
                 continue
             short -= take
+            if fractional > 0:
+                # ON A COLUMN ON A WRITTEN GRID each taker takes its even
+                # share from the NEAREST givers, the lower of two equally
+                # near, each giver keeping one cell (G5.2, landing 2b.1):
+                # taking from the lowest strata upward slid every boundary
+                # between them and the takers off the grid G5.2a lined up.
+                count = len(takers)
+                for step, taker in enumerate(takers):
+                    owed = (step + 1) * take // count - step * take // count
+                    while owed > 0:
+                        spare = [index for index in givers if moved[index] > 1]
+                        if not spare:
+                            break
+                        index = min(
+                            spare, key=lambda other: (abs(other - taker), other)
+                        )
+                        given = min(moved[index] - 1, owed)
+                        moved[index] -= given
+                        moved[taker] += given
+                        owed -= given
+                continue
             left = take
             for index in givers:
                 step = min(moved[index] - 1, left)
@@ -1914,6 +1973,36 @@ def whole_number_values(
             taken.append(moved)
             values[index] = moved
     return values
+
+
+def written_grid(fraction_widths, integer_valued, numeric, point_free):
+    """The grid G5.2a step 1 and G5.3 read the ladder on, or -1 (landing 2b.1).
+
+    ``grid_of``'s one width where it covers every numeric cell, and ALSO the
+    one width ``f > 0`` of a column whose other numeric cells are all written
+    with no point: a census naming that width alone, whose count and the
+    published point-free style count (``point_free``, the withheld share
+    counted as plain) add up to every numeric cell.  A point-free cell is the
+    grid point whose last ``f`` figures are zero, so such a column -- ``37``
+    beside ``37.4``, ``0`` beside ``2.5`` -- is on the grid ``f`` too.  A
+    whole-valued column answers -1: G5.4 already reads it on the integers.
+    """
+    if integer_valued:
+        return -1
+    figures = grid_of(fraction_widths, integer_valued, numeric)
+    if figures > 0:
+        return figures
+    if len(fraction_widths) != 1:
+        return -1
+    for width in fraction_widths:
+        try:
+            figures = int(width)
+        except (TypeError, ValueError):
+            return -1
+        if figures <= 0 or fraction_widths[width] + point_free != numeric:
+            return -1
+        return figures
+    return -1
 
 
 def grid_of(fraction_widths, integer_valued, numeric):
@@ -5121,10 +5210,13 @@ def _numeric_content(column):
     # width reads its ladder on that grid; a whole-valued one already
     # reads it on the integers through G5.4.  The cap is read off the
     # mode pair, the count of different numbers and the ladder.
-    fractional = grid_of(column.get("fraction_widths", {}), integer_valued, numeric)
-    if integer_valued or fractional <= 0:
-        fractional = -1
-    cap = stratum_cap(column, ladder, numeric)
+    fractional = written_grid(
+        column.get("fraction_widths", {}),
+        integer_valued,
+        numeric,
+        sum(effective[style] for style in POINT_FREE_STYLES),
+    )
+    cap = stratum_cap(column, ladder, numeric, CASE_SMALL_CELL_FLOOR)
     pair = band_strata(
         negatives, zeros, positives, values_wanted, ladder, numeric,
         integer_valued, fractional, cap,
@@ -5171,6 +5263,7 @@ def _numeric_content(column):
         column["numeric_styles"],
         zeros,
         positives,
+        fractional,
     )
     starts = restarted(sizes)
     words = iter(column["_content_words"])

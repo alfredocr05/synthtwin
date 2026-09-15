@@ -280,7 +280,7 @@ def test_the_reach_step_is_what_carries_the_battery(
     monkeypatch.setattr(  # type: ignore[attr-defined]
         generation,
         "_reach_sizes",
-        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+        lambda sizes, bands, rungs, whole, numbers, demand, plus, grid: sizes,
     )
     missed = 0
     for _name, document, loaded in cases:

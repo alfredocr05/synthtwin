@@ -768,6 +768,10 @@ class _ColumnPlan:
     # first published `group-1` as absent, and ten obligations missed
     # on a twin whose own report said nothing about it.
     all_holes: "tuple[str, ...]" = ()
+    # THE DESCRIPTION'S PUBLICATION FLOOR, which G5.2a's cap reads where
+    # a mode pair is withheld (landing 2b.1, repair): every layout and
+    # every window this plan's column is built or checked with reads it.
+    small_cell_floor: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4452,6 +4456,7 @@ def _stratum_cap(
     facts: contract.NumericFacts,
     rungs: "tuple[float, ...] | None",
     numbers: int,
+    floor: int,
 ) -> int:
     """The most cells one stratum may hold (G5.2a), or nought for no bound.
 
@@ -4468,10 +4473,29 @@ def _stratum_cap(
     the longest run of equal rungs, `c <= floor((r + 1) * (K - 1) / 100)
     + 2`.
 
+    AND THE PUBLICATION FLOOR BOUNDS IT TOO (landing 2b.1, repair). The
+    profiler withholds the pair exactly where the commonest number is
+    held by fewer cells than `small_cell_floor` (or by one), so a
+    withheld pair under a floor `f` of 3 or more proves no number was
+    held by more than `f - 1` cells. Below 3 it proves only that every
+    number is different, which the count bound already says. And the
+    floor is read as that proof ONLY where the description does not
+    itself prove a number held by `f` cells or more: the fewest cells
+    the commonest number can hold, `ceil(K / n_distinct_values)`, and the
+    fewest a run of `r` equal rungs forces onto one number,
+    `floor((r - 1) * (K - 1) / 100)` -- the rungs at the run's two ends
+    stand at type-7 positions `(K - 1) r / 100` apart and every sorted
+    position strictly inside them reads that number. A description one
+    of those two contradicts was not withheld by the floor. Measured
+    before this: 4,000 amounts described under a floor of
+    11 came back holding one number 45 times, where the withheld pair
+    proved the real column held none more than 10 times.
+
     Guarantees: accepts a numeric block, its hundred-and-one-rung
-    ladder or None, and its numeric cell count; returns a whole number,
-    nought where nothing bounds a stratum. Determinism: a fixed
-    function of the three. Raises nothing. No I/O of any kind.
+    ladder or None, its numeric cell count and the description's
+    `small_cell_floor`; returns a whole number, nought where nothing
+    bounds a stratum. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
     """
     if facts.mode is not None and facts.mode_count > 0:
         return facts.mode_count
@@ -4481,20 +4505,48 @@ def _stratum_cap(
     counted = 0
     if facts.n_distinct_values > 0:
         counted = max(1, numbers - facts.n_distinct_values + 1)
-    if rungs is None or numbers < 2:
-        return counted
-    longest = 1
-    run = 1
-    for place in range(1, len(rungs)):
-        if rungs[place] == rungs[place - 1]:
-            run = run + 1
-            longest = max(longest, run)
-        else:
-            run = 1
-    ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
-    if counted > 0:
-        return min(counted, ladder)
-    return ladder
+    bound = counted
+    longest = 0
+    if rungs is not None and numbers >= 2:
+        longest = 1
+        run = 1
+        for place in range(1, len(rungs)):
+            if rungs[place] == rungs[place - 1]:
+                run = run + 1
+                longest = max(longest, run)
+            else:
+                run = 1
+        ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
+        bound = min(counted, ladder) if counted > 0 else ladder
+    return _floored_cap(
+        bound, floor, numbers, facts.n_distinct_values, longest
+    )
+
+
+def _floored_cap(
+    bound: int, floor: int, numbers: int, distinct: int, longest: int
+) -> int:
+    """``bound`` lowered to what a withheld mode pair proves (G5.2a).
+
+    Where the floor is 3 or more and the description proves no number
+    held by `floor` cells -- neither `ceil(numbers / distinct)` nor
+    `floor((longest - 1) * (numbers - 1) / 100)` reaches it -- no number
+    of the column was held by more than `floor - 1` cells. Otherwise
+    ``bound`` itself, nought meaning none.
+    """
+    if floor < 3:
+        return bound
+    proven = 0
+    if longest > 1:
+        proven = ((longest - 1) * (numbers - 1)) // 100
+    if distinct > 0:
+        proven = max(proven, -((-numbers) // distinct))
+    if proven >= floor:
+        return bound
+    held = floor - 1
+    if bound <= 0:
+        return held
+    return min(bound, held)
 
 
 def _next_room(
@@ -4744,6 +4796,65 @@ def _band_sizes(
     return sizes, bands
 
 
+def _next_spare(
+    pointer: "list[int]", moved: "list[int]", givers: "list[int]", start: int
+) -> int:
+    """The nearest giver from ``start`` along ``pointer`` with a cell to spare.
+
+    A giver keeps at least one cell, and a giver down to one stays there,
+    so the links are shortened as the walk passes them and the whole
+    step stays linear in the givers (the pointer-jumping `_next_room`
+    uses). Returns a position in ``givers``, or one outside it.
+    """
+    walk = start
+    trail: "list[int]" = []
+    while 0 <= walk < len(givers) and moved[givers[walk]] <= 1:
+        trail += [walk]
+        walk = pointer[walk]
+    for seen in trail:
+        pointer[seen] = walk
+    return walk
+
+
+def _given_nearest(
+    moved: "list[int]", takers: "list[int]", givers: "list[int]", take: int
+) -> None:
+    """Move ``take`` cells into ``takers``, each from the NEAREST givers.
+
+    The takers' shares are G5.2's even split of ``take`` in rank order,
+    exactly as the step that takes from the lowest strata shares them.
+    Each taker then takes its share from the giver nearest it by stratum
+    order, the lower where two are equally near, every giver keeping at
+    least one cell; ``take`` never exceeds what the givers can spare, so
+    every share is met. Both lists are ascending strata of one band.
+    Mutates ``moved`` only. Raises nothing. No I/O of any kind.
+    """
+    count = len(takers)
+    down = [place - 1 for place in range(len(givers))]
+    up = [place + 1 for place in range(len(givers))]
+    split = 0
+    for step in range(count):
+        taker = takers[step]
+        owed = (step + 1) * take // count - step * take // count
+        while split < len(givers) and givers[split] < taker:
+            split = split + 1
+        while owed > 0:
+            low = _next_spare(down, moved, givers, split - 1)
+            high = _next_spare(up, moved, givers, split)
+            if low < 0 and high >= len(givers):
+                break
+            chosen = high
+            if low >= 0 and (
+                high >= len(givers)
+                or taker - givers[low] <= givers[high] - taker
+            ):
+                chosen = low
+            given = min(moved[givers[chosen]] - 1, owed)
+            moved[givers[chosen]] = moved[givers[chosen]] - given
+            moved[taker] = moved[taker] + given
+            owed = owed - given
+
+
 def _carrier_flags(
     sizes: "list[int]",
     bands: "list[str]",
@@ -4890,6 +5001,7 @@ def _carrier_sizes(
     flags: "list[bool]",
     demand: int,
     plus_demand: int,
+    grid: int,
 ) -> "list[int]":
     """Divide the cells so the published point-free counts can be WRITTEN.
 
@@ -4955,6 +5067,18 @@ def _carrier_sizes(
             if take <= 0:
                 continue
             short = short - take
+            if grid > 0:
+                # ON A COLUMN ON A WRITTEN GRID THE CELLS COME FROM THE
+                # NEAREST STRATA (landing 2b.1). G5.2a lined every
+                # stratum up with the numbers the grid holds; taking the
+                # cells from the lowest strata upward slid every boundary
+                # between them and the takers, and each stratum in that
+                # stretch then straddled two written numbers. Measured on
+                # 4,000 temperatures written `37` beside `37.4`: 34 cells
+                # taken from the bottom left four strata on `35.3` and
+                # the twin four numbers short.
+                _given_nearest(moved, takers, givers, take)
+                continue
             left = take
             for place in givers:
                 step = min(moved[place] - 1, left)
@@ -5444,6 +5568,7 @@ def _reach_sizes(
     numbers: int,
     demand: int,
     plus_demand: int,
+    grid: int,
 ) -> "list[int]":
     """Divide the cells so the point-free counts can REALLY be written.
 
@@ -5483,7 +5608,7 @@ def _reach_sizes(
         if _reach_met(moved, bands, flags, demand, plus_demand):
             break
         stepped = _carrier_sizes(
-            moved, bands, flags, demand, plus_demand
+            moved, bands, flags, demand, plus_demand, grid
         )
         if stepped != moved:
             moved = stepped
@@ -5501,6 +5626,7 @@ def _numeric_layout(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     grain_values: "int | None",
+    floor: int,
 ) -> "tuple[_NumericLayout, list[Deviation], int]":
     """How a column of numbers divides, and what it costs (G5.2, G4.3).
 
@@ -5573,8 +5699,8 @@ def _numeric_layout(
     # THE GRID AND THE CAP OF G5.2a (landing 2b.1): the one fraction
     # width every numeric cell is written at, if there is one, and the
     # most cells one stratum may hold.
-    grid = _pinned_fraction(column, facts)
-    ceiling = _stratum_cap(facts, _merged_rungs(facts), numbers)
+    grid = _written_grid(column, facts)
+    ceiling = _stratum_cap(facts, _merged_rungs(facts), numbers, floor)
     values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
@@ -5750,6 +5876,7 @@ def _numeric_layout(
             flags,
             demand,
             min(quotas["leading_plus"], zeros + positives),
+            grid,
         )
         # AND THEN THE SAME QUESTION, ASKED OF THE LADDER (review item
         # P2-C5-F3). The two steps above count a stratum as a carrier
@@ -5769,6 +5896,7 @@ def _numeric_layout(
             numbers,
             demand,
             min(quotas["leading_plus"], zeros + positives),
+            grid,
         )
     starts = _starts_of(sizes)
     total = len(sizes)
@@ -7229,7 +7357,10 @@ def _joined_content(
     for place in range(facts.n_parts):
         view = _part_view(column, place)
         layout, layout_notes, part_content = _numeric_layout(
-            view, facts.parts[place], facts.parts[place].n_distinct_values
+            view,
+            facts.parts[place],
+            facts.parts[place].n_distinct_values,
+            plan.small_cell_floor,
         )
         part_words: "list[int]" = []
         step = 0
@@ -7400,7 +7531,10 @@ def _affixed_content(
         step_of_wrapper = -1
         for pair_view in _wrappers_of(facts, column):
             wrapper_layout, layout_notes, wrapper_content = _numeric_layout(
-                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+                pair_view[1],
+                pair_view[2],
+                pair_view[2].n_distinct_values,
+                plan.small_cell_floor,
             )
             mine: "list[int]" = []
             step = 0
@@ -8365,7 +8499,7 @@ def _stratum_values(
     notes: list[Deviation] = []
     taken = 0
     values: list[float] = []
-    grid = -1 if facts.integer_valued else _pinned_fraction(column, facts)
+    grid = -1 if facts.integer_valued else _written_grid(column, facts)
     for place in range(total):
         band = layout.bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
@@ -8606,6 +8740,50 @@ def _held_later(
         if share[0] <= candidate <= share[1]:
             return True
     return False
+
+
+def _written_grid(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The grid G5.2a step 1 and G5.3 read a ladder on, or -1 (landing 2b.1).
+
+    `_pinned_fraction`'s one width, and ALSO the one width `f > 0` of a
+    column whose other numeric cells are all written with no point: a
+    census naming that width alone, where its count and the published
+    point-free style count (`plain`, `leading_zero`, `leading_plus` and
+    the withheld share G6.4 writes plain) add up to every numeric cell.
+    That is how a spreadsheet writes tenths -- `37` beside `37.4` -- and
+    a zero-inflated column writes `0` beside `2.5`. Every number of such
+    a column is a point of the grid `f`, a point-free cell being the
+    point whose last `f` figures are zero, so its strata line up with
+    that grid exactly as a column written at one width does. Read as no
+    grid, the strata did not: a 4,000-row column of temperatures written
+    this way held one number 440 times against a `mode_count` of 308,
+    and a 2,000-row column of weights wrote 175 cells at full binary
+    precision.
+
+    Guarantees: accepts a column and its numeric block; returns a width
+    of one or more, or -1. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
+    """
+    pinned = _pinned_fraction(column, facts)
+    if pinned > 0 or facts.integer_valued:
+        return pinned if pinned > 0 else -1
+    census = facts.fraction_widths
+    if len(census) != 1:
+        return -1
+    for figures in census:
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        if int(figures) <= 0:
+            return -1
+        if census[figures] + _whole_demand(facts) != column.n_numeric:
+            return -1
+        return int(figures)
+    return -1
 
 
 def _pinned_fraction(
@@ -18507,7 +18685,13 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             profile.settings.small_cell_floor,
             profile.settings.long_tail_minimum_level,
         )
-        plan = _plan_column(column, profile.n_rows, everywhere, line)
+        plan = _plan_column(
+            column,
+            profile.n_rows,
+            profile.settings.small_cell_floor,
+            everywhere,
+            line,
+        )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
@@ -18516,6 +18700,7 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
 def _plan_column(
     column: contract.ColumnBlock,
     n_rows: int,
+    floor: int,
     all_holes: "tuple[str, ...]" = (),
     long_tail_line: int = 0,
 ) -> "_ColumnPlan":
@@ -18540,6 +18725,7 @@ def _plan_column(
                 _part_view(column, place),
                 facts.parts[place],
                 facts.parts[place].n_distinct_values,
+                floor,
             )
             notes = notes + each_notes
             content = content + each_content
@@ -18559,6 +18745,7 @@ def _plan_column(
             numbers_view,
             facts.numbers,
             facts.numbers.n_distinct_values,
+            floor,
         )
     elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
@@ -18572,7 +18759,7 @@ def _plan_column(
         # draw.
         for pair_view in _wrappers_of(facts, column):
             _each, each_notes, each_content = _numeric_layout(
-                pair_view[1], pair_view[2], pair_view[2].n_distinct_values
+                pair_view[1], pair_view[2], pair_view[2].n_distinct_values, floor
             )
             content = content + each_content
             if not facts.affix_variants:
@@ -18591,7 +18778,7 @@ def _plan_column(
             # `affix_variants[0].n_core_distinct_folded`, which is the
             # one it does.
     elif isinstance(facts, contract.NumericFacts):
-        layout, notes, content = _numeric_layout(column, facts, None)
+        layout, notes, content = _numeric_layout(column, facts, None, floor)
     elif isinstance(facts, contract.ClockFacts):
         _clock_room(column, facts)
         # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
@@ -18628,6 +18815,7 @@ def _plan_column(
     return _ColumnPlan(
         column=column,
         all_holes=all_holes,
+        small_cell_floor=floor,
         content_words=content,
         placement_words=placement,
         layout=layout,
@@ -21152,7 +21340,7 @@ def _numeric_window(
 
 
 def _window_stratum(
-    column: contract.ColumnBlock, facts: contract.NumericFacts
+    column: contract.ColumnBlock, facts: contract.NumericFacts, floor: int
 ) -> int:
     """The widest stratum the rung and moment windows read (G5.6, G12.2).
 
@@ -21169,7 +21357,7 @@ def _window_stratum(
     any kind.
     """
     numbers = column.n_numeric
-    cap = _stratum_cap(facts, _merged_rungs(facts), numbers)
+    cap = _stratum_cap(facts, _merged_rungs(facts), numbers, floor)
     if cap > 0:
         return cap
     return max(numbers, 1)
@@ -21568,7 +21756,10 @@ def _joined_approximations(
     for place in range(facts.n_parts):
         view = _part_view(column, place)
         layout, _notes, _content = _numeric_layout(
-            view, facts.parts[place], facts.parts[place].n_distinct_values
+            view,
+            facts.parts[place],
+            facts.parts[place].n_distinct_values,
+            plan.small_cell_floor,
         )
         part_plan = dataclasses.replace(plan, column=view, layout=layout)
         mine = _joined_position_numbers(written, facts, place)
@@ -21878,7 +22069,7 @@ def _numeric_approximations(
     # G5.2a's cap is the one both can read, and the layout holds no
     # stratum above it wherever G5.2b's carrier and reach steps moved no
     # cell.
-    widest = _window_stratum(column, facts)
+    widest = _window_stratum(column, facts, plan.small_cell_floor)
     # ...AND WHERE THOSE STEPS DID MOVE A STRATUM PAST THE CAP, THIS
     # REPORT'S BOUND STILL HOLDS OF WHAT WAS BUILT (review items
     # P2-C4-F3 and P2-C5-F3). The published style count wins over the
@@ -22909,7 +23100,7 @@ def _approximations(
             view = pair_view[1]
             numbers = pair_view[2]
             layout, _notes, _content = _numeric_layout(
-                view, numbers, numbers.n_distinct_values
+                view, numbers, numbers.n_distinct_values, plan.small_cell_floor
             )
             mine = dataclasses.replace(plan, column=view, layout=layout)
             for record in _numeric_approximations(

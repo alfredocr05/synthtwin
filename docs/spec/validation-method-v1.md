@@ -75,7 +75,9 @@ consumed anywhere in the validate path.
 **The windows of generation method G12.2 and G12.3 are drawn from the
 description alone** (landing 2b.1, part 2). The widest stratum they read
 is G5.6's `g_max` — G5.2a's cap, read off the block the numbers are
-described by — and nothing here rebuilds the generator's layout or
+described by and, where that block's mode pair is withheld, off the
+description's own `small_cell_floor` (landing 2b.1, repair) — and
+nothing here rebuilds the generator's layout or
 estimates it: the two estimates that stood here, an even split and a
 longest plateau, were each narrower than the strata the construction
 built, and accused twins it had built. The twin's own report reads the

@@ -23,6 +23,7 @@ follow one operation order, stated in G12.2, G12.3 and G12.3a.
 Every table is built by seeded neutral code at runtime (plan D13).
 """
 
+import dataclasses
 import importlib.util
 import math
 import pathlib
@@ -414,30 +415,39 @@ def _views(
     return [(column, facts, None)]
 
 
-def _agreement_columns(folder: pathlib.Path) -> "list[tuple[str, contract.ColumnBlock]]":
+def _agreement_columns(folder: pathlib.Path) -> "list[tuple[str, contract.ColumnBlock, int]]":
     draw = random.Random(2026)
-    built: "list[tuple[str, contract.ColumnBlock]]" = []
+    built: "list[tuple[str, contract.ColumnBlock, int]]" = []
     for name, shape in GATE:
         for rows in (500, 2000):
-            built += [(f"{name}-{rows}", _describe(folder, f"{name}-{rows}", shape(draw, rows)))]
+            built += [
+                (f"{name}-{rows}", _describe(folder, f"{name}-{rows}", shape(draw, rows)), 1)
+            ]
     readings = [
         (f"{value:.1f} H" if value > 11 else (f"{value:.1f} L" if value < 4 else f"{value:.1f}"))
         for value in [draw.gauss(7.5, 2.5) for _ in range(300)]
     ]
-    built += [("three_wrappers", _describe(folder, "three_wrappers", readings))]
+    built += [("three_wrappers", _describe(folder, "three_wrappers", readings), 1)]
     lab = [
         "NOT DETECTED" if draw.random() < 0.15 else "%.2f" % draw.lognormvariate(0, 0.5)
         for _ in range(2000)
     ]
-    built += [("numbers_and_a_label", _describe(folder, "numbers_and_a_label", lab))]
+    built += [("numbers_and_a_label", _describe(folder, "numbers_and_a_label", lab), 1)]
     pressure = random.Random(5)
     bp = [f"{pressure.randint(105, 145)}/{pressure.randint(65, 95)}" for _ in range(120)]
-    built += [("joined", _describe(folder, "joined", bp, floor=11, forced=["value"]))]
+    built += [("joined", _describe(folder, "joined", bp, floor=11, forced=["value"]), 11)]
     withheld = [str(draw.randint(1, 40)) for _ in range(60)]
-    built += [("withheld_mode", _describe(folder, "withheld_mode", withheld, floor=11))]
+    built += [("withheld_mode", _describe(folder, "withheld_mode", withheld, floor=11), 11)]
+    # A LARGE COLUMN WHOSE PAIR THE FLOOR WITHHOLDS (landing 2b.1, repair):
+    # 2,500 thousandths hold no number eleven times, so the pair is
+    # withheld and the floor, not the count or the ladder, is the cap.
+    thousandths = [f"{draw.random():.3f}" for _ in range(2500)]
+    built += [
+        ("withheld_by_the_floor", _describe(folder, "withheld_by_the_floor", thousandths, floor=11), 11)
+    ]
     signed = [f"{draw.gauss(0, 5):.1f}" for _ in range(2000)]
-    built += [("signed", _describe(folder, "signed", signed))]
-    built += [("witness", _describe(folder, "witness", WITNESS))]
+    built += [("signed", _describe(folder, "signed", signed), 1)]
+    built += [("witness", _describe(folder, "witness", WITNESS), 1)]
     return built
 
 
@@ -454,7 +464,8 @@ def test_the_three_writings_read_one_widest_stratum_off_every_view(
     oracle = _oracle()
     roles: "set[str]" = set()
     withheld = 0
-    for name, column in _agreement_columns(tmp_path):
+    floored = 0
+    for name, column, floor in _agreement_columns(tmp_path):
         roles.add(type(column.facts).__name__)
         for view, facts, _grain in _views(column):
             numbers = validation._numeric_cells(facts)
@@ -476,15 +487,23 @@ def test_the_three_writings_read_one_widest_stratum_off_every_view(
                 },
                 ladder,
                 numbers,
+                floor,
             )
             third = bound if bound > 0 else numbers
-            first = generation._window_stratum(view, facts)
-            second = validation._window_stratum(facts)
+            first = generation._window_stratum(view, facts, floor)
+            second = validation._window_stratum(facts, floor)
             assert first == second == third, (name, first, second, third)
             if facts.mode is None:
                 withheld += 1
+                # THE FLOOR BINDS HERE, and no number of the column was
+                # held by `floor` cells, which is what the pair's absence
+                # proves.
+                if validation._stratum_bound(facts, 1) > second:
+                    floored += 1
+                    assert second <= floor - 1, (name, second, floor)
     assert {"NumericFacts", "AffixedFacts", "JoinedFacts", "CompoundFacts"} <= roles
     assert withheld >= 1
+    assert floored >= 1, "no column here is capped by its publication floor"
 
 
 # The 12-row column the search found: seven cells of -29 and one of -28
@@ -503,7 +522,7 @@ def test_no_band_gets_fewer_strata_than_its_cells_need_under_the_cap(
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
     assert facts.mode_count == 7 and facts.n_negative == 8
-    layout, _notes, _content = generation._numeric_layout(column, facts, None)
+    layout, _notes, _content = generation._numeric_layout(column, facts, None, 1)
     assert max(layout.sizes) <= 7, layout.sizes
     negative = len([band for band in layout.bands if band == "negative"])
     positive = len([band for band in layout.bands if band == "positive"])
@@ -516,6 +535,7 @@ def test_no_band_gets_fewer_strata_than_its_cells_need_under_the_cap(
              "n_distinct_values": facts.n_distinct_values},
             ladder,
             12,
+            1,
         )
     ) == (negative, positive)
 
@@ -548,20 +568,21 @@ def test_no_stratum_stands_above_the_window_where_no_carrier_moves_a_cell(
                 cells += [f"{value:.1f}"]
             else:
                 cells += [f"{value:.2f}"]
-        column = _describe(tmp_path, f"t{trial}", cells, floor=draw.choice([1, 1, 5, 11]))
+        chosen = draw.choice([1, 1, 5, 11])
+        column = _describe(tmp_path, f"t{trial}", cells, floor=chosen)
         facts = column.facts
         if not isinstance(facts, contract.NumericFacts):
             continue
         if not facts.integer_valued and generation._whole_demand(facts) > 0:
             continue
-        layout, _notes, _content = generation._numeric_layout(column, facts, None)
-        widest = generation._window_stratum(column, facts)
+        layout, _notes, _content = generation._numeric_layout(column, facts, None, chosen)
+        widest = generation._window_stratum(column, facts, chosen)
         assert max(layout.sizes) <= widest, (trial, cells, layout.sizes, widest)
         checked += 1
     column = _describe(tmp_path, "witness", WITNESS)
     assert isinstance(column.facts, contract.NumericFacts)
-    layout, _notes, _content = generation._numeric_layout(column, column.facts, None)
-    assert max(layout.sizes) <= generation._window_stratum(column, column.facts)
+    layout, _notes, _content = generation._numeric_layout(column, column.facts, None, 1)
+    assert max(layout.sizes) <= generation._window_stratum(column, column.facts, 1)
     assert checked >= 100, checked
 
 
@@ -668,3 +689,134 @@ def test_a_withheld_style_share_widens_both_windows_alike(
             assert made[last] == (found.group(1), found.group(2)), check.subcheck
             seen += 1
     assert seen >= 10, seen
+
+
+# -- the written grid and the nearest giver (landing 2b.1, repair) ----------
+
+
+def _dropped_zero(text: str) -> str:
+    """A number as a spreadsheet writes it: `37.0` becomes `37`."""
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def test_the_generator_and_the_oracle_read_one_written_grid(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G5.2a step 1's grid, read by both writings off described columns.
+
+    A column of tenths, one of tenths written as a spreadsheet writes them
+    (`37` beside `37.4`), a zero-inflated one, a column of two widths, a
+    whole-number one and one whose point-free cells are too few to be the
+    rest of the column: the first three are on a grid of one figure and
+    the last three on none.
+    """
+    oracle = _oracle()
+    draw = random.Random(7)
+    shapes = {
+        "tenths": ([f"{draw.gauss(37, 0.5):.1f}" for _ in range(600)], 1),
+        "spreadsheet": ([_dropped_zero(f"{draw.gauss(37, 0.5):.1f}") for _ in range(600)], 1),
+        "zero_inflated": (
+            ["0" if draw.random() < 0.3 else f"{draw.lognormvariate(1, 0.6):.1f}" for _ in range(600)],
+            1,
+        ),
+        "two_widths": (
+            [_dropped_zero(f"{round(draw.lognormvariate(1.5, 0.6) * 4) / 4:.2f}") for _ in range(600)],
+            -1,
+        ),
+        "whole": ([str(int(draw.gauss(70, 9))) for _ in range(600)], -1),
+        "plus_signs": (
+            [(f"+{draw.randint(1, 9)}" if draw.random() < 0.2 else f"{draw.gauss(5, 2):.1f}") for _ in range(600)],
+            1,
+        ),
+    }
+    for name, (cells, expected) in shapes.items():
+        column = _describe(tmp_path, name, cells)
+        facts = column.facts
+        assert isinstance(facts, contract.NumericFacts), (name, type(facts))
+        mine = generation._written_grid(column, facts)
+        effective = oracle._effective_style_map(dict(facts.numeric_styles))
+        theirs = oracle.written_grid(
+            dict(facts.fraction_widths),
+            facts.integer_valued,
+            column.n_numeric,
+            sum(effective[style] for style in oracle.POINT_FREE_STYLES),
+        )
+        assert mine == theirs == expected, (name, mine, theirs, dict(facts.fraction_widths))
+
+
+def test_the_nearest_giver_is_one_rule_in_the_generator_and_the_oracle() -> None:
+    """G5.2's cell step on a written grid, generator against oracle.
+
+    Random bands of strata with random point-free demands. On a written
+    grid each taker takes its even share from the nearest givers, the
+    lower of two equally near; off a grid the cells still come from the
+    lowest strata upward, and both writings must agree on both.
+    """
+    oracle = _oracle()
+    draw = random.Random(20260916)
+    moved_near = 0
+    for trial in range(600):
+        count = draw.randint(3, 40)
+        sizes = [draw.choice([1, 1, 2, 3, 5, 8, 13, 40]) for _ in range(count)]
+        bands = ["positive"] * count
+        ladder = sorted(round(draw.uniform(0.1, 60.0), 1) for _ in range(101))
+        cells = sum(sizes)
+        plain = draw.randint(0, cells)
+        published = {"plain": plain, "decimal": cells - plain}
+        for grid in (-1, 1):
+            flags = generation._carrier_flags(sizes, bands, tuple(ladder), False)
+            mine = generation._carrier_sizes(list(sizes), bands, flags, plain, 0, grid)
+            theirs = oracle.carrier_split(
+                list(sizes), bands, ladder, False, published, 0, cells, grid
+            )
+            assert mine == theirs, (trial, grid, sizes, plain, mine, theirs)
+            if grid == 1 and mine != generation._carrier_sizes(
+                list(sizes), bands, flags, plain, 0, -1
+            ):
+                moved_near += 1
+    # Measured: the nearest order changes the answer on 25 of the 600.
+    assert moved_near >= 20, moved_near
+
+
+def test_a_withheld_pair_the_description_contradicts_is_not_read_as_the_floor(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The floor term of G5.2a's cap, and its two exceptions, in all three.
+
+    A withheld pair under a floor of 11 caps every stratum at 10. But a
+    description whose own ladder is flat, or whose count of different
+    numbers leaves the commonest holding 11 cells or more, proves a number
+    held that often, so the pair was not withheld by the floor and the term
+    stands aside. Both columns are described and then have their pair
+    withheld by hand, which is exactly the contradiction no profiler writes.
+    """
+    oracle = _oracle()
+    draw = random.Random(11)
+    free = [f"{draw.random():.3f}" for _ in range(900)]
+    flat = ["5"] * 60 + [str(value) for value in range(6, 12)]
+    few = [str(draw.randint(1, 30)) for _ in range(400)]
+    outcomes = {}
+    for name, cells in (("free", free), ("flat", flat), ("few", few)):
+        column = _describe(tmp_path, name, cells, floor=11)
+        facts = column.facts
+        assert isinstance(facts, contract.NumericFacts), name
+        facts = dataclasses.replace(facts, mode=None, mode_count=0)
+        numbers = validation._numeric_cells(facts)
+        rungs = generation._merged_rungs(facts)
+        assert rungs is not None, name
+        first = generation._stratum_cap(facts, rungs, numbers, 11)
+        second = validation._stratum_bound(facts, 11)
+        third = oracle.stratum_cap(
+            {"mode": None, "mode_count": 0, "n_distinct_values": facts.n_distinct_values},
+            list(rungs),
+            numbers,
+            11,
+        )
+        assert first == second == third, (name, first, second, third)
+        outcomes[name] = (first, generation._stratum_cap(facts, rungs, numbers, 1))
+    assert outcomes["free"][0] == 10, outcomes
+    # The flat ladder and the thirty-number count each prove a number held
+    # eleven times or more, so the floor changes nothing there.
+    assert outcomes["flat"][0] == outcomes["flat"][1], outcomes
+    assert outcomes["few"][0] == outcomes["few"][1], outcomes
+    assert outcomes["flat"][1] > 10 and outcomes["few"][1] > 10, outcomes
