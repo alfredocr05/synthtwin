@@ -1250,9 +1250,9 @@ exactly one of six **styles**, and in no other form:
 
 **A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table. Where `group_separator` is `,` or `.`, every `plain` cell, and every `leading_plus` or `decimal` cell at leading-zero order zero, is grouped with a comma, so a column whose proving cells were the majority is written wholly grouped; a `leading_zero` cell, an exponent form and a cell at a raised order are never grouped (the stage 2 audit, 2026-09-14). A column declared to write its decimals with a comma publishes `.`: it is grouped with a comma like any other and then has its points and commas exchanged, so `42,037.34` is written `42.037,34`.
 
-**Never accounting parentheses**, which are reserved for the
-contradictory-notation stand-in of G10.3 and would otherwise change a
-cell's class.
+**Every mark a column may publish, and every notation of a negative, and a plus on a decimal** (landing 2b.2, 2026-09-15; plan P4-D40). A column publishing a space, an apostrophe, U+2019, U+00A0 or U+202F is grouped with that mark itself, under the same rule of forms and order; no exchange touches it, so a declared decimal-comma column grouped with a space is written `1 234,56`. Where `decimal_plus` names a count, the cells allocated `decimal` whose value is not negative are taken in cell order, and of E such cells the k-th, counting from nought, carries a plus in front exactly where `floor((k+1)·P/E)` exceeds `floor(k·P/E)`, P being the lesser of the named count and E; a pooled count names no form and adds no plus; the plus stands in front of any zeros the cell spends. Where E is below `decimal_plus` every eligible cell carries one and the report names a deviation of `decimal_plus`. Every negative cell is then written in the column's `negative_form`: the figures after the hyphen-minus, zeros and mark included, inside brackets, after the minus sign U+2212, or followed by a hyphen-minus -- the last only where those figures carry a point or a mark, because a bare `12-` is not read as a number, so such a cell keeps its hyphen-minus in front. So `(001234.5)` and `(1,234.5)` are written and `(0,001.00)` never is.
+
+**Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
 **Which decision governs which question** (P2-C1-F8). Decision 8 fixed
 the family the twin may INVENT from — the leading-zero forms, which have
@@ -5983,7 +5983,10 @@ numbers, the cores each wrapper of an affixed column wears, or the
 numeric half of a column of numbers and labels
 (`group_separator`, `affix_variants[<n>].numbers.group_separator`,
 `numbers.group_separator`, G6.1; the stage 2 closure and confirmation
-reviews, 2026-09-14 and 2026-09-15); a column whose twin values come to
+reviews, 2026-09-14 and 2026-09-15); a column whose twin put fewer values
+that are not negative in the decimal form than the description counts
+signed decimals, so fewer of its cells carry a plus (`decimal_plus`,
+G6.1; landing 2b.2); a column whose twin values come to
 two or fewer once case is ignored where the description counts three
 or more, so that describing the twin again reads it as a column of two
 values or one (`n_distinct_folded`; the stage 2 confirmation review); a
@@ -6030,6 +6033,7 @@ gap keys `empty_bins` and `empty_edges`.
 * `all_whole_numbers`
 * `datetime_separators`
 * `datetimes_read_at`
+* `decimal_plus`
 * `earliest`
 * `empty_bins`
 * `empty_edges`
@@ -6970,9 +6974,10 @@ added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
 (residual R-P4-17, now closed), and one for the second spelling family
 of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68), and
 two for the mark between a moment's day and its clock and the day unit
-of a column at midnight (plan P4-D39).
-**All twenty-three are required.** The
-first nine are the first committed file and the last fourteen the second
+of a column at midnight (plan P4-D39), and three for the spellings of a
+number landing 2b.2 publishes (plan P4-D40).
+**All twenty-six are required.** The
+first nine are the first committed file and the last seventeen the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -7003,6 +7008,9 @@ case passed, which is the failure the count exists to prevent:
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 | `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
+| `grouped_charges` | G6.1's mark at leading-zero order nought only, on a column publishing `,`, beside `decimal_plus` of eleven spread one in every two over twenty-two decimal cells; two cells spend a zero and carry the plus in front of it and no mark |
+| `grouped_decimal_comma` | P4-D26's exchange on a declared column publishing `.`: `42.037,34`, one spent cell `042037,34` with no mark, and two absent cells the exchange does not touch |
+| `spaced_brackets` | a space between thousands and the `brackets` notation: `(12 345.5)`, and a spent cell `(012345.5)` whose brackets close around the zeros with no mark and no sign |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written with that commonest mark |
 
 Each case is small enough to read by hand — at most a few dozen cells —

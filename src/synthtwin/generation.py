@@ -2375,19 +2375,58 @@ def _with_zeros(spelling: str, order: int) -> str:
 def _grouping_mark(facts: contract.NumericFacts) -> str:
     """The mark a cell is grouped with BEFORE any decimal-comma swap.
 
-    A column's published mark is `,` or, under a declared decimal comma,
-    `.`. Cells are written with a point and grouped with a comma, and a
-    decimal-comma column then has the two exchanged by
-    `_spelled_with_a_decimal_comma`, so both published marks group with a
-    comma here.
+    A column's published mark is `,`, a mark of the other five of
+    `parsing.GROUP_MARKS`, or, under a declared decimal comma, `.`. Cells
+    are written with a point and grouped with a comma, and a
+    decimal-comma column then has the comma and the point exchanged by
+    `_spelled_with_a_decimal_comma`, so both of those published marks
+    group with a comma here. The other five are neither decimal mark and
+    no exchange touches them, so a cell is grouped with the published
+    mark itself (landing 2b.2): `2 198.92`, and `2 198,92` once a
+    declared column is exchanged.
 
-    Guarantees: accepts one numeric block; returns "," or "". No I/O.
+    Guarantees: accepts one numeric block; returns "" or one mark of
+    `parsing.GROUP_MARKS`. No I/O.
     """
     if facts.group_separator == "," or facts.group_separator == ".":
         return ","
-    return ""
+    return facts.group_separator
 
 def _styled_number(
+    value: float,
+    style: str,
+    order: int,
+    whole_column: bool,
+    width: int = -1,
+    pad: int = -1,
+    mark: str = "",
+    negative: str = parsing.NEGATIVE_MINUS,
+    plus: bool = False,
+) -> str:
+    """One value in one style, with its sign in the column's notation.
+
+    `_styled_base` writes the style with a hyphen-minus in front of a
+    negative value. Two published facts then finish the text (landing
+    2b.2): a `decimal` cell the plus allocation chose for a non-negative
+    value takes a leading plus -- in front of any zeros the cell spent,
+    which is where `_with_zeros` puts every sign -- and a negative value
+    is written in ``negative``, the column's `negative_form`, by
+    `parsing.with_negative_notation`. Brackets therefore close around the
+    zeros and the mark alike, `(001234.5)` and `(1,234.5)`, and never
+    around a sign: a raised cell carries no mark (G6.5), so `(0,001.00)`
+    is never written, and a written bracket is never the
+    contradictory-notation stand-in `(-5)`.
+
+    Guarantees: as `_styled_base`, and the notation and the plus change
+    only the sign a cell wears, never the number it reads back as.
+    """
+    text = _styled_base(value, style, order, whole_column, width, pad, mark)
+    if plus and style == "decimal" and text[:1] != "-" and text[:1] != "+":
+        text = "+" + text
+    return parsing.with_negative_notation(text, negative)
+
+
+def _styled_base(
     value: float,
     style: str,
     order: int,
@@ -2420,9 +2459,13 @@ def _styled_number(
     record number corrupts a key. NOT either exponent form: the mark
     would sit inside a mantissa that never reaches four whole figures.
 
-    Accounting parentheses are still never written, which is a separate
-    rule: they are kept for the contradictory-notation stand-in and
-    would otherwise move a cell into another class.
+    Accounting parentheses are not written HERE: a negative value leaves
+    this function with a hyphen-minus in front, and `_styled_number`
+    writes it in the column's published notation, brackets included
+    (landing 2b.2). The rule this sentence used to state -- brackets are
+    never written, because they are kept for the contradictory-notation
+    stand-in -- conflated two constructions: a written bracket never
+    holds a sign, and the stand-in always does.
     """
     canonical = _canonical_number(value, whole_column)
     # NOT INTO ZEROS THIS CELL SPENT. Where a column needs more distinct
@@ -11220,6 +11263,7 @@ def _number_cells(
     pads = _pad_places(
         facts.pad_widths, styles, holds, facts.integer_valued
     )
+    plussed, plus_notes = _plus_places(column, facts, styles, holds)
     base: list[str] = []
     for index in range(len(holds)):
         base += [
@@ -11231,6 +11275,8 @@ def _number_cells(
                 widths[index],
                 pads[index],
                 _grouping_mark(facts),
+                facts.negative_form,
+                plussed[index],
             )
         ]
     # HOW MANY IDENTITIES THE COLUMN IS SHORT BEFORE ANY ZERO IS SPENT.
@@ -11300,6 +11346,8 @@ def _number_cells(
                     widths[index],
                     pads[index],
                     _grouping_mark(facts),
+                    facts.negative_form,
+                    plussed[index],
                 )
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
@@ -11315,8 +11363,71 @@ def _number_cells(
     # published map is missed with the bookkeeping still balanced.
     # `_style_notes` recounts every form from the finished text instead,
     # which catches that case and this one, and reporting both would
-    # name the same fact twice.
-    return cells, []
+    # name the same fact twice. The plus allocation's own shortfall is
+    # not a form count and is named where it is decided.
+    return cells, plus_notes
+
+
+def _plus_places(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+) -> "tuple[list[bool], list[Deviation]]":
+    """Which `decimal` cells carry a leading plus, spread evenly (landing 2b.2).
+
+    `decimal_plus` counts the real column's cells written with a point
+    and a plus. Only a cell styled `decimal` whose value is not negative
+    can wear one, and those cells stand in stratum order -- negatives,
+    then zero, then positives, each ascending -- so taking them from the
+    first upward would put every plus on the smallest values and invent a
+    link between a value's size and its sign. The eligible cells are
+    walked in order instead and the k-th of E takes a plus exactly where
+    `((k + 1) * count) // E` passes `(k * count) // E`, which spreads
+    `count` of them evenly across the values and needs no word.
+
+    WHERE FEWER CELLS ARE ELIGIBLE THAN THE COUNT -- the twin's ladder
+    put fewer non-negative values in the form than the real column had --
+    every eligible cell takes a plus and the report names the shortfall
+    as a deviation of `decimal_plus`.
+
+    Guarantees: accepts the column, its numeric block, one style per cell
+    and one value per cell; returns one flag per cell and at most one
+    deviation. Determinism: a function of those inputs. Raises nothing.
+    No I/O of any kind.
+    """
+    flags = [False] * len(holds)
+    # THE NAMED COUNT ONLY. A pooled count names no form, so the cells it
+    # counts are written as their own values are, exactly as the pooled
+    # remainder of the forms map is.
+    wanted = 0
+    if "+" in facts.decimal_plus:
+        wanted = facts.decimal_plus["+"]
+    if wanted <= 0:
+        return flags, []
+    eligible: "list[int]" = []
+    for index in range(len(holds)):
+        if styles[index] == "decimal" and holds[index] >= 0.0:
+            eligible += [index]
+    total = len(eligible)
+    placed = min(wanted, total)
+    for step in range(total):
+        if ((step + 1) * placed) // total > (step * placed) // total:
+            flags[eligible[step]] = True
+    if placed >= wanted:
+        return flags, []
+    return flags, [
+        _deviation(
+            column.name,
+            "decimal_plus",
+            f"{wanted}",
+            f"{placed}",
+            "The twin writes a plus on its numbers written with a point, "
+            "but its published ladder put fewer values that are not "
+            "negative in that form than the description counts plus "
+            "signs, so fewer of its cells carry one.",
+        )
+    ]
 
 
 # -- columns of dates and times (method G7) ---------------------------
@@ -12190,7 +12301,7 @@ def _grouping_block_notes(
     """One numeric block's grouping recount, named with the bare key."""
     if block.group_separator == "":
         return []
-    if taxonomy.grouping_proven(cells, floor):
+    if taxonomy.grouping_proven(cells, floor, _grouping_mark(block)):
         return []
     return [
         _deviation(

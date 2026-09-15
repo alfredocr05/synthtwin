@@ -704,6 +704,7 @@
         "9.706430188284653e-01"
       ],
       "column": {
+        "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
@@ -755,6 +756,7 @@
         "n_used_in_statistics": 25,
         "n_zero": 0,
         "name": "column_1",
+        "negative_form": "minus",
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -2243,6 +2245,7 @@
         "0"
       ],
       "column": {
+        "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
@@ -2295,6 +2298,7 @@
         "n_used_in_statistics": 20,
         "n_zero": 4,
         "name": "column_1",
+        "negative_form": "minus",
         "numeric_share": {
           "decimal": "1",
           "exact": "1",

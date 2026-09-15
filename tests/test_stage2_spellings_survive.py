@@ -4,9 +4,9 @@ WHAT THIS FILE PINS. Three spellings the twin used to change, each of
 which made a researcher's numbers wrong with NO ERROR RAISED. They were
 written first, red, and the repairs followed them: the thousands comma
 on 2026-09-14 (plan P4-D38), and the moment's own separator and the
-date held at midnight on the same day (plan P4-D39). What is still
-carried stands at the end of the file as a strict expected failure: a
-column grouped with a space or an apostrophe.
+date held at midnight on the same day (plan P4-D39). A column grouped
+with a space or an apostrophe stood at the end of the file as a strict
+expected failure until landing 2b.2 read it (plan P4-D40).
 
 **1. A THOUSANDS SEPARATOR.** A charge written `$2,198.92` comes back
 from the twin as `$2198.92`. A researcher develops on the twin, never
@@ -53,8 +53,6 @@ import io
 import pathlib
 import random
 import sys
-
-import pytest
 
 from tests import fixtures
 
@@ -284,11 +282,10 @@ def test_a_moment_written_with_a_t_keeps_its_t(tmp_path: pathlib.Path) -> None:
     assert all(row[0][10] == "T" for row in rows[1:])
 
 
-@pytest.mark.xfail(
-    reason="carried: a column grouped with a space or an apostrophe is "
-    "read as free text, so its twin writes stand-in text, not numbers",
-    strict=True,
-)
+# THE STRICT EXPECTED FAILURE THAT STOOD HERE IS GONE (landing 2b.2,
+# 2026-09-15): a space, an apostrophe and the other marks of
+# `parsing.GROUP_MARKS` are read as grouping, and the column is described
+# as numbers. The landing's own gate is tests/test_landing_2b2_number_spellings.py.
 def test_a_number_grouped_with_a_space_is_read_as_a_number(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -308,7 +305,9 @@ def test_a_number_grouped_with_a_space_is_read_as_a_number(
     described = json.loads(
         (tmp_path / "spaced-profile.json").read_text(encoding="utf-8")
     )
-    assert described["columns"][0]["role"] in ("continuous", "count")
+    column = described["columns"][0]
+    assert column["role"] in ("continuous", "count")
+    assert column["group_separator"] == " "
 
 
 def test_a_spelling_declared_absent_is_never_written_as_a_moment(

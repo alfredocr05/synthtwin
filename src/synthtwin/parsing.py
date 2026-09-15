@@ -652,14 +652,148 @@ def _mantissa_has_nonzero_digit(text: str) -> bool:
     return False
 
 
+# THE MARKS A CELL MAY WRITE BETWEEN ITS THOUSANDS, as the file spells
+# them (landing 2b.2, 2026-09-15). The comma was the only one until this
+# landing, and a charge written `2 198.92`, `2'198.92` or with a
+# no-break space between its groups was read as free text: the column's
+# numbers vanished from the description and the twin wrote stand-ins
+# where they stood. The right single quotation mark is here because
+# typographic exports write `1\u2019234` where a keyboard writes
+# `1'234`; the two thin spaces because a word processor puts them where
+# a person typed a space.
+#
+# A POINT IS NOT ON THIS LIST, and that is not an omission: a cell
+# written `12.345` is read with the point as its decimal point, and a
+# point between thousands is read only on a column declared
+# `--decimal-comma`, whose cells are translated before any rule reads
+# them. The asking stage names the column where the reading could be
+# the other one (`asking.why_worth_asking`).
+#
+# THE GROUPS ARE THREE FIGURES EACH, after a first group of one to
+# three, and ONE KIND OF MARK stands in a cell. That is what keeps a
+# postcode `123 45`, a telephone number `01 23 45 67 89` and a cell
+# mixing two marks out of the numbers. It also keeps out the Indian
+# grouping `12,34,567`, whose later groups are two figures: such a
+# column is read as text, and that is a stated limit rather than an
+# oversight.
+#
+# A FIRST GROUP MAY BEGIN WITH A ZERO, for every mark alike, because the
+# comma always allowed it (`012,345` has read as 12345 since Phase 1).
+# Such a cell is written in the padded form and a padded form is never
+# grouped, so it withholds the mark from its column.
+GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f")
+
+# EVERY MARK A DESCRIPTION MAY PUBLISH BETWEEN THOUSANDS: none, the six
+# above, and the point a declared decimal comma writes (contract GS1).
+PUBLISHED_GROUP_MARKS = ("", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f")
+
+# EACH PUBLISHED MARK IN THE WORDS A PAGE USES FOR IT, because four of
+# them cannot be seen when printed. One list, read by the summary and by
+# the quality report alike, so the two name a mark one way.
+GROUP_MARK_WORDS = (
+    ("", "no mark"),
+    (",", "a comma"),
+    (".", "a point"),
+    (" ", "a space"),
+    ("'", "an apostrophe"),
+    ("\u2019", "a right single quotation mark"),
+    ("\u00a0", "a no-break space"),
+    ("\u202f", "a narrow no-break space"),
+)
+
+# THE MINUS SIGN of the character tables, which typeset exports write
+# where a keyboard writes the hyphen-minus. Read as a minus (landing
+# 2b.2): before, `\u22126.09` was an affixed number wearing the sign as
+# its prefix, and its column published no negative value at all.
+MINUS_SIGN = "\u2212"
+
+# HOW A NEGATIVE NUMBER IS WRITTEN, one name per notation the reader
+# accepts (landing 2b.2). The hyphen-minus in front; accounting brackets
+# around the figures; the minus sign of the character tables in front;
+# and the hyphen-minus AFTER the figures, which accounting systems write
+# as `1,483.65-`. The first is the default a description publishes.
+NEGATIVE_MINUS = "minus"
+NEGATIVE_BRACKETS = "brackets"
+NEGATIVE_MINUS_SIGN = "minus_sign"
+NEGATIVE_TRAILING = "trailing_minus"
+NEGATIVE_FORMS = (
+    NEGATIVE_MINUS,
+    NEGATIVE_BRACKETS,
+    NEGATIVE_MINUS_SIGN,
+    NEGATIVE_TRAILING,
+)
+
+
+def _minus_written_first(body: str) -> str:
+    """The text with a minus sign or a trailing minus written in front.
+
+    Two notations for "negative" are rewritten as the hyphen-minus in
+    front, which is the only one every rule below reads: `\u22125` and
+    `5-` both become `-5`. A trailing minus is taken only where nothing
+    else signs the text, so `-5-` and `+5-` stay what they were -- text
+    this reader refuses -- and a lone `-` is not a sign of anything.
+    Everything else comes back unchanged.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if body[:1] == MINUS_SIGN:
+        return "-" + body[1:]
+    if (
+        len(body) > 1
+        and body[len(body) - 1 : len(body)] == "-"
+        and body[:1] != "-"
+        and body[:1] != "+"
+        and _written_as_an_amount(body)
+    ):
+        return "-" + body[: len(body) - 1]
+    return body
+
+
+def _written_as_an_amount(body: str) -> bool:
+    """Whether figures carry a point or a mark of `GROUP_MARKS`.
+
+    THE TRAILING MINUS IS READ ONLY ON AN AMOUNT (landing 2b.2).
+    Accounting systems write `1,483.65-` and `12.50-`; a grade or a code
+    writes `3-`, and nothing in one such cell tells the two apart. So a
+    hyphen-minus after the figures is read as a minus only where the
+    figures carry a decimal point or a thousands mark, and `3-` stays
+    text.
+    """
+    for character in body:
+        if character == "." or character in GROUP_MARKS:
+            return True
+    return False
+
+
+def _groups_marked(head: str) -> str:
+    """The one mark grouping ``head``'s figures, or "" where none is valid.
+
+    ``head`` is a whole part with no sign, no point and no exponent. The
+    answer is a mark of `GROUP_MARKS` only where exactly one kind of mark
+    stands in it and the figures read as thousands groups around it.
+    """
+    seen = ""
+    for character in head:
+        if character in GROUP_MARKS and character not in seen:
+            seen = seen + character
+    if len(seen) != 1:
+        return ""
+    if not _groups_by_threes(head, seen):
+        return ""
+    return seen
+
+
 def _without_group_separators(text: str) -> "str | None":
     """Remove valid thousands separators, or return None if they are not.
 
-    A comma is accepted only where a thousands separator can appear: the
-    part before the decimal point must read as groups of exactly three
-    digits after a first group of one to three digits. '1,234,567.89'
-    becomes '1234567.89'; '1,23' and '12,3456' are refused, because
-    accepting them would turn a mistyped value into a plausible number.
+    A mark of `GROUP_MARKS` is accepted only where a thousands separator
+    can appear: the part before the decimal point must read as groups of
+    exactly three digits after a first group of one to three digits,
+    with ONE kind of mark between them. '1,234,567.89' and '1 234 567.89'
+    become '1234567.89'; '1,23', '12,3456', '123 45' and '1,234 567' are
+    refused, because accepting them would turn a mistyped value, a
+    postcode or a mixed spelling into a plausible number. A mark after
+    the point is refused the same way.
 
     AN EXPONENT IS TAKEN OFF FIRST, and it was not until 2026-08-26
     (residual R-P4-32). `1,001e2` is admitted by the documented grammar
@@ -673,7 +807,11 @@ def _without_group_separators(text: str) -> "str | None":
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
-    if "," not in text:
+    marked = False
+    for character in text:
+        if character in GROUP_MARKS:
+            marked = True
+    if not marked:
         return text
     sign = ""
     body = text
@@ -712,19 +850,147 @@ def _without_group_separators(text: str) -> "str | None":
     else:
         head = body[:point]
         tail = body[point:]
-    if "," in tail:
-        return None
-    groups = head.split(",")
-    if len(groups) < 2:
-        return None
-    if not _all_ascii_digits(groups[0]) or len(groups[0]) > 3:
-        return None
-    joined = groups[0]
-    for group in groups[1:]:
-        if not _all_ascii_digits(group) or len(group) != 3:
+    for character in tail:
+        if character in GROUP_MARKS:
             return None
-        joined = joined + group
+    mark = _groups_marked(head)
+    if not mark:
+        return None
+    joined = ""
+    for character in head:
+        if character != mark:
+            joined = joined + character
     return sign + joined + tail + exponent
+
+
+def number_core(text: str) -> str:
+    """One numeric cell reduced to the figures every form rule reads.
+
+    Surrounding spaces come off; a matching pair of accounting brackets
+    is unwrapped and trimmed again and read as a minus in front; a minus
+    sign or a trailing minus is written as the hyphen-minus in front;
+    and every mark of `GROUP_MARKS` is dropped. `(1,234.50)`,
+    `1 234.50-` and `\u22121'234.50` all come back `-1234.50`, and
+    `+1 234.5` comes back `+1234.5`.
+
+    ONE CORE FOR EVERY READER OF A CELL'S FORM (landing 2b.2). The form
+    ladder, the fraction and padding widths and the whole-figure count
+    each stripped the comma and the brackets for themselves; a reader
+    that learned the new marks or the new signs while its neighbour did
+    not would count one cell in two forms, which is the defect class
+    `fraction_width`'s docstring names.
+
+    Guarantees: accepts any text; returns text. Sensible only for a cell
+    that reads as a number; any other text comes back with the same
+    rewriting applied and means nothing. Determinism: a fixed function
+    of the text. Raises TypeError if handed anything that is not a
+    string instance, through `trimmed`. No I/O of any kind.
+    """
+    body = trimmed(text)
+    bracketed = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        bracketed = True
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
+    core = ""
+    for character in body:
+        if character not in GROUP_MARKS:
+            core = core + character
+    if bracketed and core[:1] != "-" and core[:1] != "+":
+        core = "-" + core
+    return core
+
+
+def thousands_mark(text: str) -> str:
+    """The mark this cell writes between its thousands, or "" for none.
+
+    A mark of `GROUP_MARKS`, answered only where the cell's whole part
+    reads as thousands groups around ONE kind of mark -- the same rule
+    `_without_group_separators` reads a number by, asked of a cell that
+    may carry brackets, any accepted sign and an exponent. `2 198.92`
+    answers a space, `(1,234.50)` a comma, `1234.50` and `123 45` the
+    empty string.
+
+    Guarantees: accepts any text; returns "" or one mark of
+    `GROUP_MARKS`. Determinism: a fixed function of the text. Raises
+    TypeError if handed anything that is not a string instance. Boundary:
+    no figure of the cell travels out through it. No I/O of any kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    cut = len(body)
+    for place in range(len(body)):
+        if body[place] == "." or body[place] == "e" or body[place] == "E":
+            cut = place
+            break
+    for character in body[cut:]:
+        if character in GROUP_MARKS:
+            return ""
+    return _groups_marked(body[:cut])
+
+
+def negative_notation(text: str) -> str:
+    """How one cell that reads as a negative number wrote its sign.
+
+    One of `NEGATIVE_FORMS`: brackets around the figures, the minus sign
+    of the character tables in front, a hyphen-minus after the figures,
+    or the hyphen-minus in front. Asked only of a cell the reader has
+    classified as a negative number; a cell written any other way
+    answers `NEGATIVE_MINUS`, which is what a reader who learned none of
+    the other three would have taken it for.
+
+    Guarantees: accepts any text; returns one of the four names.
+    Determinism: a fixed function of the text. Raises TypeError if
+    handed anything that is not a string instance. Boundary: the answer
+    is a word of this module's own vocabulary. No I/O of any kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        return NEGATIVE_BRACKETS
+    if body[:1] == MINUS_SIGN:
+        return NEGATIVE_MINUS_SIGN
+    if _minus_written_first(body) != body:
+        return NEGATIVE_TRAILING
+    return NEGATIVE_MINUS
+
+
+def with_negative_notation(text: str, form: str) -> str:
+    """A number written with a hyphen-minus in front, in ``form`` instead.
+
+    A TRAILING MINUS IS WRITTEN ONLY WHERE IT READS BACK AS ONE: a figure
+    field carrying neither a point nor a mark keeps its hyphen-minus in
+    front, because `12-` is not read as a number (`_written_as_an_amount`)
+    and writing it would change the cell's class.
+
+    The write rule of `negative_form`: `-1,234.50` becomes `(1,234.50)`,
+    `\u22121,234.50` or `1,234.50-`. Text that does not begin with a
+    hyphen-minus -- a positive value, a zero, a stand-in -- comes back
+    unchanged, and so does every text under `NEGATIVE_MINUS`. Brackets
+    never hold a sign, so a written negative can never be mistaken for
+    the contradictory-notation stand-in `(-5)`.
+
+    Guarantees: accepts a written number and one of `NEGATIVE_FORMS`;
+    returns text. Determinism: a fixed function of the two. Raises
+    TypeError if handed anything that is not a string instance. No I/O.
+    """
+    if not isinstance(text, str) or not isinstance(form, str):
+        raise TypeError(_NOT_TEXT)
+    if text[:1] != "-":
+        return text
+    body = text[1:]
+    if form == NEGATIVE_BRACKETS:
+        return "(" + body + ")"
+    if form == NEGATIVE_MINUS_SIGN:
+        return MINUS_SIGN + body
+    if form == NEGATIVE_TRAILING:
+        if not _written_as_an_amount(body):
+            return text
+        return body + "-"
+    return text
 
 
 # The longest cell a shape form is taken of. A form is a fact about the
@@ -1266,8 +1532,11 @@ def parse_number(text: str) -> "float | None":
 
     Accepted forms (plan P1-D4): a plain decimal number, optionally
     signed, optionally with an exponent; surrounding whitespace; valid
-    thousands separators; and accounting parentheses for negatives, so
-    '(1,234.50)' reads as -1234.5.
+    thousands separators of `GROUP_MARKS`; accounting parentheses for
+    negatives, so '(1,234.50)' reads as -1234.5; and, since landing
+    2b.2, the minus sign of the character tables in front and a
+    hyphen-minus after the figures, so '\u22121234.5' and '1,234.50-'
+    read as -1234.5 too.
 
     Guarantees: accepts text; returns a finite float or None; raises
     TypeError if handed anything that is not a string instance. The
@@ -1282,14 +1551,21 @@ def parse_number(text: str) -> "float | None":
     negative_parentheses = False
     if body[0] == "(" and body[len(body) - 1] == ")":
         negative_parentheses = True
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         # Parentheses mean "negative" in accounting. A sign inside them
         # is a contradiction -- '(-1)' says negative twice and '(+5)'
         # says both -- and guessing which the writer meant is how a
         # column of debts came out positive (review item P1-R2-F6). It
-        # is not a number this reader will interpret.
+        # is not a number this reader will interpret. A minus sign or a
+        # trailing minus inside them is the same contradiction.
         if body and (body[0] == "+" or body[0] == "-"):
             return None
+    else:
+        # A MINUS SIGN IN FRONT OR A HYPHEN-MINUS BEHIND is read as the
+        # minus it is (landing 2b.2): `\u22126.09` and `1,483.65-` were
+        # text, and a column of them published its negatives as
+        # positive magnitudes under an affix.
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return None
@@ -1396,13 +1672,7 @@ def numeric_style(text: str) -> str:
       vocabulary, so no spelling and no magnitude of the cell can
       travel out through it. No I/O of any kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     if "E" in core:
         return STYLE_EXPONENT_UPPER
     if "e" in core:
@@ -1446,13 +1716,7 @@ def fraction_width(text: str) -> int:
       cell, and no magnitude, travels out through it. No I/O of any
       kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     seen = False
     width = 0
     for character in core:
@@ -1497,13 +1761,7 @@ def pad_width(text: str) -> int:
       cell, and no magnitude, travels out through it. No I/O of any
       kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     if core[:1] == "-" or core[:1] == "+":
         core = core[1:]
     width = 0
@@ -1540,7 +1798,7 @@ def classify_number(text: str) -> str:
     if not body:
         return NOT_A_NUMBER
     if body[0] == "(" and body[len(body) - 1] == ")":
-        inner = body[1 : len(body) - 1].strip()
+        inner = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if inner and (inner[0] == "+" or inner[0] == "-"):
             # Only contradictory if the rest really is a number; '(-a)'
             # is just text.
@@ -1572,9 +1830,11 @@ def number_out_of_range(text: str) -> bool:
     if not body:
         return False
     if body[0] == "(" and body[len(body) - 1] == ")":
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if body and (body[0] == "+" or body[0] == "-"):
             return False
+    else:
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return False
@@ -2424,6 +2684,7 @@ def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
         # "negative" twice here.
         negative = True
         body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
     if body[:1] == "-":
         negative = True
         body = body[1:]
@@ -2659,9 +2920,11 @@ def overflowed(text: str) -> bool:
     if not body:
         return False
     if body[0] == "(" and body[len(body) - 1] == ")":
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if body and (body[0] == "+" or body[0] == "-"):
             return False
+    else:
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return False
@@ -2693,7 +2956,8 @@ def numeric_sign(text: str) -> str:
     negative = False
     if body[0] == "(" and body[len(body) - 1] == ")":
         negative = True
-        body = body[1 : len(body) - 1].strip()
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
     if body and body[0] == "-":
         negative = True
         body = body[1:]

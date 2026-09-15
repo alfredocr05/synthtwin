@@ -1006,10 +1006,12 @@ _ANSWER_KEYS = {
     "2": asking.ANSWER_CODE,
     "3": asking.ANSWER_IDENTIFIER,
     "4": asking.ANSWER_JOINED,
+    "5": asking.ANSWER_DECIMAL_COMMA,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
+    "d": asking.ANSWER_DECIMAL_COMMA,
 }
 
 _WHY_SHOWN = {
@@ -1025,6 +1027,14 @@ _WHY_SHOWN = {
         "every value is two or more numbers joined by one mark, "
         "which is how a blood pressure is written and also how a "
         "laboratory code is"
+    ),
+    asking.BECAUSE_GROUPED_FIXED_WIDTH: (
+        "every value is the same number of figures, grouped in threes, "
+        "which is how an identifier is written for reading"
+    ),
+    asking.BECAUSE_POINT_THOUSANDS: (
+        "every value has three figures after its point, which is also "
+        "how a point between thousands is written"
     ),
 }
 
@@ -1073,6 +1083,7 @@ _KEY_OF = {
     asking.ANSWER_CODE: "2",
     asking.ANSWER_IDENTIFIER: "3",
     asking.ANSWER_JOINED: "4",
+    asking.ANSWER_DECIMAL_COMMA: "5",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1174,9 +1185,12 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # and it reached the screen because nothing tests this text.
     numeric: list[asking.Question] = []
     joined: list[asking.Question] = []
+    pointed: list[asking.Question] = []
     for question in questions:
         if question.reason == asking.BECAUSE_JOINED:
             joined += [question]
+        elif question.reason == asking.BECAUSE_POINT_THOUSANDS:
+            pointed += [question]
         else:
             numeric += [question]
 
@@ -1244,6 +1258,21 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"If any of them holds readings, run the command again naming "
             f"them:\n  {flags}"
         ]
+    if pointed:
+        flags = _joined(
+            [f"--decimal-comma {_shown(one.name)}" for one in pointed], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ WITH A DECIMAL POINT, AND MIGHT BE "
+            f"WRITTEN WITH A POINT BETWEEN THOUSANDS.{_listing(pointed, False)}"
+            f"\n\n"
+            f"Each column above is being described with its point as a "
+            f"decimal point. If the point is a mark between thousands, "
+            f"every average, smallest and largest published for it is a "
+            f"thousand times too small, and only you know which it is.\n\n"
+            f"If any of them writes a point between thousands, run the "
+            f"command again naming them:\n  {flags}"
+        ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so
     # the audit accepts only literals and values it watched being built.
@@ -1298,7 +1327,7 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
 
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -1320,6 +1349,7 @@ def _put_the_questions(
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
+    commas: list[str] = []
     place = 0
     for question in questions:
         place = place + 1
@@ -1333,16 +1363,21 @@ def _put_the_questions(
             identifiers += [question.name]
         elif answer == asking.ANSWER_JOINED:
             measurements += [question.name]
-    return codes, identifiers, measurements
+        elif answer == asking.ANSWER_DECIMAL_COMMA:
+            commas += [question.name]
+    return codes, identifiers, measurements, commas
 
 
 def _how_to_repeat(
     forced_codes: "list[str]",
     forced_identifiers: "list[str]",
     forced_measurements: "list[str]",
+    forced_decimal_commas: "tuple[str, ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything."""
     parts: list[str] = []
+    for name in sorted(forced_decimal_commas):
+        parts += [f"--decimal-comma {_shown(name)}"]
     for name in sorted(forced_codes):
         parts += [f"--code {_shown(name)}"]
     for name in sorted(forced_identifiers):
@@ -1522,6 +1557,7 @@ def _run_profile(
             list(written.codes)
             + list(written.identifiers)
             + list(written.measurements)
+            + list(written.decimal_commas)
         )
         forced_codes = sorted(
             [one for one in forced_codes if one not in spoken_for]
@@ -1534,6 +1570,14 @@ def _run_profile(
         forced_measurements = sorted(
             [one for one in forced_measurements if one not in spoken_for]
             + list(written.measurements)
+        )
+        # AN ANSWER THAT THE POINT GROUPS THOUSANDS IS `--decimal-comma`
+        # (landing 2b.2), added to the typed ones rather than replacing
+        # them: the declaration names a column, and naming it twice is
+        # naming it once.
+        forced_decimal_commas = sorted(
+            [one for one in forced_decimal_commas if one not in written.decimal_commas]
+            + list(written.decimal_commas)
         )
         answers_were_handed_back = bool(spoken_for)
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
@@ -1756,8 +1800,16 @@ def _run_profile(
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers, new_measured = given
-            if new_codes or new_identifiers or new_measured:
+            new_codes, new_identifiers, new_measured, new_commas = given
+            if new_codes or new_identifiers or new_measured or new_commas:
+                forced_decimal_commas = sorted(
+                    [
+                        named
+                        for named in forced_decimal_commas
+                        if named not in new_commas
+                    ]
+                    + new_commas
+                )
                 forced_codes = sorted(forced_codes + new_codes)
                 forced_identifiers = sorted(
                     forced_identifiers + new_identifiers
@@ -1964,11 +2016,17 @@ def _run_profile(
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
     if (answered or answers_were_handed_back) and (
-        forced_codes or forced_identifiers or forced_measurements
+        forced_codes
+        or forced_identifiers
+        or forced_measurements
+        or forced_decimal_commas
     ):
         _say(
             _how_to_repeat(
-                forced_codes, forced_identifiers, forced_measurements
+                forced_codes,
+                forced_identifiers,
+                forced_measurements,
+                tuple(forced_decimal_commas),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)

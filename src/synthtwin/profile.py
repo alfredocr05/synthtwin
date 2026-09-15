@@ -954,6 +954,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): _WORD,
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "group_separator"): _AFFIX,
+    ("columns", _EACH, "parts", _EACH, "negative_form"): _WORD,
+    ("columns", _EACH, "parts", _EACH, "decimal_plus"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "decimal_plus", _KEY_OF): _WORD,
+    ("columns", _EACH, "parts", _EACH, "decimal_plus", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1029,6 +1033,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # this column's numbers were written, carrying no value of any
     # cell and no count of any group.
     ("columns", _EACH, "group_separator"): _AFFIX,
+    # ...and how its negatives and its signed decimals were written
+    # (landing 2b.2): a word of this package's own four, and a count the
+    # loader holds to the floor (contract DP1).
+    ("columns", _EACH, "negative_form"): _WORD,
+    ("columns", _EACH, "decimal_plus"): _OBJECT,
+    ("columns", _EACH, "decimal_plus", _KEY_OF): _WORD,
+    ("columns", _EACH, "decimal_plus", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1273,6 +1284,15 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): (
         taxonomy.FINER_LADDER_NAMES
     ),
+    # The notation a negative wore (landing 2b.2), from the one place
+    # the four names are defined, at both depths a numeric block sits.
+    ("columns", _EACH, "negative_form"): parsing.NEGATIVE_FORMS,
+    ("columns", _EACH, "decimal_plus", _KEY_OF): ("+", taxonomy.SUPPRESSED_LABEL),
+    ("columns", _EACH, "parts", _EACH, "decimal_plus", _KEY_OF): (
+        "+",
+        taxonomy.SUPPRESSED_LABEL,
+    ),
+    ("columns", _EACH, "parts", _EACH, "negative_form"): parsing.NEGATIVE_FORMS,
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     # Read from the one place the two forms are named, so the word a

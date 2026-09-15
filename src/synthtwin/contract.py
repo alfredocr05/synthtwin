@@ -475,6 +475,11 @@ DATETIME_KEYS = (
 
 NUMERIC_KEYS = (
     "group_separator",
+    # How a negative number and a signed decimal were written (landing
+    # 2b.2): the notation the negatives wore, and how many cells written
+    # with a point carried a plus.
+    "negative_form",
+    "decimal_plus",
     "fraction_widths",
     "pad_widths",
     "field_widths",
@@ -1097,7 +1102,21 @@ INVARIANTS = {
     ),
     "GS1": (
         "a column groups its thousands with a point only where it writes "
-        "its decimals with a comma, and never with a comma there"
+        "its decimals with a comma, and never with a comma there; a space, "
+        "an apostrophe or a no-break space may group either; and a position "
+        "of a joined column, read from figures and one point alone, groups "
+        "with no mark"
+    ),
+    "NS1": (
+        "a column says its negatives are written some other way than with "
+        "a minus in front only where at least the smallest group size of "
+        "its values are negative"
+    ),
+    "DP1": (
+        "the count of numbers written with a point and a plus is nought or "
+        "at least the smallest group size, no more than the cells the forms "
+        "map can put in the form written with a point, and nought on a "
+        "position of a joined column, whose parts carry no sign"
     ),
     "D14": (
         "a column said to stand at midnight is a column of moments on its "
@@ -1815,6 +1834,15 @@ class NumericFacts:
     # one, so a seventh form would break the closure. Amendment
     # A-P4-5 set this precedent for the fraction widths.
     group_separator: str
+    # HOW THE NEGATIVES WERE WRITTEN, one name of `parsing.NEGATIVE_FORMS`
+    # (landing 2b.2): `minus` unless brackets, the minus sign of the
+    # character tables or a trailing minus was the column's majority.
+    negative_form: str
+    # HOW MANY CELLS WRITTEN WITH A POINT CARRIED A PLUS (landing 2b.2).
+    # The form ladder files `+12.5` under `decimal`, so this is the count
+    # `leading_plus` is for a whole number: `{"+": n}` at or above the
+    # floor, `{"(withheld)": n}` below it, `{}` where none did.
+    decimal_plus: "dict[str, int]"
     fraction_widths: "dict[str, int]"
     pad_widths: "dict[str, int]"
     # HOW WIDE EVERY WHOLE-WRITTEN CELL WROTE ITS FIGURE FIELD (plan
@@ -6535,6 +6563,37 @@ def _numeric_facts(
         )
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
     mark = _group_separator(mapping, where)
+    negative = _negative_form(mapping, where)
+    # INVARIANT NS1 (landing 2b.2). A notation is a majority of the
+    # negative cells that reached the floor, so a column naming one holds
+    # at least that many negatives -- and at least one, whatever the floor.
+    if negative != parsing.NEGATIVE_MINUS and (
+        n_negative < 1 or n_negative < frame.floor
+    ):
+        raise _broken(
+            "NS1",
+            where,
+            f"the negatives are said to be written as '{negative}'",
+            f"{n_negative} values are negative",
+        )
+    plus = _decimal_plus(mapping, where, frame.floor)
+    # INVARIANT DP1 (landing 2b.2), the floor and the room. The census is
+    # published under the floor like every form count, and it counts
+    # cells the forms map files under `decimal` -- which, where that
+    # form was pooled, is at most the pool.
+    room = 0
+    if "decimal" in styles:
+        room = room + styles["decimal"]
+    if "(withheld)" in styles:
+        room = room + styles["(withheld)"]
+    signed = _added(plus)
+    if signed > room:
+        raise _broken(
+            "DP1",
+            where,
+            f"{signed} numbers are written with a point and a plus",
+            f"the forms map leaves room for {room}",
+        )
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
@@ -6626,6 +6685,8 @@ def _numeric_facts(
         n_rows=echoed,
         numeric_styles=styles,
         group_separator=mark,
+        negative_form=negative,
+        decimal_plus=plus,
         fraction_widths=widths,
         pad_widths=padded,
         field_widths=fields,
@@ -6658,11 +6719,13 @@ def _group_separator(mapping: "dict[str, object]", where: str) -> str:
 
     A SPELLING, NOT A COUNT, so it carries no floor of its own: it
     names how the column's numbers were written, not how many cells
-    any value had. A comma, or a point on a column that writes its
-    decimals with a comma (GS1 holds the two to the declaration), is
-    accepted; a space- or apostrophe-grouped column is not read as
-    grouped at all, so no description can carry one and a file claiming
-    otherwise is refused rather than half-honoured.
+    any value had. The accepted marks are `parsing.PUBLISHED_GROUP_MARKS`:
+    a comma, a space, an apostrophe, the right single quotation mark, a
+    no-break space and a narrow no-break space (landing 2b.2, which read
+    the last five for the first time), or a point on a column that
+    writes its decimals with a comma (GS1 holds the comma and the point
+    to the declaration). Any other value is refused rather than
+    half-honoured.
 
     Guarantees: accepts the numeric mapping and where it sits; returns
     the empty string or one accepted mark. Determinism: a fixed
@@ -6672,12 +6735,87 @@ def _group_separator(mapping: "dict[str, object]", where: str) -> str:
     value = mapping["group_separator"]
     if not isinstance(value, str):
         raise _wrong_type("group_separator", where, value, "a piece of text")
-    if value != "" and value != "," and value != ".":
+    if value not in parsing.PUBLISHED_GROUP_MARKS:
+        shown: "list[str]" = []
+        for mark in parsing.PUBLISHED_GROUP_MARKS:
+            shown += [parsing.visible(mark)]
         raise _out_of_range(
             "group_separator",
             where,
-            f"'{value}'",
-            _listed(("", ",", ".")),
+            f"'{parsing.visible(value)}'",
+            _listed(tuple(shown)),
+        )
+    return value
+
+
+def _decimal_plus(
+    mapping: "dict[str, object]", where: str, floor: int
+) -> "dict[str, int]":
+    """The census of signed decimals, refused unless the floor governs it.
+
+    DP1 (landing 2b.2): `+` is the only name, and a named count is at
+    least the smallest group size; `(withheld)` holds a count below it,
+    and at a floor of one nothing is held back, so a pool there is
+    refused -- which is what makes a count this block held back one its
+    loader can see.
+
+    Guarantees: accepts the numeric mapping, where it sits and the
+    floor; returns the census. Determinism: a fixed function of the
+    three. Raises ProfileError for a wrong type and for DP1. No I/O.
+    """
+    counted = _counts(mapping["decimal_plus"], "decimal_plus", where, 1)
+    for name in sorted(counted):
+        if name == "+":
+            if counted[name] < floor:
+                raise _broken(
+                    "DP1",
+                    where,
+                    f"{counted[name]} numbers written with a point and a plus are named",
+                    f"the smallest group size is {floor}",
+                )
+            continue
+        if name == WITHHELD:
+            if counted[name] >= floor:
+                raise _broken(
+                    "DP1",
+                    where,
+                    f"{counted[name]} numbers written with a point and a plus are held back",
+                    f"the smallest group size is {floor}, so they are named",
+                )
+            continue
+        raise _out_of_range(
+            "decimal_plus", where, f"'{parsing.visible(name)}'", _listed(("+", WITHHELD))
+        )
+    if len(counted) > 1:
+        raise _broken(
+            "DP1",
+            where,
+            "the signed decimals are both named and held back",
+            "one count is either named or held back",
+        )
+    return counted
+
+
+def _negative_form(mapping: "dict[str, object]", where: str) -> str:
+    """How the column's negatives were written, one name of the four.
+
+    A SPELLING, like the mark beside it (landing 2b.2): `minus`,
+    `brackets`, `minus_sign` or `trailing_minus`, and nothing else.
+
+    Guarantees: accepts the numeric mapping and where it sits; returns
+    one name of `parsing.NEGATIVE_FORMS`. Determinism: a fixed function
+    of the two. Raises ProfileError where the value is not text, or is
+    a name this producer never writes. No I/O of any kind.
+    """
+    value = mapping["negative_form"]
+    if not isinstance(value, str):
+        raise _wrong_type("negative_form", where, value, "a piece of text")
+    if value not in parsing.NEGATIVE_FORMS:
+        raise _out_of_range(
+            "negative_form",
+            where,
+            f"'{parsing.visible(value)}'",
+            _listed(parsing.NEGATIVE_FORMS),
         )
     return value
 
@@ -8744,7 +8882,9 @@ def _group_marks_agree(
 
     A `.` is the mark of a column declared to write its decimals with a
     comma, and a `,` never is: under that declaration the twin would
-    write `23,648,37`, which no reader takes for a number. Whether the
+    write `23,648,37`, which no reader takes for a number. The other
+    marks -- a space, an apostrophe, a no-break space -- are neither
+    decimal mark, so they stand under either (landing 2b.2). Whether the
     declaration reaches a column is `a_decimal_comma_reaches`' answer and
     no other, so a labelled column's numbers may carry a `.` and an
     affixed or joined column's never do (the first version refused the
@@ -8773,6 +8913,25 @@ def _group_marks_agree(
         )
         for block in blocks:
             mark = block.group_separator
+            # A POSITION OF A JOINED COLUMN is read from figures and one
+            # point alone (landing 2b.2), so no mark, and no plus, can
+            # stand in it: a block claiming either describes a column no
+            # reading of this package produces.
+            if isinstance(facts, (JoinedFacts,)) and mark != "":
+                raise _broken(
+                    "GS1",
+                    f"in the block for the column named '{column.name}'",
+                    "a position of two numbers in one cell groups its "
+                    "thousands with a mark",
+                    "a position is read from figures and one point alone",
+                )
+            if isinstance(facts, (JoinedFacts,)) and _added(block.decimal_plus) != 0:
+                raise _broken(
+                    "DP1",
+                    f"in the block for the column named '{column.name}'",
+                    f"{_added(block.decimal_plus)} numbers of one position carry a plus",
+                    "a position is read from figures and one point alone",
+                )
             if declared and mark == ",":
                 raise _broken(
                     "GS1",

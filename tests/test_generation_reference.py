@@ -57,7 +57,7 @@ cap and the nine already spend 88207 of it; they are one oracle, one
 transform and one proof layer, and the tests below hold both files to
 the same claims.
 
-**Every one of the fourteen carries a mutant that removes or reverts the
+**Every one of the seventeen carries a mutant that removes or reverts the
 branch it exists for** (G14.3; review item P2-C4-C2). They are one table
 at the bottom of this file, `CASE_MUTANTS`, whose keys are asserted
 equal to the whole case set, because four cases with a mutant and ten
@@ -159,6 +159,14 @@ BRANCH_CASES = (
     # interior rank must land on the one ordinal left for it.
     "clock_ladder",
     "free_text_joint",
+    # THE SPELLINGS OF A NUMBER LANDING 2b.2 FREEZES, in their sorted
+    # places: a comma between thousands beside signed decimals with
+    # zeros spent past order nought, a point on a declared decimal-comma
+    # column beside two absent cells, and a space with accounting
+    # brackets. Three and not four: a fourth numeric case carried the
+    # branch file past the provenance guard's byte cap.
+    "grouped_charges",
+    "grouped_decimal_comma",
     "identifier_edge_spacing",
     # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
     # R-P4-17). It pins the pairing walk of G6B.4, the only search in
@@ -185,6 +193,7 @@ BRANCH_CASES = (
     "month_span",
     "numeric_point_free_styles",
     "numeric_pooled_spelling",
+    "spaced_brackets",
     # THE SECOND SPELLING FAMILY OF G10.5, added with revision 5
     # (residuals R-P4-48 and R-P4-68). `unrepresentable_joint` below
     # reaches this role, and every cell it freezes is a digit string
@@ -229,7 +238,14 @@ SEEDS = {
     "joined_readings": 120,
     "midnight_days": 122,
     "mixed_marks": 123,
+    "grouped_charges": 124,
+    "grouped_decimal_comma": 125,
+    "spaced_brackets": 126,
 }
+
+# The cases whose column was declared with --decimal-comma, which the
+# contract's invariant GS1 binds to settings.forced_decimal_commas.
+DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma"})
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
@@ -263,7 +279,7 @@ def _relationships() -> dict:
     }
 
 
-def _settings(declared: list) -> dict:
+def _settings(declared: list, commas: "list | None" = None) -> dict:
     return {
         "small_cell_floor": 11,
         "identifier_uniqueness": 0.95,
@@ -303,7 +319,9 @@ def _settings(declared: list) -> dict:
         # measurement column: every case here is built from the
         # generation method's own text.
         "forced_measurements": [],
-        "forced_decimal_commas": [],
+        # The fourth (plan P4-D26), named for the one case frozen with
+        # it (landing 2b.2): its column is grouped with a point.
+        "forced_decimal_commas": [] if commas is None else commas,
     }
 
 
@@ -329,6 +347,7 @@ def _profile_document(case: dict, name: str) -> dict:
     """A whole profile document carrying one case's column and nothing else."""
     column = _unwrap(case["column"])
     declared = [column["name"]] if name in DECLARED_IDENTIFIERS else []
+    commas = [column["name"]] if name in DECLARED_DECIMAL_COMMAS else []
     return {
         "columns": [column],
         "created_with": "0+unknown",
@@ -337,7 +356,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
-        "settings": _settings(declared),
+        "settings": _settings(declared, commas),
         "source": {
             "encoding": "utf-8-sig",
             "used_fallback_encoding": False,
@@ -504,7 +523,7 @@ def test_the_implementation_writes_the_committed_cells(
 ) -> None:
     """Cell for cell, and then byte for byte, against a value it did not make.
 
-    All fourteen bind normally, with no exception of any kind. The one
+    All seventeen bind normally, with no exception of any kind. The one
     that once did not was `identifier_edge_spacing` (review item
     P2-C4-F4): the column publishes four raw spellings, one folded
     identity and the length range 1 to 3, in figures alone, so every
@@ -589,6 +608,10 @@ def test_every_committed_cell_reads_back_as_the_class_it_was_built_for(
     for cell in case["cells"]:
         if cell == "":
             continue
+        # A declared column's cells read in its own grammar, as the
+        # profiler read the column the case describes (P4-D26).
+        if name in DECLARED_DECIMAL_COMMAS:
+            cell = parsing.written_with_a_decimal_comma(cell)
         counted[parsing.classify_number(cell)] += 1
     assert counted[parsing.NUMBER] == column["n_numeric"]
     assert counted[parsing.NUMBER_OUT_OF_RANGE] == column["n_out_of_range"]
@@ -611,8 +634,12 @@ def test_the_committed_cells_are_the_content_list_arranged(name: str) -> None:
     assert sorted(case["cells"]) == sorted(
         list(case["content"]) + [""] * column["n_missing"]
     )
+    # A CELL HOLDING A COMMA IS QUOTED, which no committed cell did until
+    # landing 2b.2 froze a column grouped with one: the rule is G2's, and
+    # a quote inside a cell would be doubled, which no case writes.
     expected = "".join(
-        ('""' if cell == "" else cell) + "\n" for cell in case["cells"]
+        ('""' if cell == "" else f'"{cell}"' if "," in cell else cell) + "\n"
+        for cell in case["cells"]
     )
     assert case["csv_bytes"] == expected
 
@@ -1063,6 +1090,42 @@ def _marks_from_the_first_rank(column, parsed):
     return marks[:parsed]
 
 
+_REAL_STYLED_SPELLING = gen.styled_spelling
+
+
+def _grouped_at_every_order(
+    style, value, integer_valued, order, mark="", negative="minus", plus=False
+):
+    """P4-D38's order rule withdrawn: a cell that spent zeros is grouped too."""
+    text = _REAL_STYLED_SPELLING(
+        style, value, integer_valued, order, "", negative, plus
+    )
+    if style in ("plain", "leading_plus", "decimal"):
+        return gen._group_thousands(text, mark)
+    return text
+
+
+def _exchange_withdrawn(content):
+    """P4-D26's exchange withdrawn: a declared column keeps its point."""
+    return list(content)
+
+
+def _notation_withdrawn(text, notation):
+    """Landing 2b.2's notation withdrawn: every negative keeps its minus."""
+    return text
+
+
+def _plus_from_the_first_cell(count, styles, values):
+    """Landing 2b.2's spread withdrawn: the plus taken from the first cell up."""
+    carries = [False] * len(values)
+    left = count
+    for index, (style, value) in enumerate(zip(styles, values)):
+        if left and style == "decimal" and not value < 0:
+            carries[index] = True
+            left -= 1
+    return carries
+
+
 def _ties_toward_zero(value):
     """G5.4's integer rule with the tie direction taken out."""
     whole = int(value)
@@ -1289,6 +1352,29 @@ def _the_sorted_start_and_no_walk(drawn, column, wanted, words):
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
 CASE_MUTANTS = {
+    "grouped_charges": Mutant(
+        branch="landing 2b.2's spread of signed decimals; the mutant takes "
+        "the plus from the first eligible cell upward, which ties a plus to "
+        "the smallest values",
+        attribute="plus_places",
+        replacement=_plus_from_the_first_cell,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "grouped_decimal_comma": Mutant(
+        branch="P4-D38's rule that the mark reaches a cell at leading-zero "
+        "order nought only; the mutant groups the cell that spent a zero as "
+        "well, and after the exchange it wears a point inside its padding",
+        attribute="styled_spelling",
+        replacement=_grouped_at_every_order,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "spaced_brackets": Mutant(
+        branch="landing 2b.2's negative notation; the mutant withdraws it and "
+        "every negative is written with a hyphen-minus in front",
+        attribute="negative_spelled",
+        replacement=_notation_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "date_only": Mutant(
         branch="G7.3's floor rounding, which rounds toward the EARLIER "
         "instant always; the mutant rounds toward the later one, and ten "

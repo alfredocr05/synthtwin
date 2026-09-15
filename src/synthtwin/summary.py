@@ -413,10 +413,18 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
     return said
 
 
-# THE TWO MARKS A COLUMN OF NUMBERS CAN BE PUBLISHED AS GROUPING WITH.
-# The contract accepts no other non-empty value, and the empty string is
-# the column that proved none, which this page says nothing about.
-_GROUP_MARKS = (",", ".")
+# HOW A NEGATIVE NUMBER WAS WRITTEN, in this page's words (landing 2b.2).
+# The hyphen-minus in front is the default and this page says nothing of
+# it, as it says nothing of a column that groups no thousands.
+_NEGATIVE_WORDS = (
+    (parsing.NEGATIVE_BRACKETS, "inside brackets, as (12.50)"),
+    (
+        parsing.NEGATIVE_MINUS_SIGN,
+        "with the minus sign of the character tables in front, which is "
+        "not the hyphen on a keyboard",
+    ),
+    (parsing.NEGATIVE_TRAILING, "with the minus after the figures, as 12.50-"),
+)
 
 
 def _group_separator_lines(column: "dict[str, object]") -> "list[str]":
@@ -439,24 +447,72 @@ def _group_separator_lines(column: "dict[str, object]") -> "list[str]":
     A mark is a fact about the WRITING and never a value: the line
     names the mark and no number of the table.
 
+    THE MARK IS NAMED IN WORDS (landing 2b.2), from
+    `parsing.GROUP_MARK_WORDS`: four of the marks a column may publish
+    since that landing cannot be seen on a page, and a line reading
+    "numbers written with ' ' between the thousands" names nothing.
+
     Guarantees: accepts one column block; returns one line per numeric
-    block publishing a comma or a point, and none where the block
-    publishes the empty string or carries no such key. Determinism: a
-    function of the mapping. Raises nothing. No I/O of any kind.
+    block publishing a mark, and none where the block publishes the
+    empty string or carries no such key. Determinism: a function of the
+    mapping. Raises nothing. No I/O of any kind.
     """
     said: "list[str]" = []
     for where, block in _quantitative_blocks(column, ""):
         if "group_separator" not in block:
             continue
         mark = block["group_separator"]
-        if mark not in _GROUP_MARKS:
+        words = ""
+        for known, named_as in parsing.GROUP_MARK_WORDS:
+            if known == mark and known != "":
+                words = named_as
+        if not words:
             continue
         named = f"{where}: " if where else ""
         said += [
-            f"    {named}numbers written with '{mark}' between the "
-            f"thousands, and the twin writes '{mark}' between the "
+            f"    {named}numbers written with {words} between the "
+            f"thousands, and the twin writes {words} between the "
             f"thousands too"
         ]
+    return said
+
+
+def _sign_lines(column: "dict[str, object]") -> "list[str]":
+    """How this column's negatives and signed decimals were written.
+
+    THE TWO SPELLINGS LANDING 2b.2 PUBLISHES BESIDE THE MARK, said where
+    the mark is said and for its reason: a column of charges written
+    `(1,234.56)` for a credit keeps its brackets in the twin, and a
+    reader of this page is told so here rather than in the JSON alone. Every
+    numeric block is read, as for the mark.
+
+    Guarantees: accepts one column block; returns at most two lines per
+    numeric block -- one where it publishes a notation other than the
+    minus in front, one where it counts signed decimals -- and none
+    otherwise. Determinism: a function of the mapping. Raises nothing.
+    No I/O of any kind. The count said is the published one.
+    """
+    said: "list[str]" = []
+    for where, block in _quantitative_blocks(column, ""):
+        named = f"{where}: " if where else ""
+        if "negative_form" in block:
+            form = block["negative_form"]
+            for known, words in _NEGATIVE_WORDS:
+                if known == form:
+                    said += [
+                        f"    {named}negative numbers written {words}, and "
+                        f"the twin writes them that way too"
+                    ]
+        if "decimal_plus" in block:
+            census = block["decimal_plus"]
+            count = 0
+            if isinstance(census, dict) and "+" in census:
+                count = census["+"]
+            if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+                said += [
+                    f"    {named}{count} numbers written with a point carry "
+                    f"a plus in front, and the twin writes that many too"
+                ]
     return said
 
 
@@ -706,6 +762,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     lines = lines + _sentinel_lines(column)
     lines = lines + _width_lines(column)
     lines = lines + _group_separator_lines(column)
+    lines = lines + _sign_lines(column)
     lines = lines + _empty_bin_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])

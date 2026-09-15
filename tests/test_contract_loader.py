@@ -865,6 +865,15 @@ def battery() -> list[Mutation]:
             "GS1", "a column not declared to write a decimal comma grouped with a point",
             edit("visits", group_separator="."),
         ),
+        # The two spelling facts landing 2b.2 added beside the mark.
+        Mutation(
+            "NS1", "negatives said to wear brackets on a column that holds none",
+            edit("visits", negative_form="brackets"),
+        ),
+        Mutation(
+            "DP1", "signed decimals counted on a column with no decimal form",
+            edit("visits", decimal_plus={"+": 5}),
+        ),
         Mutation(
             "D14", "a column of whole dates said to stand at midnight",
             edit("recorded_on", all_at_midnight=True),

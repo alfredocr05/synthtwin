@@ -597,15 +597,16 @@ _NOT_CHECKABLE_FIELD_WIDTHS = (
     "reached, and a file whose cells fall at different widths misses "
     "no obligation this description makes"
 )
-_NOT_CHECKABLE_GROUP_SEPARATOR = (
-    "the description records the mark the real column's numbers were "
-    "found to carry between thousands, or that none was found, and the "
-    "twin writes that mark "
-    "without being held to it: a file is read the same way whether its "
-    "large numbers carry the mark or not, so a file written without it "
-    "misses no obligation this description makes. What the mark buys is "
-    "code that meets the same spelling on the twin as on the real table"
-)
+# THE MARK BETWEEN THOUSANDS WAS A LISTING UNTIL LANDING 2b.2
+# (2026-09-15), and the sentence it carried is kept here as the record
+# of what changed: "the twin writes that mark without being held to it:
+# a file is read the same way whether its large numbers carry the mark
+# or not". The owner's first goal contradicts that sentence -- code
+# developed on the twin must run unchanged on the real table, and code
+# that strips a comma before converting reads a bare file and a grouped
+# one differently -- and a bare copy of a grouped twin validated with
+# exit 0. It is a CHECK now, in `_spelling_checks`, beside the notation
+# of a negative and the count of signed decimals the same landing added.
 _NOT_CHECKABLE_HEADERLESS_ORDER = (
     "the description says the column names were generated, so the file "
     "carries no header line and nothing in it can evidence the order "
@@ -1007,6 +1008,13 @@ _MEASURED_FROM_THE_CELLS = (
     "styles.spelled",
     f"styles.canonical.{parsing.STYLE_DECIMAL}",
     f"styles.canonical.{parsing.STYLE_EXPONENT_LOWER}",
+    # ...and the three spellings landing 2b.2 holds, which are clauses
+    # over the written cells of the same kind: a mark, a notation or a
+    # plus that fewer cells could wear than the floor names is one no
+    # description of the file publishes.
+    "spelling.group_separator",
+    "spelling.negative_form",
+    "spelling.decimal_plus",
 )
 
 # THE SPELLINGS THE MEASUREMENT SIDE KEEPS AS DATA (V2.4).
@@ -8099,6 +8107,15 @@ def _position_styles(
         mine = _position_cells(
             cells, facts.separator, facts.n_parts, place
         )
+        # ...AND ITS SPELLINGS, beside its forms (landing 2b.2): the mark
+        # between thousands, the notation of a negative and the count of
+        # signed decimals are published on every position, and a
+        # position is a column of numbers read over its own cells.
+        # A POSITION FILES NO SPELLING CHECK (landing 2b.2): its parts
+        # are read from figures and one point alone, so no mark, sign or
+        # plus can stand in one, and the loader holds its three spelling
+        # facts to the defaults (GS1, NS1, DP1). A check of them could
+        # not fail.
         for check in _style_checks(
             column, facts.parts[place], inner, mine, floor
         ):
@@ -8990,6 +9007,187 @@ def _numeric_checks(
     checks = checks + _ladder_checks(column, facts, block)
     checks = checks + _moment_checks(column, facts, block)
     checks = checks + _style_checks(column, facts, block, cells, floor)
+    checks = checks + _spelling_checks(column, facts, block, cells, floor)
+    return checks
+
+
+def _mark_in_words(mark: str) -> str:
+    """A mark between thousands as a report names it, never as itself.
+
+    Four of the marks cannot be seen on a page, so a report printing the
+    character would print a blank where a verdict's evidence stands.
+    """
+    for known, words in parsing.GROUP_MARK_WORDS:
+        if known == mark:
+            return words
+    return "a mark this version does not name"
+
+
+def _spelling_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
+) -> "list[Check]":
+    """The three spellings a numeric block publishes, held (landing 2b.2).
+
+    RECOUNTED FROM THE RE-DESCRIPTION, like every other fact of this
+    block, so each is compared with what describing the file on its own
+    publishes -- the mark between thousands, the notation of a negative
+    number and the count of signed decimals -- and every edge the
+    producer's rules have comes along with it: a padded or exponent cell
+    holding a mark, the cores each wrapper wears, the numeric half of a
+    column with labels, and a declared decimal comma read in its own
+    grammar. The real table meets all three by construction; a twin
+    meets them because the generator writes them.
+
+    WHY THE MARK IS AN OBLIGATION NOW. Plan P4-D38 made it REPORT-ONLY on
+    the ground that a file is read the same way with or without it. The
+    first goal says otherwise: code developed on a twin that carries the
+    mark strips it before converting, and code developed on one that
+    does not never meets it -- a bare copy of a grouped twin validated
+    with exit 0.
+
+    WHERE THE FILE IS TOO SMALL TO SHOW THE SPELLING the verdict is
+    WITHHELD rather than MISSED: a mark needs the smallest group size of
+    four-figure numbers in a groupable form, and a notation that many
+    negative numbers, before any description of the file can publish
+    them. The generator names the same case in its report. The count of
+    signed decimals is compared exactly; a twin whose ladder put fewer
+    non-negative values in the decimal form misses it, and its report
+    says so.
+
+    Guarantees: accepts one numeric block, the file's re-description of
+    it, the file's cells as the block reads them and the smallest group
+    size; returns three checks. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind. No text of the file is printed:
+    the mark is named in words from a closed list.
+    """
+    name = column.name
+    four_figures = 0
+    negatives = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body or parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        core = parsing.number_core(body)
+        if core[:1] == "-":
+            negatives += 1
+        if parsing.numeric_style(body) not in (
+            parsing.STYLE_PLAIN,
+            parsing.STYLE_LEADING_PLUS,
+            parsing.STYLE_DECIMAL,
+        ):
+            continue
+        figures = core
+        if figures[:1] == "-" or figures[:1] == "+":
+            figures = figures[1:]
+        whole = 0
+        for letter in figures:
+            if letter == ".":
+                break
+            whole += 1
+        if whole >= 4:
+            four_figures += 1
+    checks: list[Check] = []
+    for fact, published, measured, could_show, default in (
+        (
+            "group_separator",
+            facts.group_separator,
+            _text_at(block, "group_separator"),
+            four_figures,
+            "",
+        ),
+        (
+            "negative_form",
+            facts.negative_form,
+            _text_at(block, "negative_form"),
+            negatives,
+            parsing.NEGATIVE_MINUS,
+        ),
+    ):
+        shown = published
+        found = measured
+        if fact == "group_separator":
+            shown = _mark_in_words(published)
+            found = None if measured is None else _mark_in_words(measured)
+        if (
+            measured is not None
+            and measured != published
+            and published != default
+            and (could_show < 1 or could_show < floor)
+        ):
+            checks += [
+                # THE SECOND WAY THE GATE CLOSES, and the one the fence
+                # of V5.3 admits for a clause over the written cells: a
+                # mark or a notation is published only where the cells
+                # that could wear it reach the floor, so this file's own
+                # description publishes the default whatever they wear.
+                Check(
+                    name,
+                    f"numeric.{fact}",
+                    f"spelling.{fact}",
+                    WITHHELD,
+                    shown,
+                    "",
+                    _GATE_POOLED,
+                )
+            ]
+            continue
+        checks += [
+            _exact(name, f"numeric.{fact}", f"spelling.{fact}", shown, found)
+        ]
+    # THE SIGNED DECIMALS, UNDER THE FLOOR AND ITS POOLED WINDOW: the
+    # named count is held the way a named form count is, with the pooled
+    # remainder widening the bar, and a block naming none is held to
+    # naming none.
+    census = _map_at(block, "decimal_plus")
+    named = 0
+    if "+" in facts.decimal_plus:
+        named = facts.decimal_plus["+"]
+    pool = 0
+    if taxonomy.SUPPRESSED_LABEL in facts.decimal_plus:
+        pool = facts.decimal_plus[taxonomy.SUPPRESSED_LABEL]
+    if census is None:
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                WITHHELD,
+                _shown_count(named),
+                "",
+                _GATE_CLOSED,
+            )
+        ]
+    elif named > 0:
+        checks += [
+            _floor_governed(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                named,
+                census,
+                "+",
+                floor,
+                pool,
+            )
+        ]
+    else:
+        signed = census["+"] if "+" in census else 0
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                HELD if signed <= pool else MISSED,
+                _shown_count(0)
+                if pool == 0
+                else f"{_shown_count(0)} ({_shown_window(0.0, float(pool))})",
+                _shown_count(signed),
+            )
+        ]
     return checks
 
 
@@ -9896,7 +10094,8 @@ def _style_checks(
                 # the real table itself, at a raised floor -- is spelled
                 # in a permitted form, never MISSED. Cells arrive here
                 # with a decimal comma already read back to a point, so
-                # the offer is a comma for both published marks.
+                # the offer is a comma for both published marks; a cell
+                # carrying one of the other marks is offered that one.
                 ",",
             )
             == 0,
@@ -10282,7 +10481,9 @@ def _noncanonical_cells(
         value = parsing.parse_number(body)
         if value is None:
             continue
-        if body != _canonical_text(value, whole_column):
+        if _written_with_a_leading_minus(body) != _canonical_text(
+            value, whole_column
+        ):
             odd = odd + 1
     return odd
 
@@ -10613,6 +10814,38 @@ def _published_widths(
     return tuple(sorted(named))
 
 
+def _written_with_a_leading_minus(body: str) -> str:
+    """A cell's text with its negative notation written as a leading minus.
+
+    WRITTEN HERE, NOT BORROWED (V1.4), for the reason `_grouped_text` is:
+    the generator writes a negative in the published notation with
+    `parsing.with_negative_notation`, and a check that called the same
+    rule could not see a defect in it. Four notations say negative and
+    each is rewritten from its own shape: `(1,234.5)` and `\u22121,234.5`
+    and `1,234.5-` all become `-1,234.5`. Every cell is offered this
+    whatever notation its column publishes, as every grouped spelling is
+    whatever mark: a real table whose brackets fell short of the majority
+    writes a spelling of its own value, and is not MISSED for it (landing
+    2b.2; before it, a bracketed real table failed its own description).
+    """
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        return "-" + body[1 : len(body) - 1]
+    if body[:1] == parsing.MINUS_SIGN:
+        return "-" + body[1:]
+    if (
+        len(body) > 1
+        and body[len(body) - 1 : len(body)] == "-"
+        and body[:1] != "-"
+        and body[:1] != "+"
+    ):
+        # ...on an amount only: a point or a mark in the figures, which
+        # is the reader's own condition, restated rather than borrowed.
+        for character in body:
+            if character == "." or character in parsing.GROUP_MARKS:
+                return "-" + body[: len(body) - 1]
+    return body
+
+
 def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
@@ -10642,9 +10875,18 @@ def _cells_outside_the_styles(
         value = parsing.parse_number(body)
         if value is None:
             continue
+        # THE CELL'S OWN MARK, where it carries one, is the grouping
+        # offered (landing 2b.2): the family is generous about marks for
+        # the reason it is generous about the comma, and asking the one
+        # mark the cell holds keeps the offer one grouping wide.
+        offered = mark
+        for known in parsing.GROUP_MARKS:
+            if known in body:
+                offered = known
+        signed = _written_with_a_leading_minus(body)
         worn = False
-        for spelling in _permitted_spellings(value, whole_column, widths, mark):
-            if _wears(body, spelling):
+        for spelling in _permitted_spellings(value, whole_column, widths, offered):
+            if _wears(signed, spelling):
                 worn = True
         if not worn:
             outside = outside + 1
@@ -13207,17 +13449,6 @@ def _numeric_listings(
             "numeric.field_widths",
             "",
             _NOT_CHECKABLE_FIELD_WIDTHS,
-        ),
-        # THE MARK BETWEEN THOUSANDS, LISTED and never silent (plan
-        # P4-D38). Published on every column of this role, so its
-        # listing hangs off nothing else, exactly as the field-width
-        # census above it. REPORT-ONLY because the reading of a file
-        # accepts a grouped and an ungrouped spelling alike.
-        Listing(
-            column.name,
-            "numeric.group_separator",
-            "",
-            _NOT_CHECKABLE_GROUP_SEPARATOR,
         ),
         Listing(
             column.name,

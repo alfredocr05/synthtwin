@@ -685,10 +685,6 @@ _LISTING_WORDS = {
         "how many figures each of your whole-numbered cells was "
         "written with"
     ),
-    "numeric.group_separator": (
-        "the mark your column's numbers were found to carry between "
-        "thousands, or that none was found"
-    ),
 }
 
 

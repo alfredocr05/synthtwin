@@ -303,8 +303,13 @@ def test_nothing_that_varies_between_runs_is_written(
 # to every numeric block; part two added `all_at_midnight: false` and
 # `datetime_separators: {}` to `recorded_on`, the one datetime column.
 # Read as a diff of the two documents: nothing else moved.
+# RE-RECORDED 2026-09-15 (landing 2b.2, plan P4-D40): every numeric block
+# gained `negative_form: "minus"` and the census `decimal_plus: {}` -- five
+# blocks, ten keys. Read as a diff of the two documents against 53bb012:
+# nothing else moved, no count, statistic, label, role or spelling of any
+# column.
 GOLDEN_SHA256 = (
-    "dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf"
+    "d8e8ea2b2e9dd60c127b7086c79b9ca2016f02b3b5f09e46ed1b6e2ecbcfb4aa"
 )
 
 
