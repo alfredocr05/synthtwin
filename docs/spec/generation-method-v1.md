@@ -3475,9 +3475,14 @@ Allocation, over the `P` parsed cells in ascending rank:
    two consume one from that key's count. `earliest_utc_offset` and
    `latest_utc_offset` are EXACT-OBSERVABLE and this is what makes them
    so. On a column G7.5 moves onto a midnight that stands wholly at
-   midnight on the `utc` clock, each rung rank of G7.5 then takes the
-   offset its rung stands at midnight under, where that key has a count
-   left.
+   midnight on the `utc` clock, each interior rank whose instant the
+   published tail fixes -- each rung rank of G7.5, and each rank standing
+   between two pinned ranks of one instant -- then takes the first offset,
+   the real offsets in sorted order and then `(none)`, under which that
+   instant stands at midnight and whose key has a count left (repair pass
+   of landing 2b.3: a rung at a midnight of the shared clock whose `Z` was
+   spent takes `(none)`, and ranks between p90 and the end on one such
+   midnight were written `T02:00:00+02:00`).
 2. The remaining counts are spent over the remaining ranks in ascending
    rank order, taking the offset keys in the profile's own sorted key
    order, `(none)` and `(withheld)` last.
@@ -3688,10 +3693,20 @@ rather than passing it off as an outcome the description asked for.
   decision 4 and residual R-P4-12). Such a column is generated in whole
   days, so a bare date spells every rank exactly. Its `resolution_mix`
   is spent over the ranks by the smooth rotation of step 4 over the two
-  forms, `iso-date` before `iso-datetime` on a tie, after rank `0` and
-  rank `P - 1` are made moments wherever their published offset is a
-  real one; a rank given `iso-date` is written `YYYY-MM-DD`, with no
-  mark, clock or offset. No other column writes a bare date.
+  forms, `iso-date` before `iso-datetime` on a tie, after the ranks whose
+  instant the published tail fixes are settled in rank order: rank `0`
+  and rank `P - 1` with their published offsets and, on a column the
+  move onto a midnight below reaches, each rung rank and each rank
+  standing between two pinned ranks of one instant, with every offset
+  that instant stands at midnight under. A settled rank none of whose
+  offsets is `(none)` or `(withheld)` is a moment; on the `utc` clock a
+  settled rank that may carry no offset is a bare date while `iso-date`
+  has a count left; each takes one from its form's count (repair pass
+  of landing 2b.3: bare dates beside `T00:00:00+02:00` moments publish
+  rungs at 22:00, rung ranks the rotation made bare dates were written
+  22 hours early, and every twin of that shape missed). A rank given
+  `iso-date` is written `YYYY-MM-DD`, with no mark, clock or offset. No
+  other column writes a bare date.
 
 - **A column counted in seconds that publishes `n_at_midnight` above
   nought has that many values moved onto a midnight** (landing 2b.3):
@@ -3722,6 +3737,16 @@ rather than passing it off as an outcome the description asked for.
   what the tail publishes changes that set and not the construction. A
   count the two passes cannot reach is a deviation of `n_at_midnight`.
 
+- **A column counted in seconds that publishes `n_at_midnight` of nought
+  has an accidental value at midnight moved off** (repair pass of
+  landing 2b.3). In rank order, a rank step 1 above does not pin whose
+  written cell stands at midnight moves one precision step later where
+  that stays below the next rank's instant, else one step earlier where
+  that stays above the previous rank's, else stays; no word is drawn and
+  no two ranks come to share an instant. At a floor of one the nought
+  says no value stood at midnight, and a twin interpolated to the minute
+  put one there by chance and read back with a count of one.
+
   The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
   any other rank.
 
@@ -3736,8 +3761,14 @@ rather than passing it off as an outcome the description asked for.
   the pooled ones included. The first whose spelling is not absent is
   written (the stage 2 audit, 2026-09-14). A spelling a column's own
   calendar placeholder or stand-in pass judged absent is not a
-  declaration and is not offered to other columns, unless the judging
-  column also counts cells absent by declaration (landing 2b.3). Any two of them spell the same instant at the same
+  declaration and is not offered to other columns (landing 2b.3), unless
+  a declaration can share its day: the judging column counts cells
+  absent by declaration, and the keys denoting the judged candidate,
+  with the column's pooled hole spellings added, hold more cells than
+  the verdict's `n_occurrences`, which counts only the cells the pass
+  took because a declared cell is taken out before any pass judges
+  (repair pass of landing 2b.3: a declared `NA` in the judging column
+  had carried a judged `1900-01-01 00:00:00` to a birth column). Any two of them spell the same instant at the same
   precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,
@@ -7101,6 +7132,8 @@ case passed, which is the failure the count exists to prevent:
 | `midnight_mixed_forms` | G7.5's whole dates: twenty-four days at midnight read jointly, published with `resolution_mix: {"iso-date": 13, "iso-datetime": 11}` and `datetime_separators: {"space": 11}`, whose forms are spread by the rotation and whose marks fall on the clock-writing ranks alone |
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
+| `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
+| `accidental_midnight` | G7.5's move of an accidental value at midnight: twenty-four `local` moments to the minute published with `n_at_midnight: 0`, one of whose interpolated ranks lands in the first minute of a day and moves one step later |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -7427,6 +7460,15 @@ onto midnight: its mutant keeps the interpolated instants.
 `midnight_two_offsets` pins the reading on the shared clock: its mutant
 counts the column in days, which reads a rung at 23:00 as the day
 before.
+
+**Why the twenty-ninth and the thirtieth exist** (the repair pass of
+landing 2b.3, 2026-09-15). Its skeptic found two rules no case reached:
+regenerated after the rules changed, both committed files were
+byte-identical. `midnight_bare_offsets` pins the settling of the ranks
+whose instant the published tail fixes: its mutant settles the two ends
+alone, and rung ranks are written as the day before and at
+`T02:00:00+02:00`. `accidental_midnight` pins the move off an accidental
+value at midnight: its mutant keeps it.
 
 ### G14.4 What the vectors do NOT freeze
 

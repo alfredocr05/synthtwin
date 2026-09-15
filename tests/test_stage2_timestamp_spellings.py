@@ -33,6 +33,7 @@ import io
 import json
 import pathlib
 import random
+import typing
 
 import pytest
 
@@ -474,9 +475,9 @@ def test_a_declaration_sharing_a_day_with_a_judged_spelling_keeps_its_reach(
     assert (twin_exit, real_exit) == (0, 0)
 
 
-@pytest.mark.parametrize("declared", [False, True])
+@pytest.mark.parametrize("declared", ["nothing", "the-judged-spelling", "na"])
 def test_both_writings_of_the_judged_rule_answer_alike(
-    tmp_path: pathlib.Path, declared: bool
+    tmp_path: pathlib.Path, declared: str
 ) -> None:
     """The generator's rule and the validator's, key by key, on real descriptions.
 
@@ -486,13 +487,17 @@ def test_both_writings_of_the_judged_rule_answer_alike(
     placeholder, declared and not.
     """
     flags: "tuple[str, ...]" = ("--identifier", "id")
-    if declared:
+    rows = _placeholder_rows(1500, 77)
+    if declared == "the-judged-spelling":
         flags = flags + ("--missing-value", "1900-01-01 00:00:00")
+    if declared == "na":
+        flags = flags + ("--missing-value", "NA")
+        rows = _placeholder_rows_beside_na(1500, 79, " ")
     folder = tmp_path / "rule"
     folder.mkdir()
     table = folder / "real.csv"
     table.write_text(
-        fixtures.rows_to_csv(["id", "discharge", "birth"], _placeholder_rows(1500, 77)),
+        fixtures.rows_to_csv(["id", "discharge", "birth"], rows),
         encoding="utf-8",
         newline="",
     )
@@ -508,9 +513,10 @@ def test_both_writings_of_the_judged_rule_answer_alike(
             asked += 1
     assert asked >= 1
     judged = "1900-01-01 00:00:00" not in generation._every_hole_spelling(described)
-    # Undeclared, the judged spelling stays in its own column; declared, it is
-    # a declaration and reaches the table.
-    assert judged is (not declared)
+    # Undeclared, or beside a declared `NA` sharing no day with it, the judged
+    # spelling stays in its own column; declared itself, it reaches the table.
+    assert judged is (declared != "the-judged-spelling")
+    assert ("1900-01-01 00:00:00" in validation.declared_spellings(described)) is (not judged)
 
 
 # -- the year-first slashed stamp is read as a moment
@@ -533,4 +539,212 @@ def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     for key in ("role", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
         assert second[key] == first[key], (key, first[key], second[key])
     assert all(cell[4] == "-" and cell[10] == " " for cell in written)
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+# -- the repair pass of landing 2b.3: what its skeptic found
+
+
+def _placeholder_rows_beside_na(count: int, seed: int, mark: str) -> "list[list[str]]":
+    """A discharge column with a declared `NA` and a judged placeholder; a birth column keeping it."""
+    draw = random.Random(seed)
+    rows = []
+    for place in range(count):
+        roll = draw.random()
+        if roll < 0.05:
+            discharge = "NA"
+        elif roll < 0.07:
+            discharge = f"1900-01-01{mark}00:00:00"
+        else:
+            day = datetime.date(2018, 1, 1) + datetime.timedelta(days=draw.randrange(2000))
+            discharge = f"{day.isoformat()}{mark}00:00:00"
+        if draw.random() < 0.15:
+            birth = f"1900-01-01{mark}00:00:00"
+        else:
+            day = datetime.date(1895, 1, 1) + datetime.timedelta(days=draw.randrange(38000))
+            birth = f"{day.isoformat()}{mark}00:00:00"
+        rows += [[str(place), discharge, birth]]
+    return rows
+
+
+@pytest.mark.parametrize("mark, seed", [(" ", "0"), (" ", "4"), ("T", "11")])
+def test_a_judged_placeholder_beside_a_declared_na_stays_one_columns_business(
+    tmp_path: pathlib.Path, mark: str, seed: str
+) -> None:
+    """The commonest declaration, `--missing-value NA`, held in the judging column too.
+
+    The discharge column counts cells absent by declaration, and the rule
+    that stopped there carried its judged `1900-01-01 00:00:00` to the whole
+    table: the birth column's twin wrote 75 of its values with a `T` and the
+    real table missed 12 obligations of its own description. The day's keys
+    hold exactly the cells the verdict took, so nothing declared shares it.
+    """
+    first, second, written, twin_exit, real_exit = _table(
+        tmp_path / "beside-na",
+        ["id", "discharge", "birth"],
+        _placeholder_rows_beside_na(1500, 79, mark),
+        ("--identifier", "id", "--missing-value", "NA"),
+        seed,
+    )
+    judged = f"1900-01-01{mark}00:00:00"
+    assert set(first[1]["missing_by_source"]) == {"NA", judged}
+    assert first[1]["missing_by_class"]["(declared-missing)"] == first[1]["missing_by_source"]["NA"]
+    assert first[2]["n_present"] == 1500 and first[2]["missing_by_source"] == {}
+    name = {" ": "space", "T": "upper_t"}[mark]
+    assert second[2]["datetime_separators"] == first[2]["datetime_separators"] == {name: 1500}
+    assert sum(1 for row in written if len(row[2]) > 10 and row[2][10] != mark) == 0
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def _bare_beside(
+    count: int, share: float, seed: int, offset_of: "typing.Callable[[datetime.date], str]", days: int = 1000
+) -> "list[str]":
+    """Bare dates beside `T00:00:00` moments carrying a real offset, on the same days."""
+    draw = random.Random(seed)
+    start = datetime.date(2022, 1, 1)
+    cells = []
+    for _ in range(count):
+        day = start + datetime.timedelta(days=draw.randrange(days))
+        if draw.random() < share:
+            cells += [day.isoformat()]
+        else:
+            cells += [f"{day.isoformat()}T00:00:00{offset_of(day)}"]
+    return cells
+
+
+def _cet(day: datetime.date) -> str:
+    return "+02:00" if 4 <= day.month <= 10 else "+01:00"
+
+
+@pytest.mark.parametrize(
+    "cells_of, seed",
+    [
+        (lambda: _bare_beside(800, 0.5, 72, lambda day: "+02:00"), "0"),
+        (lambda: _bare_beside(800, 0.5, 72, lambda day: "+02:00"), "4"),
+        (lambda: _bare_beside(1200, 0.5, 52, _cet), "11"),
+        (lambda: _bare_beside(2500, 0.3, 71, _cet), "4"),
+        (lambda: _bare_beside(1000, 0.7, 73, lambda day: "-05:00"), "0"),
+        (lambda: _bare_beside(900, 0.6, 93, lambda day: "+02:00", days=5), "4"),
+    ],
+    ids=["plus-two", "plus-two-seed-4", "cet", "cet-2500", "minus-five", "five-days"],
+)
+def test_bare_dates_beside_moments_at_local_midnight_on_a_real_offset_keep_their_ladder(
+    tmp_path: pathlib.Path, cells_of: object, seed: str
+) -> None:
+    """A European or American warehouse export: date fields bare, datetime fields at local midnight.
+
+    Its rungs are published on the shared clock at 22:00 or 05:00 where a
+    moment stood there and at 00:00 where a bare date did. Every rung rank,
+    and every rank between two rungs of one instant, takes the form and the
+    offset its instant stands at midnight under; on 53bb012 the rungs came
+    back 22 hours early and cells were written `T02:00:00+02:00`.
+    """
+    cells = cells_of()  # type: ignore[operator]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "bare-offset", cells, (), True, seed
+    )
+    assert first["format"] == "iso-mixed" and first["datetimes_read_at"] == "utc"
+    assert first["all_at_midnight"] is True
+    for key in (
+        "resolution_mix", "utc_offsets", "datetime_separators", "all_at_midnight", "n_at_midnight",
+        "earliest", "latest", "earliest_utc_offset", "latest_utc_offset", "date_percentiles",
+    ):
+        assert second[key] == first[key], (key, first[key], second[key])
+    assert sum(1 for cell in written if len(cell) == 10) == sum(1 for cell in cells if len(cell) == 10)
+    assert all(_at_midnight(cell) for cell in written)
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_bare_dates_rewritten_with_a_clock_miss_the_marks(tmp_path: pathlib.Path) -> None:
+    """1,900 bare dates beside 100 midnight moments with a space; the bare dates given a `T` or a `t`.
+
+    The twin writes a column wholly at midnight with its bare dates bare, so
+    a file writing them with a clock has 1,900 cells wearing a mark the
+    census never names. The clock-writing cells beyond the published count
+    widened the bound only where the twin itself writes whole dates with a
+    clock, and that is not this column.
+    """
+    cells = _shuffled(_days(1900, "", 1) + _days(100, " 00:00:00", 2), 3)
+    _first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "bare", cells, (), True, "0"
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    for mark in ("T", "t"):
+        clocked = [f"{cell}{mark}00:00:00" if len(cell) == 10 else cell for cell in written]
+        code, report = _validate(
+            tmp_path / "bare" / "real-profile.json", clocked, tmp_path / f"clocked-{mark}"
+        )
+        assert code == 3
+        assert _misses(report, "datetime.datetime_separators")
+
+
+@pytest.mark.parametrize("seed", ["0", "4"])
+def test_an_odd_pool_gives_its_remainder_to_the_space_before_the_lower_case_t(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """880 `T` beside 11 spaces and 10 `t`, both held back at a floor of 12: 11 and 10 come back."""
+    cells = _shuffled(_minutes(880, "T", 1) + _minutes(11, " ", 2) + _minutes(10, "t", 3), 5)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "odd-pool", cells, ("--smallest-group", "12"), True, seed
+    )
+    assert first["datetime_separators"] == {"(withheld)": 21, "upper_t": 880}
+    assert second["datetime_separators"] == first["datetime_separators"]
+    assert _marks(written) == {"T": 880, " ": 11, "t": 10}
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("days, seed", [(3, "0"), (6, "4")])
+def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves_unnamed(
+    tmp_path: pathlib.Path, days: int, seed: str
+) -> None:
+    """Midnight stamps with a `T` over a few days, eight with a `t`, and each day's spaced spelling declared absent.
+
+    The pool's share given a space meets an absent spelling on every day.
+    Offered the marks the allocation writes, it takes the `t` the census
+    leaves unnamed and the pool comes back; offered only the named `T`, four
+    of the eight became `T` and the twin described again named 884 `T`.
+    """
+    draw = random.Random(7)
+    start = datetime.date(2024, 1, 1)
+
+    def stamps(count: int, mark: str) -> "list[str]":
+        return [
+            f"{(start + datetime.timedelta(days=draw.randrange(days))).isoformat()}{mark}00:00:00"
+            for _ in range(count)
+        ]
+
+    declared = [f"{(start + datetime.timedelta(days=day)).isoformat()} 00:00:00" for day in range(days)]
+    holes: "list[str]" = []
+    flags: "tuple[str, ...]" = ("--smallest-group", "20")
+    for spelling in declared:
+        holes += [spelling] * 25
+        flags = flags + ("--missing-value", spelling)
+    cells = _shuffled(stamps(880, "T") + stamps(12, " ") + stamps(8, "t") + holes, 6)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "offer", cells, flags, True, seed
+    )
+    assert first["datetime_separators"] == {"(withheld)": 8, "upper_t": 880}
+    assert second["datetime_separators"] == first["datetime_separators"]
+    assert _marks([cell for cell in written if cell and cell not in declared]) == {"T": 880, "t": 8}
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", ["4", "0"])
+def test_a_column_with_no_value_at_midnight_gets_a_twin_with_none(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """Minute stamps none of which stands at midnight: `n_at_midnight` 0 comes back as 0.
+
+    At a floor of one the nought says no value stood there, and a twin
+    interpolated to the minute put one there by chance on seed 4, which read
+    back as a count of 1.
+    """
+    cells = _minutes(1200, " ", 11)
+    assert sum(1 for cell in cells if _at_midnight(cell)) == 0
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "none", cells, (), True, seed
+    )
+    assert first["n_at_midnight"] == 0
+    assert sum(1 for cell in written if _at_midnight(cell)) == 0
+    assert second["n_at_midnight"] == 0
     assert (twin_exit, real_exit) == (0, 0)

@@ -1135,9 +1135,12 @@ floor, so the real table meets its description by construction:
 - every mark `datetime_separators` names is a floor-governed count
   (`marks.<name>`), its window running from the published count to the
   published count plus the `(withheld)` pool — the precedent of the
-  offsets and the styles — and on an `iso-mixed` column plus the
-  clock-writing cells the file holds beyond the published total, whose
-  marks the description never counted;
+  offsets and the styles — and on an `iso-mixed` column not wholly at
+  midnight plus the clock-writing cells the file holds beyond the
+  published total, whose marks the description never counted (a joint
+  column wholly at midnight writes its whole dates bare, so there the
+  pool alone bounds them: repair pass of landing 2b.3, where 1,900 bare
+  dates of 2,000 rewritten with a `T` passed);
 - the values wearing a mark the census does NOT name, the file's own
   pool included, are at most that same width (`marks.unnamed`), which is
   the only check that sees a mark nobody published;
@@ -1163,8 +1166,15 @@ cell absent by declaration. A birth column holding 187 present cells of
 a discharge column's judged `1900-01-01 00:00:00` had them described as
 absent, and the real table missed 24 obligations of its own
 description. Where the judging column also counts declared cells, the
-judged test matches by day and cannot tell the keys apart, so they all
-stay declarations and a person's own word is never narrowed.
+key is left out too unless a declared cell can share the judged day: the
+keys denoting the judged candidate, with the column's pooled hole
+spellings added, hold more cells than the verdict's `n_occurrences`,
+which counts only the cells the pass took, since a declared cell is taken
+out before any pass judges. There every key sharing that day stays a
+declaration and a person's own word is never narrowed. A declared `NA`
+shares no day with a placeholder, so it no longer carries a judged
+spelling to the table (repair pass of landing 2b.3: the real table had
+missed 12 obligations).
 
 **Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
 grouped spelling of every value, whatever `group_separator` publishes.**

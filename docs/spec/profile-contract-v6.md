@@ -4057,7 +4057,9 @@ only where the profile records a real one. A column whose `format` is
 mix recorded and not reproduced, EXCEPT where its `all_at_midnight` is
 `true` (landing 2b.3, narrowing owner decision 4): there its
 `resolution_mix` is spent over the ranks and a whole-date rank is
-written as its bare day. A datetime cell carries, between its day and
+written as its bare day, after every rank whose instant the published
+tail fixes takes the form and the offset that instant stands at
+midnight under (repair pass of landing 2b.3). A datetime cell carries, between its day and
 its clock, the mark method G7.5 allocates from `datetime_separators`:
 a withheld pool is written with the permitted marks the census leaves
 unnamed (landing 2b.3), and ranks the counts still do not cover take
@@ -4067,7 +4069,9 @@ and a space on a slashed stamp. A column on the `local` clock whose
 is written as its day with a midnight clock at the column's
 `time_precision` and `subsecond_digits`; a column counted in seconds
 that publishes `n_at_midnight` above nought has that many of its
-cells moved onto a midnight of its own wall clock (landing 2b.3). The rule is scoped to twin CSV cells
+cells moved onto a midnight of its own wall clock (landing 2b.3), and
+one that publishes nought has an accidental value at midnight moved one
+step of its precision off (repair pass of landing 2b.3). The rule is scoped to twin CSV cells
 and does not touch the profile's own canonical serialization: a
 published instant stays space-separated whatever mark the cells
 carry.

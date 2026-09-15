@@ -147,6 +147,11 @@ REQUIRED_CASES = (
 # 11's pooled-spelling case), which are the second committed file of the
 # same oracle.
 BRANCH_CASES = (
+    # THE TWO CASES OF LANDING 2b.3'S REPAIR PASS: an accidental value at
+    # midnight moved off a column that publishes none, and bare dates beside
+    # moments at local midnight on a real offset, whose ranks with a published
+    # instant settle their form and offset before the rotation.
+    "accidental_midnight",
     # THE THIRD FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). It pins the rule the affixed role exists for: the
     # universal class counts answer for the CELLS and the quantitative
@@ -172,6 +177,7 @@ BRANCH_CASES = (
     # so their generator branches were checked only against
     # themselves. This is one of the four.
     "long_tail_levels",
+    "midnight_bare_offsets",
     # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
     # One pins the day-unit rule of a column that stands wholly at
     # midnight; the other pins the evenly spread rotation of marks, its
@@ -242,6 +248,8 @@ SEEDS = {
     "midnight_mixed_forms": 126,
     "partial_midnight": 127,
     "midnight_two_offsets": 128,
+    "midnight_bare_offsets": 129,
+    "accidental_midnight": 130,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1100,6 +1108,19 @@ def _no_move_onto_midnight(column, ordinals, shifts):
     return list(ordinals)
 
 
+def _ends_alone(column, parsed):
+    """The repair pass withdrawn: only the two ends settle their form and offset."""
+    fixed = {0: (column["earliest_utc_offset"],)}
+    if parsed >= 2:
+        fixed[parsed - 1] = (column["latest_utc_offset"],)
+    return fixed
+
+
+def _accidental_midnight_kept(column):
+    """The repair pass withdrawn: an accidental value at midnight is never moved off."""
+    return False
+
+
 def _days_on_either_clock(column):
     """Landing 2b.3's shared-clock rule withdrawn: counted in days on either clock."""
     if column.get("all_at_midnight", False):
@@ -1488,6 +1509,24 @@ CASE_MUTANTS = {
         "published at 23:00 lands on the day before",
         attribute="ordinal_space",
         replacement=_days_on_either_clock,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "midnight_bare_offsets": Mutant(
+        branch="the repair pass of landing 2b.3, which settles the form and "
+        "the offset of every rank whose instant the published tail fixes "
+        "before the rotation; the mutant settles the two ends alone, and rung "
+        "ranks are written as the day before and at T02:00:00+02:00",
+        attribute="instant_offsets",
+        replacement=_ends_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "accidental_midnight": Mutant(
+        branch="the repair pass of landing 2b.3, which moves an accidental "
+        "value at midnight one precision step off a column publishing "
+        "n_at_midnight 0; the mutant keeps it, and the twin reads back with "
+        "a count of one",
+        attribute="moves_off_midnight",
+        replacement=_accidental_midnight_kept,
         outcome=CHANGES_THE_CELLS,
     ),
     "leap_second_endpoint": Mutant(

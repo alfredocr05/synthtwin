@@ -7870,15 +7870,28 @@ def _judged_here_alone(
     """Whether a published hole spelling is ONE column's judgement only.
 
     A judged pass put it there (`_a_judged_pass_put_it_there`), AND no
-    declaration can have: the table declared no missing value at all, or
-    this column counts no cell absent by declaration. The second half is
-    what keeps a person's own `--missing-value 1900-01-01T00:00:00` from
-    losing its table-wide reach when the same column also holds a judged
-    `1900-01-01 00:00:00`: the judged test matches by the written DAY,
-    so it answers yes for both keys, and the description has no per-key
-    record of which was typed. Where a column holds both kinds, every
-    key that shares a judged day keeps its reach, which is the old and
-    conservative answer for exactly that column.
+    declaration can have. No declaration can have where the table
+    declared no missing value at all, where this column counts no cell
+    absent by declaration, or where the keys denoting the judged
+    candidate hold no more cells than the judged pass took. That last is
+    a count and not a guess: the verdict's `n_occurrences` counts the
+    cells the pass read as absent, a declared cell is taken out before
+    any pass judges, so the keys sharing the candidate's day hold
+    `n_occurrences` cells plus every declared cell spelled on that day,
+    and the column's pooled hole spellings (`n_missing_withheld`) are
+    added to the keys because a judged spelling pooled there could leave
+    a declared key named in its place.
+
+    Measured, repair pass of landing 2b.3: a discharge column holding 64
+    `NA` cells a person declared beside 25 judged `1900-01-01 00:00:00`
+    counts declared cells, and the rule that stopped at "this column
+    counts declared cells" kept the judged spelling table-wide, so a birth
+    column's twin wrote 75 values with a `T` and the real table missed 12
+    obligations of its own description. The day's one key holds 25 cells,
+    the verdict took 25, and nothing declared shares the day. A person's
+    own `1900-01-01T00:00:00` beside a judged `1900-01-01 00:00:00` puts
+    64 cells on a day whose verdict took 36, and both keys keep their
+    table-wide reach, so a declaration is never narrowed.
 
     Guarantees: accepts one column, a spelling it publishes, whether it
     was declared a decimal-comma column, and the description; returns a
@@ -7888,7 +7901,22 @@ def _judged_here_alone(
         return False
     if profile.settings.declared_missing_values.n_declared <= 0:
         return True
-    return column.missing_by_class.declared_missing <= 0
+    if column.missing_by_class.declared_missing <= 0:
+        return True
+    judged = 0
+    named = column.n_missing_withheld
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        if not _is_the_same_candidate(spelling, verdict.candidate, decimal_comma):
+            continue
+        judged = judged + verdict.n_occurrences
+        for key in sorted(column.missing_by_source):
+            if _is_the_same_candidate(key, verdict.candidate, decimal_comma):
+                named = named + column.missing_by_source[key]
+    return named <= judged
 
 
 def _hole_spellings(
@@ -11569,18 +11597,26 @@ def _datetime_content(
             ) // span
         ordinals += [ordinal]
     snapping = _snaps_to_midnight(facts)
-    pins: "dict[int, str]" = {}
+    pins: "dict[int, tuple[str, ...]]" = {}
     if snapping:
         pinned = _rung_pins(facts, parsed)
         for rank in sorted(pinned):
             ordinals[rank] = pinned[rank][0]
-            if facts.all_at_midnight and pinned[rank][1]:
-                pins[rank] = pinned[rank][1]
+        if facts.all_at_midnight:
+            # Every interior rank whose instant the tail fixes -- a rung
+            # rank, or one between two pinned ranks of one instant -- takes
+            # an offset that instant is a midnight under (repair pass).
+            fixed = _instant_offsets(facts, parsed)
+            for rank in sorted(fixed):
+                if 0 < rank < parsed - 1 and fixed[rank]:
+                    pins[rank] = fixed[rank]
     offsets, notes = _offset_allocation(column, facts, parsed, whole, pins)
     marks, marked = _clock_marks(column, facts, whole)
     notes = notes + marked
     if snapping:
         ordinals = _snapped_to_midnight(facts, ordinals, offsets)
+    elif _moves_off_midnight(facts):
+        ordinals = _nudged_off_midnight(facts, ordinals, offsets)
     # The spellings ANY column publishes among its absent cells, so that
     # no cell this run writes wears one (review item P4-DATE-F2). Its own
     # column's alone was enough while every stamp wore a `T`; once a cell
@@ -12530,7 +12566,7 @@ def _offset_allocation(
     facts: contract.DatetimeFacts,
     parsed: int,
     whole: "list[bool] | None" = None,
-    pins: "dict[int, str] | None" = None,
+    pins: "dict[int, tuple[str, ...]] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Which offset every parsed cell carries (method G7.4).
 
@@ -12547,10 +12583,12 @@ def _offset_allocation(
     ends are pinned; `_form_allocation` has already given a moment to an
     end whose published offset is a real one.
 
-    AND A RUNG RANK OF A COLUMN AT MIDNIGHT ON THE SHARED CLOCK TAKES THE
+    AND A RUNG RANK OF A COLUMN AT MIDNIGHT ON THE SHARED CLOCK TAKES AN
     OFFSET ITS RUNG STANDS AT MIDNIGHT UNDER (landing 2b.3; `pins`), after
     the ends and before the rest: a rank written under the other offset
-    lands an hour away from the published instant.
+    lands an hour away from the published instant. It takes the first of
+    them with a count left, so a rung at a midnight of the shared clock
+    whose `Z` is spent takes `(none)` (repair pass of landing 2b.3).
     """
     left = {key: facts.utc_offsets[key] for key in facts.utc_offsets}
     given = ["" for _rank in range(parsed)]
@@ -12571,7 +12609,8 @@ def _offset_allocation(
         _pin_offset(parsed - 1, facts.latest_utc_offset, given, settled, left)
     if pins is not None:
         for rank in sorted(pins):
-            _pin_offset(rank, pins[rank], given, settled, left)
+            for key in pins[rank]:
+                _pin_offset(rank, key, given, settled, left)
     keys = [key for key in sorted(left) if _is_real_offset(key)]
     keys = keys + [key for key in sorted(left) if not _is_real_offset(key)]
     open_ranks = [rank for rank in range(parsed) if not settled[rank]]
@@ -12617,6 +12656,64 @@ def _snaps_to_midnight(facts: contract.DatetimeFacts) -> bool:
     )
 
 
+def _moves_off_midnight(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's accidental values at midnight are moved off (repair pass).
+
+    A column of moments counted in seconds that publishes `n_at_midnight`
+    of nought. At a floor of one that nought says no value stood at
+    midnight, and a twin interpolated to the minute put one or two there
+    by chance, so it read back with a count of 1 or 2 (measured on 1,200
+    minute stamps, seed 4). At a higher floor nought also covers a count
+    below the floor, which a twin holding none still meets.
+
+    Guarantees: accepts loaded datetime facts; returns a bool.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    return (
+        facts.resolution == "datetime"
+        and _ordinal_space(facts) == "datetime"
+        and facts.n_at_midnight == 0
+        and not facts.all_at_midnight
+    )
+
+
+def _nudged_off_midnight(
+    facts: contract.DatetimeFacts, ordinals: "list[int]", offsets: "list[str]"
+) -> "list[int]":
+    """Move every accidental midnight one precision step off (repair pass).
+
+    In rank order, a rank the published tail does not pin
+    (`_ranks_the_tail_pins`) whose cell is written at midnight on its own
+    wall clock, cut to the precision (`_written_at_midnight`), moves one
+    step later where that stays below the next rank's instant, else one
+    step earlier where that stays above the previous rank's, else stays.
+    No two ranks come to share an instant and no rank passes another, so
+    the count of values and every rung read off a pinned rank are as
+    before; no word is drawn.
+
+    Guarantees: accepts the facts, one instant per rank in seconds on the
+    column's clock and one offset per rank; returns the instants moved.
+    Linear. Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    parsed = len(ordinals)
+    moved = [value for value in ordinals]
+    step = 60 if facts.time_precision == "minute" else 1
+    pinned = _ranks_the_tail_pins(parsed)
+    for rank in range(parsed):
+        if pinned[rank]:
+            continue
+        shift = 0
+        if facts.datetimes_read_at == "utc":
+            shift = _offset_seconds(offsets[rank])
+        if not _written_at_midnight(moved[rank], shift, step):
+            continue
+        if rank + 1 < parsed and moved[rank] + step < moved[rank + 1]:
+            moved[rank] = moved[rank] + step
+        elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
+            moved[rank] = moved[rank] - step
+    return moved
+
+
 def _rung_rank(percent: int, parsed: int) -> int:
     """The rank a published rung is read off (method G12.4, taxonomy)."""
     return min(parsed - 1, ((parsed - 1) * percent) // 100)
@@ -12646,25 +12743,31 @@ def _ranks_the_tail_pins(parsed: int) -> "list[bool]":
     return flags
 
 
-def _midnight_offset(seconds: int, facts: contract.DatetimeFacts) -> str:
-    """The published offset under which an instant is a local midnight, or "".
+def _midnight_offsets(
+    seconds: int, facts: contract.DatetimeFacts
+) -> "tuple[str, ...]":
+    """Every published offset under which an instant is a local midnight.
 
-    The real offsets in sorted order first and then `(none)`; the first
-    whose wall clock reads `00:00:00` at this instant. Two offsets that
-    both do are a whole number of days apart, which no offset pair is, or
-    the same number of seconds, which write the same day.
+    The real offsets in sorted order first and then `(none)`; each whose
+    wall clock reads `00:00:00` at this instant. Two real offsets that
+    both do shift the clock by the same number of seconds (`Z` and
+    `+00:00`), and `(none)` does exactly where the instant is a midnight
+    on the shared clock. Every one is kept, in that order, because a rank
+    that may not take the first -- its count spent -- takes the next
+    (repair pass of landing 2b.3).
     """
+    found: list[str] = []
     for key in sorted(facts.utc_offsets):
         if _is_real_offset(key) and (seconds + _offset_seconds(key)) % 86400 == 0:
-            return key
+            found += [key]
     if contract.NO_OFFSET in facts.utc_offsets and seconds % 86400 == 0:
-        return contract.NO_OFFSET
-    return ""
+        found += [contract.NO_OFFSET]
+    return tuple(found)
 
 
 def _rung_pins(
     facts: contract.DatetimeFacts, parsed: int
-) -> "dict[int, tuple[int, str]]":
+) -> "dict[int, tuple[int, tuple[str, ...]]]":
     """The rung ranks of a column whose ranks are moved onto a midnight.
 
     Each interior rung's rank takes the rung's own published instant, as
@@ -12672,23 +12775,72 @@ def _rung_pins(
     exactly and a rung the real column held at midnight counts toward
     `n_at_midnight` where an interpolated rank beside it would not -- 999
     values at midnight and one stray time came back as 991 without it. Beside the
-    instant comes the offset it stands at a local midnight under, or ""
-    where none does; `_offset_allocation` gives a rung rank that offset
-    on a column wholly at midnight on the shared clock, where a rank
-    given the other offset lands an hour from its published instant.
+    instant come the offsets it stands at a local midnight under
+    (`_midnight_offsets`), none where it stands at none;
+    `_offset_allocation` gives a rung rank the first of them with a count
+    left on a column wholly at midnight on the shared clock, where a rank
+    given another offset lands hours from its published instant.
 
     Guarantees: accepts loaded datetime facts and the parsed count;
     returns rank to (instant in seconds on the column's clock, offset
-    key). Determinism: a function of the two. Raises nothing. No I/O.
+    keys). Determinism: a function of the two. Raises nothing. No I/O.
     """
-    pinned: "dict[int, tuple[int, str]]" = {}
+    pinned: "dict[int, tuple[int, tuple[str, ...]]]" = {}
     for step in range(1, len(_PCT) - 1):
         rank = _rung_rank(_PCT[step], parsed)
         if rank <= 0 or rank >= parsed - 1 or rank in pinned:
             continue
         seconds = _ordinal_of(facts.date_percentiles.rungs[step], "datetime")
-        pinned[rank] = (seconds, _midnight_offset(seconds, facts))
+        pinned[rank] = (seconds, _midnight_offsets(seconds, facts))
     return pinned
+
+
+def _instant_offsets(
+    facts: contract.DatetimeFacts, parsed: int
+) -> "dict[int, tuple[str, ...]]":
+    """The ranks whose instant the published tail fixes, and their offsets.
+
+    The two ends, each with the offset published for it. On a column
+    moved onto a midnight (`_snaps_to_midnight`), also each rung rank
+    (`_rung_pins`) and each rank standing between two pinned ranks of one
+    instant, which `_snapped_to_midnight` leaves on that instant; each
+    carries every offset its instant stands at a midnight under
+    (`_midnight_offsets`). REPAIR PASS OF LANDING 2b.3, measured: 900 bare
+    dates and `T00:00:00+02:00` moments over five days publish p01 and p05
+    at one 22:00 instant and p90 to the end at one midnight of the shared
+    clock; the ranks between them took their form and offset without
+    regard to that instant, 24 were written as the day before and 36 as
+    `T02:00:00+02:00`, and the twin missed seven obligations.
+
+    Guarantees: accepts loaded datetime facts and the parsed count;
+    returns rank to offset keys, linear in the count. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    fixed: "dict[int, tuple[str, ...]]" = {}
+    if parsed == 0:
+        return fixed
+    fixed[0] = (facts.earliest_utc_offset,)
+    if parsed >= 2:
+        fixed[parsed - 1] = (facts.latest_utc_offset,)
+    if not _snaps_to_midnight(facts):
+        return fixed
+    instants: "dict[int, int]" = {0: _ordinal_of(facts.earliest, "datetime")}
+    if parsed >= 2:
+        instants[parsed - 1] = _ordinal_of(facts.latest, "datetime")
+    rungs = _rung_pins(facts, parsed)
+    for rank in sorted(rungs):
+        instants[rank] = rungs[rank][0]
+        fixed[rank] = rungs[rank][1]
+    ranks = sorted(instants)
+    for place in range(len(ranks) - 1):
+        low = ranks[place]
+        high = ranks[place + 1]
+        if instants[low] != instants[high]:
+            continue
+        keys = _midnight_offsets(instants[low], facts)
+        for rank in range(low + 1, high):
+            fixed[rank] = keys
+    return fixed
 
 
 def _snapped_to_midnight(
@@ -12853,10 +13005,25 @@ def _form_allocation(facts: contract.DatetimeFacts, parsed: int) -> "list[bool]"
     the ranks by the smooth weighted rotation the marks use: the two forms
     sorted, `iso-date` before `iso-datetime`, each rank adding both counts
     to their credits, taking the form with more credit -- `iso-date` on a
-    tie -- and giving the total back. An end whose published offset is a
-    real one wrote a clock, so it is a moment before the rotation starts
-    and its form is taken off the moment count. No word is drawn. Every
-    other column writes no bare date, exactly as before.
+    tie -- and giving the total back. No word is drawn. Every other column
+    writes no bare date, exactly as before.
+
+    A RANK WHOSE INSTANT IS PUBLISHED IS SETTLED BEFORE THE ROTATION, and
+    its form is taken off its count. Those ranks are the ones
+    `_instant_offsets` names: the two ends, each with the offset published
+    for it, and on a column moved onto a midnight (`_snaps_to_midnight`)
+    each rung rank and each rank between two pinned ranks of one instant,
+    with every offset that instant stands at midnight under. A rank none of whose
+    offsets is `(none)` or `(withheld)` wrote a clock, so it is a moment.
+    On the shared clock, a rank that may carry no offset is a bare date
+    while the date count lasts. REPAIR PASS OF LANDING 2b.3, measured:
+    bare dates beside `T00:00:00+02:00` moments publish rungs at 22:00 on
+    the shared clock, and a rung rank the rotation made a bare date was
+    written 22 hours early; a rung at a midnight of the shared clock the
+    rotation made a moment found `(none)` spent by the bare dates and was
+    written `T02:00:00+02:00`. Every twin of that shape missed (15 of 15
+    runs). A column on its own clock has no rung pins and publishes no
+    real offset for an end, so nothing is settled there, as before.
 
     Guarantees: accepts loaded datetime facts and the number of parsed
     cells; returns one flag per rank, true where the rank is a bare date.
@@ -12867,18 +13034,30 @@ def _form_allocation(facts: contract.DatetimeFacts, parsed: int) -> "list[bool]"
         return whole
     if not facts.all_at_midnight:
         return whole
-    pinned: list[int] = []
-    if _is_real_offset(facts.earliest_utc_offset):
-        pinned += [0]
-    if parsed >= 2 and _is_real_offset(facts.latest_utc_offset):
-        pinned += [parsed - 1]
+    published = _instant_offsets(facts, parsed)
     dates = facts.resolution_mix["iso-date"]
-    moments = max(0, facts.resolution_mix["iso-datetime"] - len(pinned))
+    moments = facts.resolution_mix["iso-datetime"]
+    settled = [False for _rank in range(parsed)]
+    for rank in sorted(published):
+        keys = published[rank]
+        if not keys:
+            continue
+        bare_allowed = False
+        for key in keys:
+            if not _is_real_offset(key):
+                bare_allowed = True
+        if not bare_allowed:
+            settled[rank] = True
+            moments = max(0, moments - 1)
+        elif facts.datetimes_read_at == "utc" and dates > 0:
+            settled[rank] = True
+            whole[rank] = True
+            dates = dates - 1
     total = dates + moments
     credit_dates = 0
     credit_moments = 0
     for rank in range(parsed):
-        if rank in pinned:
+        if settled[rank]:
             continue
         credit_dates = credit_dates + dates
         credit_moments = credit_moments + moments

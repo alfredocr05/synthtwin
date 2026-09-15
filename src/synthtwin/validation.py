@@ -1910,11 +1910,14 @@ def _judged_here_alone(
     a test walks both writings together). A judged pass put it there
     (`_one_judged_candidate`), AND no declaration can have: the table
     declared no missing value, or this column counts no cell absent by
-    declaration. The judged test matches by the written DAY, so a
-    person's own `1900-01-01T00:00:00` beside a judged
-    `1900-01-01 00:00:00` in ONE column answers yes for both keys; the
-    second half keeps the declaration's table-wide reach there, at the
-    cost of the judged key keeping it too in exactly that column.
+    declaration, or the keys denoting the judged candidate -- with the
+    column's pooled hole spellings added -- hold no more cells than the
+    verdict's `n_occurrences`. A declared cell is taken out before any
+    pass judges, so every declared cell spelled on the candidate's day
+    puts the keys above that count. A `NA` declared in the judging
+    column no longer carries a judged `1900-01-01 00:00:00` to the whole
+    table (repair pass of landing 2b.3), and a person's own
+    `1900-01-01T00:00:00` beside it still reaches every column.
 
     Guarantees: accepts one column, a spelling it publishes and the
     description; returns a bool. Determinism: a function of the three.
@@ -1928,7 +1931,22 @@ def _judged_here_alone(
         return False
     if description.settings.declared_missing_values.n_declared <= 0:
         return True
-    return column.missing_by_class.declared_missing <= 0
+    if column.missing_by_class.declared_missing <= 0:
+        return True
+    judged = 0
+    held = column.n_missing_withheld
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != contract.VERDICT_MISSING:
+            continue
+        if verdict.candidate == contract.WITHHELD:
+            continue
+        if not _denotes_the_candidate(spelling, verdict.candidate, comma):
+            continue
+        judged = judged + verdict.n_occurrences
+        for key in sorted(column.missing_by_source):
+            if _denotes_the_candidate(key, verdict.candidate, comma):
+                held = held + column.missing_by_source[key]
+    return held <= judged
 
 
 def _own_declarations_recovered(description: contract.Profile) -> int:
@@ -6283,21 +6301,36 @@ def _one_judged_candidate(
             continue
         if verdict.candidate == contract.WITHHELD:
             continue
-        candidate = verdict.candidate
-        if candidate in parsing.calendar_placeholders():
-            for name in parsing.DATE_FORMATS:
-                if parsing.placeholder_day_of(spelling, name) == candidate:
-                    return True
-            continue
-        read = spelling
-        if comma:
-            read = parsing.written_with_a_decimal_comma(spelling)
-        held = parsing.exact_of_spelling(read)
-        if held is None:
-            continue
-        if held == parsing.exact_of_spelling(candidate):
+        if _denotes_the_candidate(spelling, verdict.candidate, comma):
             return True
     return False
+
+
+def _denotes_the_candidate(spelling: str, candidate: str, comma: bool) -> bool:
+    """Whether one hole spelling denotes one judged candidate.
+
+    A calendar placeholder is compared as the day the spelling writes in
+    any date format, and a stand-in number as the exact number the
+    spelling reads as, under a declared decimal comma where there is one.
+    Written out of `_one_judged_candidate` so the count of cells sharing
+    a candidate asks the same question (repair pass of landing 2b.3).
+
+    Guarantees: accepts a spelling, a candidate and whether the column
+    was declared a decimal-comma column; returns a bool. Raises nothing.
+    No I/O of any kind.
+    """
+    if candidate in parsing.calendar_placeholders():
+        for name in parsing.DATE_FORMATS:
+            if parsing.placeholder_day_of(spelling, name) == candidate:
+                return True
+        return False
+    read = spelling
+    if comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    held = parsing.exact_of_spelling(read)
+    if held is None:
+        return False
+    return held == parsing.exact_of_spelling(candidate)
 
 
 def _hole_spelling_checks(
@@ -11481,7 +11514,15 @@ def _mark_checks(
         if key == contract.WITHHELD:
             pool = census[key]
     extra = 0
-    if measured is not None and facts.parser_family == contract.FORMAT_ISO_MIXED:
+    # Only where the twin still writes whole dates with a clock (R-P4-12):
+    # a joint column wholly at midnight writes them bare (repair pass of
+    # landing 2b.3), and widening it there let a file write 1,900 bare
+    # dates of 2,000 with a mark the census never names and pass.
+    if (
+        measured is not None
+        and facts.parser_family == contract.FORMAT_ISO_MIXED
+        and not facts.all_at_midnight
+    ):
         measured_total = 0
         for key in measured:
             measured_total = measured_total + measured[key]
