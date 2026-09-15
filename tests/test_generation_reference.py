@@ -165,6 +165,13 @@ BRANCH_CASES = (
     # the method and the only place synthtwin reproduces structure
     # between two quantities at all.
     "joined_readings",
+    # WHAT THE CENSUS COULD HOLD, AND THE PLACES A NUMBER MAY TAKE (method
+    # G8.3a, landing 2b.4's repair). `label_numbers` pools two cells, so a
+    # number stepping past every named `%.%` value may write `10.0` there;
+    # this one pools none, and the rule that ends that side instead -- and
+    # takes the published whole numbers' places -- could be withdrawn with
+    # every other committed byte unchanged.
+    "label_number_tiers",
     # THE CLASS DEBT OF A COLUMN OF LABELS (method G8.3a, landing 2b.4).
     # Every earlier label case publishes no number, so the rule that
     # writes a held-back number AS a number -- stepped from the published
@@ -236,6 +243,7 @@ SEEDS = {
     "midnight_days": 122,
     "mixed_marks": 123,
     "label_numbers": 124,
+    "label_number_tiers": 125,
 }
 
 # The cases whose column was declared with --identifier, which the
@@ -1088,7 +1096,7 @@ def _a_one_digit_exponent(digits, decpt, marker):
     return f"{body}{marker}{'-' if power < 0 else '+'}{abs(power)}"
 
 
-def _outward_without_the_gaps(ladder, places, position):
+def _outward_without_the_gaps(ladder, places, position, low_ended=False, high_ended=False):
     """G8.3a's walk with its first part withdrawn: outward steps only.
 
     The method takes the values BETWEEN the published numbers that no
@@ -1103,13 +1111,30 @@ def _outward_without_the_gaps(ladder, places, position):
     high = gen.rescaled(ladder["highest"], ladder["places"], places, False) + step
     if not ladder["anchored"]:
         low, high = -step, step
-    low_held = gen.sign_held(low, ladder["signs"])
-    high_held = gen.sign_held(high, ladder["signs"])
+    low_held = not low_ended and gen.sign_held(low, ladder["signs"])
+    high_held = not high_ended and gen.sign_held(high, ladder["signs"])
     if not low_held and not high_held:
-        return ("end",)
+        return ("end", None, None)
     if position % 2 == 0:
-        return ("here", low) if low_held else ("skip",)
-    return ("here", high) if high_held else ("skip",)
+        return ("here", low, "low") if low_held else ("skip", None, "low")
+    return ("here", high, "high") if high_held else ("skip", None, "high")
+
+
+_NEXT_ON_THE_LADDER = gen.next_on_ladder
+
+
+def _next_on_the_ladder_without_the_census(
+    ladder, name, cursor, named, seen, folds, needed=0, pool=None
+):
+    """G8.3a's walk with the rule on what the census could hold withdrawn.
+
+    A number wearing no named form may then wear any form the census does
+    not name, whether or not the census could have counted and pooled it,
+    so the level of two in `label_number_tiers` steps past every named
+    `%.%` value and writes `10.0` -- the form the census proves the column
+    never wore -- instead of ending that side and writing `6`.
+    """
+    return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
 
 
 def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
@@ -1420,6 +1445,15 @@ CASE_MUTANTS = {
         "largest held-back group leaves the gap and every number moves",
         attribute="outward_at",
         replacement=_outward_without_the_gaps,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "label_number_tiers": Mutant(
+        branch="G8.3a's rule on what the census could hold, which ends a "
+        "side of the walk where the next form is one the census would have "
+        "counted and pooled and it pooled nothing; the mutant writes that "
+        "form, and the level of two moves from `6` to `10.0`",
+        attribute="next_on_ladder",
+        replacement=_next_on_the_ladder_without_the_census,
         outcome=CHANGES_THE_CELLS,
     ),
     "label_variants": Mutant(

@@ -34,9 +34,11 @@ from tests.test_stage2_round_trip import _exit_of, _round_trip
 
 # How far the twin's numbers may sit from the table's: the mean within
 # this many of the table's standard deviations, and the standard deviation
-# within this share of its own value. Measured over twenty-seven runs, the
-# widest were 0.43 and 0.15, on the integers beside comments whose column
-# publishes two numbers.
+# within this share of its own value. Measured again at landing 2b.4's
+# repair over the 222 runs of a column of labels that published a number:
+# the mean never moved more than 0.42, and the spread stayed inside a fifth
+# in 217; the five outside are amounts given and coded amounts beside one to five
+# published numbers, named in method G8.3a and not gated here.
 MEAN_SHIFT_IN_DEVIATIONS = 0.5
 DEVIATION_SHARE = 0.20
 
@@ -97,9 +99,11 @@ def _integers_beside_comments(
     ]
 
 
-def _coded_amounts(rows: int, draw: random.Random) -> "list[str]":
+def _coded_amounts(
+    rows: int, draw: random.Random, share: float = 0.5
+) -> "list[str]":
     return [
-        draw.choice(["pending", "not given"]) if draw.random() < 0.5
+        draw.choice(["pending", "not given"]) if draw.random() < share
         else draw.choice(["5", "10", "2.5", "20", "7.5"])
         for _row in range(rows)
     ]
@@ -119,7 +123,36 @@ def _readings_beside_notes(rows: int, draw: random.Random) -> "list[str]":
     return cells
 
 
+def _wide_readings(rows: int, draw: random.Random) -> "list[str]":
+    """One-decimal readings near seven whose tail crosses ten, beside two labels.
+
+    The commonest mixed column, and the one the gate shapes above did not
+    reach: their readings rarely pass 10.0, so the census never named
+    `%%.%` and the walk never had to step past it.
+    """
+    return [
+        draw.choice(["POSITIVE", "NOT DETECTED"]) if draw.random() < 0.3
+        else f"{draw.gauss(7, 2):.1f}"
+        for _row in range(rows)
+    ]
+
+
+def _given_amounts(rows: int, draw: random.Random) -> "list[str]":
+    """Amounts given, written `0.5`, `1`, `1.5` and so on, rare large ones, beside two words."""
+    pool = (
+        ["0.5"] * 20 + ["1"] * 30 + ["1.5"] * 10 + ["2"] * 25 + ["2.5"] * 5
+        + ["3"] * 4 + ["4"] * 3 + ["5"] * 2 + ["10"]
+    )
+    return [
+        draw.choice(["PRN", "held"]) if draw.random() < 0.4
+        else draw.choice(pool)
+        for _row in range(rows)
+    ]
+
+
 SHAPES = {
+    "wide_readings": _wide_readings,
+    "given_amounts": _given_amounts,
     "readings": _readings,
     "potassium": _potassium,
     "answers": _answers,
@@ -134,8 +167,23 @@ SHAPES = {
 # and twenty; 150 to 2,500 rows; the commonest shape, readings beside two
 # labels, first and most often.
 LABEL_CASES = (
+    # Landing 2b.4's repair: the census names `%%.%`, and before the rule
+    # on what the census could hold the twin wrote `100.3` with a
+    # standard deviation of its numbers 2.4 and 2.7 times the table's.
+    ("wide_readings", 2500, "11", 3),
+    ("wide_readings", 2500, "11", 9),
+    # ...and amounts given publishing `0.5` and `1`, whose census names `%.%`,
+    # came back as `10.2` with 2.4 to 4 times the spread.
+    ("given_amounts", 150, "20", 5),
+    ("given_amounts", 150, "20", 9),
+    ("given_amounts", 400, "20", 5),
     ("readings", 1200, "20", 3),
     ("readings", 1200, "20", 21),
+    # ...and readings whose census names `%.%` and pools a few cells of
+    # `%%.%`: a rule refusing every counted form the census does not name
+    # left sixteen and nineteen of their numbers written as words.
+    ("readings", 1200, "20", 6),
+    ("readings", 1200, "20", 7),
     ("readings", 2500, "11", 9),
     ("readings", 2500, "20", 3),
     ("potassium", 2500, "11", 9),
@@ -189,6 +237,19 @@ def test_numbers_beside_labels_come_back_as_numbers_where_the_table_has_them(
     )
     if not any(_opens_with_an_invented_zero(cell) for cell in cells):
         assert not any(_opens_with_an_invented_zero(cell) for cell in written)
+    # NO MADE-UP NUMBER IS A WHOLE FIGURE WIDER THAN THE TABLE'S WIDEST.
+    assert max(_whole_figures(cell) for cell in _number_cells(written)) <= max(
+        _whole_figures(cell) for cell in _number_cells(cells)
+    )
+
+
+def _number_cells(cells: "list[str]") -> "list[str]":
+    return [cell for cell in cells if parsing.classify_number(cell) == parsing.NUMBER]
+
+
+def _whole_figures(cell: str) -> int:
+    body = cell[1:] if cell[:1] == "-" else cell
+    return len(body.partition(".")[0])
 
 
 def test_the_readings_the_floor_held_back_are_numbers_at_the_published_places(
@@ -310,6 +371,73 @@ def test_numbers_nothing_published_places_are_named_as_such(
     )
     flat = " ".join(report.split())
     assert "this column published no number at all" in flat
+
+
+@pytest.mark.parametrize("seed", (3, 4))
+def test_amounts_nothing_published_places_are_whole_numbers_beside_their_form(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """A column publishing no number, whose census names `%.%`.
+
+    Every one-place number wears the named form, so a number wearing no
+    named form has no place to go at one place; it is written as a whole
+    number, which wears none. Before the whole-number tier the walk wrote
+    `10.0` -- a form the census proves the column never wore -- and
+    withdrawn without a tier after it, twenty-four numbers became words.
+    """
+    cells = _coded_amounts(200, random.Random(200 * 31 + seed), 0.8)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "amounts", cells, ("--smallest-group", "11"), True, str(seed)
+    )
+    assert first["role"] == "categorical"
+    assert not [
+        level for level in first["levels"]
+        if parsing.classify_number(level["label"]) == parsing.NUMBER
+    ]
+    assert second["n_numeric"] == first["n_numeric"]
+    assert twin_exit == 0 and real_exit == 0
+    forms = {parsing.shape_form(cell) for cell in _number_cells(written)}
+    assert forms <= {"%.%", ""}, forms
+
+
+def test_a_number_carrying_an_end_spends_a_spelling_of_its_length(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Twelve one-figure numbers against a family of ten, two carrying an end.
+
+    The length rule places the numbers carrying no end; the two carrying
+    the published ends keep theirs. Uncounted, ten more were placed at one
+    figure beside the carriers already there, and a family of ten was
+    asked for twelve.
+    """
+    folder = tmp_path / "carriers"
+    folder.mkdir()
+    table = folder / "real.csv"
+    draw = random.Random(71)
+    cells = [str(draw.randrange(0, 10)) for _each in range(40)] + [
+        " ".join(draw.choice(COMMENT_WORDS) for _word in range(3))
+        for _each in range(40)
+    ]
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace",
+         "--smallest-group", "1"]
+    ) == 0
+    facts = contract.load_profile(str(folder / "real-profile.json")).columns[0].facts
+    assert isinstance(facts, contract.TextFacts)
+    assert facts.length.minimum == 1
+    digits = generation._BANDS.index(generation._BAND_DIGITS)
+    number = generation._CLASSES.index(generation._CLASS_NUMBER)
+    fixed = generation._number_lengths(
+        facts, tuple([1] * 12), [1] * 12, [number] * 12, [digits] * 12, (0, 1)
+    )
+    placed = [fixed[place] for place in range(2, 12)]
+    assert placed.count(1) == 8, placed
+    assert placed.count(2) == 2, placed
 
 
 def test_the_label_half_of_a_compound_column_owes_no_class(
@@ -462,6 +590,110 @@ def test_the_column_of_readings_beside_notes_that_was_refused_now_generates(
         for index in range(100)
     }
     assert len(spelled) == 100
+
+
+@pytest.mark.parametrize("seed", (2, 3))
+def test_readings_beside_notes_at_a_high_floor_generate_and_stay_free_text(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """The refusal the triage listed, and the role its first repair lost.
+
+    A thousand rows at a floor of fifty. Before landing 2b.4's repair the
+    generator refused these columns -- a hundred and one different
+    three-character numbers of the code band beside the one carrying the
+    shortest length, where the family holds a hundred. Once built, the
+    packing gave every value written once to the numbers, so the twin's
+    words were a vocabulary and it was described again as numbers beside
+    labels. Both halves are asserted: it generates, and the role returns.
+    """
+    cells = _readings_beside_notes(1000, random.Random(1000 * 31 + seed))
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "high", cells, ("--smallest-group", "50"), True, str(seed)
+    )
+    assert first["role"] == "free_text"
+    assert second["role"] == first["role"]
+    assert second["n_numeric"] == first["n_numeric"]
+    assert second["n_not_numeric"] == first["n_not_numeric"]
+    assert twin_exit == 0 and real_exit == 0
+    assert not any(_opens_with_an_invented_zero(cell) for cell in _number_cells(written))
+
+
+def test_negative_integers_beside_comments_keep_their_size_and_are_named(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A number of the code band carries the exponent nought first.
+
+    Integers near minus forty beside comments came back as `9e5` and
+    `7e6`, a mean of 461,046, because the exponent's figure varied before
+    the figures in front of it grew. Held to `e0`, a number of the code
+    band is as large as its figures, and the report names the spelling.
+    """
+    # The table the verification of landing 2b.4 reproduced this on, word
+    # for word; on it, a band exchange that ignores the census's own
+    # `-%%%` misses that form.
+    words = COMMENT_WORDS[:9] + ["hemolyzed"] + COMMENT_WORDS[9:]
+    draw = random.Random(5205)
+    cells = [
+        " ".join(draw.choice(words) for _word in range(draw.randrange(2, 6)))
+        if draw.random() < 0.4
+        else str(int(draw.gauss(-40, 25)))
+        for _row in range(400)
+    ]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "negative", cells, ("--smallest-group", "1"), True, "5"
+    )
+    assert first["role"] == "free_text"
+    assert second["n_numeric"] == first["n_numeric"]
+    assert twin_exit == 0 and real_exit == 0
+    raised = [cell for cell in _number_cells(written) if "e" in cell]
+    assert raised
+    assert all(cell.endswith("e0") for cell in raised), raised
+    assert max(abs(float(cell)) for cell in _number_cells(written)) < 1000
+    report = (tmp_path / "negative" / "real-twin-report.txt").read_text(
+        encoding="utf-8"
+    )
+    assert generation._TEXT_EXPONENT_SUBJECT in report
+
+
+def test_a_number_keeps_its_own_length_where_no_shape_packs_the_counts(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The length rule of step 3a on the path taken where no joint packing exists.
+
+    A description a real table produced always packs, so the path is
+    reached here by withdrawing the joint packing; the families are then
+    decided one after the other, and a number must still take its own
+    length rather than a comment's.
+    """
+    folder = tmp_path / "fallback"
+    folder.mkdir()
+    table = folder / "real.csv"
+    cells = _integers_beside_comments(150, random.Random(150 * 31 + 3), 0.3)
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace",
+         "--smallest-group", "1"]
+    ) == 0
+    profile = contract.load_profile(str(folder / "real-profile.json"))
+    monkeypatch.setattr(generation, "_joint_allocation", lambda *_given: None)
+    column = profile.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.TextFacts)
+    groups = generation._groups_of(facts.n_distinct_by_occurrences)
+    lengths, _counts, kinds, _bands, carriers, _notes = generation._text_plan(
+        column, facts, groups
+    )
+    numbered = [
+        lengths[place] for place in range(len(groups))
+        if generation._CLASSES[kinds[place]] == generation._CLASS_NUMBER
+        and place not in carriers
+    ]
+    assert numbered
+    assert max(numbered) <= 2, max(numbered)
 
 
 def test_integers_beside_comments_are_short_and_plain_and_named(

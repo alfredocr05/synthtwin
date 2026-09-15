@@ -4188,13 +4188,31 @@ number when it is one under that reading.
    toward that form and a level settled without it would overpay it. A form
    whose spellings read as a numeric class is then taken out of the
    word debt: it is paid inside its class or not at all.
+
+   **The levels given no form have a supply too** (landing 2b.4,
+   repair). Where the number levels left without a form outnumber the
+   numbers step 3 can give a level wearing no named form, the forms are
+   settled again by the same arrangement with those numbers as a debt of
+   their own -- every cell of the number class the forms do not owe --
+   beside the forms, with that supply. The second answer is taken only
+   where it settles every form exactly and leaves no more levels without a
+   form than the supply; otherwise the first stands. One-decimal
+   readings from 3.5 to 10.2 whose census names `%%.%` have thirty-nine
+   such numbers, and the largest-first settlement of `%%.%` left
+   forty-one levels to them.
 3. **What a number is.** The walk starts from the PUBLISHED numbers: the
    published spellings reading as numbers that are plain decimals -- an
    optional minus, figures, and at most one point followed by figures.
    Their finest count of figures after the point is `P`, and the
    smallest and the largest of them are the two ENDS. A level is
    written at `P` places, or, where it wears a form, at that form's own
-   count of figures after its point, the ends rounded outward to it.
+   count of figures after its point, the ends rounded outward to it. A
+   level wearing no named form may be written at EVERY count of places
+   a published number was written with, the finest first, a coarser
+   count taken up only once the walk at the finer one has ended (landing
+   2b.4, repair): a column of amounts given publishing `0.5` and `1` whose
+   census names `%.%` writes its other held-back amounts as whole numbers,
+   which wear no form, and not as `10.0`.
    The walk has two parts, and the GAPS come first:
    - the values strictly between the two ends that no published number
      holds, nearest an end first, and the low end before the high end
@@ -4227,6 +4245,30 @@ number when it is one under that reading.
    comma on a column not read with one; and where it opens with `=`,
    `+` or `@`. A minus is how a negative is written, not a formula.
 
+   **What the census could hold** (landing 2b.4, repair). A level
+   wearing no named form must still wear a form the census could have
+   held. The census counts a form only where the form has room for at
+   least the column's `n_distinct` plus its smallest group size
+   (contract 7.9); a counted form it does not name was pooled under the
+   withheld key. So a candidate's form is stepped past where it is
+   NAMED; is written where it is too small to be counted, or where the
+   candidate has no form at all -- a whole number has none; and, where
+   it is COUNTED BUT NOT NAMED, is written only where the census pooled
+   at least one cell. The pool is not spent cell by cell: spent that way
+   it ended the walk of a column of negative integers pooling ten cells
+   after ten of them, and `n_numeric`, which the quality report checks,
+   was missed to keep a pooled count, which it does not. Every step
+   further out on a side, a larger positive or a smaller negative, is
+   wider and its form counted too, so where such a form is refused that
+   side of the walk has ENDED; a side of a form's own walk likewise ends
+   once its steps are wider than the form. The gaps are never ended
+   this way. Without this rule one-decimal readings from 3.5 to 10.2,
+   whose census names `%%.%` and pools nothing, stepped past every
+   `%%.%` value and wrote `100.0`, and the twin's standard deviation of
+   its numbers was up to four times the table's with every check
+   passing; with it, readings whose census names `%.%` and pools
+   eighteen cells still write `10.0`.
+
    A level whose form has no number left keeps its class without the
    form. A level that finds no number at all is written as G8.3's
    neutral label, and the report names the shortfall with the reason
@@ -4236,8 +4278,9 @@ number when it is one under that reading.
    number at all**, nothing places them: the walk starts at zero, holds
    only positive numbers, takes its places from the number-reading
    forms the census still owes, and so counts upward from the smallest
-   step those forms write; the report says that nothing published
-   places them.
+   step those forms write; a level wearing no named form takes those
+   places first and whole numbers after them; the report says that
+   nothing published places them.
 4. **Out of range and contradictory** levels take G10.3's
    constructions, `ke999` and `(-k)` with `k` advancing on every
    refusal, or their form's own spellings, held to the same refusals.
@@ -4254,17 +4297,28 @@ view of that half publishes `n_numeric` 0 and every cell a label, so
 its debt is nought and none of its stand-ins is a number; a test holds
 the view to that.
 
-**What it was measured to hold.** Twenty-seven runs over three seeds --
-one-decimal readings of 400 to 2,500 rows at floors of eleven and
-twenty, answers from one to five beside two labels at 150 rows, ages
-beside one label at 1,200 rows, integers beside comments at 1,000 rows
-and coded amounts beside two labels at 200 -- met `n_numeric` and `n_not_numeric` in every
-run, kept the real table's role when the twin was described again, and
-validated with nothing missed for both the twin and the real table;
-the mean of the twin's numbers stayed within 0.43 of the real table's
-standard deviation of them, and that standard deviation within 15%.
-The widest miss was the integers beside comments, whose column
-published two of its numbers.
+**What it was measured to hold** (landing 2b.4's repair; the first
+writing of this paragraph was measured only on readings whose tail never
+reached `10.0`, where the census names no wider form, and it overstated
+what the rule holds). Two hundred and forty-two runs of a column of
+labels -- one-decimal readings whose tail does and does not cross
+`10.0`, at 60 to 5,000 rows and floors of eleven to fifty, potassium,
+ages, answers, amounts given, coded amounts, negative and two-decimal readings,
+years, room numbers, a column read with a decimal comma and negative
+integers beside comments, over two to three seeds each -- met
+`n_numeric` and `n_not_numeric`, kept the table's role when the twin
+was described again, and validated with nothing missed for the twin and
+the table, in every run. **Where the column published a number** (222
+runs) the mean of the twin's numbers stayed within 0.42 of the table's
+standard deviation of them in every run, and that standard deviation
+within a fifth in 217. The five outside it are named: amounts given beside one
+to five published numbers, whose rare `10` carries the table's spread
+and whose twin keeps the held-back amounts nearest the published ones --
+0.64 to 0.77 of the spread -- and coded amounts beside two published
+numbers, 1.26. **Where the column published none** (20 runs) nothing
+places the numbers, the report says so, and the location is invented:
+at a floor of fifty a column of readings near seven came back with a
+mean near 3.4 and whole numbers up to seventy-eight.
 
 ### G8.4 The order of `content`
 
@@ -4872,11 +4926,21 @@ any that could not be met:
    `99`, before those that do, `00` to `09`, so the family still holds
    `10^L`. In the code band a number of two characters is a minus and a
    figure; of `L >= 3` it is `L - 2` figures spelled the same way, an
-   `e`, and one last figure taken in the order `1 0 2 3 4 5 6 7 8 9`. In
+   `e`, and one last figure taken in the order `0 1 2 3 4 5 6 7 8 9`. In
    the wide band a number of two characters is a figure and a point; of
    `L >= 3` it is `L - 2` figures, a point, and one last figure in the
    order `5 0 1 2 3 4 6 7 8 9`. Those two bands hold ten at two
-   characters and `10^(L - 1)` at `L >= 3`. The last figure used to be
+   characters and `10^(L - 1)` at `L >= 3`. **Every run of figures before
+   the mark with no leading zero is taken under all ten last figures
+   before any run that opens with a zero** (landing 2b.4, repair): the
+   walk used to take a block of `10^(L - 2)` runs per last figure, which
+   ends with the runs opening with a zero, so from four characters up
+   the ninety-first number of each block was `00.5` and a column needing
+   two hundred such numbers wrote twenty with an invented zero. **The
+   exponent's figure is nought first** (landing 2b.4, repair), so a number
+   of the code band is as large as its figures for the first
+   `10^(L - 2)` of its length; it was `1` first, and a column of integers
+   near minus forty needing more than that came back as `9e5` and `7e6`. The last figure used to be
    a constant -- `e1` and `.5` -- which spent a character on nothing
    and left ten spellings where a hundred exist: a column of readings
    written `7.2` beside comments, with twenty-five different
@@ -4894,7 +4958,13 @@ any that could not be met:
    given one; otherwise the SHORTEST length at or above its band's
    shortest -- one figure, a minus and a figure, a figure, a point and a
    figure -- at which its band still has a number with no leading zero
-   to give. Every other group is then walked toward the published
+   to give; in the code band only the numbers whose exponent is nought
+   count as given, so a column needing more of them lengthens them
+   instead of raising them by a power of ten (landing 2b.4, repair). A
+   number group carrying an end spends one spelling of its own band and
+   length before the others are placed: uncounted, a hundred numbers of
+   three characters were given to the code band beside the one carrying
+   the shortest length, and the family of a hundred refused the column. Every other group is then walked toward the published
    average and word count by step 5, with those lengths held and each
    of those groups holding one word. A group carrying an end keeps it.
    **The report says what this cannot do**: a column of text publishes
@@ -4923,6 +4993,40 @@ any that could not be met:
    census is missed and the report names it: on a column whose only
    single-cell text group carries an end, one cell of a number form can
    stay unpaid.
+
+   **Numbers leave the code band where text can take their place**
+   (landing 2b.4, repair). A number of the code band is written with an
+   exponent, and the packing prefers no band, so a column of readings
+   written `7.2` beside one-word notes -- whose code-alphabet cells were
+   all notes -- had a hundred and seventy-eight of its readings written
+   `175e0`. So BEFORE the exchange above, and only where no census form
+   reading as a number is written in the code band, a group of ordinary
+   text carrying no end in the wide band that can stand in the code band
+   at its length is exchanged with number groups carrying no end in the
+   code band that can stand in the wide band, whose sizes make its size
+   exactly, the smallest text groups first, until no number is left in
+   the code band or no exchange is. Every class and alphabet count stays
+   where the packing put it. The report names every number still written
+   with an exponent, as a fixed remark: a check written against the
+   table's own integers can fail on `54e0`.
+
+   **3c. The text keeps a tenth of its cells in values written once**
+   (landing 2b.4, repair). A column holding numbers is free text only
+   while its other cells are not a vocabulary: the profiler reads a
+   column whose non-number cells wear repeating spellings in more than
+   nine tenths of them as numbers beside labels (its rule 7b). The
+   packing knows no role and can give every value written once to the
+   numbers: a column of readings beside notes, a thousand rows at a floor
+   of fifty, was described again as numbers beside labels and failed its
+   own validation. So after the exchanges above, where the number groups
+   and their cells both reach the long-tail line and the text's values
+   written once hold fewer than a tenth of its cells, a text group of
+   several cells carrying no end is exchanged with that many number
+   groups of one cell carrying no end in the same band, each able to
+   stand in the other's class at its length, the smallest text groups
+   first, until a tenth is reached or none is left. Cells leave and
+   enter each class in equal numbers inside one band, so every class and
+   alphabet count stays exact.
 4. **The alphabets.** `n_all_digits` cells are written from `DIGITS`;
    a further `n_code_alphabet - n_all_digits` cells from `CODE`, each
    carrying at least one non-digit character at its leftmost position so
@@ -7179,9 +7283,11 @@ added (plan P4-D4.3 item 2), and four for the four roles Phase 4 added
 of G10.5 when revision 5 added it (residuals R-P4-48 and R-P4-68), and
 two for the mark between a moment's day and its clock and the day unit
 of a column at midnight (plan P4-D39), and one for the class debt of a
-column of labels (G8.3a, landing 2b.4).
-**All twenty-four are required.** The
-first nine are the first committed file and the last fifteen the second
+column of labels (G8.3a, landing 2b.4), and one for what the census
+could hold beside the places a made-up number may take (G8.3a, landing
+2b.4's repair).
+**All twenty-five are required.** The
+first nine are the first committed file and the last sixteen the second
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -7213,7 +7319,8 @@ case passed, which is the failure the count exists to prevent:
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
 | `midnight_days` | G7.1's day unit and G7.5's midnight clock: twelve `local` moments all at midnight, published with `all_at_midnight: true` and `datetime_separators: {"space": 12}`, whose ladder, ends and interior ranks are counted in whole days and whose every cell is its day with a midnight clock, carrying a space |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written with that commonest mark |
-| `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`; and the word left over written in `@@-@@` |
+| `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
+| `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -7546,6 +7653,20 @@ settlement now. It still states no reading of G9.5 step 7's forms, and
 steps 3a's form lengths and 3b's band exchange act only where a column
 of text names a form, so it refuses to freeze such a case rather than
 reason around one.
+
+**Why the twenty-fifth exists** (landing 2b.4's repair). `label_numbers`
+pools two cells, so its number wearing no named form may write `10.0`
+there, and a rule that wrote any form the census does not name gave the
+same bytes -- while on a real column of one-decimal readings whose census
+named `%%.%` and pooled nothing that rule wrote `100.3` and a standard
+deviation 2.4 times the table's. `label_number_tiers` pools nothing, so
+the rule ends that side of the walk, and it publishes a whole number, so
+the walk's second tier writes `6`. Its mutant withdraws the census rule
+and the level of two moves to `10.0`. Writing it moved the oracle again:
+it now carries that rule, the tiers, the second settlement of the forms
+where the levels given none starve, the code band's numbers held to the
+exponent nought, and the two free-text exchanges of G9.5 steps 3b and 3c,
+each from the text; no cell of an earlier case moved.
 
 ### G14.4 What the vectors do NOT freeze
 
