@@ -4062,7 +4062,7 @@ def _split_widest(
 
 
 def _merge_nearest(
-    lengths: "list[int]", held: "list[float]"
+    lengths: "list[int]", held: "list[float]", cap: int = 0
 ) -> "tuple[list[int], list[float]]":
     """Join the adjacent pair whose VALUES are closest, leftmost on a tie.
 
@@ -4093,8 +4093,16 @@ def _merge_nearest(
     # plateaus into fractional ones and left the published `plain`
     # count unwritable. Measured on one crowded column: 28 plain cells
     # written against a published 38.
-    # THE ORDER OF PREFERENCE, and all three parts of it earn their
-    # place. A merge is chosen by, in this order:
+    # THE ORDER OF PREFERENCE. A merge is chosen by, in this order:
+    #
+    #   0. how far the joined run would stand ABOVE THE CAP (method
+    #      G5.2a, landing 2b.1). Nought for every pair that stays under
+    #      it, so the three parts below decide among those exactly as
+    #      they did; and where every pair overshoots, the one that
+    #      overshoots least. Without it the first part below never
+    #      stops a run growing -- a run beside a one-rank transition
+    #      always has a smaller side of one -- and a 4,000-row column
+    #      publishing a `mode_count` of 62 held one number 760 times;
     #
     #   1. the SMALLER side being smallest -- absorb the least. A
     #      transition is one rank wide and a plateau is many, so this
@@ -4116,7 +4124,7 @@ def _merge_nearest(
     # Leftmost wins a tie, which is what makes this an answer rather
     # than an implementation's habit.
     best = 0
-    best_key: "tuple[int, int, float] | None" = None
+    best_key: "tuple[int, int, int, float] | None" = None
     for place in range(len(lengths) - 1):
         low = held[place]
         high = held[place + 1]
@@ -4172,6 +4180,7 @@ def _merge_nearest(
             high
         )
         key = (
+            _overshoot(lengths[place] + lengths[place + 1], cap),
             min(lengths[place], lengths[place + 1]),
             0 if alike else 1,
             gap,
@@ -4187,13 +4196,13 @@ def _merge_nearest(
     )
 
 
-_HEAP_ENTRY = "tuple[tuple[int, int, float], int, int]"
+_HEAP_ENTRY = "tuple[tuple[int, int, int, float], int, int]"
 
 
 def _heap_push(
-    heap: "list[tuple[tuple[int, int, float], int, int]]",
+    heap: "list[tuple[tuple[int, int, int, float], int, int]]",
     size: int,
-    entry: "tuple[tuple[int, int, float], int, int]",
+    entry: "tuple[tuple[int, int, int, float], int, int]",
 ) -> int:
     """Add one candidate to the binary heap; return the new size.
 
@@ -4222,8 +4231,8 @@ def _heap_push(
 
 
 def _heap_pop(
-    heap: "list[tuple[tuple[int, int, float], int, int]]", size: int
-) -> "tuple[tuple[tuple[int, int, float], int, int], int]":
+    heap: "list[tuple[tuple[int, int, int, float], int, int]]", size: int
+) -> "tuple[tuple[tuple[int, int, int, float], int, int], int]":
     """Take the smallest candidate; return it and the new size.
 
     Guarantees: accepts a heap with at least one live entry and its
@@ -4250,9 +4259,20 @@ def _heap_pop(
     return top, size
 
 
+def _overshoot(joined: int, cap: int) -> int:
+    """How far a joined run would stand above the cap, or nought (G5.2a)."""
+    if cap <= 0:
+        return 0
+    return max(0, joined - cap)
+
+
 def _pair_key(
-    lengths: "list[int]", held: "list[float]", left: int, right: int
-) -> "tuple[int, int, float]":
+    lengths: "list[int]",
+    held: "list[float]",
+    left: int,
+    right: int,
+    cap: int = 0,
+) -> "tuple[int, int, int, float]":
     """The merge key for one adjacent pair, as `_merge_nearest` computes it.
 
     The arithmetic is that function's, character for character: the gap
@@ -4261,10 +4281,12 @@ def _pair_key(
     magnitude first. Review items P4-G5-O4 and P4-G6-R1-F1 are what fix
     that order, and changing it here would move the twin's bytes.
 
-    Guarantees: accepts the run lengths, the run values and the two
-    positions; returns the smaller run length, whether the two values
-    are alike in whole-ness, and their relative gap. Determinism: a
-    fixed function of its inputs. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the run lengths, the run values, the two
+    positions and the cap (nought for none); returns how far the joined
+    run would stand above the cap, the smaller run length, whether the
+    two values are alike in whole-ness, and their relative gap.
+    Determinism: a fixed function of its inputs. Raises nothing. No I/O
+    of any kind.
     """
     low = held[left]
     high = held[right]
@@ -4281,11 +4303,16 @@ def _pair_key(
     elif span > 0.0:
         gap = abs(high / span - low / span)
     alike = parsing.is_whole_number(low) == parsing.is_whole_number(high)
-    return (min(lengths[left], lengths[right]), 0 if alike else 1, gap)
+    return (
+        _overshoot(lengths[left] + lengths[right], cap),
+        min(lengths[left], lengths[right]),
+        0 if alike else 1,
+        gap,
+    )
 
 
 def _merge_down(
-    lengths: "list[int]", held: "list[float]", strata: int
+    lengths: "list[int]", held: "list[float]", strata: int, cap: int = 0
 ) -> "tuple[list[int], list[float]]":
     """Merge adjacent runs until there are `strata` of them.
 
@@ -4316,8 +4343,10 @@ def _merge_down(
     stores and `len`: `heapq` is not on the offline allowlist, and
     admitting it would be a plan-level decision this does not need.
 
-    Guarantees: accepts the run lengths, the run values and the number
-    of runs wanted; returns that many lengths and values, in order,
+    Guarantees: accepts the run lengths, the run values, the number of
+    runs wanted and the stratum cap of G5.2a (nought for none, which
+    is the key `_merge_nearest` computes with the same cap); returns
+    that many lengths and values, in order,
     with the lengths summing to what they summed to before and each
     value the leftmost of the runs that were joined into it.
     Determinism: a fixed function of its three inputs. Raises nothing.
@@ -4333,11 +4362,11 @@ def _merge_down(
     before = list(range(-1, total - 1))
     alive = [True] * total
     stamp = [0] * total
-    heap: "list[tuple[tuple[int, int, float], int, int]]" = []
+    heap: "list[tuple[tuple[int, int, int, float], int, int]]" = []
     size = 0
     for place in range(total - 1):
         size = _heap_push(
-            heap, size, (_pair_key(run_lengths, values, place, place + 1), place, 0)
+            heap, size, (_pair_key(run_lengths, values, place, place + 1, cap), place, 0)
         )
     standing = total
     while standing > strata:
@@ -4360,7 +4389,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, here, onward), here, stamp[here]),
+                (_pair_key(run_lengths, values, here, onward, cap), here, stamp[here]),
             )
         back = before[here]
         if back != -1:
@@ -4368,7 +4397,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, back, here), back, stamp[back]),
+                (_pair_key(run_lengths, values, back, here, cap), back, stamp[back]),
             )
     out_lengths: "list[int]" = []
     out_values: "list[float]" = []
@@ -4381,6 +4410,162 @@ def _merge_down(
     return out_lengths, out_values
 
 
+def _rank_values(
+    start: int,
+    cells: int,
+    rungs: "tuple[float, ...]",
+    numbers: int,
+    whole_valued: bool,
+    figures: int,
+) -> "list[float]":
+    """The ladder's value at every rank of one band (G5.2a step 1).
+
+    The convex form of G5.3 at each rank, then the integer rule of G5.4
+    on a whole-valued column, or -- on a column written at ONE fraction
+    width of ``figures > 0`` -- the number the writer's own grid text for
+    that value reads back as (landing 2b.1). A run is then a run of one
+    WRITTEN number, which is what lets the strata line up with the
+    numbers a column of tenths or hundredths can hold.
+
+    Guarantees: accepts the band's first rank, its cell count, the
+    ladder, the column's numeric cell count, whether the column is
+    whole-valued and its one grid (-1 or 0 for none); returns one value
+    per rank. Determinism: a fixed function of those six. Raises
+    nothing. No I/O of any kind.
+    """
+    held: "list[float]" = []
+    for step in range(cells):
+        found = _interpolated(
+            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
+        )
+        if whole_valued:
+            found = _whole_valued(found)
+        elif figures > 0:
+            read = parsing.parse_number(_grid_text(found, figures))
+            if read is not None and math.isfinite(read):
+                found = read
+        held += [found]
+    return held
+
+
+def _stratum_cap(
+    facts: contract.NumericFacts,
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+) -> int:
+    """The most cells one stratum may hold (G5.2a), or nought for no bound.
+
+    NO NUMBER OF THE TWIN IS HELD BY MORE CELLS THAN ANY NUMBER OF THE
+    REAL COLUMN WAS (landing 2b.1). The published `mode_count` says
+    exactly that where the pair is published. Where it is withheld, the
+    smaller of two bounds the description proves. The count of different
+    numbers gives `K - n_distinct_values + 1`, because every other number
+    holds a cell -- one exactly where every number is different. And the
+    ladder gives one of its own: a number held by `c` cells stands at sorted positions
+    `a .. a + c - 1`, and every rung whose type-7 position falls in
+    `[a, a + c - 2]` reads exactly it, so `c` cells put at least
+    `floor((c - 2) * 100 / (K - 1))` equal rungs on the ladder. With `r`
+    the longest run of equal rungs, `c <= floor((r + 1) * (K - 1) / 100)
+    + 2`.
+
+    Guarantees: accepts a numeric block, its hundred-and-one-rung
+    ladder or None, and its numeric cell count; returns a whole number,
+    nought where nothing bounds a stratum. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if facts.mode is not None and facts.mode_count > 0:
+        return facts.mode_count
+    # EVERY OTHER NUMBER HOLDS A CELL, so one number holds at most what
+    # is left: `K - n_distinct_values + 1`, which is one exactly where
+    # every number is different.
+    counted = 0
+    if facts.n_distinct_values > 0:
+        counted = max(1, numbers - facts.n_distinct_values + 1)
+    if rungs is None or numbers < 2:
+        return counted
+    longest = 1
+    run = 1
+    for place in range(1, len(rungs)):
+        if rungs[place] == rungs[place - 1]:
+            run = run + 1
+            longest = max(longest, run)
+        else:
+            run = 1
+    ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
+    if counted > 0:
+        return min(counted, ladder)
+    return ladder
+
+
+def _next_room(
+    pointer: "list[int]",
+    sizes: "list[int]",
+    cap: int,
+    start: int,
+) -> int:
+    """The nearest stratum from ``start`` along ``pointer`` with room left.
+
+    ``pointer`` links each stratum to the next one to try in one
+    direction, and every stratum the walk passes is full; a stratum
+    that is full stays full, because `_levelled` only ever adds to a
+    stratum under the cap or takes a stratum down TO it, so the links
+    are shortened as the walk goes and the whole levelling stays linear
+    in the strata rather than rescanning them.
+
+    Guarantees: returns the first index from ``start`` whose size is
+    under ``cap``, or an index outside ``sizes`` where none is. Mutates
+    only ``pointer``. Raises nothing. No I/O of any kind.
+    """
+    walk = start
+    trail: "list[int]" = []
+    while 0 <= walk < len(sizes) and sizes[walk] >= cap:
+        trail += [walk]
+        walk = pointer[walk]
+    for seen in trail:
+        pointer[seen] = walk
+    return walk
+
+
+def _levelled(lengths: "list[int]", cap: int) -> "list[int]":
+    """No stratum above the cap: overflow goes to the nearest with room.
+
+    Method G5.2a, the step after the joins and divisions. Strata are
+    visited in rank order; while one holds more than ``cap`` cells, the
+    NEAREST other stratum still under it -- the lower where two are
+    equally near -- takes as many of its cells as it has room for and
+    the overflow still owes. Cells move by moving the boundaries between
+    strata, so the band's total, the stratum count and the rank order
+    are all unchanged. A run can stand above the cap straight off the
+    ladder, because interpolation rounds a plateau's edges onto it: a
+    1,500-row five-point score held 345 cells on one number against a
+    published `mode_count` of 333.
+
+    Guarantees: accepts sizes and a cap; returns sizes of the same
+    length and total, none above the cap, or the sizes unchanged where
+    the cap is nought or cannot hold the total. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    count = len(lengths)
+    sizes = list(lengths)
+    if cap <= 0 or count == 0 or _totalled(sizes) > cap * count:
+        return sizes
+    above = [place + 1 for place in range(count)]
+    below = [place - 1 for place in range(count)]
+    for place in range(count):
+        while sizes[place] > cap:
+            low = _next_room(below, sizes, cap, place - 1)
+            high = _next_room(above, sizes, cap, place + 1)
+            if low < 0 and high >= count:
+                break
+            target = high
+            if low >= 0 and (high >= count or place - low <= high - place):
+                target = low
+            moved = min(sizes[place] - cap, cap - sizes[target])
+            sizes[place] = sizes[place] - moved
+            sizes[target] = sizes[target] + moved
+    return sizes
+
+
 def _shape_sizes(
     start: int,
     cells: int,
@@ -4388,6 +4573,8 @@ def _shape_sizes(
     rungs: "tuple[float, ...] | None",
     numbers: int,
     whole_valued: bool,
+    figures: int = -1,
+    cap: int = 0,
 ) -> "list[int]":
     """One band's stratum sizes, following the shape the ladder publishes.
 
@@ -4420,11 +4607,21 @@ def _shape_sizes(
     winning a tie, so the count the description publishes is the count
     the twin holds.
 
+    **AND NO STRATUM ABOVE THE CAP, READ ON THE COLUMN'S OWN GRID**
+    (landing 2b.1). The ladder is read on the one fraction width the
+    column is written at, where it has one (`_rank_values`); the join
+    takes every pair under the cap before any that overshoots it
+    (`_pair_key`); and whatever still stands above the cap gives its
+    overflow to its nearest neighbours (`_levelled`). The cap is
+    `_stratum_cap`'s, raised to the band's even share where the band has
+    too few strata to fit under it.
+
     Guarantees: accepts the band's first rank, how many cells it holds,
     how many strata it is to have, the ladder, the column's numeric
-    cell count and whether its values are whole; returns that many
-    sizes, each at least one, summing to `cells`. Determinism: a fixed
-    function of those six. Raises nothing. No I/O of any kind.
+    cell count, whether its values are whole, its one grid and the cap;
+    returns that many sizes, each at least one, summing to `cells`.
+    Determinism: a fixed function of those eight. Raises nothing. No
+    I/O of any kind.
     """
     if strata <= 0:
         return []
@@ -4449,19 +4646,14 @@ def _shape_sizes(
             (step + 1) * cells // strata - step * cells // strata
             for step in range(strata)
         ]
-    held: "list[float]" = []
-    for step in range(cells):
-        found = _interpolated(
-            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
-        )
-        if whole_valued:
-            found = _whole_valued(found)
-        held += [found]
+    if cap > 0:
+        cap = max(cap, (cells + strata - 1) // strata)
+    held = _rank_values(start, cells, rungs, numbers, whole_valued, figures)
     lengths, values = _runs_of(held)
-    lengths, values = _merge_down(lengths, values, strata)
+    lengths, values = _merge_down(lengths, values, strata, cap)
     while len(lengths) < strata:
         lengths, values = _split_widest(lengths, values)
-    return lengths
+    return _levelled(lengths, cap)
 
 
 def _band_plateaus(
@@ -4470,6 +4662,7 @@ def _band_plateaus(
     rungs: "tuple[float, ...] | None",
     numbers: int,
     whole_valued: bool,
+    figures: int = -1,
 ) -> int:
     """How many different values the ladder gives one band of cells.
 
@@ -4497,14 +4690,7 @@ def _band_plateaus(
         return 0
     if rungs is None:
         return cells
-    held: "list[float]" = []
-    for step in range(cells):
-        found = _interpolated(
-            rungs, (start + step) * _WORD_SCALE, numbers * _WORD_SCALE
-        )
-        if whole_valued:
-            found = _whole_valued(found)
-        held += [found]
+    held = _rank_values(start, cells, rungs, numbers, whole_valued, figures)
     lengths, _values = _runs_of(held)
     return len(lengths)
 
@@ -4518,6 +4704,8 @@ def _band_sizes(
     rungs: "tuple[float, ...] | None" = None,
     numbers: int = 0,
     whole_valued: bool = False,
+    figures: int = -1,
+    cap: int = 0,
 ) -> "tuple[list[int], list[str]]":
     """How the cells of each band divide between its strata (G5.2).
 
@@ -4534,7 +4722,7 @@ def _band_sizes(
     sizes: list[int] = []
     bands: list[str] = []
     for size in _shape_sizes(
-        0, negatives, negative_strata, rungs, numbers, whole_valued
+        0, negatives, negative_strata, rungs, numbers, whole_valued, figures, cap
     ):
         sizes += [size]
         bands += [_BAND_NEGATIVE]
@@ -4548,6 +4736,8 @@ def _band_sizes(
         rungs,
         numbers,
         whole_valued,
+        figures,
+        cap,
     ):
         sizes += [size]
         bands += [_BAND_POSITIVE]
@@ -5380,6 +5570,11 @@ def _numeric_layout(
     # what buys the second way of writing one number, and a count of
     # numbers cannot pay for it.
     divided = folded_budgets[0] if grain_values is None else grain_values
+    # THE GRID AND THE CAP OF G5.2a (landing 2b.1): the one fraction
+    # width every numeric cell is written at, if there is one, and the
+    # most cells one stratum may hold.
+    grid = _pinned_fraction(column, facts)
+    ceiling = _stratum_cap(facts, _merged_rungs(facts), numbers)
     values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
@@ -5422,7 +5617,7 @@ def _numeric_layout(
         share = negatives + positives
         if shape is not None:
             negative_share = _band_plateaus(
-                0, negatives, shape, numbers, facts.integer_valued
+                0, negatives, shape, numbers, facts.integer_valued, grid
             )
             share = negative_share + _band_plateaus(
                 negatives + zeros,
@@ -5430,6 +5625,7 @@ def _numeric_layout(
                 shape,
                 numbers,
                 facts.integer_valued,
+                grid,
             )
         if share <= 0:
             negative_share = negatives
@@ -5524,6 +5720,8 @@ def _numeric_layout(
         _filled_rungs(fine) if fine is not None else rungs,
         numbers,
         facts.integer_valued,
+        grid,
+        ceiling,
     )
     if demand > 0:
         flags = _carrier_flags(sizes, bands, rungs, facts.integer_valued)
@@ -8148,6 +8346,7 @@ def _stratum_values(
     notes: list[Deviation] = []
     taken = 0
     values: list[float] = []
+    grid = -1 if facts.integer_valued else _pinned_fraction(column, facts)
     for place in range(total):
         band = layout.bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
@@ -8190,6 +8389,19 @@ def _stratum_values(
         # nothing consumes it -- a comment saying it shapes a value
         # here would send the next implementer looking for a
         # dependency the twin does not have.
+        # ON A COLUMN WRITTEN AT ONE FRACTION WIDTH the word picks one of
+        # the stratum's OWN RANKS and the stratum holds the grid value of
+        # the ladder there (method G5.3, landing 2b.1). A share runs one
+        # rank past the ranks G5.2a sized the stratum by, so a one-rank
+        # stratum drew a value half a rank above its own number and
+        # snapped onto its neighbour's half the time: on a 2,000-row
+        # column of tenths publishing 598 numbers, 529 strata kept one of
+        # their own and the separation walk could restore only 592.
+        if grid > 0:
+            rank = layout.starts[place] + (layout.sizes[place] * word >> 64)
+            found = _rank_values(rank, 1, rungs, numbers, False, grid)[0]
+            values += [found]
+            continue
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
@@ -20920,6 +21132,23 @@ def _numeric_window(
     return (lows, highs, middles)
 
 
+def _grid_half_unit(figures: int) -> float:
+    """Half of one unit of the last place a fractional grid holds, or nought.
+
+    Method G12.2's second widening (landing 2b.1): G5.3 gives each
+    stratum of a column written at one fraction width the grid value of
+    the ladder at one of its own ranks, which stands at most this far
+    from the ladder there. Divided down one place at a time, the way the
+    validator's own half unit is, so the two print one window.
+    """
+    if figures <= 0:
+        return 0.0
+    reach = 0.5
+    for _step in range(figures):
+        reach = reach / 10.0
+    return reach
+
+
 def _inside(value: float, lowest: float, highest: float) -> bool:
     """Whether a measured number landed between the two ends of its bound."""
     if not math.isfinite(value):
@@ -21558,6 +21787,8 @@ def _numeric_approximations(
     slack = 0.0
     if facts.integer_valued or _whole_demand(facts) > 0:
         slack = 0.5
+    else:
+        slack = _grid_half_unit(_pinned_fraction(column, facts))
     lows, highs, middles = _numeric_window(rungs, held, widest, slack)
     found: list[Approximation] = []
     for step in range(1, 10):

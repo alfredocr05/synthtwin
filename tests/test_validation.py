@@ -1592,7 +1592,7 @@ def _stands_alone(body: str, whole: str) -> bool:
     is part of a longer number and is not this cell; any other
     occurrence is.
     """
-    figures = "0123456789."
+    figures = "0123456789.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     at = whole.find(body)
     while at >= 0:
         before = whole[at - 1] if at > 0 else " "

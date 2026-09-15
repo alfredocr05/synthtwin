@@ -79,6 +79,22 @@ def _code_column() -> "list[str]":
     return rows
 
 
+# THE COLUMN THE WALK STILL HAS WORK ON, since landing 2b.1. Method G5.3
+# now gives each stratum of a column written at one width the grid value
+# of one of its own ranks, so the residual's column above keeps its 99
+# numbers without this walk at all. A crowded one does not: 200 codes
+# around 300 with a tenth drawn freely hold 106 different numbers, the
+# stratum cap moves cells between neighbours there, and one stratum
+# takes its neighbour's number. Measured at this file's seed before it
+# was written here: 106 with the walk, 105 and one `0294.0` without.
+def _crowded_code_column() -> "list[str]":
+    draw = random.Random(18)
+    return [
+        f"{int(draw.gauss(300, 4)):03d}.{draw.randrange(10)}"
+        for _ in range(200)
+    ]
+
+
 def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -105,6 +121,17 @@ def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
         (one.fact, one.published, one.achieved) for one in twin.deviations
     ]
 
+    # ...AND THE SAME ON THE CROWDED COLUMN THE MUTANT BELOW IS RUN ON.
+    crowded = _crowded_code_column()
+    document, described = _described(tmp_path, crowded)
+    published = document["columns"][0]
+    twin = generation.generate(described, SEED)
+    cells = [cell for cell in twin.columns[0] if cell != ""]
+    assert not [cell for cell in cells if not shape.match(cell)]
+    assert published["n_distinct_values"] == 106
+    assert len({float(cell) for cell in cells}) == 106
+    assert not twin.deviations
+
 
 def test_the_grid_walk_is_what_keeps_them_apart(
     tmp_path: pathlib.Path, monkeypatch: "object"
@@ -116,7 +143,7 @@ def test_the_grid_walk_is_what_keeps_them_apart(
     different numbers one short, and the leading-zero rule supplying
     the missing spelling with a figure no source cell had.
     """
-    rows = _code_column()
+    rows = _crowded_code_column()
     _document, described = _described(tmp_path, rows)
     monkeypatch.setattr(  # type: ignore[attr-defined]
         generation,
@@ -127,9 +154,9 @@ def test_the_grid_walk_is_what_keeps_them_apart(
         cell for cell in generation.generate(described, SEED).columns[0]
         if cell != ""
     ]
-    assert len({float(cell) for cell in cells}) == 98
+    assert len({float(cell) for cell in cells}) == 105
     wide = [cell for cell in cells if len(cell.split(".")[0]) != 3]
-    assert wide == ["0250.4"], wide
+    assert wide == ["0294.0"], wide
 
 
 def test_nothing_published_is_traded_for_the_separation(

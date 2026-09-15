@@ -3646,6 +3646,82 @@ def _largest_stratum(
     return max(1, widest)
 
 
+def _stratum_bound(facts: contract.NumericFacts) -> int:
+    """The most cells method G5.2a lets one stratum hold, from the description.
+
+    Written from the rule and never from the generator, which this module
+    may not import. G5.2a caps every stratum at the published
+    `mode_count`; where the mode pair is withheld, at the smaller of
+    `K - n_distinct_values + 1` -- every other number holds a cell -- and
+    the most cells one value can hold without the hundred-and-one-rung
+    ladder showing a longer run of equal rungs than it does. The cap is raised only where a band has too few
+    strata to fit under it, and `_largest_stratum` beside this already
+    covers that case, so the larger of the readings is the widest stratum.
+    """
+    numbers = _numeric_cells(facts)
+    if facts.mode is not None and facts.mode_count > 0:
+        return facts.mode_count
+    # Every other number holds a cell, so one holds at most what is left.
+    counted = 0
+    if facts.n_distinct_values > 0:
+        counted = max(1, numbers - facts.n_distinct_values + 1)
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
+            index
+        ]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    rungs: "list[float | None]" = []
+    for percent in range(101):
+        rungs += [named[percent] if percent in named else finer[percent]]
+    held = [place for place in range(101) if rungs[place] is not None]
+    if not held or numbers < 2:
+        return counted
+    # A NULL RUNG TAKES THE NEAREST RUNG BELOW IT THAT HOLDS A NUMBER, or
+    # the first that holds one where none below does (method G5.1): the
+    # same filling the construction reads, so a run of equal rungs is
+    # counted here exactly as long as it is there.
+    filled: "list[float]" = []
+    for place in range(101):
+        found = rungs[place]
+        if found is None:
+            below = [step for step in held if step < place]
+            found = rungs[below[len(below) - 1] if below else held[0]]
+        filled += [found if found is not None else 0.0]
+    longest = 1
+    run = 1
+    for place in range(1, 101):
+        if filled[place] == filled[place - 1]:
+            run = run + 1
+            longest = max(longest, run)
+        else:
+            run = 1
+    ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
+    if counted > 0:
+        return min(counted, ladder)
+    return ladder
+
+
+def _one_grid(facts: contract.NumericFacts) -> int:
+    """The one fraction width every numeric cell is written at, or -1."""
+    census = facts.fraction_widths
+    if len(census) != 1:
+        return -1
+    for figures in census:
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in "0123456789":
+                return -1
+        if census[figures] != _numeric_cells(facts):
+            return -1
+        return int(figures)
+    return -1
+
+
 def _half_unit(facts: contract.NumericFacts) -> float:
     """The half unit method G12.2 lets exactly two rules spend.
 
@@ -3664,7 +3740,17 @@ def _half_unit(facts: contract.NumericFacts) -> float:
     ):
         if style in facts.numeric_styles:
             return 0.5
-    return 0.0
+    # AND HALF A GRID UNIT ON A COLUMN WRITTEN AT ONE FRACTION WIDTH
+    # (method G5.3, G12.2). Each stratum of such a column holds the grid
+    # value of one of its own ranks, which stands at most half a unit of
+    # the last place from the ladder there.
+    figures = _one_grid(facts)
+    if facts.integer_valued or figures <= 0:
+        return 0.0
+    reach = 0.5
+    for _step in range(figures):
+        reach = reach / 10.0
+    return reach
 
 
 # -- reading the re-description ---------------------------------------
@@ -9088,6 +9174,7 @@ def _displacement(
     widest = max(
         _largest_stratum(facts, present, distinct_folded),
         _longest_plateau(facts, _numeric_cells(facts)),
+        _stratum_bound(facts),
     )
     return ((widest + 2) / numbers, _half_unit(facts))
 

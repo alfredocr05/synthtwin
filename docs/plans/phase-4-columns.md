@@ -867,6 +867,20 @@ column held most often, and `mode_count` is how many cells held the
 commonest number. Both are **REPORT-ONLY** until the generator carves
 the stratum described below.
 
+**AMENDED AT LANDING 2b.1 (2026-09-15): THE GENERATOR NOW READS
+`mode_count`, AS A CEILING AND NOT AS A CARVE.** Method G5.2a caps every
+stratum at the published count — at one where the pair is withheld and
+every number differs, and otherwise at the most cells the ladder's own
+runs of equal rungs allow — so no number of the twin is held by more
+cells than any number of the real column was. That repaired a defect
+this decision never named: the join of G5.2a step 3 grew one stratum
+without bound on any ladder that moves continuously, and a 4,000-row
+two-figure column publishing a count of 62 held one number 760 times.
+The carve below is still not built, so the pair stays REPORT-ONLY: the
+ceiling bounds every count and meets none. Item 5's warning does not
+fire, because the ceiling moves cells between strata and never changes
+how many there are, so the word budget is untouched.
+
 They were written APPROXIMATED first, and that was wrong. Both halves
 are readable off a file, so they looked checkable — and they are, but a
 CHECK is an OBLIGATION, and a generator that carves no stratum for the
