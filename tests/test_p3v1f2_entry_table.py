@@ -204,9 +204,11 @@ def _described(
 ) -> contract.Profile:
     """One table through the real producer and the strict loader.
 
-    `measured` carries `--measurement`, which the JOINED role requires:
-    an undeclared column of `120/80` is not that role, by design (plan
-    P4-D23), so its fixture cannot reach the battery without one.
+    `measured` carries `--measurement`, which the JOINED role's full
+    reading requires (plan P4-D23). A slashed pair of plain whole
+    numbers is read as that role undeclared since plan P4-D40, and the
+    fixture keeps the declaration so its description does not depend
+    on which of the two readings reached it.
     """
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
@@ -2746,8 +2748,14 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
     RedCase("joined", 'not-utf8', 'reading', 'universal.position', 'position.at'),
     RedCase("joined", 'emptied-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
-    RedCase("joined", 'not-utf8', 'reading', 'universal.role', 'axes.role'),
-    RedCase("joined", 'not-utf8', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
+    # RE-MEASURED 2026-09-15 (plan P4-D40). `not-utf8` made these two
+    # miss only because the renamed header left the `--measurement`
+    # declaration unreached and the column fell to free text; a slashed
+    # pair of whole numbers is now read as joined numbers from its
+    # values, so that edit keeps the role. `rewritten-reading` makes
+    # both miss with four misses in all, the narrowest edit measured.
+    RedCase("joined", 'rewritten-reading', 'reading', 'universal.role', 'axes.role'),
+    RedCase("joined", 'rewritten-reading', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
     # The unrepresentable and pooled fixtures changed shape when
     # their green witnesses were made genuinely green (review item
     # P4-A2-R3-F1), so their cases are regenerated against the new

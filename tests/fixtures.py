@@ -283,11 +283,13 @@ def every_role_and_joined_table(n_rows: int = 240) -> str:
     """`every_role_table` with a JOINED column beside it.
 
     THE SHARED TABLE CANNOT CARRY THIS ROLE ON ITS OWN. An undeclared
-    column of two numbers in one cell is not `joined_numbers` (plan
-    P4-D23), so every one of that table's call sites would have to pass
-    `--measurement` and any that missed it would give the column
-    another role in silence -- which is residual R-P4-62's own defect
-    in a new place. So the joined column is added HERE, for the
+    column of two numbers in one cell is not `joined_numbers` in its
+    full reading (plan P4-D23), so every one of that table's call sites
+    would have to pass `--measurement` and any that missed it could give
+    the column another role in silence -- which is residual R-P4-62's
+    own defect in a new place. This column's slashed pairs of whole
+    numbers are read as joined numbers undeclared since plan P4-D40,
+    and the surfaces go on declaring it. So the joined column is added HERE, for the
     surfaces that claim to cover every role, and those surfaces declare
     `JOINED_COLUMN`.
 

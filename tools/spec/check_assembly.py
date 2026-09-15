@@ -25,7 +25,10 @@ The checks here are the ones a machine can settle and a reader cannot:
    are compared.
 
 Run it against the build folder while sections are being written, and
-against the assembled document before it lands. It exits non-zero on
+against the assembled document before it lands: the argument may name
+a folder of section files or one document. The shipped contract is
+checked on every suite by `tests/test_contract_self_check.py`, which
+holds it to zero items. It exits non-zero on
 any item, so it can be a gate rather than a report somebody reads.
 
 This is a build tool, not product code: nothing here is imported by
@@ -47,21 +50,57 @@ import sys
 _FAMILIES = (
     "A|AF|B|C6|D|E|F|I|K|L|LT|M|N|NF|NG|P|Q|RM|S|T|TY|U|V|W|X"
 )
-# A definition appears in three shapes in this document, and all three
-# are real: a bolded clause opener, a bolded "Invariant Nn." opener,
-# and a row of the one-list invariant table. A checker that knew only
-# the first would report every table-defined invariant as a dangling
-# citation, and a reader would learn to ignore it.
+# A definition appears in these shapes in this document, and all of
+# them are real: a bolded clause opener, a bolded "Invariant Nn."
+# opener, a row of the one-list invariant table, a heading, a bolded
+# opener at the start of a bullet (`- **P9c (the sum).**`), and a
+# bolded opener starting a new sentence part way along a line
+# (`...the same thing. **P5b (the sum).**`). A checker that knew only
+# the first would report every other shape as a dangling citation, and
+# a reader would learn to ignore it -- which is what happened: on the
+# shipped contract it reported eight items that were not defects.
 _DEFINITION = re.compile(
-    r"^(?:\*\*(?:Invariant\s+)?|\|\s*|#{2,6}\s+)"
+    r"(?:^(?:\*\*(?:Invariant\s+)?|\|\s*|#{2,6}\s+)"
+    r"|^[ \t]*[-*][ \t]+\*\*(?:Invariant\s+)?"
+    r"|(?<=[.:;)][ \t])\*\*(?:Invariant\s+)?)"
     r"(" + _FAMILIES + r")-?(\d+[a-z]?)"
     # A DEFINITION opener, not a mention. "**D5 (which clock)**" and
     # "| D5 |" define; "**D5 is a published fact...**" discusses one.
     # The difference is what follows the identifier, so the lookahead
     # admits punctuation, a parenthetical or a table pipe, and refuses
-    # a running word.
-    r"(?=\.|,|:|\)|\s*\||\*\*|\s*\(|\s*—)",
+    # a running word. A point followed by a letter or a figure is not
+    # a full stop: `**P5b.a — ...**` is a CASE of P5b, not P5b again.
+    # And a comma followed by another identifier is a LIST being
+    # discussed -- "**P6c, P7c and P9c do not reach producer obligation
+    # XW-P**" -- and not a rule being opened.
+    r"(?=\.(?![A-Za-z0-9])|,(?!\s*(?:" + _FAMILIES + r")-?\d)|:|\)"
+    r"|\s*\||\*\*|\s*\(|\s*—)",
     re.MULTILINE,
+)
+
+_IDENTIFIER = r"(?:" + _FAMILIES + r")-?\d+[a-z]?"
+
+# A definition in PROSE: "One binds, and its identifier is Q20." The
+# paragraph it opens states the rule, so the identifier is defined
+# there. The plural, "their identifiers are P6c, P7c and P9c", names
+# rules that are each then opened as a bullet of their own; a prose name
+# already opened in its own region adds no second definition, so the
+# two shapes are not counted as a collision.
+_PROSE_DEFINITION = re.compile(
+    r"\bidentifiers?\s+(?:is|are)\s+("
+    + _IDENTIFIER
+    + r"(?:(?:,\s*|,?\s+and\s+)"
+    + _IDENTIFIER
+    + r")*)"
+)
+
+# A LANDING NAME, not a rule: "landing L16", "(landing L18)". The `L`
+# family is also the ladder invariants' (L1, L3), so a landing name
+# reads as a citation of an invariant nobody wrote. It is struck out
+# before citations are collected, and only where the word "landing"
+# stands directly before it, across a line break included.
+_LANDING = re.compile(
+    r"\blandings?\s+L\d+[a-z]?(?:(?:,\s*|,?\s+and\s+)L\d+[a-z]?)*"
 )
 
 # A CITATION: the same shape, anywhere in running text, not at the
@@ -100,7 +139,12 @@ _WORDS = {
 
 
 def _sections(folder: pathlib.Path) -> list[pathlib.Path]:
-    """Every section file, excluding the notes that sit beside them."""
+    """Every section file, excluding the notes that sit beside them.
+
+    A path naming one document is that document alone.
+    """
+    if folder.is_file():
+        return [folder]
     return sorted(
         path
         for path in folder.glob("*.md")
@@ -159,9 +203,18 @@ def check_identifiers(paths: list[pathlib.Path]) -> list[str]:
             bucket = restated if (
                 _restates(region) or _restates(path.stem)
             ) else defined
+            opened: set[str] = set()
             for match in _DEFINITION.finditer(text[start:end]):
                 line = text[: start + match.start()].count("\n") + 1
                 bucket[_identifier(match)].append(f"{path.name}:{line}")
+                opened.add(_identifier(match))
+            for match in _PROSE_DEFINITION.finditer(text[start:end]):
+                line = text[: start + match.start()].count("\n") + 1
+                for named in _CITATION.finditer(match.group(1)):
+                    if _identifier(named) not in opened:
+                        bucket[_identifier(named)].append(
+                            f"{path.name}:{line}"
+                        )
 
     for name, sites in sorted(defined.items()):
         if len(sites) > 1:
@@ -188,6 +241,7 @@ def check_identifiers(paths: list[pathlib.Path]) -> list[str]:
 
     for path in paths:
         text = _CODE_SPAN.sub(" ", path.read_text(encoding="utf-8"))
+        text = _LANDING.sub(" ", text)
         cited = {_identifier(m) for m in _CITATION.finditer(text)}
         for name in sorted(cited - known - set(restated)):
             items.append(
@@ -307,7 +361,7 @@ def main() -> int:
         "folder",
         nargs="?",
         default="docs/spec/v6-build",
-        help="the folder of section files, or the assembled document's",
+        help="a folder of section files, or one assembled document",
     )
     parser.add_argument(
         "--counts",
@@ -318,8 +372,8 @@ def main() -> int:
     arguments = parser.parse_args()
 
     folder = pathlib.Path(arguments.folder)
-    if not folder.is_dir():
-        print(f"no such folder: {folder}", file=sys.stderr)
+    if not folder.is_dir() and not folder.is_file():
+        print(f"no such folder or document: {folder}", file=sys.stderr)
         return 2
 
     paths = _sections(folder)

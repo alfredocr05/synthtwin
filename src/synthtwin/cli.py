@@ -1174,9 +1174,16 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # and it reached the screen because nothing tests this text.
     numeric: list[asking.Question] = []
     joined: list[asking.Question] = []
+    # A JOINED-LOOKING COLUMN ALREADY READ AS JOINED NUMBERS (plan
+    # P4-D40) is not being described as text, and telling it so would
+    # be the false sentence the comment above records once already.
+    paired: list[asking.Question] = []
     for question in questions:
         if question.reason == asking.BECAUSE_JOINED:
-            joined += [question]
+            if asking.reads_each_number(question.role):
+                paired += [question]
+            else:
+                joined += [question]
         else:
             numeric += [question]
 
@@ -1199,7 +1206,12 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
                 # different readings reaches free text, which publishes
                 # no value of it at all, and the notice said the
                 # opposite of the profile sitting beside it.
-                if not asking.publishes_its_values(question.role):
+                if asking.reads_each_number(question.role):
+                    line = line + (
+                        "\n      (each number in its cells is described "
+                        "on its own, and no whole cell is published)"
+                    )
+                elif not asking.publishes_its_values(question.role):
                     line = line + (
                         "\n      (no value of this column is published)"
                     )
@@ -1242,6 +1254,21 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"blood pressure of `120/80` is two readings and a laboratory "
             f"code is not, and only you know which this is.\n\n"
             f"If any of them holds readings, run the command again naming "
+            f"them:\n  {flags}"
+        ]
+    if paired:
+        flags = _joined(
+            [f"--code {_shown(one.name)}" for one in paired], " "
+        )
+        blocks += [
+            f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND WERE READ AS "
+            f"READINGS.{_listing(paired, True)}\n\n"
+            f"Each number inside those cells is described on its own, with "
+            f"its own average, smallest and largest, and the twin's cells "
+            f"are built from those. A blood pressure of `120/80` is two "
+            f"readings and a register written as two numbers is not, and "
+            f"only you know which this is.\n\n"
+            f"If any of them holds codes, run the command again naming "
             f"them:\n  {flags}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:

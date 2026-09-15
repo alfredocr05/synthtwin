@@ -1,8 +1,5 @@
 """Regression witnesses for finding 2 (decimal-comma recounts mix readings)."""
 
-import pathlib
-import tempfile
-
 import fixtures
 from synthtwin import contract, generation, profile, reading, taxonomy, validation
 
@@ -16,8 +13,7 @@ A3_CELLS = [f"{-1000000 + 25 * i:,}".replace(",", ".") for i in range(41)] + [
 ] * 10
 
 
-def _described(cells, missing=()):
-    folder = pathlib.Path(tempfile.mkdtemp())
+def _described(folder, cells, missing=()):
     table = fixtures.write(folder, "t.csv", fixtures.single_column_table("v", cells))
     document = profile.build_document(
         reading.read_table(f"{table}"),
@@ -42,57 +38,57 @@ def _twin_file(loaded, folder, seed=4):
     return twin, path
 
 
-def test_a2_profile_is_forty_numbers_and_ten_labels():
-    document, *_ = _described(A2_CELLS)
+def test_a2_profile_is_forty_numbers_and_ten_labels(tmp_path):
+    document, *_ = _described(tmp_path, A2_CELLS)
     column = document["columns"][0]
     assert column["role"] == "numbers_with_labels"
     assert (column["n_numeric_cells"], column["n_label_cells"]) == (40, 10)
 
 
-def test_a2_twin_report_counts_labels_as_labels():
-    _document, loaded, folder, _table = _described(A2_CELLS)
+def test_a2_twin_report_counts_labels_as_labels(tmp_path):
+    _document, loaded, folder, _table = _described(tmp_path, A2_CELLS)
     twin, _path = _twin_file(loaded, folder)
     assert [(d.fact, d.published, d.achieved) for d in twin.deviations] == []
     mean = [a for a in twin.approximations if a.fact == "mean"]
     assert mean and abs(float(mean[0].achieved) - 3101.313) < 1e-6
 
 
-def test_a2_source_and_twin_miss_nothing():
-    _document, loaded, folder, table = _described(A2_CELLS)
+def test_a2_source_and_twin_miss_nothing(tmp_path):
+    _document, loaded, folder, table = _described(tmp_path, A2_CELLS)
     _twin, path = _twin_file(loaded, folder)
     assert _missed(loaded, table) == []
     assert _missed(loaded, path) == []
 
 
-def test_a2_vacuity_a_label_rewritten_as_a_declared_number_is_caught():
-    _document, loaded, folder, _table = _described(A2_CELLS)
+def test_a2_vacuity_a_label_rewritten_as_a_declared_number_is_caught(tmp_path):
+    _document, loaded, folder, _table = _described(tmp_path, A2_CELLS)
     other = [c if c != "1,234,567" else "1.234.567" for c in A2_CELLS]
     path = fixtures.write(folder, "other.csv", fixtures.single_column_table("v", other))
     assert _missed(loaded, path)
 
 
-def test_a3_profile_keeps_the_grouped_maximum():
-    document, *_ = _described(A3_CELLS, ["-999"])
+def test_a3_profile_keeps_the_grouped_maximum(tmp_path):
+    document, *_ = _described(tmp_path, A3_CELLS, ["-999"])
     column = document["columns"][0]
     assert column["n_numeric"] == 41 and column["missing_by_source"] == {"-999,000": 10}
 
 
-def test_a3_twin_report_keeps_the_grouped_maximum():
-    _document, loaded, folder, _table = _described(A3_CELLS, ["-999"])
+def test_a3_twin_report_keeps_the_grouped_maximum(tmp_path):
+    _document, loaded, folder, _table = _described(tmp_path, A3_CELLS, ["-999"])
     twin, _path = _twin_file(loaded, folder)
     assert "-999.000" in twin.columns[0]
     assert [(d.fact, d.published, d.achieved) for d in twin.deviations] == []
 
 
-def test_a3_source_and_twin_miss_nothing():
-    _document, loaded, folder, table = _described(A3_CELLS, ["-999"])
+def test_a3_source_and_twin_miss_nothing(tmp_path):
+    _document, loaded, folder, table = _described(tmp_path, A3_CELLS, ["-999"])
     _twin, path = _twin_file(loaded, folder)
     assert _missed(loaded, table) == []
     assert _missed(loaded, path) == []
 
 
-def test_a3_vacuity_the_maximum_written_as_the_hole_is_caught():
-    _document, loaded, folder, _table = _described(A3_CELLS, ["-999"])
+def test_a3_vacuity_the_maximum_written_as_the_hole_is_caught(tmp_path):
+    _document, loaded, folder, _table = _described(tmp_path, A3_CELLS, ["-999"])
     other = ["-999,000" if c == "-999.000" else c for c in A3_CELLS]
     path = fixtures.write(folder, "other.csv", fixtures.single_column_table("v", other))
     assert _missed(loaded, path)

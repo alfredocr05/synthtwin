@@ -88,11 +88,16 @@ NUMERIC_ROLES = (
 # P4-D21). `120/80` is not a number, not a date and not a clock time,
 # so it falls to free text -- or, where few enough readings repeat, to
 # a label role. Both are asked about, because both are what a blood
-# pressure column looks like when nobody has said what it is.
+# pressure column looks like when nobody has said what it is. AND THE
+# JOINED ROLE ITSELF (plan P4-D40): a pair of plain whole numbers joined
+# by a slash is read as joined numbers from its values, and a coding
+# system can be written that way too, so the question is still put and
+# `code` and `identifier` are still offered.
 JOINED_ROLES = (
     taxonomy.ROLE_TEXT,
     taxonomy.ROLE_LONG_TAIL,
     taxonomy.ROLE_CATEGORICAL,
+    taxonomy.ROLE_JOINED,
 )
 
 # The two readings a person is offered, and the third that already had
@@ -198,6 +203,20 @@ def why_joined_is_worth_asking(values: "list[str]") -> "str | None":
         if parts >= 2:
             return BECAUSE_JOINED
     return None
+
+
+def reads_each_number(role: str) -> bool:
+    """Whether a column on this role is described one number at a time.
+
+    The joined role (plan P4-D21, and P4-D40 for the shape read from the
+    values) describes each position of a cell as a quantity and
+    publishes no whole cell; neither sentence written for a label role
+    or a text role says that.
+
+    Guarantees: accepts a role name; returns whether it is the joined
+    role. Determinism: a function of the name. Raises nothing. No I/O.
+    """
+    return role == taxonomy.ROLE_JOINED
 
 
 def publishes_its_values(role: str) -> bool:
@@ -328,7 +347,9 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             "an average, a spread, a smallest and a largest, and points "
             "between"
         )
-    if answer == ANSWER_JOINED:
+    if answer == ANSWER_JOINED or (
+        answer == ANSWER_KEEP and role == taxonomy.ROLE_JOINED
+    ):
         return (
             "each number inside the cell described on its own, with its "
             "own average and ends"
@@ -407,7 +428,30 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     CHANGES the reading. Listing the change as the default told a
     person that doing nothing would describe their blood pressures,
     when doing nothing leaves them undescribed.
+
+    A column already read as joined numbers from its values (plan
+    P4-D40) keeps that reading on Enter, and is not offered `joined`
+    again: the answer would change nothing.
     """
+    if role == taxonomy.ROLE_JOINED:
+        return [
+            Choice(
+                ANSWER_KEEP,
+                "leave it as it is -- synthtwin reads each number in "
+                "these cells on its own",
+                _publishes_under(ANSWER_KEEP, role, floor),
+            ),
+            Choice(
+                ANSWER_CODE,
+                "codes -- a coding system that writes its codes in parts",
+                _publishes_under(ANSWER_CODE, role, floor),
+            ),
+            Choice(
+                ANSWER_IDENTIFIER,
+                "record numbers -- a key nothing should publish",
+                _publishes_under(ANSWER_IDENTIFIER, role, floor),
+            ),
+        ]
     return [
         Choice(
             ANSWER_KEEP,

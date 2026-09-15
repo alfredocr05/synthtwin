@@ -213,7 +213,9 @@ ventilator ratio such as `1:1.5`.
 synthtwin reads each number separately and publishes a range and an
 average for each one, so the twin's cells hold believable readings
 instead of digits in the right shape. Without it such a column is
-described as text and its twin carries no readings at all. Use it only
+described as text and its twin carries no readings at all -- except the
+commonest shape, two whole numbers joined by a slash (`128/79`), which
+is read this way from its values and is still asked about. Use it only
 where the numbers are quantities: a lab code such as `1923-1` and a drug
 code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers

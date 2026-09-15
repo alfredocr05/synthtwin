@@ -5125,6 +5125,31 @@ declaration for only one of them.
   the assembled document is declared the source and the build folder
   and both tools are retired with a sentence saying so.
 
+  **2026-09-15, landing 2b.5: the destructive path is closed, and the
+  source question is still OPEN for the owner.** Re-measured on
+  53bb012, the rebuild wrote 385 lines and deleted 3,375, turning a
+  10,426-line contract into 7,436. Sixty commits had touched the
+  shipped document since the build folder last moved. Nothing chooses
+  between the two copies here. `tools/spec/assemble_v6.py` now refuses
+  to run, with a sentence naming this entry and the owner's question,
+  and writes nothing. `docs/spec/v6-build/` is untouched.
+  `tools/spec/check_assembly.py` accepts one document as well as a
+  folder, and it has learned three definition shapes the shipped
+  document uses: a rule named in prose ("its identifier is Q20"), a
+  rule opened as a bullet or part way along a line, and a landing name
+  such as `landing L16`, which read as an `L` invariant. On the shipped
+  document it had reported seventeen items, and seven were real. The
+  second definitions of C6-32, C6-33 (with its C6-33a and C6-33b) and
+  C6-96 are renumbered C6-122, C6-123 (C6-123a, C6-123b) and C6-124,
+  and the table rows that cited those meanings follow; code and tests
+  cite the first meanings, which keep their numbers. Invariants Q16 to
+  Q19, which were cited and enforced by the loader but never written,
+  are defined beside Q11 and listed in the Q family. It now reports
+  zero items, and `tests/test_contract_self_check.py` holds it there,
+  with a duplicated identifier turning that test red. On the build
+  folder it reports one item more than before, a real duplicate P5
+  between two draft sections that the old recogniser could not see.
+
 - **R-P4-124 — OPEN (opened 2026-09-01 by landing L7's own mutation
   run).** THREE RULES OF THE PROPOSAL STEP STAY SILENT.
 
@@ -9507,6 +9532,16 @@ The twin report's sentence on the marks is the one true of the column. Where eve
 
 The class is the weaker one because a moment is read the same way whichever mark it wears, and a file whose clocks are not at midnight is read the same way too, so a file is held to neither. What the two facts buy is code meeting the same spelling on the twin as on the real table, and a date-only field that stays a date. The quality report lists both on every datetime column. Two limits are carried by name: the validator does not hold a twin to the marks or to midnight, and a column only partly at midnight, or at midnight on the shared clock, is described and not reproduced and still gets invented times of day, because reaching both the ladder and a partial midnight count needs a day-and-time decomposition that belongs to later depth work — measured, the interpolating construction costs nine of eleven rungs. Also carried (the stage 2 audit, 2026-09-14): a column mixing bare dates with midnight moments is written wholly as moments; and twins of date columns spread their values across days more evenly than real tables, with a day-to-day variance about a third of the real one measured on 400 rows, which predates stage 2. The rule this overturns is the generation method's fixed T of G7.5, with the space exception of amendment A-P4-22; the method records the correction on the same date.
 
+### P4-D40 Two whole numbers joined by a slash are read from the values (landing 2b.5, 2026-09-15)
+
+A blood pressure written `int(gauss(128,17))/int(gauss(79,11))`, such as `128/79`, was described as free text at 300 rows and at 2,000. The joined reading was asked only under `--measurement` (P4-D21), so without the declaration the column published nothing, its twin held stand-in text, and the validator never checked either position. The questions file did ask, and the answer `joined` repaired it; a person who did not answer got a twin that fails both goals on that column.
+
+The profiler now tests one further rule after the long tail and before free text, so it claims only a column that would otherwise publish nothing and moves no column any value-publishing rule reads today. The rule reads exactly one shape: at least the parse-line count of present cells are two parts joined by `/`, `/ ` or ` / `, each part figures alone with no point, no sign, and no leading zero on a part of two or more figures. The other cells are counted as unparsed. The declaration keeps its full reading: any of the six marks, two or more parts, a point allowed.
+
+None of the columns P4-D21 measured wears that shape. A date and a clock are claimed by earlier rules. The laboratory code `1923-1` and the drug code `00052-0052-52` are joined by a hyphen, and the second is padded. What P4-D21 said stays true of this shape: a register written as two slashed figures cannot be told from a measurement. That cost is accepted and stated. Every column read this way is asked about in the questions file, with Enter keeping the reading and `code` and `identifier` offered, and a test pins it.
+
+Measured on this landing: the blood pressure at 300 and 2,000 rows, at seeds 3, 11 and 29, is described as joined numbers, its twin is described again as joined numbers with the same separator, the same part minima and the same count of different readings, and `synthtwin validate` exits 0 on both the twin and the real table. Against commit 53bb012 the profile, twin, twin report and quality report of fifteen other shapes are byte-identical: whole numbers, a lognormal to two places, ISO dates, slashed dates, clock times, the hyphenated and padded codes, pipe-joined pairs, padded slashed pairs, slashed pairs with a point, words, a unit-affixed number, three repeated slashed readings, and the shared every-role and every-withholding tables. The two fixture tables that carry an undeclared slashed pair change, and nothing else does. Contract section 6.15 and rule order C6-1 state the rule. The generator and the validator are unchanged: both already served the role, and the validator describes a checked file by the same rules.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free
@@ -11869,6 +11904,10 @@ it with one more answer offered: measurements written as two numbers.
 `lab_code` answers "codes" and keeps everything A-P4-38 gave it; `bp`
 answers "measurements" and gets its distribution back. One question,
 one place, three answers, and no rule anywhere guesses which.
+
+**Narrowed on 2026-09-15 by P4-D40**: one shape, two plain whole
+numbers joined by a slash in a column that would otherwise be free
+text, is read from its values. The full reading stays a declaration.
 
 ## Amendment A-P4-39 — the fourteenth role is built (P4-D21)
 
