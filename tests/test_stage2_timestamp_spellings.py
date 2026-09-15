@@ -372,6 +372,78 @@ def test_a_partly_midnight_column_moved_off_midnight_misses_the_count(tmp_path: 
     assert _misses(report, "datetime.n_at_midnight")
 
 
+def test_a_twin_holding_one_midnight_the_table_never_held_misses_the_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """At a floor of one a published nought is exact, so it is checked (integration repair).
+
+    Before, `n_at_midnight` was checked only where it was above nought, and a
+    twin of dense minute stamps holding eight cells at midnight passed.
+    """
+    cells = _minutes(1200, " ", 11)
+    _first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "none", cells, (), True, "4"
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    moved = [cell[:11] + "00:00" + cell[16:] if place == 7 else cell for place, cell in enumerate(written)]
+    assert sum(1 for cell in moved if _at_midnight(cell)) == 1
+    code, report = _validate(tmp_path / "none" / "real-profile.json", moved, tmp_path / "moved")
+    assert code == 3
+    assert _misses(report, "datetime.n_at_midnight")
+
+
+@pytest.mark.parametrize("seed", ["4", "11"])
+def test_dense_minute_stamps_around_midnight_get_a_twin_with_none(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """1,000 stamps between 23:00 and 00:59, none at 00:00 (integration repair).
+
+    Eight ranks stood seconds apart inside the written minute `00:00`, one
+    of them a rung's rank, so none could move alone, and the twin wrote
+    eight such cells; each run of such ranks now moves out as one.
+    """
+    draw = random.Random(4)
+    start = datetime.datetime(2025, 3, 1, 23)
+    minutes = [minute for minute in range(120) if minute != 60]
+    cells = [
+        (start + datetime.timedelta(minutes=draw.choice(minutes))).strftime("%Y-%m-%dT%H:%M")
+        for _ in range(1000)
+    ]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "dense", cells, (), True, seed
+    )
+    assert first["n_at_midnight"] == 0
+    assert sum(1 for cell in written if cell.endswith("T00:00")) == 0
+    assert second["n_at_midnight"] == 0
+    assert second["n_distinct"] == first["n_distinct"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_a_column_partly_at_midnight_on_two_offsets_keeps_every_midnight(
+    tmp_path: pathlib.Path,
+) -> None:
+    """980 local cells at midnight of 1,000 over five days under two offsets (integration repair).
+
+    The ranks between two pinned ranks of one instant took their offsets
+    in sorted order, and 82 were written an hour off midnight.
+    """
+    draw = random.Random(4)
+    days = [datetime.date(2024, 1, 1), datetime.date(2024, 7, 1), datetime.date(2024, 12, 1),
+            datetime.date(2025, 7, 1), datetime.date(2025, 12, 1)]
+    cells = []
+    for place in range(1000):
+        day = draw.choice(days)
+        offset = "+02:00" if 4 <= day.month <= 10 else "+01:00"
+        cells += [day.isoformat() + ("T12:00:00" if place < 20 else "T00:00:00") + offset]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "two", cells, ("--smallest-group", "11"), True, "4"
+    )
+    assert first["n_at_midnight"] == 980
+    assert sum(1 for cell in written if "T00:00:00" in cell) == 980
+    assert second["utc_offsets"] == first["utc_offsets"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
 def test_a_pooled_mark_the_census_names_is_bounded_by_the_pool(tmp_path: pathlib.Path) -> None:
     """Writing the pooled `t` values with a mark the census does not name at all."""
     cells = _shuffled(_minutes(870, "T", 1) + _minutes(22, " ", 2) + _minutes(8, "t", 3), 5)

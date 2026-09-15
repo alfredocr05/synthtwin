@@ -128,6 +128,15 @@ def _zero_inflated_two_figures(draw: random.Random, rows: int) -> "list[str]":
     ]
 
 
+def _signed_change(draw: random.Random, rows: int) -> "list[str]":
+    """Changes rounded to two places, each written with its sign: `+1.25`, `-0.00`."""
+    return [f"{round(draw.gauss(0, 3), 2):+.2f}" for _ in range(rows)]
+
+
+def _unsigned_change(draw: random.Random, rows: int) -> "list[str]":
+    return [cell.lstrip("+") for cell in _signed_change(draw, rows)]
+
+
 # The commonest real shapes first: a column of tenths around a centre, a
 # narrow one, a small one, then hundredths, then the rest.
 SHAPES = [
@@ -156,6 +165,14 @@ SHAPES = [
     ("spreadsheet_scores", _spreadsheet_scores, 2000, 101),
     ("zero_inflated", _zero_inflated, 4000, 202),
     ("zero_inflated_two_figures", _zero_inflated_two_figures, 2000, 101),
+    # A COLUMN OF CHANGES EITHER SIDE OF NOUGHT (integration repair). A
+    # negative stratum whose grid value rounded to `0.00` took G5.5's
+    # plain fallback `-1.0`: two strata became one number beside a third,
+    # and six cells were written `-1.0` against a published width of two.
+    ("signed_change", _signed_change, 2000, 2),
+    ("signed_change", _signed_change, 4000, 2),
+    ("unsigned_change", _unsigned_change, 2000, 2),
+    ("unsigned_change", _unsigned_change, 4000, 2),
 ]
 
 
@@ -169,14 +186,118 @@ SHAPES = [
 # The assertion below turns red the moment the count comes back.
 CARRIED_SHORT = {("spreadsheet_narrow", 2000, "23"): 2}
 
+# ONE CASE COMES BACK ONE NUMBER OVER, AND IT IS CARRIED BY NAME
+# (integration repair). The 4,000-row column of changes writes nought as
+# `-0.00` and as `0.00` or `+0.00`: two spellings of one number, so its
+# count of spellings is one above its count of numbers, and the layout of
+# G5.2 sizes the strata by the spellings. Before the repair of G5.5 on a
+# grid the extra stratum was hidden by two strata repaired onto `-1.0`,
+# which spent a number and missed the published width; now every stratum
+# is its own number and the count comes back one over, which the quality
+# report's window holds. The assertion turns red the moment it changes.
+CARRIED_EXTRA = {("signed_change", 4000): 1, ("unsigned_change", 4000): 1}
+
+
+@pytest.mark.parametrize("seed", ("7", "1"))
+def test_no_finished_number_is_held_by_more_cells_than_the_cap(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """Two strata written as one number held 43 cells against a cap of 32.
+
+    The integration verdict. The cap of G5.2a bounds one stratum, and the
+    separation of G6.5a could find no free point of the grid inside either
+    share, so the two were written as one number and their cells added
+    together. The cap is asked of the finished numbers now.
+    """
+    draw = random.Random(25)
+    draw.getrandbits(384)
+    cells = [
+        f"{draw.choice([-1, 1]) * draw.lognormvariate(0.1, 1):.1f}".replace("-0.0", "0.0")
+        for _ in range(1000)
+    ]
+    first, _second, written, _twin_exit, real_exit = _round_trip(
+        tmp_path / "capped", cells, ("--smallest-group", "11"), True, seed
+    )
+    assert first["mode_count"] == 32
+    assert real_exit == 0
+    held = collections.Counter(_number(cell) for cell in written)
+    assert max(held.values()) <= first["mode_count"], held.most_common(3)
+
+
+def test_the_generator_and_the_oracle_join_the_same_pair(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G5.2a step 3's key is one arithmetic, and both writings take it.
+
+    The integration verdict: the method fixes binary64 and divides before
+    it subtracts, for the overflow reason G5.3 gives; the oracle took the
+    gap as an exact rational instead. On 501 one-decimal cells over eleven
+    values the two chose different pairs -- [56, 40, 4, 17, 50, ...] in the
+    oracle against [56, 40, 4, 18, 49, ...] in the generator, which is what
+    the twin holds.
+    """
+    oracle = _oracle()
+    values = [0.9, 3.4, 4.0, 5.9, 6.8, 7.7, 9.6, 9.8, 10.6, 11.6, 12.5]
+    counts = [60, 38, 18, 3, 50, 66, 63, 45, 27, 66, 65]
+    cells = [f"{value:.1f}" for value, count in zip(values, counts) for _ in range(count)]
+    first, _second, _written, _twin, _real = _round_trip(
+        tmp_path / "join", cells, seed="1"
+    )
+    # The hundred and one rungs stand in two blocks: the eleven named
+    # ones and the ninety between them.
+    rungs_of = {**first["percentiles"], **first["percentiles_between"]}
+    ladder = [rungs_of[key] for key in oracle.ALL_LADDER_KEYS]
+    total = len(cells)
+    strata = first["n_distinct_values"]
+    cap = first["mode_count"]
+    lengths, heights = oracle.ladder_runs(ladder, 0, total, total, False, 1)
+
+    def merged(key_of: object) -> "list[int]":
+        sizes, held = list(lengths), list(heights)
+        while len(sizes) > strata:
+            at = min(
+                range(len(sizes) - 1),
+                key=lambda index: key_of(sizes, held, index),  # type: ignore[operator]
+            )
+            sizes[at] += sizes[at + 1]
+            del sizes[at + 1]
+            del held[at + 1]
+        return oracle.levelled(sizes, cap)
+
+    theirs = merged(
+        lambda sizes, held, index: (oracle.overshoot(sizes, index, cap),)
+        + oracle.join_key(sizes, held, index)
+    )
+    ours = merged(
+        lambda sizes, held, index: generation._pair_key(
+            sizes, [float(value) for value in held], index, index + 1, cap
+        )
+    )
+    assert theirs == ours, (theirs, ours)
+
+
+def _oracle() -> object:
+    """The reference oracle, imported the way the reference test does."""
+    import importlib.util
+
+    where = pathlib.Path(__file__).resolve().parents[1] / "tools" / "reference"
+    spec = importlib.util.spec_from_file_location(
+        "make_generation_reference_vectors",
+        where / "make_generation_reference_vectors.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 
 def _number(cell: str) -> "float | None":
-    found = re.fullmatch(r"(-?\d+(?:\.\d+)?)( kg)?", cell)
+    found = re.fullmatch(r"([-+]?\d+(?:\.\d+)?)( kg)?", cell)
     return float(found.group(1)) if found else None
 
 
 def _figures(cell: str) -> int:
-    found = re.fullmatch(r"-?\d+(?:\.(\d+))?( kg)?", cell)
+    found = re.fullmatch(r"[-+]?\d+(?:\.(\d+))?( kg)?", cell)
     if found is None or found.group(1) is None:
         return 0
     return len(found.group(1))
@@ -215,7 +336,8 @@ def test_the_numeric_facts_come_back_from_the_twin(
         )
         assert second["mode_count"] <= first["mode_count"]
         # THE COUNT OF DIFFERENT NUMBERS AND THE FRACTION WIDTHS, EXACTLY.
-        assert second["n_distinct_values"] == first["n_distinct_values"] - short, (
+        extra = CARRIED_EXTRA.get((name, rows), 0)
+        assert second["n_distinct_values"] == first["n_distinct_values"] - short + extra, (
             name,
             rows,
             seed,

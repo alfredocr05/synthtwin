@@ -243,6 +243,40 @@ def test_numbers_beside_labels_come_back_as_numbers_where_the_table_has_them(
     )
 
 
+def test_one_pooled_word_does_not_buy_a_whole_figure(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One text cell below the floor, beside readings whose tail crosses ten.
+
+    The integration verdict's BLOCKER. The census pooled the one `ab-cd`,
+    and the pool was read as permission for any counted form it does not
+    name: the twin wrote `100.0` to `100.3`, the spread of its numbers was
+    4.91 against the table's 2.01, and both validations passed. Without the
+    one text cell the same column's twin had 2.02. The narrow walk comes
+    first now, so the twin of the pooled column is the twin of the column
+    without the word.
+    """
+    readings = _wide_readings(2500, random.Random(77503))
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "pooled", readings + ["ab-cd"], ("--smallest-group", "11"),
+        True, "125",
+    )
+    assert first["role"] == "categorical"
+    assert second["n_numeric"] == first["n_numeric"]
+    assert twin_exit == 0 and real_exit == 0
+    real = _numbers(readings)
+    twin = _numbers(written)
+    spread = statistics.pstdev(real)
+    assert abs(statistics.pstdev(twin) - spread) <= DEVIATION_SHARE * spread, (
+        statistics.pstdev(twin), spread
+    )
+    assert max(_whole_figures(cell) for cell in _number_cells(written)) <= 2
+    _f, _s, control, _t, _r = _round_trip(
+        tmp_path / "control", readings, ("--smallest-group", "11"), False, "125"
+    )
+    assert sorted(_numbers(control)) == sorted(twin)
+
+
 def _number_cells(cells: "list[str]") -> "list[str]":
     return [cell for cell in cells if parsing.classify_number(cell) == parsing.NUMBER]
 
@@ -313,6 +347,53 @@ def test_a_made_up_number_is_never_one_the_profiler_reads_as_absent(
     assert twin_exit == 0
     for refused in ("9999", "-999", "-9999", "9999.0"):
         assert not generation._is_a_usable_stand_in(refused, (), parsing.NUMBER)
+
+
+def test_a_made_up_number_is_never_a_spelling_another_column_calls_absent(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`--missing-value 5` declared for the table reaches a column that never wrote it.
+
+    The integration verdict: `value` holds labels and three published
+    numbers, `other` holds eleven `5`s. The class stand-ins were refused
+    only this column's absent spellings, so the twin wrote `5` four times
+    in `value`, its description read four present cells fewer, and eight
+    checks were missed while the real table passed.
+    """
+    folder = tmp_path / "holes"
+    folder.mkdir()
+    table = folder / "real.csv"
+    value = ["alpha"] * 30 + ["4"] * 11 + ["6"] * 11 + ["7"] * 4
+    other = ["5"] * 11 + ["beta"] * 45
+    table.write_text(
+        fixtures.rows_to_csv(
+            ["value", "other"], [[a, b] for a, b in zip(value, other)]
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    flags = ["--smallest-group", "11", "--missing-value", "5"]
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace"] + flags
+    ) == 0
+    profile = folder / "real-profile.json"
+    assert _exit_of(
+        ["generate", str(profile), "--out-dir", str(folder), "--seed", "4",
+         "--replace"]
+    ) == 0
+    twin = folder / "real-twin.csv"
+    written = [
+        line.split(",")[0]
+        for line in twin.read_text(encoding="utf-8").splitlines()[1:]
+    ]
+    assert "5" not in written
+    assert len(_number_cells(written)) == 26
+    checked = folder / "checked"
+    checked.mkdir()
+    assert _exit_of(
+        ["validate", str(profile), "--twin", str(twin), "--out-dir",
+         str(checked), "--replace"]
+    ) == 0
 
 
 def test_a_made_up_number_is_never_a_spelling_the_column_calls_absent(
@@ -616,6 +697,70 @@ def test_readings_beside_notes_at_a_high_floor_generate_and_stay_free_text(
     assert second["n_not_numeric"] == first["n_not_numeric"]
     assert twin_exit == 0 and real_exit == 0
     assert not any(_opens_with_an_invented_zero(cell) for cell in _number_cells(written))
+
+
+def test_a_label_of_five_thousand_figures_does_not_stop_the_command(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`1.` and five thousand noughts, beside notes and two readings.
+
+    The integration verdict: the ladder read every published spelling as
+    a plain number, and this interpreter refuses to read an integer of
+    more than 4,300 figures from text, so `synthtwin generate` raised
+    `ValueError` and wrote nothing. Such a spelling is not plain, so the
+    ladder is built from the ones that are.
+    """
+    cells = ["1." + "0" * 5000] * 12 + ["not done"] * 20 + ["2.0"] * 3 + ["3.0"] * 2
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "long", cells, ("--smallest-group", "11"), True, "1"
+    )
+    assert first["role"] == "long_tail_labels"
+    assert len(written) == len(cells)
+    assert second["n_numeric"] == first["n_numeric"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_a_code_band_number_is_never_multiplied_by_its_exponent(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Sixty integers from -10 to -69 beside sixty three-letter words.
+
+    The integration verdict: the code band held ten `e0` numbers of three
+    characters, the family was counted with all ten exponent figures, and
+    the twin wrote `0e0` to `9e5` -- mean 83,333 against -39.5 -- with
+    every check passing. The family is its `e0` spellings now, so a column
+    needing more of them is refused, as it was before landing 2b.4, and a
+    family never writes an exponent other than nought.
+    """
+    for length in (3, 4, 5):
+        room = generation._family_room(
+            generation._CLASS_NUMBER, generation._BAND_CODE, length, 1
+        )
+        assert room == generation._plain_number_room(generation._BAND_CODE, length)
+        for index in range(min(room, 200)):
+            spelled = generation._number_at(generation._BAND_CODE, length, index)
+            assert spelled is not None and spelled.endswith("e0"), spelled
+    folder = tmp_path / "exponents"
+    folder.mkdir()
+    table = folder / "real.csv"
+    import itertools
+
+    words = ["".join(p) for p in itertools.islice(itertools.product("abcde", repeat=3), 60)]
+    cells = [str(-10 - i) for i in range(60)] + words
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace",
+         "--smallest-group", "11"]
+    ) == 0
+    assert _exit_of(
+        ["generate", str(folder / "real-profile.json"), "--out-dir", str(folder),
+         "--seed", "1", "--replace"]
+    ) == 1
+    assert not (folder / "real-twin.csv").exists()
 
 
 def test_negative_integers_beside_comments_keep_their_size_and_are_named(

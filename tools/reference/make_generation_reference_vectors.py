@@ -888,15 +888,34 @@ def join_key(lengths, heights, index):
       pair's own size, so a column of thousands and a column of
       thousandths are judged the same way.
 
-    The gap is the exact rational the method's formula names.  G5.3
-    fixes an IEEE operation order where one is meant and this clause
-    fixes none, so the ratio is taken exactly rather than in an
-    arithmetic the text does not ask for.
+    The gap is taken in binary64, DIVIDED BEFORE IT IS SUBTRACTED, and
+    rescaled by the larger magnitude where the span is not finite: G5.2a
+    step 3 states that order, for the overflow reason G5.3 gives, so this
+    file states it too rather than taking an exact ratio the text does
+    not ask for (integration repair: the two arithmetics chose different
+    pairs on a common one-decimal ladder).
     """
     left = heights[index]
     right = heights[index + 1]
-    span = F(abs(left)) + F(abs(right))
-    gap = F(0) if span == 0 else abs(F(right) - F(left)) / span
+    # THE GAP IS TAKEN IN BINARY64 AND DIVIDED BEFORE IT IS SUBTRACTED,
+    # which is what G5.2a step 3 states, with the rescale that step gives
+    # for a span that is not finite (integration repair). Taken as an
+    # exact rational instead, this file and the generator chose different
+    # pairs on a common one-decimal ladder -- 501 cells over eleven
+    # values gave [56, 40, 4, 17, 50, ...] here and [56, 40, 4, 18, 49,
+    # ...] there -- and the method fixes one order for both.
+    span = abs(left) + abs(right)
+    gap = 0.0
+    if not math.isfinite(span):
+        scale = max(abs(left), abs(right))
+        if math.isfinite(scale) and scale > 0.0:
+            near = left / scale
+            far = right / scale
+            span = abs(far) + abs(near)
+            if span > 0.0:
+                gap = abs(far / span - near / span)
+    elif span > 0.0:
+        gap = abs(right / span - left / span)
     return (
         min(lengths[index], lengths[index + 1]),
         0 if left.is_integer() == right.is_integer() else 1,
@@ -915,6 +934,43 @@ def overshoot(lengths, index, cap):
     if cap <= 0:
         return 0
     return max(0, lengths[index] + lengths[index + 1] - cap)
+
+
+def capped_by_value(values, lengths, cap):
+    """G5.2a's cap asked of the finished NUMBERS -- integration repair.
+
+    A stratum whose number stands above the cap gives cells to the
+    nearest stratum with room whose number is a different one, the lower
+    where two are equally near; the total, the stratum count and the rank
+    order are unchanged, and no value moves.
+    """
+    total = len(values)
+    sizes = list(lengths)
+    if cap <= 0 or total < 2:
+        return sizes
+    held = {}
+    for place in range(total):
+        held[values[place]] = held.get(values[place], 0) + sizes[place]
+    for place in range(total):
+        while held[values[place]] > cap and sizes[place] > 0:
+            target = -1
+            for step in range(1, total):
+                for other in (place - step, place + step):
+                    if 0 <= other < total and target < 0:
+                        if values[other] != values[place] and held[values[other]] < cap:
+                            target = other
+            if target < 0:
+                break
+            moved = min(
+                held[values[place]] - cap, cap - held[values[target]], sizes[place]
+            )
+            if moved <= 0:
+                break
+            sizes[place] -= moved
+            sizes[target] += moved
+            held[values[place]] -= moved
+            held[values[target]] += moved
+    return sizes
 
 
 def levelled(lengths, cap):
@@ -1602,6 +1658,31 @@ def class_repair(value, band, low, high):
     return value, False
 
 
+def grid_step_of_sign(band, ladder, figures, held, total):
+    """G5.5's fallback on a column written at one width (landing 2b.1).
+
+    The nearest grid point on the band's side of zero that no other
+    stratum holds, never past that side's published end; the first step
+    where every step within reach is held.  A plain ``-1.0`` there made
+    two strata one number and was written shorter than the width.
+    """
+    negative = band == "negative"
+    first = None
+    for step in range(1, total + 2):
+        candidate = float(fractions.Fraction(-step if negative else step, 10 ** figures))
+        if negative and candidate < ladder[0]:
+            break
+        if not negative and candidate > ladder[-1]:
+            break
+        if first is None:
+            first = candidate
+        if candidate not in held:
+            return candidate
+    if first is not None:
+        return first
+    return -1.0 if negative else 1.0
+
+
 # ------------------------------------------------------- numeric spelling
 
 
@@ -1850,7 +1931,7 @@ def plus_style_exchange(count, styles, values, integer_valued):
     givers = [
         index
         for index, (style, value) in enumerate(zip(styles, values))
-        if style == "plain" and not value < 0
+        if style in ("plain", "leading_zero") and not value < 0
     ]
     takers = [
         index
@@ -1859,9 +1940,27 @@ def plus_style_exchange(count, styles, values, integer_valued):
         and values[index] < 0
         and point_free_spelling(values[index], integer_valued) is not None
     ]
+
+    def figures(value):
+        return len(point_free_spelling(value, integer_valued).lstrip("-"))
+
+    # A padded giver (integration repair of landing 2b.2) takes the first
+    # free partner needing no more figures than it does.
     exchanged = list(styles)
-    for giver, taker in list(zip(givers, takers))[: count - have]:
-        exchanged[giver], exchanged[taker] = "decimal", "plain"
+    used = set()
+    short = count - have
+    for giver in givers:
+        if short <= 0:
+            break
+        for taker in takers:
+            if taker in used:
+                continue
+            if exchanged[giver] == "leading_zero" and figures(values[taker]) > figures(values[giver]):
+                continue
+            used.add(taker)
+            exchanged[giver], exchanged[taker] = "decimal", exchanged[giver]
+            short -= 1
+            break
     return exchanged
 
 
@@ -1883,10 +1982,68 @@ def plus_places(count, styles, values):
     ]
     placed = min(count, len(eligible))
     carries = [False] * len(values)
-    for k, index in enumerate(eligible):
-        if (k + 1) * placed // len(eligible) != k * placed // len(eligible):
-            carries[index] = True
+    for index in plus_cells_by_value(eligible, values, placed):
+        carries[index] = True
     return carries
+
+
+def plus_cells_by_value(eligible, values, placed):
+    """The spread rule rounded to whole values (integration repair of 2b.2).
+
+    Runs of one value in cell order are each offered the pluses the
+    cell-by-cell spread gives them, and take a plus on every cell where
+    that is at least half the run.  The total is made exactly ``placed``:
+    over, the taken run with the smallest offered share no larger than the
+    excess is given up; under, the untaken run with the largest share that
+    fits is taken, earlier first on a tie; what whole runs cannot meet goes
+    on the first cells of the first untaken run long enough to hold it.
+    """
+    total = len(eligible)
+    if placed <= 0 or not total:
+        return []
+    starts = [k for k in range(total) if k == 0 or values[eligible[k]] != values[eligible[k - 1]]]
+    ends = starts[1:] + [total]
+    sizes = [end - start for start, end in zip(starts, ends)]
+    offered = [end * placed // total - start * placed // total for start, end in zip(starts, ends)]
+    taken = [2 * share >= size for share, size in zip(offered, sizes)]
+    carried = sum(size for size, flag in zip(sizes, taken) if flag)
+    runs = range(len(sizes))
+    while carried > placed:
+        fits = [r for r in runs if taken[r] and sizes[r] <= carried - placed]
+        if not fits:
+            break
+        best = fits[0]
+        for r in fits[1:]:
+            if fractions.Fraction(offered[r], sizes[r]) < fractions.Fraction(offered[best], sizes[best]):
+                best = r
+        taken[best] = False
+        carried -= sizes[best]
+    while carried < placed:
+        fits = [r for r in runs if not taken[r] and sizes[r] <= placed - carried]
+        if not fits:
+            break
+        best = fits[0]
+        for r in fits[1:]:
+            if fractions.Fraction(offered[r], sizes[r]) > fractions.Fraction(offered[best], sizes[best]):
+                best = r
+        taken[best] = True
+        carried += sizes[best]
+    # A run that must be split keeps the spread rule inside itself.
+    share = [size if flag else 0 for size, flag in zip(sizes, taken)]
+    if carried > placed:
+        last = max(r for r in runs if taken[r])
+        share[last] = sizes[last] - (carried - placed)
+    elif carried < placed:
+        for r in runs:
+            if not taken[r] and sizes[r] >= placed - carried:
+                share[r] = placed - carried
+                break
+    return [
+        eligible[starts[r] + j]
+        for r in runs
+        for j in range(sizes[r])
+        if (j + 1) * share[r] // sizes[r] > j * share[r] // sizes[r]
+    ]
 
 
 def decimal_comma_spelled(content):
@@ -3582,7 +3739,8 @@ def units_spelled(units, places):
     return f"{lead}{whole}.{part:0{places}d}"
 
 
-def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None):
+def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None,
+                   bounded=False):
     """The next made-up number one debt may take, or "" -- G8.3a.
 
     A number wearing no named form walks the ladder's tiers, finest count
@@ -3598,6 +3756,17 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     if name != OWED_NUMBER:
         tiers = (form_places(name),)
         reach = form_whole_figures(name)
+    # THE NARROW WALK (integration repair): the widest number the column
+    # published, or the widest plain form the census names, bounds a
+    # counted form the census does not name, pool or no pool.
+    widest = -1
+    if bounded:
+        widest = max(
+            [whole_figures(ladder["lowest"], ladder["places"]),
+             whole_figures(ladder["highest"], ladder["places"])]
+            if ladder["anchored"] else [0]
+        )
+        widest = max([widest] + [form_whole_figures(form) for form in named])
     for places in tiers:
         key = f"{name}/{places}"
         low, high = f"{key}/low", f"{key}/high"
@@ -3617,7 +3786,9 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
             if name == OWED_NUMBER:
                 if form in named:
                     continue
-                if pool is not None and form and form_room(form) >= needed and pool < 1:
+                if pool is not None and form and form_room(form) >= needed and (
+                    pool < 1 or (widest >= 0 and whole_figures(units, places) > widest)
+                ):
                     if side == "high" and units > 0:
                         cursor[high] = 1
                     if side == "low" and units < 0:
@@ -3638,25 +3809,29 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     return ""
 
 
-def ladder_room(ladder, name, wanted, named, seen, folds, needed=0, pool=None):
+def ladder_room(ladder, name, wanted, named, seen, folds, needed=0, pool=None,
+                bounded=False):
     cursor = {}
     usable = 0
     while usable < wanted and next_on_ladder(
-        ladder, name, cursor, named, seen, folds, needed, pool
+        ladder, name, cursor, named, seen, folds, needed, pool, bounded
     ):
         usable += 1
     return usable
 
 
 def forms_within_the_unasked_supply(
-    ladder, sub, mine_forms, room, forms_of, named, seen, folds, needed, pool
+    ladder, sub, mine_forms, room, forms_of, named, seen, folds, needed, pool,
+    bounded=False,
 ):
     """G8.3a step 2's second settlement, where the levels given no form starve.
 
     Taken only where it settles every form exactly and leaves no more levels
     without a form than a number wearing no named form can supply.
     """
-    spare = ladder_room(ladder, OWED_NUMBER, len(sub), named, seen, folds, needed, pool)
+    spare = ladder_room(
+        ladder, OWED_NUMBER, len(sub), named, seen, folds, needed, pool, bounded
+    )
     unasked = sum(1 for form in forms_of if not form)
     rest = sum(sub) - sum(mine_forms.values())
     if unasked <= spare or rest < 1:
@@ -3705,7 +3880,26 @@ def class_split(sizes, debts, supply):
 
 
 def class_stand_ins(column, written, used, sizes, census):
-    """The held-back sizes G8.3a writes as numbers or stragglers."""
+    """The held-back sizes G8.3a writes as numbers or stragglers.
+
+    THE NARROW WALK FIRST (integration repair): every made-up number is
+    first held to the widest number the column shows, and that answer
+    stands where every paying size found a spelling; only otherwise may
+    the census pool buy a wider number.
+    """
+    placed, debts, classes = class_stand_ins_walked(
+        column, written, used, sizes, census, True
+    )
+    if len(placed) == len(classes):
+        return placed, debts
+    placed, debts, _classes = class_stand_ins_walked(
+        column, written, used, sizes, census, False
+    )
+    return placed, debts
+
+
+def class_stand_ins_walked(column, written, used, sizes, census, bounded):
+    """One walk of class_stand_ins, narrow where ``bounded`` says."""
     seen = set(used)
     folds = {folded(text) for text in used}
     named = {form for form in (census or {}) if form != WITHHELD}
@@ -3751,7 +3945,7 @@ def class_stand_ins(column, written, used, sizes, census):
         if name == OWED_NUMBER and mine_forms:
             forms_of = forms_within_the_unasked_supply(
                 ladder, sub, mine_forms, room, forms_of, named, seen, folds,
-                needed, pool,
+                needed, pool, bounded,
             )
         for _size, place, step in sorted((-sub[step], mine[step], step) for step in range(len(sub))):
             form = forms_of[step]
@@ -3761,7 +3955,8 @@ def class_stand_ins(column, written, used, sizes, census):
                     found = next_on_ladder(ladder, form, cursor, named, seen, folds)
                 if not found:
                     found = next_on_ladder(
-                        ladder, OWED_NUMBER, cursor, named, seen, folds, needed, pool
+                        ladder, OWED_NUMBER, cursor, named, seen, folds, needed, pool,
+                        bounded,
                     )
             else:
                 if form:
@@ -3794,7 +3989,7 @@ def class_stand_ins(column, written, used, sizes, census):
                 seen.add(found)
                 folds.add(folded(found))
                 placed[place] = found
-    return placed, debts
+    return placed, debts, classes
 
 
 # ------------------------------------------------------------ the writer
@@ -4058,10 +4253,11 @@ def _datetime_content(column):
     if snapping:
         for rank, (seconds, _keys) in sorted(rung_pins(column, parsed).items()):
             ordinals[rank] = seconds
-        if column["all_at_midnight"]:
-            for rank, keys in instant_offsets(column, parsed).items():
-                if 0 < rank < parsed - 1 and keys:
-                    offset_pins[rank] = keys
+        # ...on a column only partly at midnight too (integration repair
+        # of landing 2b.3).
+        for rank, keys in instant_offsets(column, parsed).items():
+            if 0 < rank < parsed - 1 and keys:
+                offset_pins[rank] = keys
     offsets = _offset_allocation(column, parsed, whole, offset_pins)
     clock_marks = iter(_separator_allocation(column, whole.count(False)))
     marks = ["T" if flag else next(clock_marks) for flag in whole]
@@ -4227,6 +4423,27 @@ def nudged_off_midnight(column, ordinals, shifts):
             moved[rank] += step
         elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
             moved[rank] -= step
+    # INTEGRATION REPAIR: each run of consecutive ranks still written at
+    # midnight moves as one -- to the first instant of the next written
+    # step where the rank after the run stands at or after all of it, else
+    # to the last second before its midnight where the rank before stands
+    # at or before all of it, else stays. Pinned ranks move with the run.
+    rank = 0
+    while rank < parsed:
+        if not written_at_midnight(moved[rank], shifts[rank], step):
+            rank += 1
+            continue
+        end = rank
+        while end + 1 < parsed and written_at_midnight(moved[end + 1], shifts[end + 1], step):
+            end += 1
+        run = range(rank, end + 1)
+        later = [moved[k] - (moved[k] + shifts[k]) % step + step for k in run]
+        earlier = [moved[k] - (moved[k] + shifts[k]) % step - 1 for k in run]
+        if end + 1 >= parsed or max(later) <= moved[end + 1]:
+            moved[rank:end + 1] = later
+        elif rank == 0 or min(earlier) >= moved[rank - 1]:
+            moved[rank:end + 1] = earlier
+        rank = end + 1
     return moved
 
 
@@ -6132,6 +6349,16 @@ def _free_text_spelling(notation, band, length, used):
                 continue
             if not clean and notation == NOTATION_NUMBER and not invents_a_leading_zero(candidate):
                 continue
+            # A NUMBER OF THE CODE BAND IS ITS e0 SPELLINGS (integration
+            # repair of landing 2b.4): an exponent whose figure varies
+            # multiplies the number by a power of ten.
+            if (
+                notation == NOTATION_NUMBER
+                and band == CODE_BAND
+                and "e" in candidate.lower()
+                and not candidate.lower().endswith("e0")
+            ):
+                continue
             return candidate
     raise AssertionError(
         f"the {band} band at length {length} holds no further spelling that "
@@ -6685,19 +6912,38 @@ def _numeric_content(column):
             value = integer_rule(value)
         elif fractional > 0:
             value = float(grid_text(value, fractional))
-        value, repaired = class_repair(value, bands[index], ladder[0], ladder[-1])
+        repaired = False
+        if fractional <= 0:
+            value, repaired = class_repair(value, bands[index], ladder[0], ladder[-1])
         record["stratum"] = index
         record["value"] = value
         record["repaired"] = repaired
         chain.append(record)
         values.append(value)
     # Both fallbacks apply to every stratum after the integer rule,
-    # including the pinned ones (G5.5).
+    # including the pinned ones (G5.5). ON A GRID the others are repaired
+    # here, in stratum order, onto the nearest free grid step of their
+    # sign (integration repair of landing 2b.1).
     for index in range(total):
         if index == 0 or (index == total - 1 and total >= 2):
             values[index], _ = class_repair(
                 values[index], bands[index], ladder[0], ladder[-1]
             )
+        elif fractional > 0 and bands[index] != "zero":
+            value = values[index]
+            wrong = (bands[index] == "negative" and value >= 0) or (
+                bands[index] == "positive" and value <= 0
+            )
+            if wrong:
+                values[index] = grid_step_of_sign(
+                    bands[index], ladder, fractional,
+                    {values[other] for other in range(total) if other != index},
+                    total,
+                )
+                for record in chain:
+                    if record["stratum"] == index:
+                        record["value"] = values[index]
+                        record["repaired"] = True
     # The VALUES step of G6.4 is taken before the styles, because the map
     # and the values are one question: a point-free quota needs cells
     # whose values are whole.
@@ -6726,6 +6972,12 @@ def _numeric_content(column):
         ladder,
         numeric,
     )
+    # AND NO FINISHED NUMBER IS HELD BY MORE CELLS THAN THE CAP
+    # (integration repair of landing 2b.1): two strata written as one
+    # number hold the sum of their cells, and G5.2a's cap bounds one
+    # stratum. Cells move as `levelled` moves them and no value does.
+    sizes = capped_by_value(values, sizes, cap)
+    starts = restarted(sizes)
     cell_values = []
     for index, size in enumerate(sizes):
         cell_values.extend([values[index]] * size)

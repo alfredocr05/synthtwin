@@ -1321,7 +1321,7 @@ _NEXT_ON_THE_LADDER = gen.next_on_ladder
 
 
 def _next_on_the_ladder_without_the_census(
-    ladder, name, cursor, named, seen, folds, needed=0, pool=None
+    ladder, name, cursor, named, seen, folds, needed=0, pool=None, bounded=False
 ):
     """G8.3a's walk with the rule on what the census could hold withdrawn.
 
@@ -1329,7 +1329,11 @@ def _next_on_the_ladder_without_the_census(
     not name, whether or not the census could have counted and pooled it,
     so the level of two in `label_number_tiers` steps past every named
     `%.%` value and writes `10.0` -- the form the census proves the column
-    never wore -- instead of ending that side and writing `6`.
+    never wore -- instead of ending that side and writing `6`. It ignores
+    ``bounded`` with the rest, so the narrow walk of the integration
+    repair -- which holds a made-up number to the widest number the column
+    shows -- is withdrawn here too: withdrawn alone, the census rule left
+    the narrow walk deciding these cells and the case no longer moved.
     """
     return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
 

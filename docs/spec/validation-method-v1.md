@@ -1187,10 +1187,16 @@ floor, so the real table meets its description by construction:
   the only check that sees a mark nobody published;
 - `all_at_midnight` is compared where it is published `true`
   (`midnight.all`), and `n_at_midnight` where it is published above
-  nought (`midnight.count`);
+  nought (`midnight.count`) -- and where it is published nought at a
+  smallest-group size of one on a column not wholly at midnight, where
+  the nought is exact (integration repair of landing 2b.3: unchecked, a
+  twin of dense minute stamps holding eight cells at midnight against a
+  table holding none passed);
 - each of the three is LISTED where the description sets it no
   obligation: all three on a column that writes no clock, the statement
-  where it is published `false`, and the count where it is nought.
+  where it is published `false`, and the count where it is nought above
+  a smallest-group size of one, where the nought also covers a count
+  below the floor.
 
 On a column whose ranks the generator moves onto a midnight, G12.5's
 lower end is the one the generation method states for that column:

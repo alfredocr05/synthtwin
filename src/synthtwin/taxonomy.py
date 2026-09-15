@@ -2804,11 +2804,22 @@ def _quantile(ordered: list[float], num: int, den: int) -> float:
 
 
 def _quantiles(numbers: list[float]) -> dict[str, "float | None"]:
-    """The eleven-point percentile ladder of ``numbers``."""
+    """The eleven-point percentile ladder of ``numbers``.
+
+    A COLUMN WITH NO NUMBER AT ALL PUBLISHES A NULL AT EVERY RUNG
+    (integration repair). `_quantile` accepts a non-empty list and says
+    so, and a joined column every part of which is too large for this
+    format to hold -- 300 pairs opening `10 ** 310` -- reached it with an
+    empty one and `synthtwin profile` raised `IndexError`. A null rung
+    carries no obligation (contract L3), which is the truth about such a
+    column.
+    """
     ordered = sorted(numbers)
     ladder: dict[str, float | None] = {}
     for label, num, den in LADDER:
-        ladder[label] = published(_quantile(ordered, num, den))
+        ladder[label] = None if not ordered else published(
+            _quantile(ordered, num, den)
+        )
     return ladder
 
 
@@ -2835,7 +2846,11 @@ def _finer_quantiles(numbers: list[float]) -> dict[str, "float | None"]:
     ordered = sorted(numbers)
     ladder: dict[str, float | None] = {}
     for label, num, den in FINER_LADDER:
-        ladder[label] = published(_quantile(ordered, num, den))
+        # Null at every rung where the eleven beside it are null, which
+        # a column with no representable number is (integration repair).
+        ladder[label] = None if not ordered else published(
+            _quantile(ordered, num, den)
+        )
     return ladder
 
 

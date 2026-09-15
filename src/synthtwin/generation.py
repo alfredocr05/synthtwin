@@ -8561,6 +8561,16 @@ def _numeric_content(
     # that census is REPORT-ONLY with its shortfalls named.
     values, clear_notes = _clear_enough(column, facts, layout, values)
     notes = notes + clear_notes
+    # AND NO FINISHED NUMBER IS HELD BY MORE CELLS THAN THE CAP ALLOWS
+    # (integration repair of landing 2b.1). Every pass above bounds one
+    # STRATUM by `_stratum_cap`, and two strata can still be written as
+    # one number where the separation above found no free point inside
+    # either share: a 1,000-row column of one-decimal amounts published a
+    # `mode_count` of 32 and its twin wrote `0.2` 43 times, the sizes of
+    # two strata added together. This moves CELLS and never a value, so
+    # every value, sign count and end the passes above settled is
+    # untouched.
+    layout = _capped_by_value(column, facts, layout, plan.small_cell_floor, values)
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -8694,7 +8704,9 @@ def _stratum_values(
         if facts.integer_valued:
             found = _whole_valued(found)
         values += [found]
-    repaired, repair_notes = _sign_repairs(column, facts, layout, rungs, values)
+    repaired, repair_notes = _sign_repairs(
+        column, facts, layout, rungs, values, grid
+    )
     return repaired, notes + repair_notes
 
 
@@ -8717,6 +8729,7 @@ def _sign_repairs(
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
+    grid: int = -1,
 ) -> "tuple[list[float], list[Deviation]]":
     """Make every stratum's value carry its own sign (method G5.5).
 
@@ -8739,6 +8752,14 @@ def _sign_repairs(
             wrong = True
         if band == _BAND_POSITIVE and value <= 0.0:
             wrong = True
+        pinned = place == 0 or (place == total - 1 and total >= 2)
+        if wrong and grid > 0 and not pinned:
+            held = {
+                (repaired + values[place:])[other]: 1
+                for other in range(total) if other != place
+            }
+            repaired += [_grid_step_of_sign(band, rungs, grid, held, total)]
+            continue
         if wrong:
             if band == _BAND_NEGATIVE and fallback >= 0.0:
                 fallback = -1.0
@@ -8747,7 +8768,6 @@ def _sign_repairs(
             if facts.integer_valued:
                 fallback = _whole_valued(fallback)
             value = fallback
-            pinned = place == 0 or (place == total - 1 and total >= 2)
             if pinned:
                 notes += [
                     _deviation(
@@ -8762,6 +8782,50 @@ def _sign_repairs(
                 ]
         repaired += [value]
     return repaired, notes
+
+
+def _grid_step_of_sign(
+    band: str,
+    rungs: "tuple[float, ...] | None",
+    grid: int,
+    held: "dict[float, int]",
+    total: int,
+) -> float:
+    """The sign fallback of G5.5 on a column written at one width (landing 2b.1).
+
+    The nearest point of the grid on the band's own side of zero that no
+    other stratum holds: `-0.01`, then `-0.02`, and so on, at two places,
+    never past the published end on that side; the first step where every
+    one within reach is held.
+
+    WHY NOT `-1.0` HERE (integration repair). On a grid the rank a
+    stratum draws is written as its grid value, and a negative stratum
+    whose rank lies within half a step of zero gets `0.00` or even `0.01`
+    -- a value of the wrong sign, which the plain fallback moved to
+    `-1.0`. On a 2,000-row column of changes rounded to two places two
+    such strata both became `-1.0`, beside a third already holding it:
+    one number spent the column's count of different values, and its
+    six cells were written `-1.0` against a published width of two.
+    """
+    negative = band == _BAND_NEGATIVE
+    unit = _ten_to(grid)
+    first = 0.0
+    for step in range(1, total + 2):
+        text = f"{step // unit}.{step % unit:0{grid}d}"
+        if negative:
+            text = "-" + text
+        candidate = float(text)
+        if rungs is not None and negative and candidate < rungs[0]:
+            break
+        if rungs is not None and not negative and candidate > rungs[-1]:
+            break
+        if step == 1:
+            first = candidate
+        if candidate not in held:
+            return candidate
+    if first != 0.0:
+        return first
+    return -1.0 if negative else 1.0
 
 
 def _whole_inside(
@@ -9133,6 +9197,74 @@ def _grid_at(units: int, figures: int) -> str:
         digits = ("0" * (figures + 1 - len(digits))) + digits
     cut = len(digits) - figures
     return f"{sign}{digits[:cut]}.{digits[cut:]}"
+
+
+def _capped_by_value(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    floor: int,
+    values: "list[float]",
+) -> "_NumericLayout":
+    """Hold every finished NUMBER to the cap, not merely every stratum.
+
+    Method G5.2a's cap bounds one stratum, and `_levelled` applies it
+    there; but two strata written as one number hold the sum of their
+    cells between them. The separation of `_apart_enough` removes most
+    such pairs and cannot remove one whose shares hold no free point of
+    the grid, so the cap is asked again of the finished values here.
+
+    Cells move exactly as `_levelled` moves them: a stratum whose number
+    stands above the cap gives cells to the nearest stratum with room
+    whose number is a different one, the lower where two are equally
+    near, and the band totals, the stratum count and the rank order are
+    all unchanged. No value moves, so `n_zero`, `n_negative`, the two
+    ends and every published spelling stand as they were.
+
+    Guarantees: accepts the column, its numeric block, the layout, the
+    description's smallest group size and one value per stratum; returns
+    a layout of the same shape whose sizes hold the same total.
+    Determinism: a fixed function of those five. Raises nothing. No I/O.
+    """
+    cap = _stratum_cap(facts, _merged_rungs(facts), column.n_numeric, floor)
+    total = len(values)
+    if cap <= 0 or total < 2:
+        return layout
+    sizes = [size for size in layout.sizes]
+    held: "dict[float, int]" = {}
+    for place in range(total):
+        held[values[place]] = (
+            held[values[place]] if values[place] in held else 0
+        ) + sizes[place]
+    for place in range(total):
+        while held[values[place]] > cap and sizes[place] > 0:
+            target = -1
+            for step in range(1, total):
+                for other in (place - step, place + step):
+                    if other < 0 or other >= total or target >= 0:
+                        continue
+                    if values[other] == values[place]:
+                        continue
+                    if held[values[other]] < cap:
+                        target = other
+            if target < 0:
+                break
+            moved = min(
+                held[values[place]] - cap,
+                cap - held[values[target]],
+                sizes[place],
+            )
+            if moved <= 0:
+                break
+            sizes[place] = sizes[place] - moved
+            sizes[target] = sizes[target] + moved
+            held[values[place]] = held[values[place]] - moved
+            held[values[target]] = held[values[target]] + moved
+    if sizes == list(layout.sizes):
+        return layout
+    return dataclasses.replace(
+        layout, sizes=tuple(sizes), starts=tuple(_starts_of(sizes))
+    )
 
 
 def _apart_inside(
@@ -11915,8 +12047,10 @@ def _plus_style_swaps(
     can wear, and a cell allocated `decimal` whose value is negative and
     can be written without a point takes `plain`. Only while the cells
     allocated `decimal` on values that are not negative are fewer than
-    the named count; the plain cells are taken in ascending cell order
-    and their partners in descending cell order, nearest nought first.
+    the named count; the plain and padded cells are taken in ascending
+    cell order and each takes the first partner, in descending cell
+    order, that is free and -- for a padded cell -- needs no more figures
+    than it does.
     A column naming no count, or already holding enough such cells, is
     returned untouched.
 
@@ -11937,7 +12071,7 @@ def _plus_style_swaps(
             continue
         if styles[index] == "decimal":
             have = have + 1
-        elif styles[index] == "plain":
+        elif styles[index] == "plain" or styles[index] == "leading_zero":
             givers += [index]
     if have >= wanted:
         return styles
@@ -11947,12 +12081,127 @@ def _plus_style_swaps(
             continue
         if _can_wear("plain", holds[index], whole_column):
             takers += [index]
+    # A PADDED CELL GIVES ITS STYLE UP TOO (integration repair of landing
+    # 2b.2), to a negative value whose own figures are no more than its
+    # own, so the field width the padded exchange above fitted it to is
+    # still reachable. Only `plain` gave: a column of `-001` beside `+2.00`
+    # and `+3.00` put `decimal` on the negatives and `leading_zero` on the
+    # positives, and its twin wrote none of the hundred pluses.
     moved = list(styles)
-    pairs = min(wanted - have, len(givers), len(takers))
-    for step in range(pairs):
-        moved[givers[step]] = "decimal"
-        moved[takers[step]] = "plain"
+    used: "dict[int, int]" = {}
+    short = wanted - have
+    for giver in givers:
+        if short <= 0:
+            break
+        for taker in takers:
+            if taker in used:
+                continue
+            if moved[giver] == "leading_zero" and _pad_need(
+                holds[taker], whole_column
+            ) > _pad_need(holds[giver], whole_column):
+                continue
+            used[taker] = 1
+            moved[taker] = moved[giver]
+            moved[giver] = "decimal"
+            short = short - 1
+            break
     return moved
+
+
+def _plus_cells_by_value(
+    eligible: "list[int]", holds: "list[float]", placed: int
+) -> "list[int]":
+    """Which eligible cells carry a plus: whole values, spread (integration repair).
+
+    THE SPREAD RULE OF `_plus_places`, ROUNDED TO WHOLE VALUES. The k-th
+    of E eligible cells took a plus where `((k + 1) * P) // E` passes
+    `(k * P) // E`, cell by cell, so the cells of one value were split
+    between `+100.25` and `100.25`: three values written fifty times each,
+    one of them with a plus, came back as six spellings, and 900 signed
+    changes publishing 690 spellings as 780, with every check passing.
+    A person writes one value one way.
+
+    So the cells are taken as runs of one value, in cell order. Each run is
+    offered the pluses the spread rule gives its cells, and takes a plus on
+    every cell where that is at least half of the run. The total is then
+    made exactly ``placed``: while it is over, the taken run with the
+    smallest offered share that is no larger than the excess is given up;
+    while it is under, the untaken run with the largest share that fits the
+    shortfall is taken, earlier runs first on a tie. What still cannot be
+    met by whole runs is spread inside one run -- the last taken where the
+    total is over, the first untaken long enough where it is under -- so at
+    most one value is written both ways, and a column whose decimal cells
+    all hold one value is spread exactly as before.
+
+    Guarantees: accepts the eligible cells in cell order, one value per
+    cell and a count no larger than the eligible cells; returns exactly
+    that many of them. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    total = len(eligible)
+    if placed <= 0 or total == 0:
+        return []
+    starts: "list[int]" = []
+    for step in range(total):
+        if step == 0 or holds[eligible[step]] != holds[eligible[step - 1]]:
+            starts += [step]
+    runs = len(starts)
+    sizes = [
+        (starts[run + 1] if run + 1 < runs else total) - starts[run]
+        for run in range(runs)
+    ]
+    offered = [
+        ((starts[run] + sizes[run]) * placed) // total
+        - (starts[run] * placed) // total
+        for run in range(runs)
+    ]
+    taken = [2 * offered[run] >= sizes[run] for run in range(runs)]
+    carried = sum([sizes[run] for run in range(runs) if taken[run]])
+    while carried > placed:
+        best = -1
+        for run in range(runs):
+            if not taken[run] or sizes[run] > carried - placed:
+                continue
+            if best < 0 or offered[run] * sizes[best] < offered[best] * sizes[run]:
+                best = run
+        if best < 0:
+            break
+        taken[best] = False
+        carried = carried - sizes[best]
+    while carried < placed:
+        best = -1
+        for run in range(runs):
+            if taken[run] or sizes[run] > placed - carried:
+                continue
+            if best < 0 or offered[run] * sizes[best] > offered[best] * sizes[run]:
+                best = run
+        if best < 0:
+            break
+        taken[best] = True
+        carried = carried + sizes[best]
+    # A RUN THAT MUST BE SPLIT keeps the spread rule inside itself: its k
+    # pluses fall on its j-th cell where `((j + 1) * k) // m` passes
+    # `(j * k) // m`, m being its length -- over with no run small enough
+    # to give up, the last taken run keeps what the count leaves it; under,
+    # the first untaken run long enough takes the rest.
+    share = [sizes[run] if taken[run] else 0 for run in range(runs)]
+    if carried > placed:
+        for run in range(runs - 1, -1, -1):
+            if taken[run]:
+                share[run] = sizes[run] - (carried - placed)
+                break
+    if carried < placed:
+        for run in range(runs):
+            if not taken[run] and sizes[run] >= placed - carried:
+                share[run] = placed - carried
+                break
+    chosen: "list[int]" = []
+    for run in range(runs):
+        count = share[run]
+        for step in range(sizes[run]):
+            if ((step + 1) * count) // sizes[run] > (step * count) // sizes[run]:
+                chosen += [eligible[starts[run] + step]]
+    return chosen
 
 
 def _plus_places(
@@ -11998,9 +12247,8 @@ def _plus_places(
             eligible += [index]
     total = len(eligible)
     placed = min(wanted, total)
-    for step in range(total):
-        if ((step + 1) * placed) // total > (step * placed) // total:
-            flags[eligible[step]] = True
+    for index in _plus_cells_by_value(eligible, holds, placed):
+        flags[index] = True
     if placed >= wanted:
         return flags, []
     return flags, [
@@ -12218,14 +12466,18 @@ def _datetime_content(
         pinned = _rung_pins(facts, parsed)
         for rank in sorted(pinned):
             ordinals[rank] = pinned[rank][0]
-        if facts.all_at_midnight:
-            # Every interior rank whose instant the tail fixes -- a rung
-            # rank, or one between two pinned ranks of one instant -- takes
-            # an offset that instant is a midnight under (repair pass).
-            fixed = _instant_offsets(facts, parsed)
-            for rank in sorted(fixed):
-                if 0 < rank < parsed - 1 and fixed[rank]:
-                    pins[rank] = fixed[rank]
+        # Every interior rank whose instant the tail fixes -- a rung rank,
+        # or one between two pinned ranks of one instant -- takes an offset
+        # that instant is a midnight under (repair pass), on a column only
+        # PARTLY at midnight too (integration repair of landing 2b.3):
+        # 1,000 moments over five days under two offsets, 980 of them at
+        # midnight, stood mostly between pinned ranks of one instant, took
+        # their offsets in sorted order, and 82 of them were written an
+        # hour off midnight.
+        fixed = _instant_offsets(facts, parsed)
+        for rank in sorted(fixed):
+            if 0 < rank < parsed - 1 and fixed[rank]:
+                pins[rank] = fixed[rank]
     offsets, notes = _offset_allocation(column, facts, parsed, whole, pins)
     marks, marked = _clock_marks(column, facts, whole)
     notes = notes + marked
@@ -13327,6 +13579,68 @@ def _nudged_off_midnight(
             moved[rank] = moved[rank] + step
         elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
             moved[rank] = moved[rank] - step
+    return _runs_moved_off_midnight(facts, moved, offsets, step)
+
+
+def _runs_moved_off_midnight(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    offsets: "list[str]",
+    step: int,
+) -> "list[int]":
+    """Move each run of ranks still written at midnight out of it together.
+
+    INTEGRATION REPAIR OF LANDING 2b.3. The pass above moves one rank a
+    whole step and only where it passes no neighbour, and on dense stamps
+    no rank can: 1,000 minute stamps between 23:00 and 00:59 put eight
+    ranks two to thirteen seconds apart inside the one written minute
+    `00:00`, one of them a rung's rank, and the twin wrote eight cells at
+    midnight against a table holding none.
+
+    So, in rank order, each maximal run of consecutive ranks still written
+    at midnight moves as one: every rank of it to the first instant of the
+    next written step on its own clock, where the rank after the run stands
+    at or after all of them; else every rank to the last second before its
+    written midnight, where the rank before the run stands at or before
+    all of them; else the run stays. The ranks keep their order and the
+    run keeps one written value, so the count of written values does not
+    grow; a rung's rank inside the run moves with it, by less than one
+    step of the precision.
+
+    Guarantees: accepts the facts, the instants after the pass above, one
+    offset per rank and the step; returns the instants moved. Linear.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    parsed = len(moved)
+    shifts = [0 for _rank in range(parsed)]
+    if facts.datetimes_read_at == "utc":
+        for rank in range(parsed):
+            shifts[rank] = _offset_seconds(offsets[rank])
+    rank = 0
+    while rank < parsed:
+        if not _written_at_midnight(moved[rank], shifts[rank], step):
+            rank = rank + 1
+            continue
+        end = rank
+        while end + 1 < parsed and _written_at_midnight(
+            moved[end + 1], shifts[end + 1], step
+        ):
+            end = end + 1
+        later = [
+            moved[place] - ((moved[place] + shifts[place]) % step) + step
+            for place in range(rank, end + 1)
+        ]
+        earlier = [
+            moved[place] - ((moved[place] + shifts[place]) % step) - 1
+            for place in range(rank, end + 1)
+        ]
+        if end + 1 >= parsed or max(later) <= moved[end + 1]:
+            for place in range(rank, end + 1):
+                moved[place] = later[place - rank]
+        elif rank == 0 or min(earlier) >= moved[rank - 1]:
+            for place in range(rank, end + 1):
+                moved[place] = earlier[place - rank]
+        rank = end + 1
     return moved
 
 
@@ -13864,7 +14178,13 @@ def _label_content(
     # column of readings beside two labels lost every held-back reading
     # and code parsing its numbers crashed on the twin.
     sizes = facts.suppressed_level_counts
-    holes = _hole_spellings(column)
+    # EVERY ABSENT SPELLING OF THE TABLE, not only this column's
+    # (integration repair of landing 2b.4). A made-up number is refused on
+    # a spelling the profiler reads as absent, and `--missing-value 5`
+    # declared for another column is absent here too: a column of labels
+    # beside that one wrote `5` four times, and its twin was described
+    # again with four present cells fewer and eight checks missed.
+    holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
     classes: "dict[int, str]" = {}
@@ -13980,6 +14300,61 @@ def _class_stand_ins(
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
     """The held-back groups that pay a class debt, and what each writes.
 
+    TWO WALKS, THE NARROWER FIRST (integration repair of landing 2b.4).
+    The walk is first taken with every made-up number held to the widest
+    number the column shows -- the widest published number, or the
+    widest plain form its census names (`_widest_whole_figures`) -- and
+    that answer stands wherever every paying group found a spelling. Only
+    where it runs short is the walk taken again with the census pool
+    allowed to buy a wider number, as `_next_on_ladder` states.
+
+    Why: the pool proves that SOME cell below the floor wore a counted
+    form, and a pooled word proves nothing about numbers. One text cell
+    pooled beside one-decimal readings from 0.8 to 13.4 let the walk
+    write `100.0` to `100.3`: the spread of the twin's numbers was 2.4
+    times the table's with every check passing, and without that one cell
+    the same column's twin had 1.00 times the spread. Where the table
+    DID hold the wider numbers -- readings under ten whose census pools
+    the few `%%.%` above it -- the narrow walk has nothing to write, and
+    the second walk writes them as before.
+    """
+    trial_used = dict(used)
+    trial_owners = dict(owners)
+    trial_short: "list[int]" = []
+    narrow = _class_stand_ins_walked(
+        column, written, sizes, owing, debts, trial_used, trial_owners,
+        holes, decimal_comma, trial_short, floor, True,
+    )
+    if len(narrow[1]) == len(narrow[0]):
+        for spelling in trial_used:
+            used[spelling] = trial_used[spelling]
+        for fold in trial_owners:
+            owners[fold] = trial_owners[fold]
+        if short is not None:
+            short += trial_short
+        return narrow
+    return _class_stand_ins_walked(
+        column, written, sizes, owing, debts, used, owners, holes,
+        decimal_comma, short, floor, False,
+    )
+
+
+def _class_stand_ins_walked(
+    column: contract.ColumnBlock,
+    written: "list[str]",
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    debts: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    short: "list[int] | None",
+    floor: int,
+    bounded: bool,
+) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
+    """One walk of `_class_stand_ins`, narrow where ``bounded`` says.
+
     Method G8.3a, in three steps:
 
     1. WHICH GROUPS PAY WHICH CLASS, by `_class_split`.
@@ -14082,7 +14457,7 @@ def _class_stand_ins(
         if name == _OWED_NUMBER and mine_forms:
             forms_of = _forms_within_the_unasked_supply(
                 ladder, sub, mine_forms, room, forms_of, named, used,
-                owners, holes, decimal_comma, needed, pool,
+                owners, holes, decimal_comma, needed, pool, bounded,
             )
         order = sorted([(0 - sub[step], mine[step], step)
                         for step in range(len(sub))])
@@ -14099,7 +14474,7 @@ def _class_stand_ins(
                 if not found:
                     found = _next_on_ladder(
                         ladder, _OWED_NUMBER, cursor, named, used, owners,
-                        holes, decimal_comma, needed, pool,
+                        holes, decimal_comma, needed, pool, bounded,
                     )
             else:
                 if form:
@@ -14139,6 +14514,7 @@ def _forms_within_the_unasked_supply(
     decimal_comma: bool,
     needed: int = 0,
     pool: "list[int] | None" = None,
+    bounded: bool = False,
 ) -> "list[str]":
     """The forms of the number groups, settled again where the rest starve.
 
@@ -14160,7 +14536,7 @@ def _forms_within_the_unasked_supply(
     """
     spare = _ladder_room(
         ladder, _OWED_NUMBER, len(sub), named, used, owners, holes,
-        decimal_comma, needed, pool,
+        decimal_comma, needed, pool, bounded,
     )
     unasked = len([form for form in forms_of if not form])
     rest = sum(sub) - sum([mine_forms[form] for form in mine_forms])
@@ -15667,10 +16043,23 @@ def _plain_units(spelling: str) -> "tuple[int, int] | None":
             whole = whole + character
     if not whole or (pointed and not fraction):
         return None
+    # A SPELLING WITH MORE FIGURES THAN THIS INTERPRETER WILL CONVERT IS
+    # NOT PLAIN EITHER (integration repair). Python refuses to read an
+    # integer of more than 4,300 figures from text, and a label of 5,001
+    # figures raised `ValueError` out of `synthtwin generate`; the ladder
+    # is built from the numbers that ARE plain, as above.
+    if len(whole) + len(fraction) > _LONGEST_PLAIN_FIGURES:
+        return None
     value = int(whole + fraction)
     if negative:
         value = 0 - value
     return value, len(fraction)
+
+
+# The most figures `_plain_units` will read from one spelling. Python's
+# own limit on reading an integer from text is 4,300 figures, and a
+# number of the twin is never near it.
+_LONGEST_PLAIN_FIGURES = 4300
 
 
 def _ten_to(exponent: int) -> int:
@@ -15942,6 +16331,32 @@ def _form_whole_figures(form: str, decimal_comma: bool) -> int:
     return whole
 
 
+def _widest_whole_figures(
+    ladder: "_Ladder", named: "dict[str, int]", decimal_comma: bool
+) -> int:
+    """The most figures before the mark any number this column shows has.
+
+    The widest of the smallest and the largest published number, and of
+    every plain decimal form the census names; 0 where there is neither.
+
+    A POOLED CELL NEVER BUYS A WHOLE FIGURE (integration repair of
+    landing 2b.4). The pool proves only that some cell below the floor
+    wore SOME counted form; it is no evidence that the table held a
+    number wider than every number it shows. One text cell pooled beside
+    one-decimal readings from 0.8 to 13.4 let the walk write `100.3`,
+    and the spread of the twin's numbers was 2.4 times the table's.
+    """
+    widest = 0
+    if ladder.anchored:
+        widest = max(
+            _whole_figures(ladder.lowest, ladder.places),
+            _whole_figures(ladder.highest, ladder.places),
+        )
+    for form in sorted(named):
+        widest = max(widest, _form_whole_figures(form, decimal_comma))
+    return widest
+
+
 def _units_spelled(units: int, places: int, decimal_comma: bool) -> str:
     """A number given in units of its last place, written out plainly.
 
@@ -15974,6 +16389,7 @@ def _next_on_ladder(
     decimal_comma: bool,
     needed: int = 0,
     pool: "list[int] | None" = None,
+    bounded: bool = False,
 ) -> str:
     """The next made-up number one debt may take, or "" when it has none.
 
@@ -16027,6 +16443,9 @@ def _next_on_ladder(
     if name != _OWED_NUMBER:
         tiers = (_form_places(name, decimal_comma),)
         reach = _form_whole_figures(name, decimal_comma)
+    widest = -1
+    if bounded:
+        widest = _widest_whole_figures(ladder, named, decimal_comma)
     for places in tiers:
         key = f"{name}/{places}"
         low_key = f"{key}/low"
@@ -16053,7 +16472,10 @@ def _next_on_ladder(
                     pool is not None
                     and form
                     and parsing.form_room(form) >= needed
-                    and pool[0] < 1
+                    and (
+                        pool[0] < 1
+                        or (widest >= 0 and _whole_figures(units, places) > widest)
+                    )
                 ):
                     if side == _SIDE_HIGH and units > 0:
                         cursor[high_key] = 1
@@ -16088,6 +16510,7 @@ def _ladder_room(
     decimal_comma: bool,
     needed: int = 0,
     pool: "list[int] | None" = None,
+    bounded: bool = False,
 ) -> int:
     """How many made-up numbers one debt could still take, up to ``wanted``."""
     cursor: "dict[str, int]" = {}
@@ -16095,7 +16518,7 @@ def _ladder_room(
     while usable < wanted:
         if not _next_on_ladder(
             ladder, name, cursor, named, used, owners, holes, decimal_comma,
-            needed, pool,
+            needed, pool, bounded,
         ):
             break
         usable = usable + 1
@@ -19621,6 +20044,16 @@ def _family_room(kind: str, band: str, length: int, words: int) -> int:
             return 0
         if length == 2:
             return 10
+        # ...EXCEPT THE EXPONENT OF THE CODE BAND (integration repair of
+        # landing 2b.4). Its last figure is a power of ten, so letting it
+        # vary multiplies the number: sixty integers from -10 to -69 beside
+        # three-letter words came back as `0e0` to `9e5`, mean 83,333
+        # against -39.5, with every check passing. The family is its `e0`
+        # spellings with no leading zero, the count the length rule
+        # already places by (`_plain_number_room`), and a column needing
+        # more of them is refused rather than multiplied.
+        if band == _BAND_CODE:
+            return _plain_number_room(band, length)
         return _power_at_most(10, length - 1, _DOMAIN_CEILING)
     if kind == _CLASS_OUT_OF_RANGE:
         if band == _BAND_DIGITS:

@@ -172,6 +172,28 @@ def _grouped_figures(text: str) -> "str | None":
     return figures
 
 
+def _without_sign_or_padding(text: str) -> str:
+    """A cell with its outer spaces and its sign notation taken off.
+
+    The notations the reader accepts on a number (landing 2b.2): a
+    leading `+` or `-`, the minus sign U+2212, brackets around the
+    figures, and a trailing minus. The shape questions below ask about
+    the figures and the point, and a sign or a padded cell says nothing
+    about whether the point groups thousands (integration repair: one
+    `+1.500`, or one ` 1.500 `, among 599 plain cells silenced the
+    question, and a column counted in thousands published a mean of
+    1.4995 with nothing asked).
+    """
+    body = parsing.trimmed(text)
+    if len(body) >= 2 and body[:1] == "(" and body[len(body) - 1 :] == ")":
+        body = body[1 : len(body) - 1]
+    elif len(body) >= 2 and body[len(body) - 1 :] == "-" and body[:1] != "-":
+        body = body[: len(body) - 1]
+    elif body[:1] in ("+", "-", parsing.MINUS_SIGN):
+        body = body[1:]
+    return body
+
+
 def _point_between_thousands(text: str) -> bool:
     """Whether a cell could be a whole number with a point between thousands.
 
@@ -275,9 +297,10 @@ def why_worth_asking(values: "list[str]") -> "str | None":
         if figures is None:
             pointed = False
             for cell in values:
-                if _point_between_thousands(cell):
+                body = _without_sign_or_padding(cell)
+                if _point_between_thousands(body):
                     pointed = True
-                elif not _written_below_a_thousand(cell):
+                elif not _written_below_a_thousand(body):
                     return None
             if pointed:
                 return BECAUSE_POINT_THOUSANDS
@@ -696,7 +719,21 @@ def questions_for(
             position = position + 1
             continue
         reason: "str | None"
-        if role in JOINED_ROLES:
+        mark = ""
+        remainder = 0
+        if role == taxonomy.ROLE_JOINED:
+            # THE PUBLISHED READING IS THE EVIDENCE (integration repair of
+            # landing 2b.5). Rule 9c reads a pair spaced `1234 / 5`, and a
+            # column with a cell that is not a pair, as joined numbers,
+            # and the recogniser below re-parses on bare marks with every
+            # cell a pair -- so both published an average of each number
+            # with nothing asked, while the bare column was asked. A
+            # column declared a measurement is in ``already`` above.
+            reason = BECAUSE_JOINED
+            mark = f"{block['separator']}" if "separator" in block else ""
+            unparsed = block["n_unparsed"] if "n_unparsed" in block else 0
+            remainder = unparsed if isinstance(unparsed, int) else 0
+        elif role in JOINED_ROLES:
             reason = why_joined_is_worth_asking(present)
         else:
             reason = why_worth_asking(present)
@@ -731,7 +768,10 @@ def questions_for(
                     name,
                     role,
                     reason,
-                    _shape_of(reason, present, settings.small_cell_floor),
+                    _shape_of(
+                        reason, present, settings.small_cell_floor, mark,
+                        remainder,
+                    ),
                     choices,
                     taken,
                 )
@@ -778,7 +818,13 @@ def _sayable(count: int, floor: int) -> str:
     return "some of them"
 
 
-def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
+def _shape_of(
+    reason: str,
+    present: "list[str]",
+    floor: int = 1,
+    mark: str = "",
+    remainder: int = 0,
+) -> str:
     """What synthtwin SAW, in words carrying no value of the table.
 
     THE DISCLOSURE RULE OF THE QUESTIONS FILE, made into a sentence
@@ -838,7 +884,16 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
             "thousands"
         )
     if reason == BECAUSE_JOINED:
-        mark = _joining_mark(present)
+        # ``mark`` is the separator a joined column publishes, spaces and
+        # all; ``remainder`` its count of cells that are not such a pair,
+        # named under the floor as every count here is.
+        if not mark:
+            mark = _joining_mark(present)
+        if remainder > 0:
+            return (
+                f"values are two or more numbers with '{mark}' between "
+                f"them, and {_sayable(remainder, floor)} are not"
+            )
         return (
             f"every value is two or more numbers with '{mark}' between "
             f"them"

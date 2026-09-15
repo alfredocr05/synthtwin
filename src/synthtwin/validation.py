@@ -5695,9 +5695,17 @@ def _obligations(
         comma,
     ))
     gated = _universal_checks(column, block, mine)
-    gated = gated + _role_checks(column, block, own_cells, floor, mine)
+    # A JOINED COLUMN READ FROM ITS VALUES counts a position's cells by
+    # rule 9c's own admission (integration repair of landing 2b.5).
+    pairs = (
+        column.role == taxonomy.ROLE_JOINED
+        and column.name not in description.settings.forced_measurements
+    )
+    gated = gated + _role_checks(column, block, own_cells, floor, mine, pairs)
     measured = _universal_checks(column, split, mine)
-    measured = measured + _role_checks(column, split, split_cells, floor, mine)
+    measured = measured + _role_checks(
+        column, split, split_cells, floor, mine, pairs
+    )
     return checks + _governed(gated, measured, split_published)
 
 
@@ -7621,13 +7629,18 @@ def _role_checks(
     cells: "list[str]",
     floor: int,
     mine: "tuple[str, ...]",
+    plain_pairs: bool = False,
 ) -> "list[Check]":
-    """Everything the column's own role adds."""
+    """Everything the column's own role adds.
+
+    ``plain_pairs`` says a joined column was read from its values rather
+    than declared, so its positions are counted over plain pairs alone.
+    """
     facts = column.facts
     if isinstance(facts, contract.CompoundFacts):
         return _compound_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.JoinedFacts):
-        return _joined_checks(column, facts, block, cells, floor)
+        return _joined_checks(column, facts, block, cells, floor, plain_pairs)
     if isinstance(facts, contract.ClockFacts):
         return _clock_checks(column, facts, block)
     if isinstance(facts, contract.AffixedFacts):
@@ -8006,6 +8019,7 @@ def _joined_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    plain_pairs: bool = False,
 ) -> "list[Check]":
     """A column of two or more numbers written in one cell.
 
@@ -8153,7 +8167,7 @@ def _joined_checks(
         column, facts, block, cells, floor
     )
     checks = checks + _position_styles(
-        column, facts, block, cells, floor
+        column, facts, block, cells, floor, plain_pairs
     )
     # AND EVERYTHING BETWEEN THE TWO ENDS OF EACH POSITION'S LADDER
     # (residual R-P4-58). The ends and the style census were measured
@@ -8167,7 +8181,11 @@ def _joined_checks(
 
 
 def _position_cells(
-    cells: "list[str]", separator: str, parts: int, place: int
+    cells: "list[str]",
+    separator: str,
+    parts: int,
+    place: int,
+    plain_pairs: bool = False,
 ) -> "list[str]":
     """The numbers one POSITION of a joined column wrote.
 
@@ -8188,6 +8206,15 @@ def _position_cells(
     style facts it had never broken. A check that reports real data as
     missed is worse than no check, and R-P4-43 asks for a check whose
     red case is a file that genuinely differs.
+
+    AND A COLUMN READ FROM ITS VALUES ADMITS WHAT RULE 9c ADMITS
+    (``plain_pairs``; integration repair of landing 2b.5): two pieces of
+    figures alone, neither led by a zero. The producer left `0120/080`
+    and `120/80.5` unparsed on such a column, and counting them here put
+    a padded and a pointed number into positions the description had
+    measured without them: the real table failed its own description on
+    `leading_zero` and on `remainder`. Restated here rather than
+    borrowed, for the reason `_written_with_a_leading_minus` gives.
     """
     found: "list[str]" = []
     for cell in cells:
@@ -8198,10 +8225,22 @@ def _position_cells(
         for piece in pieces:
             if parsing.parse_number(piece) is None:
                 every = False
+            if plain_pairs and not _figures_without_a_leading_zero(piece):
+                every = False
         if not every:
             continue
         found += [pieces[place]]
     return found
+
+
+def _figures_without_a_leading_zero(piece: str) -> bool:
+    """Figures alone, one or more, and no zero before another figure."""
+    if not piece:
+        return False
+    for character in piece:
+        if not ("0" <= character <= "9"):
+            return False
+    return not (len(piece) > 1 and piece[0] == "0")
 
 
 def _cut_at_separator(cell: str, separator: str) -> "list[str]":
@@ -8224,6 +8263,7 @@ def _position_styles(
     block: "dict[str, object]",
     cells: "list[str]",
     floor: int,
+    plain_pairs: bool = False,
 ) -> "list[Check]":
     """Each position's own style and width censuses (residual R-P4-43).
 
@@ -8251,7 +8291,7 @@ def _position_styles(
                 if isinstance(key, str):
                     inner[key] = held[key]
         mine = _position_cells(
-            cells, facts.separator, facts.n_parts, place
+            cells, facts.separator, facts.n_parts, place, plain_pairs
         )
         # ...AND ITS SPELLINGS, beside its forms (landing 2b.2): the mark
         # between thousands, the notation of a negative and the count of
@@ -11039,6 +11079,13 @@ def _cells_outside_the_styles(
         # nothing about the value, so the unsigned reading is offered.
         if value == 0.0 and signed[:1] == "-":
             signed = signed[1:]
+        # ...and the VALUE is unsigned too (integration repair). A decimal
+        # style writes -0.0 at two places as `-0.00`, so offering the
+        # unsigned cell against spellings of -0.0 still found none: a
+        # column of changes rounded to two places, holding one `-0.00`,
+        # failed its own description while `-0` passed.
+        if value == 0.0:
+            value = 0.0
         worn = False
         for spelling in _permitted_spellings(value, whole_column, widths, offered):
             if _wears(signed, spelling):
@@ -11776,7 +11823,7 @@ def _datetime_checks(
         ]
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor)
-    checks = checks + _midnight_checks(column, facts, block)
+    checks = checks + _midnight_checks(column, facts, block, floor)
     checks = checks + _date_ladder_checks(column, facts, block)
     return checks
 
@@ -11889,6 +11936,7 @@ def _midnight_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
+    floor: int = 1,
 ) -> "list[Check]":
     """Midnight, held where the description publishes it (landing 2b.3).
 
@@ -11915,7 +11963,14 @@ def _midnight_checks(
         checks += [
             _exact(name, "datetime.all_at_midnight", "midnight.all", "true", shown)
         ]
-    if facts.n_at_midnight > 0:
+    # ...AND A PUBLISHED NOUGHT AT A FLOOR OF ONE, which is exact there
+    # (integration repair of landing 2b.3). Above that floor nought also
+    # covers a count below it and asks a file nothing. Unchecked, a twin of
+    # dense minute stamps holding eight cells at `00:00` against a table
+    # holding none passed, and described again it said eight.
+    if facts.n_at_midnight > 0 or (
+        floor <= 1 and not facts.all_at_midnight and column.n_present > 0
+    ):
         seen = _count_at(block, "n_at_midnight")
         checks += [
             _exact(
@@ -13428,7 +13483,15 @@ def _listings(
                             _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT,
                         )
                     ]
-                if facts.n_at_midnight <= 0:
+                # ...and not where `_midnight_checks` checks the nought,
+                # at a floor of one on a column with present cells not
+                # wholly at midnight (integration repair of landing
+                # 2b.3): one obligation is checked or listed, never both.
+                if facts.n_at_midnight <= 0 and not (
+                    smallest <= 1
+                    and not facts.all_at_midnight
+                    and column.n_present > 0
+                ):
                     listings += [
                         Listing(
                             column.name,

@@ -624,6 +624,35 @@ def test_counts_with_a_point_between_thousands_are_asked_about_beside_small_ones
     assert _questions(tmp_path / "declared", cells, "--decimal-comma", "v")["asked"] == []
 
 
+_POINT_THOUSANDS = [f"1.{k:03d}" for k in range(200, 800)]
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        ["+" + cell for cell in _POINT_THOUSANDS],
+        ["−" + cell for cell in _POINT_THOUSANDS],
+        ["(" + cell + ")" for cell in _POINT_THOUSANDS],
+        [cell + "-" for cell in _POINT_THOUSANDS],
+        _POINT_THOUSANDS[:300] + ["+" + _POINT_THOUSANDS[300]] + _POINT_THOUSANDS[301:],
+        _POINT_THOUSANDS[:300] + [" " + _POINT_THOUSANDS[300] + " "] + _POINT_THOUSANDS[301:],
+    ],
+    ids=["all plus", "all minus sign", "all brackets", "all trailing minus", "one plus", "one padded"],
+)
+def test_a_sign_or_a_padded_cell_does_not_silence_the_point_between_thousands(
+    tmp_path: pathlib.Path, cells: "list[str]"
+) -> None:
+    """The integration verdict: the unsigned column was asked and none of these was.
+
+    A sign or outer spaces say nothing about whether the point groups
+    thousands, and each variant published a mean of 1.4995 for a column
+    counted in thousands with nothing asked.
+    """
+    asked = _questions(tmp_path / "signed", cells)["asked"]
+    assert isinstance(asked, list) and len(asked) == 1
+    assert "below a thousand" in asked[0]["what_synthtwin_saw"]
+
+
 @pytest.mark.parametrize(
     "extra",
     [["12.5"], ["1234"], ["0.125"], ["012"]],
@@ -659,6 +688,79 @@ def test_a_rounded_negative_zero_in_a_real_ledger_meets_its_own_description(
             tmp_path / notation, cells, (), True, seed=f"{seed}"
         )
         assert real_exit == 0, (notation, seed)
+
+
+@pytest.mark.parametrize("plus", ("+", ""), ids=["with plus", "without plus"])
+def test_a_change_rounded_to_minus_nought_at_two_places_meets_its_own_description(
+    tmp_path: pathlib.Path, plus: str
+) -> None:
+    """`-0.00` is how a change column writes -0.003 rounded to two places.
+
+    The integration verdict: the whole-number `-0` passed, and a real
+    column of signed or unsigned two-place changes holding one `-0.00`
+    exited 3 on `styles.spelled`, because the unsigned cell was offered
+    against spellings of -0.0, which a decimal style writes with its minus.
+    """
+    cells = (
+        [f"{plus}1.25"] * 60 + ["-2.50"] * 60 + ["-0.00"] + [f"{plus}0.75"] * 40
+    )
+    _first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "change", cells, ("--measurement", "value"), True, seed="1"
+    )
+    assert real_exit == 0
+    assert twin_exit == 0
+
+
+@pytest.mark.parametrize("seed", ("4", "11"))
+def test_padded_whole_numbers_beside_signed_decimals_keep_every_plus(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """`-001` beside `+2.00` and `+3.00`: all hundred pluses come back.
+
+    The integration verdict: the style walk put `decimal` on the negatives
+    and `leading_zero` on the positives, only `plain` cells were exchanged,
+    and the twin wrote `-1.00`, `002` and `003` with no plus at all.
+    """
+    cells = ["-001"] * 100 + ["+2.00"] * 50 + ["+3.00"] * 50
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "padded", cells, ("--measurement", "value"), True, seed=seed
+    )
+    assert first["decimal_plus"] == {"+": 100}
+    assert sum(1 for cell in written if cell[:1] == "+") == 100
+    assert second["decimal_plus"] == first["decimal_plus"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", ("4", "11"))
+def test_a_plus_is_written_on_whole_values_so_no_spelling_is_invented(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """Three values written fifty times each, one with a plus: three spellings, not six.
+
+    The integration verdict: the spread rule put pluses cell by cell, so
+    one value came back both as `+100.25` and `100.25`, the twin held six
+    spellings against three, and 900 signed changes 780 against 690, with
+    every check passing.
+    """
+    cells = ["+100.25"] * 50 + ["200.25"] * 50 + ["300.25"] * 50
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "three", cells, ("--measurement", "value"), True, seed=seed
+    )
+    assert first["decimal_plus"] == {"+": 50}
+    assert sum(1 for cell in written if cell[:1] == "+") == 50
+    assert len(set(written)) == 3
+    assert (twin_exit, real_exit) == (0, 0)
+    draw = random.Random(3)
+    changes = [
+        f"{round(draw.gauss(0, 3), 2):+.2f}" if draw.random() < 0.5 else f"{round(draw.gauss(0, 3), 2):.2f}"
+        for _ in range(900)
+    ]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "changes", changes, ("--measurement", "value"), True, seed=seed
+    )
+    assert second["n_distinct"] == first["n_distinct"]
+    assert second["decimal_plus"] == first["decimal_plus"]
+    assert (twin_exit, real_exit) == (0, 0)
 
 
 def test_this_file_is_run_by_the_suite_it_belongs_to() -> None:

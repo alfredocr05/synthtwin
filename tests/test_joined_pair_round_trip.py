@@ -32,6 +32,7 @@ Every table is built by seeded neutral code at runtime (plan D13).
 """
 
 import collections
+import json
 import pathlib
 import random
 import statistics
@@ -239,6 +240,86 @@ def test_a_twin_past_the_long_tail_line_is_checked_as_two_numbers(
         assert abs(statistics.fmean(twin) - statistics.fmean(real)) < 1.0
     assert twin_exit == 0
     assert real_exit == 0
+
+
+@pytest.mark.parametrize(
+    "remainder", ("0120/080", "120/80.5"), ids=["a padded pair", "a pointed part"]
+)
+def test_a_real_table_with_one_pair_rule_9c_leaves_unparsed_meets_its_description(
+    tmp_path: pathlib.Path, remainder: str
+) -> None:
+    """The integration verdict: the real table failed its own description.
+
+    Rule 9c reads only plain whole pairs, so `0120/080` and `120/80.5` are
+    left unparsed; the validator counted them into the positions anyway,
+    and the real table exited 3 on `leading_zero` and on `remainder`.
+    """
+    cells = [f"{100 + i}/{50 + i % 61}" for i in range(299)] + [remainder]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "trip", cells, seed="4", header="bp"
+    )
+    assert first["role"] == "joined_numbers"
+    assert (first["n_joined"], first["n_unparsed"]) == (299, 1)
+    assert real_exit == 0
+    assert twin_exit == 0
+
+
+@pytest.mark.parametrize(
+    "spacing,unclear", ((" / ", False), ("/", True)), ids=["spaced", "one unclear cell"]
+)
+def test_a_column_read_as_pairs_from_its_values_is_always_asked(
+    tmp_path: pathlib.Path, spacing: str, unclear: bool
+) -> None:
+    """The integration verdict: only a bare column whose every cell parsed was asked.
+
+    A pair written `1234 / 5`, or a column with one cell that is not a
+    pair, was read as joined numbers and published each position's
+    average with no question put, while the bare column was asked.
+    """
+    draw = random.Random(9)
+    cells = [f"{draw.randrange(1000, 9999)}{spacing}{draw.randrange(1, 9)}" for _ in range(240)]
+    if unclear:
+        cells[-1] = "unclear"
+    folder = tmp_path / "asked"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text("ref\n" + "".join(cell + "\n" for cell in cells), encoding="utf-8", newline="")
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
+    asked = json.loads((folder / "real-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert [entry["column"] for entry in asked] == ["ref"]
+    saw = asked[0]["what_synthtwin_saw"]
+    assert f"'{spacing}'" in saw
+    assert ("are not" in saw) == unclear
+    answers = [choice["answer"] for choice in asked[0]["answers_you_can_give"]]
+    assert answers == ["keep", "code", "identifier"]
+
+
+def test_a_pair_too_large_for_this_format_is_described_and_not_a_crash(
+    tmp_path: pathlib.Path,
+) -> None:
+    """300 pairs opening `10 ** 310`: every part is past what binary64 holds.
+
+    The integration verdict: the position's numbers were all
+    unrepresentable, so the quantile walk was handed an empty list and
+    `synthtwin profile` raised `IndexError`. A null rung carries no
+    obligation (contract L3), which is the truth about such a position.
+    """
+    folder = tmp_path / "huge"
+    folder.mkdir()
+    table = folder / "real.csv"
+    cells = [f"{10 ** 310 + place}/{place + 1}" for place in range(300)]
+    table.write_text(
+        "bp\n" + "".join(cell + "\n" for cell in cells), encoding="utf-8", newline=""
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace"]
+    ) == 0
+    described = json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]
+    assert described["role"] == "joined_numbers"
+    ladder = described["parts"][0]["percentiles"]
+    assert all(ladder[rung] is None for rung in ladder)
 
 
 def test_the_carried_reading_still_misses_a_file_that_is_not_pairs(

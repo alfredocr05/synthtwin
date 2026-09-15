@@ -810,6 +810,20 @@ cap on its own, because interpolation rounds a plateau's edges onto it:
 333. Nothing moves where `Cap` is 0, or where the band's strata could
 not hold it under `Cap_band`.
 
+**And no finished NUMBER stands above the cap** (integration repair of
+landing 2b.1). The step above bounds one run, and two strata written as
+one number hold the sum of their cells: where G6.5a's separation finds
+no free point of the grid inside either share, both keep that number.
+So once the values are settled -- after G6.6's last mover -- the cap is
+asked again of the numbers themselves: visit the strata in rank order,
+and while the cells of a stratum's number stand above `Cap_band`, the
+nearest stratum with room whose number is a DIFFERENT one -- the lower
+where two are equally near -- takes as many as it has room for. Cells
+move and no value does, so every count, end and spelling the passes
+above settled is untouched. A 1,000-row column of one-decimal amounts
+publishing a `mode_count` of 32 wrote one number 43 times, the cells of
+two strata added together.
+
 The carrier and reach steps of G5.2b run after this and may move cells
 past the cap: `numeric_styles` is EXACT-OBSERVABLE and `mode_count` is
 REPORT-ONLY, so by plan P2-D6's feasibility rule 4 the published style
@@ -1323,6 +1337,21 @@ column with `G > 0` has a negative value, so `min < 0`, so
 numbers when `integer_valued` is true, because a whole `min < 0` is at
 most `-1`.
 
+**On a column written at one width `f > 0`** (the grid of G5.2a step 1
+and G5.3; integration repair of landing 2b.1) a stratum that is not
+pinned takes instead the nearest point of that grid on its own side of
+zero that no other stratum holds -- `-0.01`, then `-0.02`, and so on at
+`f = 2`, never past `L[0]` on the negative side or `L[10]` on the
+positive -- and the first such step where every one within reach is
+held. The strata are repaired in stratum order, and "held" is the value
+every other stratum has at that moment. The grid value of G5.3 puts a
+negative stratum whose rank lies within half a step of zero on `0.00` or
+`0.01`, so the plain fallback made such strata `-1`: on a 2,000-row
+column of changes rounded to two places two of them landed on `-1.0`
+beside a third that held it, one number spent the count of different
+values, and its six cells were written `-1.0` against a published width
+of two. The pinned strata keep the plain fallbacks.
+
 **The precedence is stated, not implied:** where the ladder and the sign
 counts disagree, **the counts win** (P2-D6 feasibility rule 4). The
 repair moves at most one value per conflicting stratum onto a fallback,
@@ -1448,7 +1477,7 @@ exactly one of six **styles**, and in no other form:
 
 **A thousands separator only where the column publishes one** (`group_separator`, contract 6 numeric block; stage 2, 2026-09-14). The ruling that stood here — that a separator is never written because the comma breaks the CSV row itself — was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. It was the whole cause of a defect in which a grouped charge column came back ungrouped and code developed on the twin silently discarded every charge over a thousand from the real table. Where `group_separator` is `,` or `.`, every `plain` cell, and every `leading_plus` or `decimal` cell at leading-zero order zero, is grouped with a comma, so a column whose proving cells were the majority is written wholly grouped; a `leading_zero` cell, an exponent form and a cell at a raised order are never grouped (the stage 2 audit, 2026-09-14). A column declared to write its decimals with a comma publishes `.`: it is grouped with a comma like any other and then has its points and commas exchanged, so `42,037.34` is written `42.037,34`.
 
-**Every mark a column may publish, and every notation of a negative, and a plus on a decimal** (landing 2b.2, 2026-09-15; plan P4-D41). A column publishing a space, an apostrophe, U+2019, U+00A0, U+202F or U+2009 is grouped with that mark itself, under the same rule of forms and order; no exchange touches it, so a declared decimal-comma column grouped with a space is written `1 234,56`. Where `decimal_plus` names a count, the cells allocated `decimal` whose value is not negative are taken in cell order, and of E such cells the k-th, counting from nought, carries a plus in front exactly where `floor((k+1)·P/E)` exceeds `floor(k·P/E)`, P being the lesser of the named count and E; a pooled count names no form and adds no plus; the plus stands in front of any zeros the cell spends. Before any fraction width is assigned (G6.6), where fewer cells are allocated `decimal` on a value not negative than the named count, cells exchange forms: the cells allocated `plain` whose value is not negative, from the first cell upward, and the cells allocated `decimal` whose value is negative and has a point-free spelling, from the last cell downward, are paired in order, and each pair swaps its two forms, for as many pairs as the shortfall and both lists allow; no form count moves. Where E is still below `decimal_plus` every eligible cell carries one and the report names a deviation of `decimal_plus`. Every negative cell is then written in the column's `negative_form`: the figures after the hyphen-minus, zeros and mark included, inside brackets, after the minus sign U+2212, or followed by a hyphen-minus -- the last only where those figures carry a decimal point, because neither `12-` nor `1,234-` is read as a number, so such a cell keeps its hyphen-minus in front. So `(001234.5)` and `(1,234.5)` are written and `(0,001.00)` never is.
+**Every mark a column may publish, and every notation of a negative, and a plus on a decimal** (landing 2b.2, 2026-09-15; plan P4-D41). A column publishing a space, an apostrophe, U+2019, U+00A0, U+202F or U+2009 is grouped with that mark itself, under the same rule of forms and order; no exchange touches it, so a declared decimal-comma column grouped with a space is written `1 234,56`. Where `decimal_plus` names a count, the cells allocated `decimal` whose value is not negative are taken in cell order, P being the lesser of the named count and their number E, and the plus is placed on WHOLE VALUES (integration repair of landing 2b.2: placed cell by cell, three values written fifty times each, one with a plus, came back as six spellings, and 900 signed changes publishing 690 spellings as 780). Those cells form runs of one value, in cell order; a run from cell `a` to cell `b - 1` is offered `floor(b·P/E) - floor(a·P/E)` pluses and takes one on every cell where that offer is at least half its length. While the cells taken exceed P, the taken run with the smallest offer per cell no longer than the excess is given up; while they fall short, the untaken run with the largest offer per cell no longer than the shortfall is taken, the earlier run first on a tie. What whole runs still cannot meet is spread inside one run -- the last taken run where the total is over, keeping its length less the excess, or the first untaken run at least as long as the shortfall -- and a run of length m holding k pluses gives its j-th cell, counting from nought, a plus exactly where `floor((j+1)·k/m)` exceeds `floor(j·k/m)`; so a column whose decimal cells all hold one value is spread one in every `E/P` exactly as before; a pooled count names no form and adds no plus; the plus stands in front of any zeros the cell spends. Before any fraction width is assigned (G6.6), where fewer cells are allocated `decimal` on a value not negative than the named count, cells exchange forms: each cell allocated `plain` or `leading_zero` whose value is not negative, from the first cell upward, takes the first cell, from the last cell downward, allocated `decimal` whose value is negative, has a point-free spelling, is not yet taken, and -- where the giver is `leading_zero` -- writes no more figures than the giver does, so the field width the padded exchange fitted it to is still reachable; each pair swaps its two forms, for as many pairs as the shortfall allows; no form count moves (integration repair of landing 2b.2: only `plain` gave, and a column of `-001` beside `+2.00` and `+3.00` came back with none of its hundred pluses). Where E is still below `decimal_plus` every eligible cell carries one and the report names a deviation of `decimal_plus`. Every negative cell is then written in the column's `negative_form`: the figures after the hyphen-minus, zeros and mark included, inside brackets, after the minus sign U+2212, or followed by a hyphen-minus -- the last only where those figures carry a decimal point, because neither `12-` nor `1,234-` is read as a number, so such a cell keeps its hyphen-minus in front. So `(001234.5)` and `(1,234.5)` are written and `(0,001.00)` never is.
 
 **Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
@@ -3672,8 +3701,13 @@ Allocation, over the `P` parsed cells in ascending rank:
    generator has always applied, which no frozen case reached). Those
    two consume one from that key's count. `earliest_utc_offset` and
    `latest_utc_offset` are EXACT-OBSERVABLE and this is what makes them
-   so. On a column G7.5 moves onto a midnight that stands wholly at
-   midnight on the `utc` clock, each interior rank whose instant the
+   so. On a column G7.5 moves onto a midnight -- wholly at midnight on
+   the `utc` clock, or only partly at midnight on either clock
+   (integration repair of landing 2b.3: 1,000 moments over five days
+   under `+01:00` and `+02:00`, 980 of them at local midnight, stood
+   mostly between pinned ranks of one instant, took their offsets in
+   sorted order, and 82 were written an hour off midnight) -- each
+   interior rank whose instant the
    published tail fixes -- each rung rank of G7.5, and each rank standing
    between two pinned ranks of one instant -- then takes the first offset,
    the real offsets in sorted order and then `(none)`, under which that
@@ -3944,6 +3978,19 @@ rather than passing it off as an outcome the description asked for.
   no two ranks come to share an instant. At a floor of one the nought
   says no value stood at midnight, and a twin interpolated to the minute
   put one there by chance and read back with a count of one.
+
+  Then each maximal run of consecutive ranks still written at midnight
+  moves as one (integration repair of landing 2b.3), pinned ranks
+  included: every rank of the run to the first instant of the next
+  written step on its own clock, where the rank after the run stands at
+  or after all of them; else every rank to the last second before its
+  written midnight, where the rank before the run stands at or before
+  all of them; else the run stays. The ranks keep their order and the
+  run keeps one written value; a rung's rank inside it moves by less
+  than one step of the precision. 1,000 minute stamps between 23:00 and
+  00:59 put eight ranks seconds apart inside the written minute `00:00`,
+  one of them a rung's rank, so no rank could move alone, and the twin
+  wrote eight such cells against a table holding none.
 
   The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
   any other rank.
@@ -4568,6 +4615,24 @@ number when it is one under that reading.
    its numbers was up to four times the table's with every check
    passing; with it, readings whose census names `%.%` and pools
    eighteen cells still write `10.0`.
+
+   **The narrow walk comes first** (integration repair of landing 2b.4).
+   The pool proves only that some cell below the floor wore a counted
+   form, and a pooled WORD proves nothing about numbers. So steps 2 and
+   3 are first taken with every counted form the census does not name
+   refused -- pool or no pool -- wherever the candidate has more figures
+   before its mark than the widest of the smallest published number, the
+   largest, and every plain decimal form the census names. That answer
+   stands wherever every level paying a class debt found a spelling;
+   only where one did not are steps 2 and 3 taken again under the pool
+   rule above. Without it one pooled `ab-cd` beside one-decimal readings
+   from 0.8 to 13.4 at a floor of eleven let the walk write `100.0` to
+   `100.3`, and the twin's numbers had a standard deviation of 4.91
+   against the table's 2.01 with every check passing; the narrow walk
+   writes the twin the same column has without that cell, 2.02. Where
+   the table did hold the wider numbers -- readings under ten whose
+   census pools the few `%%.%` above them, and `label_numbers` below --
+   the narrow walk runs short and the pool rule writes them as before.
 
    A level whose form has no number left keeps its class without the
    form. A level that finds no number at all is written as G8.3's
@@ -5230,7 +5295,15 @@ any that could not be met:
    the wide band a number of two characters is a figure and a point; of
    `L >= 3` it is `L - 2` figures, a point, and one last figure in the
    order `5 0 1 2 3 4 6 7 8 9`. Those two bands hold ten at two
-   characters and `10^(L - 1)` at `L >= 3`. **Every run of figures before
+   characters; the wide band holds `10^(L - 1)` at `L >= 3`, and the code
+   band only its spellings whose exponent's figure is nought and whose
+   figures before the `e` open with no zero -- ten at three characters,
+   `9 · 10^(L - 3)` above -- because an exponent's figure that varies
+   multiplies the number by a power of ten (integration repair of
+   landing 2b.4: sixty integers from -10 to -69 beside three-letter
+   words came back as `0e0` to `9e5`, mean 83,333 against -39.5, with
+   every check passing). A column needing more of them than that is
+   refused by G9.4, as it was before landing 2b.4. **Every run of figures before
    the mark with no leading zero is taken under all ten last figures
    before any run that opens with a zero** (landing 2b.4, repair): the
    walk used to take a block of `10^(L - 2)` runs per last figure, which
