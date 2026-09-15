@@ -408,6 +408,9 @@ def test_a_column_asking_for_more_times_than_a_day_holds_is_refused() -> None:
     )
     forged = copy.deepcopy(document)
     forged["n_rows"] = 1441
+    # The written form moves with the rows, or the loader refuses the
+    # forgery for its line endings before the generator is ever asked.
+    forged["source"]["dialect"]["line_endings"][0]["lines"] += 1
     column = forged["columns"][0]
     column["n_present"] = 1441
     column["n_distinct"] = 1441

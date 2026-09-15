@@ -654,10 +654,10 @@ def _named_entries() -> "list[Entry]":
             "boundary-wide-26", tuple(_wide_singles(26)), True, 11
         ),
         Entry(
-            "boundary-figures-9", tuple(_figures(1, 9)), True, 11
+            "boundary-figures-9", tuple(_figures(1, 9)[0::2] + _figures(1, 9)[1::2]), True, 11
         ),
         Entry(
-            "boundary-figures-10", tuple(_figures(0, 9)), True, 11
+            "boundary-figures-10", tuple(_figures(0, 9)[0::2] + _figures(0, 9)[1::2]), True, 11
         ),
         Entry(
             "boundary-code-53", tuple(_letters() + ["_"]), True, 11

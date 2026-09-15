@@ -94,7 +94,7 @@ import os
 import pathlib
 import sys
 
-from synthtwin import asking, errors, parsing
+from synthtwin import asking, dialect, errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -376,10 +376,15 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
     """One sentence about how the file was read."""
     if used_fallback:
         return (
-            "It was not readable as UTF-8, so it was read as Western "
-            "European text (Latin-1); if any accented letter looks wrong "
-            "in this summary, save the file as 'CSV UTF-8' and run the "
-            "command again."
+            f"It was not readable as UTF-8, so it was read as "
+            f"{dialect.ENCODING_WORDS[encoding]}; if any accented letter "
+            f"looks wrong in this summary, save the file as 'CSV UTF-8' "
+            f"and run the command again."
+        )
+    if encoding in (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE):
+        return (
+            f"It was read as {dialect.ENCODING_WORDS[encoding]} text "
+            f"(encoding: {encoding})."
         )
     return f"It was read as UTF-8 text (encoding: {encoding})."
 
@@ -2358,6 +2363,21 @@ def _run_generate(
     # same text and cannot differ.
     twin_text = rendering.twin_csv(twin)
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
+    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D40), and
+    # that is checked before anything is shown or written: a cell holding
+    # a character the encoding has no byte for would otherwise stop the
+    # write half way. Every published label was read in that encoding and
+    # every made-up value is ASCII, so reaching this is a defect.
+    twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
+    try:
+        twin_text.encode(twin_codec)
+    except UnicodeEncodeError:
+        _warn(
+            errors.twin_not_writable_in_encoding(
+                dialect.ENCODING_WORDS[loaded.source.encoding]
+            )
+        )
+        return 1
 
     _say(report_text)
     # ONE LINE ON THE SCREEN NAMING WHAT THE TWIN INVENTED (plan P4-D2
@@ -2395,6 +2415,8 @@ def _run_generate(
             table_path=pathlib.Path(source),
             state=state,
             words=errors.TWIN_WORDS,
+            first_encoding=twin_codec,
+            first_newline="",
         )
     except BaseException:
         if state.sentence:

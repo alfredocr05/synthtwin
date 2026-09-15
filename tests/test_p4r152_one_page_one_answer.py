@@ -54,8 +54,14 @@ def _twin(
 
 
 def _the_hundred() -> "list[str]":
-    """The residual's own column, so this closes what it opened."""
-    return [f"{number}" for number in range(1, 101)]
+    """The residual's own column, so this closes what it opened.
+
+    Written starting at two with the one at the end: in the order one
+    to a hundred the column IS the row sequence (plan P4-D40), which the
+    twin writes exactly, and the shortfall this residual is about would
+    never arise. The order of a column's cells is none of its facts.
+    """
+    return [f"{number}" for number in range(2, 101)] + ["1"]
 
 
 def test_no_fact_is_both_missed_and_inside_a_range_that_covers_it(

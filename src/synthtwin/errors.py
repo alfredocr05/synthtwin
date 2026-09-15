@@ -228,24 +228,16 @@ def file_unreadable(path: str, detail: str) -> str:
     )
 
 
-def not_utf8_or_latin1(path: str) -> str:
-    """Message for a file that is not text in either supported encoding."""
-    return (
-        f"The file {path} is not readable as text. synthtwin reads CSV "
-        f"files saved as UTF-8 (the usual choice) and, as a fallback, "
-        f"Western European text (Latin-1). If this file came from a "
-        f"spreadsheet, open it and save it again choosing 'CSV UTF-8'."
-    )
-
-
 def looks_like_utf16(path: str) -> str:
-    """Message for a UTF-16/UTF-32 file (or a binary file) given as CSV."""
+    """Message for a UTF-32 file, a marked-less UTF-16 one, or a binary file."""
     return (
-        f"The file {path} looks like it was saved as UTF-16 or UTF-32 "
-        f"text, or is not a text file at all: it contains "
-        f"the zero bytes those formats use. synthtwin reads UTF-8 CSV "
-        f"files. Open the file in your spreadsheet program and save it "
-        f"again choosing 'CSV UTF-8'."
+        f"The file {path} looks like it was saved as UTF-32 text, or as "
+        f"UTF-16 text without the byte-order mark that says so, or is not "
+        f"a text file at all: it contains the zero bytes those formats "
+        f"use. synthtwin reads delimited text saved as UTF-8, as UTF-16 "
+        f"with its byte-order mark (Excel's 'Unicode Text'), and as "
+        f"Western European text. Open the file in your spreadsheet "
+        f"program and save it again choosing 'CSV UTF-8'."
     )
 
 
@@ -451,59 +443,18 @@ def checked_file_unreadable_as_csv(path: str) -> str:
     )
 
 
-def checked_file_repeats_a_column_name(path: str) -> str:
-    """Message for a repeated name in a checked file, naming neither.
-
-    The profiler's form of this QUOTES the repeated name, and on the
-    checking path that name is a string out of a file nobody promised
-    was the reader's (V9).
-
-    AND IT NAMES NO POSITION EITHER (review item P3-V4-F3; plan
-    amendment A-P3-10 clause 2). The version this replaces put the two
-    column numbers in the name's place, on the reasoning that a number
-    publishes strictly less than a string. That reasoning was wrong, and
-    the way it was wrong is the point: `dup,a,dup` and `a,dup,dup` are
-    two files `synthtwin profile` refuses with the SAME sentence, and
-    the positions tell them apart. What the profiler's refusal
-    publishes about such a file is that one of its names is used twice,
-    so that is what this says.
-    """
-    return (
-        f"The first row of {path} uses one column name twice. Every "
-        f"column needs its own name, so that the description of one "
-        f"column can never be confused with another's. Rename the "
-        f"repeat and run the command again. synthtwin does not print "
-        f"what it found in the file, or where: this file may not be "
-        f"your own table."
-    )
-
-
-def duplicate_column_names(names: list[str]) -> str:
-    """Message for repeated column names in the header row."""
-    listed = _listed(names)
-    return (
-        f"The first row repeats the same column name more than once "
-        f"({listed}). Every column needs its own name, so that the "
-        f"description of one column can never be confused with "
-        f"another's. Rename the repeats and run the command again."
-    )
-
-
-def empty_column_name(position: int) -> str:
-    """Message for a header cell with no name in it."""
-    return (
-        f"Column number {position} has no name in the first row. Every "
-        f"column needs a name. Add one and run the command again."
-    )
-
-
 def ragged_rows(
-    path: str, expected: int, offenders: list[tuple[int, int]], total: int
+    path: str,
+    expected: int,
+    offenders: list[tuple[int, int]],
+    total: int,
+    delimiter: str = "a comma",
 ) -> str:
     """Message for rows whose value count differs from the header's.
 
     ``offenders`` holds up to three (data-row number, value count)
-    pairs; ``total`` is the full count of such rows.
+    pairs; ``total`` is the full count of such rows; ``delimiter`` names
+    the character the file's fields were read as separated by.
     """
     described = [f"row {number} has {count}" for number, count in offenders]
     listed = _listed(described)
@@ -513,8 +464,42 @@ def ragged_rows(
         f"values. The first row names {expected} columns, but {listed}"
         f"{tail}. Rows are counted after the first row, leaving out "
         f"blank lines. A row with too few or too many values usually "
-        f"means a value contains a comma and needs quotation marks "
+        f"means a value contains {delimiter} and needs quotation marks "
         f"around it. {_CHECK_AND_RETRY}"
+    )
+
+
+def line_endings_change_too_often(path: str, cap: int) -> str:
+    """Message for a file whose line endings change kind too many times."""
+    return (
+        f"The lines of {path} end in more than {cap} runs of different "
+        f"line endings -- some with a carriage return, some without, "
+        f"back and forth. synthtwin writes the twin's line endings where "
+        f"your table has them, and past {cap} changes it stops rather "
+        f"than write them differently. Save the file again from the "
+        f"program that made it, so that every line ends the same way, "
+        f"and run the command again."
+    )
+
+
+def blank_lines_in_too_many_places(path: str, cap: int) -> str:
+    """Message for blank lines standing between records in too many places."""
+    return (
+        f"{path} has blank lines between its records in more than {cap} "
+        f"places. synthtwin writes the twin's blank lines where your "
+        f"table has them, and past {cap} places it stops rather than "
+        f"leave them out. Remove the blank lines, or save the file again "
+        f"from the program that made it, and run the command again."
+    )
+
+
+def twin_not_writable_in_encoding(encoding: str) -> str:
+    """Message for a twin holding a character its table's encoding lacks."""
+    return (
+        f"The twin could not be written as {encoding}, the encoding your "
+        f"table was read with: one of its cells holds a character that "
+        f"encoding has no byte for. This means a mistake in synthtwin; "
+        f"please report it. Nothing has been written."
     )
 
 

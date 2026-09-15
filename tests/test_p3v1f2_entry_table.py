@@ -852,8 +852,8 @@ def _predicate_runs(
     for name, described, twin in (
         ("header-written", headed[0], headed[1]),
         ("names-generated", bare[0], bare[1]),
-        ("zero-rows-headered", dataclasses.replace(headed[0], n_rows=0), ""),
-        ("zero-rows-headerless", dataclasses.replace(bare[0], n_rows=0), ""),
+        ("zero-rows-headered", fixtures.zero_rows(headed[0]), ""),
+        ("zero-rows-headerless", fixtures.zero_rows(bare[0]), ""),
     ):
         plain = headed if name in ("header-written", "zero-rows-headered") else bare
         ordinary = _measured(folder, plain[0], plain[1], f"{name}-plain.csv")
@@ -1885,11 +1885,15 @@ def _perturbations(
         ("added-column", CLASS_COLUMN_COUNT, _extra_column(twin)),
         # THE ONE PERTURBATION THAT IS NOT CHARACTERS. A file that is
         # not UTF-8 cannot be written as text, and the register of gaps
-        # carried `bytes.utf8` for exactly that reason (review item
+        # carried `bytes.encoding` for exactly that reason (review item
         # P3-V2-B-F5) -- a gap in the harness, recorded as though it
         # were a property of the check.
         ("not-utf8", CLASS_ENCODING, b"\xff" + twin.encode("utf-8")[1:]),
     ]
+    # THE WRITTEN FORM'S OWN EDITS (plan P4-D40). Each changes one fact
+    # of how the file is written and nothing about its cells, so the
+    # rule it is registered against is the one that must report it.
+    built = built + _form_perturbations(described, twin, rows, first)
     if described.n_columns > 1:
         built = built + [
             ("dropped-column", CLASS_COLUMN_COUNT, _dropped_column(twin))
@@ -2163,6 +2167,150 @@ def _numeric_half(
     return _rebuilt(rows)
 
 
+def _form_perturbations(
+    described: contract.Profile,
+    twin: str,
+    rows: "list[list[str]]",
+    first: int,
+) -> "list[tuple[str, str, str | bytes]]":
+    """The edits of a twin's written form, one fact each (plan P4-D40).
+
+    Where a fixture's file holds nothing an edit could change -- a
+    one-column file has no delimiter to replace -- the edit adds what it
+    needs rather than returning the twin unchanged, which would be a red
+    case that can never go red. An edit a fixture cannot carry at all is
+    "" and is left out, as every other family's is.
+    """
+    lines = twin.split("\n")
+    body = lines[: len(lines) - 1]
+    width = described.n_columns
+    if "," in twin:
+        # Written again through a writer with the semicolon as its
+        # delimiter, so a cell holding a semicolon is quoted and every
+        # record keeps its width: a blind replacement splits such a cell
+        # and the reader refuses the file, which proves nothing.
+        out = io.StringIO()
+        csv.writer(out, delimiter=";", lineterminator="\n").writerows(rows)
+        semicolons = out.getvalue()
+        spaced = twin.replace(",", ", ")
+    else:
+        semicolons = "\n".join([line + ";z" for line in body]) + "\n"
+        spaced = "\n".join([line + ", z" for line in body]) + "\n"
+    trailing = "\n".join([line + "," for line in body]) + "\n"
+    header = rows[:first]
+    data = rows[first:]
+    # A quoted field holding a backslash-escaped quote, put into the text
+    # through a sentinel cell: the writer's own rules would double the
+    # quote and leave nothing for the escaping rule to find, and cutting
+    # the line at its first comma would split a quoted cell.
+    backslashed = ""
+    if data:
+        # The WHOLE file written again with backslash escaping, so no
+        # quoted cell doubles its quotes: a single escaped cell in a file
+        # whose other quoted cells double theirs is read the doubled way,
+        # rightly, and would prove nothing. One cell is then written by
+        # hand as a QUOTED field holding an escaped quote. The writer is
+        # not asked to write that cell: with an escape character it
+        # escapes a delimiter instead of quoting the field, and the row
+        # would come apart at it.
+        marked = [list(row) for row in rows]
+        marked[first] = ["QQESCAPEDQQ"] + marked[first][1:]
+        out = io.StringIO()
+        csv.writer(
+            out, lineterminator="\n", escapechar="\\", doublequote=False
+        ).writerows(marked)
+        backslashed = out.getvalue().replace(
+            "QQESCAPEDQQ", '"a\\"b"', 1
+        )
+    quoted_header = ""
+    header_rows = ""
+    blank_name = ""
+    if first:
+        rest = twin[twin.index("\n") + 1 :]
+        quoted_header = (
+            ",".join('"' + name.replace('"', '""') + '"' for name in rows[0])
+            + "\n"
+            + rest
+        )
+        header_rows = (
+            twin[: twin.index("\n") + 1]
+            + ",".join("q" for _place in range(width))
+            + "\n"
+            + ",".join('"{""ImportId"":""x""}"' for _place in range(width))
+            + "\n"
+            + rest
+        )
+        if width > 1:
+            blank_name = _rebuilt([rows[0][: width - 1] + [""]] + data)
+        else:
+            # One column: its blank name is written as two quote
+            # characters, or the header would be a blank line.
+            blank_name = '""\n' + rest
+    short = ""
+    if width > 1 and data:
+        shortened = []
+        for row in data:
+            kept = list(row)
+            while len(kept) > 1 and kept[len(kept) - 1] == "":
+                kept = kept[: len(kept) - 1]
+            shortened += [kept]
+        if all(len(row) == width for row in shortened):
+            # A row other than the first: the first record decides a
+            # headerless table's width, and shortening it would make every
+            # later row look long.
+            for place in range(len(shortened) - 1, 0, -1):
+                row = shortened[place]
+                if row[width - 1] and row[width - 2]:
+                    shortened[place] = row[: width - 1]
+                    break
+        short = _rebuilt(header + shortened)
+    sorted_by = described.source.dialect.row_order.column
+    reversed_name = "reversed-rows"
+    if 1 <= sorted_by <= len(described.columns):
+        reversed_name = f"reversed-{described.columns[sorted_by - 1].name}"
+    empty_row = ""
+    if width > 1:
+        empty_row = twin + ",".join("" for _place in range(width)) + "\n"
+    return [
+        ("semicolons", CLASS_SHAPE, semicolons),
+        ("spaced-delimiters", CLASS_SHAPE, spaced),
+        ("backslashed-quote", CLASS_CONTENT, backslashed),
+        ("separator-line", CLASS_SHAPE, "sep=,\n" + twin),
+        ("end-of-file-mark", CLASS_TERMINAL, twin + "\x1a"),
+        # A title line leads only where a wider record follows it, so a
+        # one-column file is given the blank line that leads any table.
+        ("preamble-line", CLASS_HEADER, ("Report of the extract\n" if width > 1 else "\n") + twin),
+        ("quoted-header", CLASS_HEADER, quoted_header),
+        ("metadata-rows", CLASS_HEADER, header_rows),
+        ("blank-name", CLASS_HEADER, blank_name),
+        ("trailing-delimiters", CLASS_SHAPE, trailing),
+        ("short-rows", CLASS_SHAPE, short),
+        ("blank-line", CLASS_LINE_ENDINGS, twin + "\n"),
+        ("empty-record", CLASS_ROWS, empty_row),
+        # Named after the column the rows are sorted by, which is where
+        # the order is filed: the edit breaks that one column's order.
+        (reversed_name, CLASS_CELL, _rebuilt(header + list(reversed(data)))),
+    ]
+
+
+def _quoted_column(twin: str, first: int, index: int) -> str:
+    """Every data cell of one column written quoted, and nothing else."""
+    rows = _rows_of(twin)
+    out = ""
+    for place in range(len(rows)):
+        cells = []
+        for column in range(len(rows[place])):
+            cell = rows[place][column]
+            if place >= first and column == index:
+                cells += ['"' + cell.replace('"', '""') + '"']
+            elif any(mark in cell for mark in ',"\r\n'):
+                cells += ['"' + cell.replace('"', '""') + '"']
+            else:
+                cells += [cell]
+        out = out + ",".join(cells) + "\n"
+    return out
+
+
 def _column_perturbations(
     described: contract.Profile,
     twin: str,
@@ -2172,6 +2320,11 @@ def _column_perturbations(
     index = column.position - 1
     name = column.name
     built: list[tuple[str, str, str | bytes]] = [
+        (
+            f"quoted-{name}",
+            CLASS_SPELLING,
+            _quoted_column(twin, _first_record(described), index),
+        ),
         (
             f"blanked-{name}",
             CLASS_PRESENCE,
@@ -2643,7 +2796,7 @@ NAMED_RED_CASES = (
     # battery walks, so no edit could turn one of its checks red.
     RedCase("joined", 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase("joined", 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase("joined", 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase("joined", 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase("joined", 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase("joined", 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase("joined", 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2681,7 +2834,7 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.n_joined', 'counts.n_joined'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.n_parts', 'counts.n_parts'),
     RedCase("joined", 'moved-cell', 'reading', 'joined.n_unparsed', 'counts.n_unparsed'),
-    RedCase("joined", 'blanked-cell', 'reading', 'joined.part_above[0]', 'together.rows one above the other, pair 1'),
+    RedCase("joined", 'reshaped-reading', 'reading', 'joined.part_above[0]', 'together.rows one above the other, pair 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_agreements[0]', 'together.how strongly they move, pair 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[0]', 'widths.number 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[1]', 'widths.number 2'),
@@ -2754,7 +2907,7 @@ NAMED_RED_CASES = (
     # shapes -- every one measured, none uncovered.
     RedCase('unrepresentable', 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase('unrepresentable', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase('unrepresentable', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('unrepresentable', 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase('unrepresentable', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase('unrepresentable', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase('unrepresentable', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2784,7 +2937,7 @@ NAMED_RED_CASES = (
     RedCase('unrepresentable', 'rewritten-overflow', 'overflow', 'universal.statistical_type', 'axes.statistical_type'),
     RedCase('pooled', 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase('pooled', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase('pooled', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('pooled', 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase('pooled', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase('pooled', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase('pooled', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2874,7 +3027,7 @@ NAMED_RED_CASES = (
         "document.line-endings",
         "bytes.terminal-newline",
     ),
-    RedCase("every-role", "not-utf8", "", "document.encoding", "bytes.utf8"),
+    RedCase("every-role", "not-utf8", "", "document.encoding", "bytes.encoding"),
     RedCase(
         "every-role",
         "added-column",
@@ -3340,12 +3493,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("not-utf8", "columns.order"),
             ("not-utf8", "header.names"),
             ("not-utf8", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('metadata-rows', 'bytes.header-rows'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "clinic": (
             ("emptied-clinic", "axes.quality_state"),
@@ -3369,6 +3535,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-tiny-clinic", "suppressed.counts"),
             ("one-tiny-clinic", "suppressed.suppressed_levels"),
             ("one-tiny-clinic", "suppressed.suppressed_rows"),
+            ('quoted-clinic', 'bytes.quoting'),
         ),
         "reading": (
             ("filled-reading", "distinct.n_distinct_values"),
@@ -3445,11 +3612,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("half-whole-reading", "type.integer_valued"),
             ("half-vast-reading", "type.std_unrepresentable"),
             ("marked-reading", "widths.published.2"),
+            ('quoted-reading', 'bytes.quoting'),
         ),
     },
     "every-role": {
         "": (
             ("added-column", "header.presence"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('metadata-rows', 'bytes.header-rows'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "amount": (
             ("marked-amount", "distinct.n_distinct_values"),
@@ -3510,6 +3691,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("negated-amount", "styles.remainder"),
             ("exponent_upper-amount", "styles.spill"),
             ("vast-amount", "type.integer_valued"),
+            ('quoted-amount', 'bytes.quoting'),
         ),
         "answer": (
             ("emptied-answer", "axes.quality_state"),
@@ -3527,7 +3709,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("recased-answer", "levels.no.variants"),
             ("spaced-answer", "levels.no.variants_withheld"),
             ("marked-answer", "levels.set"),
-            ("blanked-answer", "levels.yes.count"),
+            ("marked-answer", "levels.yes.count"),
             ("rewritten-answer", "levels.yes.label"),
             ("reshaped-answer", "levels.yes.shape_form_cells"),
             ("recased-answer", "levels.yes.variants"),
@@ -3538,6 +3720,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-answer", "suppressed.counts"),
             ("one-worded-answer", "suppressed.suppressed_levels"),
             ("one-worded-answer", "suppressed.suppressed_rows"),
+            ('quoted-answer', 'bytes.quoting'),
         ),
         "batch": (
             ("emptied-batch", "axes.quality_state"),
@@ -3561,6 +3744,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-batch", "suppressed.counts"),
             ("one-worded-batch", "suppressed.suppressed_levels"),
             ("one-worded-batch", "suppressed.suppressed_rows"),
+            ('quoted-batch', 'bytes.quoting'),
         ),
         "comment": (
             ("emptied-comment", "axes.quality_state"),
@@ -3583,6 +3767,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-comment", "presence.n_present"),
             ("one-worded-comment", "words.mean"),
             ("one-worded-comment", "words.min"),
+            ('quoted-comment', 'bytes.quoting'),
         ),
         "dose": (
             ("marked-dose", "distinct.n_distinct_values"),
@@ -3653,6 +3838,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_lower-dose", "styles.published.decimal"),
             ("spread-dose", "widths.published.1"),
             ("spread-dose", "widths.published.2"),
+            ('quoted-dose', 'bytes.quoting'),
         ),
         "seen_at": (
             # THE CLOCK ROLE. Three edits are its own: the two halves
@@ -3688,6 +3874,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crushed-seen_at", "clock-ladder.p90"),
             ("crushed-seen_at", "clock-ladder.p95"),
             ("crushed-seen_at", "clock-ladder.p99"),
+            ('quoted-seen_at', 'bytes.quoting'),
         ),
         "reading": (
             ("vast-reading", "distinct.n_distinct_values"),
@@ -3745,6 +3932,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_lower-reading", "styles.spill"),
             ("one-fractioned-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
         ),
         "record_code": (
             ("emptied-record_code", "axes.quality_state"),
@@ -3760,6 +3948,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("repeated-record_code", "length.max"),
             ("blanked-record_code", "presence.n_missing"),
             ("digits-record_code", "type.all_whole_numbers"),
+            ('quoted-record_code', 'bytes.quoting'),
+            ('reversed-record_code', 'rows.order'),
         ),
         "recorded_on": (
             ("emptied-recorded_on", "axes.quality_state"),
@@ -3788,6 +3978,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-recorded_on", "precision.resolution"),
             ("blanked-recorded_on", "presence.n_missing"),
             ("blanked-recorded_on", "presence.n_present"),
+            ('quoted-recorded_on', 'bytes.quoting'),
         ),
         "note": (
             # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
@@ -3809,11 +4000,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-note", "levels.clinic.shape_form_cells"),
             ("rewritten-note", "levels.clinic.variants"),
             ("rewritten-note", "levels.clinic.variants_withheld"),
-            ("marked-note", "levels.referral.count"),
-            ("marked-note", "levels.referral.label"),
-            ("marked-note", "levels.referral.shape_form_cells"),
-            ("marked-note", "levels.referral.variants"),
-            ("marked-note", "levels.referral.variants_withheld"),
+            ("reshaped-note", "levels.referral.count"),
+            ("reshaped-note", "levels.referral.label"),
+            ("reshaped-note", "levels.referral.shape_form_cells"),
+            ("reshaped-note", "levels.referral.variants"),
+            ("reshaped-note", "levels.referral.variants_withheld"),
             ("marked-note", "levels.set"),
             ("renamed-note", "position.at"),
             ("blanked-note", "presence.n_missing"),
@@ -3821,6 +4012,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-note", "suppressed.counts"),
             ("marked-note", "suppressed.suppressed_levels"),
             ("blanked-note", "suppressed.suppressed_rows"),
+            ('quoted-note', 'bytes.quoting'),
         ),
         "region": (
             ("emptied-region", "axes.role"),
@@ -3836,7 +4028,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-region", "levels.east.shape_form_cells"),
             ("recased-region", "levels.east.variants"),
             ("spaced-region", "levels.east.variants_withheld"),
-            ("blanked-region", "levels.north.count"),
+            ("marked-region", "levels.north.count"),
             ("rewritten-region", "levels.north.label"),
             ("reshaped-region", "levels.north.shape_form_cells"),
             ("marked-region", "levels.set"),
@@ -3856,6 +4048,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-region", "suppressed.counts"),
             ("one-worded-region", "suppressed.suppressed_levels"),
             ("one-worded-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
         "unused": (
             ("filled-bracketed-unused", "axes.quality_state"),
@@ -3869,6 +4062,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-bracketed-unused", "distinct.n_distinct_folded"),
             ("renamed-unused", "position.at"),
             ("filled-bracketed-unused", "presence.n_missing"),
+            ('quoted-unused', 'bytes.quoting'),
         ),
         "visits": (
             ("vast-visits", "distinct.n_distinct_values"),
@@ -3905,6 +4099,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-plussed-visits", "styles.remainder"),
             ("exponent_lower-visits", "styles.spill"),
             ("marked-visits", "type.std_unrepresentable"),
+            ('quoted-visits', 'bytes.quoting'),
         ),
     },
     "unrepresentable": {
@@ -3912,12 +4107,22 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('byte-order-mark', 'bytes.byte-order-mark'),
             ('carriage-returns', 'bytes.line-endings'),
             ('no-terminal-newline', 'bytes.terminal-newline'),
-            ('not-utf8', 'bytes.utf8'),
+            ('not-utf8', 'bytes.encoding'),
             ('added-column', 'columns.n_columns'),
             ('not-utf8', 'columns.order'),
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         'overflow': (
             ('rewritten-overflow', 'axes.quality_state'),
@@ -3941,6 +4146,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('not-utf8', 'position.at'),
             ('blanked-cell', 'presence.n_missing'),
             ('blanked-cell', 'presence.n_present'),
+            ('quoted-overflow', 'bytes.quoting'),
         ),
     },
     # THE PADDED-CODE FIXTURE (P4-D14). Its one column publishes a named
@@ -3978,7 +4184,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-dx_code", "levels.e11.9.variants_withheld"),
             ("marked-dx_code", "levels.i10.count"),
             ("reshaped-dx_code", "levels.i10.label"),
-            ("blanked-dx_code", "levels.i10.shape_form_cells"),
+            ("marked-dx_code", "levels.i10.shape_form_cells"),
             ("marked-dx_code", "levels.i10.variants"),
             ("reshaped-dx_code", "levels.i10.variants_withheld"),
             ("reshaped-dx_code", "levels.j45.909.count"),
@@ -3986,10 +4192,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-dx_code", "levels.j45.909.shape_form_cells"),
             ("reshaped-dx_code", "levels.j45.909.variants"),
             ("reshaped-dx_code", "levels.j45.909.variants_withheld"),
-            ("marked-dx_code", "levels.m54.5.count"),
+            ("reshaped-dx_code", "levels.m54.5.count"),
             ("reshaped-dx_code", "levels.m54.5.label"),
-            ("marked-dx_code", "levels.m54.5.shape_form_cells"),
-            ("marked-dx_code", "levels.m54.5.variants"),
+            ("reshaped-dx_code", "levels.m54.5.shape_form_cells"),
+            ("reshaped-dx_code", "levels.m54.5.variants"),
             ("reshaped-dx_code", "levels.m54.5.variants_withheld"),
             ("marked-dx_code", "levels.set"),
             ("marked-dx_code", "levels.z00.00.count"),
@@ -4000,20 +4206,34 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-dx_code", "position.at"),
             ("blanked-dx_code", "presence.n_missing"),
             ("blanked-dx_code", "presence.n_present"),
-            ("marked-dx_code", "suppressed.counts"),
-            ("marked-dx_code", "suppressed.suppressed_levels"),
-            ("marked-dx_code", "suppressed.suppressed_rows"),
+            ("one-worded-dx_code", "suppressed.counts"),
+            ("one-worded-dx_code", "suppressed.suppressed_levels"),
+            ("one-worded-dx_code", "suppressed.suppressed_rows"),
+            ('quoted-dx_code', 'bytes.quoting'),
         ),
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('metadata-rows', 'bytes.header-rows'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "lab_code": (
             ("emptied-lab_code", "axes.quality_state"),
@@ -4039,6 +4259,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("lengthened-lab_code", "words.max"),
             ("lengthened-lab_code", "words.mean"),
             ("lengthened-lab_code", "words.min"),
+            ('quoted-lab_code', 'bytes.quoting'),
+            ('reversed-lab_code', 'rows.order'),
         ),
         "region": (
             ("emptied-region", "axes.quality_state"),
@@ -4077,6 +4299,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-bracketed-region", "suppressed.counts"),
             ("one-bracketed-region", "suppressed.suppressed_levels"),
             ("one-bracketed-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
     },
     "padded-codes": {
@@ -4084,12 +4307,22 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "code": (
             # THE CENSUS CATCHES WHAT THE FORMS MAP CANNOT, and this
@@ -4140,6 +4373,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crowded-code", "styles.spill"),
             ("crowded-code", "type.integer_valued"),
             ("marked-code", "type.std_unrepresentable"),
+            ('quoted-code', 'bytes.quoting'),
+            ('reversed-code', 'rows.order'),
         ),
     },
     # THE SATURATED COLUMN, whose grid holds exactly as many points as
@@ -4150,12 +4385,22 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("not-utf8", "columns.order"),
             ("not-utf8", "header.names"),
             ("not-utf8", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "reading": (
             ("vast-reading", "distinct.n_distinct_values"),
@@ -4204,6 +4449,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-reading", "styles.spill"),
             ("marked-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
         ),
     },
     "pooled": {
@@ -4211,12 +4457,22 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('byte-order-mark', 'bytes.byte-order-mark'),
             ('carriage-returns', 'bytes.line-endings'),
             ('no-terminal-newline', 'bytes.terminal-newline'),
-            ('not-utf8', 'bytes.utf8'),
+            ('not-utf8', 'bytes.encoding'),
             ('added-column', 'columns.n_columns'),
             ('not-utf8', 'columns.order'),
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         'reading': (
             ("marked-reading", "distinct.n_distinct_values"),
@@ -4267,6 +4523,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('marked-reading', 'type.integer_valued'),
             ('marked-reading', 'type.std_unrepresentable'),
             ('blanked-cell', 'widths.published.1'),
+            ('quoted-reading', 'bytes.quoting'),
         ),
     },
     "spelled": {
@@ -4274,12 +4531,22 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "reading": (
             ("marked-reading", "distinct.n_distinct_values"),
@@ -4300,8 +4567,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-reading", "distinct.n_distinct_folded"),
             ("one-fractioned-reading", "ladder.max"),
             ("one-zeroed-reading", "ladder.min"),
-            ("one-zeroed-reading", "ladder.p01"),
-            ("zeroed-reading", "ladder.p05"),
+            ("one-negated-reading", "ladder.p01"),
+            ("negated-reading", "ladder.p05"),
             ("crowded-reading", "ladder.p10"),
             ("crowded-reading", "ladder.p25"),
             ("crowded-reading", "ladder.p50"),
@@ -4325,6 +4592,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_upper-reading", "styles.spill"),
             ("vast-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
+            ('reversed-reading', 'rows.order'),
         ),
     },
     "quarters": {
@@ -4332,12 +4601,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('metadata-rows', 'bytes.header-rows'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "region": (
             ("emptied-region", "axes.quality_state"),
@@ -4360,7 +4642,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("recased-region", "levels.north.variants"),
             ("spaced-region", "levels.north.variants_withheld"),
             ("marked-region", "levels.set"),
-            ("blanked-region", "levels.south.count"),
+            ("marked-region", "levels.south.count"),
             ("rewritten-region", "levels.south.label"),
             ("reshaped-region", "levels.south.shape_form_cells"),
             ("recased-region", "levels.south.variants"),
@@ -4376,6 +4658,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-region", "suppressed.counts"),
             ("one-worded-region", "suppressed.suppressed_levels"),
             ("one-worded-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
         "when": (
             ("emptied-when", "axes.quality_state"),
@@ -4403,6 +4686,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-when", "precision.time_precision"),
             ("blanked-when", "presence.n_missing"),
             ("blanked-when", "presence.n_present"),
+            ('quoted-when', 'bytes.quoting'),
+            ('reversed-when', 'rows.order'),
         ),
     },
     "headerless": {
@@ -4410,9 +4695,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
         ),
         "column_1": (
             ("vast-column_1", "distinct.n_distinct_values"),
@@ -4463,6 +4757,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_lower-column_1", "styles.spill"),
             ("fractioned-column_1", "type.integer_valued"),
             ("vast-column_1", "type.std_unrepresentable"),
+            ('quoted-column_1', 'bytes.quoting'),
         ),
         "column_2": (
             ("emptied-column_2", "axes.quality_state"),
@@ -4500,6 +4795,32 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-column_2", "suppressed.counts"),
             ("one-worded-column_2", "suppressed.suppressed_levels"),
             ("one-worded-column_2", "suppressed.suppressed_rows"),
+            ('quoted-column_2', 'bytes.quoting'),
+        ),
+    },
+    # The written form's rules on the joined fixture (plan P4-D40).
+    'joined': {
+        '': (
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('metadata-rows', 'bytes.header-rows'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
+        ),
+        'clinic': (
+            ('quoted-clinic', 'bytes.quoting'),
+        ),
+        'reading': (
+            ('quoted-reading', 'bytes.quoting'),
+            ('reversed-reading', 'rows.order'),
         ),
     },
 }
@@ -4667,6 +4988,37 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- the file's written form (plan P4-D40): every rule is filed under
+    # one fact, on the document and on every column family alike.
+    ('numeric', 'rows.sequence'): 'document.source.dialect',
+    ('clock', 'bytes.quoting'): 'document.source.dialect',
+    ('compound', 'bytes.quoting'): 'document.source.dialect',
+    ('datetime', 'bytes.quoting'): 'document.source.dialect',
+    ('datetime', 'rows.order'): 'document.source.dialect',
+    ('document', 'bytes.blank-lines'): 'document.source.dialect',
+    ('document', 'bytes.delimiter'): 'document.source.dialect',
+    ('document', 'bytes.empty-rows'): 'document.source.dialect',
+    ('document', 'bytes.end-of-file-mark'): 'document.source.dialect',
+    ('document', 'bytes.escape'): 'document.source.dialect',
+    ('document', 'bytes.header-quoting'): 'document.source.dialect',
+    ('document', 'bytes.header-rows'): 'document.source.dialect',
+    ('document', 'bytes.initial-space'): 'document.source.dialect',
+    ('document', 'bytes.preamble'): 'document.source.dialect',
+    ('document', 'bytes.separator-line'): 'document.source.dialect',
+    ('document', 'bytes.short-rows'): 'document.source.dialect',
+    ('document', 'bytes.trailing-delimiter'): 'document.source.dialect',
+    ('document', 'bytes.written-names'): 'document.source.dialect',
+    ('empty', 'bytes.quoting'): 'document.source.dialect',
+    ('free_text', 'bytes.quoting'): 'document.source.dialect',
+    ('free_text', 'rows.order'): 'document.source.dialect',
+    ('identifier', 'bytes.quoting'): 'document.source.dialect',
+    ('identifier', 'rows.order'): 'document.source.dialect',
+    ('joined', 'bytes.quoting'): 'document.source.dialect',
+    ('joined', 'rows.order'): 'document.source.dialect',
+    ('label', 'bytes.quoting'): 'document.source.dialect',
+    ('numeric', 'bytes.quoting'): 'document.source.dialect',
+    ('numeric', 'rows.order'): 'document.source.dialect',
+    ('numeric_unrepresentable', 'bytes.quoting'): 'document.source.dialect',
     # -- compound: the FIFTEENTH role, whose sites are three groups at
     # once and are stated here by the rule that makes them so (contract
     # 9.4b, plan P4-D33). The column's universal counts are the
@@ -4915,7 +5267,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("document", "bytes.byte-order-mark"): "document.encoding",
     ("document", "bytes.line-endings"): "document.line-endings",
     ("document", "bytes.terminal-newline"): "document.line-endings",
-    ("document", "bytes.utf8"): "document.encoding",
+    ("document", "bytes.encoding"): "document.encoding",
     # REACHED BY NO ORDINARY RUN, and that is the point (review item
     # P3-V4-F6). Owner decision 7's byte form is filed only on the two
     # zero-row predicates, so a walk over the ordinary fixtures alone
@@ -6044,8 +6396,34 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
         # exactly as it does on the ordinary path. So the edit is a
         # single Latin-1 byte: a file that is not UTF-8, that the reader
         # accepts through its documented fallback, and that leaves
-        # `bytes.utf8` a verdict to reach.
-        ("zero-not-utf8", "bytes.utf8", b"\xff" + text.encode("utf-8")[1:]),
+        # `bytes.encoding` a verdict to reach.
+        ("zero-not-utf8", "bytes.encoding", b"\xff" + text.encode("utf-8")[1:]),
+        # THE WRITTEN FORM'S RULES ON THE DEGENERATE FORM (plan P4-D40):
+        # the delimiter, the space after it, the escaping, the separator
+        # hint, the end-of-file mark and the lines before the table are
+        # all shown by a file of no rows, with or without a header.
+        (
+            "zero-semicolons",
+            "bytes.delimiter",
+            text.replace(",", ";") if text else "a;b\n",
+        ),
+        (
+            "zero-spaced",
+            "bytes.initial-space",
+            text.replace(",", ", ") if text else "a, b\n",
+        ),
+        (
+            "zero-backslashed",
+            "bytes.escape",
+            '"a\\"b",' + text if text else '"a\\"b",c\n',
+        ),
+        ("zero-separator-line", "bytes.separator-line", "sep=,\n" + text),
+        ("zero-end-of-file-mark", "bytes.end-of-file-mark", text + "\x1a"),
+        (
+            "zero-preamble",
+            "bytes.preamble",
+            "Report of the extract\n" + text if text else "\n",
+        ),
         (
             "zero-nonempty",
             "bytes.zero-row-form",
@@ -6057,16 +6435,43 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             # A HEADERLESS ZERO-ROW FILE IS ZERO BYTES, so the one
             # structural thing it can get wrong is writing the names.
             ("zero-header-written", "header.presence", joined + "\n"),
-            # ...and its terminal newline is missed by the conforming
-            # file itself, which is recorded rather than dressed up:
-            # `dataclasses.replace` is the only way to build a zero-row
-            # description at all -- the producer refuses a zero-row
-            # table outright -- so this description carries the line
-            # ending fact of the twenty-row file it was cut down from.
-            ("zero-empty-file", "bytes.terminal-newline", ""),
+            ("zero-record-of-nothing", "bytes.empty-rows", ",\n"),
+            # ...and its line ending rules are missed by a line ending
+            # it does not have. Until plan P4-D40 the conforming file
+            # itself missed its terminal newline: a description cut down
+            # with `dataclasses.replace` kept the line-ending fact of the
+            # twenty-row file it came from. `fixtures.zero_rows` now gives
+            # it the zero-row form, so the empty file holds and this edit
+            # is what makes the rule miss.
+            ("zero-newline", "bytes.terminal-newline", "\r\n"),
         ]
     return built + [
         ("zero-no-terminal-newline", "bytes.terminal-newline", text[:-1]),
+        (
+            "zero-quoted-header",
+            "bytes.header-quoting",
+            ",".join('"' + name + '"' for name in names) + "\n",
+        ),
+        (
+            "zero-metadata-rows",
+            "bytes.header-rows",
+            text
+            + ",".join("q" for _name in names)
+            + "\n"
+            + ",".join('"{""ImportId"":""x""}"' for _name in names)
+            + "\n",
+        ),
+        (
+            "zero-blank-name",
+            "bytes.written-names",
+            ",".join(names[: len(names) - 1] + [""]) + "\n",
+        ),
+        ("zero-blank-line", "bytes.blank-lines", text + "\n"),
+        (
+            "zero-record-of-nothing",
+            "bytes.empty-rows",
+            text + ",".join("" for _name in names) + "\n",
+        ),
         (
             "zero-dropped-name",
             "columns.n_columns",
@@ -6102,18 +6507,18 @@ def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
     holds `_conforming_text`'s construction to the shipped reader,
     since a header line written the wrong way would miss here.
 
-    THE HEADERLESS FORM IS RECORDED RATHER THAN ASSERTED, and the
-    reason is not a defect in the validator. `synthtwin profile` refuses
-    a zero-row table outright, in both header modes, so no producer can
-    write a zero-row description and the only way to have one is to cut
-    an ordinary description down -- which leaves it carrying the line
-    ending fact of the file it was cut from. A file of no bytes then
-    misses `bytes.terminal-newline`, correctly, against a description
-    no producer would have written. That measurement is pinned as a red
-    case below rather than asserted away.
+    THE HEADERLESS FORM IS ASSERTED TOO, since plan P4-D40. `synthtwin
+    profile` refuses a zero-row table outright, in both header modes, so
+    the only way to have a zero-row description is to cut an ordinary one
+    down. Cut with `dataclasses.replace` alone it kept the written form
+    of the file it came from, and a file of no bytes then missed
+    `bytes.terminal-newline` against a description no producer would
+    have written, which this test used to record rather than assert.
+    `fixtures.zero_rows` cuts the written form down with the rows, so the
+    file of no bytes is the conforming file and must miss nothing.
     """
     for label, described, text, _sites in _predicate_sites(tmp_path, runs):
-        if label != "zero-rows-headered":
+        if label not in ZERO_ROW_PREDICATES:
             continue
         outcome = _measured(tmp_path, described, text, f"{label}-green.csv")
         bad = [
@@ -6125,7 +6530,8 @@ def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
             "the file this description asks for missed its own "
             f"obligations: {sorted(bad)}"
         )
-        assert len(outcome.checks) >= 9, len(outcome.checks)
+        if label == "zero-rows-headered":
+            assert len(outcome.checks) >= 9, len(outcome.checks)
 
 
 def test_the_predicate_walk_covers_every_predicate_that_file_names(

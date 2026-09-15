@@ -1912,6 +1912,30 @@ count and order; the header present exactly when
 `source.header_source` says so and its names read back byte for byte,
 including the quoted U+FEFF exception.
 
+**V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
+P4-D40). The first four rules above are no longer constants: each asks
+what `source.encoding` and `source.dialect` record — the encoding
+(`bytes.encoding`, once `bytes.utf8`), the mark, the line endings in file
+order and the last line's ending — and every other fact of the written
+form is a subcheck of its own under `document.source.dialect`: the
+delimiter, the space after it, the escaping, the separator line, the
+end-of-file mark, the preamble, the header's quoting, the metadata rows
+and their quoting, the header cells written blank or repeated, the
+trailing delimiters, left-out cells, blank lines, records holding
+nothing, and per column its quoting per cell class, its padding, a row
+sequence and the row order. Each is measured on the checked file by the
+reader's own survey, so a twin passes by being written the way its table
+was and the real table passes by being itself. A class of cells a column
+does not hold holds any quoting rule; `mixed` holds of any file; a
+published left-out-cells or backslash rule holds of a file with no cell
+that would show it; the line-ending rule compares only the order of
+endings where the file holds a different number of lines, which the row
+and blank-line rules answer for. Every one of these facts is published,
+so on a file the producer refuses they are WITHHELD. That supersedes the
+ruling of the plan's amendment A-P3-3 clause 6, by the test its
+amendment A-P3-5 clause 3 wrote down: the producer now publishes the
+line endings, the final newline and the mark about every file.
+
 **V6.3 The numeric-style identity** is contract 7.5.7's, clause by
 clause, with each published count a floor.
 

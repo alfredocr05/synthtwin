@@ -529,10 +529,13 @@ def test_a_repeated_name_is_reported_as_itself(
     # The other side of that order: pandas renames a repeated column to
     # "a.1", so comparing the two readings first would report a name
     # disagreement for a file whose real problem is the repeat.
+    # Since plan P4-D40 the repeat is not refused at all: it is named
+    # the way pandas names it and written back as it was -- and the
+    # order still matters, because pandas' own renaming is not reported
+    # as the two readers disagreeing about a name.
     target = _write(tmp_path, b"a,a\n1,2\n3,4\n")
-    with pytest.raises(errors.ProfileError) as caught:
-        reading.read_table(f"{target}")
-    assert "repeats the same column name" in f"{caught.value}"
+    table = reading.read_table(f"{target}")
+    assert table.column_names == ["a", "a.1"]
 
 
 # --------------------------------------------------------------------

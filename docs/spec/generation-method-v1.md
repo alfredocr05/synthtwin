@@ -97,18 +97,24 @@ implementer is tempted to breach:
 
 ## G2. The output bytes
 
-The twin is one CSV file. The exact byte-level rules, because "CSV" is
-not one format:
+The twin is one delimited text file, written the way the description
+records its source file was (owner ruling 2026-09-15, plan P4-D40;
+`source.encoding` and `source.dialect`, contract 4.3 and 4.3a). The
+exact byte-level rules, because "CSV" is not one format. For an
+ordinary source — UTF-8, comma, line feeds, minimal quoting, a final
+line ending — every row below reads as it did before P4-D40:
 
 | property | value |
 |---|---|
-| encoding | UTF-8, no byte-order mark |
-| line ending | LF (`\n`), on every line, including the last |
-| field separator | comma (U+002C) |
+| encoding | `source.encoding`, with a byte-order mark exactly when `source.dialect.byte_order_mark` |
+| line ending | each line takes the next ending of `line_endings`, in file order; the last line has none unless `final_line_ending`; an end-of-file mark follows where `end_of_file_mark` |
+| field separator | `delimiter`, followed by one space where `initial_space` |
 | quote character | `"` (U+0022) |
-| doubling | an embedded `"` is written twice inside a quoted field |
-| escape character | none |
-| quoting | minimal: a field is quoted when and only when it contains a comma, a quote character, a carriage return or a line feed — **plus the two canonical exceptions below** |
+| doubling | an embedded `"` is written twice inside a quoted field, or after a backslash where `escape` is `backslash` (and a backslash is then written after one too) |
+| escape character | none, or the backslash where `escape` is `backslash` |
+| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
+| lines that are not records | the `sep=` line, the `preamble` lines, the header, the `header_rows`, and `blank_lines` standing after `after` data records, in that order |
+| a record's width | a trailing delimiter where `trailing_delimiter` says so; trailing empty cells left out where `short_rows`; a padded column's cells padded with spaces to its width where shorter |
 | header row | written when `source.header_source` is `file`; not written when it is `generated` |
 | column order | the `columns` list order of the profile, which the contract fixes as the schema order (P2-D6, STRUCTURAL) |
 | row count | exactly the document-level `n_rows` data rows, not counting the header row when one is written |
@@ -131,9 +137,38 @@ cannot arise with two or more columns, because a row of absent cells is
 then written as one or more commas, which is not an empty line.
 
 **Every other cell is written as its exact text.** No trimming, no
-padding, no normalization, no locale, no alteration of a published
-label — including a label a spreadsheet would treat as a formula
-(P2-D10 and R-P2-6: counted and warned, never altered).
+padding but a padded column's, no normalization, no locale, no
+alteration of a published label — including a label a spreadsheet would
+treat as a formula (P2-D10 and R-P2-6: counted and warned, never
+altered).
+
+### G2.1 Where the rows stand (plan P4-D40)
+
+Three steps after every column is generated, drawing no word.
+
+1. **The row sequence.** A column whose `sequence_start` is not `null`
+   is written `start, start + 1, ...` in row order. It is written in
+   place of the column's generated cells before the column is measured,
+   so the report states what the file holds, and the words its plan drew
+   are still drawn.
+2. **The sort.** Where `row_order` names a column, whole rows are
+   permuted by that column's cells under the collation — a number read
+   by the method's number reader, a cell with none last, or the cell's
+   code points — ascending or descending, stably, so rows the key cannot
+   tell apart keep their generated order.
+3. **The records holding nothing.** Otherwise, in a table of two or more
+   columns, cells move only within one column so that exactly the
+   published number of rows hold nothing in every cell: `leading` at the
+   top, `trailing` at the bottom, `interior` spread evenly between; a
+   target row's cell holding something is exchanged for an empty cell of
+   the same column from the first non-target row that has one, and then
+   every other row left empty takes a cell from the first non-target row
+   that keeps something else. A row-sequence column is written in place
+   again last.
+
+Whole rows moving, and cells moving within one column, change no
+column's cells as a multiset, so no published fact of any column moves,
+and the twin carries no structure between columns for either to break.
 
 ## G3. The single stream: one generator, one draw shape, integer primitives
 

@@ -25,14 +25,14 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_missing": ("/data/table.csv",),
     "path_is_a_folder": ("/data",),
     "file_unreadable": ("/data/table.csv", "permission denied"),
-    "not_utf8_or_latin1": ("/data/table.csv",),
     "looks_like_utf16": ("/data/table.csv",),
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
     "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
-    "duplicate_column_names": (["age", "age"],),
-    "empty_column_name": (3,),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    "line_endings_change_too_often": ("/data/table.csv", 64),
+    "blank_lines_in_too_many_places": ("/data/table.csv", 64),
+    "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
     "readers_disagree": ("/data/table.csv", "12 rows", "13 rows"),
@@ -55,7 +55,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
-    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -442,7 +441,6 @@ CHECKED_FILE_FORMS = (
     "checked_file_readers_disagree_about_a_name",
     "checked_file_readers_disagree_about_a_value",
     "checked_file_unreadable_as_csv",
-    "checked_file_repeats_a_column_name",
 )
 
 

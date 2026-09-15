@@ -161,7 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import contract, errors, parsing, profile, reading, taxonomy
+from synthtwin import contract, dialect, errors, parsing, profile, reading, taxonomy
 
 
 # ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
@@ -471,6 +471,12 @@ _SATURATION = 1 << 62
 # fact a check names is one the registry carries. A third name added to
 # this tuple is a fact somebody took out of the registry's reach, which
 # is a decision a reviewer reads in the diff.
+# SINCE PLAN P4-D40 THE DESCRIPTION DOES STATE THEM: `source.encoding`
+# and `source.dialect` record how the table's file is written, and the
+# method writes the twin that way. The two names are kept for the four
+# rules that stood here before -- the encoding, the byte-order mark, the
+# line endings and the final newline -- and every rule added with them is
+# filed under the registry fact `source.dialect`.
 BYTE_RULE_FACTS = ("document.encoding", "document.line-endings")
 
 INPUT_SIDE_ENTRIES = (
@@ -3047,73 +3053,6 @@ def _read_fallback(place: pathlib.Path) -> str:
     return str(data, "latin-1")
 
 
-def _starts_with_a_mark(data: bytes) -> bool:
-    """True when the file's first bytes are a UTF-8 byte-order mark.
-
-    A column name that genuinely begins with U+FEFF is written QUOTED,
-    so the file's first byte is the quote and the mark that follows is
-    inside a field rather than in front of the file. That exception is
-    why this looks at the file's first three bytes and at nothing else.
-    """
-    return data[:3] == b"\xef\xbb\xbf"
-
-
-def _a_return_ends_a_line(text: str) -> bool:
-    """True when a carriage return in this file ends one of its lines.
-
-    THE OBLIGATION IS ABOUT LINE ENDINGS, AND A QUOTED RETURN IS NOT ONE
-    (review item P3-V3-F5's second witness, re-derived). This was
-    `\\r in the bytes`, and the method writes a carriage return inside a
-    quoted field whenever a published name or label holds one -- so the
-    twin the shipped renderer writes for such a description was reported
-    as carrying carriage returns, which is a conforming file told it
-    broke a rule it kept. What is checked is what V6.2 names: that the
-    file's RECORDS are ended by line feeds.
-
-    The walk is the CSV quoting rule and nothing more: a field is quoted
-    when it opens with a quote character, a doubled quote inside one is
-    a quote and not the end of the field, and everything outside a
-    quoted field is the file's own punctuation. A carriage return found
-    there ends a line.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a file's text was not text")
-    # A file with no carriage return in it at all has none ending a
-    # line, and that is nearly every file: the walk below is a character
-    # at a time and this settles the ordinary case in one pass at the
-    # language's own speed.
-    if text.find(_CARRIAGE_RETURN) < 0:
-        return False
-    inside = False
-    opening = True
-    skip = False
-    for index in range(len(text)):
-        if skip:
-            skip = False
-            continue
-        character = text[index]
-        if inside:
-            if character != _QUOTE:
-                continue
-            if text[index + 1 : index + 2] == _QUOTE:
-                skip = True
-                continue
-            inside = False
-            opening = False
-            continue
-        if character == _QUOTE and opening:
-            inside = True
-            opening = False
-            continue
-        if character == _CARRIAGE_RETURN:
-            return True
-        if character == _COMMA or character == _LINE_FEED:
-            opening = True
-            continue
-        opening = False
-    return False
-
-
 # WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
 # `_first_line` returned the text up to the first line feed, and it was
 # the whole of the zero-row byte check: one physical line, ending in a
@@ -3202,7 +3141,9 @@ def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
     return lines
 
 
-def _records_of(text: str) -> "list[list[str]]":
+def _records_of(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[list[str]]":
     """Every record the file holds, read as `reading` reads them.
 
     WHY THIS IS A RECORD WALK AND NOT A LINE (review items P3-V2-D-F1
@@ -3231,11 +3172,13 @@ def _records_of(text: str) -> "list[list[str]]":
     - Determinism: a fixed function of that text.
     - Errors raised: none.
     """
-    records, _whole = _walked(text)
+    records, _whole = _walked(text, form)
     return records
 
 
-def _walked(text: str) -> "tuple[list[list[str]], bool]":
+def _walked(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "tuple[list[list[str]], bool]":
     """The records, and whether the walk reached the end of the file.
 
     THIS STANDS IN FOR THE READER, SO IT READS UNDER THE READER'S OWN
@@ -3271,7 +3214,14 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     try:
         csv.field_size_limit(reading.FIELD_SIZE_LIMIT)
         try:
-            for row in csv.reader(_split_lines(text)):
+            backslash = form is not None and form.escape == dialect.ESCAPE_BACKSLASH
+            for row in csv.reader(
+                _split_lines(text),
+                delimiter="," if form is None else form.delimiter,
+                doublequote=not backslash,
+                escapechar="\\" if backslash else None,
+                skipinitialspace=form is not None and form.initial_space,
+            ):
                 if not row:
                     # A blank line carries no values, exactly as
                     # `reading._read_streamed` drops it.
@@ -3284,7 +3234,9 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     return (records, True)
 
 
-def _first_record(text: str) -> "list[str]":
+def _first_record(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[str]":
     """The names the file's first RECORD holds, as the READER reads it.
 
     It has to reach the answer `read_table` would reach, which is why
@@ -3296,10 +3248,22 @@ def _first_record(text: str) -> "list[str]":
     (V9) -- with a measured name in the refusal, which is the fault
     review item P3-V2-D-F1 was found on.
     """
-    records = _records_of(_without_a_mark(text))
-    if not records:
+    records = _records_of(_without_a_mark(text), form)
+    lead = _lead_records(form)
+    if len(records) <= lead:
         return []
-    return records[0]
+    return records[lead]
+
+
+def _lead_records(form: "dialect.Dialect | None") -> int:
+    """How many non-blank records stand before the header: hint and preamble."""
+    if form is None:
+        return 0
+    lead = 1 if form.separator_line else 0
+    for line in form.preamble:
+        if line:
+            lead = lead + 1
+    return lead
 
 
 def _without_the_last_break(text: str) -> str:
@@ -3327,7 +3291,9 @@ def _without_the_last_break(text: str) -> str:
 # over every class of name the loader admits.
 
 
-def _canonical_record(cells: "list[str]") -> str:
+def _canonical_record(
+    cells: "list[str]", form: "dialect.Dialect | None" = None
+) -> str:
     """One record as method G2 writes it, without its line ending.
 
     Fields are joined by a comma; each is written by `_canonical_field`;
@@ -3339,16 +3305,23 @@ def _canonical_record(cells: "list[str]") -> str:
     """
     if len(cells) == 1 and not cells[0]:
         return _QUOTE + _QUOTE
+    delimiter = _COMMA if form is None else form.delimiter
+    separator = delimiter
+    if form is not None and form.initial_space:
+        separator = delimiter + " "
+    every = form is not None and form.header_quoting == dialect.QUOTE_ALWAYS
     text = ""
     for place in range(len(cells)):
         if place:
-            text = text + _COMMA
-        always = place == 0 and cells[place][:1] == _BYTE_ORDER_MARK
-        text = text + _canonical_field(cells[place], always)
+            text = text + separator
+        always = every or (place == 0 and cells[place][:1] == _BYTE_ORDER_MARK)
+        text = text + _canonical_field(cells[place], always, delimiter)
+    if form is not None and form.header_trailing_delimiter:
+        text = text + delimiter
     return text
 
 
-def _canonical_field(cell: str, always: bool) -> str:
+def _canonical_field(cell: str, always: bool, delimiter: str = _COMMA) -> str:
     """One cell as method G2 writes it.
 
     Quoted when and only when it holds a comma, a quote character, a
@@ -3362,7 +3335,7 @@ def _canonical_field(cell: str, always: bool) -> str:
         if character == _QUOTE:
             quoted = True
             special = True
-        elif character in _MUST_BE_QUOTED:
+        elif character in _MUST_BE_QUOTED or character == delimiter:
             special = True
     if not special and not always:
         return cell
@@ -4333,7 +4306,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
         ) from error
-    checks = _byte_checks(description, data, text, headed, as_read, False)
+    checks = _byte_checks(description, data, table.survey, False)
     checks = checks + _structure_checks(description, table, headed)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
     # 2026-08-16; plan amendment A-P3-26). Asked once, of the
@@ -4469,7 +4442,7 @@ def _degenerate_report(
     - Errors raised: none.
     """
     return _assembled(
-        _byte_checks(description, data, text, headed, as_read, False)
+        _byte_checks(description, data, _surveyed_quietly(data, headed), False)
         + [_zero_row_form(description, data, text, headed)]
         + _zero_row_structure(description, text, headed),
         _zero_row_listings(description, headed),
@@ -4516,7 +4489,7 @@ def _report_on_a_refused_file(
       file, so nothing reaches that; re-raising rather than assuming is
       what keeps the assumption from becoming a wrong report.
     """
-    byte_rules = _byte_checks(description, data, text, headed, as_read, True)
+    byte_rules = _byte_checks(description, data, None, True)
     if refusal.kind == errors.NO_DATA_TO_DESCRIBE:
         return _assembled(
             byte_rules + _no_rows_at_all(description, headed),
@@ -4710,85 +4683,634 @@ def _assembled(
 # -- V6.2 and V6.4: the byte rules ------------------------------------
 
 
+# The fact every rule about the file's written form is filed under, beside
+# the two byte-rule names the four oldest rules keep (plan P4-D40).
+_DIALECT_FACT = "document.source.dialect"
+
+_RULE_WORDS = {
+    dialect.QUOTE_NEEDED: "quoted where a reader needs it",
+    dialect.QUOTE_BARE: "quoted only where a value could not be read back otherwise",
+    dialect.QUOTE_ALWAYS: "every one quoted",
+    dialect.QUOTE_MIXED: "quoted in no single way",
+}
+_CLASS_WORDS = {
+    dialect.CELL_ABSENT: "absent-value spellings",
+    dialect.CELL_EMPTY: "empty cells",
+    dialect.CELL_NUMBER: "numbers",
+    dialect.CELL_TEXT: "other text",
+}
+
+
+def _encoding_found(data: bytes, encoding: str) -> str:
+    """What the bytes are, in the words the published encoding is asked in.
+
+    A file holds the published encoding when its bytes decode under it --
+    UTF-16 behind its own mark -- and, for a Western European encoding,
+    when they are not UTF-8 text beyond ASCII, which is the twin's old
+    defect: written as UTF-8 whatever the table was.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    words = dialect.ENCODING_WORDS[encoding]
+    if encoding == dialect.ENCODING_UTF16_LE and data[:2] != b"\xff\xfe":
+        return f"not {words}"
+    if encoding == dialect.ENCODING_UTF16_BE and data[:2] != b"\xfe\xff":
+        return f"not {words}"
+    try:
+        str(data, dialect.READING_CODECS[encoding])
+    except UnicodeDecodeError:
+        return f"not {words}"
+    if encoding in dialect.FALLBACK_ENCODINGS:
+        try:
+            str(data, "ascii")
+        except UnicodeDecodeError:
+            try:
+                str(data, "utf-8")
+            except UnicodeDecodeError:
+                return f"written as {words}"
+            return f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
+    return f"written as {words}"
+
+
+def _mark_words(marked: bool) -> str:
+    return "a byte-order mark" if marked else "no byte-order mark"
+
+
+def _final_words(ended: bool) -> str:
+    return "a newline at the end" if ended else "no newline at the end"
+
+
+def _ending_words(
+    runs: "tuple[dialect.EndingRun, ...]", counted: bool
+) -> str:
+    """Line endings in file order; with their line counts where ``counted``."""
+    if not runs:
+        return "no line endings"
+    if len(runs) == 1:
+        return f"{dialect.ENDING_WORDS[runs[0].ending]} endings"
+    text = ""
+    for run in runs:
+        piece = f"{dialect.ENDING_WORDS[run.ending]} endings"
+        if counted:
+            piece = f"{piece} on {run.lines} lines"
+        text = piece if not text else f"{text}, then {piece}"
+    return text
+
+
+def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
+    if not places:
+        return "no blank lines"
+    text = ""
+    for place in places:
+        piece = f"{place.lines} after record {place.after}"
+        if place.text:
+            piece = f"{piece}, holding spaces or tabs"
+        text = piece if not text else f"{text}; {piece}"
+    return f"blank lines: {text}"
+
+
+def _quoting_words(rules: "tuple[str, ...]") -> str:
+    text = ""
+    for index in range(len(dialect.CELL_CLASSES)):
+        piece = (
+            f"{_CLASS_WORDS[dialect.CELL_CLASSES[index]]} "
+            f"{_RULE_WORDS[rules[index]]}"
+        )
+        text = piece if not text else f"{text}; {piece}"
+    return text
+
+
+def _quoting_holds(
+    rules: "tuple[str, ...]", surveyed: dialect.Survey, index: int
+) -> bool:
+    """Whether a column's cells are quoted by the published rule per class.
+
+    A class the column holds no cell of holds any rule. The survey says
+    which rules each class of a checked column agrees with; where it did
+    not tell the classes apart -- a column quoted all one way -- a rule
+    it rules out is an obligation missed only if the column really holds
+    a cell of that class.
+    """
+    held = surveyed.quoting_holds[index]
+    present: "dict[str, bool] | None" = None
+    for place in range(len(dialect.CELL_CLASSES)):
+        rule = rules[place]
+        if rule == dialect.QUOTE_MIXED or rule in held[place]:
+            continue
+        if not surveyed.classified[index]:
+            if present is None:
+                present = {}
+                for cell in surveyed.columns[index]:
+                    present[dialect.cell_class(cell)] = True
+            if dialect.CELL_CLASSES[place] not in present:
+                continue
+        return False
+    return True
+
+
+def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
+    """What a file of no bytes shows about each fact of a written form."""
+    return dataclasses.replace(
+        form,
+        byte_order_mark=False,
+        line_endings=(),
+        final_line_ending=False,
+        end_of_file_mark=False,
+        separator_line=False,
+        preamble=(),
+        preamble_withheld=False,
+        header_rows=(),
+        written_names=(),
+        header_trailing_delimiter=False,
+        rows_trailing_delimiter=False,
+        short_rows=False,
+        blank_lines=(),
+        empty_rows_leading=0,
+        empty_rows_interior=0,
+        empty_rows_trailing=0,
+    )
+
+
+def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
+    """What a file holding no record shows of a written form, off its bytes.
+
+    The survey of such a file stops at its first question -- it holds no
+    record to take as the names or as data -- and yet its mark, its
+    lines, their endings, a separator hint and an end-of-file mark are
+    all there to be read. Every other fact is shown by records alone,
+    and is given the description's own value, which no such file can
+    contradict.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    marked = data[:3] == b"\xef\xbb\xbf" or data[:2] in (b"\xff\xfe", b"\xfe\xff")
+    try:
+        text = str(data, "utf-8")
+    except UnicodeDecodeError:
+        text = str(data, "latin-1")
+    if text[:1] == _BYTE_ORDER_MARK:
+        text = text[1:]
+    ended = text[len(text) - 1 :] == "\x1a"
+    if ended:
+        text = text[: len(text) - 1]
+    hinted = text[:4] == "sep=" and len(text) >= 5
+    runs: list[dialect.EndingRun] = []
+    blanks: list[str] = []
+    lines = dialect.physical_lines(text)
+    for index in range(len(lines)):
+        line = lines[index]
+        if line[len(line) - 2 :] == "\r\n":
+            word = "crlf"
+        elif line[len(line) - 1 :] == "\n":
+            word = "lf"
+        elif line[len(line) - 1 :] == "\r":
+            word = "cr"
+        else:
+            word = ""
+        if not (hinted and index == 0):
+            blanks += [""]
+        if not word:
+            continue
+        last = len(runs) - 1
+        if last >= 0 and runs[last].ending == word:
+            runs[last] = dialect.EndingRun(ending=word, lines=runs[last].lines + 1)
+        else:
+            runs += [dialect.EndingRun(ending=word, lines=1)]
+    final = text[len(text) - 1 :] in ("\n", "\r") and bool(text)
+    return dataclasses.replace(
+        _nothing_written(form),
+        byte_order_mark=marked,
+        line_endings=tuple(runs),
+        final_line_ending=final,
+        end_of_file_mark=ended,
+        separator_line=hinted,
+        preamble=tuple(blanks),
+    )
+
+
+def _surveyed_quietly(data: bytes, headed: bool) -> "dialect.Survey | None":
+    """The survey of a file the reader refused, or None where it has none.
+
+    The zero-row form's conforming file is one the reader refuses for
+    holding no rows, and its bytes still have a written form.
+    """
+    if not data:
+        return None
+    try:
+        text, encoding, marked = dialect.decoded(data, "")
+        return dialect.settle(text, encoding, marked, not headed, "")
+    except errors.ProfileError:
+        return None
+
+
 def _byte_checks(
     description: contract.Profile,
     data: bytes,
-    text: "str | None",
-    headed: bool,
-    as_read: str,
+    surveyed: "dialect.Survey | None",
     refused: bool,
 ) -> "list[Check]":
-    """Every rule about the file's bytes, each one able to fail.
+    """Every rule about the file's written form, each one able to fail.
 
-    ``as_read`` is the file in the encoding the READER settled on, and
-    it is what the line-ending rule is asked about: which characters are
-    line endings is a question about records, and only the text the
-    reader read can answer it.
+    THE FORM IS PUBLISHED, SO EVERY RULE HERE IS HELD TO THE DESCRIPTION
+    (owner ruling 2026-09-15, plan P4-D40). These rules used to be
+    constants -- UTF-8, line feeds, a newline at the end, no byte-order
+    mark -- which the description recorded nowhere, and a twin written
+    that way passed while code developed on it failed on the real table.
+    Each is now what `source.encoding` and `source.dialect` record,
+    measured on the checked file by the reader's own survey
+    (`surveyed`), so a twin passes by being written the way its table
+    was and the real table passes by being itself.
 
-    ``refused`` says the producer would refuse this file, and exactly ONE
-    of these four rules is gated on it (review item P3-V3-F3). Which
-    encoding a file was read under is a fact the producer PUBLISHES --
-    `source.encoding`, and `used_fallback_encoding` beside it -- so on a
-    file it publishes nothing about, stating it states what describing
-    that file never would (V5.1). The other three are not published about
-    any file at any count, which is the test amendment A-P3-3 clause 6
-    ruled them outside the envelope on and A-P3-5 clause 3 wrote down:
-    no cell, no name, no count and no person is in a line ending, a
-    terminal newline or a byte-order mark.
+    ``refused`` says the producer would refuse this file. Every one of
+    these facts is one the producer publishes, so on a file it publishes
+    nothing about, stating them states what describing that file never
+    would (V5.1), and every rule here is WITHHELD there. That supersedes
+    the ruling of amendment A-P3-3 clause 6, which kept the line endings
+    and the final newline outside the envelope on the ground that the
+    producer published them about no file, by the test amendment A-P3-5
+    clause 3 wrote down: it publishes them about every file now.
+
+    The four rules that stood here before keep their names --
+    `bytes.encoding` (once `bytes.utf8`), `bytes.byte-order-mark`,
+    `bytes.line-endings` and `bytes.terminal-newline` -- and the rest are
+    filed under `document.source.dialect`. The line-ending rule compares
+    which ending each line has; where the file holds a different number
+    of lines, which the row and blank-line rules answer for, it compares
+    the endings' order alone rather than accusing the file twice (V3.6).
     """
+    form = description.source.dialect
+    encoding = description.source.encoding
+    headed = description.source.header_source == reading.HEADER_FROM_FILE
+    measured = surveyed.form if surveyed is not None else _bare_form(form, data)
+    if refused:
+        measured = form
+    same_count = sum([run.lines for run in form.line_endings]) == sum(
+        [run.lines for run in measured.line_endings]
+    )
+    escape = measured.escape
+    if (
+        form.escape == dialect.ESCAPE_BACKSLASH
+        and escape == dialect.ESCAPE_DOUBLED
+        and (surveyed is None or surveyed.escapes == 0)
+    ):
+        escape = form.escape
+    header_found = _RULE_WORDS[form.header_quoting]
+    if (
+        surveyed is not None
+        and headed
+        and form.header_quoting != dialect.QUOTE_MIXED
+        and form.header_quoting not in surveyed.header_holds
+    ):
+        header_found = _RULE_WORDS[measured.header_quoting]
+    preamble_held = len(measured.preamble) == len(form.preamble)
+    if preamble_held:
+        for index in range(len(form.preamble)):
+            found = measured.preamble[index]
+            if form.preamble_withheld:
+                found = dialect.withheld_line(found)
+            if found != form.preamble[index]:
+                preamble_held = False
+    short_found = measured.short_rows
+    if form.short_rows and surveyed is not None and surveyed.short_vacuous:
+        short_found = True
+    delimiter_words = "fields separated by"
     checks = [
-        Check(
+        _exact(
             "",
             "document.encoding",
-            "bytes.utf8",
-            WITHHELD,
-            "written as UTF-8",
-            "",
-            _GATE_REFUSED,
-        )
-        if refused
-        else _exact(
-            "",
-            "document.encoding",
-            "bytes.utf8",
-            "written as UTF-8",
-            "written as UTF-8" if text is not None else "not UTF-8",
+            "bytes.encoding",
+            f"written as {dialect.ENCODING_WORDS[encoding]}",
+            _encoding_found(data, encoding),
         ),
         _exact(
             "",
             "document.encoding",
             "bytes.byte-order-mark",
-            "no byte-order mark",
-            (
-                "a byte-order mark"
-                if _starts_with_a_mark(data)
-                else "no byte-order mark"
-            ),
+            _mark_words(form.byte_order_mark),
+            _mark_words(measured.byte_order_mark),
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.line-endings",
-            "line feed endings",
-            (
-                "carriage returns"
-                if _a_return_ends_a_line(as_read)
-                else "line feed endings"
-            ),
+            _ending_words(form.line_endings, same_count),
+            _ending_words(measured.line_endings, same_count),
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.terminal-newline",
-            "a newline at the end",
-            (
-                "a newline at the end"
-                if data[len(data) - 1 :] == b"\n"
-                else "no newline at the end"
-            ),
+            _final_words(form.final_line_ending),
+            _final_words(measured.final_line_ending),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.delimiter",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[form.delimiter]}",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[measured.delimiter]}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.initial-space",
+            "one space after each delimiter"
+            if form.initial_space
+            else "nothing between a delimiter and the next field",
+            "one space after each delimiter"
+            if measured.initial_space
+            else "nothing between a delimiter and the next field",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.escape",
+            f"a quote inside a quoted field written {form.escape}",
+            f"a quote inside a quoted field written {escape}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.separator-line",
+            "a separator line first" if form.separator_line else "no separator line",
+            "a separator line first"
+            if measured.separator_line
+            else "no separator line",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.end-of-file-mark",
+            "an end-of-file mark after the last line"
+            if form.end_of_file_mark
+            else "no end-of-file mark",
+            "an end-of-file mark after the last line"
+            if measured.end_of_file_mark
+            else "no end-of-file mark",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.preamble",
+            f"{len(form.preamble)} line(s) before the table, as published",
+            preamble_held,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-quoting",
+            f"the header's cells {_RULE_WORDS[form.header_quoting]}",
+            f"the header's cells {header_found}",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-rows",
+            f"{len(form.header_rows)} row(s) describing the columns under "
+            f"the names, as published",
+            measured.header_rows == form.header_rows,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.written-names",
+            f"{len(form.written_names)} header cell(s) written blank or "
+            f"repeated, as published",
+            measured.written_names == form.written_names,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.trailing-delimiter",
+            _trailing_words(form),
+            _trailing_words(measured),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.short-rows",
+            "empty cells at the end of a record left out"
+            if form.short_rows
+            else "every record written to its last cell",
+            "empty cells at the end of a record left out"
+            if short_found
+            else "every record written to its last cell",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.blank-lines",
+            _blank_words(form.blank_lines),
+            _blank_words(measured.blank_lines),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.empty-rows",
+            _empty_row_words(form),
+            _empty_row_words(measured),
         ),
     ]
-    return checks
+    # A RULE NO FILE COULD MISS IS NOT FILED (V3.4). A headerless file
+    # has no header to quote, name as written, put metadata rows under or
+    # end with a delimiter; a description of no rows has no cell to
+    # quote, sort or leave out, and the survey decides a trailing
+    # delimiter from the first record; a headerless file of no rows
+    # cannot tell a blank line from the lines before its table; and a
+    # table of one column holds no record of nothing.
+    unfiled: set[str] = set()
+    if not headed:
+        unfiled = unfiled | {
+            "bytes.header-quoting",
+            "bytes.header-rows",
+            "bytes.written-names",
+            "bytes.trailing-delimiter",
+        }
+    if description.n_rows == 0:
+        unfiled = unfiled | {"bytes.short-rows", "bytes.trailing-delimiter"}
+        if not headed:
+            unfiled = unfiled | {"bytes.blank-lines"}
+    if description.n_columns < 2:
+        # One column: no record of nothing, no cell left out at the end
+        # of a record, and no row of column descriptions under the name.
+        unfiled = unfiled | {
+            "bytes.empty-rows",
+            "bytes.short-rows",
+            "bytes.header-rows",
+        }
+    checks = [check for check in checks if check.subcheck not in unfiled]
+    if form.header_rows:
+        metadata_found = _RULE_WORDS[form.header_rows_quoting]
+        if (
+            surveyed is not None
+            and form.header_rows_quoting != dialect.QUOTE_MIXED
+            and form.header_rows_quoting not in surveyed.header_rows_holds
+        ):
+            metadata_found = _RULE_WORDS[measured.header_rows_quoting]
+        checks += [
+            _exact(
+                "",
+                _DIALECT_FACT,
+                "bytes.header-rows-quoting",
+                _RULE_WORDS[form.header_rows_quoting],
+                metadata_found,
+            )
+        ]
+    if description.n_rows == 0:
+        return _withheld_if(checks, refused)
+    # EVERY DESCRIBED COLUMN FILES ITS OWN, whatever the file holds: the
+    # set of obligations is a function of the description (V3.1), so a
+    # file whose columns do not line up with the description's misses
+    # them rather than losing them.
+    aligned = (
+        not refused
+        and surveyed is not None
+        and len(surveyed.columns) == len(description.columns)
+    )
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        column = form.columns[index]
+        if not aligned or surveyed is None:
+            checks += _unaligned_column_checks(name, column)
+            continue
+        measured_column = surveyed.form.columns[index]
+        held = _quoting_holds(column.quoting, surveyed, index)
+        checks += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.quoting",
+                _quoting_words(column.quoting),
+                _quoting_words(column.quoting if held else measured_column.quoting),
+            )
+        ]
+        if column.pad_side:
+            asked = f"padded on the {column.pad_side} to {column.pad_width} characters"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "bytes.padding",
+                    asked,
+                    asked
+                    if (measured_column.pad_side, measured_column.pad_width)
+                    == (column.pad_side, column.pad_width)
+                    else "not padded to that width",
+                )
+            ]
+        if column.sequence_start >= 0:
+            asked = f"the row sequence from {column.sequence_start}"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "rows.sequence",
+                    asked,
+                    asked
+                    if measured_column.sequence_start == column.sequence_start
+                    else "not the row sequence",
+                )
+            ]
+    order = form.row_order
+    if order.column and order.column <= len(description.columns):
+        asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
+        held = aligned and surveyed is not None and dialect.holds_order(
+            surveyed.columns[order.column - 1], order
+        )
+        checks += [
+            _exact(
+                description.columns[order.column - 1].name,
+                _DIALECT_FACT,
+                "rows.order",
+                asked,
+                asked if held else "rows not in that order",
+            )
+        ]
+    return _withheld_if(checks, refused)
+
+
+def _withheld_if(checks: "list[Check]", refused: bool) -> "list[Check]":
+    """Every check WITHHELD where the producer refuses the file, else as is.
+
+    The per-column and row-order rules are filed on a refused file too,
+    so the obligations a report states stay a function of the
+    description (V3.1); none of them is stated there (V5.1).
+    """
+    if not refused:
+        return checks
+    return [
+        Check(
+            check.column,
+            check.fact,
+            check.subcheck,
+            WITHHELD,
+            check.published,
+            "",
+            _GATE_REFUSED,
+        )
+        for check in checks
+    ]
+
+
+def _unaligned_column_checks(
+    name: str, column: dialect.ColumnForm
+) -> "list[Check]":
+    """A column's form checks, on a file whose columns do not line up.
+
+    Nothing can be measured of a column the file does not hold where the
+    description places it, and saying so is a miss: the obligation is
+    filed, and the file does not meet it.
+    """
+    unlined = "the file's columns do not line up with the description's"
+    found = [
+        _exact(
+            name,
+            _DIALECT_FACT,
+            "bytes.quoting",
+            _quoting_words(column.quoting),
+            unlined,
+        )
+    ]
+    if column.pad_side:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.padding",
+                f"padded on the {column.pad_side} to {column.pad_width} characters",
+                unlined,
+            )
+        ]
+    if column.sequence_start >= 0:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "rows.sequence",
+                f"the row sequence from {column.sequence_start}",
+                unlined,
+            )
+        ]
+    return found
+
+
+def _trailing_words(form: dialect.Dialect) -> str:
+    header = "a delimiter" if form.header_trailing_delimiter else "no delimiter"
+    rows = "a delimiter" if form.rows_trailing_delimiter else "no delimiter"
+    return f"{header} ending the header line, {rows} ending each record"
+
+
+def _empty_row_words(form: dialect.Dialect) -> str:
+    total = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if not total:
+        return "no record holding nothing"
+    return (
+        f"records holding nothing: {form.empty_rows_leading} first, "
+        f"{form.empty_rows_interior} between, {form.empty_rows_trailing} last"
+    )
 
 
 def _zero_row_form(
@@ -4848,7 +5370,8 @@ def _zero_row_form(
     if text is None:
         return Check("", fact, subcheck, MISSED, published, "not UTF-8")
     body = _without_a_mark(text)
-    records = _records_of(body)
+    form = description.source.dialect
+    records = _records_of(body, form)[_lead_records(form) :]
     if len(records) != 1:
         return _silent(
             "",
@@ -4858,7 +5381,7 @@ def _zero_row_form(
             False,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
-    written = _canonical_record(records[0])
+    written = _canonical_record(records[0], form)
     return _silent(
         "",
         fact,
@@ -4897,7 +5420,11 @@ def _zero_row_structure(
     - Errors raised: none.
     """
     names = [column.name for column in description.columns]
-    found = _first_record(text) if text is not None else []
+    found = (
+        _first_record(text, description.source.dialect)
+        if text is not None
+        else []
+    )
     if not headed:
         return [
             _exact(

@@ -2396,7 +2396,14 @@ def test_a_repeated_header_name_is_a_verdict_and_names_no_value(
 def test_a_blank_header_name_is_a_verdict_and_names_the_position(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The other unusable first row, and it names WHICH column."""
+    """A blank header cell, which the reader used to refuse.
+
+    Since plan P4-D40 the reader names such a column `Unnamed: N` and
+    publishes the cell as written, so the file is read and reported on
+    like any other: its names miss against the description's, and the
+    header cell it writes blank misses the written-names rule. The
+    report no longer names a column number, because no refusal does.
+    """
     folder = tmp_path / "blank"
     folder.mkdir()
     described = _describe(
@@ -2418,7 +2425,12 @@ def test_a_blank_header_name_is_a_verdict_and_names_the_position(
     ]
     assert len(found) == 1
     assert found[0].verdict == validation.MISSED
-    assert found[0].achieved == "no name at column number 2"
+    written = [
+        check
+        for check in outcome.checks
+        if check.subcheck == "bytes.written-names"
+    ]
+    assert [check.verdict for check in written] == [validation.MISSED]
 
 
 def test_the_header_question_is_settled_on_the_first_RECORD(

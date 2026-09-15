@@ -359,7 +359,7 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
         (
             "no rows, two lines",
             validation.measure(
-                dataclasses.replace(counted, n_rows=0), f"{two_lines}"
+                fixtures.zero_rows(counted), f"{two_lines}"
             ),
         )
     ]

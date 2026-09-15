@@ -303,8 +303,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # to every numeric block; part two added `all_at_midnight: false` and
 # `datetime_separators: {}` to `recorded_on`, the one datetime column.
 # Read as a diff of the two documents: nothing else moved.
+# RE-RECORDED 2026-09-15 for plan P4-D40 (owner ruling: the twin is
+# written the way the source file was). `source` gained ONE key,
+# `dialect`, the written form of the demonstration file: a comma, UTF-8
+# with no mark, line feeds on every line, minimal quoting in every
+# column, and the rows sorted by `record_code`. HOW IT WAS CHECKED, by
+# this file's own procedure: the new document written out again with
+# that one key deleted hashes to the digest this one replaces --
+# dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf
+# -- so the single added key is the whole of the difference.
 GOLDEN_SHA256 = (
-    "dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf"
+    "37db1d0303a771bfae871bb1ea30c4e8597b4b00b037a3c6f5169786fbdd3aca"
 )
 
 

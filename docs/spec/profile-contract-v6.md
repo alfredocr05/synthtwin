@@ -657,21 +657,22 @@ written. A loader refuses an empty name and refuses a repeated one.
 
 ### 4.3 STRUCTURAL rules for `source`
 
-`source` is an object with exactly these five keys and no others.
+`source` is an object with exactly these six keys and no others.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `encoding` | string | `utf-8-sig`, `latin-1` | the encoding that read the table | REPORT-ONLY |
+| `dialect` | object | section 4.3a | how the table's file is written: its delimiter, quoting, line endings and the lines that are not records | EXACT-CONTROL |
+| `encoding` | string | `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`, `utf-16-be` | the encoding that read the table, which the twin is written in | REPORT-ONLY |
 | `used_fallback_encoding` | boolean | — | true when the fallback rather than the primary encoding read the file | REPORT-ONLY |
 | `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: no names were in the file and synthtwin named the columns `column_1`, `column_2`, … | EXACT-CONTROL |
 | `header_by_convention` | boolean | — | true when the first row was taken as names because nothing in the file said otherwise, rather than because the file showed it | REPORT-ONLY, with a required sentence |
 | `header_evidence` | string | any non-empty text | the header verdict in one plain sentence | REPORT-ONLY, with a required sentence |
 
-**Membership rule.** All five keys are REQUIRED. No other key may
+**Membership rule.** All six keys are REQUIRED. No other key may
 appear under `source`.
 
 **Invariant S5.** `used_fallback_encoding` is true exactly when
-`encoding` is `latin-1`.
+`encoding` is `latin-1` or `cp1252`.
 
 **Invariant S6.** `header_by_convention` may be true only when
 `header_source` is `file`. Generated names are not a convention about
@@ -683,6 +684,67 @@ names may in fact be a first data row of the real table rather than
 names — not merely that a header was written. Phase 1's R1 residual is
 exactly this uncertainty, and a report that says only "a header was
 written" hides a warning the profile is carrying (plan P2-D6).
+
+### 4.3a EXACT-CONTROL: `source.dialect`, the table's written form
+
+Owner ruling 2026-09-15, plan P4-D40: the twin is written the way its
+source file was. `dialect` is an object with exactly these nineteen keys,
+all REQUIRED; the loader is the executable statement of every rule
+below (`contract._dialect_block`, `contract._dialect_rules`).
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs) |
+| `byte_order_mark` | boolean | — | a byte-order mark leads the file |
+| `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence |
+| `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand |
+| `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
+| `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
+| `final_line_ending` | boolean | — | the last line ends with a line ending |
+| `header_quoting` | string | a quoting rule | how the header's cells are quoted |
+| `header_rows` | array of arrays of strings | none, or two | the metadata rows a survey export writes under the names, one cell per column |
+| `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
+| `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs |
+| `preamble` | array of strings | at most 16 | the lines before the header or first record, as written, or as stand-ins |
+| `preamble_withheld` | boolean | — | the preamble is published as stand-ins |
+| `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`; `ascending`, `descending` | the leftmost column the rows are sorted by |
+| `separator_line` | boolean | — | an Excel `sep=` line comes first |
+| `short_rows` | boolean | — | records leave out their trailing empty cells |
+| `trailing_delimiter` | object `{header, rows}` | booleans | a delimiter ends the header line, each record |
+| `written_names` | array of objects `{position, text}` | — | header cells written other than their column's name: blank or repeated, named `Unnamed: N` (N counted from 0) or with `.1`, `.2` after them |
+
+**Invariants FD1-FD11** (`contract.INVARIANTS`): FD1 one column form per
+column; FD2 the line endings account for every line the file holds, in
+runs that each end their lines one way; FD3 a mark only on UTF-8 or
+UTF-16, and always on UTF-16; FD4 blank lines in file order, within the
+table, spaces and tabs only, and in a one-column table only after its
+last record, within their caps; FD5 records holding nothing only in a
+table of two or more columns with no row order and no row sequence, no
+more than any column's absent cells; FD6 a row-sequence column has every
+cell present; FD7 the sort column is a column, not the row sequence, holding no
+empty cell and no absent cell the twin writes empty, in three or more
+rows; FD8 written header cells stand
+under a header read from the file, in order, and name every column what
+the description names it; FD9 metadata rows only under such a header,
+two, each as wide as the table; FD10 only a header read from the file
+carries a trailing delimiter or a quoting rule, and rows do not both
+carry a trailing delimiter and leave out empty cells; FD11 a preamble
+line is one line, published as written only at a smallest group of one
+and otherwise as its stand-in.
+
+**What it discloses.** Every key describes the file's writer, not a
+person, except two. The metadata rows are column-level text and are
+published like names. A preamble line is free text that may name
+anybody, so it is published as written only at a smallest group of one
+and otherwise as `dialect.withheld_line`: the punctuation it began with
+and the words `withheld line`.
+
+**S4 still holds of the names.** A blank or repeated header cell is not a
+name: the column is named by the rule in `written_names` above, which
+yields names that are non-empty and pairwise distinct, and the cell as
+written stands in `written_names` to be written back.
 
 ### 4.4 `settings`
 
@@ -8271,7 +8333,7 @@ find one".
 | key | disposition | note |
 |---|---|---|
 | `columns` | STRUCTURAL | the four container rules: S1, S2, S3, S4 |
-| `source` | STRUCTURAL | membership: its five keys, section 4.3 |
+| `source` | STRUCTURAL | membership: its six keys, section 4.3 |
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
@@ -8279,7 +8341,8 @@ find one".
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
-| `source.encoding` | REPORT-ONLY | the twin is always UTF-8 with LF (residual R-P2-5) |
+| `source.encoding` | REPORT-ONLY | how the table was read; the twin is written back in it, which the byte rule `bytes.encoding` checks (plan P4-D40, which closes residual R-P2-5) |
+| `source.dialect` | EXACT-CONTROL | decides how the twin's bytes are written: section 4.3a |
 | `source.used_fallback_encoding` | REPORT-ONLY | |
 | `source.header_source` | EXACT-CONTROL | decides whether a header row is written at all |
 | `source.header_by_convention` | REPORT-ONLY, required sentence | section 4.3 |
@@ -10131,9 +10194,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 `settings`, `source`.
 **`profile_version` — 1 permitted value:** the integer `6`.
 
-**`source` keys — 5** (4.3): `encoding`, `header_by_convention`,
-`header_evidence`, `header_source`, `used_fallback_encoding`.
-**`source.encoding` — 2:** `utf-8-sig`, `latin-1`.
+**`source` keys — 6** (4.3): `dialect`, `encoding`,
+`header_by_convention`, `header_evidence`, `header_source`,
+`used_fallback_encoding`.
+**`source.encoding` — 5:** `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`,
+`utf-16-be`.
+**`source.dialect` keys — 19** (4.3a).
 **`source.header_source` — 2:** `file`, `generated`.
 
 **`relationships` keys — 8** (4.6), every value exactly `null`:

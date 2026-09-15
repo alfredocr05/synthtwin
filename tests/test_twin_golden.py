@@ -187,6 +187,11 @@ AFFIX_SET_SUBCHECKS = (
     "counts.n_core_distinct_folded",
 )
 WIDE_CHECK_COUNT = 416
+
+# The one fact every rule of the file's written form is filed under (plan
+# P4-D40): thirteen on the document, one quoting rule per column and the
+# row order on the column the table is sorted by.
+FORM_FACT = "document.source.dialect"
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
 )
@@ -207,10 +212,22 @@ NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
     "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
 )
+# RE-RECORDED 2026-09-15 for plan P4-D40, AS ORDER-FREE IDENTITIES. The
+# demonstration table is sorted by `record_code`, the description now
+# publishes that row order, and the twin keeps it -- so every column's
+# cells moved to other rows while no cell changed. MEASURED before
+# re-recording, column by column against a git archive of 53bb012 at this
+# seed: each of the thirteen holds the same cells as a multiset, and
+# `unused` and `batch`, whose cells cannot be told apart, are unchanged
+# even in order. Each digest is now taken over the column's cells SORTED,
+# because where rows stand is the written form's own fact, checked by
+# `rows.order`; a digest that moved with it would re-record on every
+# order change and stop meaning "a cell changed". `unused` and `batch`
+# hash exactly as they did, which is the check that nothing else moved.
 NARROW_COLUMN_DIGESTS = {
-    "record_code": "f6d74ac3a099e5713338c9baff476924",
-    "region": "48583e2c694ee365c884cd8b99719dd1",
-    "visits": "fac456b2607b807ffa636be2068ed181",
+    "record_code": "bb878fb901ff9b21918c1aab62fc19ab",
+    "region": "ba323f8f897027f35f93eb5e6add6ccc",
+    "visits": "39c2d46a66ba3ecd62edfd441b0e47c0",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
     # (amendment A-P4-55). `reading` is whole-valued, so G6.5a's pass
     # declined it until the first of those and two of its strata could
@@ -219,16 +236,16 @@ NARROW_COLUMN_DIGESTS = {
     # where it held 177 at some seeds before. MEASURED before
     # re-recording, which is what the sentence beside the twin digest
     # asks for.
-    "reading": "01d11476294ade427eb6806b3155e7b6",
-    "amount": "80f0de5f1bd829c54464ba0e53f17ca7",
-    "recorded_on": "275356366d05346ada86307a49d4467c",
-    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
-    "comment": "8ec45aed18839baa03592651323aa6f6",
+    "reading": "dc10f984d2fd088116d2302297a51302",
+    "amount": "fb7d85aed6e21f1d6ce434f8ddc6b8d7",
+    "recorded_on": "7a64fba24e48b8befe7bd4f11f4298e3",
+    "answer": "f96508b26b4c8cae171b5bf0984d34a3",
+    "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
-    "dose": "2ae37c8ee2b559405bcf24a3fe6ab5e0",
-    "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
-    "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
+    "dose": "5eb3ad82c5843268f1bab173de436926",
+    "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
+    "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
 
 
@@ -257,8 +274,14 @@ def test_widening_the_demonstration_lost_no_obligation(
         tmp_path, "narrow-twin.csv", rendering.twin_csv(twin)
     )
     outcome = validation.measure(described, str(twin_path))
+    # THE ENCODING RULE WAS RENAMED, not added or dropped (plan P4-D40):
+    # `bytes.utf8` asks for `source.encoding` now and is called
+    # `bytes.encoding`. The frozen baselines below hash the name they were
+    # frozen with, so the rule is read back under that name.
     checks = sorted(
-        f"{c.column}|{c.fact}|{c.subcheck}" for c in outcome.checks
+        f"{c.column}|{c.fact}|"
+        + ("bytes.utf8" if c.subcheck == "bytes.encoding" else c.subcheck)
+        for c in outcome.checks
     )
     listings = sorted(
         f"{entry.column}|{entry.fact}|{entry.subcheck}"
@@ -271,6 +294,11 @@ def test_widening_the_demonstration_lost_no_obligation(
     def _since(entry: str) -> bool:
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
+            return True
+        # ...and the rules of the file's written form (plan P4-D40), one
+        # fact filed on the document and on every column, named rather
+        # than counted.
+        if f"|{FORM_FACT}|" in entry:
             return True
         for one in AFFIX_SET_SUBCHECKS:
             if one in entry:
@@ -424,8 +452,9 @@ def test_widening_the_demonstration_lost_no_obligation(
     ) == EMPTY_EDGE_LISTINGS
     for name, digest in NARROW_COLUMN_DIGESTS.items():
         cells = twin.columns[twin.names.index(name)]
+        # Sorted: the cells a column holds, wherever its rows stand.
         found = hashlib.sha256(
-            "\n".join(cells).encode("utf-8")
+            "\n".join(sorted(cells)).encode("utf-8")
         ).hexdigest()[:32]
         assert found == digest, (
             f"the twin's {name!r} column changed against the frozen "
@@ -735,8 +764,16 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # RE-RECORDED 2026-09-14 (plan P4-D39): two keys added to `recorded_on`,
 # `all_at_midnight: false` and `datetime_separators: {}`, and nothing else;
 # the twin digest below did not move.
+# RE-RECORDED 2026-09-15 for plan P4-D40 (owner ruling: the twin is
+# written the way its source file was). `source` gained ONE key,
+# `dialect`, the written form of the demonstration file -- a comma, UTF-8
+# with no mark, line feeds on every line, minimal quoting in every column,
+# and the rows sorted by `record_code`. HOW IT WAS CHECKED, by this file's
+# own procedure: the new document written out again with that one key
+# deleted hashes to the description of commit 53bb012 built the same
+# way, so the single added key is the whole of the difference.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "7ef031ed5ecf5785ec559de3b494ec4f7bdec7bd3f48a4aef17cd6bec915a1fc"
+    "abbe3bcaab895e50d741748cf0af427492f2dd54587a855dcb635e27ade88c4e"
 )
 
 
@@ -837,8 +874,15 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # column -- the wrapper set and the two counts of different cores --
 # and no count, statistic, label, role or spelling of any other column
 # changes.
+# RE-RECORDED 2026-09-15 for plan P4-D40, and ONLY THE ORDER OF THE ROWS
+# MOVED. The demonstration table is sorted by `record_code`, so the
+# description now publishes that row order and the twin keeps it: its
+# rows are sorted by `record_code`, where the twin of commit 53bb012 was
+# not. MEASURED at this seed against a git archive of 53bb012: the header
+# line is the same and the two twins hold the same lines as a multiset,
+# so no cell was written differently; whole rows moved together.
 GOLDEN_TWIN_SHA256 = (
-    "604642cadeb2c5094500752b8a618e57d894618d1dcfa7c91ba5d17a89acbca3"
+    "993047b4437d1f09898c849fee72ad1d580edb69879c22762d9ff2ecbb6a2053"
 )
 
 
@@ -1229,8 +1273,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # that groups rows still behaves differently.
 # RE-RECORDED 2026-09-14 (stage 2): the first limit's sentence about
 # analysis code running on the twin is qualified, and no other line moved.
+# RE-RECORDED 2026-09-15 for plan P4-D40. The paragraph on how the twin
+# is written no longer says it is UTF-8 with newline line endings
+# whatever the table was: it states the written form the description
+# records -- here UTF-8 without a mark, fields separated by a comma, line
+# feed endings and a line ending after the last line -- and that quoting,
+# blank lines, the lines before the names and the row order follow the
+# table too.
 GOLDEN_REPORT_SHA256 = (
-    "1fbad8c5008a89f9339b7c2c9b01ad2298bf0481fe19371d00e5c80cee4908fb"
+    "0f084bb659eb95171fc65f9cadcc234c12fe9d7de0e1cf1a7fa80bd4aaa12e1e"
 )
 
 
@@ -1702,8 +1753,18 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # RE-RECORDED AGAIN 2026-09-14 (stage 2 audit): the reason printed beside
 # each `numeric.group_separator` listing now says the mark was FOUND, not
 # WRITTEN; ten lines changed and nothing else.
+# RE-RECORDED 2026-09-15 for plan P4-D40, and the quality report says
+# MORE, not less. MEASURED on this run: 28 new checks under
+# `document.source.dialect`, all HELD -- thirteen on the document
+# (blank lines, delimiter, records of nothing, end-of-file mark, escaping,
+# header quoting, metadata rows, the space after a delimiter, preamble,
+# separator line, left-out cells, trailing delimiter, header cells written
+# blank or repeated), one quoting rule for each of the fourteen columns,
+# and the row order on `record_code`. The encoding rule `bytes.utf8` is
+# renamed `bytes.encoding` and still HELD. No check was dropped: the
+# widening test above reads every frozen obligation back by identity.
 GOLDEN_QUALITY_SHA256 = (
-    "c858edb09162b3da21d8929f8cb954d60a34adc321a143616226de2a27546db4"
+    "cf1ca2c93a5d9fa33ad7105032a356597dcc171e799dba3aa5c29027548be5c3"
 )
 
 
