@@ -92,6 +92,13 @@ def _shapes(seed: int) -> "dict[str, tuple[list[str], tuple[str, ...], dict[str,
             (),
             {"group_separator": "’", "role": "count"},
         ),
+        # The thin space U+2009, which the verification of this landing
+        # measured still read as free text with nothing said.
+        "salaries grouped with a thin space": (
+            [f"{value:,}".replace(",", "\u2009") for value in whole],
+            (),
+            {"group_separator": "\u2009", "role": "count"},
+        ),
         "charges grouped with a no-break space": (
             [_grouped(value, " ") for value in _charges(600, seed + 4)],
             (),
@@ -512,6 +519,146 @@ def test_brackets_around_a_currency_are_named_not_read(tmp_path: pathlib.Path) -
     assert said in first["remarks"]
     assert any(cell.startswith("($") and cell.endswith(")") for cell in written)
     assert (twin_exit, real_exit) == (0, 0)
+
+
+# -- what the verification of this landing found --------------------------
+
+
+@pytest.mark.parametrize("seed", (5, 8, 13))
+def test_a_plus_on_decimals_beside_signed_whole_numbers_comes_back(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """Changes written `+12` and `+3.25`: the signed decimals are all written.
+
+    Measured before the repair on these three seeds: the twin wrote 210,
+    210 and 221 signed decimals where the real column wrote 213, 227 and
+    228, and `spelling.decimal_plus` was MISSED, because the style walk
+    put `plain` on small positive values that the plus needed.
+    """
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _ in range(900):
+        if draw.random() < 0.5:
+            cells += [f"{round(draw.gauss(0, 300)):+d}"]
+        else:
+            cells += [f"{round(draw.gauss(0, 300), 2):+.2f}"]
+    real = sum(1 for cell in cells if cell.startswith("+") and "." in cell)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "changes", cells, (), True, seed=f"{seed}"
+    )
+    assert first["decimal_plus"] == {"+": real}
+    assert second["decimal_plus"] == {"+": real}
+    assert second["numeric_styles"] == first["numeric_styles"]
+    assert second["fraction_widths"] == first["fraction_widths"]
+    assert sum(1 for cell in written if cell.startswith("+") and "." in cell) == real
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", (3, 8, 19))
+def test_a_minus_after_whole_amounts_is_named_and_not_split_by_size(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """`1,234-` beside `500-`: both stay text, the column says so, both files pass.
+
+    Before the repair a thousands mark let `1,234-` read as a negative
+    number while `500-` stayed text, so the count of numbers depended on
+    each value's size; at seed 3 the twin missed `n_numeric`.
+    """
+    from synthtwin import parsing, taxonomy
+
+    assert parsing.parse_number("1,234-") is None
+    assert parsing.parse_number("500-") is None
+    assert parsing.parse_number("1,234.50-") == -1234.5
+    draw = random.Random(seed)
+    values = [round(draw.gauss(300, 3000)) for _ in range(800)]
+    cells = [f"{-value:,}-" if value < 0 else f"{value:,}" for value in values]
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "ledger", cells, (), True, seed=f"{seed}"
+    )
+    assert first["role"] == "affixed_number"
+    said = taxonomy.rendered(taxonomy.REMARK_MINUS_AFTER_THE_FIGURES, ())
+    assert said in first["remarks"]
+    # EVERY CELL WITH A MINUS AFTER IT IS TEXT, whatever its size.
+    assert first["n_numeric"] == sum(1 for value in values if value >= 0)
+    assert second["n_numeric"] == first["n_numeric"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", (3, 8, 19))
+def test_counts_with_a_point_between_thousands_are_asked_about_beside_small_ones(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """`523` beside `12.345`: the column is asked, and answering reads it right.
+
+    Before the repair a third of such a column below a thousand silenced
+    the question, and the description published a mean near 180 for a
+    true mean in the thousands with nothing asked.
+    """
+    draw = random.Random(seed)
+    values = [int(draw.lognormvariate(7.5, 1.3)) for _ in range(900)]
+    assert sum(1 for value in values if value < 1000) > 200
+    cells = [f"{value:,}".replace(",", ".") for value in values]
+    folder = tmp_path / "counts"
+    document = _questions(folder, cells)
+    asked = document["asked"]
+    assert isinstance(asked, list) and len(asked) == 1
+    entry = asked[0]
+    assert "below a thousand" in entry["what_synthtwin_saw"]
+    assert [choice["answer"] for choice in entry["answers_you_can_give"]][:2] == [
+        "measurement",
+        "decimal_comma",
+    ]
+    entry["your_answer"] = "decimal_comma"
+    answers_path = folder / "answered.json"
+    answers_path.write_text(json.dumps(document), encoding="utf-8")
+    again = tmp_path / "answered"
+    again.mkdir()
+    assert _exit_of(
+        ["profile", str(folder / "t.csv"), "--out-dir", str(again), "--replace", "--answers", str(answers_path)]
+    ) == 0
+    column = json.loads((again / "t-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert column["role"] == "count"
+    assert column["group_separator"] == "."
+    assert column["mean"] == pytest.approx(sum(values) / len(values), rel=1e-12)
+    # ...AND ANSWERED ONCE, NEVER ASKED AGAIN: declared, the column raises nothing.
+    assert _questions(tmp_path / "declared", cells, "--decimal-comma", "v")["asked"] == []
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [["12.5"], ["1234"], ["0.125"], ["012"]],
+    ids=["a point with one figure after it", "four figures and no point", "a proportion", "a padded small number"],
+)
+def test_a_value_the_point_reading_cannot_explain_keeps_the_column_unasked(
+    tmp_path: pathlib.Path, extra: "list[str]"
+) -> None:
+    """One value written another way settles the reading, so nothing is asked about the point."""
+    draw = random.Random(9)
+    cells = [f"{int(draw.lognormvariate(7.5, 1.3)):,}".replace(",", ".") for _ in range(400)] + extra
+    asked = _questions(tmp_path / "settled", cells)["asked"]
+    assert isinstance(asked, list)
+    assert all("below a thousand" not in entry["what_synthtwin_saw"] for entry in asked)
+
+
+@pytest.mark.parametrize("seed", (1, 2, 3))
+def test_a_rounded_negative_zero_in_a_real_ledger_meets_its_own_description(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """`(0)` and `-0` are how a ledger writes -0.3 rounded; the real table passes."""
+    draw = random.Random(seed)
+    values = [round(draw.gauss(0, 3000), 2) for _ in range(800)] + [-0.3, -0.2, 0.4] * 4
+    for notation in ("brackets", "minus"):
+        cells = [
+            (f"({-value:,.0f})" if notation == "brackets" else f"-{-value:,.0f}")
+            if value < 0
+            else f"{value:,.0f}"
+            for value in values
+        ]
+        assert "(0)" in cells or "-0" in cells
+        _first, _second, _written, _twin_exit, real_exit = _round_trip(
+            tmp_path / notation, cells, (), True, seed=f"{seed}"
+        )
+        assert real_exit == 0, (notation, seed)
 
 
 def test_this_file_is_run_by_the_suite_it_belongs_to() -> None:

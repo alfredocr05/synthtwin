@@ -193,6 +193,26 @@ def _point_between_thousands(text: str) -> bool:
     return _is_plain_whole_number(head) and _is_plain_whole_number(tail)
 
 
+def _written_below_a_thousand(text: str) -> bool:
+    """Whether a cell is a whole number below a thousand, written plainly.
+
+    One to three figures, not led by a zero unless it is `0` itself,
+    after an optional minus: `523`, `-7`, `0`. Written with a point
+    between its thousands, a number below a thousand has no point at all,
+    so these are the cells a column of `12.345` holds beside them.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    if len(body) < 1 or len(body) > 3:
+        return False
+    if body[:1] == "0" and body != "0":
+        return False
+    return _is_plain_whole_number(body)
+
+
 def why_worth_asking(values: "list[str]") -> "str | None":
     """The reason to ask about this column, or None to stay quiet.
 
@@ -221,11 +241,22 @@ def why_worth_asking(values: "list[str]") -> "str | None":
       and a register of nine-figure identifiers grouped for reading
       would otherwise publish its smallest and largest identifier with
       nothing asked.
-    - every cell one to three figures, a point and exactly three
-      figures. Read undeclared, `12.345` is twelve and a bit; written
-      with a point between thousands it is twelve thousand, and only the
-      person holding the table knows which. The reading is not changed:
-      the question offers `--decimal-comma` as an answer.
+    - at least one cell one to three figures, a point and exactly three
+      figures, and every other cell a whole number below a thousand
+      written plainly. Read undeclared, `12.345` is twelve and a bit;
+      written with a point between thousands it is twelve thousand, and
+      only the person holding the table knows which. The reading is not
+      changed: the question offers `--decimal-comma` as an answer.
+
+    THE SMALL NUMBERS DO NOT SILENCE IT (the verification of landing
+    2b.2). The first rule asked only where EVERY cell had a point, and a
+    count written the German way writes `523` for five hundred and
+    twenty-three: a column of 900 such counts, a third of them below a
+    thousand, published a mean of 184 for a true mean in the thousands
+    with nothing asked, on three seeds of three. A cell below a thousand
+    is what that column must hold, and one written any other way -- a
+    point with one or two figures after it, a fourth figure before it --
+    still settles the reading, so the column stays unasked.
     """
     if not values:
         return None
@@ -237,10 +268,15 @@ def why_worth_asking(values: "list[str]") -> "str | None":
             continue
         figures = _grouped_figures(value)
         if figures is None:
+            pointed = False
             for cell in values:
-                if not _point_between_thousands(cell):
+                if _point_between_thousands(cell):
+                    pointed = True
+                elif not _written_below_a_thousand(cell):
                     return None
-            return BECAUSE_POINT_THOUSANDS
+            if pointed:
+                return BECAUSE_POINT_THOUSANDS
+            return None
         grouped = True
         figures_of += [figures]
     if grouped:
@@ -570,6 +606,7 @@ def questions_for(
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
     already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Every column worth asking about, in the table's own order.
 
@@ -585,7 +622,11 @@ def questions_for(
 
     A column already declared is never asked about: the person has
     answered, and asking again would say their answer had not been
-    heard.
+    heard. ``decimal_commas`` names the columns declared with
+    `--decimal-comma`, which have answered the point question and only
+    that one (the verification of landing 2b.2: a declared column of
+    `2.433` beside `771` was still asked whether its point was a mark
+    between thousands).
     """
     blocks = document["columns"]
     if not isinstance(blocks, list):
@@ -615,6 +656,8 @@ def questions_for(
             reason = why_joined_is_worth_asking(present)
         else:
             reason = why_worth_asking(present)
+        if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
+            reason = None
         if reason is not None:
             # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES, and
             # never the one it ought to take. A questions file that
@@ -745,8 +788,9 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
         )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (
-            "every value has exactly three figures after its point, which "
-            "is also how a number is written with a point between its "
+            "every value with a point has exactly three figures after it, "
+            "and every value without one is below a thousand, which is "
+            "also how numbers are written with a point between their "
             "thousands"
         )
     if reason == BECAUSE_JOINED:

@@ -1033,8 +1033,9 @@ _WHY_SHOWN = {
         "which is how an identifier is written for reading"
     ),
     asking.BECAUSE_POINT_THOUSANDS: (
-        "every value has three figures after its point, which is also "
-        "how a point between thousands is written"
+        "every value with a point has three figures after it, and every "
+        "other value is below a thousand, which is also how a point "
+        "between thousands is written"
     ),
 }
 
@@ -1778,7 +1779,11 @@ def _run_profile(
         forced_identifiers + forced_codes + forced_measurements
     )
     asked_about = asking.questions_for(
-        document, read.columns, settings, already_answered
+        document,
+        read.columns,
+        settings,
+        already_answered,
+        tuple(forced_decimal_commas),
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
@@ -2109,7 +2114,7 @@ def _run_profile(
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
     asked_about = asking.questions_for(
-        document, read.columns, settings, settled
+        document, read.columns, settings, settled, tuple(forced_decimal_commas)
     )
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled, asked_about

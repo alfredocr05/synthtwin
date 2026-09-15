@@ -10838,10 +10838,11 @@ def _written_with_a_leading_minus(body: str) -> str:
         and body[:1] != "-"
         and body[:1] != "+"
     ):
-        # ...on an amount only: a point or a mark in the figures, which
-        # is the reader's own condition, restated rather than borrowed.
+        # ...on an amount only: a point in the figures, which is the
+        # reader's own condition, restated rather than borrowed. A mark
+        # alone does not make one: `1,234-` is text, as `500-` is.
         for character in body:
-            if character == "." or character in parsing.GROUP_MARKS:
+            if character == ".":
                 return "-" + body[: len(body) - 1]
     return body
 
@@ -10884,6 +10885,14 @@ def _cells_outside_the_styles(
             if known in body:
                 offered = known
         signed = _written_with_a_leading_minus(body)
+        # A ZERO WRITTEN WITH A SIGN IS A SPELLING OF ZERO (the
+        # verification of landing 2b.2). A ledger rounding -0.3 to a
+        # whole amount writes `(0)` or `-0`, and every permitted spelling
+        # of nought is unsigned, so the real table failed its own
+        # description on three seeds of three. The sign on a zero says
+        # nothing about the value, so the unsigned reading is offered.
+        if value == 0.0 and signed[:1] == "-":
+            signed = signed[1:]
         worn = False
         for spelling in _permitted_spellings(value, whole_column, widths, offered):
             if _wears(signed, spelling):

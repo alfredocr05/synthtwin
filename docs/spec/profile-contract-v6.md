@@ -1275,7 +1275,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 56 forms and 96 argument positions.
+**The census.** The table holds 57 forms and 96 argument positions.
 Of those, 83 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -1582,11 +1582,11 @@ identically whatever word sits at position 2.
 
 ---
 
-##### D. The remarks (twenty-two forms)
+##### D. The remarks (twenty-three forms)
 
 > This heading read "nineteen" while the section declared twenty,
 > and NF55 made it twenty-one (landing L18); NF56 made it twenty-two
-> (landing 2b.2). It counts the forms
+> (landing 2b.2) and NF57 twenty-three (its verification). It counts the forms
 > banner-declared below and nothing else; the note grammar's own
 > totals are 4.5.1's and 14.8's, which the disposition guard binds
 > to `taxonomy.NOTE_ARITY` in both directions.
@@ -1788,6 +1788,31 @@ tells the two apart, so the wrapper is kept as written and this remark
 says what its numbers are. It routes nothing: no role, no published fact
 and no cell moves. It carries no argument, for the reason NF50 gives:
 the wrapper is published in the block beside it.
+
+**NF57. `remark_a_minus_after_the_figures` — a minus after whole
+figures** — arity 0. Carried on an `affixed_number` column whose
+commonest wrapper or a published wrapper of its set has a suffix ending
+with `-`, and on no other column.
+
+> some values of this column are written with a minus after their
+> figures and no decimal point -- `500-` -- and synthtwin keeps that
+> minus as text written after the number rather than reading it as a
+> sign, because a whole amount owed is written that way and so is a
+> grade or a code. The twin writes those values the same way. If the
+> minus means a negative amount, the average, the spread and the ends
+> published for those values are of the amounts without their sign, and
+> the column's count of negative numbers does not include them
+
+**A SPELLING NAMED RATHER THAN READ** (the verification of landing
+2b.2). A hyphen-minus after figures carrying a decimal point,
+`1,483.65-`, is read as negative and published as `negative_form`
+`trailing_minus`. After figures with no point it is not: `500-` is
+written the same way as a grade `3-`, and a thousands mark does not
+settle it, because a ledger writing `1,234-` beside `500-` would then
+split one column into numbers and text by the size of each value. So
+the minus stays in the wrapper for every such cell, and this remark
+says what its numbers are. It routes nothing: no role, no published fact
+and no cell moves. It carries no argument, for the reason NF50 gives.
 
 **NF29. `remark_no_reading_fits` — the competing-readings remark** —
 arity 9.
@@ -2553,7 +2578,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 56 in section 4.5.1 |
+| NG14 | the form is one of the 57 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4231,8 +4256,8 @@ consumer off the role name.
 | `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
-| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0 or U+202F | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D40) |
-| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after the figures. Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D40) |
+| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D40) |
+| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D40) |
 | `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ `small_cell_floor`, or `{"(withheld)": n}` with 1 ≤ n < `small_cell_floor` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`: named where the count reaches `small_cell_floor` and pooled below it, so a floor of one never pools; the total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D40) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
@@ -4416,8 +4441,8 @@ column; a numeric block nested in an `affixed_number` or
 `joined_numbers` column never carries `"."`. The twin groups such a column with a comma and then
 exchanges its points and commas, so a `","` there would be written
 `23,648,37`, which no reader takes for a number. A space, an apostrophe,
-U+2019, U+00A0 and U+202F are neither decimal mark and stand under
-either (landing 2b.2): `1 234,56` publishes a space. A position of a
+U+2019, U+00A0, U+202F and U+2009 are neither decimal mark and stand
+under either (landing 2b.2): `1 234,56` publishes a space. A position of a
 `joined_numbers` column is read from figures and one point alone, so its
 block carries `""` and no other mark.
 
@@ -8051,7 +8076,7 @@ supplied a different test would refuse different files.
 
 | id | statement | loader? |
 |---|---|---|
-| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and a block nested in an `affixed_number` or `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0 and U+202F may stand under either; a position of a `joined_numbers` column carries `""` | yes |
+| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and a block nested in an `affixed_number` or `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0, U+202F and U+2009 may stand under either; a position of a `joined_numbers` column carries `""` | yes |
 
 #### NS1 and DP1 — `negative_form` and `decimal_plus`, on every numeric block
 
@@ -8237,7 +8262,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 56 the note grammar enumerates |
+| NG14 | for every form: one of the 57 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -9346,7 +9371,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 56 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 57 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -10354,7 +10379,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 56 forms
+### 14.8 The note grammar — 57 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 96 argument positions: 83 whole numbers, 4 package words, 4
@@ -10418,6 +10443,7 @@ nested forms, 5 bound affix strings.
 | NG54 | `remark_two_readings_both_fit` | 1 |
 | NG55 | `remark_a_letter_against_the_digits` | 1 |
 | NG56 | `remark_brackets_around_the_affix` | 0 |
+| NG57 | `remark_a_minus_after_the_figures` | 0 |
 
 **The package-word vocabulary — 23**, the whole of the second argument
 class (4.5.1): the nineteen `format` members of 14.6, plus `day-first`

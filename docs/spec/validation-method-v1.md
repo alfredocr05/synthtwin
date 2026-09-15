@@ -1154,7 +1154,7 @@ numbers, than the smallest group size, its own description publishes the
 default whatever those cells wear, and the verdict is WITHHELD rather
 than MISSED. `styles.spelled` offers, for every cell, the grouping of the
 one mark the cell carries and the leading-minus reading of brackets,
-U+2212 and a trailing minus, whatever the description publishes, so a
+U+2212 and a trailing minus after figures carrying a point, whatever the description publishes, and for a cell whose value is zero the unsigned reading too, because a ledger writes a rounded -0.3 as `(0)` or `-0` and the sign on a zero says nothing about the value (the verification of landing 2b.2), so a
 real table whose spellings fell short of the floor or the majority is
 never MISSED there for them. A position of a joined column files none of
 the three: its parts are read from figures and one point alone, so no

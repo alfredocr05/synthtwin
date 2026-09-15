@@ -659,8 +659,11 @@ def _mantissa_has_nonzero_digit(text: str) -> bool:
 # numbers vanished from the description and the twin wrote stand-ins
 # where they stood. The right single quotation mark is here because
 # typographic exports write `1\u2019234` where a keyboard writes
-# `1'234`; the two thin spaces because a word processor puts them where
-# a person typed a space.
+# `1'234`; the no-break space, the narrow no-break space and the thin
+# space U+2009 because a word processor puts them where a person typed a
+# space. The thin space arrived with the verification of this landing,
+# which measured a salary column grouped with it still read as free
+# text with nothing said.
 #
 # A POINT IS NOT ON THIS LIST, and that is not an omission: a cell
 # written `12.345` is read with the point as its decimal point, and a
@@ -681,11 +684,13 @@ def _mantissa_has_nonzero_digit(text: str) -> bool:
 # comma always allowed it (`012,345` has read as 12345 since Phase 1).
 # Such a cell is written in the padded form and a padded form is never
 # grouped, so it withholds the mark from its column.
-GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f")
+GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
 
-# EVERY MARK A DESCRIPTION MAY PUBLISH BETWEEN THOUSANDS: none, the six
+# EVERY MARK A DESCRIPTION MAY PUBLISH BETWEEN THOUSANDS: none, the seven
 # above, and the point a declared decimal comma writes (contract GS1).
-PUBLISHED_GROUP_MARKS = ("", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f")
+PUBLISHED_GROUP_MARKS = (
+    "", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009"
+)
 
 # EACH PUBLISHED MARK IN THE WORDS A PAGE USES FOR IT, because four of
 # them cannot be seen when printed. One list, read by the summary and by
@@ -699,6 +704,7 @@ GROUP_MARK_WORDS = (
     ("\u2019", "a right single quotation mark"),
     ("\u00a0", "a no-break space"),
     ("\u202f", "a narrow no-break space"),
+    ("\u2009", "a thin space"),
 )
 
 # THE MINUS SIGN of the character tables, which typeset exports write
@@ -750,17 +756,26 @@ def _minus_written_first(body: str) -> str:
 
 
 def _written_as_an_amount(body: str) -> bool:
-    """Whether figures carry a point or a mark of `GROUP_MARKS`.
+    """Whether figures carry a decimal point.
 
     THE TRAILING MINUS IS READ ONLY ON AN AMOUNT (landing 2b.2).
     Accounting systems write `1,483.65-` and `12.50-`; a grade or a code
     writes `3-`, and nothing in one such cell tells the two apart. So a
     hyphen-minus after the figures is read as a minus only where the
-    figures carry a decimal point or a thousands mark, and `3-` stays
-    text.
+    figures carry a decimal point, and `3-` stays text.
+
+    NOT A THOUSANDS MARK, and it was one until the verification of this
+    landing. A ledger of whole amounts writes `1,234-` beside `500-`:
+    read on a mark, the first was a negative number and the second text,
+    so one column split into two classes by the size of each value, and
+    its twin wrote a different count of numbers on 1 seed of 6. A point
+    is a fact of the column's form -- a column of amounts written with
+    cents writes one on every cell -- while a mark is a fact of a value's
+    size. A whole amount's minus after its figures is kept as text in
+    every cell alike, and contract NF57 names it.
     """
     for character in body:
-        if character == "." or character in GROUP_MARKS:
+        if character == ".":
             return True
     return False
 
@@ -962,9 +977,9 @@ def with_negative_notation(text: str, form: str) -> str:
     """A number written with a hyphen-minus in front, in ``form`` instead.
 
     A TRAILING MINUS IS WRITTEN ONLY WHERE IT READS BACK AS ONE: a figure
-    field carrying neither a point nor a mark keeps its hyphen-minus in
-    front, because `12-` is not read as a number (`_written_as_an_amount`)
-    and writing it would change the cell's class.
+    field carrying no point keeps its hyphen-minus in front, because
+    `12-` and `1,234-` are not read as numbers (`_written_as_an_amount`)
+    and writing either would change the cell's class.
 
     The write rule of `negative_form`: `-1,234.50` becomes `(1,234.50)`,
     `\u22121,234.50` or `1,234.50-`. Text that does not begin with a

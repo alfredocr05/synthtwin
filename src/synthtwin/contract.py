@@ -1103,9 +1103,10 @@ INVARIANTS = {
     "GS1": (
         "a column groups its thousands with a point only where it writes "
         "its decimals with a comma, and never with a comma there; a space, "
-        "an apostrophe or a no-break space may group either; and a position "
-        "of a joined column, read from figures and one point alone, groups "
-        "with no mark"
+        "an apostrophe, a right single quotation mark, a no-break space, a "
+        "narrow no-break space or a thin space may group either; and a "
+        "position of a joined column, read from figures and one point "
+        "alone, groups with no mark"
     ),
     "NS1": (
         "a column says its negatives are written some other way than with "
@@ -6721,8 +6722,8 @@ def _group_separator(mapping: "dict[str, object]", where: str) -> str:
     names how the column's numbers were written, not how many cells
     any value had. The accepted marks are `parsing.PUBLISHED_GROUP_MARKS`:
     a comma, a space, an apostrophe, the right single quotation mark, a
-    no-break space and a narrow no-break space (landing 2b.2, which read
-    the last five for the first time), or a point on a column that
+    no-break space, a narrow no-break space and a thin space (landing
+    2b.2, which read the last six for the first time), or a point on a column that
     writes its decimals with a comma (GS1 holds the comma and the point
     to the declaration). Any other value is refused rather than
     half-honoured.

@@ -766,6 +766,14 @@ REMARK_ADDRESS_NOT_A_QUANTITY = "remark_an_address_is_not_a_quantity"
 # what the remark says is that the numbers published for it are the ones
 # inside the brackets, without a sign.
 REMARK_BRACKETS_AROUND_THE_AFFIX = "remark_brackets_around_the_affix"
+# A MINUS AFTER WHOLE FIGURES, NAMED AND NOT READ (the verification of
+# landing 2b.2, contract NF57). A ledger of whole amounts writes `500-`
+# for a debit, and a grade or a code writes `3-`: one cell cannot say
+# which, so the minus is kept as the text after the number, in every
+# cell alike whatever its size, and the remark says what the numbers
+# published for that wrapper are. The same minus after figures with a
+# point, `1,483.65-`, is read as a sign (`negative_form`).
+REMARK_MINUS_AFTER_THE_FIGURES = "remark_a_minus_after_the_figures"
 # A LABEL COLUMN PUBLISHING ONE OF THIS PACKAGE'S OWN STAND-IN NUMBERS
 # AS A LEVEL (plan P4-D4.7, amendment A-P4-30 item 1, contract NF37).
 # The stand-in judgement runs only above the numeric parse line, so a
@@ -906,6 +914,7 @@ NOTE_ARITY: "dict[str, int]" = {
     # published in the block beside the remark and the reader finds it
     # there.
     REMARK_BRACKETS_AROUND_THE_AFFIX: 0,
+    REMARK_MINUS_AFTER_THE_FIGURES: 0,
     # WHICH stand-in number, as its one-based place in this package's
     # own three-member list -- so 1, 2 or 3 and nothing else (contract
     # NF37). The NUMBER is written from that place through a fixed
@@ -1784,6 +1793,19 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "the ends published for those values are of the amounts "
             "without their sign, and the column's count of negative "
             "numbers does not include them"
+        )
+    if form == REMARK_MINUS_AFTER_THE_FIGURES:
+        return (
+            "some values of this column are written with a minus after "
+            "their figures and no decimal point -- `500-` -- and "
+            "synthtwin keeps that minus as text written after the number "
+            "rather than reading it as a sign, because a whole amount "
+            "owed is written that way and so is a grade or a code. The "
+            "twin writes those values the same way. If the minus means a "
+            "negative amount, the average, the spread and the ends "
+            "published for those values are of the amounts without their "
+            "sign, and the column's count of negative numbers does not "
+            "include them"
         )
     if form == REMARK_ALL_DIFFERENT_NUMBERS:
         return (
@@ -9138,6 +9160,14 @@ def _affixed_verdict(
     for prefix, suffix in worn:
         if prefix[:1] == "(" and suffix[len(suffix) - 1 : len(suffix)] == ")":
             remarks += [note(REMARK_BRACKETS_AROUND_THE_AFFIX)]
+            break
+    # ...AND SO IS A WRAPPER WRITING A MINUS AFTER ITS FIGURES (the
+    # verification of landing 2b.2, contract NF57): a minus after figures
+    # with no point is not read as a sign, so it reaches this role as a
+    # suffix, and the sentence says the sign is not in the numbers.
+    for _prefix, suffix in worn:
+        if suffix[len(suffix) - 1 : len(suffix)] == "-":
+            remarks += [note(REMARK_MINUS_AFTER_THE_FIGURES)]
             break
     return _Verdict(
         role=ROLE_AFFIXED,

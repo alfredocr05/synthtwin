@@ -1597,8 +1597,8 @@ def _group_thousands(text, mark):
 # THE MARKS A COLUMN MAY PUBLISH BETWEEN THOUSANDS (landing 2b.2), as the
 # contract lists them: none, a comma, a point under a declared decimal
 # comma, a space, an apostrophe, the right single quotation mark, a
-# no-break space and a narrow no-break space.
-PUBLISHED_MARKS = ("", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f")
+# no-break space, a narrow no-break space and a thin space.
+PUBLISHED_MARKS = ("", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
 
 # HOW A NEGATIVE IS WRITTEN (landing 2b.2): the notation names, and the
 # text each writes in place of the hyphen-minus in front of the figures.
@@ -1637,14 +1637,52 @@ def negative_spelled(text, notation):
     before, after = NEGATIVE_NOTATIONS[notation]
     if not text.startswith("-"):
         return text
-    # A trailing minus is read only after figures carrying a point or a
-    # thousands mark, so on a bare figure field the hyphen-minus stays in
-    # front, where the cell still reads as a number.
-    if notation == "trailing_minus" and not any(
-        letter == "." or letter in PUBLISHED_MARKS[1:] for letter in text[1:]
-    ):
+    # A trailing minus is read only after figures carrying a decimal
+    # point -- a thousands mark alone is a fact of a value's size, not of
+    # the column's form -- so on a field with no point the hyphen-minus
+    # stays in front, where the cell still reads as a number.
+    if notation == "trailing_minus" and "." not in text[1:]:
         return text
     return before + text[1:] + after
+
+
+def plus_style_exchange(count, styles, values, integer_valued):
+    """Styles exchanged so a signed decimal has cells to stand on (G6.4).
+
+    Only where ``count`` -- the named ``decimal_plus`` -- exceeds the cells
+    allocated ``decimal`` whose value is not below zero.  The cells
+    allocated ``plain`` whose value is not below zero are listed from the
+    first cell upward, and the cells allocated ``decimal`` whose value is
+    below zero and has a point-free spelling from the last cell downward;
+    the i-th of the first list takes ``decimal`` and the i-th of the
+    second takes ``plain``, for as many pairs as the shortfall and both
+    lists allow.  Each exchange leaves every form count where it was.
+    """
+    if count <= 0:
+        return styles
+    have = sum(
+        1
+        for style, value in zip(styles, values)
+        if style == "decimal" and not value < 0
+    )
+    if have >= count:
+        return styles
+    givers = [
+        index
+        for index, (style, value) in enumerate(zip(styles, values))
+        if style == "plain" and not value < 0
+    ]
+    takers = [
+        index
+        for index in reversed(range(len(values)))
+        if styles[index] == "decimal"
+        and values[index] < 0
+        and point_free_spelling(values[index], integer_valued) is not None
+    ]
+    exchanged = list(styles)
+    for giver, taker in list(zip(givers, takers))[: count - have]:
+        exchanged[giver], exchanged[taker] = "decimal", "plain"
+    return exchanged
 
 
 def plus_places(count, styles, values):
@@ -1824,7 +1862,8 @@ def whole_inside(value, band, share, ends, reach, taken):
 
 
 def whole_number_values(
-    published, values, sizes, starts, bands, ladder, numeric, integer_valued
+    published, values, sizes, starts, bands, ladder, numeric, integer_valued,
+    signed=0,
 ):
     """The VALUES step of method section G6.4, taken before the styles.
 
@@ -1847,6 +1886,14 @@ def whole_number_values(
     Two strata are never taken: the two pinned ends, which hold the
     published ends of the ladder.
 
+    Where ``signed``, the named count of ``decimal_plus``, is above
+    nought, a walk over the negative strata alone comes between the two:
+    at most ``free - signed`` cells that are not negative may be
+    point-free, since that many must stay in the form written with a
+    point, so the negative strata are taken until they carry
+    ``W - max(0, free - signed)`` cells (the verification of landing
+    2b.2).
+
     Returns the values, moved where the shortfall asked for it.
     """
     total = len(values)
@@ -1867,8 +1914,10 @@ def whole_number_values(
         )
 
     taken = list(values)
+    below = max(0, wanted - max(0, free - signed)) if signed > 0 else 0
     for demand, reachable in (
         (min(remaining["leading_plus"], free), REACHABLE[0]),
+        (below, ("negative",)),
         (wanted, REACHABLE[1]),
     ):
         for index in range(total):
@@ -5189,6 +5238,7 @@ def _numeric_content(column):
     # The VALUES step of G6.4 is taken before the styles, because the map
     # and the values are one question: a point-free quota needs cells
     # whose values are whole.
+    signed = column.get("decimal_plus", {}).get("+", 0)
     values = whole_number_values(
         column["numeric_styles"],
         values,
@@ -5198,6 +5248,7 @@ def _numeric_content(column):
         ladder,
         numeric,
         integer_valued,
+        signed,
     )
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
     # carrier walk because that walk moves values onto whole numbers
@@ -5218,12 +5269,11 @@ def _numeric_content(column):
     styles, missed = style_allocation(
         column["numeric_styles"], cell_values, integer_valued
     )
+    styles = plus_style_exchange(signed, styles, cell_values, integer_valued)
     mark = grouping_mark_of(column)
     negative = column.get("negative_form", "minus")
     # The named count of the census; a pooled count names no form.
-    plussed = plus_places(
-        column.get("decimal_plus", {}).get("+", 0), styles, cell_values
-    )
+    plussed = plus_places(signed, styles, cell_values)
     content = [
         styled_spelling(
             style, value, integer_valued, 0, mark, negative, plussed[index]

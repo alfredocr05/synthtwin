@@ -2375,12 +2375,12 @@ def _with_zeros(spelling: str, order: int) -> str:
 def _grouping_mark(facts: contract.NumericFacts) -> str:
     """The mark a cell is grouped with BEFORE any decimal-comma swap.
 
-    A column's published mark is `,`, a mark of the other five of
+    A column's published mark is `,`, a mark of the other six of
     `parsing.GROUP_MARKS`, or, under a declared decimal comma, `.`. Cells
     are written with a point and grouped with a comma, and a
     decimal-comma column then has the comma and the point exchanged by
     `_spelled_with_a_decimal_comma`, so both of those published marks
-    group with a comma here. The other five are neither decimal mark and
+    group with a comma here. The other six are neither decimal mark and
     no exchange touches them, so a cell is grouped with the published
     mark itself (landing 2b.2): `2 198.92`, and `2 198,92` once a
     declared column is exchanged.
@@ -9434,8 +9434,25 @@ def _whole_enough(
     # out of the negative band and leave a published `leading_plus`
     # count with nowhere to go. This is the same order G5.2's carrier
     # step takes for the same reason.
+    # ...AND THE NEGATIVE SIDE CARRIES WHAT A SIGNED DECIMAL LEAVES IT
+    # (the verification of landing 2b.2). `decimal_plus` needs that many
+    # cells that are not negative to stay in the form written with a
+    # point, so at most `free - signed` of them may be point-free and the
+    # rest of the point-free count has to be carried by negative values.
+    # A column of signed changes writing `+12` beside `+3.25` publishes
+    # exactly that shape, and a walk that stopped once the count was
+    # covered anywhere left seventeen plain cells on positive values and
+    # seventeen plus signs with nowhere to go. It asks nothing where no
+    # count is named, so every other column is walked as before.
+    signed = 0
+    if "+" in facts.decimal_plus:
+        signed = facts.decimal_plus["+"]
+    below = 0
+    if signed > 0:
+        below = max(0, owed - max(0, free - signed))
     for wanted, reachable in (
         (min(quotas["leading_plus"], free), _REACHABLE[0]),
+        (below, (_BAND_NEGATIVE,)),
         (owed, _REACHABLE[1]),
     ):
         carried = 0
@@ -11251,6 +11268,12 @@ def _number_cells(
         _pinned_cells(layout, values),
         facts.integer_valued,
     )
+    # ...AND THE SIGNED-DECIMAL EXCHANGE BEFORE THE WIDTHS TOO, for the
+    # same reason: a width goes to a cell wearing `decimal`, so a cell
+    # that takes `decimal` after the widths were assigned is written at
+    # its own value's width, and seventeen `+5.0` missed a census of
+    # `+5.00` that the exchange had just made reachable.
+    styles = _plus_style_swaps(facts, styles, holds, facts.integer_valued)
     widths = _width_places(
         facts.fraction_widths,
         styles,
@@ -11366,6 +11389,69 @@ def _number_cells(
     # name the same fact twice. The plus allocation's own shortfall is
     # not a form count and is named where it is decided.
     return cells, plus_notes
+
+
+def _plus_style_swaps(
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[str]":
+    """Move `plain` off values a plus needs onto negative whole values.
+
+    THE STYLE WALK DOES NOT KNOW A SIGNED DECIMAL NEEDS A VALUE THAT IS
+    NOT NEGATIVE (the verification of landing 2b.2). It shares the forms
+    out by largest remaining count in stratum order, negatives first, so
+    a negative whole value can take `decimal` while `plain` arrives later
+    on the smallest positive values -- and each of those is a cell that
+    could have carried the plus `decimal_plus` counts. Measured on 900
+    signed changes written `+12` and `+3.25`: seventeen `plain` cells on
+    0 to 20, and seventeen plus signs short on three seeds of six.
+
+    THE EXCHANGE IS BETWEEN TWO CELLS, as `_padded_style_swaps`' is, so
+    every published form count is the same afterwards: a cell allocated
+    `plain` whose value is not negative takes `decimal`, which any value
+    can wear, and a cell allocated `decimal` whose value is negative and
+    can be written without a point takes `plain`. Only while the cells
+    allocated `decimal` on values that are not negative are fewer than
+    the named count; the plain cells are taken in ascending cell order
+    and their partners in descending cell order, nearest nought first.
+    A column naming no count, or already holding enough such cells, is
+    returned untouched.
+
+    Guarantees: accepts the numeric block, one style per cell, one value
+    per cell and whether the column is whole; returns a permutation of
+    the styles. Determinism: both walks are over a fixed index order.
+    Raises nothing. No I/O of any kind.
+    """
+    wanted = 0
+    if "+" in facts.decimal_plus:
+        wanted = facts.decimal_plus["+"]
+    if wanted <= 0:
+        return styles
+    have = 0
+    givers: "list[int]" = []
+    for index in range(len(holds)):
+        if holds[index] < 0.0:
+            continue
+        if styles[index] == "decimal":
+            have = have + 1
+        elif styles[index] == "plain":
+            givers += [index]
+    if have >= wanted:
+        return styles
+    takers: "list[int]" = []
+    for index in range(len(holds) - 1, -1, -1):
+        if styles[index] != "decimal" or not holds[index] < 0.0:
+            continue
+        if _can_wear("plain", holds[index], whole_column):
+            takers += [index]
+    moved = list(styles)
+    pairs = min(wanted - have, len(givers), len(takers))
+    for step in range(pairs):
+        moved[givers[step]] = "decimal"
+        moved[takers[step]] = "plain"
+    return moved
 
 
 def _plus_places(
