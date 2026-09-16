@@ -720,7 +720,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `trailing_delimiter` | object `{header, rows}` | booleans | a delimiter ends the header line, each record |
 | `written_names` | array of objects `{position, text}` | — | header cells written other than their column's name: blank or repeated, named `Unnamed: N` (N counted from 0) or with `.1`, `.2` after them |
 
-**Invariants FD1-FD12** (`contract.INVARIANTS`): FD1 one column form per
+**Invariants FD1-FD13** (`contract.INVARIANTS`): FD1 one column form per
 column; FD2 the line endings account for every line the file holds, in
 runs that each end their lines one way, or past the cap on runs and in
 their place as counts of two or more endings in listed order; FD3 a mark only on UTF-8 or
@@ -748,7 +748,9 @@ the shape the line the twin writes for it is read back as, and recorded
 as withheld exactly when one of them held text; FD12 a column declared to hold record numbers
 publishes no row sequence and is not the column the rows are sorted
 by, and a row sequence is published only for a first column named as
-a written row index is.
+a written row index is; FD13 a delimiter the person declared
+(`settings.forced_delimiter`, plan P4-D110) is the delimiter the
+written form publishes, and a workbook carries no such declaration.
 
 **What it discloses.** Every key describes the file's writer, not a
 person, except one: the metadata rows, which are column-level text,
@@ -973,7 +975,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty-one keys. Its whole subtree is
+An object with exactly these twenty-two keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -994,6 +996,7 @@ claim.
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — an affix around it, a separator between several, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer (residual R-P4-52). A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
+| `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `forced_metadata_rows` | integer | ≥ 0, and at most 2 rows may be published | THE FIFTH DECLARATION (plan P4-D81), and the only one that is a count rather than a list of names: how many rows immediately under the column names DESCRIBE those columns rather than holding somebody's record. Some survey exports write two — a question wording, then a row of `ImportId` markers. synthtwin RECOGNISES that shape but never acts on it unasked: undeclared, those rows stay in the table and are described as data. Declared, they are taken out of the table and published under `source.dialect.header_rows`, where they are schema text and are published like column names — but only where the file BEARS THE DECLARATION OUT, or the person confirmed it by answering `about_your_file` in the questions file. A `--metadata-rows` typed on a file wearing none of the shape is read and not acted on: the rows stay in the table, the person is told so and asked in the questions file, and answering there is what makes the declaration act (review of landing 2b.17). The reason is the same one the guess was taken out for, read from the other side — measured on an ordinary table of 122 records, `--metadata-rows 2` published two people's records verbatim as the columns' description, exempt from the smallest group, and left the table counted at 120 — and a notice on the screen is no safeguard against it, because by the time it is read the description has been written. So the settings value alone no longer says whether those rows left the table; the published rows say it, and `validate` reads a checked file by them. The guess this replaced took the rows out on its own, so a file it recognised WRONGLY had two real records removed from every count and published verbatim as schema, one of them a person's own row (review item CODEX-2). A declaration that finds no such rows publishes none and is not a refusal: the safe reading is the one where the rows stayed in the table |
@@ -1007,11 +1010,16 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY keys are REQUIRED. No other key
+**C6-20 (membership).** All TWENTY-TWO keys are REQUIRED. No other key
 may appear under `settings`; a loader refuses one that does, naming
-it. A block of nineteen keys or of twenty-one — one of the twenty
-skipped, or a key of somebody's own added — is a document this
-contract does not describe.
+it. A block of twenty-one keys or of twenty-three — one of the
+twenty-two skipped, or a key of somebody's own added — is a document
+this contract does not describe. (It said TWENTY while section 4.4
+said twenty-one and the producer wrote twenty-one, from the landing
+that added `forced_metadata_rows` until landing 2b.17's repair pass
+added `forced_delimiter` and corrected all three counts together; the
+guard that compares this clause with the producer read only a word
+without a hyphen, so it could not state a count past twenty.)
 
 **THE COUNT WAS WRONG IN THREE PLACES AT ONCE and is corrected here
 (2026-08-26).** This clause said seventeen, the key list of section
@@ -8347,7 +8355,7 @@ a document, so no document can violate it.
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty keys; nineteen or twenty-one is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-two keys; twenty-one or twenty-three is a document this contract does not describe | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -9608,43 +9616,64 @@ version 5 document reads "version 5":
 > description again by running 'synthtwin profile' on your table,
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
-> --decimal-comma, --smallest-group, --first-row, --day-first and
-> --answers.
-> Every one of them changes what the description PUBLISHES about your
-> table, so any option you leave out can put something into the new
-> description that the old one held back: without the --smallest-group
-> you gave, a value that fewer rows share can be named; without the
-> --identifier you gave, a column of record numbers is described like
-> any other column; without the --code you gave, a column of codes is
-> described as measurements, so its smallest and largest values —
-> which are real codes — are published and its twin loses any leading
-> zeros; without the --measurement you gave, a column of readings
-> written as two numbers in one cell, such as a blood pressure, is
-> described as text and its twin holds no readings at all; without the
-> --decimal-comma you gave, a column whose numbers are written with a
-> comma where the decimal point goes is read by the ordinary rules, so
-> a column of quantities is described as text and every number in it
-> is lost, or a value such as 1,234 is published as one thousand two
-> hundred and thirty-four; without the --missing-value you gave, a
-> stand-in is read as a real reading, and the stand-in itself can be
-> published as the column's smallest value; without the --keep-value
-> you gave, a word you had counted as an ordinary value becomes a gap,
-> which can change what kind of column synthtwin sees and publish both
-> that word and the column's own numbers; without the --first-row you
-> gave, the first line of your file is read as the column names and
-> published as them; and without the --day-first you gave, a date
-> whose day and month are both written as numbers — with slashes, with
-> dots, or with a two-figure year — can be read the other way round,
-> which changes the dates the description publishes and can leave the
-> column described as text instead; and without the --answers you
-> gave, every answer you wrote in the questions file is gone — each of
-> them was a --code, an --identifier or a --measurement, so leaving the
-> file out costs whichever of those you had given, and this same
-> sentence says what each one costs. If you do not hold the table
-> yourself, ask whoever made this description to run it again for you.
-> Read the summary page synthtwin writes beside the new description
-> before either file goes anywhere, and use the description exactly as
-> synthtwin writes it.
+> --decimal-comma, --smallest-group, --first-row, --day-first,
+> --metadata-rows, --sheet, --delimiter and --answers. Every one of
+> them changes what the description PUBLISHES about your table, so any
+> option you leave out can put something into the new description that
+> the old one held back: without the --smallest-group you gave, a
+> value that fewer rows share can be named; without the --identifier
+> you gave, a column of record numbers is described like any other
+> column; without the --code you gave, a column of codes is described
+> as measurements, so its smallest and largest values — which are real
+> codes — are published and its twin loses any leading zeros; without
+> the --measurement you gave, a column of readings written as two
+> numbers in one cell, such as a blood pressure, is described as text
+> and its twin holds no readings at all; without the --decimal-comma
+> you gave, a column whose numbers are written with a comma where the
+> decimal point goes is read by the ordinary rules, so a column of
+> quantities is described as text and every number in it is lost, or a
+> value such as 1,234 is published as one thousand two hundred and
+> thirty-four; without the --missing-value you gave, a stand-in is
+> read as a real reading, and the stand-in itself can be published as
+> the column's smallest value; without the --keep-value you gave, a
+> word you had counted as an ordinary value becomes a gap, which can
+> change what kind of column synthtwin sees and publish both that word
+> and the column's own numbers; without the --first-row you gave, the
+> first line of your file is read as the column names and published as
+> them; and without the --day-first you gave, a date whose day and
+> month are both written as numbers — with slashes, with dots, or with
+> a two-figure year — can be read the other way round, which changes
+> the dates the description publishes and can leave the column
+> described as text instead; without the --metadata-rows you gave, the
+> rows under your column names that describe your columns are read as
+> records of your table, so their text is counted and described as
+> data and every count is two rows out; without the --sheet you gave,
+> another sheet of your workbook can be described, and everything the
+> new description publishes is then about that sheet's table; without
+> the --delimiter you gave, a file that reads equally well with two
+> delimiters can be split the other way, which changes every column
+> name the description publishes and every value it describes; and
+> without the --answers you gave, every answer you wrote in the
+> questions file is gone — each of them was a --code, an --identifier,
+> a --measurement, a --decimal-comma, a --metadata-rows or a
+> --delimiter, so leaving the file out costs whichever of those you
+> had given, and this same sentence says what each one costs. If you
+> do not hold the table yourself, ask whoever made this description to
+> run it again for you. Read the summary page synthtwin writes beside
+> the new description before either file goes anywhere, and use the
+> description exactly as synthtwin writes it.
+
+**Why it names thirteen options and prices each.** `--metadata-rows`
+(plan P4-D81) and `--sheet` (plan P4-D77) each reached the command
+line without reaching this clause, and the test deriving the owed set
+from the shipped parser was red for both. Landing 2b.17's repair pass
+added them beside `--delimiter` (plan P4-D110): leaving out the first
+counts two rows of column descriptions as records and describes their
+text as data, leaving out the second can describe a different sheet's
+table, and leaving out the third can split a file that reads equally
+well two ways the other way, which changes every column name. The
+`--answers` clause now names every declaration an answer can stand
+for, which grew past the three it listed.
 
 **Why it names ten options and prices each.** `--answers` joined them
 on 2026-09-10 with the hand-back (amendment A-P4-60), and it is not a
@@ -10686,12 +10715,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 21** (4.4), in the ascending code-point order every
+**`settings` keys — 22** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
 `declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
-`forced_identifiers`,
+`forced_delimiter`, `forced_identifiers`,
 `forced_measurements`, `forced_metadata_rows`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,

@@ -361,8 +361,16 @@ def test_nothing_that_varies_between_runs_is_written(
 # character for character -- so the single added key is the whole of
 # the difference. No count, no statistic, no label, no role and no
 # spelling of any column moved.
+# RE-RECORDED 2026-09-16 for plan P4-D110 (review item CODEX-4): the
+# settings block gains `forced_delimiter`, the delimiter the person
+# declared, which sorts immediately after `forced_decimal_commas`. This
+# run declares none, so the line reads `"forced_delimiter": "",`.
+# CHECKED by the same procedure: these bytes with that one key deleted
+# hash to the previous digest,
+# 38006a57f7c352d888957e47d180c8ed3dbba160d82025c4bcf1e1b3b5e181e9,
+# so the single added key is the whole of the difference.
 GOLDEN_SHA256 = (
-    "38006a57f7c352d888957e47d180c8ed3dbba160d82025c4bcf1e1b3b5e181e9"
+    "1f6d2add80baf366de215b47e0d20a49fc9db5d410ec5d94f6d3bf85a139c000"
 )
 
 

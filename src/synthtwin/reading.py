@@ -819,6 +819,7 @@ def _read_authoritatively(
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
+    declared_delimiter: str = "",
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -857,6 +858,7 @@ def _read_authoritatively(
             surveyed = dialect.settle(
                 text, encoding, marked, not headed, shown, metadata_rows,
                 decimal_comma_columns, metadata_rows_confirmed,
+                declared_delimiter,
             )
             _agrees_with_the_standard_reader(
                 text, surveyed, headed, shown, refusals
@@ -1156,6 +1158,7 @@ def read_table(
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
+    declared_delimiter: str = "",
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -1304,11 +1307,21 @@ def read_table(
     kind = workbook.kind_of(data[:_OPENING_BYTES])
     workbook.refuse_by_kind(kind, shown)
     if kind == workbook.KIND_PACKAGE:
+        # A WORKBOOK HAS NO DELIMITER TO DECLARE (plan P4-D110). Its
+        # cells are cells, so `--delimiter` given on one is a mistake
+        # about the file, and it is refused rather than ignored: a
+        # declaration a tool quietly ignores is worse than one it
+        # refuses.
+        if declared_delimiter:
+            raise errors.ProfileError(
+                errors.delimiter_declared_on_a_workbook(shown)
+            )
         return _read_workbook_table(f"{table_path}", shown, sheet)
     try:
         found = _read_authoritatively(
             table_path, shown, first_row, refusals, encoding, data,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+            declared_delimiter,
         )
     except PermissionError as error:
         raise errors.ProfileError(

@@ -72,6 +72,12 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # refusal a person can meet has been read by somebody -- was red on
     # the commit that added it.
     "metadata_rows_not_supported": ("3",),
+    # Registered with the `--delimiter` declaration of plan P4-D110.
+    "delimiter_not_supported": ("x",),
+    "delimiter_declared_against_the_file": (
+        "/data/table.csv", "a semicolon", "a comma",
+    ),
+    "delimiter_declared_on_a_workbook": ("/data/table.xlsx",),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",

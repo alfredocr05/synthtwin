@@ -431,6 +431,7 @@ def _settings_block(
     forced_measurements: list[str],
     forced_decimal_commas: list[str],
     forced_metadata_rows: int = 0,
+    forced_delimiter: str = "",
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -495,6 +496,13 @@ def _settings_block(
         # or every number of the column reads differently and the whole
         # column comes back missed.
         "forced_decimal_commas": _named_once(forced_decimal_commas),
+        # THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the
+        # delimiter the person said their file is written with, or
+        # empty. Recorded because the validator must read a checked
+        # file with it -- a file that reads equally well two ways is
+        # otherwise measured under whichever reading the cells favour
+        # -- and FD13 holds it to the written form.
+        "forced_delimiter": forced_delimiter,
         # THE FIFTH DECLARATION (plan P4-D81), and the only one that is
         # a COUNT rather than a list of names: how many rows under the
         # column names describe those columns rather than holding a
@@ -809,6 +817,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
     # How many rows under the names describe the columns (plan P4-D81).
     ("settings", "forced_metadata_rows"): _COUNT,
+    # Which delimiter the person declared (plan P4-D110): one of the
+    # four this format reads, or nothing.
+    ("settings", "forced_delimiter"): _WORD,
     ("settings", "forced_decimal_commas"): _ARRAY,
     ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     # How the table was read.
@@ -1447,6 +1458,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         for kind in dialect.CELL_CLASSES
     },
     ("source", "dialect", "delimiter"): dialect.DELIMITERS,
+    ("settings", "forced_delimiter"): ("",) + dialect.DELIMITERS,
     ("source", "dialect", "escape"): dialect.ESCAPES,
     ("source", "dialect", "header_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
@@ -2441,6 +2453,7 @@ def build_document(
     declarations_are_reconstructed: bool = False,
     described_pairs: list[str] | None = None,
     forced_metadata_rows: int = 0,
+    forced_delimiter: str = "",
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2542,6 +2555,7 @@ def build_document(
             declared_commas,
         
             forced_metadata_rows,
+            forced_delimiter,
         ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and

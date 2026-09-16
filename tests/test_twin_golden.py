@@ -908,8 +908,17 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # this commit and on the one before it -- which is the other half of
 # the same statement: the generator is handed one more key and writes
 # exactly what it wrote before.
+# RE-RECORDED 2026-09-16 for plan P4-D110 (review item CODEX-4), and NO
+# CELL OF THE TWIN MOVED. `settings` gained ONE key, `forced_delimiter`,
+# the delimiter the person declared; this run declares none, so its
+# value here is the empty string. MEASURED by this file's own
+# procedure: this description written out again with that one key
+# deleted hashes to
+# d6ddc7ad0ec16c4f05865eca3e189b7c4d492d26f904ce35a390a0f7c7ace5d9,
+# the digest this one replaces. The twin, report and quality digests
+# below did not move.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "d6ddc7ad0ec16c4f05865eca3e189b7c4d492d26f904ce35a390a0f7c7ace5d9"
+    "f77b36daf0bb4331119832cf5da940e9c9ae2b33a2f0b965d6a6efe2250c218e"
 )
 
 

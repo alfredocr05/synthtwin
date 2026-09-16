@@ -72,6 +72,7 @@ right thing with it; it is the asking that stops short, not the fix.
 
 import dataclasses
 
+from synthtwin import dialect
 from synthtwin import errors
 from synthtwin import parsing
 from synthtwin import taxonomy
@@ -138,6 +139,19 @@ BECAUSE_EXPORT_SHAPE = "export-metadata-shape"
 # they can answer it after reading what it costs (review of landing
 # 2b.17, MAJOR; the CODEX-2 ruling read the other way round).
 BECAUSE_DECLARED_UNSEEN = "declared-metadata-rows-not-seen"
+
+# THE SIXTH DECLARATION, AND THE SECOND ABOUT THE FILE (plan P4-D110,
+# review item CODEX-4): which character separates the columns, asked
+# only where the file reads equally well under more than one. Each
+# answer is a word a person can type in a JSON file, which a tab is not.
+DELIMITER_SUBJECT = "the character between your columns"
+BECAUSE_DELIMITER_TIE = "reads-equally-well-with-two-delimiters"
+ANSWER_DELIMITERS = {
+    "comma": ",",
+    "semicolon": ";",
+    "tab": "\t",
+    "vertical-bar": "|",
+}
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
@@ -809,9 +823,73 @@ def questions_for(
 
 
 def file_questions(
-    metadata_shape: bool, declared_unseen: int = 0
+    metadata_shape: bool,
+    declared_unseen: int = 0,
+    tied_delimiters: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The questions about the FILE rather than about a column.
+
+    Two subjects: the rows under the column names (`_metadata_questions`)
+    and, where the file reads equally well under more than one
+    delimiter, which one it is written with (`_delimiter_questions`,
+    plan P4-D110). In that order, which is the order a file is read in.
+
+    Guarantees: a fixed function of the arguments; opens nothing; and
+    carries no value of the table.
+    """
+    return _metadata_questions(
+        metadata_shape, declared_unseen
+    ) + _delimiter_questions(tied_delimiters)
+
+
+def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
+    """Which delimiter a file that reads equally well two ways is written with.
+
+    THE QUESTION THE CELLS CANNOT ANSWER (review item CODEX-4). A file
+    written `id,pair|code` over rows such as `1,2|3` is two columns
+    under the comma and two different columns under the vertical bar,
+    and a count of the cells that read as numbers took the bar where an
+    earlier version read the comma. Neither reading is wrong about the
+    bytes, so the reading taken stands -- a file this tool twinned
+    before may not be refused now -- and the person is asked. What the
+    question names is the delimiters, never a cell.
+    """
+    if len(tied) < 2:
+        return []
+    word_of = {ANSWER_DELIMITERS[word]: word for word in ANSWER_DELIMITERS}
+    choices: list[Choice] = []
+    for one in tied:
+        choices += [
+            Choice(
+                word_of[one],
+                f"the columns are separated by {dialect.DELIMITER_WORDS[one]}",
+                (
+                    f"the file is read with {dialect.DELIMITER_WORDS[one]}, "
+                    f"which decides every column name and every column's "
+                    f"values, and the twin is written with it"
+                ),
+            )
+        ]
+    return [
+        Question(
+            DELIMITER_SUBJECT,
+            "",
+            BECAUSE_DELIMITER_TIE,
+            (
+                f"every record splits into the same number of columns "
+                f"under {len(tied)} different delimiters, so nothing in "
+                f"the values can say which one your file uses"
+            ),
+            choices,
+            word_of[tied[0]],
+        )
+    ]
+
+
+def _metadata_questions(
+    metadata_shape: bool, declared_unseen: int = 0
+) -> "list[Question]":
+    """The question about the rows under the column names.
 
     One subject, asked from either side: whether the rows under the
     column names describe those columns (plan P4-D81).
@@ -1335,6 +1413,9 @@ class Answers:
     # said describe those columns. Nought where they did not answer,
     # which leaves those rows in the table.
     metadata_rows: int = 0
+    # ...and the sixth (plan P4-D110): the delimiter the person said
+    # their file is written with, as the character, or empty.
+    delimiter: str = ""
 
 
 def _entry_answer(
@@ -1479,6 +1560,7 @@ def answers_in(document: object, shown: str) -> Answers:
     measurements: list[str] = []
     decimal_commas: list[str] = []
     metadata_rows = 0
+    delimiter = ""
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -1508,6 +1590,10 @@ def answers_in(document: object, shown: str) -> Answers:
         elif written == ANSWER_DATA:
             # The reading that already stands: the rows are records.
             metadata_rows = 0
+        elif written in ANSWER_DELIMITERS:
+            # The one answer that decides how the file is SPLIT (plan
+            # P4-D110), which is `--delimiter`.
+            delimiter = ANSWER_DELIMITERS[written]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -1523,4 +1609,5 @@ def answers_in(document: object, shown: str) -> Answers:
         tuple(measurements),
         tuple(decimal_commas),
         metadata_rows,
+        delimiter,
     )

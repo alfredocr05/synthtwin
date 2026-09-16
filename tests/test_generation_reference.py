@@ -423,6 +423,9 @@ def _settings(declared: list, commas: "list | None" = None) -> dict:
         # descriptions: every case here is built from the generation
         # method's own text, and none of them has a header at all.
         "forced_metadata_rows": 0,
+        # The sixth (plan P4-D110). The oracle declares no delimiter: the
+        # delimited cases read their own published one.
+        "forced_delimiter": "",
     }
 
 

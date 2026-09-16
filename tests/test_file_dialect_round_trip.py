@@ -35,6 +35,8 @@ import sys
 
 import pytest
 
+from synthtwin import asking
+
 ROWS = 120
 SITES = ("North", "South", "East", "West")
 
@@ -1584,6 +1586,153 @@ def test_a_semicolon_export_whose_names_hold_commas(tmp_path: pathlib.Path) -> N
     assert result["twin_form"] == result["form"]
     assert result["twin_encoding"] == result["encoding"]
     assert result["exits"]["real"] == 0
+
+    # THE COMMA READS THIS FILE AS WELL, AND THE PERSON IS ASKED (review
+    # item CODEX-4, plan P4-D110). The semicolon above wins on a count
+    # of the cells that read as numbers, which is a guess; the file is
+    # three fields a record under both, so the questions file names both
+    # and the reading taken is the one it offers first.
+    questions = json.loads((tmp_path / "real-questions.json").read_text())
+    about = [
+        entry for entry in questions["about_your_file"]
+        if entry["column"] == asking.DELIMITER_SUBJECT
+    ]
+    assert len(about) == 1, questions["about_your_file"]
+    assert [
+        choice["answer"] for choice in about[0]["answers_you_can_give"]
+    ] == ["semicolon", "comma"]
+    assert about[0]["read_as_now"] == "semicolon"
+
+    # AND THE DECLARATION IS WHAT THIS TEST NOW STANDS ON. Everything
+    # asserted of the guessed reading holds of the declared one, and the
+    # declared run asks nothing, because nothing is left to guess.
+    declared = _round_trip(
+        tmp_path / "declared", data, flags + ("--delimiter", ";")
+    )
+    assert declared["form"] == result["form"]
+    assert declared["names"] == ["id", "Gewicht, kg", "Größe, cm"]
+    assert declared["twin_form"] == declared["form"]
+    assert declared["exits"]["real"] == 0
+    asked = json.loads(
+        (tmp_path / "declared" / "real-questions.json").read_text()
+    )
+    assert asked["about_your_file"] == []
+    settings = json.loads(
+        (tmp_path / "declared" / "real-profile.json").read_text()
+    )["settings"]
+    assert settings["forced_delimiter"] == ";"
+
+
+def test_a_file_that_reads_equally_well_two_ways_is_asked_and_declared(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
+) -> None:
+    """`id,pair|code` over `1,2|3` is two columns under either delimiter.
+
+    THE REPRODUCTION (review item CODEX-4). Commit 53bb012 read this
+    file with the comma -- columns `id` and `pair|code` -- and the
+    numeric tie-break of landing 2b.9 reads it with the vertical bar --
+    `id,pair` and `code` -- because `1,2` reads as a number with a
+    decimal comma. Both trees twin it at exit 0, so it was a SILENT
+    misreading of somebody's columns, and refusing it would refuse a
+    file the baseline twinned.
+
+    So nothing is refused and nothing that was read is read differently:
+    the reading the cells favour stands, the tie is said on the screen
+    and put in the questions file, and the person settles it with
+    `--delimiter` or with an answer in that file. Each route is taken
+    here, and the declared file round-trips with its twin and itself
+    both validating at exit 0, which needs the validator to read the
+    checked file with the declaration too.
+    """
+    draw = random.Random(41)
+    body = ["id,pair|code"]
+    for index in range(ROWS):
+        body += [f"{index + 1},{draw.randint(1, 9)}|{draw.randint(10, 99)}"]
+    data = ("\n".join(body) + "\n").encode()
+
+    folder = tmp_path / "guessed"
+    folder.mkdir()
+    real = folder / "real.csv"
+    real.write_bytes(data)
+    capsys.readouterr()
+    assert _exit_of(["profile", str(real), "--out-dir", str(folder)]) == 0
+    said = capsys.readouterr().out
+    assert "READS EQUALLY WELL WITH MORE THAN ONE DELIMITER" in said, said[-900:]
+    described = json.loads((folder / "real-profile.json").read_text())
+    # The standing reading, which is what HEAD read before this work.
+    assert described["source"]["dialect"]["delimiter"] == "|"
+    assert [column["name"] for column in described["columns"]] == [
+        "id,pair", "code",
+    ]
+    assert described["settings"]["forced_delimiter"] == ""
+    questions = json.loads((folder / "real-questions.json").read_text())
+    about = questions["about_your_file"]
+    assert len(about) == 1, about
+    assert about[0]["column"] == asking.DELIMITER_SUBJECT
+    assert [
+        choice["answer"] for choice in about[0]["answers_you_can_give"]
+    ] == ["vertical-bar", "comma"]
+    assert about[0]["read_as_now"] == "vertical-bar"
+
+    # ANSWERING IN THE FILE IS A DECLARATION.
+    about[0]["your_answer"] = "comma"
+    answers = folder / "answered.json"
+    answers.write_text(json.dumps(questions, indent=2), newline="\n")
+    answered = tmp_path / "answered"
+    answered.mkdir()
+    again = answered / "real.csv"
+    again.write_bytes(data)
+    assert _exit_of(
+        ["profile", str(again), "--out-dir", str(answered),
+         "--answers", str(answers)]
+    ) == 0
+    settled = json.loads((answered / "real-profile.json").read_text())
+    assert settled["source"]["dialect"]["delimiter"] == ","
+    assert settled["settings"]["forced_delimiter"] == ","
+    assert json.loads(
+        (answered / "real-questions.json").read_text()
+    )["about_your_file"] == []
+
+    # AND TYPED ON THE COMMAND LINE IT READS THE FILE THE WAY 53bb012
+    # DID, THE TWIN IS WRITTEN WITH IT, AND BOTH FILES VALIDATE.
+    result = _round_trip(tmp_path / "declared", data, ("--delimiter", ","))
+    assert result["form"]["delimiter"] == ","
+    assert result["names"] == ["id", "pair|code"]
+    _held(result)
+    assert result["twin"].split(b"\n")[0] == b"id,pair|code"
+
+
+def test_a_delimiter_declaration_that_cannot_be_acted_on_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A character this format does not read, and one the file contradicts.
+
+    A declaration a tool quietly ignores is worse than one it refuses
+    (plan P4-D110), so each is refused before anything is written.
+    """
+    rows = ["a,b"] + [f"{index},x{index}" for index in range(ROWS)]
+    plain = tmp_path / "plain.csv"
+    plain.write_bytes(("\n".join(rows) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(plain), "--out-dir", str(tmp_path), "--delimiter", ":"]
+    ) == 2
+    hinted = tmp_path / "hinted.csv"
+    hinted.write_bytes(("sep=,\n" + "\n".join(rows) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(hinted), "--out-dir", str(tmp_path), "--delimiter", ";"]
+    ) == 1
+    assert not (tmp_path / "hinted-profile.json").exists()
+    # ...and the word `tab` is the tab, because a tab is hard to type.
+    tabbed = tmp_path / "tabbed.csv"
+    tabbed.write_bytes(
+        ("\n".join(row.replace(",", "\t") for row in rows) + "\n").encode()
+    )
+    assert _exit_of(
+        ["profile", str(tabbed), "--out-dir", str(tmp_path), "--delimiter", "tab"]
+    ) == 0
+    assert json.loads(
+        (tmp_path / "tabbed-profile.json").read_text()
+    )["settings"]["forced_delimiter"] == "\t"
 
 
 def test_a_constant_column_is_passed_over_for_the_sort(tmp_path: pathlib.Path) -> None:

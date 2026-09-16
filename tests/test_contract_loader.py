@@ -1220,6 +1220,11 @@ def battery() -> list[Mutation]:
         # replacement: "below the floor" would then reach counts of
         # nothing at all, which no count is.
         Mutation(
+            "R16", "a declared delimiter this format does not read",
+            edit_in("settings", forced_delimiter=":"),
+            names="forced_delimiter",
+        ),
+        Mutation(
             "R16", "a floor below the smallest one allowed",
             edit_in("settings", small_cell_floor=0),
             names="small_cell_floor",
@@ -1345,6 +1350,18 @@ def battery() -> list[Mutation]:
         Mutation(
             "FD12", "a row sequence in a column declared to hold record numbers",
             _form_sequence_on_a_declared_identifier,
+        ),
+        # The declared delimiter (plan P4-D110, review item CODEX-4). The
+        # base description declares none and reads its file with the
+        # comma, so a declaration of the semicolon says two things about
+        # one file; and a workbook has no delimiter to declare at all.
+        Mutation(
+            "FD13", "a declared delimiter the written form does not publish",
+            edit_in("settings", forced_delimiter=";"),
+        ),
+        Mutation(
+            "FD13", "a delimiter declared on a workbook",
+            _form_workbook_with_a_declared_delimiter,
         ),
         # The workbook block (plan P4-D77). The base is a delimited
         # file's description, so each of these installs a conforming
@@ -1576,6 +1593,11 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
     }
     document["source"]["workbook"] = block
     return block
+
+
+def _form_workbook_with_a_declared_delimiter(document: Document) -> None:
+    _workbook_block(document, 16, 120)
+    document["settings"]["forced_delimiter"] = ","
 
 
 def _form_workbook_of_the_wrong_width(document: Document) -> None:

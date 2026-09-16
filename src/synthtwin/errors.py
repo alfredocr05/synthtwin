@@ -1182,6 +1182,44 @@ def unknown_column_named(purpose: str, name: str, known: list[str]) -> str:
     )
 
 
+def delimiter_not_supported(given: str) -> str:
+    """Message for a --delimiter value this format cannot read (plan P4-D110)."""
+    return (
+        f"--delimiter takes one of four characters, but {given} was "
+        f"given. It says which character separates the columns of your "
+        f"file: a comma, a semicolon, a vertical bar, or a tab. Please "
+        f"run the command again with --delimiter followed by ',' or "
+        f"';' or '|', or by the word tab, each in quotation marks where "
+        f"your command line needs them. Nothing was read and nothing "
+        f"was written."
+    )
+
+
+def delimiter_declared_against_the_file(
+    path: str, declared: str, written: str
+) -> str:
+    """Message for a --delimiter the file's own separator line contradicts."""
+    return (
+        f"You said the columns of {path} are separated by {declared}, "
+        f"and the file's first line says they are separated by "
+        f"{written}: that line is the separator line a spreadsheet "
+        f"writes to name the character it used. synthtwin will not "
+        f"choose between the two. If the file is right, run the command "
+        f"again without --delimiter; if it is not, the file itself "
+        f"needs correcting first. Nothing was written."
+    )
+
+
+def delimiter_declared_on_a_workbook(path: str) -> str:
+    """Message for a --delimiter given on a workbook (plan P4-D110)."""
+    return (
+        f"{path} is a workbook, and a workbook keeps its values in "
+        f"cells, so there is no character between its columns to "
+        f"declare. Please run the command again without --delimiter. "
+        f"Nothing was written."
+    )
+
+
 def metadata_rows_not_supported(given: str) -> str:
     """Message for a --metadata-rows value this format cannot carry."""
     return (
@@ -1512,7 +1550,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES TEN OPTIONS. It named two until 2026-08-17, five after
+    IT NAMES THIRTEEN OPTIONS. `--metadata-rows` (plan P4-D81) and
+    `--sheet` (plan P4-D77) reached the command line without reaching
+    this sentence, and the test that derives the owed set from the
+    shipped parser was red for both; landing 2b.17's repair pass added
+    them with `--delimiter` (plan P4-D110), each priced by what leaving
+    it out publishes. Before that it named ten. It named two until 2026-08-17, five after
     that, gained `--code` on 2026-08-25 with the declaration itself
     (plan amendment A-P4-38), and gained `--answers` on 2026-09-10 with
     the hand-back (amendment A-P4-60). `--answers` belongs here for a
@@ -1605,7 +1648,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first and --answers. "
+        f"--day-first, --metadata-rows, --sheet, --delimiter and "
+        f"--answers. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
@@ -1625,9 +1669,20 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"with slashes, with dots, or with a two-figure year \u2014 can "
         f"be read the other way round, which changes "
         f"the dates the description publishes and can leave the column "
-        f"described as text instead; and without the --answers you "
+        f"described as text instead; without the --metadata-rows you "
+        f"gave, the rows under your column names that describe your "
+        f"columns are read as records of your table, so their text is "
+        f"counted and described as data and every count is two rows "
+        f"out; without the --sheet you gave, another sheet of your "
+        f"workbook can be described, and everything the new description "
+        f"publishes is then about that sheet's table; without the "
+        f"--delimiter you gave, a file that reads equally well with two "
+        f"delimiters can be split the other way, which changes every "
+        f"column name the description publishes and every value it "
+        f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
-        f"each of them was a --code, an --identifier or a --measurement, "
+        f"each of them was a --code, an --identifier, a --measurement, "
+        f"a --decimal-comma, a --metadata-rows or a --delimiter, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "

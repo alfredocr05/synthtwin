@@ -492,6 +492,9 @@ class _Options:
     # number for the reason `seed` is text: whether it is a number this
     # tool can use is decided in words a person can act on.
     metadata_rows: str
+    # Which character separates the columns, as the person typed it, or
+    # empty (plan P4-D110). Text for the reason `metadata_rows` is.
+    delimiter: str
     # Which sheet of a workbook holds the table, or empty to settle it
     # by the first visible one (plan P4-D77).
     sheet: str
@@ -741,6 +744,21 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--delimiter",
+        default=None,
+        metavar="CHARACTER",
+        help=(
+            "say which character separates the columns of your file: "
+            "',' ';' '|' or the word tab. synthtwin works this out by "
+            "itself, and it asks rather than guesses where a file reads "
+            "equally well two ways -- 'id,pair|code' over rows such as "
+            "'1,2|3' is two columns under the comma and two different "
+            "columns under the vertical bar, and nothing in the cells "
+            "can say which is yours. Only for delimited text; a "
+            "workbook has no such character"
+        ),
+    )
+    parser.add_argument(
         "--answers",
         default=None,
         metavar="FILE",
@@ -930,6 +948,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metadata_rows=(
             "" if args.metadata_rows is None else f"{args.metadata_rows}"
         ),
+        delimiter=("" if args.delimiter is None else f"{args.delimiter}"),
         sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
@@ -1229,6 +1248,49 @@ def _metadata_rows_unseen_notice(rows: int) -> str:
         f"than taken at your word here because on a file this "
         f"declaration is wrong about, those rows are somebody's "
         f"records, and publishing one of those cannot be undone."
+    )
+
+
+# How `--delimiter` may be typed (plan P4-D110). A tab is hard to type
+# on most command lines, so the word stands for it beside the character.
+_DELIMITER_SPELLINGS = {
+    ",": ",",
+    ";": ";",
+    "|": "|",
+    "\t": "\t",
+    "tab": "\t",
+}
+
+
+def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
+    """What is said about a file that reads equally well two ways.
+
+    It names the delimiters, never a cell: which character separates the
+    columns is a fact about the file, and the reading taken is the one
+    the file would have had anyway (review item CODEX-4).
+    """
+    others = ""
+    for one in tied[1:]:
+        others = (
+            dialect.DELIMITER_WORDS[one]
+            if not others
+            else f"{others} or with {dialect.DELIMITER_WORDS[one]}"
+        )
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE READS EQUALLY WELL WITH MORE THAN ONE DELIMITER\n"
+        f"{'=' * 66}\n"
+        f"Every record of your file splits into the same number of "
+        f"columns whether it is read with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]} or with "
+        f"{others}, and nothing in the values can say "
+        f"which your file uses. synthtwin has read it with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}, the reading under which "
+        f"more of the values read as numbers. If that is not how your "
+        f"file is written, describe the table again with --delimiter, "
+        f"or answer the question under 'about_your_file' in the "
+        f"questions file this run writes: your column names, and every "
+        f"column's values, depend on it."
     )
 
 
@@ -1654,6 +1716,7 @@ def _run_profile(
     day_first: bool,
     sheet: str = "",
     metadata_rows_given: str = "",
+    delimiter_given: str = "",
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1710,6 +1773,16 @@ def _run_profile(
             return 2
         metadata_rows = int(metadata_rows_given)
 
+    # WHICH CHARACTER SEPARATES THE COLUMNS, WHERE THE PERSON SAID (plan
+    # P4-D110, review item CODEX-4). Refused before the table is opened
+    # where it is not one of the four this format reads.
+    declared_delimiter = ""
+    if delimiter_given:
+        if delimiter_given not in _DELIMITER_SPELLINGS:
+            _warn(errors.delimiter_not_supported(_shown(delimiter_given)))
+            return 2
+        declared_delimiter = _DELIMITER_SPELLINGS[delimiter_given]
+
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
     # A-P4-58). A file that is not a questions file, or that answers a
     # column with a word no question offered, is the person's mistake
@@ -1742,6 +1815,12 @@ def _run_profile(
         if written.metadata_rows:
             metadata_rows = written.metadata_rows
             metadata_rows_confirmed = True
+        # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
+        # delimiter the file is written with decides how it is read, so
+        # the answer has to arrive before the read. It is the newer
+        # statement and replaces a typed one.
+        if written.delimiter:
+            declared_delimiter = written.delimiter
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -1828,7 +1907,22 @@ def _run_profile(
         # genuinely sorted by it published no order. The declaration
         # has to reach the survey for the order to be read correctly.
         decimal_comma_columns=tuple(forced_decimal_commas),
+        # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
+        # (plan P4-D110). Nothing is guessed about a declared one.
+        declared_delimiter=declared_delimiter,
     )
+
+    # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
+    # LOUD (review item CODEX-4, plan P4-D110). It is read the way the
+    # cells favour, which is how every file this tool twinned before is
+    # still read, and the person is told the other reading exists and
+    # how to choose it: a silent misreading of their columns is the one
+    # outcome this may not leave them with.
+    delimiter_tie: "tuple[str, ...]" = ()
+    if read.survey is not None and not declared_delimiter:
+        delimiter_tie = read.survey.delimiter_tie
+    if delimiter_tie:
+        _say(f"\n{_delimiter_tie_notice(delimiter_tie)}\n")
 
     # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan
     # P4-D81). The shape some survey exports wear is recognised and
@@ -1963,6 +2057,7 @@ def _run_profile(
         forced_measurements,
         forced_decimal_commas,
         forced_metadata_rows=metadata_rows,
+        forced_delimiter=declared_delimiter,
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -2105,6 +2200,7 @@ def _run_profile(
                     forced_measurements,
                     forced_decimal_commas,
                     forced_metadata_rows=metadata_rows,
+                    forced_delimiter=declared_delimiter,
                 )
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
@@ -2392,6 +2488,9 @@ def _run_profile(
                         # not acted on, so the person is asked here
                         # rather than having it done to their table.
                         metadata_rows if metadata_declaration_unseen else 0,
+                        # ...and the delimiter, where the file reads
+                        # equally well under more than one (P4-D110).
+                        delimiter_tie,
                     ),
                 )
             ),
@@ -3183,6 +3282,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.day_first,
             options.sheet,
             options.metadata_rows,
+            options.delimiter,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

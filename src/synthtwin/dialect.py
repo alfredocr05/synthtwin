@@ -1740,7 +1740,7 @@ def _width_share(sample: "list[Record]") -> "tuple[float, int]":
     return (best_count / total, best)
 
 
-def detected_delimiter(text: str, at: int) -> str:
+def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
     """The delimiter a table is written with, from its first records.
 
     Each candidate reads the first records; the one under which the most
@@ -1765,6 +1765,19 @@ def detected_delimiter(text: str, at: int) -> str:
     So on a tie the candidate under whose reading more cells read as
     numbers, with a point or with a decimal comma, wins; the order of
     `DELIMITERS` decides only where that ties too.
+
+    AND A TIE OF BOTH IS RECORDED, NOT ONLY BROKEN (review item CODEX-4,
+    plan P4-D110). Counting the cells that read as numbers is a guess
+    about the file, and a genuinely ambiguous one proves it: `id,pair|code`
+    over rows such as `1,2|3` reads as two fields a record under the comma
+    AND under the vertical bar, and the count took the bar where commit
+    53bb012 had read the comma. Both readings are consistent, so no count
+    of the cells can say which the person's file is. The second value
+    returned is every candidate that tied the winner on the share AND
+    the width -- the winner first, then the others in `DELIMITERS` order
+    -- or empty where nothing tied. The reading still stands, because a
+    file the baseline twinned may not become refused; the tie is what the
+    person is then ASKED about, and `--delimiter` is how they answer.
     """
     chosen = ","
     best_share = 0.0
@@ -1791,6 +1804,26 @@ def detected_delimiter(text: str, at: int) -> str:
             best_width = width
             best_numbers = numbers
             best_sample = sample
+    tied: list[str] = []
+    for candidate in DELIMITERS:
+        if candidate == chosen:
+            continue
+        found = _best_reading(text, candidate, at)
+        if found is None:
+            continue
+        if found[0] == best_share and found[1] == best_width:
+            tied += [candidate]
+    if not tied:
+        return chosen, ()
+    return chosen, tuple([chosen] + tied)
+
+
+def detected_delimiter(text: str, at: int) -> str:
+    """The delimiter a table is written with, from its first records.
+
+    The first half of `delimiter_reading`, which says how it is chosen.
+    """
+    chosen, _tied = delimiter_reading(text, at)
     return chosen
 
 
@@ -1915,6 +1948,12 @@ class Survey:
     # where the person declared them -- and it is here so that the
     # questions file can ask about a file that has it.
     metadata_shape: bool = False
+    # EVERY DELIMITER THE FILE READS EQUALLY WELL UNDER, where more than
+    # one does and nobody said which (review item CODEX-4, plan P4-D110):
+    # the one it was read with first, then the others. Empty where one
+    # candidate read best, where a separator line named it, and where
+    # the person declared it. Acted on nowhere but the questions file.
+    delimiter_tie: "tuple[str, ...]" = ()
     # Measured whatever the caps: every place blank lines stand, how many
     # lines end each way, and the blank lines counted. The reader checks
     # the first against the standard reader; the validator compares the
@@ -2470,6 +2509,7 @@ def survey(
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
+    declared_delimiter: str = "",
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -2494,7 +2534,25 @@ def survey(
         body = body[: len(body) - 1]
     size = len(body)
     hinted, at = _separator_hint(body)
-    delimiter = hinted if hinted else detected_delimiter(body, at)
+    # A DECLARED DELIMITER IS READ, AND NOT GUESSED (review item CODEX-4,
+    # plan P4-D110). A separator line in the file names its delimiter
+    # already, so a declaration that names another one contradicts the
+    # file itself and is refused rather than ranked.
+    if hinted and declared_delimiter and hinted != declared_delimiter:
+        raise errors.ProfileError(
+            errors.delimiter_declared_against_the_file(
+                shown,
+                DELIMITER_WORDS[declared_delimiter],
+                DELIMITER_WORDS[hinted],
+            )
+        )
+    tie: "tuple[str, ...]" = ()
+    if hinted:
+        delimiter = hinted
+    elif declared_delimiter:
+        delimiter = declared_delimiter
+    else:
+        delimiter, tie = delimiter_reading(body, at)
     if initial_space is None:
         spaced = detected_initial_space(body, at, delimiter)
     else:
@@ -2752,6 +2810,7 @@ def survey(
                 metadata_rows,
                 decimal_comma_columns,
                 metadata_rows_confirmed,
+                declared_delimiter,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -2897,6 +2956,7 @@ def survey(
         escapes=escapes,
         initial_space_broken=spaces_broken,
         metadata_shape=metadata_shape,
+        delimiter_tie=tie,
         every_blank_place=tuple(blanks),
         ending_census=census,
         blank_census=blank_census,
@@ -3060,6 +3120,7 @@ def settle(
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
+    declared_delimiter: str = "",
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -3077,6 +3138,7 @@ def settle(
             metadata_rows=metadata_rows,
             decimal_comma_columns=decimal_comma_columns,
             metadata_rows_confirmed=metadata_rows_confirmed,
+            declared_delimiter=declared_delimiter,
         )
     except errors.ProfileError as refusal:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
@@ -3094,6 +3156,7 @@ def settle(
                 None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
                 metadata_rows_confirmed=metadata_rows_confirmed,
+                declared_delimiter=declared_delimiter,
             )
         except errors.ProfileError:
             raise refusal from None
@@ -3106,6 +3169,7 @@ def settle(
             metadata_rows=metadata_rows,
             decimal_comma_columns=decimal_comma_columns,
             metadata_rows_confirmed=metadata_rows_confirmed,
+            declared_delimiter=declared_delimiter,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -3120,6 +3184,7 @@ def settle(
                 metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
                 metadata_rows_confirmed=metadata_rows_confirmed,
+                declared_delimiter=declared_delimiter,
             )
         except errors.ProfileError:
             return found

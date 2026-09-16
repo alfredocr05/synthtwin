@@ -167,6 +167,7 @@ SETTINGS_KEYS = (
     "declared_missing_values",
     "forced_codes",
     "forced_decimal_commas",
+    "forced_delimiter",
     "forced_identifiers",
     "forced_measurements",
     "forced_metadata_rows",
@@ -963,6 +964,13 @@ INVARIANTS = {
         "and a row sequence is published only for the first column, "
         "named as a written row index is"
     ),
+    # The rule that holds a declared delimiter to the written form (plan
+    # P4-D110, review item CODEX-4). The producer's half is the survey,
+    # which reads a declared delimiter and guesses none.
+    "FD13": (
+        "a delimiter the person declared is the delimiter the written "
+        "form publishes, and a workbook carries no such declaration"
+    ),
     "FD11": (
         "the lines before the table are published as runs of one shape, "
         "within the cap, each carrying a mark holding no line break, no "
@@ -1601,6 +1609,13 @@ class SettingsBlock:
     # data, which is what a file synthtwin has guessed wrong about
     # needs them to be (review item CODEX-2).
     forced_metadata_rows: int = 0
+    # THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4). The
+    # character the person said separates the columns of their file, or
+    # empty where they said nothing. A file that reads equally well
+    # under two delimiters cannot be settled by anything in its cells,
+    # so this is the one thing that settles it; FD13 holds it to the
+    # delimiter the written form publishes.
+    forced_delimiter: str = ""
 
 
 # TWO QUESTIONS, TWO NAMES, because a first version asked one and
@@ -4274,14 +4289,31 @@ def _dialect_rules(
     floor: int,
     declared: "tuple[str, ...]" = (),
     metadata_rows: int = 0,
+    declared_delimiter: str = "",
 ) -> None:
-    """The invariants that tie the file's written form to the table (FD1-FD12).
+    """The invariants that tie the file's written form to the table (FD1-FD13).
 
     Run after the columns are read, because every one of them needs the
     columns, the row count or the floor. Each names what it compared.
     """
     form = source.dialect
     where = _WRITTEN
+    # A DECLARED DELIMITER IS THE ONE THE FILE WAS READ WITH (FD13, plan
+    # P4-D110). The declaration exists because nothing in the cells can
+    # settle a file that reads equally well two ways, so a description
+    # whose written form names another delimiter says two things about
+    # one file, and a twin written from it would be read back under the
+    # one the settings block does not name. A workbook has no delimiter
+    # at all, so it carries no such declaration.
+    if declared_delimiter and (
+        source.workbook is not None or form.delimiter != declared_delimiter
+    ):
+        raise _broken(
+            "FD13", where,
+            f"the person declared {dialect.DELIMITER_WORDS[declared_delimiter]} "
+            f"as the delimiter",
+            "a delimited file whose written form publishes that same delimiter",
+        )
     headed = source.header_source == "file"
     width = len(columns)
     if len(form.columns) != width:
@@ -4957,6 +4989,16 @@ def _settings(value: object) -> SettingsBlock:
         # published verbatim (review item CODEX-2).
         forced_metadata_rows=_whole(
             mapping["forced_metadata_rows"], "forced_metadata_rows", where, 0
+        ),
+        # WHICH DELIMITER THE PERSON DECLARED (plan P4-D110). Nothing,
+        # or one of the four this format reads; FD13 then holds it to
+        # the written form once the source block and the table are both
+        # read.
+        forced_delimiter=_one_of(
+            mapping["forced_delimiter"],
+            "forced_delimiter",
+            where,
+            ("",) + dialect.DELIMITERS,
         ),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
@@ -10473,6 +10515,7 @@ def _validated(document: "dict[str, object]") -> Profile:
     _dialect_rules(
         source, columns, n_rows, settings.small_cell_floor,
         settings.forced_identifiers, settings.forced_metadata_rows,
+        settings.forced_delimiter,
     )
     # ...and the same for a workbook, where the file was one (plan
     # P4-D77). Run beside the written form's rules and for the same

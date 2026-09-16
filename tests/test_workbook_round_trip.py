@@ -751,6 +751,28 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
         ) != 0, named
 
 
+def test_a_delimiter_declared_on_a_workbook_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A workbook keeps its values in cells; it has no delimiter to declare.
+
+    Plan P4-D110. `--delimiter` given on one is a mistake about the
+    file, and a declaration a tool quietly ignores is worse than one it
+    refuses, so the reader refuses it by name before describing a cell.
+    """
+    path = _written(tmp_path, "plain.xlsx", workbooks.plain_book(30))
+    with pytest.raises(errors.ProfileError) as raised:
+        reading.read_table(str(path), declared_delimiter=",")
+    spoken = f"{raised.value}"
+    assert "is a workbook" in spoken and "--delimiter" in spoken, spoken
+    assert _quiet(
+        ["profile", str(path), "--out-dir", str(tmp_path), "--delimiter", ","]
+    ) == 1
+    assert not (tmp_path / "plain-profile.json").exists()
+    # ...and the same workbook with nothing declared is read as before.
+    assert _quiet(["profile", str(path), "--out-dir", str(tmp_path)]) == 0
+
+
 def test_a_defined_table_is_written_over_the_twins_own_rows(
     tmp_path: pathlib.Path,
 ) -> None:

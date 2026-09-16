@@ -4377,6 +4377,12 @@ def measure(
             decimal_comma_columns=tuple(
                 description.settings.forced_decimal_commas
             ),
+            # AND WITH THE DELIMITER THE PERSON DECLARED (review item
+            # CODEX-4, plan P4-D110). A file that reads equally well
+            # under two delimiters is read by the declaration and by
+            # nothing else, so a checked file read without it would be
+            # measured under the other reading of the same bytes.
+            declared_delimiter=description.settings.forced_delimiter,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
