@@ -169,6 +169,7 @@ SETTINGS_KEYS = (
     "forced_decimal_commas",
     "forced_identifiers",
     "forced_measurements",
+    "forced_metadata_rows",
     "identifier_minimum_rows",
     "identifier_uniqueness",
     "kept_values",
@@ -945,8 +946,9 @@ INVARIANTS = {
     ),
     "FD9": (
         "rows of column descriptions stand only under a header read from "
-        "the file, two of them, each as wide as the table, and carry a "
-        "quoting rule only where they exist"
+        "the file, exactly as many of them as the person declared and no "
+        "more than two, each as wide as the table, and carry a quoting "
+        "rule only where they exist"
     ),
     "FD10": (
         "only a header read from the file carries a trailing delimiter or "
@@ -962,10 +964,11 @@ INVARIANTS = {
         "named as a written row index is"
     ),
     "FD11": (
-        "every line before the table is one line, within the cap, and is "
-        "published as written only at a smallest group of one -- above "
-        "it, as its stand-in, and recorded as withheld exactly when one "
-        "held text"
+        "the lines before the table are published as runs of one shape, "
+        "within the cap, each carrying a mark holding no line break and "
+        "no text of the line, each the shape the line the twin writes "
+        "for it is read back as, and recorded as withheld exactly when "
+        "one of them held text"
     ),
     # How the table's file is a WORKBOOK (plan P4-D77, contract 4.3b).
     "WB1": (
@@ -1582,6 +1585,14 @@ class SettingsBlock:
     # file, and refusing it would refuse the case this declaration was
     # built for.
     forced_decimal_commas: "tuple[str, ...]"
+    # THE FIFTH DECLARATION (plan P4-D81). How many rows under the
+    # column names DESCRIBE those columns -- a survey export writes two
+    # -- rather than holding somebody's record. It is a count and not a
+    # list of names, and it is the only thing that lets rows be taken
+    # out of the table and published as schema: without it they are
+    # data, which is what a file synthtwin has guessed wrong about
+    # needs them to be (review item CODEX-2).
+    forced_metadata_rows: int = 0
 
 
 # TWO QUESTIONS, TWO NAMES, because a first version asked one and
@@ -4061,12 +4072,20 @@ def _dialect_block(value: object) -> dialect.Dialect:
                 text=_text(entry["text"], "text", where),
             )
         ]
-    preamble = tuple(
-        [
-            _text(item, "preamble", where)
-            for item in _listing(mapping["preamble"], "preamble", where)
+    preamble: list[dialect.PreambleRun] = []
+    for item in _listing(mapping["preamble"], "preamble", where):
+        run = _mapping(item, "preamble", where)
+        _keys(
+            run, where, ("kind", "lines", "mark"),
+            "a run of lines before the table",
+        )
+        preamble += [
+            dialect.PreambleRun(
+                kind=_one_of(run["kind"], "kind", where, dialect.PREAMBLE_KINDS),
+                lines=_whole(run["lines"], "lines", where, 1),
+                mark=_text(run["mark"], "mark", where),
+            )
         ]
-    )
     header_rows: list[tuple[str, ...]] = []
     for item in _listing(mapping["header_rows"], "header_rows", where):
         header_rows += [
@@ -4140,7 +4159,7 @@ def _dialect_block(value: object) -> dialect.Dialect:
         line_endings=tuple(runs),
         final_line_ending=_truth(mapping["final_line_ending"], "final_line_ending", where),
         end_of_file_mark=_truth(mapping["end_of_file_mark"], "end_of_file_mark", where),
-        preamble=preamble,
+        preamble=tuple(preamble),
         preamble_withheld=_truth(mapping["preamble_withheld"], "preamble_withheld", where),
         header_quoting=_one_of(mapping["header_quoting"], "header_quoting", where, dialect.QUOTE_RULES),
         header_rows=tuple(header_rows),
@@ -4168,6 +4187,7 @@ def _dialect_rules(
     n_rows: int,
     floor: int,
     declared: "tuple[str, ...]" = (),
+    metadata_rows: int = 0,
 ) -> None:
     """The invariants that tie the file's written form to the table (FD1-FD12).
 
@@ -4326,16 +4346,32 @@ def _dialect_rules(
                     f"the header as written names column {index + 1} differently",
                     "the name the description gives that column",
                 )
+    # FD9 (plan P4-D81). THE PUBLISHED ROWS ARE THE DECLARED ROWS.
+    # Without the last clause a description could carry rows of column
+    # descriptions that nobody declared -- which is exactly what the
+    # producer used to write from a guess, publishing a person's own
+    # record as schema text (review item CODEX-2). The count is in the
+    # settings block, so the loader can hold the two to each other.
     if form.header_rows and (
         not headed
         or len(form.header_rows) != 2
+        or len(form.header_rows) != metadata_rows
         or any(len(row) != width for row in form.header_rows)
     ):
         raise _broken(
             "FD9", where,
             f"{len(form.header_rows)} rows of column descriptions are published",
-            "two, under a header read from the file, each as wide as the table",
+            f"the {metadata_rows} row(s) the person declared, under a header "
+            f"read from the file, each as wide as the table",
         )
+    # A DECLARATION THAT FOUND NOTHING IS NOT A REFUSAL. Where a person
+    # declares rows of column descriptions and the file turns out not to
+    # have them -- they are narrower than the header, or the file is not
+    # the export they thought -- the survey takes none and the
+    # description publishes none. Refusing that would make a person's
+    # honest mistake about their own file into a run that cannot
+    # finish, and the reading it produces is the SAFE one: the rows
+    # stayed in the table.
     if not form.header_rows and form.header_rows_quoting != dialect.QUOTE_NEEDED:
         raise _broken(
             "FD9", where,
@@ -4350,30 +4386,45 @@ def _dialect_rules(
             "the header is published with a trailing delimiter or a quoting rule, or the rows with both a trailing delimiter and left-out empty cells",
             "a header read from the file, and rows written one of those ways at most",
         )
-    has_text = False
-    for line in form.preamble:
-        if "\r" in line or "\n" in line:
+    # FD11 (plan P4-D80). THE FLOOR IS GONE FROM THIS RULE, and that is
+    # the point of it: a line before the table is free text somebody
+    # wrote, a floor governs how many rows share a value, and one line
+    # of prose is not a group of rows -- so the old rule let the whole
+    # line through at a floor of one, which is the default (review item
+    # CODEX-3). What a description may carry now is the line's SHAPE,
+    # and the check that no text rode in with it is that the twin's own
+    # neutral line is read back as the very shape published.
+    held_text = False
+    for run in form.preamble:
+        if run.kind != dialect.PREAMBLE_BLANK:
+            held_text = True
+        if "\r" in run.mark or "\n" in run.mark:
             raise _broken(
-                "FD11", where, "a line before the table holds a line break",
+                "FD11", where,
+                "a run of lines before the table is marked with a line break",
                 "one line each",
             )
-        if line and not all(character in " \t" for character in line):
-            has_text = True
-    withheld_owed = floor > 1 and has_text
-    if form.preamble_withheld != withheld_owed or len(form.preamble) > dialect.MAXIMUM_PREAMBLE_LINES:
+        standing = dialect.preamble_line(run)
+        kind, mark = dialect.preamble_shape(standing)
+        if kind != run.kind or mark != run.mark:
+            raise _broken(
+                "FD11", where,
+                f"a run of lines before the table is published as {run.kind}",
+                "a shape the line the twin writes for it is read back as",
+            )
+    if len(form.preamble) > dialect.MAXIMUM_PREAMBLE_LINES:
         raise _broken(
             "FD11", where,
-            f"the lines before the table are published as withheld: {form.preamble_withheld}",
-            f"the smallest group is {floor}",
+            f"{len(form.preamble)} runs of lines stand before the table",
+            f"at most {dialect.MAXIMUM_PREAMBLE_LINES}",
         )
-    if floor > 1:
-        for line in form.preamble:
-            if dialect.withheld_line(line) != line:
-                raise _broken(
-                    "FD11", where,
-                    "a line before the table is published as written",
-                    f"the smallest group is {floor}, where only its stand-in may be",
-                )
+    if form.preamble_withheld != held_text:
+        raise _broken(
+            "FD11", where,
+            f"the lines before the table are published as withheld: "
+            f"{form.preamble_withheld}",
+            "withheld exactly when one of them held text",
+        )
     # FD12 (plan P4-D76). A row sequence is written back by the generator
     # as the cells themselves, so it is published only for a written row
     # index nobody declared; on a declared identifier it would hand back
@@ -4795,6 +4846,16 @@ def _settings(value: object) -> SettingsBlock:
         forced_codes=tuple(declared_codes),
         forced_measurements=tuple(declared_measurements),
         forced_decimal_commas=tuple(declared_commas),
+        # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan
+        # P4-D81). Read here so that FD9 can hold the published rows of
+        # column descriptions to the declaration, and so that the
+        # validator re-reads a checked file the way the description was
+        # written: without it, rows nobody declared could stand in a
+        # description as schema, which is how a person's own record was
+        # published verbatim (review item CODEX-2).
+        forced_metadata_rows=_whole(
+            mapping["forced_metadata_rows"], "forced_metadata_rows", where, 0
+        ),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -10309,7 +10370,7 @@ def _validated(document: "dict[str, object]") -> Profile:
     _cross_checks(columns, settings, notes)
     _dialect_rules(
         source, columns, n_rows, settings.small_cell_floor,
-        settings.forced_identifiers,
+        settings.forced_identifiers, settings.forced_metadata_rows,
     )
     # ...and the same for a workbook, where the file was one (plan
     # P4-D77). Run beside the written form's rules and for the same

@@ -348,8 +348,21 @@ def test_nothing_that_varies_between_runs_is_written(
 # that one key deleted hashes to the digest this one replaces --
 # 4b5dc01def67ea46f9432b5d7c1b50d7b933ae38a3a0c1c5d2598abb07727a1d --
 # so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-16 for plan P4-D81 (review item CODEX-2): the
+# settings block of every document now carries `forced_metadata_rows`,
+# how many rows under the column names the person declared to describe
+# those columns, which sorts immediately after `forced_measurements`.
+# This run declares none, so the line reads
+# `"forced_metadata_rows": 0,`. CHECKED rather than assumed, by the
+# procedure every previous re-recording used: building these bytes,
+# deleting that one key and serializing again reproduces the previous
+# digest,
+# 2d167220a5fb2c6538f58e687723b6ccf85286af595c80a25bf2a001843e2bb3,
+# character for character -- so the single added key is the whole of
+# the difference. No count, no statistic, no label, no role and no
+# spelling of any column moved.
 GOLDEN_SHA256 = (
-    "2d167220a5fb2c6538f58e687723b6ccf85286af595c80a25bf2a001843e2bb3"
+    "38006a57f7c352d888957e47d180c8ed3dbba160d82025c4bcf1e1b3b5e181e9"
 )
 
 

@@ -445,11 +445,103 @@ def test_qualtrics_metadata_rows(tmp_path: pathlib.Path) -> None:
     for index in range(ROWS):
         body += [f"R_{draw.randint(10**9, 10**10)},{draw.randint(18, 90)},{draw.choice(SITES)}"]
     data = b"\xef\xbb\xbf" + ("\r\n".join(body) + "\r\n").encode()
-    result = _round_trip(tmp_path, data)
+
+    # UNDECLARED, THE ROWS ARE THE TABLE'S (plan P4-D81, review item
+    # CODEX-2). synthtwin sees the shape and does not act on it: both
+    # rows are counted, described and twinned as records.
+    plain = _round_trip(tmp_path / "undeclared", data)
+    # Nothing leaves the table and nothing is published as schema: both
+    # rows are records of the table, and they are counted.
+    assert plain["form"]["header_rows"] == []
+    assert plain["exits"]["real"] == 0, plain["exits"]
+
+    # THE WRITTEN FORM COMES BACK, save one published fact that this
+    # version says it does not keep. With the marker row left among the
+    # records, the first column's cells are quoted in no single way --
+    # `mixed` -- and a `mixed` column is written `needed` by design,
+    # which the report states. Every other fact of the form is equal.
+    assert plain["form"]["columns"][0]["quoting"]["text"] == "mixed"
+    assert plain["twin_form"]["columns"][0]["quoting"]["text"] == "needed"
+    asked = json.loads(json.dumps(plain["form"]))
+    found = json.loads(json.dumps(plain["twin_form"]))
+    asked["columns"][0]["quoting"]["text"] = "settled"
+    found["columns"][0]["quoting"]["text"] = "settled"
+    assert found == asked, (asked, found)
+
+    # The twin of THIS shape misses one obligation, and it is not a
+    # fact of the file's written form: `ResponseId` is read as free
+    # text once those two rows rejoin its column, and the generator's
+    # free-text lengths miss the published mean. Measured at this
+    # landing (`free_text.length.mean`, one miss); it is a limit of how
+    # free text is built, and it is named rather than asserted away.
+
+    # DECLARED, THEY ARE THE COLUMNS' DESCRIPTIONS and are written back
+    # unchanged, which is what the declaration is for.
+    result = _round_trip(
+        tmp_path / "declared", data, ("--metadata-rows", "2")
+    )
     lines = result["twin"].split(b"\r\n")
     assert lines[1] == body[1].encode()
     assert lines[2] == body[2].encode()
     _held(result)
+
+
+def test_a_guess_never_publishes_a_record_as_schema(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A row that a guess reads as export metadata is NOT taken out of
+    the table and NOT published verbatim (plan P4-D81).
+
+    THE REPRODUCTION THIS IS BUILT FROM (review item CODEX-2). Two rows
+    under the names -- a person's own record, then a row of ImportId
+    markers -- were recognised as a survey export's column
+    descriptions. The description then counted 120 records rather than
+    122 and published BOTH rows verbatim under
+    `source.dialect.header_rows`, so `Person-ZETA-739` and
+    `private-result-739` stood in the description and in the twin. The
+    twin definition's third clause says the description reveals nothing
+    about any individual, and a guess about a file's shape may not
+    decide that it does.
+    """
+    body = [
+        "person,result",
+        "Person-ZETA-739,private-result-739",
+        '"{""ImportId"":""person""}","{""ImportId"":""result""}"',
+    ]
+    for index in range(ROWS):
+        body += [f"{SITES[index % 4]},{'A' if index % 2 else 'B'}"]
+    data = ("\n".join(body) + "\n").encode()
+
+    # NOTHING IS TAKEN OUT OF THE TABLE AND NOTHING IS PUBLISHED AS
+    # SCHEMA. Both rows are counted: 122, not 120.
+    result = _round_trip(tmp_path / "guessed", data)
+    assert result["form"]["header_rows"] == []
+    described = json.loads(
+        (tmp_path / "guessed" / "real-profile.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert described["n_rows"] == ROWS + 2, described["n_rows"]
+
+    # AND BECAUSE THE ROW IS DATA, THE SMALLEST GROUP NOW GOVERNS IT.
+    # That is the whole of the repair. Published as schema the row was
+    # floor-EXEMPT: `header_rows` carried it whole at every floor, and
+    # the twin wrote it back. As data it is a level of one row, so a
+    # floor above one holds it back like any other.
+    raised = _round_trip(
+        tmp_path / "floored", data, ("--smallest-group", "10")
+    )
+    assert raised["form"]["header_rows"] == []
+    assert b"Person-ZETA-739" not in raised["twin"]
+    assert b"private-result-739" not in raised["twin"]
+    lifted = json.loads(
+        (tmp_path / "floored" / "real-profile.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert lifted["n_rows"] == ROWS + 2
+    assert "Person-ZETA-739" not in json.dumps(lifted)
+    assert "private-result-739" not in json.dumps(lifted)
 
 
 # -- other writers ---------------------------------------------------------
@@ -524,23 +616,72 @@ def test_a_hand_edited_file(tmp_path: pathlib.Path) -> None:
     twin = result["twin"]
     assert not twin.endswith(b"\n")
     lines = twin.split(b"\n")
-    assert lines[0] == b"Report: cohort extract"
-    assert lines[1] == b"# exported by a tool"
+    # NEITHER LINE'S TEXT IS IN THE TWIN (plan P4-D80, review item
+    # CODEX-3). Each is written as a neutral line of its own shape: the
+    # title line as two words, the comment keeping the mark that makes
+    # a reader skip it.
+    assert lines[0] == b"withheld line"
+    assert lines[1] == b"# withheld line"
+    assert b"Report: cohort extract" not in twin
+    assert b"exported by a tool" not in twin
     assert lines[43] == b"" and lines[44] == b"   "
     assert result["form"]["final_line_ending"] is False
     _held(result)
 
 
-def test_a_preamble_is_withheld_above_a_floor_of_one(
+def test_a_preamble_is_withheld_at_every_floor(
     tmp_path: pathlib.Path,
 ) -> None:
+    """A line before the names publishes its SHAPE and never its text --
+    at the DEFAULT floor of one as much as above it (plan P4-D80).
+
+    THE REPRODUCTION THIS IS BUILT FROM (review item CODEX-3). At the
+    default floor `Extract for unit 7` stood in the description under
+    `source.dialect.preamble` and on the twin's own first line, because
+    the rule held the text back only above a floor of one. A floor
+    counts rows that share a value; one line of prose is not a group of
+    rows, so it never protected this at all.
+    """
     rows = _people(18)
     text = "Extract for unit 7\n" + "\n".join(["record_id,age,arm,site,reading"] + _lines(rows)) + "\n"
-    result = _round_trip(tmp_path, text.encode(), ("--smallest-group", "11"))
-    assert result["form"]["preamble"] == ["withheld line"]
-    assert result["form"]["preamble_withheld"] is True
-    assert result["twin"].split(b"\n")[0] == b"withheld line"
-    _held(result)
+    for floor in ("1", "11"):
+        result = _round_trip(
+            tmp_path / f"floor-{floor}", text.encode(),
+            ("--smallest-group", floor),
+        )
+        assert result["form"]["preamble"] == [
+            {"kind": "text", "lines": 1, "mark": ""}
+        ], result["form"]["preamble"]
+        assert result["form"]["preamble_withheld"] is True
+        assert result["twin"].split(b"\n")[0] == b"withheld line"
+        assert b"Extract for unit 7" not in result["twin"]
+        _held(result)
+
+
+def test_seventeen_leading_blank_lines_are_one_run(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Leading blank lines are published as ONE RUN, so a file the
+    baseline read is not refused by its own description (review item
+    CODEX-11).
+
+    THE REPRODUCTION. Seventeen blank lines above the header profiled at
+    exit 0 and published seventeen preamble entries; the loader refused
+    that document against FD11's cap of sixteen, so `generate` exited 1
+    on a description synthtwin had just written. Sixteen worked.
+    """
+    rows = _people(23)
+    body = "\n".join(["record_id,age,arm,site,reading"] + _lines(rows)) + "\n"
+    for count in (16, 17, 40):
+        result = _round_trip(
+            tmp_path / f"blank-{count}", ("\n" * count + body).encode()
+        )
+        assert result["form"]["preamble"] == [
+            {"kind": "blank", "lines": count, "mark": ""}
+        ], result["form"]["preamble"]
+        assert result["form"]["preamble_withheld"] is False
+        assert result["twin"].split(b"\n")[:count] == [b""] * count
+        _held(result)
 
 
 def test_sql_rows_leave_out_trailing_empty_cells(tmp_path: pathlib.Path) -> None:
@@ -755,7 +896,12 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
         ",".join(f'"{{""ImportId"":""QID{index}""}}"' for index in range(5)),
     ]
     surveyed_text = ("\n".join(surveyed_rows + _lines(rows)) + "\n").encode()
-    metadata = _describe(tmp_path / "metadata", surveyed_text)
+    # THE ROWS ARE DECLARED (plan P4-D81). Undeclared they are records
+    # of the table, so a description of this file would publish no rows
+    # of column descriptions at all and this rule could not miss.
+    metadata = _describe(
+        tmp_path / "metadata", surveyed_text, ("--metadata-rows", "2")
+    )
     assert "bytes.header-rows" in _missed(tmp_path / "metadata-plain", metadata, plain)
     bare_rows = [surveyed_rows[0], surveyed_rows[1].replace('"', ""), surveyed_rows[2]]
     bare_text = ("\n".join(bare_rows + _lines(rows)) + "\n").encode()
@@ -1021,17 +1167,23 @@ def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
     assert "rows.order" in _missed(tmp_path / "ordered-empties-shuffled", ordered, shuffled)
 
 
-def test_the_summary_names_a_preamble_published_as_written(
+def test_the_summary_names_the_lines_before_the_names(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A title line published as written at a smallest group of one is
-    named in the plain-language summary, with the way to withhold it; at a
-    floor above one it is a stand-in and nothing is said."""
+    """The summary says how many lines of text stand before the column
+    names, and that none of their text is published -- at every floor.
+
+    IT USED TO SAY THE OPPOSITE at the default floor: that those lines
+    were "published in the description as written, because the smallest
+    group is one", and it offered `--smallest-group` as the way to
+    withhold them. Both sentences were true of the rule plan P4-D80
+    replaced, and both are what review item CODEX-3 measured.
+    """
     rows = _people(42)
     text = "Report: cohort extract 2026-09-01\n" + "\n".join(
         ["record_id,age,arm,site,reading"] + _lines(rows)
     ) + "\n"
-    for floor, named in (("1", True), ("11", False)):
+    for floor in ("1", "11"):
         folder = tmp_path / f"floor-{floor}"
         folder.mkdir()
         real = folder / "real.csv"
@@ -1043,5 +1195,6 @@ def test_the_summary_names_a_preamble_published_as_written(
             ]
         ) == 0
         said = (folder / "real-profile.txt").read_text(encoding="utf-8")
-        assert ("About the lines before your column names:" in said) is named, said[:600]
-        assert ("--smallest-group above 1" in said) is named
+        assert "About the lines before your column names:" in said, said[:600]
+        assert "--smallest-group above 1" not in said
+        assert "Report: cohort extract 2026-09-01" not in said

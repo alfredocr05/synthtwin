@@ -1182,6 +1182,21 @@ def unknown_column_named(purpose: str, name: str, known: list[str]) -> str:
     )
 
 
+def metadata_rows_not_supported(given: str) -> str:
+    """Message for a --metadata-rows value this format cannot carry."""
+    return (
+        f"--metadata-rows takes 0 or 2, but {given} was given. It says "
+        f"how many rows immediately under your column names DESCRIBE "
+        f"those columns rather than holding a record -- the two rows a "
+        f"survey export writes, a question wording and a row of "
+        f"ImportId markers. A description can carry two such rows or "
+        f"none, so those are the two answers. Leave the option out "
+        f"altogether and every row under your column names is read as "
+        f"a record of your table, which is what it is unless you say "
+        f"otherwise."
+    )
+
+
 def floor_not_positive(given: str) -> str:
     """Message for a small-cell floor that is not a positive whole number."""
     return (

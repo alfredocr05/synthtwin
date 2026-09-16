@@ -682,9 +682,7 @@ def _agrees_with_the_standard_reader(
         skipinitialspace=form.initial_space,
     )
     lead = 1 if form.separator_line else 0
-    for line in form.preamble:
-        if line:
-            lead = lead + 1
+    lead = lead + dialect.preamble_lines_written(form.preamble)
     expected_header: list[str] = []
     if headed:
         expected_header = list(surveyed.header)
@@ -800,6 +798,7 @@ def _read_authoritatively(
     refusals: str = REFUSALS_MAY_QUOTE,
     encoding: str = "",
     given: bytes = b"",
+    metadata_rows: int = 0,
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -835,7 +834,9 @@ def _read_authoritatively(
     try:
         csv.field_size_limit(FIELD_SIZE_LIMIT)
         try:
-            surveyed = dialect.settle(text, encoding, marked, not headed, shown)
+            surveyed = dialect.settle(
+                text, encoding, marked, not headed, shown, metadata_rows
+            )
             _agrees_with_the_standard_reader(
                 text, surveyed, headed, shown, refusals
             )
@@ -1131,6 +1132,7 @@ def read_table(
     refusals: str = REFUSALS_MAY_QUOTE,
     encoding: str = "",
     sheet: str = "",
+    metadata_rows: int = 0,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -1282,7 +1284,8 @@ def read_table(
         return _read_workbook_table(f"{table_path}", shown, sheet)
     try:
         found = _read_authoritatively(
-            table_path, shown, first_row, refusals, encoding, data
+            table_path, shown, first_row, refusals, encoding, data,
+            metadata_rows,
         )
     except PermissionError as error:
         raise errors.ProfileError(
@@ -1394,9 +1397,7 @@ def _check_against_pandas(
     # the lines that are not blank, a line of nothing but spaces being
     # blank to it too.
     lead = 1 if form.separator_line else 0
-    for line in form.preamble:
-        if parsing.trimmed(line):
-            lead = lead + 1
+    lead = lead + dialect.preamble_lines_holding_text(form.preamble)
     # WHAT PANDAS TAKES AS NAMES. A headed file: its header row, found
     # past the lead. A headerless file with lines above it: its first
     # record, which pandas is asked to take as names only so that it

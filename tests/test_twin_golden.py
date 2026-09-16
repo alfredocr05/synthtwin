@@ -895,8 +895,21 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # the difference. The twin, report and quality digests below did not
 # move, which is the other half of the same statement: the generator is
 # handed one more key and writes exactly what it wrote before.
+# RE-RECORDED 2026-09-16 for plan P4-D81 (review item CODEX-2), and NO
+# CELL OF THE TWIN MOVED. `settings` gained ONE key,
+# `forced_metadata_rows`, how many rows under the column names the
+# person declared to DESCRIBE those columns; this run declares none, so
+# its value here is 0. MEASURED by this file's own procedure: this
+# description written out again with that one key deleted hashes to
+# b0537b40dc8141a5099a763e3cca88e925c4339e18277ee13e6e7f7e01426ee0,
+# the digest this one replaces, so the single added key is the whole of
+# the difference. The TWIN digest below did not move -- it is
+# 494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f on
+# this commit and on the one before it -- which is the other half of
+# the same statement: the generator is handed one more key and writes
+# exactly what it wrote before.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "b0537b40dc8141a5099a763e3cca88e925c4339e18277ee13e6e7f7e01426ee0"
+    "d6ddc7ad0ec16c4f05865eca3e189b7c4d492d26f904ce35a390a0f7c7ace5d9"
 )
 
 
@@ -1991,8 +2004,34 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # digests above did not move, and every order digest here is once more
 # the one commit 367e1d7 froze -- the twin's rows have returned to the
 # arrangement they had before the identifier was sorted on.
+# RE-RECORDED 2026-09-16 for plans P4-D80 and P4-D81 (review items
+# CODEX-3 and CODEX-2). The twin's own digest did not move -- it is
+# 494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f on
+# this commit and on the one before it -- so the measured file is
+# untouched and what moved is what the check SAYS. READ RATHER THAN
+# ASSUMED, as this file requires: the report was built on this commit
+# and on the one before it and the two were compared line by line.
+# They differ in exactly two places.
+#
+# ONE LINE IS REWORDED. The subcheck naming the lines before the table
+# read "0 line(s) before the table, as published" and now reads "0
+# line(s) before the table in 0 shape(s), as published", because those
+# lines are published as runs of one shape (P4-D80).
+#
+# AND ONE OBLIGATION LEAVES THE CENSUS: 534 to 533, with HELD 459 to
+# 458. This file warns that a census carrying fewer obligations than it
+# did is a defect even when nothing crashed, so the one that went is
+# named here. It is `bytes.header-rows`, which read "0 row(s)
+# describing the columns under the names, as published". Under P4-D81
+# a checked file is read under the description's OWN declaration of how
+# many rows describe the columns, and this description declares none --
+# so both sides of that comparison are empty whatever the file holds,
+# and no edit to any file could make it fail. It reported HELD on every
+# file while measuring nothing. That is the vacuity V3.4 refuses by
+# name, so it is no longer filed; it is filed, and falsifiable, on a
+# description that DECLARES such rows.
 GOLDEN_QUALITY_SHA256 = (
-    "82bb2bdd72e3c090f41e904f2af62aaa4694ebaa0c1227b842fb0d3b0072a98c"
+    "7d0786c6d1fb991819b849d6ceae2afce81aaab2967fa8affb982265283e0a75"
 )
 
 

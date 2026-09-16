@@ -537,6 +537,29 @@ INDEX_NAMES = ("Unnamed: 0", "rownames")
 # a one-field line holding no space is a one-column table's name.
 WITHHELD_LINE = "withheld line"
 
+# WHAT A LINE BEFORE THE TABLE PUBLISHES, AND WHAT IT NEVER PUBLISHES
+# (plan P4-D80; review item CODEX-3). Its TEXT is not published at any
+# smallest group, this version's floor of one included. Such a line is
+# free text somebody wrote above their table -- "Extract for unit 7",
+# "# exported for Dr Vance" -- and the owner's ruling is that the
+# description reveals nothing about any individual. The floor is no
+# defence here and never was: a floor governs how many rows share a
+# value, and one line of prose is not a group of rows at all, so at a
+# floor of one the text went into the description and into the twin
+# whole (measured: CODEX-3).
+#
+# What IS published is that such lines exist, how many there are, and
+# what SHAPE each has: whether it is blank, whether it began with a
+# comment mark, and what that mark was. Every one of those is a fact
+# about the tool that wrote the file and about nobody who appears in
+# it. The twin writes a neutral line of the same shape in its place, so
+# a reader that skips a title line, and code that passes `comment="#"`,
+# skip exactly as many lines in the twin as in the table.
+PREAMBLE_BLANK = "blank"
+PREAMBLE_COMMENT = "comment"
+PREAMBLE_TEXT = "text"
+PREAMBLE_KINDS = (PREAMBLE_BLANK, PREAMBLE_COMMENT, PREAMBLE_TEXT)
+
 # The mark of a survey export's second metadata row (Qualtrics).
 _IMPORT_MARK = '{"ImportId":'
 
@@ -593,6 +616,32 @@ class BlankSpread:
 
 
 @dataclasses.dataclass(frozen=True)
+class PreambleRun:
+    """So many consecutive lines before the table, all of one shape.
+
+    ``kind`` is one of `PREAMBLE_KINDS`. ``mark`` is the punctuation a
+    comment line began with (`# `, `*** `), or the spaces and tabs a
+    blank line held; it is empty for a line of text.
+
+    NO TEXT OF THE LINE STANDS HERE. `mark` is the run of characters
+    before the line's first letter or digit, so it cannot carry a word;
+    the publication guard refuses a `mark` holding a letter or a digit
+    outright (`profile._PREAMBLE_MARK`), which is what makes that a
+    control rather than a habit of the producer.
+
+    RUNS AND NOT LINES, which is review item CODEX-11: seventeen leading
+    blank lines are seventeen lines of ONE shape. Published a line
+    apiece they broke the cap of sixteen and the loader refused the
+    producer's own description; published as one run of seventeen they
+    are inside it, and the file the baseline read is still described.
+    """
+
+    kind: str
+    lines: int
+    mark: str
+
+
+@dataclasses.dataclass(frozen=True)
 class WrittenName:
     """A header cell written differently from the column's name.
 
@@ -641,7 +690,7 @@ class Dialect:
     line_endings: "tuple[EndingRun, ...]"
     final_line_ending: bool
     end_of_file_mark: bool
-    preamble: "tuple[str, ...]"
+    preamble: "tuple[PreambleRun, ...]"
     preamble_withheld: bool
     header_quoting: str
     header_rows: "tuple[tuple[str, ...], ...]"
@@ -682,7 +731,11 @@ def lines_of(form: Dialect, n_rows: int, headed: bool) -> int:
     The line endings of a form account for every one of them (loader
     invariant D2), and `twin_text` writes exactly this many.
     """
-    total = n_rows + len(form.preamble) + len(form.header_rows)
+    total = (
+        n_rows
+        + preamble_lines_total(form.preamble)
+        + len(form.header_rows)
+    )
     if form.separator_line:
         total = total + 1
     if headed:
@@ -783,6 +836,11 @@ def document_of(form: Dialect) -> "dict[str, object]":
             "lines": form.blank_lines_spread.lines,
             "text": form.blank_lines_spread.text,
         }
+    lines_before: list[object] = []
+    for before in form.preamble:
+        lines_before += [
+            {"kind": before.kind, "lines": before.lines, "mark": before.mark}
+        ]
     return {
         "blank_lines": blanks,
         "blank_lines_spread": spread,
@@ -803,7 +861,7 @@ def document_of(form: Dialect) -> "dict[str, object]":
         "initial_space": form.initial_space,
         "line_endings": runs,
         "line_endings_spread": census,
-        "preamble": list(form.preamble),
+        "preamble": lines_before,
         "preamble_withheld": form.preamble_withheld,
         "row_order": order,
         "separator_line": form.separator_line,
@@ -909,6 +967,110 @@ def withheld_line(text: str) -> str:
             break
         kept = kept + character
     return kept + WITHHELD_LINE
+
+
+def preamble_shape(line: str) -> "tuple[str, str]":
+    """One line before the table as its kind and its mark, never its text.
+
+    A line holding nothing, or nothing but spaces and tabs, is BLANK and
+    its mark is the whitespace itself -- which discloses nothing and
+    lets the twin write the line back exactly. A line beginning with
+    anything that is not a letter or a digit is a COMMENT, and its mark
+    is that opening punctuation, which is how a reader recognises such a
+    line (`comment="#"`). Anything else is TEXT, and nothing whatever of
+    it is published.
+    """
+    found = _text(line)
+    if not found or _only_spaces_and_tabs(found):
+        return (PREAMBLE_BLANK, found)
+    kept = ""
+    for character in found:
+        if _is_letter_or_digit(character):
+            break
+        kept = kept + character
+    if kept:
+        return (PREAMBLE_COMMENT, kept)
+    return (PREAMBLE_TEXT, "")
+
+
+def preamble_line(run: PreambleRun) -> str:
+    """The neutral line a twin writes for one line of a run.
+
+    It wears the run's own shape, so the survey that reads the twin back
+    gives the very run that was published: a blank line stays blank and
+    keeps its spaces, a comment keeps its mark, and a line of text
+    becomes two words holding a space -- which is a title line to the
+    survey and never a one-column table's name.
+    """
+    if run.kind == PREAMBLE_BLANK:
+        return run.mark
+    return run.mark + WITHHELD_LINE
+
+
+def preamble_runs(lines: "list[str]") -> "tuple[PreambleRun, ...]":
+    """The lines before the table, run-length encoded by their shape."""
+    runs: list[PreambleRun] = []
+    for line in lines:
+        kind, mark = preamble_shape(line)
+        last = len(runs) - 1
+        if last >= 0 and runs[last].kind == kind and runs[last].mark == mark:
+            runs[last] = PreambleRun(
+                kind=kind, lines=runs[last].lines + 1, mark=mark
+            )
+            continue
+        runs += [PreambleRun(kind=kind, lines=1, mark=mark)]
+    return tuple(runs)
+
+
+def preamble_lines_total(runs: "tuple[PreambleRun, ...]") -> int:
+    """How many lines stand before the table in all."""
+    total = 0
+    for run in runs:
+        total = total + run.lines
+    return total
+
+
+def preamble_lines_written(runs: "tuple[PreambleRun, ...]") -> int:
+    """How many of those lines hold any character at all.
+
+    The standard reader yields a record for a line of spaces and none
+    for an empty one, so this is the count the reader agreement walks
+    past.
+    """
+    total = 0
+    for run in runs:
+        if run.kind != PREAMBLE_BLANK or run.mark:
+            total = total + run.lines
+    return total
+
+
+def preamble_lines_holding_text(runs: "tuple[PreambleRun, ...]") -> int:
+    """How many of those lines held text, which is never published.
+
+    Pandas counts a line of nothing but spaces as blank, so this is the
+    count that reader is told to skip -- and it is also the count that
+    decides `preamble_withheld`.
+    """
+    total = 0
+    for run in runs:
+        if run.kind != PREAMBLE_BLANK:
+            total = total + run.lines
+    return total
+
+
+def holds_no_letter_or_digit(text: str) -> bool:
+    """True when nothing in ``text`` is a letter or a digit.
+
+    The publication guard asks this of a preamble mark. Punctuation and
+    whitespace before a line's first letter belong to whatever wrote the
+    file; a letter or a digit is a word of somebody's own text, and the
+    description carries none (plan P4-D80).
+    """
+    found = _text(text)
+    for character in found:
+        if _is_letter_or_digit(character):
+            return False
+    return True
 
 
 def _is_letter_or_digit(character: str) -> bool:
@@ -1602,6 +1764,13 @@ class Survey:
     malformed: int
     escapes: int
     initial_space_broken: bool
+    # WHETHER THE FILE WEARS A KNOWN EXPORT'S METADATA SHAPE (plan
+    # P4-D81): two records under the column names, each as wide as the
+    # table, the second with every cell an ImportId object. It is
+    # DETECTED and acted on NOWHERE -- the rows leave the table only
+    # where the person declared them -- and it is here so that the
+    # questions file can ask about a file that has it.
+    metadata_shape: bool = False
     # Measured whatever the caps: every place blank lines stand, how many
     # lines end each way, and the blank lines counted. The reader checks
     # the first against the standard reader; the validator compares the
@@ -2120,6 +2289,7 @@ def survey(
     initial_space: "bool | None" = None,
     escape: str = "",
     trailing_guess: bool = True,
+    metadata_rows: int = 0,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -2171,6 +2341,7 @@ def survey(
     header_flags: list[bool] = []
     header_rows: list[tuple[str, ...]] = []
     header_row_flags: list[bool] = []
+    metadata_shape = False
     if not first_row_is_data:
         found = _take(stream)
         if found is None:
@@ -2185,23 +2356,43 @@ def survey(
         _add_ending(walk, found.ending, shown)
         first = _peek(stream, 0)
         second = _peek(stream, 1)
-        if (
+        # THE SHAPE IS DETECTED HERE AND ACTED ON NOWHERE (plan P4-D81,
+        # review item CODEX-2). This condition used to TAKE the two
+        # records it recognises out of the table and publish them as
+        # the columns' descriptions. It is a guess about a file, and
+        # the file it guesses wrong about is one whose first record
+        # happens to be as wide as the header with an ImportId row
+        # under it -- at which point a person's own record becomes
+        # schema text, published whole and written into the twin, with
+        # the table two rows short and every count computed without it.
+        # A guess may not do that, so what happens now is that the
+        # shape is remembered and the person is ASKED.
+        metadata_shape = (
             len(header) >= 2
             and first is not None
             and second is not None
             and len(first.fields) == len(header)
             and len(second.fields) == len(header)
             and _is_import_row(second.fields)
-        ):
-            for _row in range(2):
-                found = _take(stream)
-                if found is None:
-                    break
-                header_rows += [tuple(found.fields)]
-                header_row_flags += [bool(flag) for flag in found.quoted]
-                malformed = malformed + found.malformed
-                escapes = escapes + found.escapes
-                _add_ending(walk, found.ending, shown)
+        )
+        # ...and the rows leave the table only where the person said
+        # they describe the columns. Each has to be as wide as the
+        # header, because a narrower record is a row of the table
+        # however it was declared.
+        taken = 0
+        while taken < metadata_rows and len(header) >= 2:
+            ahead = _peek(stream, 0)
+            if ahead is None or len(ahead.fields) != len(header):
+                break
+            found = _take(stream)
+            if found is None:
+                break
+            header_rows += [tuple(found.fields)]
+            header_row_flags += [bool(flag) for flag in found.quoted]
+            malformed = malformed + found.malformed
+            escapes = escapes + found.escapes
+            _add_ending(walk, found.ending, shown)
+            taken = taken + 1
 
     header_trailing = False
     rows_trailing = False
@@ -2337,6 +2528,7 @@ def survey(
                 spaced,
                 escaping,
                 False,
+                metadata_rows,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -2411,6 +2603,11 @@ def survey(
     if len(blanks) > MAXIMUM_BLANK_PLACES:
         places_published = ()
         spread_published = blank_census
+    # THE LINES BEFORE THE TABLE ARE PUBLISHED AS SHAPES (plan P4-D80).
+    # Their text is not published here, and there is no floor at which
+    # it is: nothing downstream can publish what this never puts in the
+    # document.
+    lines_before = preamble_runs(preamble)
     form = Dialect(
         delimiter=delimiter,
         initial_space=spaced,
@@ -2420,8 +2617,8 @@ def survey(
         line_endings=runs_published,
         final_line_ending=_ended(body, size),
         end_of_file_mark=end_mark,
-        preamble=tuple(preamble),
-        preamble_withheld=False,
+        preamble=lines_before,
+        preamble_withheld=preamble_lines_holding_text(lines_before) > 0,
         header_quoting=header_rule,
         header_rows=tuple(header_rows),
         header_rows_quoting=metadata_rule,
@@ -2451,6 +2648,7 @@ def survey(
         malformed=malformed,
         escapes=escapes,
         initial_space_broken=spaces_broken,
+        metadata_shape=metadata_shape,
         every_blank_place=tuple(blanks),
         ending_census=census,
         blank_census=blank_census,
@@ -2611,6 +2809,7 @@ def settle(
     byte_order_mark: bool,
     first_row_is_data: bool,
     shown: str,
+    metadata_rows: int = 0,
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -2622,10 +2821,14 @@ def settle(
     a closing quote is walked again with backslash escapes, and that
     reading is kept only when it leaves none.
     """
-    found = survey(text, encoding, byte_order_mark, first_row_is_data, shown)
+    found = survey(
+        text, encoding, byte_order_mark, first_row_is_data, shown,
+        metadata_rows=metadata_rows,
+    )
     if found.initial_space_broken:
         found = survey(
-            text, encoding, byte_order_mark, first_row_is_data, shown, False
+            text, encoding, byte_order_mark, first_row_is_data, shown, False,
+            metadata_rows=metadata_rows,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -2637,6 +2840,7 @@ def settle(
                 shown,
                 found.form.initial_space,
                 ESCAPE_BACKSLASH,
+                metadata_rows=metadata_rows,
             )
         except errors.ProfileError:
             return found
@@ -2780,8 +2984,9 @@ def twin_text(
     lines: list[str] = []
     if form.separator_line:
         lines += ["sep=" + form.delimiter]
-    for line in form.preamble:
-        lines += [line]
+    for before in form.preamble:
+        for _line in range(before.lines):
+            lines += [preamble_line(before)]
     if write_header:
         lines += [header_line(names, form)]
     for row in form.header_rows:

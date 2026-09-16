@@ -111,6 +111,28 @@ ANSWER_JOINED = "joined"
 # decimals, which is `--decimal-comma`.
 ANSWER_DECIMAL_COMMA = "decimal_comma"
 
+# THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
+# P4-D81). Some survey exports write two rows UNDER the column names
+# that describe those columns rather than holding anybody's record.
+# synthtwin used to recognise that shape and act on it, which meant a
+# file it recognised WRONGLY had two of its records taken out of the
+# table and published whole as schema text (review item CODEX-2). So
+# the shape is a question now, and these are its two answers: the rows
+# are records of the table (the reading that stands where nobody
+# answers), or they describe the columns.
+ANSWER_DATA = "data"
+ANSWER_METADATA_ROWS = "metadata-rows"
+
+# How many rows the answer declares. The shape synthtwin recognises is
+# exactly two, and two is what the description can carry (contract FD9).
+METADATA_ROWS_DECLARED = 2
+
+# What the question is ABOUT, where a column question names its column.
+# It names no value and no cell: it is a fact about the file's shape.
+METADATA_SUBJECT = "the rows under your column names"
+
+BECAUSE_EXPORT_SHAPE = "export-metadata-shape"
+
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
 BECAUSE_PADDED = "padded"
@@ -780,6 +802,57 @@ def questions_for(
     return asked
 
 
+def file_questions(metadata_shape: bool) -> "list[Question]":
+    """The questions about the FILE rather than about a column.
+
+    One so far: whether the two rows under the column names describe
+    those columns (plan P4-D81). It is asked only where synthtwin saw
+    that shape -- two records as wide as the header, the second every
+    cell an ImportId object -- and NOTHING is done about it unless the
+    person answers, because acting on the shape unasked is how a
+    person's own record became schema text (review item CODEX-2).
+
+    Guarantees: a fixed function of the argument; opens nothing; and
+    carries no value of the table -- the shape it reports is a count of
+    rows and the name of a marker synthtwin itself looks for.
+    """
+    if not metadata_shape:
+        return []
+    return [
+        Question(
+            METADATA_SUBJECT,
+            "",
+            BECAUSE_EXPORT_SHAPE,
+            (
+                "the two rows under your column names are each as wide as "
+                "the table, and every cell of the second is an ImportId "
+                "marker -- the shape some survey tools write to describe "
+                "their columns"
+            ),
+            [
+                Choice(
+                    ANSWER_DATA,
+                    "they are records of your table, like any other row",
+                    (
+                        "both rows are counted and described as data, and "
+                        "the twin holds a made-up row in each one's place"
+                    ),
+                ),
+                Choice(
+                    ANSWER_METADATA_ROWS,
+                    "they describe the columns; they are not anybody's record",
+                    (
+                        "both rows are taken out of the table and published "
+                        "as written, like the column names, and the twin "
+                        "writes them back unchanged"
+                    ),
+                ),
+            ],
+            ANSWER_DATA,
+        )
+    ]
+
+
 def _joining_mark(values: "list[str]") -> str:
     """The one mark every cell of a joined-looking column splits on."""
     for separator in taxonomy.JOINED_SEPARATORS:
@@ -1114,6 +1187,7 @@ def questions_document(
     table_name: str,
     asked: "list[Question]",
     listed: "list[Question]",
+    about_file: "list[Question] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -1142,6 +1216,9 @@ def questions_document(
       result.** Every question carries a shape, which is a count, a
       width or a separator, and never a cell.
     """
+    file_entries: list[dict[str, object]] = []
+    for question in about_file if about_file else []:
+        file_entries += [_question_entry(question)]
     asked_entries: list[dict[str, object]] = []
     for question in asked:
         asked_entries += [_question_entry(question)]
@@ -1156,6 +1233,10 @@ def questions_document(
         "what_this_file_carries": FILE_CARRIES,
         "how_to_answer": HOW_TO_ANSWER,
         "table": table_name,
+        # QUESTIONS ABOUT THE FILE ITSELF, not about one column (plan
+        # P4-D81). Empty for almost every table: it is filled only
+        # where synthtwin saw a shape it must not act on unasked.
+        "about_your_file": file_entries,
         "asked": asked_entries,
         "checklist": {
             "question": CHECKLIST_QUESTION,
@@ -1188,6 +1269,11 @@ class Answers:
     # ...and the fourth list (landing 2b.2): the columns answered as
     # writing a point between thousands, which is `--decimal-comma`.
     decimal_commas: "tuple[str, ...]" = ()
+    # ...and the fifth answer, which is not a list of columns at all
+    # (plan P4-D81): how many rows under the column names the person
+    # said describe those columns. Nought where they did not answer,
+    # which leaves those rows in the table.
+    metadata_rows: int = 0
 
 
 def _entry_answer(
@@ -1273,6 +1359,19 @@ def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
     if not isinstance(listed, list):
         raise ValueError(errors.answers_file_is_not_one(shown))
     found: list[tuple[object, str]] = []
+    # THE FILE'S OWN SECTION FIRST, and tolerated absent: a questions
+    # file written before plan P4-D81 carries no such section, and
+    # refusing a person's older file for a question it could not have
+    # been asked would be this tool telling them their answers were
+    # wrong when they were only early.
+    if "about_your_file" in document:
+        about = document["about_your_file"]
+        if not isinstance(about, list):
+            raise ValueError(errors.answers_file_is_not_one(shown))
+        place = 0
+        for entry in about:
+            place += 1
+            found += [(entry, f"about_your_file[{place}]")]
     place = 0
     for entry in asked:
         place += 1
@@ -1318,6 +1417,7 @@ def answers_in(document: object, shown: str) -> Answers:
     identifiers: list[str] = []
     measurements: list[str] = []
     decimal_commas: list[str] = []
+    metadata_rows = 0
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -1341,6 +1441,12 @@ def answers_in(document: object, shown: str) -> Answers:
             measurements += [name]
         elif written == ANSWER_DECIMAL_COMMA:
             decimal_commas += [name]
+        elif written == ANSWER_METADATA_ROWS:
+            # The one answer that names no column (plan P4-D81).
+            metadata_rows = METADATA_ROWS_DECLARED
+        elif written == ANSWER_DATA:
+            # The reading that already stands: the rows are records.
+            metadata_rows = 0
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -1355,4 +1461,5 @@ def answers_in(document: object, shown: str) -> Answers:
         tuple(identifiers),
         tuple(measurements),
         tuple(decimal_commas),
+        metadata_rows,
     )

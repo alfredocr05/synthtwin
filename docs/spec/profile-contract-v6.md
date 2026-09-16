@@ -707,13 +707,13 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
 | `header_quoting` | string | a quoting rule | how the header's cells are quoted |
-| `header_rows` | array of arrays of strings | none, or two | the metadata rows a survey export writes under the names, one cell per column |
+| `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
 | `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
-| `preamble` | array of strings | at most 16 | the lines before the header or first record, as written, or as stand-ins |
-| `preamble_withheld` | boolean | — | the preamble is published as stand-ins |
+| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text. NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
+| `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
 | `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`; `ascending`, `descending` | the leftmost column the rows are sorted by |
 | `separator_line` | boolean | — | an Excel `sep=` line comes first |
 | `short_rows` | boolean | — | records leave out their trailing empty cells |
@@ -736,22 +736,48 @@ holding nothing, in three or more rows (the order is read over the
 records that hold something, and the twin sorts those around its
 records of nothing); FD8 written header cells stand
 under a header read from the file, in order, and name every column what
-the description names it; FD9 metadata rows only under such a header,
-two, each as wide as the table; FD10 only a header read from the file
+the description names it; FD9 rows of column descriptions only under
+such a header, exactly as many of them as the person declared and no
+more than two, each as wide as the table; FD10 only a header read from the file
 carries a trailing delimiter or a quoting rule, and rows do not both
-carry a trailing delimiter and leave out empty cells; FD11 a preamble
-line is one line, published as written only at a smallest group of one
-and otherwise as its stand-in; FD12 a column declared to hold record numbers
+carry a trailing delimiter and leave out empty cells; FD11 the lines
+before the table are published as runs of one shape, within the cap,
+each with a mark holding no line break and no text of the line, each
+the shape the line the twin writes for it is read back as, and recorded
+as withheld exactly when one of them held text; FD12 a column declared to hold record numbers
 publishes no row sequence and is not the column the rows are sorted
 by, and a row sequence is published only for a first column named as
 a written row index is.
 
 **What it discloses.** Every key describes the file's writer, not a
-person, except two. The metadata rows are column-level text and are
-published like names. A preamble line is free text that may name
-anybody, so it is published as written only at a smallest group of one
-and otherwise as `dialect.withheld_line`: the punctuation it began with
-and the words `withheld line`.
+person, except one: the metadata rows, which are column-level text,
+reach a description only where the person DECLARED them and are then
+published like names (4.4, plan P4-D81).
+
+A LINE BEFORE THE TABLE IS NEVER PUBLISHED AS TEXT, AT ANY SMALLEST
+GROUP (plan P4-D80). Such a line is free text somebody wrote above
+their table -- `Extract for unit 7`, `# exported for Dr Vance` -- and
+the twin definition's third clause says the description reveals nothing
+about any individual. The rule this replaced published the line whole
+at a smallest group of one, which is this version's DEFAULT: a floor
+governs how many rows share a value, and one line of prose is not a
+group of rows at all, so the floor was never a defence for it. Review
+item CODEX-3 measured a person's name travelling through that branch
+into the description and into the twin.
+
+What a description carries instead is that such lines exist, how many
+there are, and the SHAPE of each run of them: blank, a comment and the
+mark it began with, or a line of text. Every one of those is a fact
+about the tool that wrote the file. The twin writes
+`dialect.preamble_line` for each -- a blank line stays blank and keeps
+its spaces, a comment keeps its mark and reads `# withheld line`, a
+line of text reads `withheld line` -- so a reader that skips a title
+line, and code that passes `comment="#"`, skip as many lines in the
+twin as in the table. The loader's half of the rule is that the line
+the twin would write is read back as the very shape published, which
+is what makes a mark carrying a word impossible rather than merely
+unusual; the producer's half is `profile._PREAMBLE_MARK`, which
+refuses a mark holding any letter or digit.
 
 **S4 still holds of the names.** A blank or repeated header cell is not a
 name: the column is named by the rule in `written_names` above, which
@@ -878,7 +904,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty keys. Its whole subtree is
+An object with exactly these twenty-one keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -901,6 +927,7 @@ claim.
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — an affix around it, a separator between several, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer (residual R-P4-52). A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
+| `forced_metadata_rows` | integer | ≥ 0, and at most 2 rows may be published | THE FIFTH DECLARATION (plan P4-D81), and the only one that is a count rather than a list of names: how many rows immediately under the column names DESCRIBE those columns rather than holding somebody's record. Some survey exports write two — a question wording, then a row of `ImportId` markers. synthtwin RECOGNISES that shape but never acts on it unasked: undeclared, those rows stay in the table and are described as data. Declared, with `--metadata-rows` or by answering `about_your_file` in the questions file, they are taken out of the table and published under `source.dialect.header_rows`, where they are schema text and are published like column names. The guess this replaced took the rows out on its own, so a file it recognised WRONGLY had two real records removed from every count and published verbatim as schema, one of them a person's own row (review item CODEX-2). A declaration that finds no such rows publishes none and is not a refusal: the safe reading is the one where the rows stayed in the table |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
 | `kept_values` | object | exactly the five keys below | the declaration record for `--keep-value` |
@@ -10570,13 +10597,13 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 20** (4.4), in the ascending code-point order every
+**`settings` keys — 21** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
 `declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
 `forced_identifiers`,
-`forced_measurements`,
+`forced_measurements`, `forced_metadata_rows`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
 `near_threshold_slack`, `sentinel_minimum_share`,

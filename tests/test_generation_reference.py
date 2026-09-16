@@ -402,6 +402,10 @@ def _settings(declared: list, commas: "list | None" = None) -> dict:
         # The fourth (plan P4-D26), named for the one case frozen with
         # it (landing 2b.2): its column is grouped with a point.
         "forced_decimal_commas": [] if commas is None else commas,
+        # The fifth (plan P4-D81). The oracle declares no rows of column
+        # descriptions: every case here is built from the generation
+        # method's own text, and none of them has a header at all.
+        "forced_metadata_rows": 0,
     }
 
 

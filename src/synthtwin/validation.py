@@ -3352,10 +3352,7 @@ def _lead_records(form: "dialect.Dialect | None") -> int:
     if form is None:
         return 0
     lead = 1 if form.separator_line else 0
-    for line in form.preamble:
-        if line:
-            lead = lead + 1
-    return lead
+    return lead + dialect.preamble_lines_written(form.preamble)
 
 
 def _without_the_last_break(text: str) -> str:
@@ -4353,6 +4350,14 @@ def measure(
             # table sits behind a hidden or a later sheet was measured
             # at whichever sheet the reader settled on by itself.
             sheet=sheet,
+            # AND UNDER THE SAME METADATA DECLARATION the description
+            # was written under (plan P4-D81). The reader no longer
+            # guesses these rows, so a checked file read without the
+            # declaration keeps them as records: the row counts, every
+            # column's cells and the published rows of column
+            # descriptions would all be measured against a different
+            # reading of the same bytes.
+            metadata_rows=description.settings.forced_metadata_rows,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -5120,7 +5125,15 @@ def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
         final_line_ending=final,
         end_of_file_mark=ended,
         separator_line=hinted,
-        preamble=tuple(blanks),
+        preamble=(
+            (
+                dialect.PreambleRun(
+                    kind=dialect.PREAMBLE_BLANK, lines=len(blanks), mark=""
+                ),
+            )
+            if blanks
+            else ()
+        ),
     )
 
 
@@ -5233,14 +5246,11 @@ def _byte_checks(
         and form.header_quoting not in surveyed.header_holds
     ):
         header_found = _RULE_WORDS[measured.header_quoting]
-    preamble_held = len(measured.preamble) == len(form.preamble)
-    if preamble_held:
-        for index in range(len(form.preamble)):
-            found = measured.preamble[index]
-            if form.preamble_withheld:
-                found = dialect.withheld_line(found)
-            if found != form.preamble[index]:
-                preamble_held = False
+    # RUN FOR RUN, EXACTLY (plan P4-D80). Both sides are shapes now --
+    # a kind, a count and a mark -- and the twin writes a line of each
+    # shape, so a real table and its twin give the very same runs and
+    # this comparison needs no allowance for a stand-in.
+    preamble_held = measured.preamble == form.preamble
     short_found = measured.short_rows
     if form.short_rows and surveyed is not None and surveyed.short_vacuous:
         short_found = True
@@ -5323,7 +5333,8 @@ def _byte_checks(
             "",
             _DIALECT_FACT,
             "bytes.preamble",
-            f"{len(form.preamble)} line(s) before the table, as published",
+            f"{dialect.preamble_lines_total(form.preamble)} line(s) before "
+            f"the table in {len(form.preamble)} shape(s), as published",
             preamble_held,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         ),
@@ -5412,6 +5423,17 @@ def _byte_checks(
             "bytes.short-rows",
             "bytes.header-rows",
         }
+    if not form.header_rows:
+        # NO ROWS OF COLUMN DESCRIPTIONS ARE PUBLISHED, SO NONE CAN BE
+        # MEASURED (plan P4-D81, and V3.4's own condition). A checked
+        # file is read under the description's OWN declaration, and a
+        # description that declares none reads every row under the
+        # column names as a record -- so both sides of this comparison
+        # are empty whatever the file holds, and no edit to any file
+        # can make it fail. That is a subcheck that cannot verdict,
+        # which V3.4 refuses to file. It is filed, and falsifiable,
+        # exactly where the person DECLARED such rows.
+        unfiled = unfiled | {"bytes.header-rows"}
     checks = [check for check in checks if check.subcheck not in unfiled]
     if form.header_rows:
         metadata_found = _RULE_WORDS[form.header_rows_quoting]

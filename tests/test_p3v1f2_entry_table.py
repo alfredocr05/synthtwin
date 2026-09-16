@@ -6540,15 +6540,14 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             "bytes.header-quoting",
             ",".join('"' + name + '"' for name in names) + "\n",
         ),
-        (
-            "zero-metadata-rows",
-            "bytes.header-rows",
-            text
-            + ",".join("q" for _name in names)
-            + "\n"
-            + ",".join('"{""ImportId"":""x""}"' for _name in names)
-            + "\n",
-        ),
+        # THE `zero-metadata-rows` EDIT IS GONE (plan P4-D81). It
+        # appended two rows to a zero-row file and relied on the reader
+        # GUESSING them to be the columns' descriptions, which is the
+        # guess review item CODEX-2 removed: they are records now, so
+        # the edit made `bytes.zero-row-form` miss and never
+        # `bytes.header-rows`. That subcheck is not filed at all for a
+        # description declaring no such rows, so there is nothing here
+        # for an edit to falsify.
         (
             "zero-blank-name",
             "bytes.written-names",

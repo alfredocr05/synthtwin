@@ -487,6 +487,11 @@ class _Options:
     missing_values: list[str]
     first_row: str
     day_first: bool
+    # How many rows under the column names describe those columns, as
+    # the person typed it, or empty (plan P4-D81). Text rather than a
+    # number for the reason `seed` is text: whether it is a number this
+    # tool can use is decided in words a person can act on.
+    metadata_rows: str
     # Which sheet of a workbook holds the table, or empty to settle it
     # by the first visible one (plan P4-D77).
     sheet: str
@@ -717,6 +722,25 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--metadata-rows",
+        default=None,
+        metavar="N",
+        help=(
+            "say that the first N rows UNDER your column names describe "
+            "those columns rather than holding a record. Some survey "
+            "tools write two such rows -- the question wording, then a "
+            "row of ImportId markers -- and a reader that takes them "
+            "for data gets two rows of machine text mixed in with "
+            "people's answers. Takes 0 or 2. Without it, every row "
+            "under your column names is read as a record of your "
+            "table: synthtwin recognises that shape and will SAY so, "
+            "in the questions file and on the screen, but it never "
+            "acts on it by itself, because a file it recognised "
+            "wrongly would have two real records removed from every "
+            "count and their values published as column descriptions"
+        ),
+    )
+    parser.add_argument(
         "--answers",
         default=None,
         metavar="FILE",
@@ -903,6 +927,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
         day_first=bool(args.day_first),
+        metadata_rows=(
+            "" if args.metadata_rows is None else f"{args.metadata_rows}"
+        ),
         sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
@@ -1157,6 +1184,34 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
         f"    What does this column hold?{lines}\n"
         f"    Press Enter to keep the reading synthtwin made, "
         f"which is the first one above."
+    )
+
+
+def _metadata_rows_notice() -> str:
+    """What is said about a file wearing a survey export's shape.
+
+    It names what was SEEN, what was done about it (nothing), and the
+    one option that changes it. The shape is not evidence: a table
+    whose first record happens to be as wide as its header with a row
+    of markers under it wears it too, and acting on the resemblance is
+    how a person's own record became schema text (review item
+    CODEX-2).
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"THE TWO ROWS UNDER YOUR COLUMN NAMES MAY DESCRIBE THE COLUMNS\n"
+        f"{'=' * 66}\n"
+        f"They are each as wide as your table and every cell of the "
+        f"second is an ImportId marker, which is the shape some survey "
+        f"tools write to describe their columns. synthtwin has read "
+        f"them as RECORDS of your table, because that is what a row "
+        f"under the column names is unless you say otherwise, and "
+        f"because a file this shape was recognised wrongly in would "
+        f"have two real records taken out of every count and their "
+        f"values published as column descriptions. If those two rows "
+        f"do describe your columns, describe the table again with "
+        f"--metadata-rows 2, or answer the question under "
+        f"'about_your_file' in the questions file this run writes."
     )
 
 
@@ -1553,6 +1608,7 @@ def _run_profile(
     first_row: str,
     day_first: bool,
     sheet: str = "",
+    metadata_rows_given: str = "",
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1590,6 +1646,16 @@ def _run_profile(
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
 
+    # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
+    # Refused here, before the table is opened, like every other
+    # declaration that cannot be acted on.
+    metadata_rows = 0
+    if metadata_rows_given:
+        if metadata_rows_given not in ("0", "2"):
+            _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
+            return 2
+        metadata_rows = int(metadata_rows_given)
+
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
     # A-P4-58). A file that is not a questions file, or that answers a
     # column with a word no question offered, is the person's mistake
@@ -1613,6 +1679,14 @@ def _run_profile(
         except ValueError as error:
             _warn(_shown(f"{error}"))
             return 2
+        # THE FIFTH ANSWER IS READ BEFORE THE TABLE IS OPENED, which is
+        # what makes it usable at all (plan P4-D81): it changes the
+        # READING of the file, so an answer arriving after the read
+        # would mean reading the table twice. A person answers the
+        # question in the file their last run wrote, and their next run
+        # reads their table the way they said.
+        if written.metadata_rows:
+            metadata_rows = written.metadata_rows
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -1685,7 +1759,18 @@ def _run_profile(
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
     )
-    read = reading.read_table(table, first_row, sheet=sheet)
+    read = reading.read_table(
+        table, first_row, sheet=sheet, metadata_rows=metadata_rows
+    )
+
+    # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan
+    # P4-D81). The shape some survey exports wear is recognised and
+    # deliberately left alone: saying nothing would leave a person
+    # whose file really is such an export with two rows of machine
+    # text among their records and no idea why.
+    surveyed = read.survey
+    if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
+        _say(f"\n{_metadata_rows_notice()}\n")
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -1793,6 +1878,7 @@ def _run_profile(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
+        forced_metadata_rows=metadata_rows,
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -1934,6 +2020,7 @@ def _run_profile(
                     forced_codes,
                     forced_measurements,
                     forced_decimal_commas,
+                    forced_metadata_rows=metadata_rows,
                 )
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
@@ -2212,6 +2299,11 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     asked_about,
                     listed_about,
+                    asking.file_questions(
+                        surveyed is not None
+                        and surveyed.metadata_shape
+                        and not metadata_rows
+                    ),
                 )
             ),
             sources=guarded_questions,
@@ -3001,6 +3093,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.first_row,
             options.day_first,
             options.sheet,
+            options.metadata_rows,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

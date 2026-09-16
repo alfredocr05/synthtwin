@@ -394,9 +394,10 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
     THE TWIN IS WRITTEN THE WAY THE TABLE WAS (owner ruling 2026-09-15,
     plan P4-D75), so this paragraph states that form rather than a fixed
     one, and names the three places the twin cannot follow its table:
-    preamble text the smallest group withholds, quoting the table did in
-    no single way, and a line ending pattern it reproduces only where the
-    description placed it.
+    the text of the lines before the names, which is published at no
+    smallest group at all, quoting the table did in no single way, and a
+    line ending pattern it reproduces only where the description placed
+    it.
     """
     source = profile.source
     form = source.dialect
@@ -427,8 +428,9 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
     if form.preamble_withheld:
         lines += [
             "The lines your table has before its column names are written",
-            "as stand-ins: their text is not published above a smallest",
-            "group of one.",
+            "as stand-ins: none of their text is published, at any",
+            "smallest group, and the twin holds a neutral line of the",
+            "same shape in each one's place.",
         ]
     if form.line_endings_spread:
         lines += [

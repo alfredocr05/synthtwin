@@ -20,7 +20,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import contract, parsing, taxonomy
+from synthtwin import contract, dialect, parsing, taxonomy
 
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
@@ -1648,33 +1648,36 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
 def _preamble_lines(document: dict[str, object]) -> "list[str]":
     """What the summary says about lines before the names published as written.
 
-    A preamble line is free text of the file that may name anybody, and
-    the description publishes it as written at a smallest group of one
-    (contract FD11). Everything published about a single person is named
-    to the person who describes the table (repair of landing 2b.9), so
-    such lines are named here with the way to withhold them. Nothing is
-    said where no line held text or where they were withheld.
+    A line before the column names is free text that may name anybody,
+    and the description publishes NO text of it at any smallest group
+    (contract FD11, plan P4-D80). What is said here is that the lines
+    are there, how many held text, and that the twin carries a neutral
+    line of the same shape in each one's place -- because a person
+    whose title line does not appear in their twin is owed the reason.
+    Nothing is said where no line held text.
     """
     source = _map_of(document["source"])
     if "dialect" not in source:
         return []
     form = _map_of(source["dialect"])
-    if form["preamble_withheld"]:
-        return []
     held = 0
-    for line in _list_of(form["preamble"]):
-        if parsing.trimmed(_text_of(line)):
-            held = held + 1
+    for run in _list_of(form["preamble"]):
+        entry = _map_of(run)
+        if _text_of(entry["kind"]) != dialect.PREAMBLE_BLANK:
+            counted = entry["lines"]
+            held = held + (counted if isinstance(counted, int) else 0)
     if not held:
         return []
     return [
         "",
         "About the lines before your column names:",
-        f"  {held} line(s) of text your file has before its column names are",
-        "  published in the description as written, because the smallest",
-        "  group is one. Such a line can name somebody. Describe the table",
-        "  again with --smallest-group above 1 and those lines are published",
-        "  as stand-ins instead.",
+        f"  {held} line(s) of text stand before the column names in your",
+        "  file. Such a line can name somebody, so NONE of its text is in",
+        "  the description, at any smallest group: what is recorded is how",
+        "  many lines there are and their shape -- blank, or the mark a",
+        "  comment began with. Your twin carries a neutral line of the same",
+        "  shape in each one's place, so code that skips these lines skips",
+        "  as many in the twin as in your table.",
     ]
 
 

@@ -430,6 +430,7 @@ def _settings_block(
     forced_codes: list[str],
     forced_measurements: list[str],
     forced_decimal_commas: list[str],
+    forced_metadata_rows: int = 0,
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -494,6 +495,17 @@ def _settings_block(
         # or every number of the column reads differently and the whole
         # column comes back missed.
         "forced_decimal_commas": _named_once(forced_decimal_commas),
+        # THE FIFTH DECLARATION (plan P4-D81), and the only one that is
+        # a COUNT rather than a list of names: how many rows under the
+        # column names describe those columns rather than holding a
+        # record. It is recorded because two readers downstream need
+        # it and neither can work it out. The loader holds the
+        # published rows of column descriptions to this number (FD9),
+        # so a description cannot carry rows nobody declared; and the
+        # validator re-reads a checked file under it, or the file's
+        # first two records line up against the wrong rows and every
+        # column comes back missed.
+        "forced_metadata_rows": forced_metadata_rows,
     }
 
 
@@ -701,12 +713,12 @@ _VERSION = "the-version-that-wrote-this"
 # The kinds of `source.dialect` (plan P4-D75). An object that may be
 # `null`; a header cell as the file writes it, which may be empty or a
 # repeat; a blank line's own text, nothing or only spaces and tabs; and a
-# preamble line, which is free text of the file and stands here only at a
-# smallest group of one -- above it, only its stand-in may.
+# the MARK a line before the table began with, which is punctuation and
+# whitespace and never a word of that line (plan P4-D80).
 _MAYBE_OBJECT = "object-or-nothing"
 _HEADER_TEXT = "a-header-cell-as-written"
 _BLANK_LINE = "a-blank-line-of-spaces-and-tabs"
-_PREAMBLE_LINE = "a-line-before-the-table"
+_PREAMBLE_MARK = "the-mark-a-line-before-the-table-began-with"
 
 # What a canonical datetime is made of. `parsing.parse_datetime` writes
 # `2024-03-17`, `2024-03-17 14:05:00` and `2024-Q1`, and nothing else,
@@ -795,6 +807,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_codes", _EACH): _KNOWN_NAME,
     ("settings", "forced_measurements"): _ARRAY,
     ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
+    # How many rows under the names describe the columns (plan P4-D81).
+    ("settings", "forced_metadata_rows"): _COUNT,
     ("settings", "forced_decimal_commas"): _ARRAY,
     ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     # How the table was read.
@@ -806,8 +820,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "header_evidence"): _SENTENCE,
     # How the table's FILE is written (owner ruling 2026-09-15, plan
     # P4-D75): every fact the twin needs to be written the way the table
-    # was. None of them is a value of the table except the preamble lines
-    # and the metadata rows, and each has a kind of its own here.
+    # was. None of them is a value of the table, and none is text a
+    # person wrote, except the rows of column descriptions -- which are
+    # schema, and reach a description only where a person DECLARED them
+    # (plan P4-D81). The lines before the table carry their shape alone
+    # (plan P4-D80). Each has a kind of its own here.
     # The workbook block (plan P4-D77, contract 4.3b). Every key is a
     # fact about the FILE: a count held to the floor, a flag, or one of
     # synthtwin's own words. None of them is text out of the workbook.
@@ -914,10 +931,16 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "line_endings_spread", _EACH): _OBJECT,
     ("source", "dialect", "line_endings_spread", _EACH, "ending"): _WORD,
     ("source", "dialect", "line_endings_spread", _EACH, "lines"): _COUNT,
-    # Free text that may name anybody: published only at a smallest group
-    # of one, and otherwise as its stand-in (`dialect.withheld_line`).
+    # THE LINES BEFORE THE TABLE, AS SHAPES AND NEVER AS TEXT (plan
+    # P4-D80). Each entry is a run of lines of one shape: what kind they
+    # are, how many there are, and the punctuation or whitespace they
+    # began with. The text of such a line is published at no floor, and
+    # `_PREAMBLE_MARK` below is the check that none of it rode in.
     ("source", "dialect", "preamble"): _ARRAY,
-    ("source", "dialect", "preamble", _EACH): _PREAMBLE_LINE,
+    ("source", "dialect", "preamble", _EACH): _OBJECT,
+    ("source", "dialect", "preamble", _EACH, "kind"): _WORD,
+    ("source", "dialect", "preamble", _EACH, "lines"): _COUNT,
+    ("source", "dialect", "preamble", _EACH, "mark"): _PREAMBLE_MARK,
     ("source", "dialect", "preamble_withheld"): _FLAG,
     ("source", "dialect", "row_order"): _MAYBE_OBJECT,
     ("source", "dialect", "row_order", "collation"): _WORD,
@@ -1420,6 +1443,12 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
     ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
+    # WHICH SHAPE A RUN OF LINES BEFORE THE TABLE HAS (plan P4-D80):
+    # blank, a comment, or a line of text. The MARK published beside it
+    # is held by `_PREAMBLE_MARK`, which refuses any letter or digit --
+    # so between the two, nothing of the line's own words can stand
+    # here at any floor (review item CODEX-3).
+    ("source", "dialect", "preamble", _EACH, "kind"): dialect.PREAMBLE_KINDS,
     ("source", "dialect", "row_order", "collation"): dialect.COLLATIONS,
     ("source", "dialect", "row_order", "direction"): dialect.DIRECTIONS,
     ("source", "header_source"): (
@@ -1895,10 +1924,18 @@ def _leaf_is_published(
         return isinstance(value, str) and all(
             character in " \t" for character in value
         )
-    if kind == _PREAMBLE_LINE:
+    if kind == _PREAMBLE_MARK:
+        # THE ONLY PART OF A LINE BEFORE THE TABLE THAT REACHES A
+        # DESCRIPTION, and it may hold no letter and no digit at any
+        # floor (plan P4-D80). The rule this replaced asked the floor
+        # first and handed the WHOLE line over at a floor of one, which
+        # is the default: review item CODEX-3 measured a person's name
+        # travelling through it into the description and into the twin.
+        # A floor is a rule about groups of rows and was never a
+        # defence for a line of prose, so no floor is consulted here.
         if not isinstance(value, str) or "\r" in value or "\n" in value:
             return False
-        return context.floor <= 1 or dialect.withheld_line(value) == value
+        return dialect.holds_no_letter_or_digit(value)
     if kind == _TABLE_NAME:
         # A column's name IS text of the real table, and the matrix
         # authorizes it: the twin's header row has to carry it. So this
@@ -2289,17 +2326,18 @@ def _is_mechanical_index(
 
 def _published_form(
     table: Table,
-    floor: int,
     columns: "list[dict[str, object]]",
     declared_identifiers: "list[str]",
 ) -> dialect.Dialect:
-    """The table's written form, with its preamble held to the floor.
+    """The table's written form, with nothing of anybody's in it.
 
-    A preamble line is free text of the file and may name anybody, so it
-    is published as written only where the smallest group is one -- where
-    every label is already published at its own count -- and above that
-    as its stand-in (`dialect.withheld_line`), keeping the punctuation a
-    line began with so code that skips such lines still skips them.
+    THE LINES BEFORE THE TABLE ARE NOT HELD TO THE FLOOR HERE ANY MORE,
+    because they are no longer text by the time they arrive: the survey
+    publishes each run of them as a kind, a count and a mark (plan
+    P4-D80). What this function still does is keep a DECLARED
+    IDENTIFIER out of the written form -- the row sequence and the row
+    order both hand back a declared column's own values -- and drop a
+    row order the twin could not keep.
     """
     surveyed = table.survey
     if surveyed is None:
@@ -2358,23 +2396,14 @@ def _published_form(
         pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
         if not isinstance(blank, int) or not isinstance(pooled, int) or blank + pooled != empties:
             form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
-    if floor <= 1:
-        return form
-    stood_in = tuple([dialect.withheld_line(line) for line in form.preamble])
-    # WITHHELD MEANS "PUBLISHED AS STAND-INS", which is contract FD11's
-    # rule: some line held text and the floor is above one. It is not
-    # "the stand-in differs from the line", which a twin whose preamble
-    # already IS the stand-in would answer False for, describing the same
-    # form two ways.
-    held_text = False
-    for line in form.preamble:
-        if parsing.trimmed(line):
-            held_text = True
-    return dataclasses.replace(
-        form,
-        preamble=stood_in,
-        preamble_withheld=held_text,
-    )
+    # AND THE LINES BEFORE THE TABLE ARE ALREADY SHAPES. The survey
+    # publishes their kind, their count and their mark, so there is
+    # nothing left here for a floor to hold back and no floor at which
+    # anything more is published. The branch this replaced returned the
+    # form untouched at a floor of one -- the default -- which is how a
+    # title line naming a person reached the description whole (review
+    # item CODEX-3).
+    return form
 
 
 def _published_workbook(
@@ -2395,6 +2424,7 @@ def build_document(
     forced_decimal_commas: list[str] | None = None,
     declarations_are_reconstructed: bool = False,
     described_pairs: list[str] | None = None,
+    forced_metadata_rows: int = 0,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2494,6 +2524,8 @@ def build_document(
             declared_codes,
             declared_measurements,
             declared_commas,
+        
+            forced_metadata_rows,
         ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and
@@ -2523,8 +2555,7 @@ def build_document(
             # twin is written the same way (plan P4-D75).
             "dialect": dialect.document_of(
                 _published_form(
-                    table, settings.small_cell_floor, columns,
-                    forced_identifiers,
+                    table, columns, forced_identifiers,
                 )
             ),
             # What the table's file said about itself as a WORKBOOK, or
