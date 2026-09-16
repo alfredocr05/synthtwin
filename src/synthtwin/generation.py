@@ -14109,6 +14109,10 @@ def _label_content(
     holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
+    # ASKED WHILE `cells` HOLDS THE PUBLISHED SPELLINGS ALONE, before any
+    # stand-in joins them, so the answer is about what the DESCRIPTION
+    # published and not about what the twin went on to write.
+    unspellable = _published_an_unspellable_number(cells, comma)
     classes: "dict[int, str]" = {}
     written_as: "dict[int, str]" = {}
     asked: "dict[int, str]" = {}
@@ -14195,6 +14199,8 @@ def _label_content(
             reason = _HELD_BACK_NUMBERS_REASON
             if unplaced:
                 reason = _HELD_BACK_UNPLACED_REASON
+                if unspellable:
+                    reason = _HELD_BACK_UNSPELLED_REASON
         notes += [
             _deviation(
                 column.name,
@@ -14240,25 +14246,100 @@ def _class_stand_ins(
     the few `%%.%` above it -- the narrow walk has nothing to write, and
     the second walk writes them as before.
     """
-    trial_used = dict(used)
-    trial_owners = dict(owners)
-    trial_short: "list[int]" = []
-    narrow = _class_stand_ins_walked(
-        column, written, sizes, owing, debts, trial_used, trial_owners,
-        holes, decimal_comma, trial_short, floor, True,
+    taken_used = dict(used)
+    taken_owners = dict(owners)
+    taken_short: "list[int]" = []
+    bounded = True
+    answer = _class_stand_ins_walked(
+        column, written, sizes, owing, debts, taken_used, taken_owners,
+        holes, decimal_comma, taken_short, floor, True,
     )
-    if len(narrow[1]) == len(narrow[0]):
-        for spelling in trial_used:
-            used[spelling] = trial_used[spelling]
-        for fold in trial_owners:
-            owners[fold] = trial_owners[fold]
-        if short is not None:
-            short += trial_short
-        return narrow
-    return _class_stand_ins_walked(
-        column, written, sizes, owing, debts, used, owners, holes,
-        decimal_comma, short, floor, False,
-    )
+    if len(answer[1]) != len(answer[0]):
+        bounded = False
+        taken_used = dict(used)
+        taken_owners = dict(owners)
+        taken_short = []
+        answer = _class_stand_ins_walked(
+            column, written, sizes, owing, debts, taken_used, taken_owners,
+            holes, decimal_comma, taken_short, floor, False,
+        )
+    # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
+    # 2b.8, Codex item 6 of landing 2b.4). The shortfall shows at WRITE
+    # time and not at the split: the split gives the number class groups
+    # whose sizes make its debt exactly, and only then does the census
+    # rule refuse every candidate of the one tier the published places
+    # offer, so those groups fall back to words with the class count
+    # missed. Asked here rather than at the split because that is where
+    # the answer is known -- a supply counted before the walk says how
+    # many numbers exist, not how many this column may wear.
+    if debts[_OWED_NUMBER] > 0:
+        paid = _numbers_paid(sizes, answer[0], answer[1])
+        if paid < debts[_OWED_NUMBER]:
+            wider_used = dict(used)
+            wider_owners = dict(owners)
+            wider_short: "list[int]" = []
+            wider = _class_stand_ins_walked(
+                column, written, sizes, owing, debts, wider_used,
+                wider_owners, holes, decimal_comma, wider_short, floor,
+                bounded, True,
+            )
+            if _numbers_paid(sizes, wider[0], wider[1]) > paid:
+                answer = wider
+                taken_used = wider_used
+                taken_owners = wider_owners
+                taken_short = wider_short
+    for spelling in taken_used:
+        used[spelling] = taken_used[spelling]
+    for fold in taken_owners:
+        owners[fold] = taken_owners[fold]
+    if short is not None:
+        short += taken_short
+    return answer
+
+
+def _class_supply(
+    ladder: "_Ladder",
+    sizes: "tuple[int, ...]",
+    debts: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+) -> "dict[str, int]":
+    """How many held-back groups each class could still be given a spelling.
+
+    A number's supply is how many numbers the walk of G8.3a step 3 can
+    still give, counted with no census rule asked -- which is how the
+    class split counts every number there is -- and the other two
+    classes can always be written.
+    """
+    supply: "dict[str, int]" = {}
+    for name in _OWED_CLASSES:
+        supply[name] = len(sizes)
+        if name == _OWED_NUMBER and debts[name] > 0:
+            supply[name] = _ladder_room(
+                ladder, name, len(sizes), {}, used, owners, holes,
+                decimal_comma,
+            )
+    return supply
+
+
+def _numbers_paid(
+    sizes: "tuple[int, ...]",
+    classes: "dict[int, str]",
+    written_as: "dict[int, str]",
+) -> int:
+    """How many cells of the number debt a finished walk actually paid.
+
+    The groups the split gave the number class AND the walk then found a
+    spelling for. A group left without one falls back to G8.3's neutral
+    label, so its cells pay nothing however the split counted them.
+    """
+    paid = 0
+    for place in classes:
+        if classes[place] == _OWED_NUMBER and place in written_as:
+            paid = paid + sizes[place]
+    return paid
 
 
 def _class_stand_ins_walked(
@@ -14274,6 +14355,7 @@ def _class_stand_ins_walked(
     short: "list[int] | None",
     floor: int,
     bounded: bool,
+    whole_tier: bool = False,
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
     """One walk of `_class_stand_ins`, narrow where ``bounded`` says.
 
@@ -14319,14 +14401,28 @@ def _class_stand_ins_walked(
         and _form_reading(form, decimal_comma) == parsing.NUMBER
     ]
     ladder = _number_ladder(written, decimal_comma, number_forms)
-    supply: "dict[str, int]" = {}
-    for name in _OWED_CLASSES:
-        supply[name] = len(sizes)
-        if name == _OWED_NUMBER and debts[name] > 0:
-            supply[name] = _ladder_room(
-                ladder, name, len(sizes), {}, used, owners, holes,
-                decimal_comma,
-            )
+    # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8,
+    # Codex item 6 of landing 2b.4). A number wearing no named form walks
+    # the counts of places the published numbers were written with. Where
+    # every published number carried a decimal AND the census NAMES the
+    # form those places write, every candidate of that tier is stepped
+    # past for wearing a named form, so the tier is empty and a class
+    # debt goes unpaid: readings published `5.1` and `5.3`, whose census
+    # names `%.%` and pools nothing, wrote two cells the table holds as
+    # numbers as words instead -- twenty-five numeric against a published
+    # twenty-seven, two checks missed, and the table passing.
+    #
+    # A whole number wears no form at all (a cell of figures alone
+    # carries one kind, and `parsing.shape_form` answers "" for it), so
+    # it can never overpay the census. It is the LAST tier, and a tier is
+    # taken up only once the one before it has ended. `_class_stand_ins`
+    # asks for it only where the finished walk left the number debt
+    # unpaid, which is the "where the debts require it" of G8.3a.
+    if whole_tier and ladder.anchored and 0 not in ladder.tiers:
+        ladder = dataclasses.replace(ladder, tiers=ladder.tiers + (0,))
+    supply = _class_supply(
+        ladder, sizes, debts, used, owners, holes, decimal_comma
+    )
     classes = _class_split(sizes, debts, supply)
     missing = 0
     # A CLASS THE SPLIT COULD NOT PAY BECAUSE ITS SUPPLY RAN OUT is a
@@ -15656,7 +15752,19 @@ def _is_a_usable_stand_in(
         return False
     if reads_as != parsing.NOT_A_NUMBER:
         return _reads_as_its_class(candidate, reads_as, decimal_comma)
-    if parsing.classify_number(candidate) == parsing.NUMBER:
+    # A TEXT STAND-IN MUST READ AS NO NUMERIC CLASS AT ALL, not merely as
+    # no finite number (landing 2b.8, Codex item 8 of landing 2b.4). This
+    # asked only whether the candidate was a NUMBER, so the two other
+    # numeric classes walked straight through it: a column whose census
+    # named `%%@%%%` had `47E807` -- a well-formed number too large for
+    # binary64 -- written twice for a group that owed ORDINARY TEXT, and
+    # the twin came back with twenty-seven out-of-range cells against a
+    # published twenty-five and eighteen text against twenty, with three
+    # checks missed and the table passing its own description. The
+    # contradictory construction `(-1)` was accepted here for the same
+    # reason. The class each stand-in owes is the whole point of G10.2's
+    # partition, so the question asked here is the partition's own.
+    if parsing.classify_number(candidate) != parsing.NOT_A_NUMBER:
         return False
     # ...AND NOT A NUMBER UNDER THE OTHER GRAMMAR EITHER (review round
     # 5 of landing L8, item 1). A column declared `--decimal-comma` is
@@ -15674,7 +15782,7 @@ def _is_a_usable_stand_in(
         parsing.classify_number(
             parsing.written_with_a_decimal_comma(candidate)
         )
-        == parsing.NUMBER
+        != parsing.NOT_A_NUMBER
     ):
         return False
     for name in parsing.DATE_FORMATS:
@@ -15850,6 +15958,54 @@ _HELD_BACK_UNPLACED_REASON = (
     "smallest step this column's forms write, and a statistic computed "
     "over them means nothing about your table."
 )
+
+# ...AND THE SAME SHORTFALL WHERE THE COLUMN DID PUBLISH A NUMBER, but
+# not one this walk can step from (landing 2b.8, Codex item 7 of landing
+# 2b.4). The ladder is built from the PLAIN decimals among the published
+# spellings -- an optional minus, figures, at most one point -- so a
+# column publishing `1.1e6` and `1.2e6`, or a grouped `12,345`, or a
+# leading-plus `+5`, has an unanchored ladder although it published two
+# numbers on twenty-two rows. The sentence above then told the reader
+# that the column "published no number at all", which is false on its
+# face and is the kind of sentence this repository treats as a defect
+# rather than a nuance: the reader checks the description, finds the
+# numbers, and stops believing the report. This one says what is true --
+# the numbers are published and the walk cannot spell them -- and the
+# location is invented either way.
+_HELD_BACK_UNSPELLED_REASON = (
+    "Those labels covered too few rows to publish, so the twin "
+    "keeps their number and their sizes but not the labels. Where "
+    "they were numbers the twin writes numbers in their place -- but "
+    "every number this column published is written in a way this "
+    "version cannot step from, such as an exponent, a grouping mark "
+    "or a leading plus, so nothing in the description says where the "
+    "made-up ones lie: they count upward from the smallest step this "
+    "column's forms write, and a statistic computed over them means "
+    "nothing about your table."
+)
+
+
+def _published_an_unspellable_number(
+    written: "list[str]", decimal_comma: bool
+) -> bool:
+    """Whether a published spelling is a number the ladder cannot step from.
+
+    True where some published cell reads as a number under the column's
+    own grammar and NONE of the numbers it published is a plain decimal,
+    which is the one shape `_plain_units` reads. That is the difference
+    between a column that published no number and a column whose every
+    published number is spelled in a way this version cannot walk.
+    """
+    numbers = 0
+    plain = 0
+    for cell in written:
+        read = _read_in_grammar(cell, decimal_comma)
+        if parsing.classify_number(read) != parsing.NUMBER:
+            continue
+        numbers = numbers + 1
+        if _plain_units(read) is not None:
+            plain = plain + 1
+    return numbers > 0 and plain == 0
 
 
 def _reads_as_its_class(
@@ -19450,6 +19606,66 @@ def _number_forms(
     return chosen
 
 
+def _number_form_at(band: str, length: int) -> str:
+    """The written form every number of one band and length wears.
+
+    One band and one length write ONE form: `-%` and `%%@%` in the code
+    band, `%.%` and `%%.%` in the wide band, and no form at all in the
+    figures, where a cell of figures alone carries one kind only and
+    `parsing.shape_form` answers "" for it.
+    """
+    spelled = _number_at(band, length, 0)
+    if spelled is None:
+        return ""
+    return parsing.shape_form(spelled)
+
+
+def _unasked_number_length(
+    band: str,
+    shortest: int,
+    longest: int,
+    taken: "dict[str, int]",
+    named: "dict[str, int]",
+) -> int:
+    """The length a number group wearing no settled form is written at.
+
+    The shortest length at or above its band's own shortest at which the
+    band still has a number with no leading zero to give -- and, since
+    landing 2b.8, whose form the census does NOT NAME.
+
+    WHY THE SECOND CLAUSE (Codex item 4 of landing 2b.4). `_number_forms`
+    settles a named form over the number groups EXACTLY, so every cell of
+    that form is already spoken for; but the length rule knew nothing of
+    the census, and every number of the wide band four characters long is
+    written `%%.%`. A column of 800 rows of one-word comments beside
+    readings written `10.4` published `%%.%` on 199 cells, had those 199
+    settled exactly, and then gave forty-eight groups the census owed
+    nothing a length of four -- so the twin wore `%%.%` on 247 cells
+    against the published 199 and failed its own description while the
+    table passed. A group the census owes nothing now steps over the
+    lengths whose form it would overpay.
+
+    Where no length inside the published ends escapes the named forms,
+    the first length with room stands, exactly as it did before: the
+    census is then missed and the report names it, which is the outcome
+    G9.5 step 3b already states for a column no exchange can settle.
+    """
+    length = max(_NUMBER_SHORTEST[band], shortest)
+    spare = 0
+    while length < longest:
+        key = f"{band}/{length}"
+        spent = taken[key] if key in taken else 0
+        if spent < _plain_number_room(band, length):
+            if not spare:
+                spare = length
+            if _number_form_at(band, length) not in named:
+                return length
+        length = length + 1
+    if spare:
+        return spare
+    return min(length, longest)
+
+
 def _number_lengths(
     facts: contract.TextFacts,
     groups: "tuple[int, ...]",
@@ -19478,6 +19694,13 @@ def _number_lengths(
     shortest = facts.length.minimum
     longest = facts.length.maximum
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
+    # THE FORMS THE CENSUS NAMES. A group `_number_forms` settled wears
+    # its form and covers that form's debt; a group it settled nothing for
+    # must not wear one of them by accident of its length (landing 2b.8).
+    named: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form != contract.WITHHELD:
+            named[form] = 1
     taken: "dict[str, int]" = {}
     fixed: "dict[int, int]" = {}
     # A NUMBER CARRYING AN END SPENDS A SPELLING OF ITS LENGTH TOO (landing
@@ -19500,14 +19723,7 @@ def _number_lengths(
             fixed[place] = len(worn[place])
             continue
         band = _BANDS[bands[place]]
-        length = max(_NUMBER_SHORTEST[band], shortest)
-        while length < longest:
-            key = f"{band}/{length}"
-            spent = taken[key] if key in taken else 0
-            if spent < _plain_number_room(band, length):
-                break
-            length = length + 1
-        length = min(length, longest)
+        length = _unasked_number_length(band, shortest, longest, taken, named)
         key = f"{band}/{length}"
         taken[key] = (taken[key] if key in taken else 0) + 1
         fixed[place] = length

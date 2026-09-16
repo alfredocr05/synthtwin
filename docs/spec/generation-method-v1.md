@@ -4485,6 +4485,21 @@ leading segment answer plausibly and wrongly.
   ORDINARY TEXT, and only of one** (landing 2b.4). A held-back level the
   class debt of G8.3a gives a numeric class must read as that class, so
   for it the number property turns round and G8.3a states the rest.
+- **And it is NO NUMERIC CLASS AT ALL, not merely no finite number**
+  (landing 2b.8, plan P4-D72). The property was asked as "does this read
+  as a NUMBER", which is one of the four classes of G10.2, so the other
+  two walked through it: a spelling of the census form `%%@%%%` that is
+  a well-formed number too large for binary64, `47E807`, was accepted
+  for a level owing ordinary text, and a sign inside accounting
+  parentheses, `(-1)`, was accepted the same way. A column of
+  `12e400`-style values beside four text levels came back with
+  twenty-seven out-of-range cells against a published twenty-five and
+  eighteen text against twenty, three checks missed and the table
+  passing its own description. The class partition is the whole point of
+  G10.2, so the question asked of a text stand-in is the partition's
+  own: it must read as ordinary text under the column's grammar AND
+  under the other one, exactly as the number property is already asked
+  twice.
 
 ### G8.3a The classes the held-back levels owe
 
@@ -4620,6 +4635,30 @@ number when it is one under that reading.
    census pools the few `%%.%` above them, and `label_numbers` below --
    the narrow walk runs short and the pool rule writes them as before.
 
+   **A whole-number tier where the published places cannot pay**
+   (landing 2b.8, plan P4-D70). The tiers above are the counts of places
+   a PUBLISHED number was written with. Where every published number
+   carried a decimal AND the census NAMES the form those places write,
+   every candidate of the only tier there is is stepped past for wearing
+   a named form, so the tier is empty and a class debt goes unpaid:
+   readings published `5.1` and `5.3`, whose census names `%.%` and
+   pools nothing, beside a held-back `7`, wrote two cells the table
+   holds as numbers as words instead -- twenty-five numeric against a
+   published twenty-seven, two checks missed, and the table passing its
+   own description. So where the finished walk has left the number debt
+   unpaid, steps 2 and 3 are taken AGAIN with a last tier of no places
+   at all, and that answer is kept only where it covers more of the debt
+   than the published places did. A whole number wears no form (a cell
+   of figures alone carries one kind and has no form at all), so it can
+   never overpay the census; and because the tier is last and a tier is
+   taken up only once the one before it has ended, a column whose own
+   places still pay never reaches it. That is what keeps a column of
+   `d.d` readings writing `d.d` -- an integer there passes the census
+   and breaks a check written against the table's own spelling, which is
+   the first goal -- and it is why the tier is asked for by the DEBT and
+   not by the supply: a supply counted before the walk says how many
+   numbers exist, not how many this column may wear.
+
    A level whose form has no number left keeps its class without the
    form. A level that finds no number at all is written as G8.3's
    neutral label, and the report names the shortfall with the reason
@@ -4632,6 +4671,25 @@ number when it is one under that reading.
    step those forms write; a level wearing no named form takes those
    places first and whole numbers after them; the report says that
    nothing published places them.
+
+   **And where it published a number this walk cannot step from**
+   (landing 2b.8, plan P4-D71). The ladder is built from the PLAIN
+   decimals among the published spellings, so a column publishing
+   `1.1e6` and `1.2e6`, or a grouped `12,345`, or a leading-plus `+5`,
+   has an unanchored ladder although it published numbers. The report
+   said of such a column that it "published no number at all", which is
+   false on its face: the reader checks the description, finds the
+   numbers, and stops believing the report. The two cases are told apart
+   and the second says what is true -- every number this column
+   published is written in a way this version cannot step from -- with
+   the location invented either way. Placing those numbers is not done
+   here: building the anchors from the exponent, grouped and
+   leading-plus spellings was measured at landing 2b.4's integration and
+   withdrawn, because the leading-plus column then lost `n_numeric` and
+   `n_not_numeric` to a counted-but-unnamed empty pool, and trading a
+   class count for a location is the wrong direction under the first
+   goal. What this section now forbids is the false sentence, not the
+   invented location.
 4. **Out of range and contradictory** levels take G10.3's
    constructions, `ke999` and `(-k)` with `k` advancing on every
    refusal, or their form's own spellings, held to the same refusals.
@@ -5317,7 +5375,17 @@ any that could not be met:
    given one; otherwise the SHORTEST length at or above its band's
    shortest -- one figure, a minus and a figure, a figure, a point and a
    figure -- at which its band still has a number with no leading zero
-   to give; in the code band only the numbers whose exponent is nought
+   to give AND WHOSE FORM THE CENSUS DOES NOT NAME (landing 2b.8, plan
+   P4-D73: step 7 settles a named form over the number groups EXACTLY,
+   so its cells are spoken for, and every number of the wide band four
+   characters long is written `%%.%` -- a column publishing that form on
+   199 cells settled those 199 and then gave forty-eight groups the
+   census owed nothing a length of four, so the twin wore it on 247
+   cells and failed its own description while the table passed. Where no
+   length inside the published ends escapes the named forms the first
+   length with room stands, the census is missed, and the report names
+   it, exactly as step 3b already states); in
+   the code band only the numbers whose exponent is nought
    count as given, so a column needing more of them lengthens them
    instead of raising them by a power of ten (landing 2b.4, repair). A
    number group carrying an end spends one spelling of its own band and

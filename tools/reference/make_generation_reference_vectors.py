@@ -3850,18 +3850,50 @@ def class_stand_ins(column, written, used, sizes, census):
     stands where every paying size found a spelling; only otherwise may
     the census pool buy a wider number.
     """
+    bounded = True
     placed, debts, classes = class_stand_ins_walked(
         column, written, used, sizes, census, True
     )
-    if len(placed) == len(classes):
-        return placed, debts
-    placed, debts, _classes = class_stand_ins_walked(
-        column, written, used, sizes, census, False
-    )
+    if len(placed) != len(classes):
+        bounded = False
+        placed, debts, classes = class_stand_ins_walked(
+            column, written, used, sizes, census, False
+        )
+    # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
+    # 2b.8).  The shortfall shows at WRITE time and not at the split: the
+    # split gives the number class sizes that make its debt exactly, and
+    # only then does the census rule refuse every candidate of the one
+    # tier the published places offer, so those sizes fall back to words
+    # with the class count missed.  The walk is taken again with a
+    # whole-number tier after the published places, and kept only where
+    # it covers more of the debt.
+    if debts[OWED_NUMBER] > 0:
+        paid = numbers_paid(sizes, classes, placed)
+        if paid < debts[OWED_NUMBER]:
+            wider, wider_debts, wider_classes = class_stand_ins_walked(
+                column, written, used, sizes, census, bounded, True
+            )
+            if numbers_paid(sizes, wider_classes, wider) > paid:
+                return wider, wider_debts
     return placed, debts
 
 
-def class_stand_ins_walked(column, written, used, sizes, census, bounded):
+def numbers_paid(sizes, classes, placed):
+    """How many cells of the number debt a finished walk actually paid.
+
+    The sizes the split gave the number class AND the walk then found a
+    spelling for.  A size left without one takes G8.3's neutral label,
+    so its cells pay nothing however the split counted them.
+    """
+    return sum(
+        sizes[place] for place in classes
+        if classes[place] == OWED_NUMBER and place in placed
+    )
+
+
+def class_stand_ins_walked(
+    column, written, used, sizes, census, bounded, whole_tier=False
+):
     """One walk of class_stand_ins, narrow where ``bounded`` says."""
     seen = set(used)
     folds = {folded(text) for text in used}
@@ -3876,6 +3908,15 @@ def class_stand_ins_walked(column, written, used, sizes, census, bounded):
         if owing[form] > 0 and form_reading(form) == NOTATION_NUMBER
     ]
     ladder = number_ladder(written, number_forms)
+    # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8).
+    # Where every published number carried a decimal AND the census names
+    # the form those places write, every candidate of that tier is
+    # stepped past for wearing a named form, so the tier is empty and a
+    # class debt goes unpaid.  A whole number wears no form at all, so it
+    # can never overpay the census.  It is the LAST tier, and a tier is
+    # taken up only once the one before it has ended.
+    if whole_tier and ladder["anchored"] and 0 not in ladder["tiers"]:
+        ladder = dict(ladder, tiers=ladder["tiers"] + (0,))
     supply = {name: len(sizes) for name in OWED_CLASSES}
     if debts[OWED_NUMBER] > 0:
         supply[OWED_NUMBER] = ladder_room(
@@ -6254,16 +6295,56 @@ def singletons_kept_as_text(groups, lengths, packed, carriers, line=LONG_TAIL_LI
     return moved
 
 
+def number_at_form(band, length):
+    """The written form every number of one band and length wears.
+
+    One band and one length write ONE form, which is read off the
+    spelling families of G9.5 step 3 rather than off any one spelling:
+    in the figures a run of digits, which carries ONE kind and so has no
+    form at all; in the code band a minus and a figure at two characters
+    and `L - 2` figures, an `e` and a figure above it; outside it a
+    figure and a point at two characters and `L - 2` figures, a point
+    and a figure above it.
+    """
+    if band == FIGURES or length < NUMBER_SHORTEST[band]:
+        return ""
+    if band == CODE_BAND:
+        built = "-1" if length == 2 else "1" * (length - 2) + "e1"
+    else:
+        built = "1." if length == 2 else "1" * (length - 2) + ".1"
+    return written_form(built)
+
+
 def number_lengths(column, groups, packed, carriers, lengths=None):
     """G9.5 step 3a: every number carrying no published end at its own length.
 
     Largest group first, ties by group order, each takes the shortest
     length at or above its band's shortest, and inside the published
     ends, at which its band still has a number with no leading zero to
-    give.  A census naming a form is refused before this is reached.
+    give -- AND WHOSE FORM THE CENSUS DOES NOT NAME (landing 2b.8).
+
+    The second clause is the rule the review of landing 2b.4 asked for.
+    A named form is settled over the number groups EXACTLY, so its cells
+    are spoken for; but the length rule knew nothing of the census, and
+    every number of the wide band four characters long is written `99.9`.
+    A column publishing `99.9` on 199 cells had those 199 settled and
+    then gave forty-eight groups the census owed nothing a length of
+    four, so the twin wore that form on 247 cells and failed its own
+    description.  Where no length inside the published ends escapes the
+    named forms the first length with room stands, the census is missed
+    and the report names it, which is what G9.5 step 3b already states.
+
+    This file freezes no case whose census names a form, so no case here
+    reaches the second clause; it is written from the rule statement
+    all the same, because an oracle that carries only the rules its own
+    cases reach cannot answer the next case.
     """
     low = column["length"]["min"]
     high = column["length"]["max"]
+    named = {
+        form for form in (column.get("shape_forms") or {})
+        if form != WITHHELD
+    }
     taken = {}
     fixed = {}
     # A number carrying an end spends a spelling of its own length too.
@@ -6276,9 +6357,22 @@ def number_lengths(column, groups, packed, carriers, lengths=None):
         if place in carriers or notation != NOTATION_NUMBER:
             continue
         length = max(NUMBER_SHORTEST[band], low)
-        while length < high and taken.get((band, length), 0) >= plain_number_room(band, length):
+        spare = 0
+        found = 0
+        while length < high:
+            if taken.get((band, length), 0) < plain_number_room(band, length):
+                if not spare:
+                    spare = length
+                if number_at_form(band, length) not in named:
+                    found = length
+                    break
             length += 1
-        length = min(length, high)
+        if not found:
+            # The walk's own answer where every length with room wears a
+            # form the census names: the first length with room, or the
+            # published longest where none had any.
+            found = spare or min(length, high)
+        length = found
         taken[(band, length)] = taken.get((band, length), 0) + 1
         fixed[place] = length
     return fixed
