@@ -324,7 +324,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # diff of the two documents: those are the only keys that moved, and no
 # count, statistic, label, role or spelling of any column changed.
 GOLDEN_SHA256 = (
-    "2a561f5d0dc9b571a673c729364694dcc3699bdff79c8d9d5e631d1ad345b336"
+    "791f5d7eb8d540379d80e6341fa0cae0c43da90d63fa881f809c3ed9864d7e38"
 )
 
 

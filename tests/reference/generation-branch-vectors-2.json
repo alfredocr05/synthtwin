@@ -874,7 +874,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "\u221212'345.5",
@@ -1648,7 +1649,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "12,345.0",
@@ -2607,7 +2609,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "42.037,34",
@@ -4370,7 +4373,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "12\u202f345.5",
@@ -5452,7 +5456,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "12\u2019345.5-",
@@ -6315,7 +6320,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "(12 345.5)",
@@ -7074,7 +7080,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "42\u00a0037,34",
@@ -7811,7 +7818,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "12\u2009345.5",

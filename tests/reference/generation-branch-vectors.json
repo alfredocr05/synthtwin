@@ -724,7 +724,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "[12]",
@@ -1759,7 +1760,8 @@
             },
             "std_unrepresentable": false,
             "thousands_marks": {},
-            "value_histogram": {}
+            "value_histogram": {},
+            "wide_runs": "none"
           },
           {
             "decimal_plus": {},
@@ -2428,7 +2430,8 @@
             },
             "std_unrepresentable": false,
             "thousands_marks": {},
-            "value_histogram": {}
+            "value_histogram": {},
+            "wide_runs": "none"
           }
         ],
         "position": 1,
@@ -3666,7 +3669,8 @@
           " ": 11,
           "\u202f": 11
         },
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "-12 345.5",
@@ -4750,7 +4754,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "05",
@@ -5580,7 +5585,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "0.5",

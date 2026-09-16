@@ -907,6 +907,17 @@ def battery() -> list[Mutation]:
             "DP1", "signed decimals counted past the cells the forms map can put in the decimal form",
             edit("visits", decimal_plus={"+": 11}),
         ),
+        # The wide-run word landing 2b.13 added beside them (plan
+        # P4-D90). Refused by its ROOM clause, which is the only clause
+        # of WR1 a conforming word can break: `amount` is written
+        # `decimal` on every one of its 240 cells, so the forms map
+        # leaves room for no cell written `plain` and no run of figures
+        # past 2**53 can be among them. A word outside the three is
+        # refused as a range rather than as this invariant.
+        Mutation(
+            "WR1", "wide runs claimed on a column with no cell written plain",
+            edit("amount", wide_runs="canonical"),
+        ),
         # The two mixture censuses landing 2b.7 added beside them. Each
         # is refused by the clause the other cannot reach: the notations
         # by their POPULATION, which the column's own `n_negative`

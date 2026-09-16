@@ -472,6 +472,7 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "group_separator"),
     ("numeric", "negative_form"),
     ("numeric", "decimal_plus"),
+    ("numeric", "wide_runs"),
     ("numeric", "negative_notations"),
     ("numeric", "thousands_marks"),
     ("datetime", "datetime_separators"),
@@ -830,6 +831,19 @@ REGISTRY += (
         "decimal_plus",
         EXACT_OBSERVABLE,
         plan_words="how many cells written with a point carried a plus",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    # THE WIDE-RUN WORD (landing 2b.13, plan P4-D90). EXACT-OBSERVABLE
+    # for the reason the spellings above are: a run of figures past what
+    # a double keeps is a spelling the source chose, `styles.spelled`
+    # cannot ask which run it chose, and a twin that respelled every one
+    # of them met every other published fact in silence.
+    Fact(
+        "numeric",
+        "wide_runs",
+        EXACT_OBSERVABLE,
+        plan_words="whether the column's wide runs are their own values' text",
         plan_region="number-spellings",
         aliases=(),
     ),

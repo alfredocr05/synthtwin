@@ -168,8 +168,23 @@ N_AT_MIDNIGHT_FACT = "datetime.n_at_midnight"
 # larger number.
 NEGATIVE_NOTATIONS_FACT = "numeric.negative_notations"
 THOUSANDS_MARKS_FACT = "numeric.thousands_marks"
+# ...and the NINTH to arrive after that baseline was frozen (plan
+# P4-D90, landing 2b.13, 2026-09-16). `wide_runs` says whether a
+# column's runs of figures past what a double keeps are the text their
+# own values write, and its ceiling is EXECUTABLE only where the column
+# publishes `canonical`. Every numeric column of the demonstration
+# publishes `none` -- no cell of it reaches 2**53 -- so each lists the
+# fact once with the sentence saying there is no such cell to govern,
+# and the count rises by exactly those four columns.
+#
+# SET ASIDE RATHER THAN FOLDED IN, on the doctrine the eight above
+# follow: re-recording 126 as 130 would bless whatever else moved
+# beside them. With this key's own listings taken out the frozen
+# baseline must still reproduce character for character.
+WIDE_RUNS_FACT = "numeric.wide_runs"
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
+    WIDE_RUNS_FACT,
     EMPTY_BIN_FACT,
     EMPTY_EDGE_FACT,
     GROUP_SEPARATOR_FACT,
@@ -829,7 +844,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # convention, so the generator writes the published majority for every
 # cell exactly as it did before these keys existed.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "7f5686d4f7c62776d43c57bd2003706cf879a85a9c98e2afc3d2cdfcd56cca6e"
+    "47bb45b9388c3cf782adbb3bec0fa770c9fed691e0a8f5e87131c2241cf68dda"
 )
 
 
@@ -1863,7 +1878,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # on all four of the columns that carried it, which the red battery of
 # tests/test_p3v1f2_entry_table.py asserts independently.
 GOLDEN_QUALITY_SHA256 = (
-    "37d0772af2b3041ab4cc9ae2eaf6d80627b5a05f6173a9d22ec5f3e6425714f0"
+    "3aa30208ce6079bb85d8c014bb7cfa038ca0360a61ca74e0aea1b37778c8790b"
 )
 
 

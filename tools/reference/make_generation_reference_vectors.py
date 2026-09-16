@@ -7401,6 +7401,14 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         block["negative_form"] = "minus"
     if "numeric_styles" in block and "decimal_plus" not in block:
         block["decimal_plus"] = {}
+    # ...and the wide-run fact (landing 2b.13), `none` for every case
+    # that does not state its own: no source column these cases describe
+    # wrote a point-free cell at or past 2**53 -- the widest whole
+    # number any of them holds is far under it -- so the word is the one
+    # a column with no such run publishes, and their frozen cells do not
+    # move.
+    if "numeric_styles" in block and "wide_runs" not in block:
+        block["wide_runs"] = "none"
     # ...and the two MIXTURE censuses (landing 2b.7), EMPTY for every
     # case that does not state its own: no source column these cases
     # describe mixed two notations or two marks, so each census names
@@ -9567,6 +9575,14 @@ def _joined_readings():
             # the loader refused when the two keys arrived.
             "negative_notations": {},
             "thousands_marks": {},
+            # ...and the wide-run word of this POSITION (landing 2b.13).
+            # Stated here for the same reason the two censuses above
+            # are: the defaults this file applies reach a COLUMN block
+            # and never a position. Every reading a position holds is
+            # two figures, so none of them is a run past what a double
+            # keeps and the word is the one a column with no such run
+            # publishes.
+            "wide_runs": "none",
             # The whole-number field-width census of this POSITION
             # (contract 7.10 read at that depth).  Every one of the
             # twelve readings a position holds is `plain`, and the

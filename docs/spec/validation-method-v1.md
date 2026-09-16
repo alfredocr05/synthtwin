@@ -1436,6 +1436,27 @@ way, and the plan amendment states each as a lowering:
   not below the description's own row count, so the ceiling licenses
   every cell a file of that length can carry.
 
+**V3.5-A2 And the wide-run ceiling is filed the same way, in the two
+states its own published word empties** (2026-09-16, landing 2b.13;
+the plan's decision P4-D90 is the ruling and this follows it).
+`styles.canonical.wide` asks whether every point-free cell past 2**53 is
+the figures its own value writes — the question `styles.spelled` cannot
+ask, because past that bound more than one run of figures reads back as
+one double and admitting them all is what P4-D66.2 decided. The column
+publishes `wide_runs`, and the subcheck is EXECUTABLE on `"canonical"`
+alone:
+
+- on `"none"` the description says the column wrote no such cell, so
+  there is no cell for the ceiling to govern;
+- on `"respelled"` the description says its own writer does not write
+  them all canonically, so a file writing one another way writes what
+  the description licenses — and holding it to a ceiling of nought is
+  the false accusation P4-D66.2 ends.
+
+Both are obligations the description itself empties, which is the shape
+the four above are, so both are LISTINGS with the sentence saying why
+and neither is counted toward a pass.
+
 **V3.5-A1 Two more are decided that way, and the count above is now
 six** (2026-08-15, review item P3-V7-F4; the plan's amendment A-P3-18
 clauses 3 and 4 are the ruling and this follows it). Both were found by

@@ -4923,6 +4923,9 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "styles.at-least.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the wide-run ceiling on the numeric HALF, which binds
+    # that half's own published word (landing 2b.13, plan P4-D90).
+    ("compound", "styles.canonical.wide"): "numeric.wide_runs",
     ("compound", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_zero"): "numeric.numeric_styles",
@@ -4976,6 +4979,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 1 styles.at-least.plain'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.decimal'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.exponent_lower'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.canonical.wide'): 'joined.parts[0].wide_runs',
     ("joined", 'number 1 styles.exact.exponent_upper'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_plus'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_zero'): 'joined.parts[0].numeric_styles',
@@ -4999,6 +5003,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 2 styles.at-least.plain'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.decimal'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.exponent_lower'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.canonical.wide'): 'joined.parts[1].wide_runs',
     ("joined", 'number 2 styles.exact.exponent_upper'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_plus'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_zero'): 'joined.parts[1].numeric_styles',
@@ -5361,6 +5366,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.at-least.plain"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13, plan P4-D90), which binds its own
+    # published word rather than the forms map.
+    ("numeric", "styles.canonical.wide"): "numeric.wide_runs",
     ("numeric", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",

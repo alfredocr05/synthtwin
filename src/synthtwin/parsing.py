@@ -749,6 +749,74 @@ NEGATIVE_FORMS = (
     NEGATIVE_TRAILING,
 )
 
+# WHETHER A COLUMN'S WIDE RUNS OF FIGURES ARE THEIR OWN VALUES' TEXT
+# (landing 2b.13, plan P4-D90, closing the canonical residual of
+# P4-D66.2). Past 2**53 more than one run of figures reads back as one
+# binary64, so "a spelling of its own value" stops picking out a single
+# text and the canonical question has to be asked of the column rather
+# than derived from the number. These three words are the answer, and a
+# description carries exactly one of them:
+#
+# * `none` -- the column wrote no point-free cell at or past 2**53, so
+#   there is no such run to ask about;
+# * `canonical` -- it wrote some, and every one of them is the text its
+#   own value writes;
+# * `respelled` -- it wrote some, and at least one is not.
+#
+# The word is a fact about the column's WRITER and never about a cell:
+# it names no count, no position and no figure, so a reader sees that
+# an export respells wide keys and nothing about which row did.
+WIDE_NONE = "none"
+WIDE_CANONICAL = "canonical"
+WIDE_RESPELLED = "respelled"
+WIDE_RUNS = (
+    WIDE_NONE,
+    WIDE_CANONICAL,
+    WIDE_RESPELLED,
+)
+# THE FIRST WHOLE NUMBER BINARY64 CANNOT KEEP EVERY FIGURE OF. Below it
+# a whole number is held exactly and one run of figures reads back as
+# it; at it and past it the spacing reaches two and neighbouring runs
+# collapse onto one value. Written out rather than computed so that the
+# reader, the loader and the checker all read one number.
+WIDE_RUN_FLOOR = 9007199254740992.0
+
+
+def is_a_wide_run(text: str, value: float) -> bool:
+    """Whether one cell is a bare run of figures past what binary64 keeps.
+
+    The class the canonical question is asked of, and the same class
+    `validation._wears_a_whole_number_text` admits: a point-free run of
+    base-ten figures, with or without a leading sign, whose value is at
+    or past `WIDE_RUN_FLOOR` in either direction.
+
+    Guarantees: accepts a written cell and the value it read back as;
+    returns whether it is one of that class. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    digits = text
+    if digits[:1] == "-" or digits[:1] == "+":
+        digits = digits[1:]
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    return value <= -WIDE_RUN_FLOOR or value >= WIDE_RUN_FLOOR
+
+
+def wide_run_figures(value: float) -> str:
+    """The figures the value itself writes, without its sign.
+
+    The canonical point-free text of method G6.2 read for one value:
+    past `WIDE_RUN_FLOOR` every binary64 is a whole number, so the exact
+    integer is the value and `int` loses nothing taking it.
+    """
+    whole = int(value)
+    if whole < 0:
+        whole = -whole
+    return f"{whole}"
+
 
 def _minus_written_first(body: str) -> str:
     """The text with a minus sign or a trailing minus written in front.

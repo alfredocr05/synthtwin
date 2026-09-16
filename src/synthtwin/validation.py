@@ -687,6 +687,21 @@ _NOT_CHECKABLE_STYLE_CEILING = (
     "rows, so every cell the file can carry in it is already accounted "
     "for and there is no unnamed cell left for this ceiling to govern"
 )
+# THE TWO STATES THE WIDE-RUN CEILING CANNOT BITE IN (landing 2b.13,
+# plan P4-D90). The fact is published on every numeric column, so on the
+# columns where it settles nothing it is a LISTING and never a silence:
+# a fact that is neither checked nor listed is a fact the report lost.
+_NOT_CHECKABLE_NO_WIDE_RUNS = (
+    "the description says this column wrote no run of figures past what "
+    "a double keeps every figure of, so there is no such cell for this "
+    "ceiling to govern"
+)
+_NOT_CHECKABLE_WIDE_RUNS_RESPELLED = (
+    "the description says this column's runs of figures past what a "
+    "double keeps are not all the text their own values write, so a "
+    "file writing any of them another way writes what the description "
+    "already licenses"
+)
 # THE THREE FACTS THE SPLIT RULE ITSELF SETTLES (landing L8). A cell
 # joins a compound column's numeric half only if it reads as a plain
 # number, so that half holds no cell that is out of range, none that
@@ -1026,6 +1041,10 @@ _MEASURED_FROM_THE_CELLS = (
     "styles.spelled",
     f"styles.canonical.{parsing.STYLE_DECIMAL}",
     f"styles.canonical.{parsing.STYLE_EXPONENT_LOWER}",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13), which is measured from the cells for
+    # the same reason the two above are.
+    "styles.canonical.wide",
     # ...and the three spellings landing 2b.2 holds, which are clauses
     # over the written cells of the same kind: a mark, a notation or a
     # plus that fewer cells could wear than the floor names is one no
@@ -10385,6 +10404,11 @@ def _style_checks(
                 fact = "numeric.fraction_widths"
             if subcheck[:15] == "pads.published.":
                 fact = "numeric.pad_widths"
+            # ...and the wide-run ceiling binds its own published word
+            # (landing 2b.13), so the withheld side names the fact the
+            # measured side names.
+            if subcheck == "styles.canonical.wide":
+                fact = "numeric.wide_runs"
             withheld += [
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
@@ -10601,6 +10625,36 @@ def _style_checks(
                 _GATE_POOLED,
             )
         ]
+    # THE CANONICAL QUESTION FOR A WIDE RUN, ASKED WHERE THE DESCRIPTION
+    # SETTLES IT (landing 2b.13, plan P4-D90, closing the residual
+    # P4-D66.2 named). The ceiling above is the published count of the
+    # form, and on every column of identifiers that count IS the row
+    # count -- `numeric_styles {plain: 800}` on 800 rows -- so the bar
+    # admits every cell and the entry is a listing. Measured before this
+    # check existed: 800 canonical seventeen-figure runs, respelled cell
+    # by cell into the value-preserving neighbours, 790 of 800 moved,
+    # validated at exit 0 with nothing missed.
+    #
+    # FILED ONLY WHERE THE COLUMN PUBLISHES `canonical`, which is what
+    # keeps it from being the vacuity V3.4 refuses. A column publishing
+    # `none` has no such run to ask about and a column publishing
+    # `respelled` has said its own writer respells them -- holding that
+    # file to a ceiling of nought is the false accusation plan P4-D66.2
+    # exists to end, and it is the LISTING below that names it.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        checks += [
+            _silent(
+                name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                (
+                    "every point-free cell past what a double keeps "
+                    "written as the figures of its own value"
+                ),
+                _wide_cells_respelled(cells) == 0,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
     measured = _map_at(block, "numeric_styles")
     # HOW MANY CELLS THIS DESCRIPTION DOES NOT NAME A FORM FOR. The
     # publication floor pools every form fewer cells wear than the floor
@@ -10807,6 +10861,13 @@ def _style_subchecks(
         f"styles.canonical.{style}"
         for style in _ceilinged_styles(column, facts)
     ]
+    # ...and the canonical question for a WIDE run, on the columns whose
+    # description settles it (landing 2b.13, plan P4-D90). Filed on
+    # exactly the condition `_style_checks` files it on, so the
+    # identities a withheld column carries are the ones a measured one
+    # carries.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        named += ["styles.canonical.wide"]
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
@@ -10900,6 +10961,56 @@ def _noncanonical_cells(
         if _written_with_a_leading_minus(body) != _canonical_text(
             value, whole_column
         ):
+            odd = odd + 1
+    return odd
+
+
+def _wide_cells_respelled(cells: "list[str]") -> int:
+    """How many wide runs are NOT the figures their own value writes.
+
+    THE QUESTION `styles.spelled` CANNOT ASK (landing 2b.13, plan
+    P4-D90). That subcheck asks whether a cell is a spelling of its own
+    value, and past 2**53 a run of figures is one whatever its last
+    figure reads -- `88618223144562695` and `88618223144562696` are one
+    double, and admitting both is exactly what plan P4-D66.2 decided so
+    that a real export of seventeen-figure keys stops being told its own
+    file failed its own description. So this asks the OTHER question:
+    not whether the run denotes the value, but whether it is the run the
+    value itself writes.
+
+    WRITTEN OUT HERE RATHER THAN IMPORTED (V1.4, V4.2), exactly as
+    `_canonical_text` above is: the class test is this module's own
+    `_wears_a_whole_number_text` and the figures are taken from the
+    NUMBER the cell read back as, so nothing the file spells decides
+    anything here.
+
+    Counted over the `plain` form alone, which is the form the ceiling
+    beside it is filed on: a padded or plus-signed wide run wears a
+    spelling its own census answers for, and counting it here as well
+    would report one fault twice.
+    """
+    odd = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body:
+            continue
+        if parsing.numeric_style(body) != parsing.STYLE_PLAIN:
+            continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        value = parsing.parse_number(body)
+        if value is None:
+            continue
+        signed = _written_with_a_leading_minus(body)
+        if not _wears_a_whole_number_text(signed, value):
+            continue
+        digits = signed
+        if digits[:1] == "-" or digits[:1] == "+":
+            digits = digits[1:]
+        whole = int(value)
+        if whole < 0:
+            whole = -whole
+        if digits != f"{whole}":
             odd = odd + 1
     return odd
 
@@ -14568,6 +14679,24 @@ def _unbounded_style_listings(
     a fact the report has lost, which is worse than either.
     """
     listings: list[Listing] = []
+    # THE WIDE-RUN CEILING, WHERE THE DESCRIPTION SETTLES NOTHING FOR IT
+    # (landing 2b.13, plan P4-D90). `_style_checks` files the check on
+    # the `canonical` state alone, because that is the only state a file
+    # can be found to miss it in; the other two are obligations the
+    # description itself empties, which is exactly the shape the three
+    # below are.
+    if facts.wide_runs != parsing.WIDE_CANONICAL:
+        why = _NOT_CHECKABLE_NO_WIDE_RUNS
+        if facts.wide_runs == parsing.WIDE_RESPELLED:
+            why = _NOT_CHECKABLE_WIDE_RUNS_RESPELLED
+        listings += [
+            Listing(
+                column.name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                why,
+            )
+        ]
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if style in _ceilinged_styles(column, facts):
             continue

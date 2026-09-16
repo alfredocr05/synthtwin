@@ -504,6 +504,13 @@ NUMERIC_KEYS = (
     # 2b.2): the notation the negatives wore, and how many cells written
     # with a point carried a plus.
     "negative_form",
+    # ...and whether the column's WIDE runs of figures are their own
+    # values' text (landing 2b.13, plan P4-D90). One word of three, and
+    # the fact the canonical ceiling of a point-free cell past 2**53 is
+    # read against: past that bound more than one run reads back as one
+    # value, so nothing derived from the number can settle which run the
+    # column wrote.
+    "wide_runs",
     # ...and the MIXTURE those two majority keys collapse (landing
     # 2b.7, plan P4-D65.2): how many negatives wore each notation and
     # how many grouped cells wore each mark, floored per convention.
@@ -1151,6 +1158,12 @@ INVARIANTS = {
         "a column says its negatives are written some other way than with "
         "a minus in front only where at least the smallest group size of "
         "its values are negative"
+    ),
+    "WR1": (
+        "a column says something about its wide runs of figures only "
+        "where the forms map leaves room for a cell written plain to be "
+        "one, and says one of the three words this format fixes and "
+        "nothing else"
     ),
     "DP1": (
         "the count of numbers written with a point and a plus names at "
@@ -1907,6 +1920,10 @@ class NumericFacts:
     # (landing 2b.2): `minus` unless brackets, the minus sign of the
     # character tables or a trailing minus was the column's majority.
     negative_form: str
+    # WHETHER THE COLUMN'S WIDE RUNS ARE THEIR OWN VALUES' TEXT (landing
+    # 2b.13, plan P4-D90): one word of `parsing.WIDE_RUNS`. Carries no
+    # count, so it carries no floor.
+    wide_runs: str
     # HOW MANY NEGATIVES WORE EACH NOTATION, AND HOW MANY GROUPED CELLS
     # EACH MARK (landing 2b.7, plan P4-D65.2). The two keys above
     # publish the column's MAJORITY convention and the generator writes
@@ -6781,6 +6798,25 @@ def _numeric_facts(
     styles = _numeric_styles(mapping, where, frame.floor, n_numeric)
     mark = _group_separator(mapping, where)
     negative = _negative_form(mapping, where)
+    wide = _wide_runs(mapping, where)
+    # INVARIANT WR1 (landing 2b.13, plan P4-D90), the room the forms map
+    # leaves. A wide run is a cell written `plain`, so a column saying
+    # anything but `none` about its wide runs claims at least one such
+    # cell -- and where that form was pooled, the pool is where it would
+    # be. Read the same way DP1 reads the room for a signed decimal.
+    if wide != parsing.WIDE_NONE:
+        plain_room = 0
+        if parsing.STYLE_PLAIN in styles:
+            plain_room = plain_room + styles[parsing.STYLE_PLAIN]
+        if WITHHELD in styles:
+            plain_room = plain_room + styles[WITHHELD]
+        if plain_room < 1:
+            raise _broken(
+                "WR1",
+                where,
+                f"the wide runs of figures are said to be '{wide}'",
+                "the forms map leaves room for no cell written plain",
+            )
     # INVARIANT NS1 (landing 2b.2). A notation is a majority of the
     # negative cells that reached the floor, so a column naming one holds
     # at least that many negatives -- and at least one, whatever the floor.
@@ -6909,6 +6945,7 @@ def _numeric_facts(
         numeric_styles=styles,
         group_separator=mark,
         negative_form=negative,
+        wide_runs=wide,
         negative_notations=notations,
         thousands_marks=marks,
         decimal_plus=plus,
@@ -7185,6 +7222,32 @@ def _thousands_marks(
             "the census of marks does not count that mark at all",
         )
     return counted
+
+
+def _wide_runs(mapping: "dict[str, object]", where: str) -> str:
+    """Whether the column's wide runs are their own values' text.
+
+    A WORD, like the notation and the mark beside it (landing 2b.13):
+    `none`, `canonical` or `respelled`, and nothing else. It carries no
+    count, so there is no floor to hold it to and no pool to refuse --
+    which is the whole reason the fact was published as a word.
+
+    Guarantees: accepts the numeric mapping and where it sits; returns
+    one word of `parsing.WIDE_RUNS`. Determinism: a fixed function of
+    the two. Raises ProfileError where the value is not text, or is a
+    word this producer never writes. No I/O of any kind.
+    """
+    value = mapping["wide_runs"]
+    if not isinstance(value, str):
+        raise _wrong_type("wide_runs", where, value, "a piece of text")
+    if value not in parsing.WIDE_RUNS:
+        raise _out_of_range(
+            "wide_runs",
+            where,
+            f"'{parsing.visible(value)}'",
+            _listed(parsing.WIDE_RUNS),
+        )
+    return value
 
 
 def _negative_form(mapping: "dict[str, object]", where: str) -> str:

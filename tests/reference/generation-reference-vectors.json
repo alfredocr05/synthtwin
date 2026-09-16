@@ -1403,7 +1403,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "1e-05",
@@ -2945,7 +2946,8 @@
         "std_unrepresentable": false,
         "structural_role": "data",
         "thousands_marks": {},
-        "value_histogram": {}
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "-8",

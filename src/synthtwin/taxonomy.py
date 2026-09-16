@@ -6740,6 +6740,72 @@ def _decimal_plus(cells: _Cells) -> "dict[str, int]":
         return {"+": counted}
     return {UNAVAILABLE_LABEL: 0}
 
+def _wide_runs(cells: _Cells) -> str:
+    """Whether this column's wide runs of figures are their own values' text.
+
+    THE CANONICAL QUESTION NOTHING ASKED (landing 2b.13, plan P4-D90,
+    closing the residual plan P4-D66.2 named). That decision admitted
+    the figures of a whole number past what binary64 keeps as a spelling
+    of its own value, because a real export of seventeen-figure
+    accession numbers writes runs no shortest-round-trip rule produces
+    and was being told its own file failed its own description. The
+    admission is right and it took the canonical question with it: a run
+    of figures is a spelling of the number it reads back as, so
+    `styles.spelled` cannot ask it, and the ceiling beside it reads the
+    published count of the form, which on every column of identifiers is
+    the row count and licenses every cell. Measured before this key
+    existed: 800 canonical seventeen-figure runs, respelled cell by cell
+    into the value-preserving neighbours binary64 cannot tell from them,
+    790 of 800 moved, validated at exit 0 with nothing missed.
+
+    So the fact is published about the COLUMN and the ceiling is read
+    against it. `none` where no cell of the column is such a run;
+    `canonical` where every one of them is the text its own value
+    writes; `respelled` where at least one is not.
+
+    WHAT IT DISCLOSES IS A PROPERTY OF THE WRITER, which is why it
+    carries no floor. The three words name no count, no row and no
+    figure: `respelled` says an exporter writes wide keys the way it
+    received them, and a reader who knows every other cell of the column
+    sees nothing about any one of them from it. A count would have
+    needed the census floor and would have said how many; this says
+    whether, which is all the ceiling has to read.
+
+    ASKED OF THE `plain` FORM ALONE, and the bound is deliberate. A
+    padded or plus-signed wide run wears a spelling whose own census
+    already answers for it, and asking this of those cells as well
+    would report one fault twice.
+
+    Guarantees: accepts the column's tally; returns one word of
+    `parsing.WIDE_RUNS`. Determinism: a fixed function of the tally.
+    Raises nothing. No I/O of any kind.
+    """
+    counted = 0
+    odd = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        text = cell.numeric_text
+        if numeric_style(text) != parsing.STYLE_PLAIN:
+            continue
+        value = parsing.parse_number(text)
+        if value is None:
+            continue
+        if not parsing.is_a_wide_run(text, value):
+            continue
+        counted = counted + 1
+        digits = text
+        if digits[:1] == "-" or digits[:1] == "+":
+            digits = digits[1:]
+        if digits != parsing.wide_run_figures(value):
+            odd = odd + 1
+    if counted < 1:
+        return parsing.WIDE_NONE
+    if odd > 0:
+        return parsing.WIDE_RESPELLED
+    return parsing.WIDE_CANONICAL
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -6844,6 +6910,12 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # cells written with a point carried a plus. Siblings for the
         # reason the mark is one.
         "negative_form": _negative_form(cells),
+        # ...and whether its WIDE runs of figures are their own values'
+        # text (landing 2b.13, plan P4-D90). A sibling of the two above
+        # for the reason they are siblings of the mark: it is a fact
+        # about how the column was written, and the one the canonical
+        # ceiling of a point-free cell past 2**53 is read against.
+        "wide_runs": _wide_runs(cells),
         # ...and the MIXTURE each of those two majority keys collapses
         # (landing 2b.7, plan P4-D65.2). A column writing 480 negatives
         # with a minus and 120 in brackets, or 200 cells grouped with a

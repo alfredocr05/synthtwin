@@ -977,6 +977,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "group_separator"): _AFFIX,
     ("columns", _EACH, "parts", _EACH, "negative_form"): _WORD,
+    ("columns", _EACH, "parts", _EACH, "wide_runs"): _WORD,
     ("columns", _EACH, "parts", _EACH, "decimal_plus"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "decimal_plus", _KEY_OF): _WORD,
     ("columns", _EACH, "parts", _EACH, "decimal_plus", _ANY_KEY): _MIXTURE_ENTRY,
@@ -1075,6 +1076,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # (landing 2b.2): a word of this package's own four, and a count the
     # loader holds to the floor (contract DP1).
     ("columns", _EACH, "negative_form"): _WORD,
+    # ...and whether its wide runs are their own values' text (landing
+    # 2b.13, plan P4-D90): a word of this package's own three.
+    ("columns", _EACH, "wide_runs"): _WORD,
     ("columns", _EACH, "decimal_plus"): _OBJECT,
     ("columns", _EACH, "decimal_plus", _KEY_OF): _WORD,
     ("columns", _EACH, "decimal_plus", _ANY_KEY): _MIXTURE_ENTRY,
@@ -1338,6 +1342,10 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # The notation a negative wore (landing 2b.2), from the one place
     # the four names are defined, at both depths a numeric block sits.
     ("columns", _EACH, "negative_form"): parsing.NEGATIVE_FORMS,
+    # ...and the three words the wide-run fact speaks with (landing
+    # 2b.13, plan P4-D90), at both depths a numeric block sits.
+    ("columns", _EACH, "wide_runs"): parsing.WIDE_RUNS,
+    ("columns", _EACH, "parts", _EACH, "wide_runs"): parsing.WIDE_RUNS,
     # THE SIGNED-DECIMAL CENSUS NO LONGER POOLS (landing 2b.7, plan
     # P4-D65.1). `+` is its only category, so a `(withheld)` remainder
     # beside it named the category it held back; the unavailable state

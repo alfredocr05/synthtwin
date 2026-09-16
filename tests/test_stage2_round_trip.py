@@ -569,6 +569,146 @@ def test_a_sparse_signed_column_meets_every_published_rung(
     assert second["percentiles"]["p95"] is not None
 
 
+def _wide_keys(seed: int, count: int = 800) -> "list[str]":
+    """Canonical seventeen-figure keys: the figures each value itself writes."""
+    draw = _numbers(seed)
+    cells: "list[str]" = []
+    for _step in range(count):
+        cells += [f"{int(float(draw.randrange(10 ** 16, 10 ** 17)))}"]
+    return cells
+
+
+def _a_value_preserving_neighbour(text: str) -> str:
+    """A DIFFERENT run of figures reading back as the same double.
+
+    Past 2**53 the spacing between doubles reaches two, so a run one or
+    two away from this one denotes the very same number. That is the
+    respelling no published fact could see before `wide_runs`.
+    """
+    value = float(text)
+    whole = int(text)
+    for step in (1, -1, 2, -2, 3, -3):
+        candidate = f"{whole + step}"
+        if float(candidate) == value and candidate != text:
+            return candidate
+    return text
+
+
+@pytest.mark.parametrize("seed", [1, 7])
+def test_a_column_of_wide_keys_keeps_the_spelling_its_own_values_write(
+    seed: int, tmp_path: pathlib.Path
+) -> None:
+    """Landing 2b.13's canonical question, asked at last (plan P4-D90).
+
+    Plan P4-D66.2 admitted the figures of a whole number past 2**53 as a
+    spelling of its own value, so that a real export of seventeen-figure
+    accession numbers stopped being told its own file failed its own
+    description. The canonical question went with it: `styles.spelled`
+    asks whether a cell DENOTES its value, and past that bound more than
+    one run of figures does, while the ceiling beside it reads the
+    published count of the form -- which on a column of identifiers is
+    the row count, so it licenses every cell.
+
+    MEASURED BEFORE THE FACT EXISTED: this very column, respelled cell
+    by cell into the value-preserving neighbours a double cannot tell
+    apart -- 790 of 800 moved at seed 1, 783 of 800 at seed 7 --
+    validated against its own description at exit 0 with nothing missed.
+
+    So this asserts the shape FIRST, because a column of narrow whole
+    numbers passes every line below with the defect still in place: the
+    keys have to be wide enough that a neighbour exists at all.
+    """
+    cells = _wide_keys(seed)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "wide", cells, (), True, seed=str(seed), header="record_id"
+    )
+    # The shape the question turns on, asserted before the answer.
+    assert first["n_present"] == 800, first["n_present"]
+    assert first["numeric_styles"] == {"plain": 800}, first["numeric_styles"]
+    assert first["wide_runs"] == "canonical", first["wide_runs"]
+    moved = 0
+    for cell in cells:
+        if _a_value_preserving_neighbour(cell) != cell:
+            moved += 1
+    assert moved > 700, moved
+    # ...and then the answer: the twin comes back canonical, and BOTH
+    # files meet the description.
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    for cell in written:
+        if cell:
+            assert cell == f"{int(float(cell))}", cell
+    # ...AND THE CHECK CAN FAIL, which is the half that makes the rest
+    # worth asserting. The same description, a file respelled into the
+    # neighbours, and the subcheck names itself.
+    respelled = [_a_value_preserving_neighbour(cell) for cell in cells]
+    for before, after in zip(cells, respelled):
+        assert float(before) == float(after)
+    folder = tmp_path / "wide"
+    bad = folder / "respelled.csv"
+    bad.write_text(
+        fixtures.rows_to_csv(["record_id"], [[cell] for cell in respelled]),
+        encoding="utf-8",
+        newline="",
+    )
+    checked = folder / "check-respelled"
+    checked.mkdir()
+    code = _exit_of(
+        [
+            "validate",
+            str(folder / "real-profile.json"),
+            "--twin",
+            str(bad),
+            "--out-dir",
+            str(checked),
+            "--replace",
+        ]
+    )
+    assert code == 3, code
+    missed: "list[str]" = []
+    for report in checked.glob("*.txt"):
+        for line in report.read_text(encoding="utf-8").splitlines():
+            if "MISSED" in line:
+                missed += [line.strip()]
+    assert any("styles.canonical.wide" in line for line in missed), missed
+
+
+def test_a_real_export_that_respells_its_wide_keys_is_not_accused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The false accusation plan P4-D66.2 ended, kept ended (plan P4-D90).
+
+    A real export of literal seventeen-figure identifiers writes runs
+    that are NOT their values' canonical text -- measured, 690 of 800
+    cells at one seed. A ceiling of nought asked of every column would
+    fail that file on two-thirds of its cells, which is exactly the
+    accusation the ceiling must not make. The column publishes
+    `respelled`, the obligation is LISTED rather than checked, and the
+    file meets its own description.
+    """
+    draw = _numbers(101)
+    cells: "list[str]" = []
+    for _step in range(800):
+        cells += [f"{draw.randrange(10 ** 16, 10 ** 17)}"]
+    odd = 0
+    for cell in cells:
+        if cell != f"{int(float(cell))}":
+            odd += 1
+    # The shape: this really is an export whose runs are not canonical.
+    assert odd > 400, odd
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "literal", cells, (), True, seed="1", header="record_id"
+    )
+    assert first["wide_runs"] == "respelled", first["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    assert "numeric.wide_runs" not in _only_the_marks_missed(
+        tmp_path / "literal"
+    )
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+
+
 def test_no_stage_2_test_throws_away_what_the_command_returned() -> None:
     """`cli.main()` RETURNS its exit code, and a call that drops it tests nothing.
 
