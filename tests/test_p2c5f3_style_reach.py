@@ -192,6 +192,7 @@ def test_every_named_style_count_comes_out_exactly(
     seed -- which is the general form of the claim two earlier closures
     made about one column each.
     """
+    given_up = 0
     for name, document, loaded in _battery(tmp_path):
         published = document["columns"][0]["numeric_styles"]
         named = {
@@ -200,11 +201,37 @@ def test_every_named_style_count_comes_out_exactly(
             if style != contract.WITHHELD
         }
         for seed in SEEDS:
-            written = _styles(generation.generate(loaded, seed))
+            twin = generation.generate(loaded, seed)
+            written = _styles(twin)
             for style, count in named.items():
+                # THE ONE COUNT A PUBLISHED FIELD WIDTH OUTRANKS (landing
+                # 2b.16, plan P4-D105). Contract 9.4 says a named field
+                # width is honoured by padding and never by moving a
+                # value, so where the values in hand leave no value
+                # narrow enough for the field, the padded style is given
+                # up rather than written wider than its field -- and the
+                # shortfall is NAMED, on the width census and on the
+                # forms map both. Measured on `mixed-22` at seed 0: four
+                # `-03` cells published at a field of two, two values
+                # narrow enough drawn, `010` written before that landing
+                # and `10` after it. What stays asserted is that such a
+                # count is never short in silence.
+                if (
+                    style == parsing.STYLE_LEADING_ZERO
+                    and written.get(style, 0) < count
+                ):
+                    facts = [note.fact for note in twin.deviations]
+                    assert "pad_widths" in facts, (name, seed, facts)
+                    assert "numeric_styles" in facts, (name, seed, facts)
+                    given_up = given_up + 1
+                    continue
                 assert written.get(style, 0) >= count, (
                     name, seed, style, count, written, published
                 )
+    # The exemption is a small corner and is held to being one: measured,
+    # 11 of the 1,920 runs take it, and were it to grow the reach step
+    # itself would be failing and this would say so.
+    assert given_up <= 11, given_up
 
 
 def test_the_map_is_not_bought_with_another_exact_count(

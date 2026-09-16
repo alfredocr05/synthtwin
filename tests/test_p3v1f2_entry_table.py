@@ -110,6 +110,7 @@ Every table is built at test time by the seeded neutral builders in
 
 import csv
 import dataclasses
+import decimal
 import io
 import os
 import pathlib
@@ -522,17 +523,21 @@ def runs(
         # assertion that every one carries its citation was asserting
         # nothing.
         #
-        # A SATURATED INTEGER COLUMN still does: a hundred whole
-        # numbers over two hundred cells, ends one and a hundred, so
-        # the grid holds exactly as many points as the column has
-        # values and the placement has no freedom. Its twin holds
-        # ninety-eight of the hundred and all three distinctness counts
-        # take the envelope together, which is the shape A-P4-55 exists
-        # to keep consistent.
+        # A SATURATED INTEGER COLUMN ACROSS NOUGHT still does: a
+        # hundred whole numbers from minus five to ninety-four over three
+        # hundred cells, so the grid holds exactly as many points as the
+        # column has values and the placement has no freedom. Its twin
+        # holds ninety-nine of the hundred and all three distinctness
+        # counts take the envelope together, which is the shape A-P4-55
+        # exists to keep consistent. The column was ends one and a
+        # hundred until plan P4-D147 gave a saturated grid its integers
+        # in order, each once, and that column now meets its count; the
+        # fill stands aside here because the sign bands the layout gives
+        # the strata are not the bands those integers stand in.
         (
             "saturated",
             fixtures.single_column_table(
-                "reading", [f"{index % 100 + 1}" for index in range(200)]
+                "reading", [f"{index % 100 - 5}" for index in range(300)]
             ),
             None,
             reading.FIRST_ROW_AUTOMATIC,
@@ -1660,32 +1665,27 @@ def _one_figure_more(cell: str) -> str:
     `test_every_registered_red_case_misses_the_site_it_names` and
     `test_the_coverage_identity_walks_the_shipped_table` fail again.
 
-    So the exponent edit now MISPAIRS the mantissa with its exponent
-    instead: `1e-05` becomes `10e-06`, two figures before the point
-    against an exponent one smaller. It reads back as the same number,
-    it is a spelling no writer produces, and the padded-mantissa rule
-    refuses it BY NAME, because that rule requires the value's own
-    decimal place. The edit is still "one figure more" than the
-    shortest spelling, which is what this function is called.
+    So the exponent edit MISPAIRED the mantissa with its exponent
+    instead, `1e-05` becoming `10e-06` -- and plan P4-D144 made that
+    edit go green in its turn, for the reason the first one went: every
+    exponent text reading back as its value is now its value's spelling,
+    because a canonical mantissa was never a published obligation and
+    C's `%.18e` and engineering notation were real exports failing their
+    own description. So the exponent edit now leaves the exponent FORM:
+    the value is written in fixed point with one figure more than its
+    shortest fixed-point text, `1e-05` becoming `0.000010`. It reads
+    back as the same number, and the family offers a column publishing
+    no census of fraction widths no such text, so `styles.spelled`
+    still has an edit that makes it miss. The edit is still "one figure
+    more", which is what this function is called.
     """
     for marker in ("e", "E"):
-        for index in range(len(cell)):
-            if cell[index] != marker:
-                continue
-            head = cell[:index]
-            power = int(cell[index + 1 :])
-            if "." in head:
-                # A mantissa that already carries a point: move the
-                # point one place right and drop the exponent to match.
-                point = head.find(".")
-                figures = f"{head[:point]}{head[point + 1 :]}"
-                if len(figures) > point + 1:
-                    head = f"{figures[: point + 1]}.{figures[point + 1 :]}"
-                else:
-                    head = figures
-            else:
-                head = f"{head}0"
-            return f"{head}{marker}{power - 1:+03d}"
+        if marker not in cell:
+            continue
+        fixed = format(decimal.Decimal(repr(float(cell))), "f")
+        if "." not in fixed:
+            fixed = f"{fixed}."
+        return f"{fixed}0"
     if "." in cell:
         return f"{cell}0"
     return f"{cell}.00"
@@ -4642,12 +4642,15 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
         "reading": (
             # The three spellings landing 2b.2 holds (P4-D41).
             ("floor-grouped-reading", "spelling.group_separator"),
-            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("bracketed-reading", "spelling.negative_form"),
+            # A census naming ONE notation is checked since plan P4-D142,
+            # and this column's negatives all wear the minus.
+            ("bracketed-reading", "spelling.negative_notations"),
             ("floor-signed-reading", "spelling.decimal_plus"),
             ("vast-reading", "distinct.n_distinct_values"),
             ("overflowed-reading", "axes.quality_state"),
-            ("vast-reading", "axes.role"),
-            ("vast-reading", "axes.statistical_type"),
+            ("rewritten-reading", "axes.role"),
+            ("rewritten-reading", "axes.statistical_type"),
             ("contradicted-reading", "counts.n_contradictory"),
             ("marked-reading", "counts.n_left_out_of_statistics"),
             ("vast-reading", "counts.n_negative"),
@@ -4682,8 +4685,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("padded-reading", "styles.canonical.decimal"),
             ("vast-reading", "styles.canonical.exponent_lower"),
             ("floor-upper-reading", "styles.exact.exponent_upper"),
-            ("leading_plus-reading", "styles.exact.leading_plus"),
-            ("leading_zero-reading", "styles.exact.leading_zero"),
+            ("floor-plussed-reading", "styles.exact.leading_plus"),
+            ("floor-zero-led-reading", "styles.exact.leading_zero"),
             ("vast-reading", "styles.published.plain"),
             ("vast-reading", "styles.remainder"),
             ("padded-reading", "styles.spelled"),
@@ -5227,7 +5230,7 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
         "dx_code": "long_tail_labels",
     },
     "pooled": {"reading": "continuous"},
-    "saturated": {"reading": "count"},
+    "saturated": {"reading": "continuous"},
     "quarters": {
         "region": "categorical",
         "when": "datetime",
@@ -5864,6 +5867,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "spelling.group_separator"): "numeric.group_separator",
     ("numeric", "spelling.negative_form"): "numeric.negative_form",
     ("numeric", "spelling.decimal_plus"): "numeric.decimal_plus",
+    # The census of notations, checked where it names ONE convention since
+    # plan P4-D142 -- which the saturated fixture's negatives, all written
+    # with a minus, now reach.
+    ("numeric", "spelling.negative_notations"): "numeric.negative_notations",
     ("numeric", "styles.spill"): "numeric.numeric_styles",
     ("numeric", "type.integer_valued"): "numeric.integer_valued",
     ("numeric", "type.std_unrepresentable"): "numeric.std_unrepresentable",

@@ -761,7 +761,7 @@ def test_a_plus_signed_padded_column_reads_its_pad_off_too(
     """
     cells = _canonical_wide_keys(1, sign="+")
     folder = tmp_path / "plus"
-    first, second, _written, twin_exit, real_exit = _round_trip(
+    first, second, written, twin_exit, real_exit = _round_trip(
         folder, cells, "1"
     )
     assert first["numeric_styles"] == {"leading_plus": ROWS}, first[
@@ -771,6 +771,17 @@ def test_a_plus_signed_padded_column_reads_its_pad_off_too(
     assert second["wide_runs"] == "canonical", second["wide_runs"]
     assert twin_exit == 0
     assert real_exit == 0
+    # AND THE WIDTH COMES BACK, which this test did not ask and which was
+    # lost on every cell (plan P4-D145, the final Codex review's item 6):
+    # a plus hid the pad from the census, so the description published
+    # `pad_widths {}` and the twin wrote every key two characters short
+    # while the canonical flags and both exit codes above stayed green.
+    assert first["pad_widths"] == {f"{KEY_WIDTH}": ROWS}, first["pad_widths"]
+    assert second["pad_widths"] == first["pad_widths"], second["pad_widths"]
+    for cell in written:
+        if cell:
+            assert len(cell) == KEY_WIDTH + 1, cell
+            assert cell[:2] == "+0", cell
     respelled = [_a_value_preserving_neighbour(cell) for cell in cells]
     assert _accused_of_respelling(folder, respelled) == 3
 

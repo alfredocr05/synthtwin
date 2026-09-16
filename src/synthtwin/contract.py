@@ -1372,23 +1372,27 @@ INVARIANTS = {
     "DP1": (
         "the count of numbers written with a point and a plus names at "
         "least two of them and never one, is no more than the cells the "
-        "forms map can put in the form written with a point, is "
-        "unavailable rather than held back wherever it cannot say that "
+        "forms map can put in the form written with a point, leaves of "
+        "the numbers written with a point either nothing or at least two, "
+        "is unavailable rather than held back wherever it cannot say that "
         "much, and says nothing at all on a position of a joined column, "
         "whose parts carry no sign"
     ),
     "NS2": (
         "every notation the negatives were written in is counted for at "
         "least two of them and never one, what is left over is either "
-        "nothing or a remainder covering at least two, and no more "
-        "numbers are counted than the column says are negative"
+        "nothing or a remainder covering at least two, no more numbers "
+        "are counted than the column says are negative, and what the "
+        "count leaves of those negatives is either nothing or at least two"
     ),
     "TM1": (
         "every mark the grouped numbers were written with is counted for "
         "at least two of them and never one, what is left over is either "
-        "nothing or a remainder covering at least two, and the one mark "
-        "the column publishes between its thousands is a mark this count "
-        "names"
+        "nothing or a remainder covering at least two, what the count "
+        "leaves of the column's numbers is either nothing or at least two, "
+        "a count that cannot be published is empty rather than "
+        "unavailable, and the one mark the column publishes between its "
+        "thousands is a mark this count names"
     ),
     "D14": (
         "a column said to stand at midnight is a column of moments large "
@@ -1604,7 +1608,9 @@ INVARIANTS = {
     ),
     "P5b": (
         "the cells counted by the width of the field they wrote come "
-        "to the cells that were written with a redundant zero"
+        "to at least the cells written in the leading-zero form and at "
+        "most those together with the cells written with a plus and the "
+        "cells held back from the forms map"
     ),
     "P6b": (
         "every field width the census names was written by at least "
@@ -8485,8 +8491,14 @@ def _numeric_facts(
     # QUALIFY (landing 2b.7, plan P4-D65.2). The mark census is read
     # against the published mark, so a description whose majority no
     # cell proved is refused here rather than at the twin.
-    notations = _negative_notations(mapping, where, frame.floor, n_negative)
-    marks = _thousands_marks(mapping, where, frame.floor, mark)
+    notations = _negative_notations(
+        mapping,
+        where,
+        frame.floor,
+        n_negative,
+        n_negative - n_negative_unrepresentable,
+    )
+    marks = _thousands_marks(mapping, where, frame.floor, n_numeric)
     plus = _decimal_plus(mapping, where, frame.floor)
     # INVARIANT DP1 (landing 2b.2), the floor and the room. The census is
     # published under the floor like every form count, and it counts
@@ -8504,6 +8516,25 @@ def _numeric_facts(
             where,
             f"{signed} numbers are written with a point and a plus",
             f"the forms map leaves room for {room}",
+        )
+    # ...AND ITS COMPLEMENT (plan P4-D140). Where the forms map names the
+    # `decimal` count, a reader takes the signed count from it, so what is
+    # left -- the decimals WITHOUT a plus -- is nought or a group, by the
+    # one statement of the disclosure rule the producer reads.
+    if (
+        "+" in plus
+        and "decimal" in styles
+        and not parsing.census_nameable(
+            [plus["+"]], [styles["decimal"]], frame.floor
+        )
+    ):
+        raise _broken(
+            "DP1",
+            where,
+            f"{plus['+']} of the {styles['decimal']} numbers written with a "
+            f"point are said to carry a plus",
+            f"what is left over is nought or at least "
+            f"{_census_floor(frame.floor)}",
         )
     widths = _fraction_widths(mapping, where, frame.floor, styles)
     padded = _padded_widths(mapping, where, frame.floor, styles)
@@ -8720,17 +8751,15 @@ def _census_floor(floor: int) -> int:
     NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
     clause 3; plan P4-D65.1). This is `taxonomy._census_floor`'s rule
     read from the other side: the producer publishes no count below it
-    and the loader refuses a description that does. Two implementations
-    of one floor is exactly the drift the reference oracle exists to
-    catch, so the rule is stated in both and tested against both.
+    and the loader refuses a description that does. The rule is stated
+    ONCE, in `parsing.census_floor`, and both sides read it (plan
+    P4-D140).
 
     Guarantees: accepts the settings floor; returns two or the floor,
     whichever is larger. Determinism: a fixed function of the floor.
     Raises nothing. No I/O of any kind.
     """
-    if floor > 2:
-        return floor
-    return 2
+    return parsing.census_floor(floor)
 
 
 def _mixture_census(
@@ -8810,16 +8839,24 @@ def _mixture_census(
 
 
 def _negative_notations(
-    mapping: "dict[str, object]", where: str, floor: int, n_negative: int
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_negative: int,
+    n_held: int,
 ) -> "dict[str, int]":
     """How many negatives wore each notation (7.5a; invariant NS2).
 
     NS2: every count reaches `_census_floor`; the census covers no more
-    cells than the column says are negative; and a position of a joined
+    cells than the column says are negative; what it leaves of the
+    negatives a double holds -- ``n_held``, `n_negative` less
+    `n_negative_unrepresentable` -- is nought or a group, by
+    `parsing.census_nameable` (plan P4-D140); and a position of a joined
     column, whose parts carry no sign, publishes none at all.
 
     Raises ProfileError for a wrong type, an unknown notation, a count
-    below the floor, and a census larger than the column's negatives.
+    below the floor, a census larger than the column's negatives and a
+    remainder a reader could take that names fewer than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -8838,21 +8875,40 @@ def _negative_notations(
             f"the notations counted come to {total}",
             f"{n_negative} of the column's values are negative",
         )
+    if UNAVAILABLE not in counted and counted:
+        printed: "list[int]" = []
+        for name in sorted(counted):
+            printed += [counted[name]]
+        if not parsing.census_nameable(printed, [n_held], floor):
+            raise _broken(
+                "NS2",
+                where,
+                f"the notations counted come to {total}",
+                f"{n_held} of the column's values are negative numbers a "
+                f"reader can take them from, and what is left over is "
+                f"nought or at least {_census_floor(floor)}",
+            )
     return counted
 
 
 def _thousands_marks(
-    mapping: "dict[str, object]", where: str, floor: int, mark: str
+    mapping: "dict[str, object]", where: str, floor: int, n_numeric: int
 ) -> "dict[str, int]":
     """How many grouped cells wore each mark (7.5a; invariant TM1).
 
     TM1: every count reaches `_census_floor`; a mark this census names
-    is one a description may publish; and where the column publishes a
-    mark of its own, that mark is one this census names -- a majority
-    the mixture does not carry is a majority no cell proved.
+    is one a description may publish; what it leaves of the column's
+    numbers is nought or a group, by `parsing.census_nameable`; it is
+    never `(unavailable)`, because a census that cannot speak is `{}`
+    (plan P4-D140); and where the column publishes a mark of its own,
+    that mark is one this census names -- a majority the mixture does
+    not carry is a majority no cell proved. That last clause is asked in
+    `_group_marks_agree`, after GS1, so a point on an undeclared column
+    is refused for what it is.
 
     Raises ProfileError for a wrong type, an unknown mark, a count below
-    the floor, and a published mark the census does not name.
+    the floor, the unavailable state and a remainder a reader could take
+    that names fewer than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -8863,16 +8919,30 @@ def _thousands_marks(
         "TM1",
         "grouped numbers",
     )
-    if mark == "" or UNAVAILABLE in counted or not counted:
-        return counted
-    if mark not in counted:
+    if UNAVAILABLE in counted:
+        # THE SILENT STATE OF THIS CENSUS IS EMPTY (plan P4-D140). Where
+        # no cell proves a mark it is `{}`, so a census holding back a
+        # count below the floor must read the same; a second silent state
+        # would let a reader tell nought from one.
         raise _broken(
             "TM1",
             where,
-            f"the column groups its thousands with "
-            f"'{parsing.visible(mark)}'",
-            "the census of marks does not count that mark at all",
+            "the census of marks is said to be unavailable",
+            "a census of marks that cannot be published is empty",
         )
+    if counted and UNAVAILABLE not in counted:
+        printed: "list[int]" = []
+        for name in sorted(counted):
+            printed += [counted[name]]
+        if not parsing.census_nameable(printed, [n_numeric], floor):
+            raise _broken(
+                "TM1",
+                where,
+                f"the grouped numbers counted come to {_added(counted)}",
+                f"{n_numeric} of the column's values read as a number, and "
+                f"what is left over is nought or at least "
+                f"{_census_floor(floor)}",
+            )
     return counted
 
 
@@ -9432,6 +9502,7 @@ def _padded_widths(
         "P7b",
         "a padded cell writes at least one zero in front of at least "
         "one figure, so its narrowest field is two",
+        LEADING_PLUS_STYLE,
     )
 
 
@@ -9555,6 +9626,7 @@ def _width_census(
     least: int,
     least_rule: str,
     least_rule_says: str,
+    also: str = "",
 ) -> "dict[str, int]":
     """The one reading both width censuses are checked under.
 
@@ -9583,6 +9655,15 @@ def _width_census(
 
     The census may also be empty in the pooled case, which is what a
     column with no cell of the form at all writes.
+
+    ``also`` NAMES A SECOND FORM SOME OF WHOSE CELLS THE CENSUS COUNTS
+    (plan P4-D145). The padding census counts every `leading_zero` cell
+    and, since a plus stopped hiding a pad, the `leading_plus` cells whose
+    figures begin with a redundant zero -- a number no published key
+    holds. So where ``also`` is given the sum is a WINDOW and not a
+    point: at least the first form's named count, and at most that count
+    plus the second form's and the pooled remainder; and in the pooled
+    case the two forms' pooled cells may each fall just below the floor.
     """
     widths = _counts(mapping[key], key, where, 1)
     for name in sorted(widths):
@@ -9616,7 +9697,11 @@ def _width_census(
                 f"the smallest group size is {floor}",
             )
     total = _added(widths)
+    extra = styles[also] if also and also in styles else 0
+    pool = styles[WITHHELD] if WITHHELD in styles else 0
     if style in styles:
+        if also and styles[style] <= total <= styles[style] + extra + pool:
+            return widths
         if total != styles[style]:
             raise _broken(
                 sum_rule,
@@ -9645,6 +9730,21 @@ def _width_census(
             f"forms holding at most {floor - 1} cells each",
         )
     if not total:
+        return widths
+    if also:
+        # THE TWO FORMS' SHARES OF THE WINDOW (plan P4-D145): the pooled
+        # cells of the first form number fewer than the floor, and so do
+        # the second form's where it is pooled too; a named second form
+        # can supply every one of its cells.
+        ceiling = (floor - 1) + (extra if also in styles else floor - 1)
+        if total > ceiling or total > pooled + extra:
+            raise _broken(
+                sum_rule,
+                where,
+                f"{total} cells are counted as {wrote}",
+                f"no more than {min(ceiling, pooled + extra)} can be, with "
+                f"the first form held back from the forms map",
+            )
         return widths
     if total >= floor:
         raise _broken(
@@ -11419,6 +11519,18 @@ def _group_marks_agree(
                     "the mark between thousands is a point",
                     "only a column declared to write its decimals with a "
                     "comma groups with a point",
+                )
+            # TM1's LAST CLAUSE, asked after GS1 so a mark no reading
+            # publishes is refused for that before it is refused for
+            # being uncounted (the carried refusal test of landing 2b.2).
+            census = block.thousands_marks
+            if mark != "" and census and mark not in census:
+                raise _broken(
+                    "TM1",
+                    f"in the block for the column named '{column.name}'",
+                    f"the column groups its thousands with "
+                    f"'{parsing.visible(mark)}'",
+                    "the census of marks does not count that mark at all",
                 )
 
 

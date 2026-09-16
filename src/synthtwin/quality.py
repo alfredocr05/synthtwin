@@ -641,6 +641,14 @@ _LISTING_WORDS = {
     "universal.remarks": (
         "the remarks the description records about your column"
     ),
+    "numeric.negative_notations": (
+        "how many of your column's negative numbers wore each way of "
+        "writing a minus"
+    ),
+    "numeric.thousands_marks": (
+        "how many of your column's grouped numbers wore each mark between "
+        "their thousands"
+    ),
     "datetime.format": (
         "the date spelling your column was written in"
     ),

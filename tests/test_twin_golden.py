@@ -1342,8 +1342,17 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # is byte-identical to commit 367e1d7's and its written form here is
 # UTF-8, comma, line feeds and a final line ending, which the twin
 # already wrote.
+# RE-RECORDED 2026-09-16 (plan P4-D147, the repair of the final Codex
+# review of the merge, item 6). ONE column moved: `pressure`, whose
+# systolic position publishes 120 different values between the ends 100
+# and 219 -- exactly 120 integers, a saturated grid -- and whose twin held
+# 117 of them. G6.5a now gives such a grid its integers in order, each
+# once, and the twin holds 120. Diffed column by column against a git
+# archive of 158c811 at this seed: 50 cells of `pressure` differ, every
+# other column is byte-identical, and with the fill withdrawn the twin is
+# byte-identical to 158c811's.
 GOLDEN_TWIN_SHA256 = (
-    "ed198f28df9a7136f970686e9de64374db7173217eeabf32add6f6f6919d1fa3"
+    "f4b25adbe3206a47979b9156d56b769a235ece282845fd313c237e2ded4d1284"
 )
 
 
@@ -1792,8 +1801,13 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # before the merge only the sentence on how the twin is written moved --
 # it now names the written form the description records. Against landing
 # 2b.10's own tree only landings 2b.6's and 2b.8's lines moved.
+# RE-RECORDED 2026-09-16 (plan P4-D147), for the twin's one moved column
+# above: only the achieved values printed for `pressure`'s two positions
+# moved -- the ninetieth and ninety-ninth rungs, the mean, the spread, the
+# skew and the tail weight -- and every one still sits where it sat
+# against its window. No sentence and no other column moved.
 GOLDEN_REPORT_SHA256 = (
-    "4fdd544921fedf8e7a7deb9f35430329acde96b80f2ef2cebcd50fb760f4c2df"
+    "43301105731fd4fc3064cc7cd3434d01b73be91867aff9346829cd731adc67f0"
 )
 
 
@@ -2428,8 +2442,17 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # quoting check per column, all HELD, 509 to 535 obligations. Against
 # landing 2b.10's own tree only landings 2b.6's, 2b.7's and 2b.8's lines
 # moved. No verdict otherwise moved.
+# RE-RECORDED 2026-09-16 (plans P4-D142 and P4-D147), read as a diff
+# against 158c811. The twin's `pressure` systolic p99 is 217.61 against a
+# published 218, WITHIN-BOUND where it had been HELD at 218.0 (468 held and
+# 67 within a window become 467 and 68, nothing missed), and the other
+# printed values of that column's positions moved with its cells. The two
+# mixture censuses' listings on `visits`, `reading`, `amount` and `dose`
+# name the obligation in words now and carry the sentence of a census that
+# names nothing, because a census naming one convention is CHECKED since
+# plan P4-D142 and the listing is left for one naming none.
 GOLDEN_QUALITY_SHA256 = (
-    "fec741e4541e1e52f64723b9518daef6f98f5f79a2012265d0860ad34840923a"
+    "76a8f319d5a7c7dabfbb226d7995e4a8a6fd5e1b0c3a1b49f7a53d6ccd7fa9df"
 )
 
 

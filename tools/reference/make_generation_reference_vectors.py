@@ -1984,21 +1984,139 @@ def notation_places(census, default, styles, values):
     return worn
 
 
-def mark_places(census, published, groupable):
+# The marks a pooled remainder may be written with, in the order one is
+# offered (G6.1, plan P4-D142): neither decimal mark, and never one the
+# census names.
+POOL_MARK_ORDER = (" ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
+
+
+def pad_need(value, integer_valued):
+    """How many figures a value's own point-free spelling writes, sign aside."""
+    text = point_free_spelling(value, integer_valued)
+    if text is None:
+        text = canonical_spelling(value, integer_valued)
+    return len(text) - 1 if text.startswith("-") else len(text)
+
+
+def pad_places(census, styles, values, integer_valued):
+    """Which field width each padded cell is written at, or -1 -- G6.3.
+
+    Every width the census NAMES is a quota.  The cells are served in two
+    tiers (plan P4-D145): first those styled ``leading_zero``, then those
+    styled ``leading_plus`` whose value is whole and not negative, each
+    tier from what the widths still owe.  Inside a tier the cells are
+    grouped by the value they hold, in first-seen order; widths are served
+    narrowest first; a value may take a width only where its own figures
+    are FEWER than the width, so at least one zero is written; the groups
+    are ranked by how many of their cells still wait, most first, then by
+    value; whole groups that fit what the width owes are taken first, and
+    only then is one group divided cell by cell.  Afterwards a
+    ``leading_zero`` cell still unplaced takes the narrowest named width
+    its value can wear, over that width's count.
+    """
+    quotas = {
+        int(key): count for key, count in census.items() if key != "(withheld)"
+    }
+    places = [-1] * len(styles)
+    if not quotas:
+        return places
+    left = dict(quotas)
+    for tier in ("leading_zero", "leading_plus"):
+        groups = {}
+        seen = []
+        for index, style in enumerate(styles):
+            if style != tier:
+                continue
+            value = values[index]
+            if tier == "leading_plus" and (
+                value < 0 or not float(value).is_integer()
+            ):
+                continue
+            if value in groups:
+                groups[value].append(index)
+                continue
+            groups[value] = [index]
+            seen.append(value)
+        for width in sorted(quotas):
+            owing = left[width]
+            ranked = []
+            for value in seen:
+                waiting = sum(1 for index in groups[value] if places[index] < 0)
+                if waiting < 1 or pad_need(value, integer_valued) >= width:
+                    continue
+                ranked.append((-waiting, value))
+            for _size, value in sorted(ranked):
+                if owing < 1:
+                    break
+                unplaced = [index for index in groups[value] if places[index] < 0]
+                if len(unplaced) > owing:
+                    continue
+                for index in unplaced:
+                    places[index] = width
+                owing -= len(unplaced)
+            for _size, value in sorted(ranked):
+                if owing < 1:
+                    break
+                for index in groups[value]:
+                    if owing < 1:
+                        break
+                    if places[index] >= 0:
+                        continue
+                    places[index] = width
+                    owing -= 1
+            left[width] = owing
+    for index, style in enumerate(styles):
+        if style != "leading_zero" or places[index] >= 0:
+            continue
+        need = pad_need(values[index], integer_valued)
+        for width in sorted(quotas):
+            if need >= width:
+                continue
+            places[index] = width
+            break
+    return places
+
+
+def candidate_mark(census, published):
+    """The mark a cell is asked whether it can wear (G6.1, plan P4-D142).
+
+    The published mark as written before any exchange, and where the
+    column publishes none, the first mark its census names, written the
+    same way; nothing where it names none either.
+    """
+    if published:
+        return published
+    named = named_conventions(census, GROUP_MARK_ORDER)
+    if named:
+        return mark_written(named[0][0])
+    return ""
+
+
+def mark_places(census, published, groupable, floor=CASE_SMALL_CELL_FLOOR):
     """Which mark each grouped cell wears (landing 2b.7, G6.1).
 
-    ``groupable`` says, per cell, whether writing it with the published
-    mark actually put a mark in it -- asked of the writer rather than
-    restated from the rules about forms, orders and four whole figures.
-    Each named mark takes its count of those cells in cell order; what no
-    named count covers wears the column's published mark.
+    ``groupable`` says, per cell, whether writing it with a mark actually
+    put a mark in it -- asked of the writer rather than restated from the
+    rules about forms, orders and four whole figures.  Where the census
+    names no mark every cell wears the column's published mark.  Where it
+    names one or more (plan P4-D142), each named mark takes its count of
+    groupable cells in cell order; a ``(withheld)`` remainder takes its
+    count next, with the first mark of ``POOL_MARK_ORDER`` the census does
+    not name; and the groupable cells still left are written with no mark
+    where they number at least the census floor -- two, or ``floor`` where
+    that is larger -- and with the published mark otherwise.
     """
     worn = [published] * len(groupable)
     named = named_conventions(census, GROUP_MARK_ORDER)
     if not named:
         return worn
+    spending = [(mark_written(mark), wanted) for mark, wanted in named]
+    pool = census.get("(withheld)", 0)
+    if pool > 0:
+        unnamed = [mark for mark in POOL_MARK_ORDER if mark not in census]
+        spending.append((unnamed[0], pool))
     taken = set()
-    for mark, wanted in named:
+    for mark, wanted in spending:
         placed = 0
         for index in range(len(groupable)):
             if placed >= wanted:
@@ -2006,8 +2124,16 @@ def mark_places(census, published, groupable):
             if index in taken or not groupable[index]:
                 continue
             taken.add(index)
-            worn[index] = mark_written(mark)
+            worn[index] = mark
             placed += 1
+    left = [
+        index
+        for index in range(len(groupable))
+        if groupable[index] and index not in taken
+    ]
+    if len(left) >= max(2, floor):
+        for index in left:
+            worn[index] = ""
     return worn
 
 
@@ -2104,7 +2230,8 @@ def decimal_comma_spelled(content):
 
 
 def styled_spelling(
-    style, value, integer_valued, order, mark="", negative="minus", plus=False
+    style, value, integer_valued, order, mark="", negative="minus", plus=False,
+    pad=-1,
 ):
     """One numeric cell in its style, with the column's sign spellings.
 
@@ -2113,13 +2240,13 @@ def styled_spelling(
     zeros it spent, and a negative is written in the column's notation
     by `negative_spelled` (landing 2b.2).
     """
-    text = _style_text(style, value, integer_valued, order, mark)
+    text = _style_text(style, value, integer_valued, order, mark, pad)
     if plus and style == "decimal" and text[:1] not in ("-", "+"):
         text = "+" + text
     return negative_spelled(text, negative)
 
 
-def _style_text(style, value, integer_valued, order, mark=""):
+def _style_text(style, value, integer_valued, order, mark="", pad=-1):
     """One numeric cell in one of the six styles of method section G6.1.
 
     ``order`` is the leading-zero order the family of G6.3 carries
@@ -2171,12 +2298,20 @@ def _style_text(style, value, integer_valued, order, mark=""):
     sign = "-" if text.startswith("-") else ""
     body = text[len(sign):]
     if style == "leading_zero":
+        # A NAMED FIELD WIDTH (G6.3): as many zeros as make the field that
+        # width, and never fewer than the order asks for.
+        if pad >= 0:
+            return sign + "0" * max(order + 1, pad - len(body)) + body
         return sign + "0" * (order + 1) + body
     if style == "leading_plus":
         if sign:
             raise AssertionError(
                 "there is no leading-plus spelling of a negative value"
             )
+        # ...AND ON A PLUS, whose zeros go after it and which then wears
+        # no mark (plan P4-D145).
+        if pad >= 0:
+            return "+" + "0" * max(order, pad - len(body)) + body
         if order == 0:
             return "+" + _group_thousands(body, mark)
         return "+" + "0" * order + body
@@ -2588,12 +2723,37 @@ def apart_values(
     ends, whose values are the published ``min`` and ``max``; never the
     zero stratum.  It stops as soon as the count of different texts
     reaches the published ``n_distinct_values``.
+
+    A GRID WITH NO SPARE POINT IS FILLED, NOT WALKED (plan P4-D147).
+    Where the grid is the integers, there are exactly as many strata as
+    ``wanted``, and the integers from the published ``min`` to the
+    published ``max`` number exactly that many, the strata take those
+    integers in ascending order, each once -- unless some stratum's sign
+    band would not hold its integer, and then the walk runs.
     """
     if figures < 0:
         return values
     total = len(values)
     if total < 2:
         return values
+    if (
+        figures == 0
+        and ladder is not None
+        and wanted is not None
+        and total == wanted
+        and float(ladder[0]).is_integer()
+        and float(ladder[-1]).is_integer()
+        and ladder[-1] - ladder[0] + 1 == wanted
+    ):
+        filled = [ladder[0] + place for place in range(total)]
+        held_bands = all(
+            (bands[place] != "zero" or filled[place] == 0)
+            and (bands[place] != "negative" or filled[place] < 0)
+            and (bands[place] != "positive" or filled[place] > 0)
+            for place in range(total)
+        )
+        if held_bands:
+            return [float(value) for value in filled]
     moved = list(values)
     texts = [grid_text(value, figures) for value in moved]
     held = {}
@@ -8537,6 +8697,10 @@ def _numeric_content(column):
         column["numeric_styles"], cell_values, integer_valued
     )
     styles = plus_style_exchange(signed, styles, cell_values, integer_valued)
+    # THE NAMED FIELD WIDTHS (G6.3), placed once the styles are settled.
+    pads = pad_places(
+        column.get("pad_widths", {}), styles, cell_values, integer_valued
+    )
     mark = grouping_mark_of(column)
     negative = column.get("negative_form", "minus")
     # The named count of the census; a pooled count names no form.
@@ -8548,14 +8712,16 @@ def _numeric_content(column):
     notations = notation_places(
         column.get("negative_notations", {}), negative, styles, cell_values
     )
+    # ...asked with a mark that writes one (plan P4-D142).
+    candidate = candidate_mark(column.get("thousands_marks", {}), mark)
     groupable = [
         styled_spelling(
-            style, value, integer_valued, 0, mark, notations[index],
-            plussed[index],
+            style, value, integer_valued, 0, candidate, notations[index],
+            plussed[index], pads[index],
         )
         != styled_spelling(
             style, value, integer_valued, 0, "", notations[index],
-            plussed[index],
+            plussed[index], pads[index],
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
@@ -8565,7 +8731,7 @@ def _numeric_content(column):
     content = [
         styled_spelling(
             style, value, integer_valued, 0, marks[index], notations[index],
-            plussed[index],
+            plussed[index], pads[index],
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
@@ -8590,6 +8756,10 @@ def _numeric_content(column):
         if not shortfall:
             break
         if styles[index] == "plain":
+            continue
+        # A cell at a NAMED field width has spent its family (G6.3): every
+        # further order writes one more figure, so it is not raised.
+        if pads[index] >= 0:
             continue
         order = 1
         while True:
@@ -11083,6 +11253,11 @@ BRANCH_PART = "branches"
 # The third file: the cases the carried landings 2b.2, 2b.3 and 2b.4 added,
 # which with the second file's own would pass the provenance byte cap.
 SECOND_BRANCH_PART = "branches-2"
+# The fifth file: the cases the repair of the final Codex review of the
+# number censuses added (plans P4-D142, P4-D145 and P4-D147), which the
+# second and third files, each within a few kilobytes of the provenance
+# byte cap, could not hold.
+THIRD_BRANCH_PART = "branches-3"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -11873,6 +12048,169 @@ def _mixed_conventions():
         "before this landing.",
         "column": column,
         "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _bare_mark_remainder():
+    column, rungs, claims = _flat_numbers(
+        "12345.5", 33,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 33},
+        fraction_widths={"1": 33}, pad_widths={}, field_widths={},
+        group_separator=",",
+        # THE BARE REMAINDER OF PLAN P4-D142. Twenty-two cells grouped
+        # with a comma beside eleven the source wrote bare: the census
+        # names the comma alone and is published because what it leaves
+        # of the thirty-three groupable cells is eleven, the census floor.
+        thousands_marks={",": 22},
+    )
+    return {
+        "why": "G6.1's bare remainder (plan P4-D142): a census naming ONE "
+        "mark is the whole of the grouped cells, so the groupable cells it "
+        "does not cover are written with no mark wherever at least the "
+        "census floor of them are left. Every cell is twelve thousand three "
+        "hundred and forty-five and a half: the first twenty-two are "
+        "written `12,345.5` and the last eleven `12345.5`. The mutant "
+        "restores the rule this decision replaced -- every cell no named "
+        "count covers wears the published mark -- and all thirty-three are "
+        "grouped, which is the twin the final Codex review measured.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _pooled_mark_cells():
+    column, rungs, claims = _flat_numbers(
+        "12345.5", 44,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 44},
+        fraction_widths={"1": 44}, pad_widths={}, field_widths={},
+        group_separator=",",
+        # A POOLED REMAINDER OF ELEVEN beside thirty-three commas: marks
+        # each worn by fewer cells than the floor, together a group.
+        thousands_marks={",": 33, "(withheld)": 11},
+    )
+    return {
+        "why": "G6.1's pooled remainder of a census of marks (plan P4-D142): "
+        "it is written with the first of a space, an apostrophe, U+2019, "
+        "U+00A0, U+202F and U+2009 that the census does not name, never with "
+        "a named mark. Every cell is twelve thousand three hundred and "
+        "forty-five and a half: the first thirty-three are written "
+        "`12,345.5` and the last eleven `12 345.5`. The mutant writes the "
+        "pool with the published comma, as the generator did before this "
+        "decision, and the twin's comma count passes the published one.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _unpublished_majority_marks():
+    column, rungs, claims = _flat_numbers(
+        "12345.5", 22,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
+        numeric_styles={"decimal": 22},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={},
+        # NO MAJORITY, SO NO PUBLISHED MARK, beside a census naming two.
+        group_separator="",
+        thousands_marks={",": 11, " ": 11},
+    )
+    return {
+        "why": "G6.1's groupable cells asked with a mark that writes one (plan "
+        "P4-D142). The column publishes no mark between thousands -- eleven "
+        "cells grouped with a comma and eleven with a space make no "
+        "majority -- so a cell asked whether the PUBLISHED mark puts a mark "
+        "in it is groupable nowhere. It is asked with the first mark the "
+        "census names instead: the first eleven cells are written "
+        "`12,345.5` and the last eleven `12 345.5`. The mutant asks with the "
+        "published mark and every cell is written `12345.5`.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _plus_padded_field():
+    column, rungs, claims = _flat_numbers(
+        "12345", 22,
+        n_missing=0, n_distinct=1, n_distinct_folded=1, n_negative=0,
+        numeric_styles={"leading_plus": 22},
+        fraction_widths={}, pad_widths={"7": 22}, field_widths={"7": 22},
+    )
+    return {
+        "why": "G6.3's second tier of named field widths (plan P4-D145): a "
+        "plus does not hide a pad. The census counts twenty-two cells seven "
+        "figures wide, every one of them written with a plus, so the widths "
+        "are served to the plus-signed cells once the padded form has none "
+        "to take them. Every cell is twelve thousand three hundred and "
+        "forty-five, written `+0012345`. The mutant serves the padded form "
+        "alone and every cell is written `+12345`, two figures short of its "
+        "field.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _saturated_integers():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "1", "p01": "1.32", "p05": "2.6", "p10": "4.2",
+        "p25": "9", "p50": "11", "p75": "14", "p90": "18.8",
+        "p95": "20.4", "p99": "21.68", "max": "22",
+    })
+    claims = {
+        ("column",) + key: value
+        for key, value in ladder_claims.items()
+    }
+    moments = {}
+    for name, text in (("mean", "11.333333333333334"),
+                       ("std", "5.26584909265986"),
+                       ("skew", "0.09615802208472209"),
+                       ("kurtosis", "2.687623796188785"),
+                       ("numeric_share", "1"), ("mode", "11")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_distinct_values=22,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=True, n_rows=33, numeric_styles={"plain": 33},
+        mode_count=12,
+        # THE WHOLE NUMBERS ONE TO TWENTY-TWO, each once, and eleven more
+        # cells holding eleven: twenty-four cells two figures wide and nine
+        # held back below the floor.
+        field_widths={"2": 24, "(withheld)": 9},
+        **moments,
+    )
+    return {
+        "why": "G6.5a's saturated grid (plan P4-D147). The column is on the "
+        "integer grid, publishes twenty-two different numbers, and its "
+        "published ends are one and twenty-two -- exactly twenty-two "
+        "integers -- so there is no spare grid point and the strata are "
+        "given those integers in order, each once: every whole number from "
+        "one to twenty-two is written. The mutant withdraws the fill and "
+        "runs the walk alone, which leaves nineteen different numbers, "
+        "because every stratum that moves lands on a point another stratum "
+        "still needs.",
+        "column": column,
+        "rows": 33,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -14314,7 +14652,7 @@ _DOCUMENT_ACCOUNT = (
     "tests/reference/generation-branch-vectors-2.json -- and live in a "
     "fourth file because the third holds 245567 bytes against the "
     "provenance manifest's byte cap, which leaves room for no case of "
-    "any size."
+    "any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -14531,10 +14869,23 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "thin_spaced": _thin_spaced,
 }
 
+# The cases of the repair of the final Codex review of the number
+# censuses: the bare remainder, the pooled remainder and the groupable
+# cells of a census of marks, the plus-signed tier of a named field
+# width, and the saturated integer grid.
+THIRD_BRANCH_CASE_BUILDERS = {
+    "bare_mark_remainder": _bare_mark_remainder,
+    "plus_padded_field": _plus_padded_field,
+    "pooled_mark_cells": _pooled_mark_cells,
+    "saturated_integers": _saturated_integers,
+    "unpublished_majority_marks": _unpublished_majority_marks,
+}
+
 CASE_SETS = {
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
     SECOND_BRANCH_PART: SECOND_BRANCH_CASE_BUILDERS,
+    THIRD_BRANCH_PART: THIRD_BRANCH_CASE_BUILDERS,
     DOCUMENT_PART: DOCUMENT_CASE_BUILDERS,
 }
 
@@ -14542,6 +14893,7 @@ CASE_BUILDERS = {
     **NAMED_CASE_BUILDERS,
     **BRANCH_CASE_BUILDERS,
     **SECOND_BRANCH_CASE_BUILDERS,
+    **THIRD_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -14568,7 +14920,7 @@ _NAMED_ACCOUNT = (
     "tests/reference/generation-document-vectors.json: one transform, one "
     "proof layer, four files, because a committed fixture must stay under "
     "the provenance manifest's byte cap and these already spend most of "
-    "it."
+    "it. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -14598,7 +14950,7 @@ _BRANCH_ACCOUNT = (
     "reason, and the five landing 2b.17 added for the transforms that "
     "produce a whole DOCUMENT rather than one column's cells are the "
     "fourth, tests/reference/generation-document-vectors.json, for that "
-    "same reason again."
+    "same reason again. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -14619,10 +14971,29 @@ _SECOND_BRANCH_ACCOUNT = (
     "manifest's byte cap. The five cases landing 2b.17 added are the "
     "fourth file, tests/reference/generation-document-vectors.json, "
     "opened because this one holds 245567 bytes against that cap and has "
-    "room for no case of any size."
+    "room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
+)
+
+_THIRD_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the repair of the final Codex "
+    "review of the number censuses: a census of marks spent as the whole "
+    "of the grouped cells -- its bare remainder, its pooled remainder and "
+    "the cells asked with a mark where the column publishes none (plan "
+    "P4-D142) -- the plus-signed tier of a named field width (plan "
+    "P4-D145), and the saturated integer grid (plan P4-D147). They are "
+    "computed by the same oracle and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json and "
+    "tests/reference/generation-document-vectors.json, and live in a fifth "
+    "file only because the second and third each stand within a few "
+    "kilobytes of the provenance manifest's byte cap."
 )
 
 CASE_SET_ACCOUNTS = {
+    THIRD_BRANCH_PART: (
+        f"The {len(THIRD_BRANCH_CASE_BUILDERS)} {_THIRD_BRANCH_ACCOUNT}"
+    ),
     NAMED_PART: f"The {len(NAMED_CASE_BUILDERS)} {_NAMED_ACCOUNT}",
     BRANCH_PART: f"The {len(BRANCH_CASE_BUILDERS)} {_BRANCH_ACCOUNT}",
     SECOND_BRANCH_PART: (
@@ -14642,6 +15013,76 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # THE FIVE CASES OF THE REPAIR OF THE FINAL CODEX REVIEW OF THE NUMBER
+    # CENSUSES (plans P4-D142, P4-D145, P4-D147), each on words of its own.
+    "bare_mark_remainder": (
+        10230562801701554171, 10882335407542933515, 6570972072887124803,
+        11857385787778254424, 11681720171326079955, 6697628568793574888,
+        6506093658873571512, 173444645080011720, 8790126255322325552,
+        8526121642652699146, 7867282631661948028, 2927330444169323273,
+        4867773957703973463, 9351438374392144045, 7740983589954650251,
+        4398855351457282119, 18157944978038611123, 2205944257538293394,
+        7745775686338785774, 3606453119442194128, 10248005926873581348,
+        15882956519972502681, 544139770496131276, 14365378523966179831,
+        17814902903086060267, 1924418624669310983, 5211734944709046033,
+        12856630741275191957, 8707376934106425517, 4744523554769013776,
+        6918410480491980403, 17494621849549501098,
+    ),
+    "plus_padded_field": (
+        8644321475060649706, 13342060022048535175, 4386477189466737275,
+        4817317762195363321, 10838217378249481108, 3193400635613152710,
+        14610496117762081290, 4480871890857582723, 8482016572596299882,
+        9934854820934900419, 17619945725788226678, 12191743190426113647,
+        17124417922633490440, 10563810070520916058, 4530325858210985661,
+        8175653497514675007, 13683103267468974161, 911020027536109385,
+        15770637544372271411, 8150443195637369686, 7986483148572826507,
+    ),
+    "pooled_mark_cells": (
+        1322960043824829993, 4304802946738339076, 11895184769386787494,
+        15009259507049410023, 78993831906502904, 10971129210712623180,
+        4454802098459831302, 3919104916175081190, 11301454504177651760,
+        10876104050411173251, 3818899092672013249, 14689249687027394562,
+        3151252208776280391, 18235135037081768198, 835930238996300419,
+        7503890040188187972, 9114893047779386832, 7017482890592370321,
+        7147789796798429405, 5347282328632239398, 771449634150066618,
+        1131677457324217486, 17632547210338453579, 5080361708878916008,
+        13558759084650799507, 2421595825779520715, 7474172207584753057,
+        5163264729849672854, 12350491381345414113, 9903918297005948690,
+        6255565913863860433, 7442815280172368983, 15858502137304993443,
+        15658150804610581967, 6552320915313180100, 17442561852129629341,
+        12162652257482499351, 3980212925754409253, 12601674924802918477,
+        10510655947281068492, 15827142554425099459, 14901164406314707724,
+        4769898078730312955,
+    ),
+    "saturated_integers": (
+        14879902173004397569, 503399789666721949, 10476823234844804248,
+        14725702895512817707, 4587014834849774817, 9279855135876106751,
+        6803146933366991059, 1532293904337974881, 9362555539303934505,
+        16370094004056428629, 12693624624178350761, 16860559768109715714,
+        8015318411210495840, 6149656975692699412, 11103150938359135680,
+        14344583037527603303, 3490511329577715108, 15691292786574181688,
+        7198919312352813142, 5870320715306567926, 1578933477760145330,
+        12834078685172071723, 17830221585956419260, 3648325267357870799,
+        16665645298385905117, 17322575995722424511, 15991085234721632358,
+        7766376635727288410, 16506158817992780411, 14101117120472187812,
+        15665249402409925566, 8400174299784145447, 7772493750593601408,
+        12293083517151523044, 4844143670376836803, 4101920866307836832,
+        10918581997357866759, 6838804601340763056, 8996440360190559353,
+        10221778785837101644, 11932259800571609058, 11846314781776006506,
+        7324927472604893835, 9862610037906826939, 16374467061013442683,
+        15378872738563111551, 14372216327767465923, 11389554098232228365,
+        9811363188700176784, 15109080552199181041, 14800070410420609622,
+        4630607423294290951,
+    ),
+    "unpublished_majority_marks": (
+        1347355342221236955, 6558018661785960475, 6761212542403308974,
+        2970702021573651188, 3215071037161132660, 17800126851394464143,
+        9859298425996435787, 584811875340559264, 1887488034494385385,
+        1293091210345907109, 2818233852915444725, 15946189749909443455,
+        2629213739374526, 15788398730289372229, 12154568446441856461,
+        14036540276504434596, 8179006762177092765, 17613636635921120393,
+        6232925410137821842, 8522117911449044090, 12607871449741400097,
+    ),
     "date_only": (
         17405102656223811442, 6630147816760228827, 14477104582272359118,
         10907157359294391350, 5429403641982895397, 17021284587681472559,

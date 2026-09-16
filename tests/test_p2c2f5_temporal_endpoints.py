@@ -829,6 +829,16 @@ METHOD_PASSAGES = {
         "and G12 names the loss, which is the behaviour every other "
         "passage here describes"
     ),
+    # Landing 2b.7's padded exchange and landing 2b.16's give-up (plans
+    # P4-D66.4 and P4-D105). It names an endpoint only to say one is
+    # NEVER spent: a published field width is met by padding, and where
+    # the values in hand cannot hold it the census is missed and named,
+    # which no numeric end is ever traded for.
+    "**and the exchange runs in both directions**": (
+        "G6.3 rule 2's exchange of the padded style in both directions, "
+        "whose only word about an end is that no rung, endpoint or "
+        "statistic may be spent to meet a field width"
+    ),
 }
 
 # Exceptions of the kind that have twice been written into these

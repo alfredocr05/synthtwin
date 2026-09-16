@@ -827,13 +827,19 @@ NEGATIVE_FORMS = (
 #
 # * `none` -- the column wrote no point-free cell at or past 2**53, so
 #   there is no such run to ask about;
-# * `canonical` -- it wrote some, and every one of them is the text its
-#   own value writes;
-# * `respelled` -- it wrote some, and at least one is not.
+# * `canonical` -- it wrote some, and FEWER of them than the census
+#   floor are anything but the text their own values write;
+# * `respelled` -- it wrote some, and at least the census floor of them
+#   are not.
 #
 # The word is a fact about the column's WRITER and never about a cell:
-# it names no count, no position and no figure, so a reader sees that
-# an export respells wide keys and nothing about which row did.
+# it names no count, no position and no figure. AND NO ONE CELL MOVES
+# IT (plan P4-D140, the final Codex review's first BLOCKER). The first
+# version put the line between nought and one, so 800 canonical keys
+# published `canonical` and the same column with ONE key respelled
+# published `respelled`: a reader who knew the other 799 cells read off
+# the last one's spelling from the word alone. The line now stands at
+# `census_floor`, where a word moves only when a group moves it.
 WIDE_NONE = "none"
 WIDE_CANONICAL = "canonical"
 WIDE_RESPELLED = "respelled"
@@ -842,6 +848,74 @@ WIDE_RUNS = (
     WIDE_CANONICAL,
     WIDE_RESPELLED,
 )
+def census_floor(floor: int) -> int:
+    """The smallest count a spelling census publishes: two, or the floor.
+
+    NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
+    clause 3; plan P4-D65.1). A published count of one names an
+    individual outright, and the settings floor defaults to one.
+
+    ONE STATEMENT OF THE RULE, read by the producer, the loader and the
+    checker alike (plan P4-D140). It lives in this module because it is
+    the one all three import.
+
+    Guarantees: accepts the settings floor; returns two or the floor,
+    whichever is larger. Determinism: a fixed function of the floor.
+    Raises nothing. No I/O of any kind.
+    """
+    if floor > 2:
+        return floor
+    return 2
+
+
+def census_nameable(
+    counts: "list[int]", populations: "list[int]", floor: int
+) -> bool:
+    """Whether a census may print these counts: THE DISCLOSURE RULE, once.
+
+    Written once for every spelling census landings 2b.2 and 2b.7 added
+    (plan P4-D140, closing the final Codex review's grouping BLOCKER),
+    so no census states its own version and drifts from the others.
+    It says two things, and a census that fails either prints no count:
+
+    1. EVERY COUNT NAMES A GROUP. Each count it would print -- a named
+       convention and a pooled remainder alike -- reaches
+       `census_floor`, so none of them is one.
+    2. SO DOES EVERY COMPLEMENT A READER CAN TAKE. For each population
+       handed in -- the cells a reader can subtract the printed total
+       from, such as the cells written with a point, the cells that
+       could be grouped, or every number of the column -- what is left
+       once the printed counts are taken off is either nought or
+       reaches `census_floor` too. Measured without this clause: 1,200
+       grouped prices at a floor of eleven, one of them rewritten bare,
+       published `{",": 1199}` beside a row count of 1,200, and the one
+       ungrouped cell was read off by subtraction.
+
+    NOUGHT LEFT OVER IS ALLOWED, and that is a decision rather than an
+    oversight: it says every such cell was written one way, which is a
+    fact about the column's writer. What a census that cannot speak
+    publishes instead is the census's own decision, and each one states
+    it; none of them may publish a state a reader can tell from the
+    state nought reaches, where the category is implied.
+
+    Guarantees: accepts the counts that would be printed, the
+    populations a reader can subtract them from and the settings floor;
+    returns a bool. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    least = census_floor(floor)
+    total = 0
+    for count in counts:
+        if count < least:
+            return False
+        total = total + count
+    for population in populations:
+        rest = population - total
+        if rest != 0 and rest < least:
+            return False
+    return True
+
+
 # THE FIRST WHOLE NUMBER BINARY64 CANNOT KEEP EVERY FIGURE OF. Below it
 # a whole number is held exactly and one run of figures reads back as
 # it; at it and past it the spacing reaches two and neighbouring runs
@@ -2481,6 +2555,36 @@ def pad_width(text: str) -> int:
             return width
         width = width + 1
     return width
+
+
+def is_padded(text: str) -> bool:
+    """Whether one numeric cell wrote its figure field with a redundant zero.
+
+    THE PAD IS NOT A FORM, AND A PLUS DOES NOT HIDE IT (plan P4-D145, the
+    final Codex review's item 6). The ladder of `numeric_style` files a
+    cell under ONE form, and a leading plus is tested before a leading
+    zero, so `+00100000000000000000` is `leading_plus` and its two zeros
+    were counted by no census: 800 such cells at a floor of eleven
+    published `field_widths {"20": 800}` beside `pad_widths {}`, and the
+    twin wrote every one of them two figures narrower. A cell is padded
+    where its form is `leading_zero`, or where it is `leading_plus` and
+    the figures after the plus begin with a zero and are more than that
+    zero alone; every such cell is counted by the padding census, and a
+    twin pads it back.
+
+    Guarantees: accepts the text of one cell that reads as a number this
+    format holds; returns a bool. Determinism: a fixed function of the
+    text. Raises TypeError if handed anything that is not a string
+    instance, through `trimmed`. Boundary: the answer is a truth value.
+    No I/O of any kind.
+    """
+    style = numeric_style(text)
+    if style == STYLE_LEADING_ZERO:
+        return True
+    if style != STYLE_LEADING_PLUS:
+        return False
+    core = number_core(text)
+    return core[1:2] == "0" and pad_width(text) > 1
 
 
 def classify_number(text: str) -> str:
