@@ -2093,6 +2093,54 @@ description, MISSES `workbook.package`. That is a miss and not a
 withholding: the description says the table came out of a spreadsheet,
 and a file that is not one does not meet that.
 
+**V6.2-A4 What a workbook's twin cannot be held to** (2026-09-16, the
+repair of landing 2b.10). V6.2-A3 made every fact of `source.workbook`
+an obligation of the checked file. Four kinds of fact cannot be
+obligations, and holding them as such failed twins that had done
+exactly what the disclosure rule required.
+
+1. **What a twin never carries.** A twin holds no macro project, writes
+no formula and writes no defined name. `workbook.macro-project`,
+`workbook.defined-names` and each column's `workbook.formulas` are
+therefore WITHHELD, with that reason stated on the line. They cannot be
+checked on the real file and withheld on the twin, because THIS
+MEASUREMENT CANNOT TELL THE TWO APART: `validate` measures whatever
+file it is pointed at, and a real table is checked by pointing `--twin`
+at it. One verdict is owed for both, and a withholding that says why is
+the honest one. The facts are named to the person instead on the
+summary their own profiling run prints.
+
+2. **A name that was withheld.** `sheet_names` publishes `null` where a
+sheet's name may not be published, and the twin writes a NEUTRAL name
+there. So the obligation is not list-against-list: a published name
+must be on the sheet it names, and a withheld one must be either
+withheld still (the person's own file) or the neutral name a twin
+writes there (`dialect.twin_sheet_names`, one allocation shared by the
+writer and this check). The measured names are the file's own and are
+never printed. Compared as two rendered lists, every workbook whose tab
+is not one of the generic names failed at exit 3.
+
+3. **A count the smallest group held back.** A census entry or
+`empty_rows_inside` published as `null` states no number, so there is
+nothing for the file to meet: those entries are passed over, and
+`empty_rows_inside` is WITHHELD as a whole. A column's `format_code` is
+WITHHELD in the same way when the census entry for the code's own kind
+was held back, because the twin then writes no cell of that kind and
+the code appears nowhere in it.
+
+4. **A hidden state a lone sheet cannot keep.** `workbook.sheet-hidden`
+IS checked -- the writer hides every sheet standing before the table's,
+so that the twin's first visible sheet is the table's, and the twin
+carries the chosen sheet's own state. The one exception is a workbook of
+a single hidden sheet: such a file opens nowhere and synthtwin's own
+reader refuses it, so the twin's lone sheet is written visible and this
+subcheck is WITHHELD there.
+
+`--sheet` reaches this command as well as `profile`. It was accepted on
+the command line and never passed to the reader, so a real workbook
+whose table is not on the first visible sheet was measured at whichever
+sheet the reader settled on by itself.
+
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D75). The first four rules above are no longer constants: each asks
 what `source.encoding` and `source.dialect` record — the encoding

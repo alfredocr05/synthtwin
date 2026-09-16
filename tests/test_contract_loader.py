@@ -1353,6 +1353,10 @@ def battery() -> list[Mutation]:
             "WB4", "more records holding nothing than the table has rows",
             _form_workbook_more_empty_rows_than_rows,
         ),
+        Mutation(
+            "WB3", "a count of records holding nothing that names one row",
+            _form_workbook_empty_records_name_one_row,
+        ),
         # The two rules the twin's WRITER needs (plan P4-D79). Both are
         # rules a description can break, which is why they are
         # invariants at all: the first two drafted in part 1 could not
@@ -1522,6 +1526,16 @@ def _form_workbook_census_names_one_row(document: Document) -> None:
 def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
     block = _workbook_block(document, 16, 120)
     block["empty_rows_inside"] = 1000
+
+
+def _form_workbook_empty_records_name_one_row(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # ONE record of 120 holding nothing, at a floor of eleven. The count
+    # names the row that holds nothing as surely as a census of one cell
+    # names the row that holds it, and its complement names every other
+    # row. Published raw at every floor until the repair of landing
+    # 2b.10, and the twin then wrote that one empty record back.
+    block["empty_rows_inside"] = 1
 
 
 def _form_workbook_names_too_few_sheets(document: Document) -> None:

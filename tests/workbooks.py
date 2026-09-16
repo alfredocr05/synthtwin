@@ -560,6 +560,90 @@ def hidden_first_book(n_rows: int = 20) -> bytes:
     )
 
 
+def withheld_name_book(n_rows: int = 30) -> bytes:
+    """A workbook whose chosen sheet's name may not be published.
+
+    'Cohort extract' is not one of the generic names this version can
+    rebuild from its own vocabulary, so it is WITHHELD -- which is what
+    most real research workbooks look like, and the shape whose twin
+    failed its own description until the repair of landing 2b.10.
+    """
+    strings = ["reading", "site", "amount"] + list(SITES)
+    head = [cell("A1", "0", "s"), cell("B1", "1", "s"), cell("C1", "2", "s")]
+    body: "list[tuple[int, list[str]]]" = [(1, head)]
+    for place in range(n_rows):
+        number = 2 + place
+        body += [
+            (
+                number,
+                [
+                    cell(f"A{number}", f"{place + 1}"),
+                    cell(f"B{number}", f"{3 + (place % 4)}", "s"),
+                    cell(f"C{number}", f"{12.5 + place}"),
+                ],
+            )
+        ]
+    other = sheet([(1, [cell("A1", "0", "s")])], dimension="A1:A1")
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(2, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            (
+                "xl/workbook.xml",
+                _workbook([("Cohort extract", ""), ("Sheet2", "")]),
+            ),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(2, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            (
+                "xl/worksheets/sheet1.xml",
+                sheet(body, dimension=f"A1:C{n_rows + 1}"),
+            ),
+            ("xl/worksheets/sheet2.xml", other),
+        ]
+    )
+
+
+def second_sheet_book(n_rows: int = 30) -> bytes:
+    """Two VISIBLE sheets, the table on the second one.
+
+    Nothing about the file says which sheet holds the table, so reading
+    it without `--sheet` lands on the notes page. It is the shape that
+    proves `--sheet` is honoured rather than accepted and dropped.
+    """
+    strings = ["note", "reading", "site", "amount"] + list(SITES)
+    notes = sheet([(1, [cell("A1", "0", "s")])], dimension="A1:A1")
+    head = [cell("A1", "1", "s"), cell("B1", "2", "s"), cell("C1", "3", "s")]
+    body: "list[tuple[int, list[str]]]" = [(1, head)]
+    for place in range(n_rows):
+        number = 2 + place
+        body += [
+            (
+                number,
+                [
+                    cell(f"A{number}", f"{place + 1}"),
+                    cell(f"B{number}", f"{4 + (place % 4)}", "s"),
+                    cell(f"C{number}", f"{12.5 + place}"),
+                ],
+            )
+        ]
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(2, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            ("xl/workbook.xml", _workbook([("Notes", ""), ("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(2, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            ("xl/worksheets/sheet1.xml", notes),
+            (
+                "xl/worksheets/sheet2.xml",
+                sheet(body, dimension=f"A1:C{n_rows + 1}"),
+            ),
+        ]
+    )
+
+
 def epoch_book(n_rows: int = 10) -> bytes:
     """The 1904 date system, which shifts every date by 1,462 days."""
     strings = ["reading", "recorded_on"]

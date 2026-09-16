@@ -845,7 +845,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "date_system"): _WORD,
     ("source", "workbook", "defined_names"): _COUNT,
     ("source", "workbook", "defined_table"): _FLAG,
-    ("source", "workbook", "empty_rows_inside"): _COUNT,
+    # A COUNT OR THE WITHHOLDING, like the censuses beside it and unlike
+    # the layout counts below (repair of landing 2b.10). This counts
+    # records of the table, so the smallest group holds it back where it
+    # would name one, and `null` is then what the description publishes.
+    ("source", "workbook", "empty_rows_inside"): _MAYBE_NUMBER,
     ("source", "workbook", "frozen_rows"): _COUNT,
     ("source", "workbook", "macro_project"): _FLAG,
     ("source", "workbook", "rows_above_header"): _COUNT,

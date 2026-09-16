@@ -977,15 +977,15 @@ INVARIANTS = {
         "workbook has, counted from one"
     ),
     "WB3": (
-        "every published count of cells is nought, or all of them, or "
-        "clears the smallest group at both ends, so that neither the "
-        "count nor its complement names one row"
+        "every published count of cells, and the count of records "
+        "holding nothing, is nought, or all of them, or clears the "
+        "smallest group at both ends, so that neither the count nor "
+        "its complement names one row"
     ),
     "WB4": (
-        "the rows standing above the header, the records holding "
-        "nothing inside the table and the rows and columns of "
-        "formatted blanks beyond it are each no more than the table "
-        "itself holds"
+        "the records holding nothing inside the table are no more than "
+        "the table itself holds, and no more rows are frozen than the "
+        "sheet has"
     ),
     "WB5": (
         "a workbook names one sheet for every sheet it has, and every "
@@ -3762,7 +3762,9 @@ class WorkbookForm:
     date_system: str
     defined_names: int
     defined_table: bool
-    empty_rows_inside: int
+    # Nothing where the smallest group held it back: this counts records
+    # of the table, so a count of one names one record (WB3).
+    empty_rows_inside: "int | None"
     frozen_rows: int
     macro_project: bool
     rows_above_header: int
@@ -3870,8 +3872,8 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
         ),
         defined_names=_whole(mapping["defined_names"], "defined_names", where, 0),
         defined_table=_truth(mapping["defined_table"], "defined_table", where),
-        empty_rows_inside=_whole(
-            mapping["empty_rows_inside"], "empty_rows_inside", where, 0
+        empty_rows_inside=_held_count(
+            mapping["empty_rows_inside"], "empty_rows_inside", where
         ),
         frozen_rows=_whole(mapping["frozen_rows"], "frozen_rows", where, 0),
         macro_project=_truth(mapping["macro_project"], "macro_project", where),
@@ -3973,12 +3975,28 @@ def _workbook_rules(
                     f"a column's twin wears a {kind} format",
                     "a kind its own census says no cell wears",
                 )
-    if form.empty_rows_inside > n_rows:
-        raise _broken(
-            "WB4", where,
-            f"{form.empty_rows_inside} records hold nothing inside the table",
-            f"the table has {n_rows} rows",
-        )
+    if form.empty_rows_inside is not None:
+        if form.empty_rows_inside > n_rows:
+            raise _broken(
+                "WB4", where,
+                f"{form.empty_rows_inside} records hold nothing inside "
+                "the table",
+                f"the table has {n_rows} rows",
+            )
+        # THE RECORDS HOLDING NOTHING ARE A COUNT OF ROWS, so the floor
+        # that holds every census holds this too (repair of landing
+        # 2b.10). One such record inside a table names that row as
+        # surely as a census of one cell does, and the description
+        # published it raw at every floor until this rule.
+        counted = form.empty_rows_inside
+        if counted and counted != n_rows and (
+            counted < floor or n_rows - counted < floor
+        ):
+            raise _broken(
+                "WB3", where,
+                f"{counted} of {n_rows} records hold nothing",
+                f"the smallest group is {floor}",
+            )
     if form.frozen_rows > n_rows + form.rows_above_header + 1:
         raise _broken(
             "WB4", where,

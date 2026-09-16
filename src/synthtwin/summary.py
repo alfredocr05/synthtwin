@@ -1678,6 +1678,68 @@ def _preamble_lines(document: dict[str, object]) -> "list[str]":
     ]
 
 
+def _workbook_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about the spreadsheet the table came from.
+
+    THREE THINGS A PERSON WAS NEVER TOLD (repair of landing 2b.10). The
+    command's own help promised synthtwin "says on screen which one it
+    chose"; the contract said "the person is told on their own screen
+    which sheet was read"; the plan carried a paragraph headed "what the
+    twin withholds, and why the report names each". None of the three
+    was true: a workbook was described with no word anywhere about which
+    sheet was read, that a sheet's name had been withheld, or that a
+    macro project had been found and not copied. The only trace of the
+    macro was a machine-readable line in a quality report.
+
+    Nothing here prints a name the description does not already
+    publish, so this page carries no word of the file that the
+    description itself withholds.
+    """
+    source = _map_of(document["source"])
+    if "workbook" not in source:
+        return []
+    block = source["workbook"]
+    if not isinstance(block, dict):
+        return []
+    form = _map_of(block)
+    position = _count_of(form["sheet_position"])
+    count = _count_of(form["sheet_count"])
+    names = _list_of(form["sheet_names"])
+    named = ""
+    if 1 <= position <= len(names):
+        found = names[position - 1]
+        if isinstance(found, str):
+            named = found
+    withheld = 0
+    for entry in names:
+        if not isinstance(entry, str):
+            withheld = withheld + 1
+    lines = ["", "About the sheet your table was read from:"]
+    if named:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}, the one",
+            f"  named {named}. Another sheet is read with --sheet and its name.",
+        ]
+    else:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}. Its name is",
+            "  not written here or in the description, because a sheet's name",
+            "  can be somebody's name. Another sheet is read with --sheet.",
+        ]
+    if withheld:
+        lines += [
+            f"  {withheld} sheet name(s) of this workbook are withheld for that",
+            "  reason. The twin writes those sheets under a neutral name, so",
+            "  code that names one of them by hand will not find it.",
+        ]
+    if form["macro_project"]:
+        lines += [
+            "  This workbook carries a macro project. synthtwin does not read",
+            "  it, does not describe it, and never copies it into the twin.",
+        ]
+    return lines
+
+
 def render(document: dict[str, object], encoding_note: str) -> str:
     """The whole summary, as the text printed and written to disk.
 
@@ -1711,6 +1773,7 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     # page. It goes here, near the top, and not in the disclosure block
     # at the end, because it changes what every later line means.
     lines = lines + _first_row_lines(document)
+    lines = lines + _workbook_lines(document)
     lines = lines + _preamble_lines(document)
     lines += [
         "",

@@ -9725,6 +9725,57 @@ carried out rather than deferred.
 of a table that arrived in a spreadsheet is a spreadsheet, and every
 fact the block publishes is a promise the twin has to keep.
 
+**REPAIRED 2026-09-16 (amendment A-P4-66), after a review measured three
+ordinary shapes outside this landing's own fixture family** -- a table
+not on the first visible sheet, a sheet whose name may not be published,
+and a macro-enabled workbook. All three are named in this decision's own
+scope and all three produced a twin that synthtwin could not read back
+or that failed its own description. What the repair establishes, and
+what each cost:
+
+* **A twin is written so that its own reader finds the table.** The
+  writer records each sheet's hidden state and hides every sheet
+  standing before the table's. Until then every sheet was written
+  visible, so a table behind a hidden notes page got a twin whose first
+  visible sheet was an empty placeholder: `profile` and `validate` both
+  refused it outright.
+* **A withheld name is not a failure to reproduce a name.** The neutral
+  name a twin writes and the name the validator expects there come from
+  ONE allocation (`dialect.twin_sheet_names`), and published names are
+  claimed before placeholders so a published name is never renamed.
+  Compared as two rendered lists, every workbook whose tab is not one of
+  fourteen generic words failed at exit 3 for obeying the disclosure
+  rule.
+* **A fact the twin is forbidden to carry is named, not measured.** The
+  macro project, the defined names and each column's formulas are
+  WITHHELD with that reason on the line, because `validate` measures
+  whatever file it is pointed at and cannot tell a twin from the table
+  it was made from. They are said to the person on the summary instead,
+  with the sheet that was read and how many names were withheld --
+  three promises (the command's help, contract 4.3b, this section) that
+  nothing on screen had been keeping.
+* **Which counts the floor holds is stated exactly.** The records
+  holding nothing are held to the smallest group (WB3) because they
+  count rows of the table; the layout counts are exempt and say why.
+  The blanket claim that every count was floored stood while five were
+  published raw, a count of one among them.
+* **A published nought and a withheld count are different facts.** The
+  twin never writes a class the census denies, and a withheld count is
+  not held against the checked file. Both directions were measured on
+  the titled book at a raised floor: eight `workbook.cell-classes`
+  misses before, none after, with the real file passing throughout --
+  a defect the landing's own gate could not see, because its tables are
+  large enough that no count is ever withheld.
+* **The caps bound something.** The cell cap was a guess of four
+  million; a review measured what that costs (about 2.4 GB and four
+  minutes). A cell costs about 600 bytes, measured, so the cap is a
+  million cells -- about 600 MB and a few seconds -- and the study's own
+  zip bomb is refused by it rather than read.
+* Two lesser repairs: `--sheet` reaches `validate`, and
+  `rows_above_header` counts every row above the header rather than only
+  the rows of content, so a reader that counts rows sees the same table
+  in the twin as in the source.
+
 **Why a writer of our own.** The study measured both common Python
 writers corrupting exactly the cells this landing exists to carry:
 openpyxl turns any text beginning with `=` into a formula with no
@@ -14024,6 +14075,7 @@ documentation however much it looks like it.
 | **A-P4-62** | 2026-09-15 | Decision P4-D76: a column declared with `--identifier` publishes no row sequence and is not the column the rows are sorted by, and a row sequence is published only for a first column named as a written row index is (`dialect.INDEX_NAMES`). Invariant FD12 is the loader's statement of it. | A review of landing 2b.9 measured a table of two declared identifier columns whose twin reproduced all 120 real rows byte for byte: the written form was handing back the values the declaration exists to withhold. | A REDCap `record_id` is no longer written back in order, and its twin holds made-up record numbers. Descriptions that published such a sequence are refused by FD12 and are made again (version 6 is extended in place, A-P4-41). Clause 2 of the twin's definition is held structurally and not by comparison, because the generator never reads the real table; a narrow-domain chance collision is carried as an owner question. |
 | **A-P4-63** | 2026-09-15 | Decision P4-D77: a spreadsheet workbook is READ, with `zipfile` and `xml.parsers.expat` and nothing else. `source` gains a seventh key, `workbook` (contract 4.3b), carrying the sheet's place, the date system, the rows above the header, the records holding nothing inside the table, the formatted blanks beyond it and a census per column of what its cells were and what kind of thing their formats made of them. Invariants WB1-WB4 are the loader's statement of it; the offline scanner admits four zipfile names and two expat names, each justified in its own table and each mutation-tested. | Owner ruling 2026-09-15: synthtwin reads Excel files and delimited text files only. Until this landing it read neither, and most researchers' tables arrive as workbooks. | Every profile gains `source.workbook`, so a description written before it is refused as missing a key (version 6 is extended in place, A-P4-41). A number format code is read but not published, so a twin cannot reproduce a custom one. A workbook is read once, without the second independent reading the delimited path gets. |
 | **A-P4-64** | 2026-09-15 | Decision P4-D78: `synthtwin generate` refuses a description of a workbook, because this version can describe one and cannot yet write one. | Writing a delimited twin of a spreadsheet would silently drop the sheet, the cell types and the number formats the description publishes, which is what the owner's ruling of 2026-09-15 forbids. | A workbook description has no twin until the writer lands; the refusal names the one route that works today. |
+| **A-P4-66** | 2026-09-16 | **THE REPAIR OF P4-D79, AFTER A REVIEW MEASURED THREE ORDINARY SHAPES OUTSIDE THE GATE'S OWN FIXTURE FAMILY.** (1) The writer records each sheet's hidden state, hiding every sheet standing before the table's, so the twin's own reading rule — the first visible sheet — lands on the table; a hidden-first workbook's twin could not be read back at all. (2) A withheld sheet name is compared through one allocation shared by the writer and the validator (`dialect.twin_sheet_names`), so a twin that writes the neutral name the disclosure rule demands is no longer MISSED for it; published names are claimed before placeholders, so a published name is never renamed. (3) The macro project, the defined names and each column's formulas are WITHHELD rather than measured, because a twin is forbidden to carry them and this measurement cannot tell a twin from the file it was made from; they are named on the summary instead, with the sheet that was read and every withheld name. (4) `empty_rows_inside` is held to the smallest group like every other count of records (WB3), and the layout counts are named as exempt with their reason rather than a blanket claim that every count is floored (WB4 restated to what it enforces). (5) A published nought and a withheld count are read apart by the writer and the validator: the twin never writes a class the census denies, and a withheld count is not held against the file. (6) `--sheet` reaches `validate`. (7) `rows_above_header` counts every row above the header, blank ones included. (8) The reader's cell cap is set from a measurement (1,000,000 cells, about 600 MB) instead of a guess of four million, and the study's own bomb is refused by it rather than read. (9) The zip and parser admissions are scoped to the modules they were argued from. (10) `dialect.named_columns` is linear. | A skeptic's verdict of REJECT on the landing, every item reproduced with numbers before it was fixed: a twin `profile` refused, a twin failing its own description at exit 3 on two ordinary shapes, five counts published raw against the disclosure rule, three published facts with no subcheck, and caps that bounded memory at about 2.4 GB. | A description written before this is refused where `empty_rows_inside` is a count the floor should have held (version 6 is extended in place, A-P4-41). A workbook of more than a million cells is refused where it was read. Every other change loosens a check that could not be met or tightens one that was silent; no delimited twin's bytes move, measured against the landing's own commit. |
 | **A-P4-65** | 2026-09-15 | Decision P4-D79: a workbook's twin is a WORKBOOK, written by a writer of synthtwin's own out of the standard library. `source.workbook` becomes an obligation the validator holds the twin to; it gains `sheet_names` and a per-column `format_code`, both drawn from closed vocabularies; invariants WB5 and WB6 are the loader's statement of them, each with a mutation. THIS SUPERSEDES P4-D78, which refused a workbook description a twin. | Owner ruling 2026-09-15: the twin is written the way its source file was, and a spreadsheet's twin that was delimited text would drop the sheet, the cell types and the number formats. | Every profile gains two workbook entries, so a description written before this is refused as missing a key (version 6 is extended in place, A-P4-41). A custom format code is published as the canonical code of its kind, so the twin wears the standard spelling of a date rather than the person's. The blank rows above a header are still not published, so a reader that counts them sees fewer rows in the twin than in the source. |
 | **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |

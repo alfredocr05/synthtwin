@@ -2728,6 +2728,7 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
+    sheet: str = "",
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -2798,7 +2799,12 @@ def _run_validate(
         _warn(errors.quality_target_already_there(shown_quality_path))
         return 1
 
-    outcome = validation.measure(loaded, measured)
+    # `--sheet` REACHES THIS COMMAND TOO (repair of landing 2b.10). The
+    # option was accepted here and then dropped on the floor: a person
+    # checking a real workbook whose table is not on the first visible
+    # sheet named the sheet, was given no error, and had a different
+    # sheet measured against their description.
+    outcome = validation.measure(loaded, measured, sheet)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
@@ -2974,7 +2980,11 @@ def main(argv: "list[str] | None" = None) -> int:
             )
         if validating:
             return _run_validate(
-                named, options.twin, options.out_dir, options.replace
+                named,
+                options.twin,
+                options.out_dir,
+                options.replace,
+                options.sheet,
             )
         return _run_profile(
             named,

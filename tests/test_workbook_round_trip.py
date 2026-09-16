@@ -670,3 +670,271 @@ def test_both_date_systems_survive_the_twin(
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
     book = openpyxl.load_workbook(tmp_path / "epoch-twin.xlsx")
     assert (book.epoch.year == 1904) is epoch
+
+
+# -- the repair of landing 2b.10 ---------------------------------------
+#
+# WHAT THESE ADD, AND WHY THEY WERE MISSING. The gate above runs on one
+# family of fixtures -- `study_book`, whose table always sits on the
+# first sheet under a generic name, with no macro project. A review
+# measured three ordinary shapes outside that family, every one of them
+# named in the landing's own instruction, and each produced a twin that
+# synthtwin could not read back or that failed its own description:
+#
+#   * a table not on the first VISIBLE sheet: the writer recorded no
+#     sheet's hidden state, so the twin's first visible sheet was an
+#     empty placeholder and `profile` refused the twin outright;
+#   * a sheet whose name may not be published: the twin wrote the
+#     neutral name the disclosure rule demands and was reported MISSED
+#     for it, exit 3, on every workbook whose tab is not one of
+#     fourteen generic words;
+#   * a macro-enabled workbook: `macro_project` was held against the
+#     twin as an obligation the twin is FORBIDDEN to meet.
+#
+# Each is a round trip here now, and each asserts the disclosure half as
+# well as the reading half.
+
+
+def test_a_workbook_whose_table_is_not_on_the_first_sheet_round_trips(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The whole gate on the hidden-first shape, which used to refuse its twin."""
+    import zipfile
+
+    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book(30))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "hidden-profile.json"
+    first = _block_of(described)
+    assert first["sheet_position"] == 2, first
+
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "hidden-twin.xlsx"
+    assert twin.is_file(), sorted(one.name for one in tmp_path.iterdir())
+
+    # The twin reads back AS THE SAME TABLE, with no option needed: the
+    # sheets standing before the table's are written hidden, so the
+    # reader's own rule -- the first visible sheet -- lands on it.
+    third = tmp_path / "third"
+    third.mkdir()
+    assert _quiet(["profile", str(twin), "--out-dir", str(third)]) == 0
+    second = _block_of(third / "hidden-twin-profile.json")
+    assert second["sheet_position"] == first["sheet_position"]
+    assert second["sheet_names"] == first["sheet_names"]
+    assert second["sheet_hidden"] == first["sheet_hidden"]
+
+    again = tmp_path / "again"
+    again.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(twin),
+             "--out-dir", str(again)]
+        )
+        == 0
+    )
+    assert _quiet(["validate", str(described), "--twin", str(path)]) == 0
+
+    with zipfile.ZipFile(twin) as bundle:
+        book = bundle.read("xl/workbook.xml").decode("utf-8")
+    assert 'state="hidden"' in book, book
+
+
+def test_a_withheld_sheet_name_round_trips_and_the_twin_carries_none_of_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A name that may not be published: the twin is neutral AND valid."""
+    import zipfile
+
+    path = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book(30))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "cohort-profile.json"
+    first = _block_of(described)
+    assert first["sheet_names"][0] is None, first["sheet_names"]
+
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "cohort-twin.xlsx"
+    again = tmp_path / "again"
+    again.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(twin),
+             "--out-dir", str(again)]
+        )
+        == 0
+    )
+
+    # THE DISCLOSURE HALF, asserted on the twin's own bytes rather than
+    # trusted to the writer that made them. This is also what the
+    # validator cannot do for itself: measuring a file, it cannot tell a
+    # twin from the table it was made from, so a leak would look like
+    # the real file carrying its own name.
+    assert b"Cohort extract" not in twin.read_bytes()
+    with zipfile.ZipFile(twin) as bundle:
+        book = bundle.read("xl/workbook.xml").decode("utf-8")
+    assert 'name="Sheet1"' in book and 'name="Sheet2"' in book, book
+
+
+def test_a_macro_workbook_gets_a_twin_that_validates(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The macro fact is NAMED rather than held against the twin."""
+    import zipfile
+
+    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book(30))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "macro-profile.json"
+    assert _block_of(described)["macro_project"] is True
+
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "macro-twin.xlsx"
+    again = tmp_path / "again"
+    again.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(twin),
+             "--out-dir", str(again)]
+        )
+        == 0
+    )
+    report = (again / "macro-twin-quality.txt").read_text(encoding="utf-8")
+    named = [
+        line.strip()
+        for line in report.splitlines()
+        if "workbook.macro-project" in line
+    ]
+    assert named, report[:400]
+    for line in named:
+        assert line.endswith("WITHHELD"), line
+
+    # And the project itself is nowhere in the twin.
+    with zipfile.ZipFile(twin) as bundle:
+        carried = [one for one in bundle.namelist() if "vbaProject" in one]
+    assert not carried, carried
+
+
+def test_the_summary_says_which_sheet_was_read_and_names_a_macro_project(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The three promises nothing on screen was keeping.
+
+    The command's own help says synthtwin "says on screen which one it
+    chose"; contract 4.3b says the person is told which sheet was read;
+    the plan says the report names each withheld fact. A workbook was
+    described with none of it said anywhere.
+    """
+    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book(30))
+    assert _quiet(["profile", str(path)]) == 0
+    page = (tmp_path / "macro-profile.txt").read_text(encoding="utf-8")
+    assert "sheet 1 of 1" in page, page[:600]
+    assert "macro project" in page, page[:600]
+
+    other = tmp_path / "other"
+    other.mkdir()
+    named = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book(30))
+    assert _quiet(["profile", str(named), "--out-dir", str(other)]) == 0
+    page = (other / "cohort-profile.txt").read_text(encoding="utf-8")
+    assert "withheld" in page, page[:600]
+    # The withheld name itself never reaches the page.
+    assert "Cohort extract" not in page
+
+
+def test_the_rows_above_a_header_reach_both_readers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """pandas sees the same shape on the twin as on the source.
+
+    `rows_above_header` counted rows of CONTENT only, so a blank row
+    between a title and the header was published nowhere and the twin
+    came up short by exactly those rows: pandas read 15 rows from the
+    source and 13 from the twin while synthtwin's own row count was 12
+    on both.
+    """
+    pandas = pytest.importorskip("pandas")
+    path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(200))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "titled-profile.json"
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "titled-twin.xlsx"
+    assert pandas.read_excel(path).shape == pandas.read_excel(twin).shape
+
+
+def test_validate_reads_the_sheet_the_person_names(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`--sheet` reaches `validate`, where it used to be accepted and dropped."""
+    path = _written(tmp_path, "second.xlsx", workbooks.second_sheet_book(30))
+    assert _quiet(["profile", str(path), "--sheet", "Data"]) == 0
+    described = tmp_path / "second-profile.json"
+
+    # Without the option the checked file is read at its first sheet,
+    # which holds the notes page and not the table.
+    assert _quiet(["validate", str(described), "--twin", str(path)]) != 0
+
+    named = tmp_path / "named"
+    named.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(path),
+             "--sheet", "Data", "--out-dir", str(named)]
+        )
+        == 0
+    )
+
+
+def test_a_lone_record_holding_nothing_is_held_to_the_smallest_group(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A count of records that would name one row is not published.
+
+    `empty_rows_inside` counts ROWS OF THE TABLE, so the floor holds it
+    like every census beside it: one such record among sixty names the
+    row that holds it. It was published raw at every floor, and the twin
+    wrote that one empty record back.
+
+    THE ROUND TRIP HAS TO STILL CLOSE, which is the other half. A
+    withheld count states no number, so the file is not held to one --
+    and a column whose every class was withheld must not have its
+    remainder written in a class the census publishes as NOUGHT. Both
+    were measured on this shape: eight `workbook.cell-classes` misses at
+    a floor of eleven on the landing's own commit, none now.
+    """
+    path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(60))
+    assert _quiet(["profile", str(path), "--smallest-group", "11"]) == 0
+    described = tmp_path / "titled-profile.json"
+    first = _block_of(described)
+    assert first["empty_rows_inside"] is None, first["empty_rows_inside"]
+
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "titled-twin.xlsx"
+    again = tmp_path / "again"
+    again.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(twin),
+             "--out-dir", str(again)]
+        )
+        == 0
+    )
+    assert _quiet(["validate", str(described), "--twin", str(path)]) == 0
+
+    # The withholding is SHOWN, not silent.
+    report = (again / "titled-twin-quality.txt").read_text(encoding="utf-8")
+    named = [
+        line.strip()
+        for line in report.splitlines()
+        if "workbook.empty-rows-inside" in line
+    ]
+    assert named and named[0].endswith("WITHHELD"), named
+
+    # And no class the census publishes as nought is written into the
+    # twin: the twin's own description says so, class for class.
+    third = tmp_path / "third"
+    third.mkdir()
+    assert _quiet(["profile", str(twin), "--out-dir", str(third),
+                   "--smallest-group", "11"]) == 0
+    second = _block_of(third / "titled-twin-profile.json")
+    for index in range(len(first["columns"])):
+        published = first["columns"][index]["cell_classes"]
+        measured = second["columns"][index]["cell_classes"]
+        for kind in published:
+            if published[kind] == 0:
+                assert measured[kind] == 0, (index, kind, measured)

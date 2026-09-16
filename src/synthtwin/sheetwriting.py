@@ -215,19 +215,53 @@ def _wanted(census: "dict[str, int | None]", kind: str) -> int:
     return 0
 
 
+def _denied(census: "dict[str, int | None]", kind: str) -> bool:
+    """Whether the census says outright that no cell has this class.
+
+    A published `0` is a FACT about the column; a `null` is the floor
+    holding a number back and says nothing at all. The two must not be
+    read the same way, which is the whole of the defect below.
+    """
+    if kind not in census:
+        return False
+    found = census[kind]
+    if isinstance(found, bool) or not isinstance(found, int):
+        return False
+    return found == 0
+
+
 def _leading(census: "dict[str, int | None]", among: "tuple[str, ...]") -> str:
     """Which of these classes the column holds most of.
 
     Ties are broken by the order of the tuple, which is fixed, so this
     is a function of the description and not of a dictionary's order.
+
+    A CLASS THE CENSUS PUBLISHES AS NOUGHT IS NEVER THE LEADING ONE, and
+    that is a defect this was measured into (repair of landing 2b.10).
+    Where the smallest group held every count of a column back, every
+    count read as nought here, the tie fell to the FIRST class in the
+    tuple, and the remainder was written in it -- so a column whose
+    census publishes `boolean 0` got a twin full of booleans, and the
+    quality report missed `workbook.cell-classes` on eight columns at a
+    floor of eleven while the real file passed. A withheld count is not
+    a licence to write none, and a published nought is not a count to
+    fall back on: the remainder goes to a class whose number was not
+    published rather than to one the description denies.
     """
     best = among[len(among) - 1]
     seen = -1
+    best_denied = True
     for kind in among:
         count = _wanted(census, kind)
+        denied = _denied(census, kind)
         if count > seen:
             seen = count
             best = kind
+            best_denied = denied
+            continue
+        if count == seen and best_denied and not denied:
+            best = kind
+            best_denied = denied
     return best
 
 
@@ -821,18 +855,72 @@ def _table_part(
     return text
 
 
+def _hidden_states(
+    sheets: int, chosen: int, chosen_hidden: bool
+) -> "list[bool]":
+    """Which of the twin's sheets are hidden, so the table can be found.
+
+    THE TWIN WAS UNREADABLE BY SYNTHTWIN ITSELF WITHOUT THIS (repair of
+    landing 2b.10). A workbook is read at the sheet the person named or
+    else at the FIRST VISIBLE SHEET, and the writer wrote every sheet
+    visible -- so a table that sat on sheet 2 behind a hidden notes page
+    got a twin whose sheet 1 was an empty placeholder, and `profile` and
+    `validate` both refused it: "the sheet 'Notes' holds no cells at all".
+    Measured on the landing's own hidden-first fixture, and on a
+    three-sheet book of the same shape.
+
+    The rule is the reading rule read backwards. Every sheet BEFORE the
+    chosen one is hidden, so the chosen sheet is the first visible one
+    and the twin's own reader lands on the table. The chosen sheet keeps
+    the hidden state the description publishes. Sheets after it stay
+    visible, so that a workbook whose chosen sheet is itself hidden
+    still has one.
+
+    THE ONE PLACE THIS CANNOT BE HONOURED, stated rather than hidden: a
+    workbook whose every sheet is hidden cannot be opened by a
+    spreadsheet application and is refused by synthtwin's own reader, so
+    a lone sheet that was hidden is written VISIBLE. The validator
+    withholds `workbook.sheet-hidden` in exactly that case.
+    """
+    states: "list[bool]" = []
+    for index in range(sheets):
+        number = index + 1
+        if number < chosen:
+            states += [True]
+            continue
+        if number == chosen:
+            states += [chosen_hidden]
+            continue
+        states += [False]
+    showing = False
+    for state in states:
+        if not state:
+            showing = True
+    if not showing and states:
+        # Nothing would be visible: show a sheet that is not the table's
+        # where there is one, and the table's own where there is not.
+        last = len(states) - 1
+        if last == chosen - 1 and last > 0:
+            last = last - 1
+        states[last] = False
+    return states
+
+
 def _workbook_part(
-    sheet_names: "list[str]", epoch_1904: bool
+    sheet_names: "list[str]", hidden: "list[bool]", epoch_1904: bool
 ) -> str:
-    """The workbook: every sheet in its place, and the date system."""
+    """The workbook: every sheet in its place, its state, and the epoch."""
     text = _DECLARATION + f'<workbook xmlns="{_MAIN}" xmlns:r="{_RELS}">'
     if epoch_1904:
         text = text + '<workbookPr date1904="1"/>'
     text = text + "<sheets>"
     for index in range(len(sheet_names)):
         shown = _escaped(sheet_names[index])
+        state = ""
+        if index < len(hidden) and hidden[index]:
+            state = ' state="hidden"'
         text = text + (
-            f'<sheet name="{shown}" sheetId="{index + 1}" '
+            f'<sheet name="{shown}" sheetId="{index + 1}"{state} '
             f'r:id="rId{index + 1}"/>'
         )
     text = text + "</sheets></workbook>"
@@ -957,10 +1045,17 @@ def _members(
     items: "list[str]" = []
     places: "dict[str, int]" = {}
     rows_above = _placeholder_rows(form.rows_above_header, width)
+    # NOTHING WHERE THE FLOOR HELD THE COUNT BACK. `empty_rows_inside`
+    # counts records of the table, so the smallest group holds it like
+    # every other count of rows, and a description that publishes none
+    # asks the twin for none rather than for zero of them.
+    wanted_empty = 0
+    if form.empty_rows_inside is not None:
+        wanted_empty = form.empty_rows_inside
     classes, cells = _aligned_for_empty_records(
-        classes, cells, n_rows, form.empty_rows_inside
+        classes, cells, n_rows, wanted_empty
     )
-    empty_places = _empty_row_places(classes, n_rows, form.empty_rows_inside)
+    empty_places = _empty_row_places(classes, n_rows, wanted_empty)
 
     # ONE STYLE PER CELL, worked out after the cells have settled: a
     # column may hold a mixture of format kinds and the census publishes
@@ -983,21 +1078,27 @@ def _members(
         styles += [tuple(row_styles)]
     table = form.defined_table
 
-    sheet_names: "list[str]" = []
-    taken: "dict[str, bool]" = {}
+    published_names: "list[str | None]" = []
     for index in range(form.sheet_count):
         published: "str | None" = None
         if index < len(form.sheet_names):
             published = form.sheet_names[index]
-        name = published if published else dialect.neutral_sheet_name(index + 1)
-        while name in taken:
-            name = name + "_"
-        taken[name] = True
+        published_names += [published]
+    # ONE ALLOCATION, SHARED WITH THE VALIDATOR (`dialect.twin_sheet_names`;
+    # repair of landing 2b.10). The writer used to hand out neutral names
+    # in sheet order and add an underscore on a collision, which renamed
+    # a sheet whose name the description PUBLISHES -- ('Cohort extract',
+    # 'Sheet1') came back as 'Sheet1' and 'Sheet1_' -- and the validator
+    # had no way to know what name a conforming twin should carry, so it
+    # reported every withheld name MISSED.
+    sheet_names: "list[str]" = []
+    for name in dialect.twin_sheet_names(tuple(published_names)):
         sheet_names += [name]
 
     chosen = form.sheet_position
     if chosen < 1 or chosen > len(sheet_names):
         chosen = 1
+    hidden = _hidden_states(len(sheet_names), chosen, form.sheet_hidden)
 
     parts: "list[tuple[str, str]]" = []
     for index in range(len(sheet_names)):
@@ -1050,7 +1151,9 @@ def _members(
         (
             "xl/workbook.xml",
             _workbook_part(
-                sheet_names, form.date_system == dialect.SHEET_DATE_SYSTEM_1904
+                sheet_names,
+                hidden,
+                form.date_system == dialect.SHEET_DATE_SYSTEM_1904,
             ),
         ),
         ("xl/_rels/workbook.xml.rels", _workbook_rels_part(len(sheet_names))),

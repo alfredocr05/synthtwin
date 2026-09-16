@@ -4202,7 +4202,9 @@ def _withheld(column: str, fact: str, subcheck: str, why: str) -> Check:
 # -- the measurement --------------------------------------------------
 
 
-def measure(description: contract.Profile, path: str) -> Outcome:
+def measure(
+    description: contract.Profile, path: str, sheet: str = ""
+) -> Outcome:
     """Measure one CSV against one description; return every verdict.
 
     Guarantees:
@@ -4345,6 +4347,12 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
             encoding=description.source.encoding,
+            # WHICH SHEET, WHERE THE PERSON SAID (repair of landing
+            # 2b.10). `validate --sheet` was accepted by the command
+            # line and never arrived here, so a real workbook whose
+            # table sits behind a hidden or a later sheet was measured
+            # at whichever sheet the reader settled on by itself.
+            sheet=sheet,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -4436,7 +4444,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         ) from error
     checks = _byte_checks(description, data, table.survey, False)
     checks = checks + _structure_checks(description, table, headed)
-    checks = checks + _workbook_checks(description, redescribed)
+    checks = checks + _workbook_checks(description, redescribed, table)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
     # 2026-08-16; plan amendment A-P3-26). Asked once, of the
     # description alone, and asked HERE rather than inside the column
@@ -6057,6 +6065,45 @@ _WORKBOOK_FACT = "document.source.workbook"
 # package, and a file that is not one does not meet that.
 _NOT_A_WORKBOOK = "not a spreadsheet workbook"
 
+# THREE FACTS A CONFORMING TWIN CANNOT CARRY, AND ONE MEASUREMENT THAT
+# CANNOT TELL IT FROM THE REAL FILE (repair of landing 2b.10). A twin
+# never carries a macro project -- that is the security rule the reader
+# and the writer both keep -- and it writes no formula and no defined
+# name. Those three facts are published about the person's own workbook,
+# and they were held against the checked file as obligations: every
+# macro-enabled workbook's twin failed at exit 3 on `workbook.macro-
+# project`, a promise the twin is FORBIDDEN to keep.
+#
+# They cannot simply be checked on the real file and withheld on the
+# twin, because nothing here knows which it has: `validate` measures
+# whatever file it is pointed at, by design (a real table is checked by
+# pointing `--twin` at it). So the honest verdict is one verdict for
+# both: WITHHELD, with the reason said out loud and counted in the
+# report's own census, and the fact named where a person reads it -- the
+# summary printed when their workbook is described.
+_WORKBOOK_TWIN_NEVER_CARRIES_IT = (
+    "a twin of a workbook never carries this -- no macro project, no "
+    "formula and no defined name is ever written into one -- and this "
+    "measurement cannot tell a twin from the file it was made from, so "
+    "neither the measurement nor its outcome is shown"
+)
+
+# A count the smallest group held back publishes nothing, so there is
+# nothing for the checked file to meet.
+_WORKBOOK_HELD_BACK = (
+    "the smallest group held this count back, so the description "
+    "publishes no number here for the file to meet"
+)
+
+# The one shape whose hidden state a twin cannot reproduce: a workbook
+# whose every sheet is hidden opens nowhere and is refused by
+# synthtwin's own reader, so a lone hidden sheet is written visible.
+_WORKBOOK_ONLY_SHEET_MUST_SHOW = (
+    "a workbook whose every sheet is hidden cannot be opened at all, so "
+    "the twin's one sheet is written visible and neither the "
+    "measurement nor its outcome is shown"
+)
+
 
 def _shown_census(
     counts: "dict[str, object]", order: "tuple[str, ...]"
@@ -6106,6 +6153,7 @@ def _census_of(entry: object, key: str) -> "dict[str, object]":
 def _workbook_checks(
     description: contract.Profile,
     redescribed: "dict[str, object]",
+    table: reading.Table,
 ) -> "list[Check]":
     """Every fact the workbook block publishes, measured on the file.
 
@@ -6167,11 +6215,6 @@ def _workbook_checks(
             _shown_count(_whole_of(block, "sheet_position")),
         ),
         (
-            "workbook.sheet-names",
-            _shown_sheet_names(form.sheet_names),
-            _shown_sheet_names(_names_of(block)),
-        ),
-        (
             "workbook.date-system",
             form.date_system,
             _word_of(block, "date_system"),
@@ -6180,11 +6223,6 @@ def _workbook_checks(
             "workbook.rows-above-header",
             _shown_count(form.rows_above_header),
             _shown_count(_whole_of(block, "rows_above_header")),
-        ),
-        (
-            "workbook.empty-rows-inside",
-            _shown_count(form.empty_rows_inside),
-            _shown_count(_whole_of(block, "empty_rows_inside")),
         ),
         (
             "workbook.frozen-rows",
@@ -6211,14 +6249,62 @@ def _workbook_checks(
             _shown_truth(form.autofilter),
             _shown_truth(_truth_of(block, "autofilter")),
         ),
-        (
-            "workbook.macro-project",
-            _shown_truth(form.macro_project),
-            _shown_truth(_truth_of(block, "macro_project")),
-        ),
     ]
     for subcheck, published, measured in whole:
         checks += [_exact("", _WORKBOOK_FACT, subcheck, published, measured)]
+
+    # The names, against what the file's own sheets are really called.
+    checks += [_sheet_names_check(form.sheet_names, table)]
+
+    # THE HIDDEN STATE IS AN OBLIGATION NOW, because the twin carries it:
+    # the writer hides every sheet standing before the table's, so that
+    # the twin's own reading rule -- the first VISIBLE sheet -- lands on
+    # the table. It went unchecked while the twin lost it silently.
+    if form.sheet_hidden and form.sheet_count <= 1:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _WORKBOOK_ONLY_SHEET_MUST_SHOW,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _shown_truth(form.sheet_hidden),
+                _shown_truth(_truth_of(block, "sheet_hidden")),
+            )
+        ]
+
+    # The records holding nothing, where the floor published a count.
+    if form.empty_rows_inside is None:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _WORKBOOK_HELD_BACK,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _shown_count(form.empty_rows_inside),
+                _shown_count(_whole_of(block, "empty_rows_inside")),
+            )
+        ]
+
+    # The two facts a twin is forbidden to carry, named rather than
+    # measured, and counted among the withholdings in the census.
+    checks += [
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.macro-project",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.defined-names",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+    ]
 
     every = block["columns"] if "columns" in block else []
     for index in range(len(description.columns)):
@@ -6230,20 +6316,24 @@ def _workbook_checks(
         if isinstance(every, list) and index < len(every):
             entry = every[index]
         checks += [
-            _exact(
-                name, _WORKBOOK_FACT, "workbook.cell-classes",
-                _shown_census(_as_counts(column.cell_classes), dialect.SHEET_CELL_CLASSES),
-                _shown_census(_census_of(entry, "cell_classes"), dialect.SHEET_CELL_CLASSES),
+            _census_check(
+                name, "workbook.cell-classes",
+                column.cell_classes,
+                _census_of(entry, "cell_classes"),
+                dialect.SHEET_CELL_CLASSES,
             ),
-            _exact(
-                name, _WORKBOOK_FACT, "workbook.format-kinds",
-                _shown_census(_as_counts(column.format_kinds), dialect.SHEET_FORMAT_KINDS),
-                _shown_census(_census_of(entry, "format_kinds"), dialect.SHEET_FORMAT_KINDS),
+            _census_check(
+                name, "workbook.format-kinds",
+                column.format_kinds,
+                _census_of(entry, "format_kinds"),
+                dialect.SHEET_FORMAT_KINDS,
             ),
-            _exact(
-                name, _WORKBOOK_FACT, "workbook.format-code",
-                column.format_code,
-                _word_of(entry, "format_code"),
+            _format_code_check(name, column, entry),
+            # A twin writes no formula, whatever the source column held,
+            # so this is named and not measured (see the reason above).
+            _withheld(
+                name, _WORKBOOK_FACT, "workbook.formulas",
+                _WORKBOOK_TWIN_NEVER_CARRIES_IT,
             ),
         ]
     return checks
@@ -6285,17 +6375,149 @@ def _word_of(block: object, key: str) -> str:
     return found
 
 
-def _names_of(block: object) -> "tuple[str | None, ...]":
-    """The sheet names a re-described block publishes."""
-    if not isinstance(block, dict) or "sheet_names" not in block:
-        return ()
-    found = block["sheet_names"]
-    if not isinstance(found, list):
-        return ()
-    out: "list[str | None]" = []
-    for item in found:
-        out += [item if isinstance(item, str) else None]
-    return tuple(out)
+def _census_check(
+    name: str,
+    subcheck: str,
+    published: "dict[str, int | None]",
+    measured: "dict[str, object]",
+    order: "tuple[str, ...]",
+) -> Check:
+    """One census, compared wherever the description publishes a count.
+
+    A COUNT THE SMALLEST GROUP HELD BACK PUBLISHES NOTHING FOR THE FILE
+    TO MEET, and comparing the rendered lines rather than the counts
+    made one out of it (repair of landing 2b.10). A column of sixty
+    cells one of which is absent publishes that class as `withheld` at a
+    floor of eleven; its twin writes none and describes itself as `0`;
+    the two lines differ, so the twin was reported MISSED for failing to
+    reproduce a number nobody had told it. Measured on the study's own
+    titled book: twelve misses at a floor of eleven, none at the
+    default floor -- which is why the landing's gate, whose tables are
+    large, never saw it.
+
+    So each published count is compared as a count, and a withheld one
+    is passed over. Both lines are still SHOWN, so a reader sees which
+    entries were withheld and which were met.
+    """
+    shown = _shown_census(_as_counts(published), order)
+    found = _shown_census(measured, order)
+    for key in order:
+        if key not in published:
+            continue
+        wanted = published[key]
+        if wanted is None:
+            continue
+        got: object = None
+        if key in measured:
+            got = measured[key]
+        if isinstance(got, bool) or not isinstance(got, int) or got != wanted:
+            return Check(name, _WORKBOOK_FACT, subcheck, MISSED, shown, found)
+    return Check(name, _WORKBOOK_FACT, subcheck, HELD, shown, found)
+
+
+def _format_code_check(
+    name: str, column: contract.WorkbookColumn, entry: object
+) -> Check:
+    """The code the column's twin wears, where its kind was published.
+
+    THE TWIN CAN ONLY WEAR THE CODE ON CELLS IT WAS TOLD TO WRITE. The
+    code belongs to a kind, and the count of cells wearing that kind is
+    a census entry like any other -- so where the floor held that entry
+    back, the twin writes no cell of the kind, the code appears nowhere
+    in it, and the column describes itself with the general format. That
+    is the twin obeying the disclosure rule, not failing an obligation,
+    and it is WITHHELD here for the same reason the count is.
+    """
+    kind = ""
+    if column.format_code in dialect.SHEET_FORMAT_CODE_KINDS:
+        found = dialect.SHEET_FORMAT_CODE_KINDS[column.format_code]
+        if isinstance(found, str):
+            kind = found
+    wearing: "int | None" = None
+    if kind and kind in column.format_kinds:
+        wearing = column.format_kinds[kind]
+    if kind and wearing is None:
+        return _withheld(
+            name, _WORKBOOK_FACT, "workbook.format-code", _WORKBOOK_HELD_BACK
+        )
+    return _exact(
+        name, _WORKBOOK_FACT, "workbook.format-code",
+        column.format_code,
+        _word_of(entry, "format_code"),
+    )
+
+
+def _sheet_names_check(
+    published: "tuple[str | None, ...]", table: reading.Table
+) -> Check:
+    """The sheet names, against the names the checked file really carries.
+
+    WHY THIS IS NOT AN EXACT COMPARISON OF TWO PUBLISHED LISTS, and the
+    defect that taught it (repair of landing 2b.10). A sheet name that
+    may not be published is published as `null`, and the twin writes
+    that sheet under a NEUTRAL name -- which is a name this version
+    would publish itself, so describing the twin publishes it. Compared
+    list against list, every workbook whose tab is not one of the
+    generic words came back MISSED at exit 3: published `[null,
+    'Sheet2']`, measured `['Sheet1', 'Sheet2']`. The twin had done
+    exactly what the disclosure rule told it to do and was failed for
+    it.
+
+    So the obligation is stated the way it is meant: a published name
+    must be on the sheet it names, and a WITHHELD name must be either
+    withheld still (the person's own file, whose name this version
+    would not publish) or the neutral name a twin writes there, which
+    `dialect.twin_sheet_names` settles for the writer and for this
+    check alike.
+
+    THE MEASURED SIDE IS THE FILE'S OWN RAW NAMES and never reaches the
+    report, which is why this is a silent check: a sheet name can be a
+    person's name, and a quality report travels.
+
+    THE LIMIT, STATED: this measurement cannot tell a twin from the file
+    it was made from, so a twin that wrote a name this version would not
+    publish is indistinguishable here from the real table carrying its
+    own name. What keeps the writer honest is not this check but the
+    gate that reads the twin's own workbook part and asserts no withheld
+    name is in it.
+    """
+    shown = _shown_sheet_names(published)
+    book = table.book
+    if book is None:
+        return _silent(
+            "",
+            _WORKBOOK_FACT,
+            "workbook.sheet-names",
+            shown,
+            False,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+    raw: "list[str]" = []
+    for entry in book.sheets:
+        raw += [entry.name]
+    expected = dialect.twin_sheet_names(published)
+    held = len(raw) == len(published)
+    if held:
+        for index in range(len(published)):
+            name = published[index]
+            found = raw[index]
+            if name is not None:
+                if found != name:
+                    held = False
+                continue
+            if found == expected[index]:
+                continue
+            if dialect.sheet_name_published(found) is None:
+                continue
+            held = False
+    return _silent(
+        "",
+        _WORKBOOK_FACT,
+        "workbook.sheet-names",
+        shown,
+        held,
+        _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+    )
 
 
 def _first_values(table: reading.Table) -> "list[str]":

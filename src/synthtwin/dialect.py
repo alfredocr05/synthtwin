@@ -471,6 +471,47 @@ def neutral_sheet_name(position: int) -> str:
     return SHEET_NEUTRAL_NAME + f"{position}"
 
 
+def twin_sheet_names(published: "tuple[str | None, ...]") -> "tuple[str, ...]":
+    """The name the twin writes each sheet under, from the published list.
+
+    ONE FUNCTION, TWO CALLERS, AND THAT IS THE WHOLE POINT (repair of
+    landing 2b.10). The writer needs a name for every sheet, including
+    the ones whose own name was withheld; the validator needs to know
+    what name a conforming twin would carry there, or it reports a twin
+    MISSED for writing exactly the neutral name the disclosure rule
+    told it to write. Both ask here, so neither can drift from the
+    other.
+
+    A PUBLISHED NAME IS CLAIMED FIRST, which is the defect this rule was
+    measured into. The first writing handed out neutral names in sheet
+    order and appended an underscore on a collision, so a workbook
+    whose first sheet was withheld and whose second was called `Sheet1`
+    wrote `Sheet1` and `Sheet1_` -- renaming the sheet whose name the
+    description PUBLISHES, and failing the published fact. Here the
+    published names are taken before a single placeholder is allocated,
+    and a placeholder walks up until it finds a number no published
+    name has taken.
+    """
+    taken: "dict[str, bool]" = {}
+    for name in published:
+        if name is not None:
+            taken[name] = True
+    out: "list[str]" = []
+    for index in range(len(published)):
+        published_here = published[index]
+        if published_here is not None:
+            out += [published_here]
+            continue
+        number = index + 1
+        neutral = neutral_sheet_name(number)
+        while neutral in taken:
+            number = number + 1
+            neutral = neutral_sheet_name(number)
+        taken[neutral] = True
+        out += [neutral]
+    return tuple(out)
+
+
 MAXIMUM_ENDING_RUNS = 64
 MAXIMUM_BLANK_PLACES = 64
 MAXIMUM_PREAMBLE_LINES = 16
@@ -1618,6 +1659,19 @@ def named_columns(header: "tuple[str, ...]") -> "tuple[str, ...]":
     the next number instead. That is what pandas names the same columns
     in the common cases, so code written against the twin's names reads
     the real table's.
+
+    WHAT THE SUFFIX SEARCH COSTS, and why it is written this way
+    (review item CODEX-16; repair of landing 2b.10). A header repeating
+    one name n times used to restart its search at `.1` every time, so
+    naming n columns did work proportional to n squared: 1,000 repeated
+    names took 0.035 s and 8,000 took 2.45 s on the machine this was
+    measured on. The next free number per base name is REMEMBERED here
+    instead, which is sound because a name once taken is never given
+    up, so the search can only ever move forward. The names produced
+    are identical -- the search resumes where it stopped rather than
+    landing somewhere else -- and a workbook header, which may be
+    16,384 columns wide, no longer reaches a quadratic path from a
+    file.
     """
     written: dict[str, bool] = {}
     for cell in header:
@@ -1626,17 +1680,19 @@ def named_columns(header: "tuple[str, ...]") -> "tuple[str, ...]":
             written[found] = True
     taken: dict[str, bool] = {}
     named: list[str] = []
+    following: dict[str, int] = {}
     for index in range(len(header)):
         cell = _text(header[index])
         base = cell if parsing.trimmed(cell) else f"Unnamed: {index}"
         name = base
         own = parsing.trimmed(cell) and base == cell
         if name in taken or (not own and name in written):
-            count = 1
+            count = following[base] if base in following else 1
             name = f"{base}.{count}"
             while name in taken or name in written:
                 count = count + 1
                 name = f"{base}.{count}"
+            following[base] = count + 1
         taken[name] = True
         named += [name]
     return tuple(named)

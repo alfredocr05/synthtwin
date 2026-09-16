@@ -778,7 +778,7 @@ rule and what it does and does not withhold on a workbook.
 | `date_system` | string | `1900`, `1904` | which epoch the workbook counts its dates from; the 1904 system shifts every date by 1,462 days |
 | `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
 | `defined_table` | boolean | — | the sheet carries a defined table |
-| `empty_rows_inside` | integer | ≥ 0 | records holding nothing in every cell, standing inside the table |
+| `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the smallest group held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held to the smallest group exactly as a census is (WB3): one such record names the row that holds it, and one short of the whole names the row that does not |
 | `frozen_rows` | integer | ≥ 0 | how many rows are frozen at the top of the sheet |
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
 | `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
@@ -813,15 +813,38 @@ written back, so what is recorded is what the file holds.
 
 **Invariants WB1-WB6** (`contract.INVARIANTS`): WB1 one column census
 per column; WB2 the sheet the table was read from is one the workbook
-has, counted from one; WB3 every published count of cells is nought, or
-all of them, or clears the smallest group at both ends, so that neither
-the count nor its complement names one row; WB4 the rows above the
-header, the records holding nothing inside the table and the formatted
-blanks beyond it are each no more than the table itself holds; WB5 a
-workbook names one sheet for every sheet it has, and every name it
-publishes is one this version would publish itself; WB6 the number
-format a column's twin wears is one of the published codes, and its kind
-is one the column's own census does not say no cell wears.
+has, counted from one; WB3 every published count of cells, and the count
+of records holding nothing, is nought, or all of them, or clears the
+smallest group at both ends, so that neither the count nor its
+complement names one row; WB4 the records holding nothing inside the
+table are no more than the table itself holds, and no more rows are
+frozen than the sheet has; WB5 a workbook names one sheet for every
+sheet it has, and every name it publishes is one this version would
+publish itself; WB6 the number format a column's twin wears is one of
+the published codes, and its kind is one the column's own census does
+not say no cell wears.
+
+**Which counts the smallest group holds, and which it does not.** Every
+per-column census, and `empty_rows_inside`, count ROWS OF THE TABLE, so
+each is held to the floor and published as `null` where it would name
+one row (WB3). The layout counts are exempt and each for the same
+reason: `rows_above_header`, `trailing_blank_rows`,
+`trailing_blank_columns`, `frozen_rows`, `defined_names`, `sheet_count`
+and `sheet_position` count the SHEET'S FURNITURE and not its records --
+one title row, one frozen row, one column of formatted blanks beyond
+the last, one defined name. None of them is a row of anybody's data, so
+publishing a count of one names nobody. The earlier wording of this
+section and of `workbook.py` claimed every count was floored while five
+were published raw; the claim is now the exact list above.
+
+**A published nought and a withheld count are different facts.** A
+count of `0` says no cell of that class is in the column; `null` says
+the number was not published. Both the writer and the validator read
+them apart: the twin never writes a cell of a class published as
+nought, and never writes a format code whose kind was withheld, while
+a withheld count is one the checked file is not held to at all. The
+validation method states which facts of this block a twin cannot be held
+to, and why each is withheld rather than measured.
 
 **What it discloses, and what it refuses to.** Every key above
 describes the FILE. The facts of a workbook that name or measure one

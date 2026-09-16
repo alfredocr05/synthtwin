@@ -88,19 +88,38 @@ _COMPOUND_MARK = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 # exist rather than numbers of this package's own invention.
 MAXIMUM_ROWS = 1_048_576
 MAXIMUM_COLUMNS = 16_384
-MAXIMUM_EXPANDED_BYTES = 256_000_000
+MAXIMUM_EXPANDED_BYTES = 128_000_000
 MAXIMUM_MEMBER_RATIO = 200
-MAXIMUM_SHARED_STRINGS = 4_000_000
+MAXIMUM_SHARED_STRINGS = 1_000_000
 MAXIMUM_CELL_CHARACTERS = 32_767
 MAXIMUM_MEMBERS = 4_096
-# THE CAP THAT BOUNDS THE WORK ITSELF. The measured zip bomb passes
-# every size cap honestly -- 5.2 megabytes packing to 46, a ratio of
-# under nine -- and spends it all on one sheet of a million styled rows.
-# Nothing about its SIZE is unusual; what is unusual is how many cells
-# that size buys. This is the cap that answers it, and it is set above
-# any table a person describes: four million cells is a table of two
-# hundred thousand rows by twenty columns.
-MAXIMUM_CELLS = 4_000_000
+# THE CAP THAT BOUNDS THE WORK ITSELF, AND THE MEASUREMENT IT IS SET
+# FROM (repair of landing 2b.10).
+#
+# The measured zip bomb passes every SIZE cap honestly -- 5.2 megabytes
+# packing to 46, a ratio of under nine, its million rows sitting at
+# exactly Excel's own maximum -- and spends it all on one sheet of a
+# million styled cells. Nothing about its size is unusual; what is
+# unusual is how many cells that size buys, so the cell count is what
+# has to be capped.
+#
+# THE FIRST WRITING OF THIS CAP WAS A GUESS AND THE GUESS WAS WRONG. It
+# stood at four million cells, and a review measured what that costs: a
+# legal 13-megabyte package of three million cells took 172 seconds and
+# 1.78 gigabytes of peak resident memory, so a file sitting at the cap
+# would have cost something like 2.4 gigabytes and four minutes. A cap
+# that admits that is not a bound on anything.
+#
+# What a cell actually costs was then measured rather than reasoned
+# about: 1,048,708 cells read in 4.3 seconds at 632 megabytes of
+# maximum resident set size, which is about 600 bytes a cell (the cell
+# itself, its place in the sheet's index, and its column's four
+# per-cell lists). One million cells is therefore about 600 megabytes
+# and a few seconds, and that is where the cap sits. A table of fifty
+# thousand rows by twenty columns clears it; the study's bomb does NOT,
+# and is refused by this cap rather than read -- which is what the
+# earlier report of this landing claimed and had not measured.
+MAXIMUM_CELLS = 1_000_000
 
 
 def kind_of(data: bytes) -> str:
@@ -406,9 +425,17 @@ FORMAT_TEXT = dialect.SHEET_FORMAT_TEXT
 FORMAT_KINDS = dialect.SHEET_FORMAT_KINDS
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Cell:
     """One cell, exactly as the file holds it.
+
+    WHY THIS ONE CARRIES SLOTS AND THE OTHERS DO NOT (repair of landing
+    2b.10). A sheet holds one of these per cell and nothing else in this
+    package is allocated a million times, so the per-instance dictionary
+    an ordinary object carries is the whole of the reader's memory cost
+    at the caps. Removing it is what let the cell cap be set from a
+    measurement rather than from hope; the figures are in the caps'
+    own comment above.
 
     ``text`` is the cell's own characters for text, the stored number's
     own spelling for a number, the kind for an error and the word for a
@@ -1267,7 +1294,19 @@ def table_of(reading: Reading) -> Sheet:
         rows_above = rows_above + 1
     if not header_row:
         header_row = content_rows[0]
-        rows_above = 0
+    # EVERY ROW ABOVE THE HEADER, AND NOT ONLY THE ROWS OF CONTENT
+    # (repair of landing 2b.10). The count published here is what the
+    # twin writes above its own header, so a row the source had and
+    # this count leaves out is a row the twin does not have. The walk
+    # above steps over rows of CONTENT, which is what finds the header;
+    # a blank row between a title and the header is not content and was
+    # not counted, and the twin came up short by exactly those rows.
+    # Measured on the study's titled book: pandas read 15 rows from the
+    # source and 13 from its twin, while synthtwin's own row count was
+    # 12 on both -- a reader seeing a different table, with every
+    # published fact holding. The header's own row number IS how many
+    # rows stand above it, whatever each of them holds.
+    rows_above = header_row - 1
     header_cells: "list[str]" = []
     for place in range(first_column, last_column + 1):
         if place in held[header_row]:
@@ -1348,9 +1387,31 @@ def table_of(reading: Reading) -> Sheet:
 # real values. The sheet is published by its POSITION and the person is
 # told on their own screen which sheet was read.
 #
-# Every count here is held to the smallest group: a count is published
-# only where it is nothing at all, everything, or far enough from both
-# ends that neither it nor its complement names one row.
+# WHICH COUNTS ARE HELD TO THE SMALLEST GROUP, AND WHICH ARE NOT, said
+# exactly rather than in general (repair of landing 2b.10; the comment
+# here read "every count" while five of them were published raw, a count
+# of one among them).
+#
+# HELD, through `floored`: every per-column census, and
+# `empty_rows_inside`. What these count is ROWS OF THE TABLE -- a row
+# per person, in most tables anyone brings here -- so a count of one
+# names the row that holds it and a count one short of the whole names
+# the row that does not. That is the twin's third clause and contract
+# WB3 is its executable form.
+#
+# NOT HELD, and each for the same stated reason: `rows_above_header`,
+# `trailing_blank_rows`, `trailing_blank_columns`, `frozen_rows`,
+# `defined_names`, `sheet_count` and `sheet_position` count the SHEET'S
+# FURNITURE and not the table's records. One title row above a header,
+# one frozen row, one column of formatted blanks beyond the last column
+# and one defined name are facts about how somebody laid a sheet out;
+# none of them is a row of data, so no person is named or counted by
+# publishing one of them, and the twin cannot be written without them.
+# A count of these is not a count of anybody.
+#
+# `sheet_names` is neither: a name is published only when it is one this
+# version would write itself, which the publication guard settles, and
+# withheld otherwise.
 
 WORKBOOK_KEYS = dialect.SHEET_KEYS
 
@@ -1530,7 +1591,13 @@ def document_of(
         ),
         "defined_names": reading.defined_names,
         "defined_table": bool(reading.table_names),
-        "empty_rows_inside": sheet.empty_rows_inside,
+        # HELD TO THE SMALLEST GROUP LIKE EVERY OTHER COUNT OF RECORDS
+        # (repair of landing 2b.10). This one counts ROWS OF THE TABLE:
+        # "exactly one record here holds nothing" names that record, and
+        # "all but one" names the record that does not, which is what
+        # the twin's third clause forbids. The layout counts below are
+        # exempt and say why in the comment above WORKBOOK_KEYS.
+        "empty_rows_inside": floored(sheet.empty_rows_inside, sheet.n_rows, floor),
         "frozen_rows": reading.frozen_rows,
         "macro_project": reading.has_macro_project,
         "rows_above_header": sheet.rows_above,
