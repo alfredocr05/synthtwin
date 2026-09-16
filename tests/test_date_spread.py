@@ -650,7 +650,7 @@ def test_a_column_beside_the_dates_is_untouched_by_this_rule(
 
     Each rank that is not pinned draws exactly one word and a pinned
     rank draws none, and the BUDGET is unchanged either way: the column
-    is handed `P - 2` content words and the pins leave up to eleven of
+    is handed `P - 2` content words and the pins leave up to NINE of
     them unread, so a column of dates consumes exactly the allocation it
     always consumed. (The repair pass of landing 2b.6 amended this
     paragraph: it said a pinned rank draws its word and discards it, and
@@ -795,3 +795,84 @@ def test_the_measured_word_spend_of_a_four_hundred_row_column() -> None:
     generation._spread_ordinals(ladder, 400, words)
     assert len(set(generation._ordinal_pins(ladder, 400))) == 11
     assert words.high + 1 == 389, words.high + 1
+
+
+@pytest.mark.parametrize(
+    "parsed", [2, 3, 5, 11, 12, 13, 20, 60, 101, 240, 400, 401, 1500, 3000]
+)
+def test_the_pins_leave_at_most_nine_words_unread(parsed: int) -> None:
+    """THE NUMBER THE AMENDED SENTENCE ITSELF CARRIED WAS WRONG.
+
+    Landing 2b.14 rewrote the word-spend rule in five places and every
+    one of them went on to say that the pins leave `up to eleven` of
+    the handed words unread. The ceiling is NINE, and the code says so
+    twice over: the published tail pins AT MOST ELEVEN RANKS -- the two
+    ends and the nine interior rungs -- and neither end is ever drawn
+    for, so the surplus a column leaves unread is the number of
+    DISTINCT pinned ranks less two.
+
+    Measured across the fourteen sizes below, the surplus runs 0, 1, 3,
+    5, 6, 6, 6, 8 and then 9 from a hundred and one rows upward. It
+    never reaches ten, at any size.
+
+    This is the same class of defect the landing exists to close -- a
+    written sentence that does not follow the code -- carried this time
+    by the correction itself, which is why the ceiling is pinned here
+    as a number rather than left to arithmetic that no reader checks.
+    """
+    from synthtwin import generation
+
+    span = 365
+    ladder = (
+        [0]
+        + [round(span * percent / 100) for percent in INTERIOR]
+        + [span]
+    )
+    handed = max(parsed - 2, 0)
+    words = _WordSpy(range(1, handed + 1))
+    generation._spread_ordinals(ladder, parsed, words)
+    pins = generation._ordinal_pins(ladder, parsed)
+    read = words.high + 1
+    unread = handed - read
+    # WHERE THE ELEVEN COMES FROM, so a ladder that grew a rung cannot
+    # leave this ceiling standing.
+    assert len(generation._PCT) == 11, len(generation._PCT)
+    assert len(set(pins)) <= 11, (
+        f"{len(set(pins))} ranks pinned at {parsed} rows: the tail pins "
+        f"the two ends and the nine interior rungs and no more"
+    )
+    # THE CEILING ITSELF.
+    assert unread <= 9, (
+        f"{unread} of the {handed} words handed to a {parsed}-row column "
+        f"were left unread; the documents say at most nine"
+    )
+    assert unread == max(len(set(pins)) - 2, 0), (
+        f"{unread} unread against {len(set(pins))} distinct pins: the "
+        f"surplus is the pinned ranks less the two ends"
+    )
+
+
+def test_the_ceiling_of_nine_is_reached_and_not_merely_respected() -> None:
+    """A ceiling nothing reaches would be met by a column pinning none.
+
+    At a hundred and one rows and upward all eleven pinned ranks are
+    distinct, so the surplus stands at exactly nine -- the number the
+    method, the plan, the generator, the oracle and the gate all now
+    carry.
+    """
+    from synthtwin import generation
+
+    span = 365
+    ladder = (
+        [0]
+        + [round(span * percent / 100) for percent in INTERIOR]
+        + [span]
+    )
+    reached: "list[int]" = []
+    for parsed in (101, 400, 1500, 3000):
+        handed = parsed - 2
+        words = _WordSpy(range(1, handed + 1))
+        generation._spread_ordinals(ladder, parsed, words)
+        reached += [handed - (words.high + 1)]
+        assert len(set(generation._ordinal_pins(ladder, parsed))) == 11
+    assert reached == [9, 9, 9, 9], reached

@@ -4764,7 +4764,7 @@ def spread_ordinals(rungs, parsed, words):
 
     ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE, taken in
     rank order.  The budget is unchanged -- the column is handed `P - 2`
-    content words and the pins leave up to eleven of them unread -- so
+    content words and the pins leave up to nine of them unread -- so
     the shared stream stays in step and no column after a column of
     dates moves.  (The repair pass of landing 2b.6 amended this
     paragraph, which had said that a pinned rank draws its word and

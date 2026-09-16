@@ -14124,7 +14124,7 @@ def _spread_ordinals(
 
     THE BUDGET IS UNCHANGED, which is what keeps the shared stream in
     step. `_plan_column` hands this column `P - 2` content words
-    whatever is done with them, and the pins leave up to eleven of them
+    whatever is done with them, and the pins leave up to nine of them
     unread; a word this column does not read is not a word another
     column takes, so a column of dates consumes exactly the allocation
     it always consumed and no column generated after it moves.

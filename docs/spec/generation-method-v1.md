@@ -3659,7 +3659,7 @@ one gap take consecutive words and the next gap continues where the
 last one stopped.
 
 **The budget is unchanged: `P - 2` content words** (`_plan_column`), of
-which the pins leave up to eleven unread. That is what keeps the shared
+which the pins leave up to nine unread. That is what keeps the shared
 stream in step — a column is HANDED its budget before it is built, and a
 word it does not read is not a word another column takes — so a column
 of dates consumes exactly the allocation it always consumed and no
@@ -3677,6 +3677,19 @@ generator and in the oracle alike; writing the other rule here left an
 implementer who followed the document handing different words to
 different ranks, and every committed date vector would have moved for
 nothing.
+
+*Amended again by the repair pass of landing 2b.14, which measured the
+number this paragraph had just been corrected to carry.* It said the
+pins leave up to ELEVEN of the handed words unread. The ceiling is
+NINE. The tail pins at most eleven RANKS -- the two ends and the nine
+interior rungs -- and neither end is ever drawn for, so the surplus a
+column leaves unread is the number of DISTINCT pinned ranks less two.
+Measured over fourteen column sizes from two rows to ten thousand, the
+surplus runs 0, 1, 3, 5, 6, 6, 6, 8 and then 9 from a hundred and one
+rows upward, and reaches ten at no size. The ceiling is pinned as a
+number in `tests/test_date_spread.py`, together with the eleven it
+comes from, so a later ladder that grows a rung cannot leave the
+sentence standing.
 
 WHY THE STRATIFIED PLACEMENT WAS WITHDRAWN. Each rank used to be its own
 stratum, interpolated inside the band from `r / P` to `(r + 1) / P`, so
