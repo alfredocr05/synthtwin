@@ -6312,6 +6312,19 @@ def _workbook_checks(
     # The names, against what the file's own sheets are really called.
     checks += [_sheet_names_check(form.sheet_names, table)]
 
+    # WHAT EVERY OTHER SHEET HOLDS (plan P4-D82). The twin writes a sheet
+    # of the published shape, so this is an obligation like every other
+    # fact of the block: a twin that wrote those sheets empty -- which is
+    # what the writer did until this landing -- hands a reader a
+    # different workbook, and the report has to say so.
+    checks += [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.sheet-extents",
+            _shown_extents(form.sheet_extents),
+            _shown_extents(_extents_of(block)),
+        )
+    ]
+
     # THE HIDDEN STATE IS AN OBLIGATION NOW, because the twin carries it:
     # the writer hides every sheet standing before the table's, so that
     # the twin's own reading rule -- the first VISIBLE sheet -- lands on
@@ -6401,6 +6414,49 @@ def _as_counts(counts: "dict[str, int | None]") -> "dict[str, object]":
     for key in counts:
         out[key] = counts[key]
     return out
+
+
+def _shown_extents(extents: "tuple[tuple[int, int] | None, ...]") -> str:
+    """The block of cells each sheet holds, as the report states it.
+
+    Counts of a sheet's own furniture, so they are printed: no value, no
+    name and no text of those sheets is published anywhere.
+    """
+    text = ""
+    for index in range(len(extents)):
+        held = extents[index]
+        if held is None:
+            said = f"sheet {index + 1}: the table's own"
+        else:
+            said = (
+                f"sheet {index + 1}: {held[0]} row(s) by {held[1]} column(s)"
+            )
+        text = said if not text else f"{text}; {said}"
+    if not text:
+        return "no sheets"
+    return text
+
+
+def _extents_of(block: object) -> "tuple[tuple[int, int] | None, ...]":
+    """The blocks of cells a re-described workbook block records."""
+    if not isinstance(block, dict) or "sheet_extents" not in block:
+        return ()
+    found = block["sheet_extents"]
+    if not isinstance(found, list):
+        return ()
+    out: "list[tuple[int, int] | None]" = []
+    for item in found:
+        if not isinstance(item, dict):
+            out += [None]
+            continue
+        rows = item["rows"] if "rows" in item else 0
+        columns = item["columns"] if "columns" in item else 0
+        if isinstance(rows, bool) or not isinstance(rows, int):
+            rows = 0
+        if isinstance(columns, bool) or not isinstance(columns, int):
+            columns = 0
+        out += [(rows, columns)]
+    return tuple(out)
 
 
 def _whole_of(block: object, key: str) -> int:
@@ -12218,6 +12274,67 @@ def _written_with_a_leading_minus(body: str) -> str:
     return body
 
 
+_EXACT_WHOLE_CEILING = 1 << 53
+
+
+def _figures_only(body: str) -> bool:
+    """Whether the text is an optional minus and then ASCII digits alone."""
+    rest = body
+    if rest[:1] == "-":
+        rest = rest[1:]
+    if not rest:
+        return False
+    for character in rest:
+        place = ord(character)
+        if place < 48 or place > 57:
+            return False
+    return True
+
+
+def _digits_this_format_cannot_tell_apart(body: str, value: float) -> bool:
+    """Whether a whole numeral is a spelling of ``value`` in this format.
+
+    THE NAMED LIMIT OF LANDING 2b.10, CLOSED HERE. A real file must
+    always meet its own description, and a real column of whole numbers
+    past 2**53 did not. Binary64 holds no such number exactly, so a cell
+    written `9007199254740993` READS BACK as 9007199254740992.0, whose
+    canonical spelling is `9007199254740992` -- and the cell's own digits
+    are then in none of the six forms of the value the format handed
+    back. The file was reported MISSED for writing the number the person
+    actually wrote. Measured on the same 300 values as delimited text and
+    as a workbook: exit 3 on both, on the REAL file, `styles.spelled`.
+
+    So a whole numeral whose figures this format cannot tell apart from
+    the published value's IS one of that value's spellings. The clause is
+    narrow on purpose, because the subcheck has to go on failing for
+    everything else:
+
+    * the text is figures alone after an optional minus -- no point, no
+      exponent, no grouping mark -- so no other style's rules are
+      loosened by it and a width census still binds every decimal cell;
+    * it must read back as EXACTLY this value, so a numeral naming a
+      different number is still outside the styles: `9007199254740000` is
+      a different binary64 and is counted exactly as it was before;
+    * and the value is at or above 2**53, the first whole number binary64
+      cannot hold exactly, so nothing below that boundary is admitted.
+
+    WHAT THIS DOES NOT CLAIM. The twin of such a column still writes the
+    canonical `9007199254740992`, because the description carries the
+    value the format read and not the digits the person typed. That is a
+    generation limit past 2**53 and it is named as one; this rule is
+    about the obligation, which was asking a real file for a spelling of
+    a number its own cells never held.
+    """
+    if not _figures_only(body):
+        return False
+    if value != float(int(value)):
+        return False
+    size = value if value >= 0 else -value
+    if size < _EXACT_WHOLE_CEILING:
+        return False
+    return parsing.parse_number(body) == value
+
+
 def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
@@ -12275,6 +12392,12 @@ def _cells_outside_the_styles(
         for spelling in _permitted_spellings(value, whole_column, widths, offered):
             if _wears(signed, spelling):
                 worn = True
+        # A WHOLE NUMERAL PAST 2**53 IS A SPELLING OF THE VALUE THIS
+        # FORMAT READ IT AS. The rule and the measurement behind it are
+        # in `_digits_this_format_cannot_tell_apart`; without it a real
+        # table of such numbers failed its own description.
+        if not worn and _digits_this_format_cannot_tell_apart(signed, value):
+            worn = True
         if not worn:
             outside = outside + 1
     return outside

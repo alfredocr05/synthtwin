@@ -879,6 +879,15 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # every other name is withheld and written neutral.
     ("source", "workbook", "sheet_names"): _ARRAY,
     ("source", "workbook", "sheet_names", _EACH): _SHEET_NAME,
+    # HOW MUCH ROOM EVERY OTHER SHEET'S CELLS TAKE, and nothing about
+    # what they held (plan P4-D82). Two counts of the sheet's own
+    # furniture, in the same sense as the rows above a header: no value,
+    # no name and no text of that sheet is published or written, and the
+    # sheet the table was read from publishes nothing here at all.
+    ("source", "workbook", "sheet_extents"): _ARRAY,
+    ("source", "workbook", "sheet_extents", _EACH): _MAYBE_OBJECT,
+    ("source", "workbook", "sheet_extents", _EACH, "columns"): _COUNT,
+    ("source", "workbook", "sheet_extents", _EACH, "rows"): _COUNT,
     ("source", "workbook", "sheet_position"): _COUNT,
     ("source", "workbook", "trailing_blank_columns"): _COUNT,
     ("source", "workbook", "trailing_blank_rows"): _COUNT,

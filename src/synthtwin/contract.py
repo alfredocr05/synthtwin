@@ -999,6 +999,13 @@ INVARIANTS = {
         "this version publishes, and its kind is one the column's own "
         "census does not say no cell wears"
     ),
+    "WB7": (
+        "a workbook describes the block of cells held by every sheet "
+        "that is not the table's, and none for the sheet the table was "
+        "read from; a block is nought by nought or reaches at most one "
+        "row or at most one column, because a block of two rows and two "
+        "columns is a table this description does not carry"
+    ),
     # THE FIRST WB5 AND WB6 WERE WRITTEN AND TAKEN OUT AGAIN, and the reason
     # is worth keeping. One said that a column's cell classes are the
     # closed set and its format kinds the named kinds; the other that a
@@ -3784,6 +3791,10 @@ class WorkbookForm:
     # One entry per sheet in workbook order: the name where it may be
     # published, or None where it was withheld (plan P4-D79).
     sheet_names: "tuple[str | None, ...]"
+    # One entry per sheet in workbook order: the block of cells a sheet
+    # that is not the table's holds, as (rows, columns), and None for the
+    # sheet the table was read from (plan P4-D82).
+    sheet_extents: "tuple[tuple[int, int] | None, ...]"
     sheet_position: int
     trailing_blank_columns: int
     trailing_blank_rows: int
@@ -3833,6 +3844,35 @@ def _sheet_names(value: object, where: str) -> "tuple[str | None, ...]":
                 "a name this version would publish itself",
             )
         out += [name]
+    return tuple(out)
+
+
+_SHEET_EXTENT_KEYS = ("columns", "rows")
+
+
+def _sheet_extents(
+    value: object, where: str
+) -> "tuple[tuple[int, int] | None, ...]":
+    """The block of cells each sheet that is not the table's holds.
+
+    `null` for the sheet the table was read from, whose own facts
+    describe it, and a block of two whole numbers for every other sheet
+    (plan P4-D82). What the block may be is WB7's rule, checked with the
+    other workbook invariants once the sheet count is known.
+    """
+    out: "list[tuple[int, int] | None]" = []
+    for item in _listing(value, "sheet_extents", where):
+        if item is None:
+            out += [None]
+            continue
+        entry = _mapping(item, "sheet_extents", where)
+        _keys(entry, where, _SHEET_EXTENT_KEYS, "a sheet's block of cells")
+        out += [
+            (
+                _whole(entry["rows"], "rows", where, 0),
+                _whole(entry["columns"], "columns", where, 0),
+            )
+        ]
     return tuple(out)
 
 
@@ -3894,6 +3934,7 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
         sheet_count=_whole(mapping["sheet_count"], "sheet_count", where, 1),
         sheet_hidden=_truth(mapping["sheet_hidden"], "sheet_hidden", where),
         sheet_names=_sheet_names(mapping["sheet_names"], where),
+        sheet_extents=_sheet_extents(mapping["sheet_extents"], where),
         sheet_position=_whole(
             mapping["sheet_position"], "sheet_position", where, 1
         ),
@@ -3975,6 +4016,50 @@ def _workbook_rules(
                 "WB5", where,
                 f"a sheet is named '{name}'",
                 "a name this version would publish itself",
+            )
+    # WHAT EVERY OTHER SHEET HOLDS (WB7, plan P4-D82). The twin writes
+    # each such sheet with a block of this shape, so a description that
+    # named a block for the table's own sheet, left one out, or asked
+    # for a block two rows by two columns -- a table this description
+    # does not carry -- would put a workbook on disk that no reading of
+    # the person's file could have produced.
+    if len(form.sheet_extents) != form.sheet_count:
+        raise _broken(
+            "WB7", where,
+            f"the workbook describes the cells of "
+            f"{len(form.sheet_extents)} sheets",
+            f"it has {form.sheet_count}",
+        )
+    for index in range(len(form.sheet_extents)):
+        extent = form.sheet_extents[index]
+        if index + 1 == form.sheet_position:
+            if extent is not None:
+                raise _broken(
+                    "WB7", where,
+                    "the sheet the table was read from describes a block "
+                    "of cells of its own",
+                    "the table's own facts, which describe that sheet",
+                )
+            continue
+        if extent is None:
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} describes no block of cells",
+                "one for every sheet that is not the table's",
+            )
+        if extent[0] >= 2 and extent[1] >= 2:
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} holds {extent[0]} rows and "
+                f"{extent[1]} columns of cells",
+                "a block of at most one row or at most one column",
+            )
+        if (extent[0] == 0) != (extent[1] == 0):
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} holds {extent[0]} rows and "
+                f"{extent[1]} columns of cells",
+                "both nought, or both more than nought",
             )
     if n_rows:
         for column in form.columns:

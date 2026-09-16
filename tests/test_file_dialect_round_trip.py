@@ -1302,6 +1302,77 @@ def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
     assert "rows.order" in _missed(tmp_path / "ordered-empties-shuffled", ordered, shuffled)
 
 
+def test_whole_numbers_past_the_exact_range_meet_their_own_description(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A real column of whole numbers past 2**53 validates at exit 0.
+
+    THE NAMED LIMIT OF LANDING 2b.10, CLOSED. A real file must always
+    meet its own description, and this one did not: binary64 holds no
+    whole number past 2**53 exactly, so a cell written
+    `9007199254740993` reads back as 9007199254740992.0, and the six
+    permitted spellings are computed from THAT value -- so the file was
+    reported MISSED on `styles.spelled` for writing the number the
+    person actually typed. Measured at exit 3 here and on the same
+    values as a workbook.
+
+    The control below is the other half, and it is why the repair is
+    narrow: a cell that is a number of a DIFFERENT shape is still
+    outside the published styles, so the subcheck can still fail.
+    """
+    amounts = [f"{9007199254740993 + (index % 7)}" for index in range(ROWS)]
+    lines = [f"P{index + 1:04d},{amounts[index]}" for index in range(ROWS)]
+    text = "\n".join(["record_id,amount"] + lines) + "\n"
+    result = _round_trip(tmp_path / "wide", text.encode())
+    assert result["exits"]["real"] == 0, result["exits"]
+
+    # THE CONTROL: the same description, and a file whose amounts carry a
+    # point that no published width names. Still MISSED.
+    described = _describe(tmp_path / "wide-again", text.encode())
+    pointed = "\n".join(
+        ["record_id,amount"]
+        + [f"P{index + 1:04d},{amounts[index]}.5" for index in range(ROWS)]
+    ) + "\n"
+    assert "styles.spelled" in _missed(
+        tmp_path / "wide-pointed", described, pointed.encode()
+    )
+
+
+def test_the_workbook_withholding_never_swallows_a_delimited_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V6.2-A2 withholds the byte rules on a WORKBOOK description alone.
+
+    The withholding exists because a package of markup answers none of
+    the rules that describe how a DELIMITED file is written. Nothing
+    proved it could not also swallow a real miss on a delimited file,
+    which is the failure it would be: every byte rule reported WITHHELD
+    instead of MISSED, and a twin written the wrong way passing.
+
+    So this measures both halves on delimited text: the rule FAILS on a
+    file that breaks it, and no rule of the written form is withheld
+    there at all. Mutation-checked by opening the workbook gate on a
+    delimited description, which turns this test red.
+    """
+    rows = _people(43)
+    header = "record_id,age,arm,site,reading"
+    crlf = ("\r\n".join([header] + _lines(rows)) + "\r\n").encode()
+    plain = ("\n".join([header] + _lines(rows)) + "\n").encode()
+    described = _describe(tmp_path / "crlf", crlf)
+    missed = _missed(tmp_path / "crlf-plain", described, plain)
+    assert "bytes.line-endings" in missed, missed
+
+    report = (
+        tmp_path / "crlf-plain" / "checked" / "other-quality.txt"
+    ).read_text(encoding="utf-8")
+    withheld = [
+        line.strip()
+        for line in report.split("\n")
+        if line.strip().endswith(": WITHHELD") and "bytes." in line
+    ]
+    assert not withheld, withheld[:5]
+
+
 def test_the_summary_names_the_lines_before_the_names(
     tmp_path: pathlib.Path,
 ) -> None:

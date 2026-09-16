@@ -2179,6 +2179,34 @@ line endings, the final newline and the mark about every file.
 **V6.3 The numeric-style identity** is contract 7.5.7's, clause by
 clause, with each published count a floor.
 
+**V6.3-A1 A whole numeral this format cannot hold exactly is a spelling
+of the value it reads back as** (2026-09-16, landing 2b.11, contract
+C6-86). The six permitted spellings of a cell are computed from the
+VALUE that cell reads back as, and past 2**53 that value is not the
+numeral the person wrote: `9007199254740993` reads back as
+9007199254740992.0, whose spellings are the six forms of ...992. So a
+real register of long whole numbers was reported MISSED on
+`styles.spelled` for holding exactly the digits its owner typed — the
+file could not meet its own description by any writing of itself, which
+V1.2 forbids of a real file. Measured at exit 3 on 300 such rows as
+delimited text and again as a workbook.
+
+A cell is therefore in a permitted spelling of its value when its text
+is FIGURES ALONE after an optional minus, it reads back as exactly that
+value, and the value is at or above 2**53, the first whole number this
+format cannot hold exactly. The clause is narrow so that the subcheck
+can still fail, and each condition is one of the ways it still does: a
+point, an exponent or a grouping mark takes a cell outside it (a
+fraction width the census does not name is MISSED as before), and a
+numeral naming a different value is outside it whatever its width.
+
+**What this does not say.** The twin of such a column still writes the
+canonical figures, because the description carries the value the format
+read and not the digits that were typed. That is a limit of generation
+past 2**53 and is named as one; this clause is about the obligation,
+which was asking a real file for a spelling of a number its own cells
+never held.
+
 **V6.4 The degenerate zero-row forms** (Phase 3 plan owner decision 7).
 A zero-row profile whose names were generated expects exactly zero
 bytes; one whose names came from the file expects the header line and

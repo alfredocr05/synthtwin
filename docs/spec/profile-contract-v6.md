@@ -787,7 +787,7 @@ written stands in `written_names` to be written back.
 ### 4.3b EXACT-CONTROL: `source.workbook`, how a workbook holds the table
 
 Plan P4-D77, extended by P4-D79. `null` where the table was read from
-delimited text. Otherwise an object with exactly these fifteen keys, all
+delimited text. Otherwise an object with exactly these sixteen keys, all
 REQUIRED; the loader is the executable statement of every rule below
 (`contract._workbook_block`, `contract._workbook_rules`).
 
@@ -809,6 +809,7 @@ rule and what it does and does not withhold on a workbook.
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
 | `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
+| `sheet_extents` | array of object-or-`null` | one per sheet, in workbook order | the block of cells each sheet that is NOT the table's holds, as `{rows, columns}` counted from the first cell, and `null` for the sheet the table was read from, whose own facts describe it. A sheet holding nothing is `0` by `0`. The twin writes a sheet of that shape carrying one word of synthtwin's own in every cell (WB7) |
 | `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
 | `sheet_names` | array of string-or-`null` | one per sheet, in workbook order | each sheet's name where it may be published, `null` where it was WITHHELD. A name may be published only when it is one this version would publish itself -- one of `dialect.SHEET_SAFE_NAMES`, optionally followed by figures -- because a sheet name can hold a person's name. A withheld sheet is written under a neutral name |
 | `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order |
@@ -837,7 +838,28 @@ are three things in the file and one missing value to pandas. A
 description that recorded what a reader made of a cell could not be
 written back, so what is recorded is what the file holds.
 
-**Invariants WB1-WB6** (`contract.INVARIANTS`): WB1 one column census
+**A sheet that is not the table's, and the one workbook that is
+refused** (plan P4-D82). A twin used to write every other sheet EMPTY,
+and a reader then met a different workbook: measured with pandas, the
+default sheet of a book whose first sheet is a notes page reads back as
+one column and no rows on the real file and as nothing at all on the
+twin. The person's own text may not be written back, and cells holding
+the empty string change nothing — every reader folds those into a
+missing value and trims the frame away again, measured as the same
+nothing. So `sheet_extents` publishes how much ROOM each such sheet's
+cells take and the twin writes a block of that shape carrying one word
+of synthtwin's own, which is the most a twin may hold of a sheet this
+description does not describe.
+
+A sheet holding a TABLE cannot be carried that way at all: its values
+are somebody's rows, so a twin would hand a reader a frame of withheld
+cells where a table stood, and statistics taken from it would be false
+while the file still opened. Such a workbook is REFUSED, in a sentence
+naming that sheet and asking which sheet holds the table to describe
+(`errors.workbook_other_sheet_holds_a_table`); a block of two rows and
+two columns is where that line falls (WB7).
+
+**Invariants WB1-WB7** (`contract.INVARIANTS`): WB1 one column census
 per column; WB2 the sheet the table was read from is one the workbook
 has, counted from one; WB3 every published count of cells, and the count
 of records holding nothing, is nought, or all of them, or clears the
@@ -848,7 +870,9 @@ frozen than the sheet has; WB5 a workbook names one sheet for every
 sheet it has, and every name it publishes is one this version would
 publish itself; WB6 the number format a column's twin wears is one of
 the published codes, and its kind is one the column's own census does
-not say no cell wears.
+not say no cell wears; WB7 a workbook describes the block of cells held
+by every sheet that is not the table's and none for the sheet the table
+was read from, and no such block reaches two rows and two columns.
 
 **Which counts the smallest group holds, and which it does not.** Every
 per-column census, and `empty_rows_inside`, count ROWS OF THE TABLE, so
@@ -7253,6 +7277,26 @@ and map:
   text is NOT their own value's canonical text are at most its
   published count, so every pooled cell carries its own canonical text
   and no pool is re-spelled into a form never named.
+
+**C6-86 (a whole numeral the format cannot hold exactly).** Every
+spelling above is computed from the value a cell reads back as, and at
+or above 2**53 — the first whole number binary64 cannot hold exactly —
+that value is not the numeral that was written: a cell holding
+`9007199254740993` reads back as 9007199254740992.0. A cell whose text
+is FIGURES ALONE after an optional minus, which reads back as exactly
+the value compared against, and whose value is at or above that
+boundary, is in a permitted spelling of that value. Without this clause
+a real register of long whole numbers meets no spelling of its own
+description, however it is written, which no description of a real file
+may ask of it.
+
+The three conditions are each a way this still fails, and they are
+stated so that no wider reading is available: a point, an exponent or a
+mark between thousands puts a cell outside the clause, so a fraction
+width the census does not name is reported exactly as it was; and a
+numeral naming a different value is outside it at any width. A twin
+writes the canonical figures for such a column, which is a limit of
+what the description carries rather than a licence taken here.
 
 `NW` is read off the VALUES, never the spellings: counting cells
 WRITTEN with a point would make the identity circular, a twin spelling

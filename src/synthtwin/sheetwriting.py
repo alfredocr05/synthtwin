@@ -824,6 +824,60 @@ def _sheet_part(
     return text
 
 
+def _other_sheet_part(
+    extent: "tuple[int, int] | None",
+    items: "list[str]",
+    places: "dict[str, int]",
+) -> str:
+    """A sheet that is not the table's: its shape, and none of its cells.
+
+    WHY THIS IS NOT AN EMPTY SHEET (plan P4-D82). It was one, and a
+    reader then saw a different workbook: measured with pandas, the
+    default sheet of a book whose first sheet is a notes page reads back
+    as one column and no rows on the real file and as nothing whatever
+    on the twin. Writing the person's own text is what the disclosure
+    rule forbids, and writing cells that hold the empty string changes
+    nothing at all, because every reader folds those into a missing
+    value and trims the frame away again -- measured, the same nothing.
+
+    So the sheet is written with as many cells as it held, each carrying
+    one word of synthtwin's own. A reader meets a sheet of the same
+    shape holding no character of anybody's table. A sheet that held
+    nothing is written holding nothing, and a sheet holding a TABLE
+    never reaches here: the reader refuses that workbook and asks which
+    sheet the table is on.
+    """
+    rows = 0
+    columns = 0
+    if extent is not None:
+        rows = extent[0]
+        columns = extent[1]
+    text = _DECLARATION + (
+        f'<worksheet xmlns="{_MAIN}" xmlns:r="{_RELS}">'
+    )
+    if rows and columns:
+        last = column_reference(columns) + f"{rows}"
+        text = text + f'<dimension ref="A1:{last}"/>'
+    else:
+        text = text + '<dimension ref="A1"/>'
+    text = text + (
+        '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+        "<sheetFormatPr/>"
+    )
+    if not rows or not columns:
+        return text + "<sheetData/></worksheet>"
+    place = _place_of(items, places, dialect.SHEET_WITHHELD_CELL)
+    text = text + "<sheetData>"
+    for row in range(rows):
+        number = row + 1
+        text = text + f'<row r="{number}">'
+        for column in range(columns):
+            reference = column_reference(column + 1) + f"{number}"
+            text = text + _cell(reference, "s", f"{place}", 0)
+        text = text + "</row>"
+    return text + "</sheetData></worksheet>"
+
+
 def _table_part(
     names: "tuple[str, ...]", first_row: int, last_row: int, autofilter: bool
 ) -> str:
@@ -1104,17 +1158,14 @@ def _members(
     for index in range(len(sheet_names)):
         number = index + 1
         if number != chosen:
-            # A sheet that is not the table's is written EMPTY. Its name
-            # is kept where the name may be published, because code that
-            # names a sheet has to find it; nothing of what it held is.
-            empty = _DECLARATION + (
-                f'<worksheet xmlns="{_MAIN}" xmlns:r="{_RELS}">'
-                '<dimension ref="A1"/>'
-                '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-                "<sheetFormatPr/><sheetData/></worksheet>"
-            )
+            extent: "tuple[int, int] | None" = None
+            if index < len(form.sheet_extents):
+                extent = form.sheet_extents[index]
             parts += [
-                (f"xl/worksheets/sheet{number}.xml", empty)
+                (
+                    f"xl/worksheets/sheet{number}.xml",
+                    _other_sheet_part(extent, items, places),
+                )
             ]
             continue
         parts += [

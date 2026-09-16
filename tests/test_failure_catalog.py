@@ -65,6 +65,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "workbook_has_no_sheet": ("/data/table.xlsx",),
     "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
     "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
+    "workbook_other_sheet_holds_a_table": ("/data/table.xlsx", "Notes", "Data"),
+    # Registered here by landing 2b.11 part 2. The builder arrived with
+    # the `--metadata-rows` declaration of plan P4-D81 and reached this
+    # table with no entry, so this file -- whose whole job is that every
+    # refusal a person can meet has been read by somebody -- was red on
+    # the commit that added it.
+    "metadata_rows_not_supported": ("3",),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",

@@ -620,7 +620,13 @@ def test_the_twin_names_no_person_in_its_document_properties(
 def test_a_workbook_of_several_sheets_keeps_every_sheet(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Other sheets are written as empty sheets under their own names."""
+    """Other sheets are written under their own names, holding nothing.
+
+    These three sheets hold NO cells at all, so a sheet of nothing is
+    exactly what the twin owes: `sheet_extents` publishes `0` by `0` for
+    each and the twin writes them bare. A sheet that HOLDS cells is the
+    test below this one.
+    """
     openpyxl = pytest.importorskip("openpyxl")
     path = _written(
         tmp_path, "many.xlsx", workbooks.study_book(200, 0, sheets=3)
@@ -633,6 +639,99 @@ def test_a_workbook_of_several_sheets_keeps_every_sheet(
     # The sheet the table came from holds it; the others hold nothing.
     assert book.worksheets[0].max_row > 100
     assert book.worksheets[1].max_row == 1
+
+
+def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A reader sees the same workbook on the twin (plan P4-D82).
+
+    THE DEFECT THIS CLOSES, MEASURED. Every sheet that was not the
+    table's used to be written EMPTY, so `pandas.read_excel` -- which
+    reads the FIRST sheet, hidden or not -- returned (0, 1) on a
+    hidden-first workbook and (0, 0) on its twin: a different table, on
+    the sheet a reader meets by default, with every published fact
+    holding. Writing the person's own text back is what the disclosure
+    rule forbids, and cells holding the empty string measure as the same
+    nothing, so the twin writes a sheet of the same SHAPE carrying one
+    word of synthtwin's own.
+    """
+    import zipfile
+
+    pandas = pytest.importorskip("pandas")
+    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book(30))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "hidden-profile.json"
+    first = _block_of(described)
+    assert first["sheet_extents"] == [{"columns": 1, "rows": 1}, None], first
+
+    assert _quiet(["generate", str(described), "--seed", "0"]) == 0
+    twin = tmp_path / "hidden-twin.xlsx"
+
+    # What a reader sees, on the DEFAULT sheet and on the named one.
+    assert pandas.read_excel(twin).shape == pandas.read_excel(path).shape
+    assert (
+        pandas.read_excel(twin, sheet_name="Data").shape
+        == pandas.read_excel(path, sheet_name="Data").shape
+    )
+
+    # Both files meet the description, and the twin publishes the same
+    # blocks when it is described again.
+    assert _quiet(["validate", str(described), "--twin", str(path)]) == 0
+    again = tmp_path / "again"
+    again.mkdir()
+    assert (
+        _quiet(
+            ["validate", str(described), "--twin", str(twin),
+             "--out-dir", str(again)]
+        )
+        == 0
+    )
+    third = tmp_path / "third"
+    third.mkdir()
+    assert _quiet(["profile", str(twin), "--out-dir", str(third)]) == 0
+    assert (
+        _block_of(third / "hidden-twin-profile.json")["sheet_extents"]
+        == first["sheet_extents"]
+    )
+
+    # THE DISCLOSURE HALF, read off the twin's own bytes: that sheet
+    # holds one cell, and what it holds is synthtwin's own word.
+    with zipfile.ZipFile(twin) as bundle:
+        page = bundle.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        strings = bundle.read("xl/sharedStrings.xml").decode("utf-8")
+    assert page.count("<c ") == 1, page
+    assert "withheld" in strings
+
+    # AND THE RULE CAN FAIL, which is what makes the two exits above
+    # worth anything: the same description, measured against the same
+    # workbook with that sheet left EMPTY -- which is what the writer
+    # used to produce -- misses the obligation by name.
+    bare = _written(tmp_path, "bare.xlsx", workbooks.hidden_first_book(30, 0))
+    found = _verdicts(tmp_path / "bare-check", described, bare)
+    assert "workbook.sheet-extents" in found.get("MISSED", []), found
+
+
+def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A second table cannot be twinned, so the workbook is refused.
+
+    synthtwin describes ONE table. A sheet holding another one cannot be
+    written back -- its values are somebody's rows -- and writing it as
+    withheld cells would hand a reader a frame where a table stood, so
+    statistics taken from the twin's second sheet would be false while
+    the file still opened. The refusal names the sheet and asks which
+    sheet holds the table to describe.
+    """
+    path = _written(tmp_path, "two.xlsx", workbooks.two_table_book(20))
+    with pytest.raises(errors.ProfileError) as raised:
+        reading.read_table(str(path))
+    spoken = f"{raised.value}"
+    assert "Codebook" in spoken, spoken
+    assert "--sheet" in spoken, spoken
+    # ...and the command itself refuses rather than describing one half.
+    assert _quiet(["profile", str(path), "--out-dir", str(tmp_path)]) != 0
 
 
 def test_a_defined_table_is_written_over_the_twins_own_rows(
@@ -878,6 +977,118 @@ def test_validate_reads_the_sheet_the_person_names(
         )
         == 0
     )
+
+
+def _verdicts(
+    folder: pathlib.Path, described: pathlib.Path, checked: pathlib.Path
+) -> "dict[str, list[str]]":
+    """Validate one file against a description; every subcheck's verdict."""
+    folder.mkdir(parents=True, exist_ok=True)
+    _quiet(
+        ["validate", str(described), "--twin", str(checked),
+         "--out-dir", str(folder)]
+    )
+    report = (folder / f"{checked.stem}-quality.txt").read_text(encoding="utf-8")
+    found: "dict[str, list[str]]" = {}
+    for line in report.split("\n"):
+        text = line.strip()
+        for verdict in (": MISSED", ": WITHHELD", ": HELD"):
+            if not text.endswith(verdict) or " [" not in text:
+                continue
+            name = text.split(" [")[0]
+            word = verdict[2:]
+            if word not in found:
+                found[word] = []
+            found[word] += [name]
+    return found
+
+
+def test_a_workbook_withholding_never_swallows_a_real_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The three facts a twin cannot carry are withheld, and NOTHING else.
+
+    V6.2-A4 withholds `workbook.macro-project`, `workbook.defined-names`
+    and each column's `workbook.formulas`, because a twin carries no
+    macro project, writes no defined name and writes no formula, and
+    `validate` cannot tell a twin from the real table it was made from.
+    Their presence was asserted and their NARROWNESS was not: a
+    withholding one fact too wide reports a real failure as "not
+    checked", which is the one thing a quality report may not do.
+
+    So a description of a titled workbook is measured against a plain
+    one of the same table, and every workbook fact that really differs
+    has to come back MISSED while exactly those three come back
+    WITHHELD. Mutation-checked two ways -- widening the gate to the
+    whole workbook census, and withholding a fact beside them -- each of
+    which turns this test red.
+    """
+    described_path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(60))
+    assert _quiet(["profile", str(described_path)]) == 0
+    described = tmp_path / "titled-profile.json"
+
+    other = _written(tmp_path, "other.xlsx", workbooks.plain_book(60))
+    found = _verdicts(tmp_path / "against", described, other)
+
+    # The real misses stand.
+    for subcheck in (
+        "workbook.rows-above-header",
+        "workbook.frozen-rows",
+        "workbook.cell-classes",
+    ):
+        assert subcheck in found.get("MISSED", []), found
+
+    # ...and exactly the three a twin can never carry are withheld.
+    withheld = sorted(set(found.get("WITHHELD", [])))
+    assert "workbook.macro-project" in withheld, withheld
+    assert "workbook.defined-names" in withheld, withheld
+    assert "workbook.formulas" in withheld, withheld
+    for name in withheld:
+        if not name.startswith("workbook."):
+            continue
+        assert name in (
+            "workbook.macro-project",
+            "workbook.defined-names",
+            "workbook.formulas",
+            "workbook.empty-rows-inside",
+            "workbook.sheet-hidden",
+        ), (name, withheld)
+
+    # THE OTHER WITHHOLDING, AND ITS OWN NARROWNESS (V6.2-A2). The rules
+    # of the written form describe a DELIMITED file, so on a workbook
+    # description every one of them is withheld -- and that is the whole
+    # of what it withholds: the workbook facts above are measured beside
+    # them, and the delimited half of this rule is held in
+    # `tests/test_file_dialect_round_trip.py`, where a file that breaks
+    # a byte rule still MISSES it.
+    assert [name for name in withheld if name.startswith("bytes.")], withheld
+    for name in found.get("MISSED", []):
+        assert not name.startswith("bytes."), name
+
+
+def test_whole_numbers_past_the_exact_range_meet_their_own_description(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A real workbook of whole numbers past 2**53 validates at exit 0.
+
+    The workbook half of landing 2b.10's named limit: the value a reader
+    hands back for `9007199254740993` is 9007199254740992.0, and the
+    permitted spellings are computed from that value, so the real file
+    was reported MISSED on `styles.spelled` for holding the digits the
+    person wrote. Measured at exit 3 before the repair, on this fixture
+    and on the same values as delimited text.
+    """
+    path = _written(tmp_path, "wide.xlsx", workbooks.wide_number_book(300))
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "wide-profile.json"
+    assert _quiet(["validate", str(described), "--twin", str(path)]) == 0
+    report = (tmp_path / "wide-quality.txt").read_text(encoding="utf-8")
+    missed = [
+        line.strip()
+        for line in report.splitlines()
+        if line.strip().endswith("MISSED")
+    ]
+    assert not missed, missed[:5]
 
 
 def test_a_lone_record_holding_nothing_is_held_to_the_smallest_group(

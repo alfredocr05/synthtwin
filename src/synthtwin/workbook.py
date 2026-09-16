@@ -613,6 +613,11 @@ class Reading:
 
     cells: "tuple[Cell, ...]"
     sheets: "tuple[SheetEntry, ...]"
+    # ONE ENTRY PER SHEET, in workbook order: the block of cells a sheet
+    # that is NOT the table's holds, as (rows, columns) counted from A1,
+    # and None for the sheet the table was read from, whose own facts
+    # describe it (plan P4-D82). A sheet holding nothing is (0, 0).
+    sheet_extents: "tuple[tuple[int, int] | None, ...]"
     chosen: str
     chosen_hidden: bool
     epoch_1904: bool
@@ -623,6 +628,26 @@ class Reading:
     defined_names: int
     last_row: int
     last_column: int
+
+
+def _extent_of(cells: "tuple[Cell, ...]") -> "tuple[int, int]":
+    """The block of cells a sheet holds: how many rows and columns, from A1.
+
+    Counted over the cells that HOLD something, because that is what a
+    reader's frame spans: a styled blank and an absent cell are nothing
+    to every reader the study measured, and a sheet of them reads back
+    as no table at all.
+    """
+    rows = 0
+    columns = 0
+    for cell in cells:
+        if cell.kind in (CELL_ABSENT, CELL_BLANK):
+            continue
+        if cell.row > rows:
+            rows = cell.row
+        if cell.column > columns:
+            columns = cell.column
+    return (rows, columns)
 
 
 def _is_table_part(name: str) -> bool:
@@ -1117,6 +1142,40 @@ def read_parts(
         raise errors.ProfileError(
             errors.workbook_sheet_is_empty(shown, entry.name)
         )
+    # WHAT EVERY OTHER SHEET HOLDS, AND THE ONE SHAPE THAT IS REFUSED
+    # (plan P4-D82). A workbook's other sheets used to be written EMPTY,
+    # so a reader met a different workbook: measured with pandas, the
+    # default sheet of a hidden-first book reads as one column and no
+    # rows on the real file and as nothing at all on the twin. The block
+    # of cells each such sheet holds is published and written back with
+    # synthtwin's own word in every cell, which is the most a twin may
+    # carry of a sheet this description does not describe.
+    #
+    # A sheet holding a TABLE cannot be carried that way at all, and is
+    # refused rather than quietly emptied: its values are somebody's
+    # rows, so the twin would hand a reader a frame of withheld cells
+    # where a table stood, and statistics taken from it would be false
+    # while the file still opened. The person is asked which sheet is
+    # the table instead.
+    extents: "list[tuple[int, int] | None]" = []
+    for index in range(len(sheets)):
+        other = sheets[index]
+        if other is entry:
+            extents += [None]
+            continue
+        page = _part_named(parts, other.part)
+        if not page:
+            extents += [(0, 0)]
+            continue
+        other_cells = sheet_cells(page, shown, strings, formats)[0]
+        rows, columns = _extent_of(other_cells)
+        if rows >= 2 and columns >= 2:
+            raise errors.ProfileError(
+                errors.workbook_other_sheet_holds_a_table(
+                    shown, other.name, entry.name
+                )
+            )
+        extents += [(rows, columns)]
     tables: "list[str]" = []
     if tabled:
         for name in sorted(parts):
@@ -1136,6 +1195,7 @@ def read_parts(
     return Reading(
         cells=cells,
         sheets=sheets,
+        sheet_extents=tuple(extents),
         chosen=entry.name,
         chosen_hidden=entry.state != "visible",
         epoch_1904=epoch,
@@ -1551,6 +1611,17 @@ def _published_sheet_names(reading: Reading) -> "list[object]":
     return out
 
 
+def _published_extents(reading: Reading) -> "list[object]":
+    """Each sheet's block of cells as the description publishes it."""
+    out: "list[object]" = []
+    for held in reading.sheet_extents:
+        if held is None:
+            out += [None]
+            continue
+        out += [{"columns": held[1], "rows": held[0]}]
+    return out
+
+
 def document_of(
     reading: Reading, sheet: Sheet, floor: int
 ) -> "dict[str, object]":
@@ -1602,6 +1673,14 @@ def document_of(
         "macro_project": reading.has_macro_project,
         "rows_above_header": sheet.rows_above,
         "sheet_count": len(reading.sheets),
+        # THE BLOCK OF CELLS EVERY OTHER SHEET HOLDS (plan P4-D82), so
+        # that the twin can carry a sheet of the same shape and a reader
+        # meets the same workbook. Nothing of what those cells HELD is
+        # published: this is how much room they take and nothing else,
+        # which is furniture in the same sense as the rows above a header
+        # -- and the sheet the table was read from publishes none,
+        # because the table's own facts describe it.
+        "sheet_extents": _published_extents(reading),
         "sheet_hidden": reading.chosen_hidden,
         "sheet_names": _published_sheet_names(reading),
         "sheet_position": position,

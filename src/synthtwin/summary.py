@@ -1735,6 +1735,20 @@ def _workbook_lines(document: dict[str, object]) -> "list[str]":
             "  reason. The twin writes those sheets under a neutral name, so",
             "  code that names one of them by hand will not find it.",
         ]
+    holding = 0
+    for entry in _list_of(form["sheet_extents"]):
+        if not isinstance(entry, dict):
+            continue
+        rows = entry["rows"] if "rows" in entry else 0
+        if isinstance(rows, int) and not isinstance(rows, bool) and rows > 0:
+            holding = holding + 1
+    if holding:
+        lines += [
+            f"  {holding} other sheet(s) of this workbook hold cells. The twin",
+            "  carries a sheet of the same shape there, with one word of",
+            "  synthtwin's own in every cell, so a reader meets the same",
+            "  workbook and nothing you wrote on those sheets is copied.",
+        ]
     if form["macro_project"]:
         lines += [
             "  This workbook carries a macro project. synthtwin does not read",

@@ -1190,8 +1190,9 @@ def metadata_rows_not_supported(given: str) -> str:
         f"those columns rather than holding a record -- the two rows a "
         f"survey export writes, a question wording and a row of "
         f"ImportId markers. A description can carry two such rows or "
-        f"none, so those are the two answers. Leave the option out "
-        f"altogether and every row under your column names is read as "
+        f"none, so those are the two answers. Please run the command "
+        f"again with --metadata-rows 2, or with the option left out "
+        f"altogether: every row under your column names is then read as "
         f"a record of your table, which is what it is unless you say "
         f"otherwise."
     )
@@ -2314,6 +2315,34 @@ def workbook_sheet_not_found(path: str, named: str, known: list[str]) -> str:
         f"The file {path} has no sheet called '{_shown(named)}'. Its "
         f"sheets are: {_listed(known)}. Please check the spelling and "
         f"run the command again with one of those names after --sheet."
+    )
+
+
+def workbook_other_sheet_holds_a_table(
+    path: str, named: str, chosen: str
+) -> str:
+    """Message for a second sheet holding a table synthtwin cannot twin.
+
+    WHY THIS IS A REFUSAL AND NOT A NOTE (plan P4-D82). synthtwin
+    describes ONE table, and the twin of a workbook writes every other
+    sheet with nothing of the person's on it. Measured with pandas: a
+    sheet holding one text cell reads back as one column and no rows on
+    the real file, and as nothing at all on the twin -- and a sheet
+    holding a whole table would read back as a frame of empty cells, so
+    code developed on the twin would run against a table that is not
+    there and statistics taken from it would be false. There is no
+    writing of that sheet this product may produce: its values are
+    somebody's rows.
+    """
+    return (
+        f"The file {path} holds a table on the sheet '{_shown(named)}' as "
+        f"well as on '{_shown(chosen)}', and synthtwin describes one "
+        f"table at a time. Its twin would carry '{_shown(named)}' with "
+        f"nothing on it, so anybody who opened that sheet would find "
+        f"rows on your workbook and an empty sheet on the twin. Which "
+        f"sheet holds the table you want described? Run the command "
+        f"again with --sheet followed by that sheet's name, and keep "
+        f"the other table in a workbook of its own."
     )
 
 

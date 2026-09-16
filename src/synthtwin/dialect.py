@@ -244,6 +244,7 @@ SHEET_KEYS = (
     "macro_project",
     "rows_above_header",
     "sheet_count",
+    "sheet_extents",
     "sheet_hidden",
     "sheet_names",
     "sheet_position",
@@ -438,6 +439,23 @@ SHEET_SAFE_NAMES_FOLDED = (
 )
 
 SHEET_NEUTRAL_NAME = "Sheet"
+
+# WHAT A SHEET THAT IS NOT THE TABLE'S IS WRITTEN WITH (plan P4-D82).
+#
+# A workbook's other sheets used to be written EMPTY, and a reader then
+# saw a different workbook: measured with pandas, a sheet holding one
+# text cell reads back as one column and no rows on the real file and as
+# nothing whatever on a twin whose sheet is bare -- (0, 1) against
+# (0, 0). Writing the person's own text back is what the disclosure rule
+# forbids, and writing cells that hold the EMPTY STRING changes nothing,
+# because every reader folds an empty-string cell into a missing value
+# and trims the frame away again (measured: still (0, 0)).
+#
+# So such a sheet is written with as many cells as it held, each holding
+# one word of synthtwin's own -- the same answer the withheld preamble
+# line takes. A reader then meets a sheet of the same shape, carrying no
+# character of anybody's table.
+SHEET_WITHHELD_CELL = "withheld"
 
 
 def sheet_name_published(name: str) -> "str | None":

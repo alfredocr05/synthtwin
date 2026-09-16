@@ -516,8 +516,14 @@ def titled_book(n_rows: int = 12) -> bytes:
     )
 
 
-def hidden_first_book(n_rows: int = 20) -> bytes:
-    """A hidden sheet first, so the chosen sheet is the second one."""
+def hidden_first_book(n_rows: int = 20, notes_cells: int = 1) -> bytes:
+    """A hidden sheet first, so the chosen sheet is the second one.
+
+    ``notes_cells`` is how many cells the notes page holds: one by
+    default, which is the shape the study measured, and none for the
+    control that a twin writing that sheet EMPTY is reported MISSED
+    rather than passing (plan P4-D82).
+    """
     strings = ["reading", "site", "amount", "recorded_on"] + list(SITES)
     head = [
         cell("A1", "0", "s"),
@@ -539,7 +545,8 @@ def hidden_first_book(n_rows: int = 20) -> bytes:
                 ],
             )
         ]
-    notes = sheet([(1, [cell("A1", "0", "s")])], dimension="A1:A1")
+    held = [(1, [cell("A1", "0", "s")])] if notes_cells else []
+    notes = sheet(held, dimension="A1:A1")
     return package(
         [
             ("[Content_Types].xml", _content_types(2, True, False, False)),
@@ -867,6 +874,80 @@ def all_hidden_book() -> bytes:
             (
                 "xl/worksheets/sheet1.xml",
                 sheet([(1, [cell("A1", "1")])], dimension="A1:A1"),
+            ),
+        ]
+    )
+
+
+def two_table_book(n_rows: int = 20) -> bytes:
+    """Two sheets, each holding a TABLE, which synthtwin cannot twin.
+
+    synthtwin describes ONE table, and the twin writes every other sheet
+    with none of the person's cells in it -- so a reader opening the
+    second sheet of the twin would meet a frame of withheld cells where
+    a table stood. The workbook is refused instead, naming the sheet
+    (plan P4-D82).
+    """
+    strings = ["reading", "site", "amount", "recorded_on"] + list(SITES)
+    head = [
+        cell("A1", "0", "s"),
+        cell("B1", "1", "s"),
+        cell("C1", "2", "s"),
+        cell("D1", "3", "s"),
+    ]
+    body: "list[tuple[int, list[str]]]" = [(1, head)] + _rows_of(n_rows)
+    page = sheet(body, dimension=f"A1:D{n_rows + 1}")
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(2, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            ("xl/workbook.xml", _workbook([("Data", ""), ("Codebook", "")])),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(2, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            ("xl/worksheets/sheet1.xml", page),
+            ("xl/worksheets/sheet2.xml", page),
+        ]
+    )
+
+
+def wide_number_book(n_rows: int = 300) -> bytes:
+    """Whole numbers past 2**53, which binary64 cannot hold exactly.
+
+    THE SHAPE OF LANDING 2b.10'S NAMED LIMIT. A register of long
+    identifiers or amounts written as NUMBER cells, every one of them
+    past the last whole number this format holds exactly, so that the
+    value a reader hands back is not the number the person wrote:
+    `9007199254740993` reads back as 9007199254740992.0. The limit was
+    that such a real workbook failed its own description, and the same
+    values as delimited text failed it the same way, so the fixture is
+    built here and the delimited control is built beside the test.
+    """
+    strings = ["record_id", "amount"]
+    head = [cell("A1", "0", "s"), cell("B1", "1", "s")]
+    body: "list[tuple[int, list[str]]]" = [(1, head)]
+    for place in range(n_rows):
+        number = 2 + place
+        body += [
+            (
+                number,
+                [
+                    cell(f"A{number}", f"{place + 1}"),
+                    cell(f"B{number}", f"{9007199254740993 + (place % 7)}"),
+                ],
+            )
+        ]
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(1, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            ("xl/workbook.xml", _workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(1, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            (
+                "xl/worksheets/sheet1.xml",
+                sheet(body, dimension=f"A1:B{n_rows + 1}"),
             ),
         ]
     )

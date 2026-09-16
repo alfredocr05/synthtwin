@@ -1369,6 +1369,15 @@ def battery() -> list[Mutation]:
             "WB6", "a format code of a kind the column's own census denies",
             _form_workbook_format_code_denied_by_its_census,
         ),
+        # What every sheet that is not the table's holds (plan P4-D82).
+        Mutation(
+            "WB7", "a block of cells on the sheet the table was read from",
+            _form_workbook_describes_the_tables_own_sheet,
+        ),
+        Mutation(
+            "WB7", "a second sheet holding a table this description does not carry",
+            _form_workbook_other_sheet_holds_a_table,
+        ),
     ]
 
 
@@ -1497,6 +1506,12 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
         "sheet_count": 2,
         "sheet_hidden": False,
         "sheet_names": ["Data", "Notes"],
+        # The table's own sheet describes no block of cells and every
+        # other sheet describes one (WB7, plan P4-D82). The second sheet
+        # here holds a single cell, which is the shape a notes page
+        # takes and the one the twin writes back with a word of
+        # synthtwin's own.
+        "sheet_extents": [None, {"columns": 1, "rows": 1}],
         "sheet_position": 1,
         "trailing_blank_columns": 0,
         "trailing_blank_rows": 0,
@@ -1543,6 +1558,25 @@ def _form_workbook_names_too_few_sheets(document: Document) -> None:
     # Two sheets, one name. A twin built from this would have no name to
     # write the second sheet under.
     block["sheet_names"] = ["Data"]
+
+
+def _form_workbook_describes_the_tables_own_sheet(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # The sheet the table was read from is described by the table's own
+    # facts. A block of cells here as well says two things about one
+    # sheet, and the writer would put a page of withheld cells over the
+    # table it just wrote.
+    block["sheet_extents"] = [{"columns": 4, "rows": 12}, {"columns": 1, "rows": 1}]
+
+
+def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # A second sheet holding twelve rows by four columns is a TABLE this
+    # description does not carry. synthtwin refuses such a workbook when
+    # it reads one (plan P4-D82); a description asking for one would
+    # have the twin write a frame of withheld cells where a table stood,
+    # so code developed on it would read a table that is not there.
+    block["sheet_extents"] = [None, {"columns": 4, "rows": 12}]
 
 
 def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
