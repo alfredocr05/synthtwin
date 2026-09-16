@@ -2666,7 +2666,7 @@ guess is what fails silently.
 | `n_out_of_range` | integer ≥ 0 | — | present cells that are well-formed numbers too large or too small for binary64 | EXACT-OBSERVABLE by class-preserving construction |
 | `n_contradictory` | integer ≥ 0 | — | present cells written in numeric notation whose meaning conflicts with itself — a sign inside accounting parentheses | EXACT-OBSERVABLE by class-preserving construction |
 | `n_sentinel_candidates_unpublished` | integer ≥ 0 | — | how many stand-in candidates were judged but occurred in too few rows to be named | REPORT-ONLY |
-| `sentinel_verdicts` | array of objects | section 5.5 | what was decided about each named stand-in candidate — a stand-in number or a calendar placeholder — and why | REPORT-ONLY |
+| `sentinel_verdicts` | array of objects | section 5.5 | what was decided about each named stand-in candidate — a stand-in number or a calendar placeholder — why, and which of this column's published absent spellings the decision took out | REPORT-ONLY |
 | `detection_evidence` | string | non-empty | one plain sentence saying why this role was chosen | REPORT-ONLY |
 | `remarks` | array of strings | possibly empty | plain-language notes about this column | REPORT-ONLY |
 
@@ -3054,7 +3054,7 @@ and leaves the others as report facts.
 ### 5.5 A sentinel verdict entry
 
 `sentinel_verdicts` is an array, possibly empty, of objects each having
-exactly these four keys:
+exactly these five keys:
 
 | key | JSON type | permitted values |
 |---|---|---|
@@ -3062,6 +3062,7 @@ exactly these four keys:
 | `verdict` | string | `read_as_missing`, `kept_as_a_number` |
 | `reason` | string | `outlier_and_frequent`, `not_an_outlier`, `too_rare`, `too_few_other_values`, `kept_by_you` |
 | `n_occurrences` | integer ≥ 1 | how many rows held the candidate |
+| `spellings` | array of strings | the keys of this column's `missing_by_source` whose cells THIS decision took out, in the document's own key order and each named once; empty on a decision that kept its candidate, on a nothing-publishing column, and where every spelling the pass took fell below the floor |
 
 **Invariant V1.** Every entry has `n_occurrences` at least
 `small_cell_floor`. Candidates below the floor are not listed at all;
@@ -3089,6 +3090,36 @@ candidates this version permits:
 3. candidates that read `(withheld)`, ordered by `n_occurrences`, then
    `verdict`, then `reason`, so that no position can say which of two
    withheld candidates is the smaller.
+
+**Invariant V5 (the spellings a decision took out).** Every member of
+`spellings` is a key of this column's `missing_by_source`; the members
+are in ascending order and each appears once; and a decision whose
+`verdict` is `kept_as_a_number` names none, because it took no cell out
+of the column.
+
+It publishes no group the floor pooled and no spelling the block does
+not already carry. What it adds is the LINK between a published hole
+spelling and the pass that made those cells absent, and that link is
+not derivable from any count in this document: a column whose twenty
+`1900-01-01 00:00:00` cells a calendar-placeholder pass judged, beside
+thirty `1900-01-01T00:00:00` cells the person declared missing, has two
+keys writing ONE candidate day, and every count the block carries reads
+the same under either assignment. Both consumers need the answer — the
+generator decides from it which spellings reach the whole table and
+which stay the judging column's own (section 9's `missing_by_source`
+row, and the twin's write rule), and the validator reads the
+person's declarations back out of the columns the same way — and both were
+guessing from counts. Each guess failed in its own direction on a real
+table: one promoted a judged spelling to a declaration and made a
+second column's ordinary values read as absent, so the REAL table
+missed thirteen obligations of its own description; the other narrowed
+a person's declared word to one column, so the twin wrote it as a
+present value elsewhere.
+
+A DECLARED CELL CAN NEVER STAND HERE. Declarations are applied before
+any pass judges anything (3.2), so a cell a judged pass removed is a
+cell no declaration claimed, and the producer records the spelling at
+the moment it removes the cell rather than working it out afterwards.
 
 The three groups appear in that order wherever a block carries more
 than one of them. A block never in fact mixes group 3 with groups 1 or
@@ -8403,6 +8434,7 @@ it answers to.
 | V2 | `candidate` is `(withheld)` on exactly the columns where `missing_by_source` is empty for N3's reason — a column whose publication class permits no value of the table anywhere in its block. Naming a candidate there would publish a value out of a column that publishes none, and on every other column no candidate reads `(withheld)` | yes |
 | V3 | `verdict` is `read_as_missing` only when `reason` is `outlier_and_frequent`; the other four reasons all keep the candidate as an ordinary number of the column | yes |
 | V4 | entries appear in three groups, in this order, and the rule is TOTAL over the candidates this format permits: (1) NUMBERS, ascending by the number; (2) CALENDAR DAY SPELLINGS, ascending by the candidate text; (3) `(withheld)`, ordered by `n_occurrences`, then `verdict`, then `reason`, so no position can say which of two withheld candidates is the smaller. The datetime section states the rule entire, with the reason it is written total rather than for the mixed case alone | yes |
+| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply | yes |
 
 ---
 

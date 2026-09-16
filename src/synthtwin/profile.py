@@ -838,6 +838,17 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "sentinel_verdicts", _EACH, "verdict"): _WORD,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "reason"): _WORD,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "n_occurrences"): _COUNT,
+    # WHICH PUBLISHED ABSENT SPELLINGS THIS DECISION TOOK OUT (repair
+    # pass of landing 2b.6). Every member is already a key of this
+    # column's `missing_by_source`, so the floor has already governed
+    # it and nothing new about the table is published here: what is
+    # new is the LINK between a spelling and the pass that made it
+    # absent, which no count in the document can supply and which two
+    # readers were guessing at.
+    ("columns", _EACH, "sentinel_verdicts", _EACH, "spellings"): _ARRAY,
+    (
+        "columns", _EACH, "sentinel_verdicts", _EACH, "spellings", _EACH
+    ): _SPELLING,
     # The label roles.
     ("columns", _EACH, "levels"): _ARRAY,
     ("columns", _EACH, "levels", _EACH): _OBJECT,

@@ -21,7 +21,10 @@ Both are repaired by pinning each rung's rank to its PUBLISHED value and
 drawing every other rank independently inside the gap between the two
 pinned ranks either side of it (method G7.3). Measured again over the
 same 54 runs: every rung exact in 54 of 54, and the variance ratio 0.52
-to 1.41.
+to 1.41 -- on columns whose shape eleven rungs can carry. On a column
+whose values burst around a few onset dates it carries nothing and the
+ratio stays near 0.15 to 0.47, which the repair pass of landing 2b.6
+pinned here rather than leaving the sentence above unqualified.
 
 WHAT THIS GATE DOES NOT CLAIM, asserted here as a named limit rather
 than left for a reader to discover. The gap is filled EVENLY, so
@@ -73,6 +76,22 @@ HIGHEST = 1.6
 # seven times what the defect allowed and is a bound on the RESIDUAL,
 # not a weakened form of the band above.
 RESIDUAL_LOWEST = 0.45
+
+# AND WHAT AN OUTBREAK COLUMN IS HELD TO, which nothing pinned until the
+# repair pass of landing 2b.6 (skeptic finding 5). Where most values sit
+# within a few days of three onset dates, the eleven published rungs
+# cannot carry the shape at all: eleven pins over a year leave gaps
+# weeks wide, and a gap is filled EVENLY. Measured on this construction
+# -- three seeds at each size -- 0.335 to 0.466 at 400 rows and 0.150 to
+# 0.182 at 1,500, against 0.402 to 0.449 and 0.187 to 0.284 on the
+# commit before the repair: the repair neither helps nor harms this
+# shape, and at 1,500 rows the two are the same to within noise. That is
+# pinned rather than left out, because the landing's own sentences gave
+# a repaired range of 0.52 to 1.41 with no qualification, and this is
+# the shape that qualification is about. The remedy is a finer ladder or
+# a value-count map over days, both of which publish observed dates, so
+# both wait on the stage that sets the disclosure floor.
+BURST_LOWEST = 0.10
 
 
 def _exit_of(argv: "list[str]") -> int:
@@ -131,11 +150,43 @@ def _admissions(draw: "random.Random", count: int) -> "list[datetime.date]":
     return draw.choices(pool, weights=weights, k=count)
 
 
+def _burst(draw: "random.Random", count: int) -> "list[datetime.date]":
+    """An outbreak: most values within a few days of three onset dates.
+
+    The one common epidemiological shape where this construction does
+    almost nothing, added by the repair pass of landing 2b.6 because the
+    landing's own numbers were stated without it.
+    """
+    onsets = (
+        datetime.date(2024, 2, 3),
+        datetime.date(2024, 5, 19),
+        datetime.date(2024, 9, 7),
+    )
+    found: "list[datetime.date]" = []
+    for _place in range(count):
+        if draw.random() < 0.6:
+            start = draw.choice(onsets)
+            found += [start + datetime.timedelta(days=int(abs(draw.gauss(0, 3))))]
+        else:
+            found += [
+                datetime.date(2024, 1, 1)
+                + datetime.timedelta(days=draw.randrange(0, 365))
+            ]
+    return found
+
+
 SHAPES = {
     "uniform": _uniform,
     "seasonal": _seasonal,
     "admissions": _admissions,
+    "burst": _burst,
 }
+
+# THE SHAPES THE BAND IS ASKED OF. `burst` is deliberately not among
+# them: it has its own test below, held to its own measured range, for
+# the reason that test gives. A shape is in `SHAPES` so that one
+# measurement harness reaches all four.
+BAND_SHAPES = ("admissions", "seasonal", "uniform")
 
 
 def _written(days: "list[datetime.date]", midnight: bool) -> "list[str]":
@@ -261,7 +312,7 @@ def _measured(
 
 @pytest.mark.parametrize("midnight", [False, True])
 @pytest.mark.parametrize("rows", [400, 1500])
-@pytest.mark.parametrize("shape", sorted(SHAPES))
+@pytest.mark.parametrize("shape", sorted(BAND_SHAPES))
 @pytest.mark.parametrize("seed", [4, 7])
 def test_a_twin_spreads_its_days_as_the_real_column_did(
     tmp_path: pathlib.Path, shape: str, rows: int, seed: int, midnight: bool
@@ -340,6 +391,41 @@ def test_a_large_column_shaped_by_the_weekday_is_short_and_says_so(
     )
 
 
+@pytest.mark.parametrize("rows", [400, 1500])
+@pytest.mark.parametrize("seed", [4, 7])
+def test_an_outbreak_column_is_short_of_the_band_and_says_so(
+    tmp_path: pathlib.Path, rows: int, seed: int
+) -> None:
+    """THE SECOND NAMED LIMIT, and the shape the band's numbers are not about.
+
+    Most values sit within a few days of three onset dates. Eleven
+    published rungs over a year leave gaps weeks wide, a gap is filled
+    evenly, and no pinning of the rungs changes that -- measured at
+    0.335 to 0.466 at 400 rows and 0.150 to 0.182 at 1,500, against
+    0.402 to 0.449 and 0.187 to 0.284 before the repair.
+
+    It is asserted in both directions for the reason the weekday limit
+    is: the number is what a later landing will move, and a change in
+    either direction should show up as a failure rather than as nothing.
+    The twin and the real table still validate with nothing missed, and
+    every published rung is still exact -- what this column loses is
+    structure no datetime block publishes, which the twin's own report
+    names in its fourth clause.
+    """
+    ratio, missed = _measured(
+        tmp_path / f"burst-{rows}-{seed}", "burst", rows, seed, False
+    )
+    assert not missed, missed
+    assert BURST_LOWEST <= ratio < LOWEST, (
+        f"a burst column at {rows} rows, seed {seed}, reaches {ratio:.3f}. "
+        f"Below {BURST_LOWEST} the twin has lost ground this pass measured "
+        f"it holding; at {LOWEST} or above it now meets the band, which "
+        f"would mean a landing has carried the heaped days -- and then "
+        f"this test, the report's fourth clause and the plan's residual "
+        f"are what should be rewritten, not this assertion deleted."
+    )
+
+
 def test_the_report_names_what_a_column_of_dates_does_not_reproduce(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -387,14 +473,181 @@ def test_the_report_names_what_a_column_of_dates_does_not_reproduce(
         assert clause in report, f"the report no longer names: {clause}"
 
 
+def test_a_twin_written_one_day_early_is_missed_at_every_rung(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A PINNED RANK'S WINDOW IS A POINT, and this is the witness for it.
+
+    Landing 2b.6 part 2 said in four sealed places that each of the nine
+    interior rungs is now checked AT its published value rather than
+    inside a band. The code did not do it: both writings of G12.4
+    subtracted the reading allowance from every non-end rank, pinned or
+    not, so a rung's window was `[published - 1 day, published]` on a
+    column of dates -- and a twin with every interior cell moved one day
+    EARLIER, which is precisely the defect that landing repaired, came
+    back WITHIN-BOUND at all nine rungs.
+
+    So the allowance is spent only where the rank has room to be drawn
+    in, and this test is the reproduction that found it: build the
+    admissions column, take the twin the generator writes, move every
+    interior cell one day earlier, and require the check to name all
+    nine. It is deliberately not a unit test of the window arithmetic --
+    the two writings already compare rank by rank in
+    `tests/test_p3v4f4_datetime_windows.py` -- but of what a person is
+    told about a file.
+    """
+    draw = random.Random(4 * 7919 + 400)
+    days = sorted(_admissions(draw, 400))
+    folder = tmp_path / "early"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["when"], [[day.isoformat()] for day in days]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
+    described = folder / "real-profile.json"
+    assert (
+        _exit_of(
+            [
+                "generate",
+                str(described),
+                "--out-dir",
+                str(folder),
+                "--seed",
+                "4",
+                "--replace",
+            ]
+        )
+        == 0
+    )
+    written = [
+        row[0]
+        for row in csv.reader(
+            io.StringIO(
+                (folder / "real-twin.csv").read_text(encoding="utf-8")
+            )
+        )
+    ][1:]
+    block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
+    first = datetime.date.fromisoformat(block["date_percentiles"]["min"])
+    last = datetime.date.fromisoformat(block["date_percentiles"]["max"])
+    moved: "list[str]" = []
+    for cell in written:
+        held = datetime.date.fromisoformat(cell)
+        if held <= first + datetime.timedelta(days=1) or held == last:
+            moved += [cell]
+        else:
+            moved += [(held - datetime.timedelta(days=1)).isoformat()]
+    assert moved != written, "the shift must actually move some cell"
+    early = folder / "early-twin.csv"
+    early.write_text(
+        fixtures.rows_to_csv(["when"], [[cell] for cell in moved]),
+        encoding="utf-8",
+        newline="",
+    )
+    checked = folder / "check"
+    checked.mkdir()
+    code = _exit_of(
+        [
+            "validate",
+            str(described),
+            "--twin",
+            str(early),
+            "--out-dir",
+            str(checked),
+            "--replace",
+        ]
+    )
+    assert code == 3, "a twin written a day early must not pass the check"
+    text = "".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(checked.glob("*quality.txt"))
+    )
+    missed = [
+        line
+        for line in text.splitlines()
+        if "date-ladder." in line and "MISSED" in line
+    ]
+    named = {line.split("date-ladder.")[1][0:3] for line in missed}
+    assert named == {f"p{percent:02d}" for percent in INTERIOR}, sorted(named)
+
+
+def test_the_report_of_a_column_of_periods_names_only_what_a_period_can_lose(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The sentence is the one true OF THE COLUMN (repair pass of 2b.6).
+
+    The note above names four things, two of which a column of months or
+    quarters cannot have: a period has no weekday and no time of day. It
+    was filed unchanged on every datetime column whatever its
+    resolution, so a month column's report told a reader it had lost two
+    things no column of months can lose. A column of periods takes the
+    two-clause form instead.
+    """
+    draw = random.Random(21)
+    cells = sorted(
+        f"{2000 + draw.randrange(0, 24)}-{draw.randrange(1, 13):02d}"
+        for _place in range(300)
+    )
+    folder = tmp_path / "months"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["month"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
+    described = folder / "real-profile.json"
+    block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
+    assert block["resolution"] == "month", block["resolution"]
+    assert (
+        _exit_of(
+            [
+                "generate",
+                str(described),
+                "--out-dir",
+                str(folder),
+                "--seed",
+                "4",
+                "--replace",
+            ]
+        )
+        == 0
+    )
+    report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert "how these periods are spread across the calendar" in report
+    for clause in (
+        "periods that hold far more values than their neighbours",
+        "a few scheduled periods",
+    ):
+        assert clause in report, f"the report no longer names: {clause}"
+    for absent in (
+        "which days of the week",
+        "the time of day",
+        "how these dates are spread across the calendar",
+    ):
+        assert absent not in report, (
+            f"a column of months has no {absent!r} to lose, and its report "
+            f"says it does"
+        )
+
+
 def test_a_column_beside_the_dates_is_untouched_by_this_rule(
     tmp_path: pathlib.Path,
 ) -> None:
     """The word budget is unchanged, so no other column's cells move.
 
-    Each rank between the pinned ones draws exactly one word and a
-    pinned rank draws its word and discards it, so a column of dates
-    consumes exactly what it always consumed. The numpy stream is shared
+    Each rank that is not pinned draws exactly one word and a pinned
+    rank draws none, and the BUDGET is unchanged either way: the column
+    is handed `P - 2` content words and the pins leave up to eleven of
+    them unread, so a column of dates consumes exactly the allocation it
+    always consumed. (The repair pass of landing 2b.6 amended this
+    paragraph: it said a pinned rank draws its word and discards it, and
+    a probe of the shipped code measured 389 words read of 398.) The
+    stream of words is shared
     across columns, so had the budget changed, every column generated
     after a column of dates would have moved with it. This builds one
     table with a column of dates beside a column of numbers and asserts

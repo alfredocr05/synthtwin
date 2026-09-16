@@ -4657,6 +4657,76 @@ def _day_ordinal(canonical: str) -> int:
     )
 
 
+def _spelling_judged(
+    found: "dict[str, dict[str, int]]", candidate: str, spelling: str
+) -> None:
+    """Record that one candidate's pass took a cell spelled this way.
+
+    THE PROVENANCE OF A HOLE SPELLING, GATHERED WHERE IT IS KNOWN
+    (repair pass of landing 2b.6). A cell the person DECLARED is taken
+    out before any pass judges anything, so a spelling reaching this
+    record was put there by a judged pass and by nothing else. Both
+    readers of the finished description -- the generator, which decides
+    which spellings reach the whole table, and the validator, which
+    reads the person's declarations back out of the columns -- had to
+    guess this by counting, and no count can tell two keys writing one
+    placeholder day apart: 500 rows with twenty judged
+    `1900-01-01 00:00:00` beside thirty declared `1900-01-01T00:00:00`
+    promoted the judged spelling to every column and made the REAL
+    table miss thirteen obligations of its own description.
+
+    The inner mapping is a mapping rather than a set for the reason
+    `kept_spellings` gives (plan D6.2); its values are never read.
+
+    Guarantees: accepts the record, the candidate as the description
+    will publish it, and the cell's own spelling; adds one entry.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    if candidate not in found:
+        found[candidate] = {}
+    found[candidate][spelling] = 1
+
+
+def _judged_spellings_published(
+    entries: "list[dict[str, object]]",
+    judged: "dict[str, dict[str, int]]",
+    by_source: "dict[str, int]",
+) -> "list[dict[str, object]]":
+    """Each decision's own published hole spellings (contract V5).
+
+    THE FLOOR DECIDES WHAT MAY BE NAMED HERE, and it has already
+    decided: a spelling is written into a decision only where it is a
+    key of `missing_by_source`, so this publishes no group the floor
+    pooled and no spelling the document does not already carry. What is
+    new is the LINK between the spelling and the pass that took it,
+    which is a fact about the DESCRIBING RUN rather than about any row.
+
+    A decision that kept its candidate as a number took no cell out and
+    names nothing. A candidate below the floor is not published at all
+    (V1), so its spellings have no entry to stand in.
+
+    Guarantees: accepts the published decisions, the record
+    `_spelling_judged` gathered and the floored spelling map; returns
+    the decisions with their spellings filled, sorted and without
+    repeats. Determinism: a function of the three. Raises nothing. No
+    I/O of any kind.
+    """
+    filled: "list[dict[str, object]]" = []
+    for entry in entries:
+        candidate = _text_at(entry, "candidate")
+        named: "list[str]" = []
+        if _text_at(entry, "verdict") == VERDICT_MISSING and candidate in judged:
+            for spelling in sorted(judged[candidate]):
+                if spelling in by_source:
+                    named += [spelling]
+        carried: "dict[str, object]" = {}
+        for key in sorted(entry):
+            carried[key] = entry[key]
+        carried["spellings"] = named
+        filled += [carried]
+    return filled
+
+
 def _published_verdicts(
     verdicts: "dict[float, tuple[bool, str, int]]", settings: Settings
 ) -> "tuple[list[dict[str, object]], int]":
@@ -4682,6 +4752,13 @@ def _published_verdicts(
                 "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
                 "reason": reason,
                 "n_occurrences": occurrences,
+                # WHICH PUBLISHED SPELLINGS THIS DECISION TOOK OUT
+                # (repair pass of landing 2b.6). Empty here and filled
+                # by `profile_column` once the floor has decided which
+                # spellings are named at all: this function does not
+                # see the cells, and a spelling below the floor may not
+                # be named anywhere.
+                "spellings": [],
             }
         ]
     return entries, unpublished
@@ -4716,6 +4793,9 @@ def _published_day_verdicts(
                 "verdict": VERDICT_MISSING if missing else VERDICT_KEPT,
                 "reason": reason,
                 "n_occurrences": occurrences,
+                # Filled by `profile_column`, for the reason the numeric
+                # half gives.
+                "spellings": [],
             }
         ]
     return entries, unpublished
@@ -9457,6 +9537,7 @@ def _cores_judged(
     classified: "list[_Cell]",
     missing: "list[tuple[str, str]]",
     verdicts: "dict[float, tuple[bool, str, int]]",
+    judged_spellings: "dict[str, dict[str, int]]",
     forced_measurement: bool = False,
 ) -> "tuple[list[_Cell], list[tuple[str, str]], dict[float, tuple[bool, str, int]]]":
     """Judge this column's stand-ins over its CORES, and remove them.
@@ -9530,6 +9611,17 @@ def _cores_judged(
         core = _classify(split) if split is not None else None
         if core is not None and core.exact in removed:
             missing += [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
+            # THE WHOLE CELL IS THE SPELLING, not the core: what a
+            # `missing_by_source` key carries is what the cell held,
+            # character for character, and that is what a later reader
+            # compares against (repair pass of landing 2b.6).
+            place = 0
+            for step in range(len(removed)):
+                if removed[step] == core.exact:
+                    place = step
+            _spelling_judged(
+                judged_spellings, f"{withheld[place]:g}", cell.text
+            )
         else:
             kept += [cell]
     return kept, missing, judged
@@ -11324,7 +11416,15 @@ def _publication_class_applied(
         index = index + 1
     withheld: list[dict[str, object]] = []
     for _occurrences, _verdict, _reason, place in sorted(ranked):
-        withheld += [_counts_only(entries[place])]
+        counted = _counts_only(entries[place])
+        # THE SPELLINGS GO WITH THE CANDIDATE (repair pass of landing
+        # 2b.6). A column that publishes no value of the table
+        # publishes no spelling of one, here as in `missing_by_source`
+        # -- and this key is a LIST, so what stands for "withheld" in
+        # it is emptiness rather than the word `_counts_only` writes
+        # into every other key that could carry a value.
+        counted["spellings"] = []
+        withheld += [counted]
     no_spellings: dict[str, int] = {}
     return _counts_only(details), no_spellings, withheld, 0, 0
 
@@ -11412,6 +11512,15 @@ def profile_column(
         classified, settings, forced_decimal_comma
     )
     missing = missing + declared
+    # WHICH JUDGED PASS TOOK WHICH SPELLING (repair pass of landing
+    # 2b.6, contract V5). Gathered at each of the three places a pass
+    # removes a cell, because that is the only place it is known: after
+    # the removal the classes are counted and the spellings are
+    # counted, and neither says which pass a spelling came from.
+    # Everything above this line is a DECLARATION -- `split_missing`
+    # and `_declared_numbers_removed` -- so nothing the person named
+    # can reach this record.
+    judged_spellings: "dict[str, dict[str, int]]" = {}
     cells = _tally(classified, n_rows, settings, forced_decimal_comma)
     # One list of what is present, rebuilt from the surviving records.
     # Keeping the pre-declaration list here would have counted values
@@ -11446,6 +11555,17 @@ def profile_column(
                     missing += [
                         (cell.text, parsing.MISSING_NUMERIC_SENTINEL)
                     ]
+                    # WHICH candidate took it, written the way the
+                    # verdict will publish it, so the two cannot drift.
+                    place = 0
+                    for step in range(len(removed)):
+                        if removed[step] == cell.exact:
+                            place = step
+                    _spelling_judged(
+                        judged_spellings,
+                        f"{withheld[place]:g}",
+                        cell.text,
+                    )
                 else:
                     kept += [cell]
             classified = kept
@@ -11514,6 +11634,11 @@ def profile_column(
                             missing += [
                                 (cell.text, parsing.MISSING_DATE_SENTINEL)
                             ]
+                            # The candidate is the canonical day, which
+                            # is exactly what the verdict publishes.
+                            _spelling_judged(
+                                judged_spellings, found, cell.text
+                            )
                             removed_by_days = removed_by_days + 1
                         else:
                             kept_cells += [cell]
@@ -11554,6 +11679,7 @@ def profile_column(
                 classified,
                 missing,
                 verdicts,
+                judged_spellings,
                 forced_measurement,
             )
             cells = _tally(
@@ -11626,6 +11752,11 @@ def profile_column(
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
         missing, settings
+    )
+    # AND EACH DECISION'S OWN SPELLINGS, filled once the floor has said
+    # which spellings may be named at all (contract V5).
+    entries = _judged_spellings_published(
+        entries, judged_spellings, by_source
     )
     # ONE application of the publication class, over everything the
     # block can publish, after the role is known and before anything is

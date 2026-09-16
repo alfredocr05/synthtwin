@@ -1251,24 +1251,29 @@ the same gaps: a rank a rung is selected from has a window of ONE VALUE,
 its published one, so each of the nine is checked at the value rather
 than inside a band around it.
 
-**Amended 2026-09-15 (landing 2b.3): a judged spelling is not a
-declaration.** A `missing_by_source` key a column's own calendar
-placeholder or stand-in pass put there is left out of the declared
-spellings, and so out of the settings the file is described under,
-wherever the table declared no missing value or that column counts no
-cell absent by declaration. A birth column holding 187 present cells of
-a discharge column's judged `1900-01-01 00:00:00` had them described as
-absent, and the real table missed 24 obligations of its own
-description. Where the judging column also counts declared cells, the
-key is left out too unless a declared cell can share the judged day: the
-keys denoting the judged candidate, with the column's pooled hole
-spellings added, hold more cells than the verdict's `n_occurrences`,
-which counts only the cells the pass took, since a declared cell is taken
-out before any pass judges. There every key sharing that day stays a
-declaration and a person's own word is never narrowed. A declared `NA`
-shares no day with a placeholder, so it no longer carries a judged
-spelling to the table (repair pass of landing 2b.3: the real table had
-missed 12 obligations).
+**Amended 2026-09-15 (landing 2b.3, rewritten by the repair pass of
+landing 2b.6): a judged spelling is not a declaration, and the
+description says which is which.** A `missing_by_source` key a column's
+own calendar placeholder or stand-in pass put there is left out of the
+declared spellings, and so out of the settings the file is described
+under. A birth column holding 187 present cells of a discharge column's
+judged `1900-01-01 00:00:00` had them described as absent, and the real
+table missed 24 obligations of its own description.
+
+WHICH KEYS THOSE ARE IS READ, NOT COUNTED. Each decision published in
+`sentinel_verdicts` names the spellings its own pass took out (contract
+V5), and this document asks that list and nothing else. The version
+this replaces compared the cells of every key DENOTING the judged
+candidate — with the column's pooled hole spellings added — against the
+verdict's `n_occurrences`, and no count can settle the case where two
+keys write one candidate day: twenty judged `1900-01-01 00:00:00`
+beside thirty `1900-01-01T00:00:00` a person declared put 50 cells
+against a verdict of 20, so the judged key was read as a declaration of
+the whole table, a second column's 80 ordinary values were re-read as
+absent, and the REAL table missed 13 obligations of its own description
+— both presence counts, three counts of cells, the marks census, the
+count at midnight and seven rungs of its date ladder. A declared word
+still reaches every column, because no decision names it.
 
 **Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
 grouped spelling of every value, whatever `group_separator` publishes.**

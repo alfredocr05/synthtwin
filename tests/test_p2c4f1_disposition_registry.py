@@ -86,6 +86,7 @@ written; (3) still have a lowering to excuse; and (4) be gone by the
 time a review stops rejecting the phase.
 """
 
+import datetime
 import functools
 import hashlib
 import pathlib
@@ -1631,6 +1632,33 @@ def _described(
     return contract.load_profile(str(target))
 
 
+def _dates_and_moments() -> "list[str]":
+    """Whole dates and real clock times in one column (residual R-P4-12).
+
+    THE DATE ROLE'S OWN REPORT LINE, brought here by the repair pass of
+    landing 2b.6 (skeptic finding 4). This battery's vacuity floor was
+    LOWERED when landing 2b.6 part 2 made the nine interior rungs exact:
+    the lines that disappeared were the date role's, and what was left
+    was one continuous column's two facts repeated over three seeds, so
+    the role this repository had just changed most contributed nothing
+    to the guard. A column read JOINTLY is the shape whose report line
+    survives the repair, because the twin writes every rank with a time
+    of day and the published `resolution_mix` cannot come back -- which
+    is the residual itself, named in the plan and carried openly.
+    """
+    first = datetime.date(2024, 1, 1)
+    cells: "list[str]" = []
+    for step in range(300):
+        day = first + datetime.timedelta(days=step)
+        if step % 2:
+            cells += [day.isoformat()]
+        else:
+            cells += [
+                f"{day.isoformat()} {step % 24:02d}:{step % 60:02d}:00"
+            ]
+    return cells
+
+
 @pytest.fixture(scope="module")
 def battery(
     tmp_path_factory: pytest.TempPathFactory,
@@ -1653,6 +1681,8 @@ def battery(
     vast.mkdir()
     both = folder / "both"
     both.mkdir()
+    mixed = folder / "mixed"
+    mixed.mkdir()
     return [
         (
             "every role",
@@ -1731,6 +1761,17 @@ def battery(
                     + ["-3"] * 11,
                 ),
                 ["code"],
+            ),
+        ),
+        (
+            # THE DATE ROLE, which stopped reporting anything at all
+            # when landing 2b.6 part 2 made its rungs exact (repair
+            # pass of that landing, skeptic finding 4). `_dates_and_moments`
+            # says why this is the shape that still reports.
+            "whole dates mixed with times of day",
+            _described(
+                mixed,
+                fixtures.single_column_table("when", _dates_and_moments()),
             ),
         ),
     ]
@@ -1854,8 +1895,9 @@ def test_the_producer_battery_really_exercises_the_report(
         f"{sorted(set(dispositions.ROLE_GROUPS) - owed)}"
     )
     lines = _reported(battery)
-    # RE-CALIBRATED AT LANDING 2b.6 PART 2, and this is a floor that was
-    # LOWERED, which is the kind of change that has to carry its reason.
+    # RE-AIMED BY THE REPAIR PASS OF LANDING 2b.6, after that landing
+    # LOWERED it -- and a floor that goes down carries its reason, so
+    # both moves are written here rather than one of them.
     #
     # These two numbers are a vacuity floor: a battery whose twins met
     # every fact would pass the check above while proving nothing. They
@@ -1865,9 +1907,18 @@ def test_the_producer_battery_really_exercises_the_report(
     # Landing 2b.6 part 2 repaired exactly that: the nine interior rungs
     # are pinned to their published values, measured exact in 54 of 54
     # runs where they had been missed in 54 of 54, so those lines no
-    # longer exist to be counted. What is left is six lines over two
-    # reasons, both on the one continuous column whose numbers are past
-    # the reach of a fraction.
+    # longer exist to be counted, and the floor was dropped to six lines
+    # over two reasons -- both of them one continuous column's, which
+    # left the role this repository had just changed most contributing
+    # nothing to the guard at all.
+    #
+    # So the battery gained a shape whose date-role line SURVIVES the
+    # repair rather than the floor being left where the loss put it: a
+    # column read jointly, whole dates beside real clock times, whose
+    # `resolution_mix` the twin cannot bring back because every rank is
+    # written with a time of day (residual R-P4-12). Measured on the
+    # shipped battery: NINE lines over THREE reasons, the third being
+    # that column's, at every one of the three seeds.
     #
     # The teeth of this check are NOT the two counts. They are the two
     # assertions below them: every line the battery produces must be one
@@ -1875,10 +1926,10 @@ def test_the_producer_battery_really_exercises_the_report(
     # above holds the battery to reaching every role in the taxonomy. A
     # floor calibrated against a defect measures the defect, so it moves
     # when the defect is repaired; the accounting does not move.
-    assert len(lines) >= 6, lines
+    assert len(lines) >= 9, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}
     assert None not in reasons
-    assert len(reasons) >= 2, reasons
+    assert len(reasons) >= 3, reasons
 
 
 def test_an_invented_miss_of_an_exact_fact_is_refused() -> None:

@@ -4762,10 +4762,14 @@ def spread_ordinals(rungs, parsed, words):
     the column's own ordinal space, and the draws inside one gap are
     sorted, so the ranks stay ascending.
 
-    ONE WORD PER INTERIOR RANK, PINNED RANKS INCLUDED: a pinned rank
-    draws its word and discards it, because the word stream is shared
-    across columns and a column of dates must consume exactly what it
-    always consumed or every column after it moves.
+    ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE, taken in
+    rank order.  The budget is unchanged -- the column is handed `P - 2`
+    content words and the pins leave up to eleven of them unread -- so
+    the shared stream stays in step and no column after a column of
+    dates moves.  (The repair pass of landing 2b.6 amended this
+    paragraph, which had said that a pinned rank draws its word and
+    discards it; the shipped construction reads 389 words of a 400-row
+    column's 398, and this mirror follows the method's amended rule.)
 
     What it replaces: one cell per rank inside its own `1 / P` stratum,
     which gave each day almost exactly its expected count -- a

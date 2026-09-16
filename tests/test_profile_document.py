@@ -334,8 +334,19 @@ def test_nothing_that_varies_between_runs_is_written(
 # value of any column moved, and the demonstration's twin bytes did not
 # move either: its dates were already written in their source's form,
 # which is what an ISO column's source form is.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), and the
+# cause is ONE KEY of one decision: the demonstration's `reading` column
+# publishes a stand-in verdict, and that decision now names the
+# published spelling its own pass took out -- `"spellings": ["-999"]`.
+# It is the provenance of a hole spelling, which nothing else in the
+# document carries and which both readers were guessing at by counting
+# (contract V5, plan P4-D63). Three lines were added to one block and
+# NOTHING else about the document moved: no count, statistic, label,
+# role, spelling or value of any column, and the demonstration's twin
+# bytes did not move either, because the demonstration has no column
+# where a declaration and a judgement share a candidate.
 GOLDEN_SHA256 = (
-    "f42aecb1dea510f8b4057e5d2d9a717800040d7055b903c4fe5a2551b7eee512"
+    "020e296babb0fcdd0991c8fa23152f48d5cba59eb8c6acc468b0a39309e3d72a"
 )
 
 

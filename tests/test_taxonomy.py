@@ -337,6 +337,13 @@ def test_an_outlying_sentinel_number_is_read_as_missing() -> None:
             "verdict": "read_as_missing",
             "reason": "outlier_and_frequent",
             "n_occurrences": 15,
+            # WHICH PUBLISHED SPELLING THIS DECISION TOOK OUT (repair
+            # pass of landing 2b.6, contract V5). It is the cell's own
+            # text, which is what `missing_by_source` keys itself on,
+            # and it is what tells a later reader that this key is one
+            # column's judgement rather than a word the person named
+            # for the whole table.
+            "spellings": ["-999"],
         }
     ]
     assert described.missing_by_class["(numeric-sentinel)"] == 15

@@ -644,9 +644,28 @@ def battery() -> list[Mutation]:
                             "verdict": "kept_as_a_number",
                             "reason": "not_an_outlier",
                             "n_occurrences": 13,
+                            "spellings": [],
                         },
                     ]
                 }
+            ),
+        ),
+        # THE SPELLINGS A DECISION TOOK OUT (V5, repair pass of landing
+        # 2b.6). Both directions of the rule are damaged: a decision
+        # naming a spelling this column does not publish among its
+        # absent cells, and a decision that KEPT its candidate as a
+        # number naming one anyway. Neither is a document the producer
+        # can write, and each would tell the generator and the
+        # validator that a word the person declared was one column's
+        # own judgement -- the mistake this key exists to end.
+        Mutation(
+            "V5", "a decision naming a spelling the column never published",
+            edit_verdict("reading", 0, spellings=["zz"]),
+        ),
+        Mutation(
+            "V5", "a kept candidate naming the spellings it did not take",
+            edit_verdict(
+                "reading", 0, verdict="kept_as_a_number", reason="too_rare"
             ),
         ),
         # -- the repetition patterns ----------------------------------
@@ -1314,6 +1333,7 @@ def battery() -> list[Mutation]:
                         "verdict": "kept_as_a_number",
                         "reason": "too_rare",
                         "n_occurrences": 20,
+                        "spellings": [],
                     }
                 ],
             ),

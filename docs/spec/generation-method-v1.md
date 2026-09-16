@@ -3653,12 +3653,30 @@ description can carry.
   column of dates, of months, of quarters and for one whose every moment
   stands at midnight; seconds otherwise.
 
-**Every rank between the ends spends exactly one word, a pinned rank
-included: a pinned rank draws its word and discards it.** The word
-stream is shared across columns, so a column of dates must consume what
-it always consumed — `P - 2` content words — or every column generated
-after it moves. This is what keeps a table's other columns byte-identical
-when only its dates change.
+**Each rank that is NOT pinned spends exactly one word; a pinned rank
+spends none.** The words are drawn in rank order, so the ranks inside
+one gap take consecutive words and the next gap continues where the
+last one stopped.
+
+**The budget is unchanged: `P - 2` content words** (`_plan_column`), of
+which the pins leave up to eleven unread. That is what keeps the shared
+stream in step — a column is HANDED its budget before it is built, and a
+word it does not read is not a word another column takes — so a column
+of dates consumes exactly the allocation it always consumed and no
+column generated after it moves. Of 24 twins of unrelated shapes, 18 are
+byte-identical across this rewrite and the 6 that moved are the two date
+shapes; an independent set of 30 unrelated twins was byte-identical at
+30 of 30.
+
+*Amended by the repair pass of landing 2b.6.* This paragraph said that a
+pinned rank draws its word and discards it. It does not: the
+construction takes a word only for the ranks strictly between two pins,
+which a probe of the shipped code measured as 389 words read of the 398
+a 400-row column is handed. The rule above is what the code does, in the
+generator and in the oracle alike; writing the other rule here left an
+implementer who followed the document handing different words to
+different ranks, and every committed date vector would have moved for
+nothing.
 
 WHY THE STRATIFIED PLACEMENT WAS WITHDRAWN. Each rank used to be its own
 stratum, interpolated inside the band from `r / P` to `(r + 1) / P`, so
@@ -3672,7 +3690,13 @@ ever further from sampling. The same floor also put **every one of the
 nine interior rungs below its published value in all 54 runs** — one day
 early on a 400-row admissions column, so a rung published as a Monday was
 written as a Sunday. After this rule: every rung exact in 54 of 54, and
-the ratio 0.52 to 1.41.
+the ratio 0.52 to 1.41 **on columns whose shape eleven rungs can
+carry**. That qualification is measured, not hedged (repair pass of
+landing 2b.6): on a column whose values burst around three onset dates,
+eleven pins over a year leave gaps weeks wide, the gap is filled evenly
+as everywhere else, and the ratio stays at 0.34 to 0.47 at 400 rows and
+0.15 to 0.18 at 1,500 — which is where the withdrawn construction
+already was, so this rule neither helps nor harms that shape.
 
 WHAT IT DOES NOT CARRY, and G12.4's window is drawn to match. A gap is
 filled EVENLY, so structure the description does not publish does not
@@ -4100,14 +4124,20 @@ rather than passing it off as an outcome the description asked for.
   the pooled ones included. The first whose spelling is not absent is
   written (the stage 2 audit, 2026-09-14). A spelling a column's own
   calendar placeholder or stand-in pass judged absent is not a
-  declaration and is not offered to other columns (landing 2b.3), unless
-  a declaration can share its day: the judging column counts cells
-  absent by declaration, and the keys denoting the judged candidate,
-  with the column's pooled hole spellings added, hold more cells than
-  the verdict's `n_occurrences`, which counts only the cells the pass
-  took because a declared cell is taken out before any pass judges
-  (repair pass of landing 2b.3: a declared `NA` in the judging column
-  had carried a judged `1900-01-01 00:00:00` to a birth column). Any two of them spell the same instant at the same
+  declaration and is not offered to other columns (landing 2b.3).
+  **WHICH SPELLINGS THOSE ARE IS READ OUT OF THE DESCRIPTION** (repair
+  pass of landing 2b.6): each decision published in `sentinel_verdicts`
+  names the spellings its own pass took out (contract V5), and a key no
+  decision names was made absent by something that reaches the whole
+  table. The version this replaces counted — the keys denoting the
+  judged candidate, with the column's pooled hole spellings added,
+  against the verdict's `n_occurrences` — and a count cannot separate
+  two keys writing ONE candidate day: twenty judged
+  `1900-01-01 00:00:00` beside thirty `1900-01-01T00:00:00` a person
+  declared put 50 cells against a verdict of 20, so the judged key was
+  offered to every column and a second column's ordinary values were
+  read as absent, which made the REAL table miss thirteen obligations
+  of its own description. Any two of them spell the same instant at the same
   precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,

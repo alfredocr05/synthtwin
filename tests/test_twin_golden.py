@@ -852,8 +852,16 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # what a twin of a month-first, textual, compact, two-digit, dotted,
 # slashed-ISO, quarter or zulu column is written as, and this
 # demonstration holds none of those.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), for the
+# cause recorded beside the profile golden in
+# tests/test_profile_document.py: the `reading` column's stand-in
+# decision now names the published spelling its own pass took out
+# (`"spellings": ["-999"]`, contract V5, plan P4-D63). THE TWIN'S OWN
+# BYTES DID NOT MOVE -- GOLDEN_TWIN_SHA256 below is untouched -- because
+# no column of this demonstration has a declaration and a judgement
+# sharing one candidate, which is the case the key was published for.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "b92e78c3b8e396208249606cf3d2796c0b3777fb723c790ba793e6025f8fc101"
+    "a71bcfa5b7f636e9571b8f4007a852b4fca32683cb71d7628bcdeca0f5f68904"
 )
 
 
@@ -1380,8 +1388,20 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # not carry before, naming what a twin of a column of dates still does
 # not reproduce: the weekday composition, the time of day, days the real
 # column heaps values on, and a column of a few scheduled dates.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), and the
+# cause is the WINDOW the report prints beside each approximated date
+# rung, on nine lines and nowhere else. A rank a rung is pinned to has
+# no room to be drawn in, so it is now allowed no reading allowance
+# either: `allowed anywhere from 2023-12-31 to 2024-01-01` is now
+# `allowed anywhere from 2024-01-01 to 2024-01-01`, at each of the nine.
+# The band it replaces was wide enough to admit a twin with every
+# interior cell written one day EARLY -- the defect landing 2b.6 part 2
+# repaired -- and this landing's own text said in four places that the
+# window was a point while the code spent the allowance anyway. The twin
+# is untouched, every achieved figure is unchanged, and the report says
+# strictly more than it did.
 GOLDEN_REPORT_SHA256 = (
-    "7bd1b707006793e9e6c7c74d1cb85f0d387d286f32c935244ac9587e89469843"
+    "89bd7cc9538269732daaa81b96c77c52c618d4a9e11663c0876f3fa422d0762c"
 )
 
 

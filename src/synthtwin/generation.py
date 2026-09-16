@@ -8575,19 +8575,33 @@ def _a_judged_pass_put_it_there(
 
     The two passes this version has are the stand-in number pass and
     the calendar placeholder pass, and each records its decision as a
-    verdict naming the candidate. A published hole spelling that
-    denotes a candidate this column read as missing is that pass's
-    doing, and C6-116 keeps it blank.
+    verdict naming the candidate AND the published spellings its cells
+    wore. A spelling one of those decisions names is that pass's doing,
+    and C6-116 keeps it blank.
+
+    IT IS READ, NOT INFERRED (repair pass of landing 2b.6, contract
+    V5). This asked whether the spelling DENOTED the verdict's
+    candidate, which is a guess wherever two keys write one candidate:
+    a column whose twenty `1900-01-01 00:00:00` cells a placeholder
+    pass judged, beside thirty `1900-01-01T00:00:00` the person
+    declared, has both keys denoting the day `1900-01-01`, so the twin
+    blanked the person's declared spelling as well and the walk above
+    it promoted the judged one to the whole table. The producer knows
+    which cells its own pass took; it now says so, and this reads it.
+
+    ``decimal_comma`` is no longer consulted -- the producer recorded
+    the cell's own spelling, so no reading rule has to be re-derived
+    here -- and it is kept because every caller has it in hand and
+    `_is_the_same_candidate` next door still answers the question it
+    asks, for the `--keep-value` comparison and for the tests that pin
+    that reading.
     """
     for verdict in column.sentinel_verdicts:
         if verdict.verdict != contract.VERDICT_MISSING:
             continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if _is_the_same_candidate(
-            spelling, verdict.candidate, decimal_comma
-        ):
-            return True
+        for named in verdict.spellings:
+            if named == spelling:
+                return True
     return False
 
 
@@ -8671,54 +8685,37 @@ def _judged_here_alone(
 ) -> bool:
     """Whether a published hole spelling is ONE column's judgement only.
 
-    A judged pass put it there (`_a_judged_pass_put_it_there`), AND no
-    declaration can have. No declaration can have where the table
-    declared no missing value at all, where this column counts no cell
-    absent by declaration, or where the keys denoting the judged
-    candidate hold no more cells than the judged pass took. That last is
-    a count and not a guess: the verdict's `n_occurrences` counts the
-    cells the pass read as absent, a declared cell is taken out before
-    any pass judges, so the keys sharing the candidate's day hold
-    `n_occurrences` cells plus every declared cell spelled on that day,
-    and the column's pooled hole spellings (`n_missing_withheld`) are
-    added to the keys because a judged spelling pooled there could leave
-    a declared key named in its place.
+    IT IS THE PUBLISHED PROVENANCE, NOT A COUNT (repair pass of landing
+    2b.6, contract V5). A decision names the published spellings its own
+    pass took out, and a spelling one of them names was made absent by
+    THIS column's judgement; every other key of `missing_by_source` was
+    made absent by something that reaches the whole table -- a word the
+    person declared, or one of this package's own. So the question is
+    read off the description rather than reconstructed from it, and
+    `_a_judged_pass_put_it_there` is the whole of the rule.
 
-    Measured, repair pass of landing 2b.3: a discharge column holding 64
-    `NA` cells a person declared beside 25 judged `1900-01-01 00:00:00`
-    counts declared cells, and the rule that stopped at "this column
-    counts declared cells" kept the judged spelling table-wide, so a birth
-    column's twin wrote 75 values with a `T` and the real table missed 12
-    obligations of its own description. The day's one key holds 25 cells,
-    the verdict took 25, and nothing declared shares the day. A person's
-    own `1900-01-01T00:00:00` beside a judged `1900-01-01 00:00:00` puts
-    64 cells on a day whose verdict took 36, and both keys keep their
-    table-wide reach, so a declaration is never narrowed.
+    WHAT COUNTING COST, measured twice, in both directions. The version
+    landing 2b.3 wrote compared the cells of every key denoting the
+    candidate against the verdict's `n_occurrences`. On a discharge
+    column holding 64 `NA` cells a person declared beside 25 judged
+    `1900-01-01 00:00:00` it kept the judged spelling table-wide, so a
+    birth column's twin wrote 75 values with a `T` and the real table
+    missed 12 obligations of its own description; the repair that fixed
+    that case then failed the other way on a column whose 20 judged
+    `1900-01-01 00:00:00` stood beside 30 `1900-01-01T00:00:00` the
+    person declared -- two keys writing one day, 50 cells against a
+    verdict of 20 -- and the REAL table missed 13 obligations. No count
+    the document carries separates those two readings, which is why the
+    producer now says which cells its own pass took.
 
     Guarantees: accepts one column, a spelling it publishes, whether it
     was declared a decimal-comma column, and the description; returns a
-    bool. Determinism: a function of the four. Raises nothing. No I/O.
+    bool. The last two are no longer consulted and are kept because
+    every caller has them and because this function's shape is the
+    validator's too. Determinism: a function of the four. Raises
+    nothing. No I/O.
     """
-    if not _a_judged_pass_put_it_there(column, spelling, decimal_comma):
-        return False
-    if profile.settings.declared_missing_values.n_declared <= 0:
-        return True
-    if column.missing_by_class.declared_missing <= 0:
-        return True
-    judged = 0
-    named = column.n_missing_withheld
-    for verdict in column.sentinel_verdicts:
-        if verdict.verdict != contract.VERDICT_MISSING:
-            continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if not _is_the_same_candidate(spelling, verdict.candidate, decimal_comma):
-            continue
-        judged = judged + verdict.n_occurrences
-        for key in sorted(column.missing_by_source):
-            if _is_the_same_candidate(key, verdict.candidate, decimal_comma):
-                named = named + column.missing_by_source[key]
-    return named <= judged
+    return _a_judged_pass_put_it_there(column, spelling, decimal_comma)
 
 
 def _hole_spellings(
@@ -13547,6 +13544,29 @@ _SPREAD_NOTE = (
     "or per single day computed on this twin are not the real column's."
 )
 
+# THE SAME SENTENCE FOR A COLUMN OF PERIODS, with the two clauses such a
+# column cannot have taken out (repair pass of landing 2b.6). A column
+# of months or quarters has no weekday and no time of day: its cells
+# name a period, and the ordinal space it is drawn in is that period.
+# Saying otherwise would print two sentences about a column that are
+# true of no column, which is the fault the marks sentence was already
+# held to -- "the twin report's sentence on the marks is the one true
+# of the column" (plan P4-D41).
+_SPREAD_PERIOD_SUBJECT = "how these periods are spread across the calendar"
+
+_SPREAD_PERIOD_HELD = (
+    "the published ladder is met rung for rung, and between the rungs "
+    "the periods are drawn independently"
+)
+
+_SPREAD_PERIOD_NOTE = (
+    "Two things a real column of periods often has are not reproduced, "
+    "because the description publishes nothing that carries them: "
+    "periods that hold far more values than their neighbours, and a "
+    "column whose values sit on a few scheduled periods. Counts per "
+    "single period computed on this twin are not the real column's."
+)
+
 
 def _spread_remarks(
     column: contract.ColumnBlock,
@@ -13563,7 +13583,9 @@ def _spread_remarks(
     day-to-day variation that stratifying removed -- measured over 54
     runs of uniform, seasonal and admissions-style columns, a per-day
     count variance of 0.057 to 0.514 of the real column's became 0.52 to
-    1.41. What it cannot restore is structure the description does not
+    1.41 -- on columns whose shape eleven rungs can carry; a column
+    bursting around three onset dates stays at 0.15 to 0.47, where it
+    already was. What it cannot restore is structure the description does not
     publish: the gap is filled EVENLY, so a column that admits nobody at
     a weekend, one whose visits cluster at five in the afternoon, one
     that heaps a fifth of its birthdays on the first of January, and one
@@ -13578,6 +13600,16 @@ def _spread_remarks(
     distinctness counts were inside their window, which is true and
     tells a reader nothing about any of the four.
 
+    THE SENTENCE IS THE ONE TRUE OF THE COLUMN (repair pass of landing
+    2b.6), which is the rule the marks sentence already follows. A
+    column of MONTHS or QUARTERS has no weekday and no time of day --
+    its cells name a period, and the ordinal space G7.1 draws it in is
+    that period -- so it takes a two-clause form naming the two things
+    that do apply: periods holding far more values than their
+    neighbours, and a column of a few scheduled periods. Printing all
+    four on such a column would name two things no column of periods
+    can lose.
+
     Guarantees: accepts one column; returns one remark on a column of
     dates and none on any other. Determinism: a function of the column.
     Raises nothing. No I/O of any kind.
@@ -13585,6 +13617,15 @@ def _spread_remarks(
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return []
+    if facts.resolution in ("month", "quarter"):
+        return [
+            _remark(
+                column.name,
+                _SPREAD_PERIOD_SUBJECT,
+                _SPREAD_PERIOD_HELD,
+                _SPREAD_PERIOD_NOTE,
+            )
+        ]
     return [
         _remark(column.name, _SPREAD_SUBJECT, _SPREAD_HELD, _SPREAD_NOTE)
     ]
@@ -14076,11 +14117,25 @@ def _spread_ordinals(
     ever more finely is ever further from sampling. Independent draws
     inside the gap restore the variation that stratifying removed.
 
-    ONE WORD PER INTERIOR RANK, PINNED RANKS INCLUDED. A pinned rank
-    draws its word and discards it. That is deliberate: the word stream
-    is shared across columns, so a column of dates must consume exactly
-    what it always consumed or every column generated after it moves.
-    The budget is `P - 2` either way (`_plan_column`).
+    ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE. The words
+    are taken in rank order, so the ranks inside one gap take
+    consecutive words and the next gap continues where the last one
+    stopped.
+
+    THE BUDGET IS UNCHANGED, which is what keeps the shared stream in
+    step. `_plan_column` hands this column `P - 2` content words
+    whatever is done with them, and the pins leave up to eleven of them
+    unread; a word this column does not read is not a word another
+    column takes, so a column of dates consumes exactly the allocation
+    it always consumed and no column generated after it moves.
+
+    THE DOCSTRING HERE, THE METHOD AND THE ORACLE ALL SAID SOMETHING
+    ELSE until the repair pass of landing 2b.6: that a pinned rank draws
+    its word and discards it. A probe of this function measured 389
+    words read of the 398 a 400-row column is handed, so the sentence
+    was false in five places at once; it is the sentence that was wrong
+    and not the code, and making the code draw-and-discard would have
+    moved every committed date vector and all four goldens for no gain.
 
     WHAT THIS DOES NOT REPRODUCE, and the report says so in its own
     words (`_spread_remark`): the weekday composition, the time of day,
@@ -26180,7 +26235,19 @@ def _datetime_window(
             lows += [ladder[10]]
             highs += [ladder[10]]
             continue
-        lows += [bounds_low[rank] - slack]
+        room = slack
+        if bounds_low[rank] == bounds_high[rank]:
+            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6). The
+            # allowance covers the draw's own downward rounding and
+            # for a cell written to the minute; a rank whose two bounds
+            # are one value DRAWS NOTHING -- it is written at the
+            # published value itself -- so spending the allowance there
+            # widened the window of exactly the nine ranks this section
+            # exists to check. Measured: a twin with every interior cell
+            # moved one day EARLIER, which is the defect this landing
+            # repaired, came back WITHIN-BOUND at all nine rungs.
+            room = 0
+        lows += [bounds_low[rank] - room]
         highs += [bounds_high[rank]]
     return (lows, highs)
 

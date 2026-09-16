@@ -397,7 +397,20 @@ MISSING_CLASS_KEYS = (
     WITHHELD,
 )
 
-SENTINEL_KEYS = ("candidate", "n_occurrences", "reason", "verdict")
+SENTINEL_KEYS = (
+    "candidate",
+    "n_occurrences",
+    "reason",
+    # THE PUBLISHED ABSENT SPELLINGS THIS DECISION TOOK OUT (repair
+    # pass of landing 2b.6, invariant V5). It is the one fact that says
+    # which of a column's published hole spellings a JUDGED pass put
+    # there and which the person's own declaration did, and no count in
+    # the document can supply it: two keys writing the same placeholder
+    # day are one judgement and one declaration, and every walk that
+    # tried to tell them apart by counting got one of the two wrong.
+    "spellings",
+    "verdict",
+)
 
 VERDICT_MISSING = "read_as_missing"
 
@@ -1007,6 +1020,11 @@ INVARIANTS = {
         "the decisions about stand-in numbers are in the order the "
         "description publishes them in"
     ),
+    "V5": (
+        "a decision names only spellings this column publishes among "
+        "its absent cells, each once and in order, and a decision that "
+        "kept its candidate as a number names none"
+    ),
     "M3": (
         "every row count in a repetition pattern is written in the same "
         "width, that of the largest of them"
@@ -1605,12 +1623,22 @@ class PublicationNote:
 
 @dataclasses.dataclass(frozen=True)
 class SentinelVerdict:
-    """What was decided about one stand-in number, and why."""
+    """What was decided about one stand-in number, and why.
+
+    `spellings` are the keys of this column's `missing_by_source` whose
+    cells THIS decision took out (repair pass of landing 2b.6). It is
+    empty on a decision that kept the candidate as a number, empty on a
+    column that publishes no value of the table, and empty where every
+    spelling the pass took fell below the floor. It carries the
+    provenance of a published hole spelling -- judged here, or declared
+    by the person -- which nothing else in the document carries.
+    """
 
     candidate: str
     verdict: str
     reason: str
     n_occurrences: int
+    spellings: "tuple[str, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4353,8 +4381,79 @@ def _missing_by_source(
     return counted
 
 
+def _judged_spellings(
+    value: object,
+    where: str,
+    verdict: str,
+    named: "tuple[str, ...]",
+) -> "tuple[str, ...]":
+    """The published hole spellings one decision took out (5.5, V5).
+
+    THE PROVENANCE OF A HOLE SPELLING, WHICH NO COUNT CAN SUPPLY
+    (repair pass of landing 2b.6). A spelling standing here was made
+    absent by THIS column's judged pass; every other key of
+    `missing_by_source` was made absent by something that reaches the
+    whole table -- a word the person declared, or one of this package's
+    own. The walk that tried to tell the two apart by counting cells
+    could not: twenty judged `1900-01-01 00:00:00` beside thirty
+    declared `1900-01-01T00:00:00` are two keys writing one day, and
+    every count the document carries is the same under either reading.
+
+    Raises ProfileError for a value that is not a list of text and for
+    V5 in its three parts: a decision that kept its candidate names no
+    spelling, every spelling it names is one this column publishes
+    among its absent cells, and the names are in order and distinct
+    (which is also what the canonical bytes require).
+
+    NO REFUSAL HERE PRINTS A SPELLING. A key of `missing_by_source` is
+    a value out of somebody's table (C5-N5, R15), so what is wrong is
+    named by WHAT IT IS and counted, never quoted -- the rule
+    `_entry_named` follows one field over.
+
+    Guarantees: accepts the list, where it stands, the decision's own
+    verdict and this column's published hole spellings; returns them in
+    the document's order. Determinism: a function of the four. No I/O.
+    """
+    listed = _listing(value, "spellings", where)
+    found: list[str] = []
+    place = 0
+    for entry in listed:
+        found += [_text(entry, f"spellings[{place}]", where)]
+        place = place + 1
+    if verdict != VERDICT_MISSING and found:
+        raise _broken(
+            "V5",
+            where,
+            "this decision kept the stand-in number as a number",
+            f"it names {len(found)} spelling(s) of an empty cell anyway",
+        )
+    unnamed = 0
+    for spelling in found:
+        if spelling not in named:
+            unnamed = unnamed + 1
+    if unnamed:
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {unnamed} spelling(s) of an empty cell",
+            "this column publishes no such spelling among its absent cells",
+        )
+    if found != sorted(found) or len(found) != len(set(found)):
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {len(found)} spelling(s)",
+            "the spellings of one decision are in order and each named once",
+        )
+    return tuple(found)
+
+
 def _sentinel_verdicts(
-    value: object, where: str, floor: int, publishes_nothing: bool
+    value: object,
+    where: str,
+    floor: int,
+    publishes_nothing: bool,
+    named: "tuple[str, ...]",
 ) -> "tuple[SentinelVerdict, ...]":
     """What was decided about each named stand-in number, and why (5.5).
 
@@ -4380,6 +4479,9 @@ def _sentinel_verdicts(
         reason = _one_of(mapping["reason"], "reason", seat, REASONS)
         occurrences = _whole(
             mapping["n_occurrences"], "n_occurrences", seat, 1
+        )
+        spellings = _judged_spellings(
+            mapping["spellings"], seat, verdict, named
         )
         if occurrences < floor:
             raise _broken(
@@ -4461,6 +4563,7 @@ def _sentinel_verdicts(
                 verdict=verdict,
                 reason=reason,
                 n_occurrences=occurrences,
+                spellings=spellings,
             )
         ]
         place = place + 1
@@ -4616,7 +4719,11 @@ def _column(
         n_withheld,
     )
     verdicts = _sentinel_verdicts(
-        mapping["sentinel_verdicts"], where, frame.floor, publishes_nothing
+        mapping["sentinel_verdicts"],
+        where,
+        frame.floor,
+        publishes_nothing,
+        tuple(sorted(by_source)),
     )
     unpublished = _whole(
         mapping["n_sentinel_candidates_unpublished"],

@@ -1952,17 +1952,23 @@ def _judged_here_alone(
     """Whether a published hole spelling is ONE column's judgement only.
 
     THE GENERATOR'S RULE, WRITTEN OUT HERE (V1.4 forbids the import, and
-    a test walks both writings together). A judged pass put it there
-    (`_one_judged_candidate`), AND no declaration can have: the table
-    declared no missing value, or this column counts no cell absent by
-    declaration, or the keys denoting the judged candidate -- with the
-    column's pooled hole spellings added -- hold no more cells than the
-    verdict's `n_occurrences`. A declared cell is taken out before any
-    pass judges, so every declared cell spelled on the candidate's day
-    puts the keys above that count. A `NA` declared in the judging
-    column no longer carries a judged `1900-01-01 00:00:00` to the whole
-    table (repair pass of landing 2b.3), and a person's own
-    `1900-01-01T00:00:00` beside it still reaches every column.
+    a test walks both writings together). A decision of this column
+    names the published spellings its own pass took out (contract V5),
+    and a spelling one of them names is that column's judgement;
+    everything else a column publishes among its absent cells was made
+    absent by something that reaches the whole table.
+
+    IT USED TO BE A COUNT, AND A COUNT CANNOT ANSWER IT (repair pass of
+    landing 2b.6). The version landing 2b.3 wrote asked whether the keys
+    denoting the candidate -- with the column's pooled hole spellings
+    added -- held more cells than the verdict's `n_occurrences`. Two
+    keys writing one placeholder day are the case it cannot read: 20
+    judged `1900-01-01 00:00:00` beside 30 `1900-01-01T00:00:00` the
+    person declared put 50 cells against a verdict of 20, the judged
+    spelling was promoted to a declaration of the whole table, and a
+    second column's 80 ordinary values were re-read as absent -- so the
+    REAL table missed 13 obligations of its own description, including
+    both presence counts and seven rungs of its date ladder.
 
     Guarantees: accepts one column, a spelling it publishes and the
     description; returns a bool. Determinism: a function of the three.
@@ -1972,26 +1978,7 @@ def _judged_here_alone(
     for named in description.settings.forced_decimal_commas:
         if named == column.name:
             comma = True
-    if not _one_judged_candidate(column, spelling, comma):
-        return False
-    if description.settings.declared_missing_values.n_declared <= 0:
-        return True
-    if column.missing_by_class.declared_missing <= 0:
-        return True
-    judged = 0
-    held = column.n_missing_withheld
-    for verdict in column.sentinel_verdicts:
-        if verdict.verdict != contract.VERDICT_MISSING:
-            continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if not _denotes_the_candidate(spelling, verdict.candidate, comma):
-            continue
-        judged = judged + verdict.n_occurrences
-        for key in sorted(column.missing_by_source):
-            if _denotes_the_candidate(key, verdict.candidate, comma):
-                held = held + column.missing_by_source[key]
-    return held <= judged
+    return _one_judged_candidate(column, spelling, comma)
 
 
 def _own_declarations_recovered(description: contract.Profile) -> int:
@@ -6415,10 +6402,9 @@ def _one_judged_candidate(
     for verdict in column.sentinel_verdicts:
         if verdict.verdict != contract.VERDICT_MISSING:
             continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if _denotes_the_candidate(spelling, verdict.candidate, comma):
-            return True
+        for named in verdict.spellings:
+            if named == spelling:
+                return True
     return False
 
 
@@ -12835,7 +12821,20 @@ def _rank_windows(
             lows += [step * ladder[last]]
             highs += [step * ladder[last]]
             continue
-        lows += [bounds_low[rank] - unit]
+        room = unit
+        if bounds_low[rank] == bounds_high[rank]:
+            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6), and
+            # this is what makes the sentence above true rather than
+            # merely written. `u` covers the downward rounding of the
+            # draw and for a cell written to the minute; a rank whose
+            # two bounds are one value draws nothing and is written at
+            # the published value itself. Spending `u` there put the
+            # rung's window at [published - 1 day, published] on a
+            # column of dates, and a twin with every interior cell moved
+            # one day EARLY -- the defect landing 2b.6 repaired -- came
+            # back WITHIN-BOUND at all nine rungs.
+            room = 0
+        lows += [bounds_low[rank] - room]
         highs += [bounds_high[rank]]
     return (lows, highs)
 
