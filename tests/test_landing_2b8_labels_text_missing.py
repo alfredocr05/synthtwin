@@ -540,3 +540,129 @@ def test_the_summary_tells_a_reader_which_cells_held_nothing(
     ]
     assert len(lines) == 1, lines
     assert "\xa0" not in lines[0], repr(lines[0])
+
+
+# == part 2: a published form is settled before the lengths (P4-D75) ===
+#
+# LTM-8 of the spelling audit, with its skeptic's correction that the
+# trade-off bought nothing -- the twin missed the census AND the length
+# average together. Each gate below is a ROUND TRIP whose assertion is
+# the CENSUS ITSELF, form by form, in the written twin: the defect
+# exited 3 on the twin while the real table passed, so a gate that read
+# only the exit code would have been satisfied by the base.
+
+
+def _slashed_codes(seed: int) -> "list[str]":
+    """Codes of figures, one mark and letters: forty forms, two bands.
+
+    The audit's `exp3b short_text` shape. The marks are chosen so that
+    the census names forms in BOTH alphabet bands -- `-` and `_` are
+    characters the code alphabet holds, `.`, `/` and `:` are not -- which
+    is what makes this column reach the band half of the rule.
+    """
+    draw = random.Random(seed)
+    made: "list[str]" = []
+    for _row in range(800):
+        left = "".join(
+            draw.choice("0123456789") for _figure in range(draw.randrange(1, 4))
+        )
+        mark = draw.choice("-./_:")
+        right = "".join(
+            draw.choice("abcdefghij") for _letter in range(draw.randrange(1, 4))
+        )
+        made += [f"{left}{mark}{right}"]
+    return made
+
+
+@pytest.mark.parametrize("seed", (71, 72, 73))
+def test_a_code_column_of_forty_forms_wears_every_one(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """The twin missed ALL FORTY published forms, 405 cells short.
+
+    The walk toward the published average put 777 of 791 groups at
+    length five, and the form offer could then buy a length of four, six
+    or seven only out of a budget of ONE CHARACTER over the whole
+    column. Every form of another length was refused, and those cells
+    came out of the fallback alphabet as `?!!!#` and `R---3`. The census
+    is EXACT-OBSERVABLE and `length.mean` is APPROXIMATED, so the form
+    is settled first and its length held, and the average is carried by
+    the groups no form spoke for.
+    """
+    cells = _slashed_codes(seed)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "codes", cells, (), True, "4"
+    )
+    assert first["role"] == "free_text"
+    assert second["role"] == first["role"]
+    published = {
+        form: count
+        for form, count in first["shape_forms"].items()
+        if form != "(withheld)"
+    }
+    # The shape is only evidence of anything while it publishes many
+    # forms across both bands, so that is asserted and not assumed.
+    assert len(published) >= 30, published
+    assert len({len(form) for form in published}) >= 3, published
+    # THE CENSUS ITSELF, form by form, off the written twin.
+    counted = _counted([parsing.shape_form(cell) for cell in written])
+    for form in sorted(published):
+        assert counted.get(form, 0) == published[form], (
+            form, published[form], counted.get(form, 0), len(published)
+        )
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", (71, 72, 73))
+def test_arm_record_identifiers_come_back_in_their_own_forms(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """The audit's own shape, and the one a reader would split on.
+
+    REDCap writes an `arm-record` identifier, and the audit measured a
+    twin holding `W----2` and `Q----3` where the source held `4-254`:
+    `rid.str.split('-', expand=True).astype(int)` raises on the twin and
+    runs on every real row. On this draw the base missed the column's
+    largest form and exited 3 while the table passed.
+    """
+    draw = random.Random(seed)
+    cells = [
+        f"{draw.randrange(1, 15)}-{draw.randrange(1, 999)}"
+        for _row in range(800)
+    ]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "redcap", cells, (), True, "4"
+    )
+    assert first["role"] == "free_text"
+    assert second["role"] == first["role"]
+    published = {
+        form: count
+        for form, count in first["shape_forms"].items()
+        if form != "(withheld)"
+    }
+    counted = _counted([parsing.shape_form(cell) for cell in written])
+    for form in sorted(published):
+        assert counted.get(form, 0) == published[form], (
+            form, published[form], counted.get(form, 0)
+        )
+    # ...and the cells the census NAMES really do split into two whole
+    # numbers, which is the code the audit named
+    # (`rid.str.split('-', expand=True).astype(int)`).
+    #
+    # BOUNDED BY WHAT THE DESCRIPTION PUBLISHES, and not by what this
+    # shape happens to look like. A handful of cells belong to no named
+    # form -- three or four of the 800 here, written `A--` -- and the
+    # description says nothing about them, so a test demanding that
+    # EVERY cell split would be asserting a fact the profile never
+    # carried. It would also pass for the wrong reason on a column whose
+    # census named nothing at all.
+    accounted = 0
+    for form in published:
+        accounted = accounted + published[form]
+    shaped = 0
+    for cell in written:
+        left, mark, right = cell.partition("-")
+        if mark == "-" and left.isdigit() and right.isdigit():
+            shaped = shaped + 1
+    assert shaped >= accounted, (shaped, accounted, len(written))
+    assert (twin_exit, real_exit) == (0, 0)

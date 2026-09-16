@@ -757,7 +757,7 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # class-aware (method G9.5 step 7), which adds that argument.
     generation._wanted_form = (
         lambda owing, length, words, carrier, shortest, longest, budget,
-        covering=1, reads=None: ""
+        covering=1, reads=None, stands=None: ""
     )
     try:
         without = generation.generate(described, 7)

@@ -15531,6 +15531,7 @@ def _wanted_form(
     budget: "list[int]",
     covering: int = 1,
     reads: "str | None" = None,
+    stands: "str | None" = None,
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -15541,6 +15542,24 @@ def _wanted_form(
     that cannot wear it spent that form's debt and the length budget on
     an ask that could never be met, so a column of readings beside
     comments owing forty-four cells of `%.%` gave the form to one group.
+
+    ``stands``, where given, is the ALPHABET BAND the packing put this
+    group in, and a form whose spellings do not recount into that band
+    is not offered either (landing 2b.8, plan P4-D75). THE SAME
+    ARGUMENT AS ``reads``, ONE STEP OVER: the walk already refuses such
+    a candidate -- `_reads_in_band` is asked of every one, and the
+    census is missed instead -- so asking for it spends the debt on a
+    cell that can never be written. A form's band is the band its own
+    first filling recounts into: `%%%-@` fills to `000-A`, which the
+    code alphabet holds, while `%%/@` fills to `00/A`, which it does
+    not, because the slash is not one of its characters.
+
+    MEASURED, on 800 rows of `%%%-@@@`-style codes publishing forty
+    forms across both bands: 350 of the 706 asks went to groups whose
+    band their form could not be written in, covering 354 cells -- and
+    354 was the twin's whole shortfall against the census. The asks
+    covered every one of the 715 cells owed and the walk then threw a
+    half of them away.
 
     A FORM FIXES A LENGTH -- every cell that wore one was exactly as
     long as it -- so which lengths a group may be offered is the whole
@@ -15592,6 +15611,10 @@ def _wanted_form(
             parsing.classify_number(_filled_form(form, 0)) != reads
         ):
             continue
+        if stands is not None and not _reads_in_band(
+            _filled_form(form, 0), stands
+        ):
+            continue
         if carrier:
             if len(form) != length:
                 continue
@@ -15622,11 +15645,14 @@ def _form_asks(
     longest: int,
     budget: "list[int]",
     kinds: "list[int] | None" = None,
+    bands: "list[int] | None" = None,
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
 
     ``kinds``, where given, is each group's class, and a group is offered
     only forms whose spellings read as that class (`_wanted_form`).
+    ``bands`` is each group's alphabet band, and a group is offered only
+    forms whose spellings recount into it, on the same ground.
 
     WHY THE ORDER IS THE WHOLE RULE, and it is the lesson `_shared_out`
     already carries for a label column's stand-ins (review round 1
@@ -15661,6 +15687,9 @@ def _form_asks(
         reads: "str | None" = None
         if kinds is not None:
             reads = _reads_as(_CLASSES[kinds[place]])
+        stands: "str | None" = None
+        if bands is not None:
+            stands = _BANDS[bands[place]]
         if reads == parsing.NUMBER:
             # A NUMBER'S FORM IS SETTLED EXACTLY by `_number_forms`, and
             # the caller writes that answer in; offering it here as well
@@ -15676,6 +15705,7 @@ def _form_asks(
             spare,
             groups[place],
             reads,
+            stands,
         )
         asks[place] = form
         if form:
@@ -18773,6 +18803,7 @@ def _text_cells(
         facts.length.maximum,
         budget,
         kinds,
+        bands,
     )
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
@@ -18820,6 +18851,7 @@ def _text_cells(
                 budget,
                 groups[index],
                 _reads_as(kind),
+                band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
         spelling = _made_up_cell(
@@ -19192,9 +19224,18 @@ def _text_plan(
             fixed = _number_lengths(
                 facts, groups, lengths, kinds, bands, carriers
             )
+            # ...AND A GROUP OF TEXT WEARING A PUBLISHED FORM HOLDS THAT
+            # FORM'S LENGTH THE SAME WAY (method G9.5 step 7, plan
+            # P4-D75). The census is EXACT and the average is
+            # APPROXIMATED, so the average is carried by the groups no
+            # form spoke for -- and not, as it was, by refusing the
+            # forms a walk toward the average had already priced out.
+            fixed, worded = _held_for_the_census(
+                facts, groups, lengths, counts, kinds, bands, carriers, fixed
+            )
             if fixed:
                 lengths, counts, notes = _text_shape(
-                    column, facts, groups, carriers, fixed
+                    column, facts, groups, carriers, fixed, worded
                 )
                 if reach:
                     lengths = _lengthened(
@@ -19213,9 +19254,12 @@ def _text_plan(
         groups, lengths, counts, kinds, bands, carriers, line
     )
     fixed = _number_lengths(facts, groups, lengths, kinds, bands, carriers)
+    fixed, worded = _held_for_the_census(
+        facts, groups, lengths, counts, kinds, bands, carriers, fixed
+    )
     if fixed:
         lengths, counts, notes = _text_shape(
-            column, facts, groups, carriers, fixed
+            column, facts, groups, carriers, fixed, worded
         )
     return lengths, counts, kinds, bands, carriers, notes
 
@@ -19730,6 +19774,130 @@ def _number_lengths(
     return fixed
 
 
+# A LENGTH BUDGET THAT CANNOT BITE. `_form_asks` is asked twice: once
+# here, to find out WHICH form each group would wear so its length can be
+# held for it, and once in the walk, against the average's real budget.
+# The first asking must not be narrowed by that budget -- holding the
+# length is the whole point of it -- so it is handed a budget no column
+# can spend, and the walk's own asking is the one the budget governs.
+_UNSPENDABLE = 1 << 62
+
+
+def _form_lengths(
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+) -> "tuple[dict[int, int], dict[int, int]]":
+    """The length of every group of TEXT that wears a census form (G9.5 step 7).
+
+    THE CENSUS IS EXACT AND THE AVERAGE IS APPROXIMATED, and until this
+    rule the order of the two was the wrong way round (landing 2b.8,
+    plan P4-D75). A form FIXES a length, so a group can only wear one by
+    being written at that form's length -- and the lengths were settled
+    FIRST, by the walk of step 5 toward the published average, which
+    parks nearly every group on the middle length. The form offer then
+    ran against a budget of ONE CHARACTER over the whole column, so a
+    form of any other length was refused for all but a handful of
+    groups. Measured on 800 rows of `%%%-@@@`-style codes: the census
+    publishes FORTY forms of lengths four to seven, the walk put 777 of
+    791 groups at length five, and the twin missed ALL FORTY of them --
+    405 cells short, written `?!!!#` and `R---3` out of the fallback
+    alphabet, with `synthtwin validate` exiting 3 while the table itself
+    passed.
+
+    THE BUDGET IS NOT WITHDRAWN, AND THAT IS DELIBERATE. It was measured
+    and ratified (review round 2 finding 9) and it is what keeps a
+    blood-pressure column's four forms together with a column whose
+    census asks for lengths its average does not want; a test pins it
+    directly. What changes is the ORDER. The form a group would wear is
+    settled here, BEFORE the lengths are walked, and that group's length
+    and word count are then HELD -- exactly as `_number_lengths` already
+    holds a number's own length -- so the published average is carried
+    by the groups no form spoke for. The walk's own offer then costs the
+    budget nothing at all, because the group is already standing at the
+    form's length and a swap of no characters is always afforded.
+
+    WHICH form each group wears is decided by `_form_asks` ITSELF rather
+    than by a rule written twice, so the two askings cannot disagree:
+    the order (largest group first), the debt, the word agreement and
+    the class are one function's answer, and only the budget differs.
+
+    Only groups of ORDINARY TEXT are settled here. A number's form is
+    settled exactly by `_number_forms` and its length by
+    `_number_lengths`, and paying it twice would overpay the census.
+
+    A group is held to a form's length ONLY WHERE IT CAN STILL STAND IN
+    THE CLASS AND BAND THE PACKING GAVE IT, because those counts are
+    exact and the census may not be paid with them. That guard is what
+    also keeps `_lengthened` from moving the group afterwards: it steps
+    a group up only until its cell is permitted, and this one's already
+    is.
+    """
+    owing = _text_debt(facts)
+    if not owing:
+        return {}, {}
+    asks = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        [_UNSPENDABLE, _UNSPENDABLE],
+        kinds,
+        bands,
+    )
+    held: "dict[int, int]" = {}
+    worded: "dict[int, int]" = {}
+    for place in range(len(groups)):
+        form = asks[place]
+        if not form or place in carriers:
+            continue
+        if _CLASSES[kinds[place]] != _CLASS_TEXT:
+            continue
+        words = _form_words(form)
+        if not _stands_in(len(form), words, kinds[place], bands[place]):
+            continue
+        held[place] = len(form)
+        worded[place] = words
+    return held, worded
+
+
+def _held_for_the_census(
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+    fixed: "dict[int, int]",
+) -> "tuple[dict[int, int], dict[int, int]]":
+    """The number rule's fixed lengths, with the census's added to them.
+
+    The two never name the same group -- `_number_lengths` settles the
+    groups that read as numbers and `_form_lengths` those that read as
+    text -- so the merge is a union and the number rule keeps any group
+    both could claim.
+    """
+    shaped, worded = _form_lengths(
+        facts, groups, lengths, counts, kinds, bands, carriers
+    )
+    together = dict(fixed)
+    kept: "dict[int, int]" = {}
+    for place in sorted(shaped):
+        if place in together:
+            continue
+        together[place] = shaped[place]
+        kept[place] = worded[place]
+    return together, kept
+
+
 def _text_families(
     column: contract.ColumnBlock,
     facts: contract.TextFacts,
@@ -19928,12 +20096,22 @@ def _text_shape(
     groups: "tuple[int, ...]",
     carriers: "tuple[int, int]",
     fixed: "dict[int, int] | None" = None,
+    worded: "dict[int, int] | None" = None,
 ) -> "tuple[list[int], list[int], list[Deviation]]":
     """The length and the word count of every group (G9.5 steps 4 and 5).
 
-    ``fixed`` names the groups whose length the number rule already
-    settled (`_number_lengths`): each keeps that length and one word, and
-    the walks below spend the published averages on the other groups.
+    ``fixed`` names the groups whose length was already settled -- by the
+    number rule (`_number_lengths`) or by the census of written forms
+    (`_form_lengths`) -- and the walks below spend the published averages
+    on the other groups.
+
+    ``worded`` gives those groups their word counts, where one of them
+    holds more than a single word. A number holds one word always, so
+    the number rule passes none; a CENSUS FORM may hold several, because
+    a space survives into a form unchanged (`%%% @@`), and giving such a
+    group one word would write a cell that cannot wear the form it was
+    fixed for. Absent, every fixed group takes one word, which is what
+    the number rule alone meant.
 
     ``carriers`` names the two groups that carry the published ends --
     the first takes the shortest length and the smallest word count, the
@@ -19956,6 +20134,10 @@ def _text_shape(
     ones: "dict[int, int] | None" = None
     if fixed is not None:
         ones = {place: 1 for place in sorted(fixed)}
+        if worded is not None:
+            for place in sorted(worded):
+                if place in ones:
+                    ones[place] = worded[place]
     lengths = _walked(
         groups,
         facts.length.minimum,

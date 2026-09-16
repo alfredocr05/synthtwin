@@ -5759,6 +5759,48 @@ for.
    BOTH a blood-pressure column's four forms and a column whose census
    asks for lengths its average does not want.
 
+   **THE FORM IS SETTLED BEFORE THE LENGTHS ARE WALKED, AND THE GROUP
+   THAT WEARS ONE HOLDS ITS FORM'S LENGTH** (landing 2b.8, plan
+   P4-D75). The budget above is kept exactly as it is, and the order it
+   is asked in is what changes. Step 5's walk toward the published
+   average parks nearly every group on the middle length; the offer
+   then ran against that budget, so a form of any OTHER length was
+   refused for all but a handful of groups, and the budget — a rule
+   written to spend the average's slack on the census — was spending
+   the census on the average instead. So which form each group would
+   wear is settled FIRST, by this same offer asked with a budget no
+   column can spend, and that group's length and word count are then
+   HELD through step 5 exactly as a number's own length is held by step
+   3a. The published average is carried by the groups no form spoke
+   for. The walk's own offer then costs the budget nothing, because the
+   group already stands at the form's length and a swap of no
+   characters is always afforded — which is why the sentences above
+   still govern it and a test still pins them.
+
+   **AND A FORM IS OFFERED ONLY TO A GROUP OF THE BAND IT IS WRITTEN
+   IN** (landing 2b.8, plan P4-D75), on exactly the ground that a form
+   is offered only to a group of the class it reads as. A form's band
+   is the band its own first filling recounts into: `%%%-@` fills to
+   `000-A`, which the code alphabet holds, and `%%/@` fills to `00/A`,
+   which it does not, because the slash is not one of that alphabet's
+   characters. The walk already refuses such a candidate and misses the
+   census instead, so asking for it spent the form's debt on a cell
+   that could never be written.
+
+   **What the two together were measured to do.** On 800 rows of
+   `%%%-@@@`-style codes at the default floor, whose census publishes
+   FORTY forms of four lengths across both bands: before, the walk put
+   777 of 791 groups at length five and the twin missed ALL FORTY
+   forms, 405 cells short, writing `?!!!#` and `R---3` out of the
+   fallback alphabet while `synthtwin validate` exited 3 and the table
+   itself passed. With the lengths held, the asks covered all 715 cells
+   the census owes, but 350 of them went to groups whose band their
+   form could not be written in — 354 cells, which was the whole
+   remaining shortfall. With both rules the twin wears every one of the
+   forty forms at its published count and validates with nothing
+   missed, on three seeds, and so does a column of REDCap `arm-record`
+   identifiers, which missed its largest form before.
+
    A space survives into a form unchanged, so the form's own word count
    must equal the group's either way. The debt is over cells and a
    group covers its own number of them, so the walk settles the form
