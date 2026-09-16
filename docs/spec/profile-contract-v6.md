@@ -3062,7 +3062,7 @@ exactly these five keys:
 | `verdict` | string | `read_as_missing`, `kept_as_a_number` |
 | `reason` | string | `outlier_and_frequent`, `not_an_outlier`, `too_rare`, `too_few_other_values`, `kept_by_you` |
 | `n_occurrences` | integer ≥ 1 | how many rows held the candidate |
-| `spellings` | array of strings | the keys of this column's `missing_by_source` whose cells THIS decision took out, in the document's own key order and each named once; empty on a decision that kept its candidate, on a nothing-publishing column, and where every spelling the pass took fell below the floor |
+| `spellings` | array of strings | the keys of this column's `missing_by_source` whose cells THIS decision took out, in the document's own key order and each named once, no spelling named by two decisions of the column, and together covering at most `n_occurrences` absent cells; empty on a decision that kept its candidate, on a nothing-publishing column, and where every spelling the pass took fell below the floor |
 
 **Invariant V1.** Every entry has `n_occurrences` at least
 `small_cell_floor`. Candidates below the floor are not listed at all;
@@ -3093,9 +3093,35 @@ candidates this version permits:
 
 **Invariant V5 (the spellings a decision took out).** Every member of
 `spellings` is a key of this column's `missing_by_source`; the members
-are in ascending order and each appears once; and a decision whose
-`verdict` is `kept_as_a_number` names none, because it took no cell out
-of the column.
+are in ascending order and each appears once; no spelling is named by
+two decisions of one column, because a cell is taken out once; the
+cells those spellings cover never outnumber `n_occurrences`, because a
+decision cannot have removed more cells than the rows it says held its
+candidate; and a decision whose `verdict` is `kept_as_a_number` names
+none, because it took no cell out of the column.
+
+**The last two parts are what make the key CHECKABLE rather than
+merely published, and they were added by landing 2b.14 (P4-D95).** The
+key was introduced because no count in the block can separate a judged
+spelling from a declared one — which is also why a description that
+names the wrong one cannot be caught by reading the counts back. A
+consumer must therefore be able to refuse the claim on the block's own
+arithmetic, and it can: a declared spelling's cells push a decision's
+total past the rows it says held its candidate. Without that bound a
+description could say a word the PERSON DECLARED was one column's own
+judged pass, and every consumer would believe it — the generator would
+stop reserving that word for the whole table and write it into another
+column as a present value, and the validator would stop recovering it
+as a declaration. That is the defect of landing 2b.3 restored through
+a document instead of through a count.
+
+**The bound is AT MOST and not EXACTLY, and the floor is why.** A pass
+takes every cell of its candidate, but the description names only the
+spellings the floor let it publish. A column holding twenty
+`1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both judged,
+publishes at a floor of eleven one spelling worth twenty cells against
+an `n_occurrences` of twenty-five and pools the other five. Demanding
+equality would refuse a description a producer writes.
 
 It publishes no group the floor pooled and no spelling the block does
 not already carry. What it adds is the LINK between a published hole
@@ -8434,7 +8460,7 @@ it answers to.
 | V2 | `candidate` is `(withheld)` on exactly the columns where `missing_by_source` is empty for N3's reason — a column whose publication class permits no value of the table anywhere in its block. Naming a candidate there would publish a value out of a column that publishes none, and on every other column no candidate reads `(withheld)` | yes |
 | V3 | `verdict` is `read_as_missing` only when `reason` is `outlier_and_frequent`; the other four reasons all keep the candidate as an ordinary number of the column | yes |
 | V4 | entries appear in three groups, in this order, and the rule is TOTAL over the candidates this format permits: (1) NUMBERS, ascending by the number; (2) CALENDAR DAY SPELLINGS, ascending by the candidate text; (3) `(withheld)`, ordered by `n_occurrences`, then `verdict`, then `reason`, so no position can say which of two withheld candidates is the smaller. The datetime section states the rule entire, with the reason it is written total rather than for the mixed case alone | yes |
-| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply | yes |
+| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences`, and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
 
 ---
 

@@ -668,6 +668,32 @@ def battery() -> list[Mutation]:
                 "reading", 0, verdict="kept_as_a_number", reason="too_rare"
             ),
         ),
+        # ...and the two parts landing 2b.14 added, which are what make
+        # the key CHECKABLE rather than merely published (P4-D95). Each
+        # is a document the producer cannot write and the loader used to
+        # accept, and each tells both consumers that a word the PERSON
+        # DECLARED was one column's own judgement.
+        Mutation(
+            "V5", "two decisions of one column claiming one spelling's cells",
+            lambda document: at(document, "reading").update(
+                {
+                    "sentinel_verdicts": [
+                        at(document, "reading")["sentinel_verdicts"][0],
+                        {
+                            "candidate": "9999",
+                            "verdict": "read_as_missing",
+                            "reason": "outlier_and_frequent",
+                            "n_occurrences": 13,
+                            "spellings": ["-999"],
+                        },
+                    ]
+                }
+            ),
+        ),
+        Mutation(
+            "V5", "spellings covering more cells than rows held the candidate",
+            edit_verdict("reading", 0, n_occurrences=11),
+        ),
         # -- the repetition patterns ----------------------------------
         Mutation(
             "M3", "a row count padded to a width nothing needs",

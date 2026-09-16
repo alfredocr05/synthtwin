@@ -374,3 +374,171 @@ def test_the_loader_refuses_a_decision_naming_a_spelling_that_was_never_publishe
     assert "V5" in said, said
     # ...and the refusal names no spelling of the person's table.
     assert "zz" not in said, said
+
+
+# -- landing 2b.14: the claim is CHECKED on the way back in ------------
+
+
+@pytest.mark.parametrize("floor", ["11", "1"])
+def test_a_judged_pass_whose_other_spelling_the_floor_pooled(
+    tmp_path: pathlib.Path, floor: str
+) -> None:
+    """One pass, two spellings of its day, and only one clears the floor.
+
+    This is the shape that decides whether V5's new count bound is `at
+    most` or `exactly`, so it is measured rather than assumed. `end`
+    holds twenty cells spelled `1900-01-01 00:00:00` beside five spelled
+    `1900-01-01T00:00:00`; NOTHING is declared, so its placeholder pass
+    judges all twenty-five. At a floor of eleven the description may
+    name only the first, and publishes one spelling worth twenty cells
+    against an `n_occurrences` of twenty-five, pooling the other five;
+    at a floor of one it names both and the two come to exactly
+    twenty-five.
+
+    A bound demanding equality would refuse the first of those, which is
+    a description a producer writes. Both must load, both must round
+    trip, and `start`'s eighty legitimate values of the judged spelling
+    must survive either way.
+    """
+    end = [SPACED] * 20 + [TEED] * 5 + _days(datetime.date(2020, 1, 1), 475)
+    start = [SPACED] * 80 + _days(datetime.date(1890, 1, 1), 420, step=100)
+    rows = [[end[place], start[place]] for place in range(500)]
+    folder = tmp_path / f"pooled-judged-{floor}"
+    document, twin_exit, real_exit, _written = _run(
+        folder, ["end", "start"], rows, ["--smallest-group", floor]
+    )
+    assert real_exit == 0, _missed(folder / "check-real")
+    assert twin_exit == 0, _missed(folder / "check-twin")
+    ended = _block(document, "end")
+    judged = [
+        entry
+        for entry in ended["sentinel_verdicts"]
+        if entry["verdict"] == "read_as_missing"
+    ]
+    assert len(judged) == 1, ended["sentinel_verdicts"]
+    # The pass took all twenty-five cells either way...
+    assert judged[0]["n_occurrences"] == 25, judged[0]
+    if floor == "11":
+        # ...but at eleven only one spelling may be named, so the cells
+        # its `spellings` cover fall SHORT of `n_occurrences`.
+        assert ended["missing_by_source"] == {SPACED: 20}
+        assert ended["n_missing_withheld"] == 5
+        assert judged[0]["spellings"] == [SPACED], judged[0]
+    else:
+        assert ended["missing_by_source"] == {SPACED: 20, TEED: 5}
+        assert ended["n_missing_withheld"] == 0
+        assert judged[0]["spellings"] == [SPACED, TEED], judged[0]
+    assert _block(document, "start")["n_present"] == 500
+    assert _block(document, "start")["n_missing"] == 0
+
+
+def _plain_description(folder: pathlib.Path) -> "tuple[pathlib.Path, dict]":
+    """The reviewer's plain reproduction, described and left on disk."""
+    end = [SPACED] * 20 + [TEED] * 30 + _days(datetime.date(2020, 1, 1), 450)
+    start = [SPACED] * 80 + _days(datetime.date(1890, 1, 1), 420, step=100)
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "table.csv"
+    table.write_text(
+        fixtures.rows_to_csv(
+            ["end", "start"],
+            [[end[place], start[place]] for place in range(500)],
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    assert (
+        _exit_of(
+            [
+                "profile",
+                str(table),
+                "--out-dir",
+                str(folder),
+                "--replace",
+                "--missing-value",
+                TEED,
+            ]
+        )
+        == 0
+    )
+    written = folder / "table-profile.json"
+    return written, json.loads(written.read_text(encoding="utf-8"))
+
+
+def _refused(folder: pathlib.Path, document: dict, tag: str) -> str:
+    """Write a hand-edited description, load it, return the refusal."""
+    edited = folder / f"{tag}.json"
+    edited.write_text(
+        json.dumps(document, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
+    with pytest.raises(errors.ProfileError) as caught:
+        contract.load_profile(str(edited))
+    return f"{caught.value}"
+
+
+def test_the_loader_refuses_a_decision_claiming_a_declared_word(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V5's count bound, on the exact document the old loader accepted.
+
+    `end` publishes two hole spellings of one placeholder day: twenty
+    cells its own pass judged, and thirty the person declared. The
+    description is edited to say the decision took BOTH -- which is the
+    claim no count in the block could ever contradict, and which the
+    loader carried through to both consumers before landing 2b.14.
+
+    It is refused on the block's own arithmetic: fifty absent cells
+    against a verdict of twenty. The narrower forgery, naming only the
+    declared spelling, is refused the same way at thirty against twenty.
+    """
+    folder = tmp_path / "forged"
+    _written, document = _plain_description(folder)
+    ended = _block(document, "end")
+    judged = [
+        entry
+        for entry in ended["sentinel_verdicts"]
+        if entry["verdict"] == "read_as_missing"
+    ]
+    assert judged[0]["spellings"] == [SPACED], "the base must be the honest one"
+    assert judged[0]["n_occurrences"] == 20, judged[0]
+
+    both = json.loads(json.dumps(document))
+    for entry in _block(both, "end")["sentinel_verdicts"]:
+        if entry["verdict"] == "read_as_missing":
+            entry["spellings"] = sorted([SPACED, TEED])
+    said = _refused(folder, both, "both")
+    assert "V5" in said, said
+    assert "50" in said and "20" in said, said
+
+    only = json.loads(json.dumps(document))
+    for entry in _block(only, "end")["sentinel_verdicts"]:
+        if entry["verdict"] == "read_as_missing":
+            entry["spellings"] = [TEED]
+    narrow = _refused(folder, only, "only")
+    assert "V5" in narrow, narrow
+    # ...and neither refusal prints a spelling of anybody's table
+    # (contract C5-N5, R15): what is wrong is counted, never quoted.
+    for message in (said, narrow):
+        assert SPACED not in message, message
+        assert TEED not in message, message
+
+
+def test_the_loader_refuses_two_decisions_claiming_one_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A cell is taken out once, so two passes cannot both have taken it."""
+    folder = tmp_path / "twice"
+    _written, document = _plain_description(folder)
+    ended = _block(document, "end")
+    first = [
+        entry
+        for entry in ended["sentinel_verdicts"]
+        if entry["verdict"] == "read_as_missing"
+    ][0]
+    second = json.loads(json.dumps(first))
+    # A second candidate day, ordered after the first (V4), naming the
+    # spelling the first decision already claimed.
+    second["candidate"] = "9999-12-31"
+    ended["sentinel_verdicts"] = [first, second]
+    said = _refused(folder, document, "twice")
+    assert "V5" in said, said
+    assert SPACED not in said, said

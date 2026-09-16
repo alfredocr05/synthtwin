@@ -1022,8 +1022,11 @@ INVARIANTS = {
     ),
     "V5": (
         "a decision names only spellings this column publishes among "
-        "its absent cells, each once and in order, and a decision that "
-        "kept its candidate as a number names none"
+        "its absent cells, each once and in order, no spelling is "
+        "named by two decisions of one column, the cells those "
+        "spellings cover never outnumber the rows the decision says "
+        "held its candidate, and a decision that kept its candidate "
+        "as a number names none"
     ),
     "M3": (
         "every row count in a repetition pattern is written in the same "
@@ -4385,7 +4388,9 @@ def _judged_spellings(
     value: object,
     where: str,
     verdict: str,
-    named: "tuple[str, ...]",
+    counts: "dict[str, int]",
+    occurrences: int,
+    claimed: "dict[str, int]",
 ) -> "tuple[str, ...]":
     """The published hole spellings one decision took out (5.5, V5).
 
@@ -4400,19 +4405,51 @@ def _judged_spellings(
     every count the document carries is the same under either reading.
 
     Raises ProfileError for a value that is not a list of text and for
-    V5 in its three parts: a decision that kept its candidate names no
+    V5 in its five parts: a decision that kept its candidate names no
     spelling, every spelling it names is one this column publishes
-    among its absent cells, and the names are in order and distinct
-    (which is also what the canonical bytes require).
+    among its absent cells, the names are in order and distinct (which
+    is also what the canonical bytes require), no spelling is named by
+    two decisions of one column, and the cells those spellings cover
+    never outnumber the rows the decision says held its candidate.
+
+    THE LAST TWO ARE LANDING 2b.14'S, AND THEY CLOSE THE LOOP THE
+    REPAIR PASS OF LANDING 2b.6 LEFT OPEN (decision P4-D95). That pass
+    moved the question out of the two consumers and into the document,
+    which was right; what it did not do was CHECK the answer on the way
+    back in. Every count in the block reads the same under either
+    assignment -- that is the whole reason the key exists -- so a
+    description could say that a word the PERSON DECLARED was one
+    column's own judged pass, and this loader read it and passed it on.
+    Measured on the reviewer's own 500-row table, hand-edited: the
+    generator then stops reserving that word for the whole table and
+    writes it into a second column as a present value, and the
+    validator stops recovering it as a declaration, which is landing
+    2b.3's defect restored through a document rather than through a
+    count. Both new parts are arithmetic on the block itself, they need
+    no cell of any table, and together they refuse every such document
+    while accepting every one a producer can write.
+
+    THE BOUND IS `AT MOST` AND NOT `EXACTLY`, which is the floor's
+    doing and was measured before it was written. A pass takes every
+    cell of its candidate, but the description names only those
+    spellings the floor let it publish: a column holding twenty
+    `1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both
+    judged, publishes at a floor of eleven one spelling worth twenty
+    cells against an `n_occurrences` of twenty-five, and pools the
+    other five. Demanding equality would refuse that description, which
+    is one a producer writes.
 
     NO REFUSAL HERE PRINTS A SPELLING. A key of `missing_by_source` is
     a value out of somebody's table (C5-N5, R15), so what is wrong is
     named by WHAT IT IS and counted, never quoted -- the rule
-    `_entry_named` follows one field over.
+    `_entry_named` follows one field over. The two new refusals are
+    written to the same rule: each counts, and neither quotes.
 
     Guarantees: accepts the list, where it stands, the decision's own
-    verdict and this column's published hole spellings; returns them in
-    the document's order. Determinism: a function of the four. No I/O.
+    verdict, this column's published hole spellings WITH THEIR COUNTS,
+    the rows the decision says held its candidate, and the spellings
+    every earlier decision of this column already named -- which this
+    function adds to. Determinism: a function of the six. No I/O.
     """
     listed = _listing(value, "spellings", where)
     found: list[str] = []
@@ -4429,7 +4466,7 @@ def _judged_spellings(
         )
     unnamed = 0
     for spelling in found:
-        if spelling not in named:
+        if spelling not in counts:
             unnamed = unnamed + 1
     if unnamed:
         raise _broken(
@@ -4445,6 +4482,36 @@ def _judged_spellings(
             f"this decision names {len(found)} spelling(s)",
             "the spellings of one decision are in order and each named once",
         )
+    # A CELL IS TAKEN OUT ONCE, so two decisions of one column cannot
+    # both have taken the cells of one spelling (P4-D95).
+    twice = 0
+    for spelling in found:
+        if spelling in claimed:
+            twice = twice + 1
+    if twice:
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {twice} spelling(s) of an empty cell",
+            "an earlier decision of this column already named them",
+        )
+    # ...and a decision cannot have taken out more cells than the rows
+    # it says held its candidate. This is what refuses a description
+    # claiming a DECLARED word was this column's own judgement: the
+    # declared spelling's cells push the total past `n_occurrences`,
+    # and no count in the block could say so before (P4-D95).
+    covered = 0
+    for spelling in found:
+        covered = covered + counts[spelling]
+    if covered > occurrences:
+        raise _broken(
+            "V5",
+            where,
+            f"the spellings this decision names cover {covered} absent cell(s)",
+            f"it says {occurrences} row(s) held its stand-in number",
+        )
+    for spelling in found:
+        claimed[spelling] = 1
     return tuple(found)
 
 
@@ -4453,12 +4520,21 @@ def _sentinel_verdicts(
     where: str,
     floor: int,
     publishes_nothing: bool,
-    named: "tuple[str, ...]",
+    counts: "dict[str, int]",
 ) -> "tuple[SentinelVerdict, ...]":
     """What was decided about each named stand-in number, and why (5.5).
 
     Raises ProfileError for an unknown or missing key, a wrong type, a
-    value outside its list, and for V1 to V4. V2 is the publication
+    value outside its list, and for V1 to V4. V5 is raised one field
+    over, in `_judged_spellings`; two of its five parts are questions
+    about the column's decisions TOGETHER rather than about one of
+    them, so this walk carries `claimed` down the list and each
+    decision adds the spellings it names to it (P4-D95).
+
+    IT TAKES THE COUNTS AND NOT THE KEYS, and that is the whole of the
+    change landing 2b.14 made here: the bound V5 now enforces is how
+    many CELLS a decision's named spellings cover, which the keys alone
+    cannot say. V2 is the publication
     class applied to this block: on a column that publishes no value of
     the table every candidate reads `(withheld)`, and on every other
     column none of them does, because naming a candidate there would
@@ -4466,6 +4542,9 @@ def _sentinel_verdicts(
     """
     listed = _listing(value, "sentinel_verdicts", where)
     entries: list[SentinelVerdict] = []
+    # The spellings every decision read so far has named, so that no two
+    # of them claim one spelling's cells (V5, P4-D95).
+    claimed: "dict[str, int]" = {}
     place = 0
     previous: tuple[int, str, str] | None = None
     previous_number: float | None = None
@@ -4480,9 +4559,16 @@ def _sentinel_verdicts(
         occurrences = _whole(
             mapping["n_occurrences"], "n_occurrences", seat, 1
         )
-        spellings = _judged_spellings(
-            mapping["spellings"], seat, verdict, named
-        )
+        # THE FLOOR IS ASKED FIRST, and the order is part of the rule
+        # rather than an accident of writing (landing 2b.14). V5's count
+        # bound compares this decision's `n_occurrences` against the
+        # cells its spellings cover, so a decision naming FEWER rows
+        # than the floor breaks the bound as well -- and V1 is the
+        # narrower, truer diagnosis of that document. Asked the other
+        # way round, a description held by too few rows to be named at
+        # all was refused for its arithmetic instead of for being
+        # unpublishable, and the battery's V1 entry stopped exercising
+        # V1.
         if occurrences < floor:
             raise _broken(
                 "V1",
@@ -4490,6 +4576,9 @@ def _sentinel_verdicts(
                 f"the stand-in number was held by {occurrences} rows",
                 f"the smallest group size is {floor}",
             )
+        spellings = _judged_spellings(
+            mapping["spellings"], seat, verdict, counts, occurrences, claimed
+        )
         if publishes_nothing != (candidate == WITHHELD):
             raise _broken(
                 "V2",
@@ -4723,7 +4812,7 @@ def _column(
         where,
         frame.floor,
         publishes_nothing,
-        tuple(sorted(by_source)),
+        by_source,
     )
     unpublished = _whole(
         mapping["n_sentinel_candidates_unpublished"],
