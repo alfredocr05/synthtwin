@@ -4985,11 +4985,46 @@ def _census_words(census: "tuple[dialect.EndingRun, ...]") -> str:
     return f"line endings counted: {text}"
 
 
+def _whitespace_words(text: str) -> str:
+    """What a blank line holds, named exactly (review item CODEX-12).
+
+    THE WORDS THIS REPLACED WERE LOSSY, and the field they stand for is
+    EXACT-CONTROL. Any whitespace at all became "holding spaces or
+    tabs", so a description published from a line of three spaces and a
+    file holding one tab produced the SAME sentence -- and the check
+    compared the two sentences, reported `bytes.blank-lines` HELD, and
+    counted zero misses on a file that did not hold what was published.
+
+    The runs are named in order, so the sentence determines the line's
+    own spelling and nothing but that spelling: three spaces and a tab
+    read differently from a tab and three spaces.
+    """
+    if not text:
+        return ""
+    parts: list[str] = []
+    kind = ""
+    run = 0
+    for character in text:
+        word = "tab" if character == "\t" else "space"
+        if word == kind:
+            run = run + 1
+            continue
+        if kind:
+            parts += [f"{run} {kind}(s)"]
+        kind = word
+        run = 1
+    parts += [f"{run} {kind}(s)"]
+    named = ""
+    for part in parts:
+        named = part if not named else f"{named} then {part}"
+    return f", holding {named}"
+
+
 def _counted_blank_words(counted: "dialect.BlankSpread | None") -> str:
     """The blank lines counted, for a description that published them so."""
     if counted is None:
         return "no blank lines"
-    held = ", holding spaces or tabs" if counted.text else ""
+    held = _whitespace_words(counted.text)
     return (
         f"blank lines counted: {counted.lines}, the first after record "
         f"{counted.first} and the last after record {counted.last}{held}"
@@ -5002,8 +5037,7 @@ def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
     text = ""
     for place in places:
         piece = f"{place.lines} after record {place.after}"
-        if place.text:
-            piece = f"{piece}, holding spaces or tabs"
+        piece = f"{piece}{_whitespace_words(place.text)}"
         text = piece if not text else f"{text}; {piece}"
     return f"blank lines: {text}"
 

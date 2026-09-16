@@ -667,6 +667,77 @@ def test_space_only_blank_lines_in_a_comma_space_file(
     _held(result)
 
 
+def test_a_blank_line_is_compared_by_its_own_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A described blank line of spaces is MISSED by a file whose blank
+    line holds a tab (review item CODEX-12).
+
+    THE REPRODUCTION THIS IS BUILT FROM. `blank_lines[].text` is an
+    EXACT-CONTROL field, and the check compared the two sides through a
+    sentence that threw the spelling away: any whitespace at all became
+    "holding spaces or tabs", so three spaces and one tab produced the
+    same words. The description published `'   '`, the file held a tab,
+    and `synthtwin validate` reported `bytes.blank-lines` HELD and
+    exited 0. It exits 3 now, and the sentence names the runs in order
+    so that three spaces and a tab cannot read as a tab and three
+    spaces either.
+    """
+    rows = _people(44)
+    lines = ["record_id,age,arm,site,reading"] + _lines(rows)
+    spaced = ("\n".join(lines[:2] + ["   "] + lines[2:]) + "\n").encode()
+    tabbed = ("\n".join(lines[:2] + ["\t"] + lines[2:]) + "\n").encode()
+
+    described = _describe(tmp_path / "spaced", spaced)
+    missed = _missed(tmp_path / "spaced-tabbed", described, tabbed)
+    assert "bytes.blank-lines" in missed, missed
+
+    # ...and the file it WAS described from still holds, so the check
+    # tightened without becoming unmeetable.
+    result = _round_trip(tmp_path / "round", spaced)
+    assert result["form"]["blank_lines"] == [
+        {"after": 1, "lines": 1, "text": "   "}
+    ], result["form"]["blank_lines"]
+    _held(result)
+
+
+def test_mixed_header_quoting_is_disclosed(tmp_path: pathlib.Path) -> None:
+    """A header quoted in no single way is named in the twin's report
+    (review item CODEX-14).
+
+    THE REPRODUCTION THIS IS BUILT FROM. A header written
+    `"record_id",arm` is published as `mixed` and written BARE into the
+    twin, which is what this version does with mixed quoting. The report
+    counted the DATA columns alone when it listed what the twin could
+    not keep, so nothing was said about the header at all, while the
+    same page claimed the twin's quoting follows the source.
+    """
+    rows = _people(46)
+    body = ['"record_id",age,arm,site,reading'] + _lines(rows)
+    result = _round_trip(tmp_path, ("\n".join(body) + "\n").encode())
+    assert result["form"]["header_quoting"] == "mixed"
+    assert result["twin"].split(b"\n")[0] == b"record_id,age,arm,site,reading"
+
+    said = ""
+    for one in tmp_path.iterdir():
+        if one.is_file() and one.suffix == ".txt":
+            said = said + one.read_text(encoding="utf-8")
+    assert "HEADER row in no single" in said, said[-600:]
+
+    # NOT `_held`, and for the very fact this item is about: a header
+    # published `mixed` is WRITTEN `needed`, so the twin re-describes
+    # with that one key different and every other key of the written
+    # form equal. Both files validate, and the report now says the
+    # quoting was not kept -- which is the whole of the repair.
+    assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
+    asked = json.loads(json.dumps(result["form"]))
+    found = json.loads(json.dumps(result["twin_form"]))
+    assert found["header_quoting"] == "needed"
+    asked["header_quoting"] = "settled"
+    found["header_quoting"] = "settled"
+    assert found == asked, (asked, found)
+
+
 def test_a_hand_edited_file(tmp_path: pathlib.Path) -> None:
     """A title line, a comment, blank lines between and after the rows, a
     line of spaces, and no newline at the end."""

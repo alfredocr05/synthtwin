@@ -457,6 +457,23 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
             f"Your table quoted the cells of {mixed} column(s) in no single",
             "way; the twin quotes those cells only where a reader needs it.",
         ]
+    # THE HEADER AND THE ROWS UNDER IT ARE COUNTED HERE TOO (review item
+    # CODEX-14). This walked the DATA columns alone, so a header written
+    # `"record_id",arm` -- quoted in no single way -- was published as
+    # `mixed`, written bare into the twin, and reported nowhere, while
+    # the page above claimed the twin's quoting follows the source.
+    if form.header_quoting == dialect.QUOTE_MIXED:
+        lines += [
+            "Your table quoted the cells of its HEADER row in no single",
+            "way; the twin quotes each name only where a reader needs it,",
+            "so the header line's quoting is not the one your table has.",
+        ]
+    if form.header_rows and form.header_rows_quoting == dialect.QUOTE_MIXED:
+        lines += [
+            "Your table quoted the rows describing the columns in no",
+            "single way; the twin quotes those cells only where a reader",
+            "needs it.",
+        ]
     if source.used_fallback_encoding:
         return lines + [
             "The description records that your table was not readable as",
