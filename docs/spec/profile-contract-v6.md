@@ -3582,7 +3582,7 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: sixteen.**
+**Added keys: twenty.**
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -3602,10 +3602,17 @@ ISO reading below may still claim the column.
 | `datetime_separators` | object | `lower_t`, `space`, `upper_t` or `(withheld)` → count | how many parsed cells wrote each mark between the day and the clock, under the floor; `{}` where `resolution` is not `datetime` |
 | `all_at_midnight` | boolean | — | `true` where every parsed cell of a datetime column names exactly midnight on its own wall clock, the parsed cells reach the floor, and on the `utc` clock no offset is pooled |
 | `n_at_midnight` | integer ≥ 2, or `null` | — | how many parsed cells name exactly midnight on their own wall clock, where at least the floor — never fewer than two — did and at least that many did not, or every parsed cell did and they reach that floor; `null` otherwise, a real nought included (landing 2b.6) |
+| `date_field_widths` | object | `padded`, `unpadded`, `first-padded`, `second-padded` or `(withheld)` → count | how many parsed cells wrote each JOINT width convention over their month and day fields, counted only over the cells that could show one, under the floor; `{}` on a member whose fields are of fixed width (landing 2b.6) |
+| `month_name_styles` | object | one of the TWENTY-FOUR joint style words, or `(withheld)` → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — counted over the cells whose month is not May, under the floor; `{}` outside the two textual members (landing 2b.6) |
+| `quarter_marker_case` | object | `upper`, `lower` or `(withheld)` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the floor; `{}` outside `year-quarter` (landing 2b.6) |
+| `zulu_case` | object | `upper`, `lower` or `(withheld)` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the floor; `{}` unless `utc_offsets` NAMES `Z` (landing 2b.6) |
 
-**Four closed vocabularies stand in that table** — `format` with
+**Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
-the `datetime_separators` names with THREE — and the first three are
+the `datetime_separators` names with THREE, and the four written-form
+vocabularies landing 2b.6 added: `date_field_widths` with FOUR,
+`month_name_styles` with TWENTY-FOUR, `quarter_marker_case` with TWO and
+`zulu_case` with TWO — and the first three are
 each written again below inside a table that BINDS it: the
 twenty formats are the rows of the next table, where D1 fixes each one's
 resolution; the four resolutions are the rows of the canonical-forms
@@ -3840,6 +3847,70 @@ of one has been told that count, so the two are ONE absent state, and a
 count of one — or one leaving a single value off midnight — is never
 published. It is every parsed
 cell exactly where `all_at_midnight` is `true`. D15 holds the count.
+
+**C6-25d to C6-25g (how the dates were WRITTEN, landing 2b.6).** Every
+datetime block carries four further censuses. They exist because the
+owner reversed decision 5 on 2026-09-15: a twin datetime cell is
+written in the member that read the real column rather than in ISO, and
+a member alone does not fix a spelling. `month-first-date` is written
+`03/17/2024` by one export and `3/17/2024` by the next;
+`textual-day-first-date` covers `17-MAR-2024`, `17 Mar 2024` and
+`17 March 2024`; `textual-month-first-date` makes the comma of
+`Mar 17, 2024` optional; `year-quarter` reads either case of its
+marker; and the zulu reading folds `z` onto `Z`. Each census counts
+FORMS and never a value, and each is held to `small_cell_floor` with a
+`(withheld)` pool exactly as `datetime_separators` is, because a form
+used by one row describes how THAT row was written.
+
+- **C6-25d (`date_field_widths`).** Keys `padded`, `unpadded`,
+  `first-padded`, `second-padded`, plus `(withheld)`. ONE WORD PER CELL
+  AND NOT ONE PER FIELD: on a column half written `%m/%d/%Y` and half
+  `m/d/yyyy`, no real cell mixes the two, and two independent censuses
+  would let a twin write about half its eligible cells as `03/5/2024`,
+  a style no row used. `padded` means every field that could show a
+  width was padded, `unpadded` that every one was not, and the two
+  joint words that the first or the second field alone was. Counted
+  over the cells that could SHOW a width — a field below ten — so the
+  total is at most the parsed cells and is usually fewer. `{}` on
+  every member of fixed field width; on the two textual members only
+  `padded` and `unpadded` can appear, the month there being a name.
+  D17 holds it.
+- **C6-25e (`month_name_styles`).** Keys are the joint word
+  `<case>-<length>-<mark>-<comma>` over `upper`/`title`/`lower`,
+  `abbreviated`/`full`, `space`/`hyphen` and `comma`/`no-comma` — 24 in
+  all — plus `(withheld)`. Joint for C6-25d's reason: a hand-entered
+  column mixing `17-MAR-2024` with `17 Mar 2024` carries its case and
+  its mark together, and independent censuses would invent
+  `17 MAR 2024`. Counted over the parsed cells whose month is NOT May,
+  whose two written forms are one word, so nothing in such a cell says
+  whether the column abbreviates. `{}` outside the two textual members,
+  and on `textual-day-first-date` only the twelve `no-comma` styles can
+  appear: a comma there would follow a month name, which no member of
+  this contract reads. D18 holds it.
+- **C6-25f (`quarter_marker_case`).** Keys `upper`, `lower`,
+  `(withheld)`. `{}` outside `year-quarter`. D19 holds it.
+- **C6-25g (`zulu_case`).** Keys `upper`, `lower`, `(withheld)`. `{}`
+  unless `utc_offsets` NAMES `Z`: the case census counts a subset of
+  the cells carrying one offset, so publishing it beside a POOLED `Z`
+  would hand back the count the pool exists to withhold — the same
+  contradiction review item P1-R1-F10 found for the endpoint offsets.
+  It is a census of its own rather than a second `utc_offsets` key,
+  because `z` as a key would count as a second OFFSET and trip D5 and
+  the shared-clock reading when it is one offset written two ways. D20
+  holds it.
+
+**The four are EXACT-OBSERVABLE IN THEIR KEY SET, and that is stated
+here rather than left to be discovered.** What a file is held to is
+every convention the description names, each on at least a floor's
+worth of that file's own cells, and no convention the description does
+not name beyond what its `(withheld)` pool covers. It is NOT held to
+the counts, and the reason is the same fact that makes the counts
+interesting: whether a cell can SHOW a convention depends on its own
+value, so how many cells of a file could carry one is a fact about that
+file's values, and a twin whose interior instants fall a day either
+side of the real ones carries a different number of them. A count check
+would accuse a faithful twin. The validation method states the
+measurement.
 
 **The census and both midnight facts are EXACT-OBSERVABLE** (plan
 P4-D39, added after the freeze; held to a file since landing 2b.3). A
@@ -4103,6 +4174,50 @@ at most the count of `utc_offsets` under `(none)` and `(withheld)`
 together: every whole-date cell carries no offset, and is counted
 there.
 
+**Invariant D17 (the joint width census, landing 2b.6).** Every key of
+`date_field_widths` is `padded`, `unpadded`, `first-padded`,
+`second-padded` or `(withheld)`; every key other than `(withheld)` maps
+to a count at least the floor; and the `(withheld)` count is at most
+(floor − 1) times the number of permitted words the census leaves
+unnamed. The census is `{}` unless `format` is one of the six
+variable-width members — `month-first-date`, `day-first-date`,
+`two-digit-month-first-date`, `two-digit-day-first-date`,
+`month-first-datetime`, `day-first-datetime` — or one of the two
+textual members, and on a textual member only `padded` and `unpadded`
+may appear, the month there being a NAME and the day the only numeric
+field. Its values sum to AT MOST `n_present - n_unparsed`, and the
+bound is a ceiling rather than an equality because only a field below
+ten can show a width at all.
+
+**Invariant D18 (the joint month-name census, landing 2b.6).** Every
+key of `month_name_styles` is one of the twenty-four joint style words
+— `<case>-<length>-<mark>-<comma>` over `upper`, `title`, `lower` ×
+`abbreviated`, `full` × `space`, `hyphen` × `comma`, `no-comma` — or
+`(withheld)`, and on `textual-day-first-date` one of the twelve ending
+`-no-comma`, a comma there following a month name, which no member of
+this contract reads. Every named key maps to a count at least the
+floor, and the pool is bounded as D17 bounds its own. The census is
+`{}` unless `format` is one of the two textual members, and its values
+sum to at most `n_present - n_unparsed`: a cell whose month is May can
+show no length, `May` being its own abbreviation, and is counted under
+no key.
+
+**Invariant D19 (the quarter marker's case, landing 2b.6).** Every key
+of `quarter_marker_case` is `upper`, `lower` or `(withheld)`; every
+named key maps to a count at least the floor; the pool is bounded as
+D17 bounds its own; the census is `{}` unless `format` is
+`year-quarter`; and its values sum to at most `n_present - n_unparsed`.
+
+**Invariant D20 (the zulu marker's case, landing 2b.6).** Every key of
+`zulu_case` is `upper`, `lower` or `(withheld)`; every named key maps
+to a count at least the floor; the pool is bounded as D17 bounds its
+own; the census is `{}` unless `utc_offsets` NAMES `Z`; and its values
+sum to at most `utc_offsets["Z"]`. The key-set rule is the one D4 makes
+for the endpoint offsets and for the same reason: this census counts a
+subset of the cells carrying ONE offset, so publishing it beside a
+POOLED `Z` would hand back in one field the count another field of the
+same block promises to withhold.
+
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
 `earliest`, `latest` and every rung of `date_percentiles` are at second
@@ -4115,11 +4230,22 @@ Where `all_at_midnight` is `true`, D14 puts every published instant at
 `00:00:00`, and it is the flag, not the ladder, that says every cell
 of the column stood at midnight.
 
-**Twin datetime cells** follow owner decision 5: a twin datetime cell
-is written in the ISO form matching the precision the profile records —
-a date-only column writes `2024-03-15`, a month column writes
-`2024-03`, a quarter column writes `2024-Q1`, and an offset is written
-only where the profile records a real one. A column whose `format` is
+**Twin datetime cells** follow the REVERSAL of owner decision 5 (owner
+ruling 2026-09-15, plan P4-D61, landing 2b.6): a twin datetime cell is
+written in the MEMBER that read the real column — the block's own
+`format` — at the precision the profile records, and an offset is
+written only where the profile records a real one. So a date-only
+column read as `iso-date` writes `2024-03-15`, one read as
+`month-first-date` writes `03/17/2024` or `3/17/2024` as its
+`date_field_widths` census says, one read as `textual-day-first-date`
+writes `17-MAR-2024` or `17 Mar 2024` as its `month_name_styles` census
+says, one read as `compact-date` writes `20240317`, a month column
+writes `2024-03`, and a quarter column writes `2024-Q1` or `2024-q1` as
+its `quarter_marker_case` census says. While decision 5 stood every one
+of those was written `2024-03-17`, and residual R-P2-7 disclosed the
+price: a person's own parsing call needed a different format argument
+on the twin than on their table. Method G7.5 carries the per-member
+table and C6-25d to C6-25g the four censuses. A column whose `format` is
 `iso-mixed` writes every parsed cell at the finest recorded form, its
 mix recorded and not reproduced, EXCEPT where its `all_at_midnight` is
 `true` (landing 2b.3, narrowing owner decision 4): there its
@@ -4144,13 +4270,19 @@ and does not touch the profile's own canonical serialization: a
 published instant stays space-separated whatever mark the cells
 carry.
 
-**`format` is REPORT-ONLY.** It names the REAL file's parser family.
-The twin is written in ISO syntax at the recorded precision, not in the
-source's lexical family, so a month-first column's twin reprofiles as
-`iso-date` and this field cannot be reproduced. That narrowed loss is
-residual R-P2-7: code that parses dates with an explicit source format
-argument needs that argument changed when it moves from the twin to the
-real table. The widened readings above widen what is read, not what is
+**`format` is EXACT-OBSERVABLE** (landing 2b.6). It names the REAL
+file's parser family, and the twin is written in that same member, so
+describing the twin again names it. It could not be reproduced at all
+while owner decision 5 stood: the twin was then written in ISO syntax
+at the recorded precision rather than in the source's lexical family,
+and a month-first column's twin reprofiled as `iso-date`. That narrowed loss was residual R-P2-7 — code
+parsing dates with an explicit source format argument needed that
+argument changed when it moved from the twin to the real table — and
+the owner's reversal of decision 5 on 2026-09-15 retires it. ONE
+CORNER remains, and it is `resolution_mix`'s: on an `iso-mixed` column
+not wholly at midnight the twin writes every value with a time of day,
+so it reads back as `iso-datetime` and the member is listed rather than
+checked (residual R-P4-12). The widened readings above widen what is read, not what is
 remembered.
 
 ##### The calendar placeholders, judged
@@ -8258,6 +8390,10 @@ it answers to.
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
+| D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor; the `(withheld)` count is at most (floor − 1) times the number of permitted words the census leaves unnamed; the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D18 | every key of `month_name_styles` is one of the twenty-four joint style words or `(withheld)`, and on `textual-day-first-date` one of the twelve `no-comma` words; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `format` is one of the two textual members; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D19 | every key of `quarter_marker_case` is `upper`, `lower` or `(withheld)`; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D20 | every key of `zulu_case` is `upper`, `lower` or `(withheld)`; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 
@@ -8756,15 +8892,23 @@ form, the stand-in is written in it (7.9.1).
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | REPORT-ONLY — it names the real file's parser family across all twenty members, and owner decision 5 chooses ISO twin syntax at the recorded precision, not the source's lexical family (residual R-P2-7) |
+| `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
+| `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET (landing 2b.6, plan P4-D61, the reversal of owner decision 5). Every convention the description names must come back on at least a floor's worth of the file's own cells, and no convention it does not name beyond what its `(withheld)` pool covers. The COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
 under plan P4-D39 since landing 2b.3, as `group_separator` is disposed
 under P4-D38 with no row in 9.4.
+
+**The four written-form censuses DO have a row**, immediately above,
+rather than an exemption like the three named here: they were added
+after the freeze too, by the owner's reversal of decision 5 on
+2026-09-15, but what they owe a file is unusual enough — the key set
+and each key's floor, never the count — that leaving it to a sentence
+outside the matrix would be leaving the reader to find it.
 
 Datetime cardinality has its own explicit bound so that one
 implementation cannot bound datetime distinctness while another
@@ -10499,6 +10643,21 @@ exactly `iso-date` and `iso-datetime`. No other key set conforms.
 **`all_at_midnight`** is a boolean, and **`n_at_midnight`** a count of
 two or more or else `null` (landing 2b.3; the absent state and the floor
 of two, landing 2b.6), on the `datetime` block alone.
+
+**The four written-form vocabularies — 4, 24, 2 and 2**, each plus the
+pooled key (6.6.2 C6-25d to C6-25g, D17 to D20; landing 2b.6):
+
+- **`date_field_widths` keys — 4:** `padded`, `unpadded`,
+  `first-padded`, `second-padded`; and `(withheld)`. On a textual member
+  only the first two.
+- **`month_name_styles` keys — 24:** every
+  `<case>-<length>-<mark>-<comma>` over `upper`, `title`, `lower` ×
+  `abbreviated`, `full` × `space`, `hyphen` × `comma`, `no-comma`; and
+  `(withheld)`. On `textual-day-first-date` only the twelve ending
+  `-no-comma`.
+- **`quarter_marker_case` keys — 2:** `upper`, `lower`; and
+  `(withheld)`.
+- **`zulu_case` keys — 2:** `upper`, `lower`; and `(withheld)`.
 
 ### 14.7 Numeric spelling
 

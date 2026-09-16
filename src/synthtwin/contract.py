@@ -474,6 +474,14 @@ DATETIME_KEYS = (
     # How many parsed cells stood at midnight, floored on both sides
     # (landing 2b.3, invariant D15).
     "n_at_midnight",
+    # HOW THE COLUMN'S DATES WERE WRITTEN, four censuses of FORMS
+    # (landing 2b.6, invariants D17 to D20). They are what lets the twin
+    # be written in the source's own spelling rather than in ISO, which
+    # is the reversal of owner decision 5.
+    "date_field_widths",
+    "month_name_styles",
+    "quarter_marker_case",
+    "zulu_case",
 )
 
 NUMERIC_KEYS = (
@@ -1145,6 +1153,29 @@ INVARIANTS = {
         "a column mixing whole dates with moments counts at least as many "
         "values with no offset as it holds whole dates"
     ),
+    "D17": (
+        "the joint width a cell wrote its month and day fields at is "
+        "counted only for a member whose fields can show one, is named "
+        "only when at least the smallest group size of cells wrote it, "
+        "and comes to no more than the values that read as dates"
+    ),
+    "D18": (
+        "the case, length, mark and comma a cell wrote a month NAME with "
+        "are counted only for the two textual members, only in the "
+        "combinations that member can write, and only where at least the "
+        "smallest group size of cells wrote each"
+    ),
+    "D19": (
+        "the case of a quarter's marker is counted only for a column of "
+        "quarters, and named only when at least the smallest group size "
+        "of cells wrote it"
+    ),
+    "D20": (
+        "the case of a zulu offset marker is counted only where the "
+        "offset map names 'Z', comes to no more than the values carrying "
+        "it, and is named only when at least the smallest group size of "
+        "cells wrote it"
+    ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -1812,6 +1843,22 @@ class DatetimeFacts:
     # nought, so that a reader cannot tell a column holding no midnight
     # from one holding a single one.
     n_at_midnight: "int | None" = None
+    # HOW THE CELLS WERE WRITTEN (landing 2b.6, the reversal of owner
+    # decision 5). Each is a census of FORMS held to the smallest group
+    # size, and each is empty on a column whose member cannot show that
+    # convention: the widths on a member of fixed field width, the name
+    # styles outside the two textual members, the quarter marker outside
+    # `year-quarter`, and the zulu case where no `Z` is named.
+    date_field_widths: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    month_name_styles: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    quarter_marker_case: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    zulu_case: "dict[str, int]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5858,6 +5905,48 @@ def _datetime_facts(
         where, floor, resolution, clock, n_present - unparsed, midnight,
         at_midnight, offsets,
     )
+    # THE FOUR CENSUSES OF HOW THE DATES WERE WRITTEN (landing 2b.6).
+    widths = _written_census(
+        mapping,
+        "date_field_widths",
+        where,
+        floor,
+        _width_vocabulary(parser_family),
+        parser_family in parsing.VARIABLE_WIDTH_MEMBERS
+        or parser_family in parsing.TEXTUAL_MEMBERS,
+        n_present - unparsed,
+        "D17",
+    )
+    name_styles = _written_census(
+        mapping,
+        "month_name_styles",
+        where,
+        floor,
+        _name_vocabulary(parser_family),
+        parser_family in parsing.TEXTUAL_MEMBERS,
+        n_present - unparsed,
+        "D18",
+    )
+    markers = _written_census(
+        mapping,
+        "quarter_marker_case",
+        where,
+        floor,
+        parsing.QUARTER_MARKER_CASES,
+        parser_family == "year-quarter",
+        n_present - unparsed,
+        "D19",
+    )
+    zulu = _written_census(
+        mapping,
+        "zulu_case",
+        where,
+        floor,
+        parsing.ZULU_CASES,
+        "Z" in offsets,
+        offsets["Z"] if "Z" in offsets else 0,
+        "D20",
+    )
     if parser_family == FORMAT_ISO_MIXED:
         # D16: A WHOLE DATE CARRIES NO OFFSET (landing 2b.3). Every
         # whole-date cell is counted under `(none)`, or pooled with it
@@ -5892,6 +5981,10 @@ def _datetime_facts(
         datetime_separators=separators,
         all_at_midnight=midnight,
         n_at_midnight=at_midnight,
+        date_field_widths=widths,
+        month_name_styles=name_styles,
+        quarter_marker_case=markers,
+        zulu_case=zulu,
     )
 
 
@@ -5989,6 +6082,120 @@ def _counted_at_midnight(
             if midnight
             else "the column is said not to stand wholly at midnight",
         )
+
+
+def _width_vocabulary(parser_family: str) -> "tuple[str, ...]":
+    """Which width words this member's own cells can show (landing 2b.6).
+
+    A textual member writes the month as a NAME, so its one numeric
+    field is the day and there is no second field for `first-padded` or
+    `second-padded` to be about.
+    """
+    if parser_family in parsing.TEXTUAL_MEMBERS:
+        return parsing.FIELD_WIDTH_STYLES_ONE_FIELD
+    return parsing.FIELD_WIDTH_STYLES
+
+
+def _name_vocabulary(parser_family: str) -> "tuple[str, ...]":
+    """Which month-name styles this member's own cells can show (2b.6).
+
+    The day-first textual member writes no comma: a comma there would
+    follow a month name, which `_textual_fields` refuses, so half the
+    joint vocabulary is unreachable and a document naming one of those
+    styles describes a column no producer wrote.
+    """
+    if parser_family == "textual-day-first-date":
+        return parsing.MONTH_NAME_STYLES_NO_COMMA
+    return parsing.MONTH_NAME_STYLES
+
+
+def _written_census(
+    mapping: "dict[str, object]",
+    key: str,
+    where: str,
+    floor: int,
+    permitted: "tuple[str, ...]",
+    reachable: bool,
+    most: int,
+    rule: str,
+) -> "dict[str, int]":
+    """One census of HOW a column's dates were written (landing 2b.6).
+
+    The four censuses that reverse owner decision 5 are held by one rule
+    each, and this is the shape of all four -- written once, because four
+    copies of a floor rule are four things to keep in step. In order: a
+    key outside the member's own vocabulary is refused; every named count
+    reaches the floor, since a form held by one row describes how that
+    row was written; a withheld pool is at most the floor less one for
+    each form the census leaves unnamed, exactly as D12 bounds the marks;
+    a member that cannot show the convention at all carries an empty
+    census; and the total is at most the cells that could carry one.
+
+    THE TOTAL IS A CEILING AND NOT AN EQUALITY, and that is a real
+    difference from D13 rather than a looser copy of it. Whether a cell
+    can SHOW a convention depends on its own value -- a day above the
+    ninth shows no width, a month of May shows no name length -- so the
+    number of cells that could carry one is a fact about the values, and
+    a twin whose values differ by a day carries a different number of
+    them. What the twin is held to is the SET of conventions and each
+    one's floor, which is what `_written_form_checks` measures.
+
+    Guarantees: accepts the datetime block, the census's key, where it
+    stands, the floor, the member's vocabulary, whether the member can
+    show the convention, the ceiling on the total and the invariant's
+    name; returns the census. Raises ProfileError for a key outside the
+    vocabulary and for the named invariant. No I/O of any kind.
+    """
+    value: object = mapping[key] if key in mapping else {}
+    census = _counts(value, key, where, 1)
+    for name in sorted(census):
+        if name == WITHHELD:
+            continue
+        if name not in permitted:
+            raise _out_of_range(
+                f"{key} -> {name}",
+                where,
+                f"'{name}'",
+                _listed(permitted + (WITHHELD,)),
+            )
+        if census[name] < floor:
+            raise _broken(
+                rule,
+                where,
+                f"the written form '{name}' was used by {census[name]} rows",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(census)
+    if not reachable:
+        if total != 0:
+            raise _broken(
+                rule,
+                where,
+                f"{total} values are counted by how they wrote this form",
+                "no cell of this column's dates can show it",
+            )
+        return census
+    if WITHHELD in census:
+        unnamed = 0
+        for name in permitted:
+            if name not in census:
+                unnamed = unnamed + 1
+        if census[WITHHELD] > (floor - 1) * unnamed:
+            raise _broken(
+                rule,
+                where,
+                f"{census[WITHHELD]} values' written forms are held back",
+                f"{unnamed} form(s) are left unnamed, and each of them was "
+                f"used by fewer than {floor} rows",
+            )
+    if total > most:
+        raise _broken(
+            rule,
+            where,
+            f"the counted written forms come to {total}",
+            f"at most {most} of the column's values could show one",
+        )
+    return census
 
 
 def _separator_census(

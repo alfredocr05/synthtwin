@@ -1107,18 +1107,25 @@ _precision_form = gen.precision_form
 
 
 def _zero_based_quarter(
-    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+    ordinal, resolution, time_precision, subsecond_digits, mark="T", **written
 ):
-    """G7.5's quarter form off by one: `2024-Q0` for the first quarter."""
+    """G7.5's quarter form off by one: `2024-Q0` for the first quarter.
+
+    The keyword arguments the reversal of owner decision 5 added --
+    which member the date half is written in, and at which conventions
+    (landing 2b.6) -- ride through untouched, so this mutant still
+    differs from the real rule in the quarter's own figure and in
+    nothing else.
+    """
     if resolution == "quarter":
         return f"{1970 + ordinal // 4:04d}-Q{ordinal % 4}"
     return _precision_form(
-        ordinal, resolution, time_precision, subsecond_digits, mark
+        ordinal, resolution, time_precision, subsecond_digits, mark, **written
     )
 
 
 def _month_as_a_day(
-    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+    ordinal, resolution, time_precision, subsecond_digits, mark="T", **written
 ):
     """G7.1's month row withdrawn: the month read in the DAY space.
 
@@ -1131,7 +1138,7 @@ def _month_as_a_day(
     if resolution == "month":
         return f"{1970 + ordinal // 12:04d}-{ordinal % 12 + 1:02d}-01"
     return _precision_form(
-        ordinal, resolution, time_precision, subsecond_digits, mark
+        ordinal, resolution, time_precision, subsecond_digits, mark, **written
     )
 
 
@@ -1150,12 +1157,16 @@ def _reproduce_instead_of_standing_in(used, wanted):
 
 
 def _through_the_ordinal_space(
-    text, resolution, time_precision, subsecond_digits, shift, mark="T"
+    text, resolution, time_precision, subsecond_digits, shift, mark="T",
+    **written,
 ):
     """G7.5's endpoint route withdrawn: both ends back through G7.1.
 
-    The mark rides through unchanged, so the mutant differs from the
-    real rule only in the route and never in the separator.
+    The mark rides through unchanged, and so do the arguments the
+    reversal of owner decision 5 added -- which member the date half is
+    written in, and at which conventions (landing 2b.6) -- so the mutant
+    differs from the real rule only in the ROUTE and never in the
+    separator or the spelling.
     """
     return gen.precision_form(
         gen.ordinal_of(text, resolution) + shift,
@@ -1163,6 +1174,7 @@ def _through_the_ordinal_space(
         time_precision,
         subsecond_digits,
         mark,
+        **written,
     )
 
 

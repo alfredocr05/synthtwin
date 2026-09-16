@@ -1139,6 +1139,23 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "datetime_separators"): _OBJECT,
     ("columns", _EACH, "datetime_separators", _KEY_OF): _WORD,
     ("columns", _EACH, "datetime_separators", _ANY_KEY): _FLOORED_ENTRY,
+    # HOW THE DATES WERE WRITTEN (landing 2b.6): four censuses of this
+    # package's own form words, each floored with a withheld pool
+    # exactly as the mark census above is. None of them carries a
+    # spelling of anybody's table -- the keys are words this module
+    # wrote, and the counts are counts of conventions.
+    ("columns", _EACH, "date_field_widths"): _OBJECT,
+    ("columns", _EACH, "date_field_widths", _KEY_OF): _WORD,
+    ("columns", _EACH, "date_field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "month_name_styles"): _OBJECT,
+    ("columns", _EACH, "month_name_styles", _KEY_OF): _WORD,
+    ("columns", _EACH, "month_name_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "quarter_marker_case"): _OBJECT,
+    ("columns", _EACH, "quarter_marker_case", _KEY_OF): _WORD,
+    ("columns", _EACH, "quarter_marker_case", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "zulu_case"): _OBJECT,
+    ("columns", _EACH, "zulu_case", _KEY_OF): _WORD,
+    ("columns", _EACH, "zulu_case", _ANY_KEY): _FLOORED_ENTRY,
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -1318,6 +1335,21 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     ("columns", _EACH, "datetime_separators", _KEY_OF): (
         parsing.DATETIME_SEPARATORS + (parsing.MISSING_WITHHELD,)
+    ),
+    # The four written-form vocabularies, read from the one place each
+    # is defined (landing 2b.6), so that a word a producer writes and a
+    # word this guard admits cannot drift apart.
+    ("columns", _EACH, "date_field_widths", _KEY_OF): (
+        parsing.FIELD_WIDTH_STYLES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "month_name_styles", _KEY_OF): (
+        parsing.MONTH_NAME_STYLES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "quarter_marker_case", _KEY_OF): (
+        parsing.QUARTER_MARKER_CASES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "zulu_case", _KEY_OF): (
+        parsing.ZULU_CASES + (parsing.MISSING_WITHHELD,)
     ),
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,

@@ -1199,6 +1199,42 @@ floor, so the real table meets its description by construction:
   value there, and one holding all but a single value there, the three
   being one state on purpose (landing 2b.6).
 
+**Amended 2026-09-15 (landing 2b.6): the MEMBER is an obligation, and
+how the dates were written is four more.** The owner reversed decision
+5, so the twin is written in the member that read the real column
+rather than in ISO:
+
+- `format` is compared exactly (`format.member`): describing the file
+  again must name the member the description names. It was NOT
+  CHECKABLE for as long as the twin's own spelling was another
+  member's, and it is the one check that turns red on a writer that
+  goes back to ISO. It is LISTED, not checked, on an `iso-mixed` column
+  NOT wholly at midnight, where the twin writes every value with a time
+  of day and so reads back as `iso-datetime` (residual R-P4-12).
+- each of `date_field_widths`, `month_name_styles`,
+  `quarter_marker_case` and `zulu_case` is compared as a KEY SET and
+  not as a count: every convention the description names must appear on
+  at least a floor's worth of the file's own cells
+  (`widths.<word>`, `names.<word>`, `markers.<word>`, `zulu.<word>`),
+  and the cells wearing a convention the description does NOT name,
+  the file's own pool included, are at most the published pool widened
+  by any cells the file holds beyond the published total
+  (`<family>.unnamed`). The counts themselves are NOT compared, and the
+  reason is the fact that makes them interesting: whether a cell can
+  show a convention depends on its own value — a day above the ninth
+  shows no field width, a month of May shows no name length — so how
+  many of a file's cells could carry one is a fact about that file's
+  values, and a faithful twin whose interior instants fall a day either
+  side of the real ones carries a different number of them. A count
+  check would accuse the tool's own twin.
+- each of the four is LISTED where the column's member cannot show that
+  convention at all: the widths on a member of fixed field width, the
+  name styles outside the two textual members, the marker outside
+  `year-quarter`, the zulu case where no `Z` is named. `resolution_mix`
+  stays listed on every column: on a single-member column it restates
+  `format` and `n_unparsed`, both checked, and a check that cannot fail
+  on its own is what this method exists to refuse.
+
 On a column whose ranks the generator moves onto a midnight, G12.5's
 lower end is the one the generation method states for that column:
 the separate windows widened by one precision step less the ranks the

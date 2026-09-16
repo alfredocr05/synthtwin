@@ -37,7 +37,7 @@ import typing
 
 import pytest
 
-from synthtwin import contract, generation, validation
+from synthtwin import contract, generation, parsing, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of, _round_trip
 
@@ -181,8 +181,20 @@ def test_a_slashed_stamp_whose_every_mark_is_held_back_keeps_its_space(
         tmp_path / "slashed-pool", cells, ("--smallest-group", "700"), True, seed
     )
     assert first["datetime_separators"] == {"(withheld)": 600}
-    assert _marks(written) == {" ": 600}
+    # ASKED THROUGH THE MEMBER'S OWN READER since landing 2b.6, not at
+    # character eleven. The twin is written in the source's member now,
+    # and an Excel-style column writes `3/17/2024 14:05` as well as
+    # `03/17/2024 14:05`, so character eleven is a digit of the date on
+    # every unpadded cell. What the census is about is the mark between
+    # the day and the clock, which is what this asks for.
+    marks: "dict[str, int]" = {}
+    for cell in written:
+        found = parsing.datetime_separator(cell, "month-first-datetime")
+        assert found is not None, cell
+        marks[found] = marks[found] + 1 if found in marks else 1
+    assert marks == {"space": 600}
     assert second["datetime_separators"] == first["datetime_separators"]
+    assert second["format"] == first["format"] == "month-first-datetime"
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -614,7 +626,15 @@ def test_both_writings_of_the_judged_rule_answer_alike(
 def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     tmp_path: pathlib.Path, form: str, precision: str, seed: str
 ) -> None:
-    """Read as `slashed-iso-datetime`; the twin writes ISO by owner decision 5."""
+    """Read as `slashed-iso-datetime`, and WRITTEN BACK AS ONE (2b.6).
+
+    Until 2026-09-15 this test pinned the opposite and said so: the
+    twin's cells were ISO by owner decision 5, and the member was the
+    one fact designed not to return. The owner reversed that decision,
+    so the member now comes back and the assertion comes back with it --
+    `2024/06/13 07:55` rather than `2024-06-13 07:55`, which is what
+    `strptime('%Y/%m/%d %H:%M')` needs on the twin as on the table.
+    """
     draw = random.Random(2)
     cells = [
         (datetime.datetime(2022, 1, 1) + datetime.timedelta(seconds=draw.randrange(0, 800 * 86400))).strftime(form)
@@ -622,11 +642,15 @@ def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     ]
     first, second, written, twin_exit, real_exit = _round_trip(tmp_path / "slash", cells, (), True, seed)
     assert (first["role"], first["format"], first["time_precision"]) == ("datetime", "slashed-iso-datetime", precision)
-    # The one fact designed not to return: the twin's cells are ISO.
-    assert second["format"] == "iso-datetime"
-    for key in ("role", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
+    # THE FACT THAT NOW RETURNS, and the reason this test exists.
+    assert second["format"] == "slashed-iso-datetime"
+    for key in ("role", "format", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
         assert second[key] == first[key], (key, first[key], second[key])
-    assert all(cell[4] == "-" and cell[10] == " " for cell in written)
+    # The year leads, the fields are slashed and padded, and the clock
+    # stands after one space: the source's own shape, character for
+    # character, where every one of these cells used to be an ISO stamp.
+    assert all(cell[4] == "/" and cell[7] == "/" and cell[10] == " " for cell in written)
+    assert all(parsing.parse_datetime(cell, "slashed-iso-datetime") is not None for cell in written)
     assert (twin_exit, real_exit) == (0, 0)
 
 

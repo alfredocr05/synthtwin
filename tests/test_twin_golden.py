@@ -158,6 +158,17 @@ ALL_AT_MIDNIGHT_FACT = "datetime.all_at_midnight"
 # listed where the description publishes none, which on `recorded_on` --
 # a column of dates that writes no clock -- is always.
 N_AT_MIDNIGHT_FACT = "datetime.n_at_midnight"
+# ...and the EIGHTH to ELEVENTH (landing 2b.6): the four censuses of
+# HOW a column's dates were written, listed on every column whose member
+# cannot show that convention. `recorded_on` is read as `iso-date` --
+# fixed field widths, no month NAME, no quarter, no zulu offset -- so it
+# lists all four.
+WRITTEN_FORM_FACTS = (
+    "datetime.date_field_widths",
+    "datetime.month_name_styles",
+    "datetime.quarter_marker_case",
+    "datetime.zulu_case",
+)
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     EMPTY_BIN_FACT,
@@ -166,7 +177,7 @@ LISTINGS_ADDED_SINCE = (
     DATETIME_SEPARATORS_FACT,
     ALL_AT_MIDNIGHT_FACT,
     N_AT_MIDNIGHT_FACT,
-)
+) + WRITTEN_FORM_FACTS
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -201,6 +212,16 @@ SPELLING_SUBCHECKS = (
     "spelling.negative_form",
     "spelling.decimal_plus",
 )
+# ...and the ONE check landing 2b.6 added (2026-09-15), set aside on the
+# same doctrine. `format` -- the member the real column's dates were
+# written in -- was REPORT-ONLY and listed whole, because owner decision
+# 5 had the twin write ISO whatever the source wrote, so no file could
+# evidence it. The owner reversed that decision: the twin is written in
+# the member that read the real column, so describing it again names
+# that member and the fact is a check. The demonstration has one column
+# of dates, so it is one check. Re-recording 416 as 417 would retire the
+# only thing this baseline buys.
+MEMBER_SUBCHECK = "format.member"
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -219,8 +240,20 @@ EMPTY_EDGE_LISTINGS = ["visits|numeric.empty_edges|"]
 # file that a landing may lower, and only this way: an obligation that
 # MOVED to the checks, with the check baseline showing it arrive.
 NARROW_LISTING_COUNT = 126
+# LOWERED AGAIN 2026-09-15 (landing 2b.6), the second time and the only
+# way this baseline may be lowered: an obligation MOVED to the checks.
+# `datetime.format` -- the member the real column's dates were written
+# in -- was listed whole on the demonstration's one column of dates,
+# because owner decision 5 had the twin write ISO whatever the source
+# wrote, so no file could evidence it. The owner reversed that decision:
+# the twin is written in the member that read the real column, so the
+# fact is a check now, and the check baseline above shows it arriving as
+# `MEMBER_SUBCHECK`. One listing left, so 122 becomes 121 and this
+# digest is re-recorded over the 121. A census that carries fewer
+# obligations than it did is a defect UNLESS they moved, and the two
+# baselines together are what show that they did.
 NARROW_LISTING_DIGEST = (
-    "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
+    "5978ec5be61bdfe2b0b4f21cad6c7b3ae2477c21c697fa20192f24f86656bf92"
 )
 NARROW_COLUMN_DIGESTS = {
     "record_code": "f6d74ac3a099e5713338c9baff476924",
@@ -296,7 +329,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS:
+        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS + (MEMBER_SUBCHECK,):
             if one in entry:
                 return True
         return False
@@ -402,7 +435,16 @@ def test_widening_the_demonstration_lost_no_obligation(
     # obligations than it did is a defect -- unless the obligations
     # MOVED to the checks, which is what happened and which the check
     # baseline above shows arriving there.
-    assert len(kept) == NARROW_LISTING_COUNT - 4, len(kept)
+    # ...AND A FIFTH LEFT IT ON 2026-09-15 (landing 2b.6), named here on
+    # the same doctrine rather than absorbed: `datetime.format` was
+    # listed whole on every column of dates, because owner decision 5
+    # had the twin write ISO whatever the source wrote and no file could
+    # evidence the member that read the real column. The owner reversed
+    # that decision, so the member IS reproduced and the fact is a
+    # check -- which the check baseline above shows arriving there, as
+    # `MEMBER_SUBCHECK`. The demonstration has one column of dates, so
+    # one listing left.
+    assert len(kept) == NARROW_LISTING_COUNT - 5, len(kept)
     assert (
         hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
         == NARROW_LISTING_DIGEST
@@ -793,8 +835,17 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # midnight, whose two descriptions differed in that key and nowhere
 # else. Nothing else about the document moved, and the twin's own bytes
 # did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6), for the cause recorded
+# beside the profile golden in tests/test_profile_document.py: the
+# column of dates gains the four written-form censuses, all four empty
+# on a column read as `iso-date`. THE TWIN'S OWN BYTES DID NOT MOVE --
+# GOLDEN_TWIN_SHA256 below is untouched -- and that is the load-bearing
+# half of this re-recording: the reversal of owner decision 5 changes
+# what a twin of a month-first, textual, compact, two-digit, dotted,
+# slashed-ISO, quarter or zulu column is written as, and this
+# demonstration holds none of those.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "6696dbef39112c5606fe922a7827d5757522bc99cc054a9c1060fc496d3fdd20"
+    "b92e78c3b8e396208249606cf3d2796c0b3777fb723c790ba793e6025f8fc101"
 )
 
 
@@ -1813,8 +1864,17 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # widest stratum is read off the description alone, which on this
 # demonstration is the number it was already. The census is unchanged:
 # 420 held, 75 within a window, none missed.
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6). Both inputs above are
+# accounted for, so what moved here is WHAT THE CHECK SAYS: the column
+# of dates files one obligation MORE than it did -- `format.member`, the
+# member the dates were written in, which was NOT CHECKABLE while the
+# twin wrote ISO whatever the source wrote -- and four listings more,
+# one per written-form census, each saying that this column's member can
+# show no such convention. The census carries no fewer obligations than
+# it did: one moved from the listings to the checks and four arrived as
+# listings, which the frozen baselines below show arriving by name.
 GOLDEN_QUALITY_SHA256 = (
-    "33b8fc1f5d7b0c42acca316a7d614bbaad389fcfda297753d52839ddda35142a"
+    "064e008e758489b32ce0aea79f6e6bc7c1f3d1593a87d7f238fb6091ed493396"
 )
 
 

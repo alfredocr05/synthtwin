@@ -9624,7 +9624,9 @@ The twin report's sentence on the marks is the one true of the column. Where eve
 
 What the facts buy is code meeting the same spelling on the twin as on the real table, and a date-only field that stays a date. The quality report holds a file to them since landing 2b.3, measured off the file's own description: each named mark as a floor-governed count whose window is the withheld pool, widened on a joint column not wholly at midnight by the clock-writing cells a file holds beyond the published count; the values wearing a mark the census does not name, bounded by that same window; the statement where it is published true; and the count where it is above nought. Each is listed, never silent, where the description sets no obligation. Measured before the change, a space column rewritten with a T and a midnight column moved to 09:30 both passed with nothing missed; after it, both miss. The absent-spelling repair's shortfall, which the twin's own report names, is now also a miss of the census, which is the consistent outcome. Carried by name: a column of a few different days whose pooled spellings land on more than one day keeps its kind but holds more different values than the real one, pinned in `tests/test_stage2_timestamp_spellings.py`; a joint column not at midnight is written wholly as moments (R-P4-12); the offsets of a column at midnight on two offsets are spread over the range without regard to the season, so a winter date can wear a summer offset; and twins of date columns spread their values across days more evenly than real tables, with a day-to-day variance about a third of the real one measured on 400 rows, which predates stage 2.
 
-**The year-first slashed stamp** (landing 2b.3). `2024/03/17 14:05` and `2024/03/17 14:05:09` are read by a twentieth format member, `slashed-iso-datetime`: a `slashed-iso-date`, one space, and a clock in the `time_of_day` role's two forms, with no fraction and no offset, tried after every member a column already reads under. A 500-row column of them was read as free text and its twin wrote made-up strings. The twin writes ISO, by owner decision 5. The rule this overturns is the generation method's fixed T of G7.5, with the space exception of amendment A-P4-22; the method records the correction on the same date.
+**The year-first slashed stamp** (landing 2b.3). `2024/03/17 14:05` and `2024/03/17 14:05:09` are read by a twentieth format member, `slashed-iso-datetime`: a `slashed-iso-date`, one space, and a clock in the `time_of_day` role's two forms, with no fraction and no offset, tried after every member a column already reads under. A 500-row column of them was read as free text and its twin wrote made-up strings. The rule this overturns is the generation method's fixed T of G7.5, with the space exception of amendment A-P4-22; the method records the correction on the same date. Such a twin wrote ISO until the owner reversed decision 5 (P4-D61 below); it is written `2024/03/17 14:05` now.
+
+**P4-D61 — every date is written in its source's own form (landing 2b.6, 2026-09-15).** The owner ruled on 2026-09-15 that the twin should always write anything as the original source wrote it, mimicking the original as far as possible. That reverses owner decision 5 of the Phase 2 plan, which had every twin datetime cell written in ISO at the recorded precision. Measured before the reversal: `strptime('%m/%d/%Y')` parsed 400 of 400 real cells of a month-first export and none of its twin's; `'%d-%b-%Y'` did the same to a SAS `DATE11` export; a compact `YYYYMMDD` column's ISO twin FAILED synthtwin's own validation, because the real cells are also numbers and the ISO cells are not; and `2024-q1` came back `2024-Q4`. Code developed on the twin did not run unchanged on the real table, which is the first of the two mandatory goals. So a twin datetime cell is written through the member that read the real column, and four censuses of FORMS carry what the member alone does not fix. The census `date_field_widths` records **how wide a date wrote its month and day fields**, as ONE joint word per cell — `padded`, `unpadded`, `first-padded`, `second-padded` — counted over the cells that could show a width, a field below ten; joint because on a column half written `%m/%d/%Y` and half `m/d/yyyy` not one real cell mixes the two, and two independent censuses would have written about half the eligible cells `03/5/2024`, a style no row used. The census `month_name_styles` records **how a date wrote its month name**, again as one joint word — case, length, field mark, and whether a comma followed the day — counted over the cells whose month is not May, whose two written forms are one word; joint because a hand-entered column mixing `17-MAR-2024` with `17 Mar 2024` carries its case and its mark together. The census `quarter_marker_case` records **the case of a quarter's marker**, and `zulu_case` records **the case of a zulu offset marker**, the second published only where the offset map NAMES `Z`, since it counts a subset of the cells carrying one offset and would otherwise hand back a pooled count. Each is floor-governed with a `(withheld)` pool exactly as `datetime_separators` is, because a form used by one row describes how that row was written; each is spent over the ranks that can show it by the same smooth weighted rotation, which draws no word. `date_field_widths`, `month_name_styles`, `quarter_marker_case` and `zulu_case` are EXACT-OBSERVABLE, and so is `format`, which was REPORT-ONLY only because the twin's spelling was another member's; residual R-P2-7 is retired with it. What each census owes a file is its KEY SET and each key's floor rather than its count: whether a cell can show a convention depends on its own value, so how many of a file's cells could carry one is a fact about that file's values, and a count check would accuse a faithful twin. Contract invariants D17 to D20 hold the keys. **Carried, and named rather than paid in silence:** the figures after a second are still zeros, so a millisecond column's twin still ticks at `.000`; a joint `iso-mixed` column not wholly at midnight is still written wholly as moments, so `format` is listed rather than checked there (R-P4-12); and the members the reader does not reach at all — a 12-hour clock, `08APR2024`, Excel's unpadded hour, a partial CDISC date, an HL7 stamp — still fall to free text, with the twin writing stand-ins.
 
 ### P4-D40 Two whole numbers joined by a slash are read from the values (landing 2b.5, 2026-09-15)
 
@@ -9677,15 +9679,19 @@ a resample — runs on it at all. That is principle 5's case exactly: a
 column handled by an appropriate type path, or declined with an
 explanation, and this is neither.
 
-**WHAT THIS DECISION ADDS IS READING, AND ONLY READING.** The twin
-still writes ISO. That is owner decision 5 of the Phase 2 plan, which
-chose ISO twin syntax at the recorded precision rather than the
-source's lexical family, and it is why `format` is REPORT-ONLY and why
-residual R-P2-7 stands. Nothing here disturbs it, and no sentence
-anywhere may say the twin reproduces these spellings. What the person
-gains is the whole of the column's behaviour as a date — its ends, its
-ladder, its gaps, its absence pattern — and what they still owe is the
-`format` argument in their own parsing call, which R-P2-7 names.
+**WHAT THIS DECISION ADDED WAS READING, AND ONLY READING.** The twin
+still wrote ISO: owner decision 5 of the Phase 2 plan, which chose ISO
+twin syntax at the recorded precision rather than the source's lexical
+family, which is why `format` could not be reproduced at all and why
+residual R-P2-7 stood. Nothing here disturbed it, and no sentence anywhere could say
+the twin reproduced these spellings. What the person gained was the
+whole of the column's behaviour as a date — its ends, its ladder, its
+gaps, its absence pattern — and what they still owed was the `format`
+argument in their own parsing call, which R-P2-7 named. **The owner
+reversed decision 5 on 2026-09-15** (P4-D61, landing 2b.6): the twin is
+written in the member that read the real column, `format` is
+EXACT-OBSERVABLE, and R-P2-7 is retired. The paragraph above is kept as
+the record of what this decision did and did not buy when it landed.
 
 Whether the twin should write the source's own date spelling is a
 question this decision deliberately does not reopen; it is owner
@@ -11506,10 +11512,13 @@ evidence walk, `--day-first` and the remarks reach them unchanged.
 Contract C6-D8P fixes the two-figure century pivot and note NF42
 carries it on every such column.
 
-**THIS ADDS READING AND NOT WRITING.** The twin still writes ISO —
-owner decision 5 of the Phase 2 plan, `format` REPORT-ONLY, residual
-R-P2-7 — and a test asserts the ISO syntax so nothing drifts into
-claiming otherwise. **THIS RAISES** what a column of these shapes
+**THIS ADDED READING AND NOT WRITING.** The twin still wrote ISO —
+owner decision 5 of the Phase 2 plan, `format` not reproduced, residual
+R-P2-7 — and a test asserted the ISO syntax so nothing drifted into
+claiming otherwise. **The owner reversed decision 5 on 2026-09-15**
+(P4-D61, landing 2b.6): the twin is written in the member that read the
+real column, `format` is EXACT-OBSERVABLE, R-P2-7 is retired, and that
+same test now asserts the source's own syntax so nothing drifts BACK. **THIS RAISES** what a column of these shapes
 publishes, from nothing to the whole of a date column's behaviour.
 **THIS LOWERS** nothing.
 

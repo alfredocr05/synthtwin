@@ -535,7 +535,11 @@ def test_an_end_this_tool_fails_to_write_is_still_printed(
     kept = generation._endpoint_cell
 
     def reverted(
-        facts: contract.DatetimeFacts, published: str, offset: str, mark: str
+        facts: contract.DatetimeFacts,
+        published: str,
+        offset: str,
+        mark: str,
+        style: object = None,
     ) -> str:
         """The withdrawn rule: an end through the whole-second space.
 

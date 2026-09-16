@@ -975,6 +975,31 @@ def battery() -> list[Mutation]:
             "D16", "whole dates counted beside offsets only moments carry",
             whole_dates_carrying_offsets("logged_at"),
         ),
+        # HOW THE DATES WERE WRITTEN, landing 2b.6. `recorded_on` is read
+        # as `iso-date`: its fields are of fixed width, it writes no
+        # month NAME, it is no column of quarters and it names no zulu
+        # offset -- so each of the four censuses is a census that column
+        # can carry nothing in, and a document that fills one describes a
+        # column no producer wrote.
+        Mutation(
+            "D17", "a width census on a member of fixed field width",
+            edit("recorded_on", date_field_widths={"padded": 12}),
+        ),
+        Mutation(
+            "D18", "a month-name census on a column writing no month name",
+            edit(
+                "recorded_on",
+                month_name_styles={"title-abbreviated-space-no-comma": 12},
+            ),
+        ),
+        Mutation(
+            "D19", "a quarter-marker census on a column of whole dates",
+            edit("recorded_on", quarter_marker_case={"upper": 12}),
+        ),
+        Mutation(
+            "D20", "a zulu-case census where no zulu offset is named",
+            edit("recorded_on", zulu_case={"upper": 12}),
+        ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(

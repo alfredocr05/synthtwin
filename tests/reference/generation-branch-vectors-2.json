@@ -2997,6 +2997,7 @@
       ],
       "column": {
         "all_at_midnight": true,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-05-07 00:00:00",
           "min": "2024-04-30 22:00:00",
@@ -3029,6 +3030,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": 24,
         "n_contradictory": 0,
         "n_distinct": 12,
@@ -3045,6 +3047,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -3060,7 +3063,8 @@
         "utc_offsets": {
           "(none)": 13,
           "+02:00": 11
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2024-05-01T00:00:00+02:00",
@@ -3172,6 +3176,7 @@
       ],
       "column": {
         "all_at_midnight": true,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-12-16 00:00:00",
           "min": "2024-01-04 00:00:00",
@@ -3204,6 +3209,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": 24,
         "n_contradictory": 0,
         "n_distinct": 24,
@@ -3220,6 +3226,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -3234,7 +3241,8 @@
         "time_precision": "second",
         "utc_offsets": {
           "(none)": 24
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2024-01-04",
@@ -3346,6 +3354,7 @@
       ],
       "column": {
         "all_at_midnight": true,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-06-27 22:00:00",
           "min": "2024-01-07 23:00:00",
@@ -3378,6 +3387,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": 24,
         "n_contradictory": 0,
         "n_distinct": 24,
@@ -3394,6 +3404,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -3408,7 +3419,8 @@
         "utc_offsets": {
           "+01:00": 12,
           "+02:00": 12
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2024-01-08T00:00:00+01:00",
@@ -4253,6 +4265,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-03-30 15:31:16",
           "min": "2024-03-01 00:00:00",
@@ -4285,6 +4298,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": 12,
         "n_contradictory": 0,
         "n_distinct": 24,
@@ -4301,6 +4315,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -4314,7 +4329,8 @@
         "time_precision": "second",
         "utc_offsets": {
           "(none)": 24
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2024-03-01 00:00:00",
@@ -4426,6 +4442,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-05-24 21:45:00",
           "min": "2024-05-01 06:30:00",
@@ -4459,6 +4476,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 24,
@@ -4475,6 +4493,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -4488,7 +4507,8 @@
         "time_precision": "minute",
         "utc_offsets": {
           "(none)": 24
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2024-05-01T06:30",
@@ -5306,19 +5326,20 @@
     },
     "slashed_pool": {
       "cells": [
-        "2024-06-20 15:19",
-        "2024-06-08 08:34",
-        "2024-06-03 08:10",
-        "2024-06-17 16:28",
-        "2024-06-28 11:50",
-        "2024-06-25 03:33",
-        "2024-06-13 13:50",
-        "2024-06-11 16:55",
-        "2024-06-06 04:49",
-        "2024-06-10 03:23"
+        "2024/06/20 15:19",
+        "2024/06/08 08:34",
+        "2024/06/03 08:10",
+        "2024/06/17 16:28",
+        "2024/06/28 11:50",
+        "2024/06/25 03:33",
+        "2024/06/13 13:50",
+        "2024/06/11 16:55",
+        "2024/06/06 04:49",
+        "2024/06/10 03:23"
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-06-28 11:50:00",
           "min": "2024-06-03 08:10:00",
@@ -5351,6 +5372,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 10,
@@ -5367,6 +5389,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -5380,21 +5403,22 @@
         "time_precision": "minute",
         "utc_offsets": {
           "(withheld)": 10
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
-        "2024-06-03 08:10",
-        "2024-06-06 04:49",
-        "2024-06-08 08:34",
-        "2024-06-10 03:23",
-        "2024-06-11 16:55",
-        "2024-06-13 13:50",
-        "2024-06-17 16:28",
-        "2024-06-20 15:19",
-        "2024-06-25 03:33",
-        "2024-06-28 11:50"
+        "2024/06/03 08:10",
+        "2024/06/06 04:49",
+        "2024/06/08 08:34",
+        "2024/06/10 03:23",
+        "2024/06/11 16:55",
+        "2024/06/13 13:50",
+        "2024/06/17 16:28",
+        "2024/06/20 15:19",
+        "2024/06/25 03:33",
+        "2024/06/28 11:50"
       ],
-      "csv_bytes": "2024-06-20 15:19\n2024-06-08 08:34\n2024-06-03 08:10\n2024-06-17 16:28\n2024-06-28 11:50\n2024-06-25 03:33\n2024-06-13 13:50\n2024-06-11 16:55\n2024-06-06 04:49\n2024-06-10 03:23\n",
+      "csv_bytes": "2024/06/20 15:19\n2024/06/08 08:34\n2024/06/03 08:10\n2024/06/17 16:28\n2024/06/28 11:50\n2024/06/25 03:33\n2024/06/13 13:50\n2024/06/11 16:55\n2024/06/06 04:49\n2024/06/10 03:23\n",
       "float64": [],
       "why": "the permitted marks of a slashed stamp, landing 2b.3. Ten year-first slashed stamps whose every mark is pooled: the reader of that form splits the day from the clock on one space and takes nothing else, so the pool is spent on the space alone and every cell carries one. It is also the first frozen case for the slashed-iso-datetime member. Offered all three marks, as an ISO stamp is, the cells take a T and a t that no such table could write; this case's mutant is that offer.",
       "word_budget": {

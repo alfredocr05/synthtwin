@@ -3740,14 +3740,84 @@ writes one kind, re-profiles as `local`, and the report names it. That
 corner is bounded: it needs two or more distinct offsets each used by
 fewer rows than the small-cell floor.
 
-### G7.5 Writing the cell at the PUBLISHED precision (owner decision 5)
+### G7.5 Writing the cell IN ITS SOURCE'S OWN FORM, at the published precision
 
-D12 fixed ISO 8601 with an explicit offset; owner decision 5 amended it
-for twin CSV cells, because the producer legitimately publishes
-offsetless dates and quarters and no output could satisfy both D12 and
-the published facts. **A twin datetime cell is written in the ISO form
-matching the precision the profile records, and an offset is written
-only where the profile records a real one.** Exactly:
+**Owner decision 5 is REVERSED** (owner ruling 2026-09-15, plan P4-D61,
+landing 2b.6). The history is kept because it is the record of what this
+rule cost while it stood. D12 fixed ISO 8601 with an explicit offset;
+owner decision 5 amended it for twin CSV cells, because the producer
+legitimately publishes offsetless dates and quarters and no output could
+satisfy both D12 and the published facts, and it chose the ISO form at
+the recorded precision for EVERY member. Residual R-P2-7 disclosed the
+price: a month-first table yielded ISO twin dates, so a person's own
+parsing call needed a different format argument on the twin than on
+their table. Measured: `strptime('%m/%d/%Y')` parsed 400 of 400 real
+cells and none of the twin's; a compact `YYYYMMDD` column's ISO twin
+FAILED this tool's own validation, because the real cells are also
+numbers and the ISO cells are not.
+
+**So a twin datetime cell is written in the MEMBER that read the real
+column — the document's `format` — at the precision the profile records,
+and an offset is written only where the profile records a real one.**
+The date half is written by the member; the clock half, the mark before
+it and the offset after it are unchanged by the reversal. The member
+fixes the field order, the delimiter and the year's width; what it does
+not fix is carried by four censuses the description publishes, each
+allocated to the ranks that can show it by the same smooth weighted
+rotation the marks use, which draws no word:
+
+| written by | census | the words |
+|---|---|---|
+| how wide the month and day fields were | `date_field_widths` | `padded`, `unpadded`, `first-padded`, `second-padded` — ONE joint word per CELL, over the cells whose field is below ten |
+| how a month NAME was written | `month_name_styles` | one joint `<case>-<length>-<mark>-<comma>` word, over the cells whose month is not May |
+| the case of a quarter's marker | `quarter_marker_case` | `upper`, `lower` |
+| the case of a zulu offset marker | `zulu_case` | `upper`, `lower` |
+
+**The joint words are joint on purpose, and that is a rule and not a
+convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
+not one real cell mixes the two, so two independent censuses would have
+written about half the eligible cells `03/5/2024` — a style no row of
+that table uses. The same holds of a hand-entered column mixing
+`17-MAR-2024` with `17 Mar 2024`, which carries its case and its mark
+together. A rank that cannot show a convention — a day above the ninth,
+a month of May, a cell carrying no zulu marker — takes the column's
+commonest form and is counted against no census.
+
+**The date half, per member:**
+
+| `format` | the cell's date half | example |
+|---|---|---|
+| `iso-date`, `iso-datetime`, `iso-mixed` | `YYYY-MM-DD` | `2024-03-17` |
+| `slashed-iso-date`, `slashed-iso-datetime` | `YYYY/MM/DD`, both fields padded | `2024/03/17` |
+| `compact-date` | `YYYYMMDD` | `20240317` |
+| `month-first-date`, `month-first-datetime` | month, day, four-figure year, slashed, each field at its allocated width | `03/17/2024`, `3/17/2024` |
+| `day-first-date`, `day-first-datetime` | day, month, four-figure year, slashed, at its allocated width | `17/03/2024` |
+| `two-digit-month-first-date` | month, day, `YY`, slashed, at its allocated width | `03/17/24` |
+| `two-digit-day-first-date` | day, month, `YY`, slashed, at its allocated width | `17/03/24` |
+| `dotted-month-first-date`, `dotted-day-first-date` | dotted, both fields PADDED (contract C6-22) | `17.03.2024` |
+| `dotted-two-digit-month-first-date`, `dotted-two-digit-day-first-date` | dotted, both fields padded, `YY` | `17.03.24` |
+| `textual-day-first-date` | day at its allocated width, the month NAME in its allocated case and length, four-figure year, on the allocated mark | `17-MAR-2024`, `7 September 2024` |
+| `textual-month-first-date` | the month NAME, the day at its allocated width with the allocated comma, four-figure year, on the allocated mark | `Mar 17, 2024`, `Mar 17 2024` |
+| `iso-month` | `YYYY-MM` | `2024-03` |
+| `year-quarter` | `YYYY-` then `Q` or `q` as allocated, then the quarter | `2024-Q1`, `2024-q1` |
+
+A month NAME is built by `month_spelling`, the one inverse of the
+reader's own `month_of_name`, so a producer counting names and a
+generator writing them cannot spell one month two ways — as
+`clock_spelling` is the one inverse of `clock_ordinal`. The whole date
+half is `written_date`, the one inverse of `parse_datetime`, and the
+generator reaches it through `_cell_of_ordinal` and nowhere else.
+
+**What the reversal does NOT change.** The figures after a second are
+still zeros: the description says how MANY the finest cell carried and
+nothing about their values, so any other figure would be a made-up fact.
+The precision, the mark and the offset state are decision 5's own gains
+and are untouched. And the members the reader does not reach — a
+12-hour clock, `08APR2024`, Excel's unpadded hour — still fall to free
+text; the reversal is about writing what was read, not about reading
+more.
+
+Then the clock half, exactly:
 
 | `resolution` | `time_precision` | cell text |
 |---|---|---|
@@ -4055,10 +4125,18 @@ rather than passing it off as an outcome the description asked for.
   `00:00`, `00:00:00`, or `00:00:00.` and `subsecond_digits` zeros —
   carrying its allocated mark (stage 2, 2026-09-14), and the report
   recounts the midnight cells it wrote and names any that are not.
-- `format` is REPORT-ONLY and is NOT reproduced (P2-R4-F3, R-P2-7): a
-  month-first source column yields ISO twin dates and re-profiles as
-  `iso-date`. Code that parses dates with an explicit source format
-  needs that argument changed, and the report says so.
+- `format` is EXACT-OBSERVABLE and IS reproduced (landing 2b.6, plan
+  P4-D61): the cell is written through the member that read the real
+  column, so a month-first source column yields month-first twin dates
+  and re-profiles as `month-first-date`. It was not reproduced at all
+  under owner decision 5 (P2-R4-F3), when such a column yielded ISO
+  twin dates and
+  a person's own parsing call needed a different format argument on the
+  twin than on their table, so the field could not be reproduced at
+  all; the owner reversed that decision and residual R-P2-7 is retired
+  with it. The one column whose member its
+  own twin cannot show is an `iso-mixed` column not wholly at midnight,
+  which is written wholly as moments (R-P4-12).
 
 ## G7A. Clock columns (`time_of_day`)
 
@@ -7582,9 +7660,15 @@ construction cannot keep.
   for a published width of four characters or fewer, which no
   out-of-range cell a real table holds can have.
 - **R-P2-2** — absent-value spellings and classes are not reproduced.
-- **R-P2-7** — the twin keeps a datetime column's precision and offset
-  state but not the source's lexical date family; a month-first table
-  yields ISO twin dates, and `format` is REPORT-ONLY for that reason.
+- **R-P2-7 — RETIRED 2026-09-15** (landing 2b.6). While it stood it
+  read: the twin keeps a datetime column's precision and offset state
+  but not the source's lexical date family, a month-first table yields
+  ISO twin dates, and `format` is not reproduced for that reason. The
+  owner reversed decision 5, the cell is written through the member
+  that read the real column, and `format` is EXACT-OBSERVABLE. What is
+  NOT retired with it is named in its place: the figures after a second
+  are still zeros, and a spelling no member of the reader reaches at
+  all still falls to free text.
 - **R-P2-9** — twin numeric cells may carry several spellings of one
   value from the leading-zero family, so a twin column can look less
   tidy than a table whose numbers were written one way. The inferred
@@ -7687,7 +7771,10 @@ left to round trips for want of room, at eleven rows each, because at
 twenty-two rows the five carried the file 873 bytes past the cap. The
 third file held 245567 bytes with seventeen cases, which left no room
 for another of that size. Landing 2b.6 withdrew `accidental_midnight`
-with the nought it pinned, so it holds sixteen cases and 239643 bytes;
+with the nought it pinned, so it holds sixteen cases and — once landing
+2b.6 rewrote the one slashed stamp among them in that member's own form
+and gave every block of dates its four written-form censuses — 240399
+bytes, still under the cap, which was not raised;
 that is room bought by a rule going away, not by shortening a proof, and
 the next case of the usual size still opens a fourth file.
 
@@ -7772,6 +7859,19 @@ three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
 and five for the marks and notations of a negative those three left
 unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
 2b.5).
+**Landing 2b.6 added NO case, and that is recorded here rather than
+left to be noticed.** The reversal of owner decision 5 changed the
+writing rule of G7.5 for every member, and the case that pins it
+already existed: `slashed_pool` describes a column read as
+`slashed-iso-datetime`, and its ten cells moved from `2024-06-13 07:55`
+to `2024/06/13 07:55` when the rule changed — so a revision that put
+the ISO writer back moves committed bytes and is caught. What no
+committed case reaches is the ALLOCATION of the two joint censuses,
+the widths and the month-name styles, because no case here describes a
+column that mixes two conventions; those are pinned by round trips in
+`tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
+is a gap in this section's own terms and it is named as one.
+
 **All forty are required.** The
 first nine are the first committed file, the next fourteen the second,
 and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and

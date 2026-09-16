@@ -505,6 +505,21 @@ _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
 )
+# THE MEMBER OF A COLUMN READ JOINTLY, which is the one column whose
+# member its own twin cannot show (landing 2b.6, residual R-P4-12). The
+# twin of a joint column that mixes whole dates with real times of day
+# writes every value with a time of day, because a date-form cell cannot
+# spell an interior value published at the second -- so describing that
+# twin again reads it as `iso-datetime`, not as the joint member, and
+# holding it to `format` would report a miss against the tool's own
+# output for a loss the description already names. A joint column wholly
+# at midnight writes its whole dates bare and IS held to its member.
+_NOT_CHECKABLE_JOINT_MEMBER = (
+    "the description records that the real column mixed whole dates "
+    "with values carrying a time of day, and the twin of such a column "
+    "writes every value with a time of day, so no file is asked to be "
+    "read back as that same mixture"
+)
 _NOT_CHECKABLE_RESOLUTION_MIX = (
     "the description records which written form each of the real "
     "table's dates wore, and how many wore each, and it asks no file "
@@ -523,6 +538,12 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
 # code developed on the twin runs unchanged on the real table -- is what
 # makes them obligations: `_mark_checks` and `_midnight_checks`. What is
 # still LISTED is where the description sets no obligation at all.
+_NOT_CHECKABLE_NO_WRITTEN_FORM = (
+    "the description records how the real column's dates were written "
+    "-- how wide their fields were, how their month names were cased, "
+    "how their markers were cased -- and this column's dates write "
+    "nothing of the kind, so there is none of it for a file to carry"
+)
 _NOT_CHECKABLE_NO_CLOCK = (
     "the description records the marks and the values at midnight of a column's "
     "moments only where they write a time of day, and this column's "
@@ -11840,11 +11861,218 @@ def _datetime_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
+    # THE MEMBER THE DATES WERE WRITTEN IN (landing 2b.6). This was NOT
+    # CHECKABLE for as long as owner decision 5 stood: the twin wrote ISO
+    # whatever the source wrote, so no file could evidence the member
+    # that read the real column, and `format` was REPORT-ONLY because of
+    # it. The twin is written in the source's own member now, so
+    # describing it again must name that member -- and this is the one
+    # check that turns red on a writer that quietly goes back to ISO.
+    if not _mixed_forms_unwritten(facts):
+        checks += [
+            _exact(
+                name,
+                "datetime.format",
+                "format.member",
+                facts.parser_family,
+                _text_at(block, "format"),
+            )
+        ]
+    # `resolution_mix` IS NOT CHECKED, AND THAT IS A REASONED NARROWING
+    # rather than an oversight (landing 2b.6). The spelling audit asked
+    # for it to become exact beside `format`. On every column read under
+    # ONE member its census is, by the contract's RM1 and RM2, exactly
+    # that member carrying every parsed cell -- so a check of it would
+    # restate `format.member` and `counts.n_unparsed`, both of which are
+    # checked above, and a check that cannot fail on its own is the
+    # thing this validator is least allowed to add. On a column read
+    # JOINTLY it is unreachable for the other reason: the twin writes
+    # every value with a time of day (residual R-P4-12). Listed in both
+    # cases, never silent.
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor)
+    checks = checks + _written_form_checks(column, facts, block, floor)
     checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(column, facts, block)
     return checks
+
+
+def _mixed_forms_unwritten(facts: contract.DatetimeFacts) -> bool:
+    """Whether this column's own member is one no twin of it can show.
+
+    A column read jointly that mixes whole dates with real times of day:
+    the twin writes every value with a time of day, because a date-form
+    cell cannot spell an interior value published at the second
+    (residual R-P4-12), so describing that twin again reads it as
+    `iso-datetime` rather than as the joint member. Every other column
+    -- including a joint column wholly at midnight, which writes its
+    whole dates bare -- is written in its own member and read back as it.
+    """
+    return (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and not facts.all_at_midnight
+    )
+
+
+# The four censuses of how a column's dates were WRITTEN, with the key
+# each is published under and the subcheck family it reports in.
+_WRITTEN_FORMS = (
+    ("date_field_widths", "widths"),
+    ("month_name_styles", "names"),
+    ("quarter_marker_case", "markers"),
+    ("zulu_case", "zulu"),
+)
+
+
+def _written_census_of(
+    facts: contract.DatetimeFacts, key: str
+) -> "dict[str, int]":
+    """One of the four written-form censuses, by its published key."""
+    if key == "date_field_widths":
+        return facts.date_field_widths
+    if key == "month_name_styles":
+        return facts.month_name_styles
+    if key == "quarter_marker_case":
+        return facts.quarter_marker_case
+    return facts.zulu_case
+
+
+def _written_form_listings(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[Listing]":
+    """Name the written-form censuses this column's dates cannot show.
+
+    A census is empty where the member fixes the convention -- an ISO
+    date's fields are always two figures, a compact date has no month
+    name -- and an empty census asks a file for nothing. Said out loud
+    rather than passed over in silence, which is the rule every other
+    unevidenceable obligation here is under.
+    """
+    listings: "list[Listing]" = []
+    for key, _family in _WRITTEN_FORMS:
+        if _written_census_of(facts, key):
+            continue
+        listings += [
+            Listing(
+                column.name,
+                f"datetime.{key}",
+                "",
+                _NOT_CHECKABLE_NO_WRITTEN_FORM,
+            )
+        ]
+    return listings
+
+
+def _written_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """The censuses of HOW the dates were written, held (landing 2b.6).
+
+    Measured off the file's own description, made by the profiler's own
+    producer under the same declarations and floor, exactly as the marks
+    beside them are.
+
+    WHAT IS CHECKED IS THE SET OF CONVENTIONS AND ITS FLOOR, NOT THE
+    COUNT, and the difference is the honest part of this landing rather
+    than a weaker copy of `_mark_checks`. Whether a cell can SHOW a
+    convention depends on its own value: a day above the ninth shows no
+    field width, a month of May shows no name length. So how many cells
+    of a file could carry one is a fact about that file's values, and a
+    twin whose interior values fall a day either side of the real ones
+    carries a different number of them -- a count check would accuse a
+    faithful twin. What a faithful twin DOES owe is every convention the
+    real column used, each on at least a floor's worth of its cells, and
+    no convention the real column did not use beyond what the withheld
+    pool covers. That is what turns red on a writer that collapses a
+    mixed column onto its majority, or that goes back to ISO.
+
+    Guarantees: accepts the column, its facts, the file's re-described
+    block and the floor; returns a check per named convention and one
+    per census for the conventions nobody published. No I/O of any kind.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    for key, family in _WRITTEN_FORMS:
+        census = _written_census_of(facts, key)
+        if not census:
+            continue
+        fact = f"datetime.{key}"
+        measured = _map_at(block, key)
+        pool = census[contract.WITHHELD] if contract.WITHHELD in census else 0
+        published_total = 0
+        for named in census:
+            published_total = published_total + census[named]
+        for named in sorted(census):
+            if named == contract.WITHHELD:
+                continue
+            if measured is None:
+                checks += [
+                    Check(
+                        name,
+                        fact,
+                        f"{family}.{named}",
+                        WITHHELD,
+                        _at_least(floor),
+                        "",
+                        _GATE_CLOSED,
+                    )
+                ]
+                continue
+            found = measured[named] if named in measured else 0
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.{named}",
+                    HELD if found >= floor else MISSED,
+                    _at_least(floor),
+                    _shown_count(found),
+                )
+            ]
+        if measured is None:
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.unnamed",
+                    WITHHELD,
+                    f"at most {_shown_count(pool)}",
+                    "",
+                    _GATE_CLOSED,
+                )
+            ]
+            continue
+        measured_total = 0
+        for named in measured:
+            measured_total = measured_total + measured[named]
+        # A CELL BEYOND THE PUBLISHED TOTAL HAS NO PUBLISHED IDENTITY,
+        # which is the same widening `_mark_checks` gives a joint
+        # column's clock-writing cells: how many of a file's own cells
+        # could show the convention is a fact about its values.
+        bound = pool + max(0, measured_total - published_total)
+        unnamed = 0
+        for named in measured:
+            if named == contract.WITHHELD or named not in census:
+                unnamed = unnamed + measured[named]
+        checks += [
+            Check(
+                name,
+                fact,
+                f"{family}.unnamed",
+                HELD if unnamed <= bound else MISSED,
+                f"at most {_shown_count(bound)}",
+                _shown_count(unnamed),
+            )
+        ]
+    return checks
+
+
+def _at_least(floor: int) -> str:
+    """What a convention the description names asks of a file."""
+    return f"at least {floor}"
 
 
 def _mark_checks(
@@ -13467,20 +13695,30 @@ def _listings(
             ]
         facts = column.facts
         if isinstance(facts, contract.DatetimeFacts):
+            # `format` AND THE FORM CENSUS ARE CHECKED since landing
+            # 2b.6, where they were listed before it. Both were
+            # unevidenceable only because the twin was written in ISO
+            # whatever the source wrote, so no file could show the member
+            # that read the real column; the twin is written in that
+            # member now, so describing it again names it.
             listings += [
-                Listing(
-                    column.name,
-                    "datetime.format",
-                    "",
-                    _NOT_CHECKABLE_REPORT_ONLY,
-                ),
                 Listing(
                     column.name,
                     "datetime.resolution_mix",
                     "",
                     _NOT_CHECKABLE_RESOLUTION_MIX,
-                ),
+                )
             ]
+            if _mixed_forms_unwritten(facts):
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.format",
+                        "",
+                        _NOT_CHECKABLE_JOINT_MEMBER,
+                    )
+                ]
+            listings += _written_form_listings(column, facts)
             # CHECKED since landing 2b.3 wherever the description sets an
             # obligation (`_mark_checks`, `_midnight_checks`), and LISTED,
             # never silent, wherever it sets none.

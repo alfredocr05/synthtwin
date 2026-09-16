@@ -324,8 +324,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # midnight, whose two descriptions differed in that key and nowhere
 # else. Nothing else about the document moved, and the twin's own bytes
 # did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6, the reversal of owner
+# decision 5), and the cause is FOUR KEYS ADDED to one column block:
+# `recorded_on` gains `date_field_widths`, `month_name_styles`,
+# `quarter_marker_case` and `zulu_case`, each EMPTY, because that column
+# is read as `iso-date` -- a member whose fields are of fixed width,
+# which writes no month name, which is no column of quarters and which
+# names no zulu offset. No count, statistic, label, role, spelling or
+# value of any column moved, and the demonstration's twin bytes did not
+# move either: its dates were already written in their source's form,
+# which is what an ISO column's source form is.
 GOLDEN_SHA256 = (
-    "9b23a3acb5673f75293ab660a4fb2e6f10d6e1ff0697927efe4b3d1e5c1e9241"
+    "f42aecb1dea510f8b4057e5d2d9a717800040d7055b903c4fe5a2551b7eee512"
 )
 
 

@@ -18,6 +18,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2020-12-31",
           "min": "2020-01-01",
@@ -48,6 +49,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 12,
@@ -64,6 +66,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "date",
         "resolution_mix": {
@@ -77,7 +80,8 @@
         "time_precision": "date",
         "utc_offsets": {
           "(none)": 12
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2020-01-01",
@@ -566,6 +570,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2019-08-19",
           "min": "2019-05-04",
@@ -596,6 +601,7 @@
           "(withheld)": 2
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 14,
@@ -612,6 +618,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "date",
         "resolution_mix": {
@@ -625,7 +632,8 @@
         "time_precision": "date",
         "utc_offsets": {
           "(none)": 11
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2019-05-04",
@@ -3350,6 +3358,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2021-03-02 12:00:00",
           "min": "2021-03-01 00:00:00",
@@ -3382,6 +3391,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 24,
@@ -3398,6 +3408,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
@@ -3412,7 +3423,8 @@
         "utc_offsets": {
           "+02:00": 11,
           "Z": 13
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2021-03-01T00:00:00Z",
@@ -3512,6 +3524,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
           "max": "2024-Q4",
           "min": "2018-Q1",
@@ -3542,6 +3555,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
         "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 12,
@@ -3558,6 +3572,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "quarter",
         "resolution_mix": {
@@ -3571,7 +3586,8 @@
         "time_precision": "quarter",
         "utc_offsets": {
           "(none)": 12
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
         "2018-Q1",

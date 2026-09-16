@@ -116,6 +116,33 @@ rule: decisions 5-7 by round 3, decisions 8-9 by round 4, and decisions
    canonical serialization is unchanged. Gain: the twin re-profiles to
    the same precision and offset state, so date-handling code developed
    on the twin behaves the same on the real table.
+
+   **REVERSED by the owner on 2026-09-15** (landing 2b.6). The ruling is
+   general — "the twin should always write anything as the original
+   source, without changes; we try to mimic the original as much as
+   possible" — and it lands on this decision directly. What decision 5
+   bought was the PRECISION and the offset state; what it gave up was
+   the source's own spelling, disclosed as residual R-P2-7. Measured,
+   that loss is larger than the gain it was traded for: on a
+   month-first export `strptime('%m/%d/%Y')` parses every real cell and
+   no twin cell at all, on a SAS `DATE11` export `'%d-%b-%Y'` does the
+   same, and a compact `YYYYMMDD` column's ISO twin FAILED the tool's
+   own validation, because the real column's cells are also numbers and
+   the ISO twin's are not. Code developed on the twin did not run
+   unchanged on the real table, which is the first of the two mandatory
+   goals.
+   **So a twin datetime cell is now written in the member that read the
+   real column**, at that member's own field order, delimiter, field
+   widths, year length, month-name case and length, field mark, comma,
+   quarter-marker case and zulu case — each taken from a census the
+   description publishes and each held to the smallest group size. The
+   precision and the offset state decision 5 bought are unchanged, and
+   so is its ruling on the figures after the second, which remain zeros
+   because the description says how many there were and nothing about
+   their values. R-P2-7 is RETIRED. The censuses are the contract's
+   `date_field_widths`, `month_name_styles`, `quarter_marker_case` and
+   `zulu_case` (invariants D17 to D20), and the writing rule is G7.5 of
+   the generation method, rewritten as a per-member table.
 6. **When a declared identifier's published length and its
    all-different fact cannot both hold, LENGTH WINS and invented
    identifiers may repeat** (2026-08-11; closes P2-R3-F7). The
@@ -622,16 +649,23 @@ exact and interior rungs APPROXIMATED; `resolution`, `time_precision`,
 `latest_utc_offset` EXACT-OBSERVABLE. Two dispositions revision 3 got
 backwards are corrected here (P2-R4-F3):
 
-- **`format` is REPORT-ONLY, not EXACT-OBSERVABLE.** It names the real
-  file's parser family — `compact-date`, `month-first-date` and the
-  rest — and owner decision 5 chooses ISO twin syntax at the recorded
-  precision, not the source's lexical family. A month-first column's
-  twin therefore reprofiles as `iso-date`, so the field cannot be
-  reproduced and must not be claimed. **R-P2-7 is reinstated** for
-  exactly this narrowed loss: the twin keeps the precision and offset
-  state but not the source's date spelling, so code that parses dates
-  with an explicit source format needs that argument changed. Revision
-  3 withdrew the residual wholesale and thereby hid this.
+- **`format` is EXACT-OBSERVABLE since the reversal of owner decision
+  5.** It names the real file's parser family — `compact-date`,
+  `month-first-date` and the rest. While decision 5 stood it could not
+  be reproduced: the twin was written in ISO syntax at the recorded
+  precision rather than in the source's lexical family, a month-first
+  column's twin reprofiled as `iso-date`, and the field was therefore
+  REPORT-ONLY with **R-P2-7 reinstated** for exactly that narrowed loss
+  — the twin kept the precision and offset state but not the source's
+  date spelling, so code parsing dates with an explicit source format
+  needed that argument changed. (Revision 3 had withdrawn the residual
+  wholesale and thereby hidden it; that correction stands as the record
+  of what was true then.) **The owner reversed decision 5 on
+  2026-09-15**: the twin is written in the member that read the real
+  column, so describing the twin again names the same member, the field
+  IS reproduced, and it is checked as `format.member`. **R-P2-7 is
+  RETIRED**, and the two dispositions this paragraph corrected in
+  revision 3 are now one.
 - **`datetimes_read_at` is EXACT-OBSERVABLE, not EXACT-CONTROL.** It is
   derived from the offset diversity present in the cells, so it is
   recomputable from the written twin and must be checked that way; a
@@ -1072,12 +1106,20 @@ made; P1-R8-**F7** by the contract gate.
   encoding.
 - **R-P2-6.** A published label a spreadsheet reads as a formula is
   written unchanged; counted and warned, not altered.
-- **R-P2-7. REINSTATED, narrowed** (P2-R4-F3). Owner decision 5 keeps
-  the twin's date PRECISION and offset state, so revision 2's larger
-  cost is gone — but the source's lexical date family is not kept: a
-  month-first table yields ISO twin dates. Code that parses dates with
-  an explicit source format needs that argument changed. `format` is
-  REPORT-ONLY for this reason.
+- **R-P2-7. RETIRED 2026-09-15** (landing 2b.6), by the owner's
+  reversal of decision 5. While it stood it read: owner decision 5
+  keeps the twin's date PRECISION and offset state, so revision 2's
+  larger cost is gone — but the source's lexical date family is not
+  kept, a month-first table yields ISO twin dates, and code that parses
+  dates with an explicit source format needs that argument changed.
+  The twin is now written in the member that read the real column, at
+  that member's own widths, year length, month-name case and length,
+  marks and marker cases, so the argument does not change and `format`
+  is EXACT-OBSERVABLE. What is NOT retired with it is named in its
+  place: the figures after a second are still zeros, and the members
+  the reader does not reach at all — a 12-hour clock, `08APR2024`, an
+  unpadded Excel hour — still fall to free text, which residual
+  R-P4-12 and the landing's own record carry.
 - **R-P2-8. REPLACED by owner decision 6, and larger than revision 3
   said.** Where an identifier's length and distinctness cannot both
   hold, length is kept and values repeat; raw distinctness, folded
@@ -1172,7 +1214,7 @@ none is dropped.
 | R3-F11 reference drift | this closure trail |
 | R4-F1 ownership proof | P2-D10, mechanism withdrawn; refuse unless `--replace` |
 | R4-F2 scalar/argument origins | P2-D13, three origins, type-sensitive lookup, argument slots |
-| R4-F3 datetime dispositions | P2-D6, `format` REPORT-ONLY, `datetimes_read_at` EXACT-OBSERVABLE, R-P2-7 reinstated |
+| R4-F3 datetime dispositions | P2-D6, `format` not reproduced and R-P2-7 reinstated as ratified; both REVERSED 2026-09-15 by the owner's reversal of decision 5, so `format` is EXACT-OBSERVABLE and R-P2-7 is retired. `datetimes_read_at` EXACT-OBSERVABLE, unchanged |
 | R4-F4 identifier multiplicity | P2-D6, all three distinctness facts REPORT-ONLY in the corner |
 | R4-F5 numeric spelling domain | owner decision 8, leading-zero family |
 | R4-F6 all-different for labels | owner decision 9, published spelling variants |

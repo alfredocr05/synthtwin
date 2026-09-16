@@ -858,6 +858,43 @@ REGISTRY += (
         plan_region="moment-spellings",
         aliases=(),
     ),
+    # THE FOUR CENSUSES OF HOW THE DATES WERE WRITTEN (landing 2b.6,
+    # plan P4-D61), which are what let the twin be written in the
+    # member that read the real column instead of in ISO. Each owes a
+    # file its KEY SET and each key's floor rather than its count, and
+    # the plan and the contract both say so.
+    Fact(
+        "datetime",
+        "date_field_widths",
+        EXACT_OBSERVABLE,
+        plan_words="how wide a date wrote its month and day fields",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "month_name_styles",
+        EXACT_OBSERVABLE,
+        plan_words="how a date wrote its month name",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "quarter_marker_case",
+        EXACT_OBSERVABLE,
+        plan_words="the case of a quarter's marker",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "zulu_case",
+        EXACT_OBSERVABLE,
+        plan_words="the case of a zulu offset marker",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
 )
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
 # block read over the cores and is registered above under `numeric`;
@@ -1373,8 +1410,9 @@ REGISTRY += [
     Fact(
         "datetime",
         "format",
-        REPORT_ONLY,
-        plan_words="**`format` is REPORT-ONLY, not EXACT-OBSERVABLE.**",
+        EXACT_OBSERVABLE,
+        plan_words="**`format` is EXACT-OBSERVABLE since the reversal of "
+        "owner decision 5.**",
     ),
 ]
 REGISTRY += [
@@ -1917,6 +1955,21 @@ HISTORICAL: "dict[tuple[str, str], str]" = {
     ("universal", "missing_by_source"): (
         "version 4 and version 5 wrote every absent cell empty; "
         "version 6 reproduces the recorded spellings (P4-D6.1)"
+    ),
+    # THE SAME SHAPE OF SUPERSESSION, landing 2b.6. Version 4 of the
+    # contract states that `format` is not reproduced, because owner
+    # decision 5 had every twin datetime cell written in ISO at the
+    # recorded precision whatever the source's own member was. The owner
+    # reversed that decision on 2026-09-15: version 6's twin is written
+    # in the member that read the real column, so the field IS
+    # reproduced and is EXACT-OBSERVABLE, and residual R-P2-7 is retired
+    # with it. Version 4's sentences are the record of what was true
+    # then and are not edited to say otherwise -- which is the same
+    # treatment the absent-cell spellings above are given.
+    ("datetime", "format"): (
+        "version 4 wrote every twin datetime cell in ISO at the "
+        "recorded precision and did not reproduce the source's member; "
+        "version 6 writes the member that read the real column (P4-D61)"
     ),
 }
 

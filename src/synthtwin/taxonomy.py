@@ -7017,6 +7017,14 @@ def _datetime_details(
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
         "datetime_separators": _separator_counts(sources, format_name, settings),
+        # HOW THE CELLS WERE WRITTEN, beside what they were read as
+        # (landing 2b.6). Four censuses of FORMS, each floored exactly as
+        # the marks beside them are, so that the twin can be written in
+        # the source's own spelling instead of in ISO.
+        "date_field_widths": _width_counts(sources, format_name, settings),
+        "month_name_styles": _name_style_counts(sources, format_name, settings),
+        "quarter_marker_case": _marker_counts(sources, format_name, settings),
+        "zulu_case": _zulu_counts(sources, format_name, offsets, settings),
         "all_at_midnight": _all_at_midnight(
             format_name, resolution, reading, sources, offsets, settings
         ),
@@ -7024,6 +7032,120 @@ def _datetime_details(
             format_name, resolution, reading, sources, offsets, settings
         ),
     }
+
+
+def _floored_census(
+    counts: "dict[str, int]", settings: Settings
+) -> "dict[str, int]":
+    """One census of written forms, held to the smallest group size.
+
+    `_offset_counts`' rule exactly, written once for the four censuses
+    landing 2b.6 adds: a name is published where its count reaches the
+    floor, and the rest pool under `(withheld)`. A form held by one row
+    describes how THAT row was written, which is why none of these is
+    published bare.
+
+    Guarantees: accepts a tally and the run's settings; returns the
+    published census. Determinism: a function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    published: "dict[str, int]" = {}
+    withheld = 0
+    for key in sorted(counts):
+        if counts[key] >= settings.small_cell_floor:
+            published[key] = counts[key]
+        else:
+            withheld = withheld + counts[key]
+    if withheld:
+        published[parsing.MISSING_WITHHELD] = withheld
+    return published
+
+
+def _width_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each joint width convention (2b.6).
+
+    Counted over the cells that could SHOW one -- a field below ten --
+    so a column of dates every one of which falls after the ninth of a
+    month above September publishes an empty census, honestly: nothing
+    in it says how it would have written a single figure.
+    """
+    counts: "dict[str, int]" = {}
+    for value in sources:
+        name = parsing.date_field_style(value, format_name)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    return _floored_census(counts, settings)
+
+
+def _name_style_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each joint month-name style (2b.6).
+
+    A cell whose month is MAY is counted under no key: `May` is its own
+    abbreviation, so that cell says nothing about whether the column
+    writes names in full.
+    """
+    counts: "dict[str, int]" = {}
+    for value in sources:
+        name = parsing.month_name_style(value, format_name)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    return _floored_census(counts, settings)
+
+
+def _marker_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many quarter cells wrote `Q` and how many wrote `q` (2b.6)."""
+    counts: "dict[str, int]" = {}
+    for value in sources:
+        name = parsing.quarter_marker_case(value, format_name)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    return _floored_census(counts, settings)
+
+
+def _zulu_counts(
+    sources: "list[str]",
+    format_name: str,
+    offsets: "dict[str, int]",
+    settings: Settings,
+) -> "dict[str, int]":
+    """How many zulu-marked cells wrote `Z` and how many wrote `z` (2b.6).
+
+    EMPTY WHERE THE OFFSET MAP DOES NOT NAME `Z`. The case census counts
+    a subset of the cells carrying one offset, so publishing it beside a
+    pooled offset would hand back the count the pool exists to withhold
+    -- the contradiction review item P1-R1-F10 found for the endpoint
+    offsets, met again here.
+    """
+    if "Z" not in offsets:
+        return {}
+    counts: "dict[str, int]" = {}
+    for value in sources:
+        name = parsing.zulu_case(value, format_name)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    return _floored_census(counts, settings)
 
 
 def _separator_counts(

@@ -3662,38 +3662,403 @@ def _ordinal_of(canonical: str, resolution: str) -> int:
     )
 
 
-def _cell_of_ordinal(
-    ordinal: int, resolution: str, precision: str, figures: int, mark: str
-) -> str:
-    """One instant written at the precision the description records (G7.5).
+@dataclasses.dataclass(frozen=True)
+class _DateStyle:
+    """How ONE twin cell of dates is spelled (landing 2b.6).
 
-    Owner decision 5: a twin datetime cell is written in the ISO form
-    matching the precision the description records, so the twin
-    re-profiles to the same precision and the same offset state. The
-    mark between the day and the clock is the one `_separator_allocation`
-    gave this cell from the column's published census (plan P4-D39); it
-    was a fixed `T` until 2026-09-14, and a stamp written with a space
-    came back with a `T`. It is REQUIRED, so no caller can quietly write
-    a mark it did not choose. The figures after the second are zeros:
-    the description says how MANY the finest cell carried and nothing
-    about their values, so any other figure would be a made-up fact.
+    The four conventions a column's censuses publish, plus the member
+    that fixes the field order and the delimiter. One of these is
+    allocated to every rank, exactly as a mark is, so that the twin
+    carries the column's own mixture of spellings rather than its
+    majority.
+    """
+
+    family: str
+    width: str = parsing.DEFAULT_FIELD_WIDTH
+    name_style: str = parsing.DEFAULT_NAME_STYLE
+    marker: str = "upper"
+    zulu: str = "upper"
+
+
+def _commonest_of(census: "dict[str, int]", default: str) -> str:
+    """The form most of a column's cells wrote, or a default (2b.6).
+
+    The earliest name in sorted order wins a tie, as it does for the
+    marks. It is what the ends, the withheld ranks and every cell that
+    cannot show the convention are written in.
+    """
+    best = ""
+    for name in sorted(census):
+        if name == contract.WITHHELD:
+            continue
+        if not best or census[name] > census[best]:
+            best = name
+    if not best:
+        return default
+    return best
+
+
+def _commonest_style(facts: contract.DatetimeFacts) -> "_DateStyle":
+    """The spelling a column's ends and its unclassed cells take (2b.6)."""
+    return _DateStyle(
+        family=facts.parser_family,
+        width=_commonest_of(
+            facts.date_field_widths, parsing.DEFAULT_FIELD_WIDTH
+        ),
+        name_style=_commonest_of(
+            facts.month_name_styles, parsing.DEFAULT_NAME_STYLE
+        ),
+        marker=_commonest_of(facts.quarter_marker_case, "upper"),
+        zulu=_commonest_of(facts.zulu_case, "upper"),
+    )
+
+
+# The members whose cell carries its mark at character eleven, which is
+# what the absent-spelling swap and the mark repair both splice at. Every
+# other member puts something else there -- `3/17/2024 14:05` has a `4`
+# -- so since landing 2b.6 those two passes are asked which member they
+# are looking at instead of assuming this one.
+_ISO_MARK_MEMBERS = ("iso-datetime", contract.FORMAT_ISO_MIXED)
+
+
+def _census_weights(
+    census: "dict[str, int]", permitted: "tuple[str, ...]"
+) -> "dict[str, int]":
+    """How many ranks each written form is owed (landing 2b.6).
+
+    `_mark_weights`' rule, over any of the four censuses: every named
+    count as published, and a withheld pool split EVENLY over the forms
+    the census leaves unnamed, a remainder going one each in the
+    vocabulary's own order. Spending a pool on the commonest named form
+    instead would erase the spelling the pool stands for, which is the
+    defect landing 2b.3 found in the marks and fixed there.
+    """
+    weights: "dict[str, int]" = {}
+    for name in sorted(census):
+        if name != contract.WITHHELD:
+            weights[name] = census[name]
+    if contract.WITHHELD not in census:
+        return weights
+    unnamed: "list[str]" = []
+    for name in permitted:
+        if name not in census:
+            unnamed += [name]
+    if not unnamed:
+        return weights
+    pool = census[contract.WITHHELD]
+    share = pool // len(unnamed)
+    rest = pool - share * len(unnamed)
+    for place in range(len(unnamed)):
+        given = share
+        if place < rest:
+            given = given + 1
+        if given > 0:
+            weights[unnamed[place]] = given
+    return weights
+
+
+def _rotated(weights: "dict[str, int]", count: int) -> "list[str]":
+    """One form per place, spent evenly by the smooth weighted rotation.
+
+    The algorithm `_separator_allocation` states: at each place every
+    name's weight is added to its running credit, the name with the most
+    credit is taken -- the earliest in sorted order on a tie -- and the
+    total is taken back from it. No word is drawn, so nothing else in
+    the twin moves, and no form correlates with how early a value is.
+
+    Guarantees: accepts the weights and how many places there are;
+    returns that many names. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    names = sorted(weights)
+    if not names or count <= 0:
+        return []
+    owed: "dict[str, int]" = {name: weights[name] for name in names}
+    total = 0
+    for name in names:
+        total = total + owed[name]
+    if total < count:
+        top = names[0]
+        for name in names:
+            if owed[name] > owed[top]:
+                top = name
+        owed[top] = owed[top] + (count - total)
+        total = count
+    credit: "dict[str, int]" = {name: 0 for name in names}
+    spread: "list[str]" = []
+    for _place in range(count):
+        for name in names:
+            credit[name] = credit[name] + owed[name]
+        best = names[0]
+        for name in names:
+            if credit[name] > credit[best]:
+                best = name
+        credit[best] = credit[best] - total
+        spread += [best]
+    return spread
+
+
+def _spelling_allocation(
+    census: "dict[str, int]",
+    permitted: "tuple[str, ...]",
+    places: "list[int]",
+    parsed: int,
+    default: str,
+) -> "list[str]":
+    """One written form per rank, spread over the ranks that can show it.
+
+    A rank outside `places` cannot show the convention at all -- a cell
+    carrying no zulu marker, a month of May -- so it takes the column's
+    commonest form and is not counted against the census.
+    """
+    fallback = _commonest_of(census, default)
+    styles = [fallback for _rank in range(parsed)]
+    if not census or not places:
+        return styles
+    spread = _rotated(_census_weights(census, permitted), len(places))
+    for index in range(len(places)):
+        styles[places[index]] = spread[index]
+    return styles
+
+
+def _date_width_places(
+    facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]"
+) -> "tuple[list[int], list[int]]":
+    """The ranks that can show a width, split by how many fields can.
+
+    A field shows its width only below ten. The two JOINT words --
+    `first-padded` and `second-padded` -- say something about BOTH
+    fields, so they are spent only on the ranks whose two fields are
+    both below ten; a rank with one such field can show `padded` or
+    `unpadded` and nothing else. Splitting the ranks is what keeps the
+    twin from writing a word no cell of it can carry.
+    """
+    both: "list[int]" = []
+    single: "list[int]" = []
+    textual = facts.parser_family in parsing.TEXTUAL_MEMBERS
+    for rank in range(len(fields)):
+        month, day = fields[rank]
+        if textual:
+            # The month is a NAME here, so the day is the only field.
+            if day < 10:
+                single += [rank]
+            continue
+        low = 0
+        if month < 10:
+            low = low + 1
+        if day < 10:
+            low = low + 1
+        if low == 2:
+            both += [rank]
+        elif low == 1:
+            single += [rank]
+    return both, single
+
+
+def _width_allocation(
+    facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]", parsed: int
+) -> "list[str]":
+    """Which joint width convention every rank writes (landing 2b.6)."""
+    census = facts.date_field_widths
+    fallback = _commonest_of(census, parsing.DEFAULT_FIELD_WIDTH)
+    styles = [fallback for _rank in range(parsed)]
+    if not census:
+        return styles
+    permitted: "tuple[str, ...]" = parsing.FIELD_WIDTH_STYLES
+    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+        permitted = parsing.FIELD_WIDTH_STYLES_ONE_FIELD
+    weights = _census_weights(census, permitted)
+    plain: "dict[str, int]" = {}
+    for name in sorted(weights):
+        if name == parsing.WIDTH_PADDED or name == parsing.WIDTH_UNPADDED:
+            plain[name] = weights[name]
+    both, single = _date_width_places(facts, fields)
+    if both:
+        spread = _rotated(weights, len(both))
+        for index in range(len(both)):
+            styles[both[index]] = spread[index]
+    if single:
+        over = plain if plain else {fallback: 1}
+        spread = _rotated(over, len(single))
+        for index in range(len(single)):
+            styles[single[index]] = spread[index]
+    return styles
+
+
+def _name_allocation(
+    facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]", parsed: int
+) -> "list[str]":
+    """Which joint month-name style every rank writes (landing 2b.6).
+
+    A rank whose month is MAY is left out: `May` is its own
+    abbreviation, so such a cell can show no length and the describing
+    step counts it under no key either.
+    """
+    census = facts.month_name_styles
+    permitted = parsing.MONTH_NAME_STYLES
+    if facts.parser_family == "textual-day-first-date":
+        permitted = parsing.MONTH_NAME_STYLES_NO_COMMA
+    places: "list[int]" = []
+    for rank in range(len(fields)):
+        if fields[rank][0] != 5:
+            places += [rank]
+    return _spelling_allocation(
+        census, permitted, places, parsed, parsing.DEFAULT_NAME_STYLE
+    )
+
+
+def _written_fields(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    offsets: "list[str]",
+    parsed: int,
+) -> "list[tuple[int, int]]":
+    """The month and day every rank will actually write (landing 2b.6).
+
+    Asked of the cell the twin is about to write and not of the ordinal
+    alone, because which conventions a cell CAN show depends on those two
+    numbers: the two ends are written from their own published fields
+    (G7.5), and a rank of a column on the shared clock is written on its
+    own offset's wall clock, which can carry it into another day.
+    """
+    fields: "list[tuple[int, int]]" = []
+    span = _ordinal_space(facts)
+    for rank in range(parsed):
+        if facts.resolution == "quarter" or facts.resolution == "month":
+            fields += [(1, 1)]
+            continue
+        end = ""
+        if rank == 0:
+            end = facts.earliest
+        elif rank == parsed - 1 and parsed >= 2:
+            end = facts.latest
+        if end and len(end) >= 10:
+            fields += [(int(end[5:7]), int(end[8:10]))]
+            continue
+        local = ordinals[rank]
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == "datetime"
+            and span != "date"
+        ):
+            local = local + _offset_seconds(offsets[rank])
+        day_number = local
+        if facts.resolution == "datetime" and span != "date":
+            day_number = local // 86400
+        _year, month, day = parsing.civil_from_days(day_number)
+        fields += [(month, day)]
+    return fields
+
+
+def _cell_spellings(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    offsets: "list[str]",
+    parsed: int,
+) -> "list[_DateStyle]":
+    """How every rank of a column of dates is spelled (landing 2b.6).
+
+    The four censuses are allocated over the ranks that can show each,
+    by the same smooth weighted rotation the marks use, so a column that
+    wrote two conventions gets a twin that writes both -- in the same
+    numbers, as far as its own values can show them -- rather than a twin
+    written wholly in the majority's.
+
+    Guarantees: accepts loaded datetime facts, the instant and offset of
+    every rank and how many ranks there are; returns one spelling per
+    rank. Determinism: a function of the four; draws no word. Raises
+    nothing. No I/O of any kind.
+    """
+    fields = _written_fields(facts, ordinals, offsets, parsed)
+    widths = _width_allocation(facts, fields, parsed)
+    names = _name_allocation(facts, fields, parsed)
+    every = [rank for rank in range(parsed)]
+    markers = _spelling_allocation(
+        facts.quarter_marker_case,
+        parsing.QUARTER_MARKER_CASES,
+        every if facts.resolution == "quarter" else [],
+        parsed,
+        "upper",
+    )
+    zulu_places: "list[int]" = []
+    for rank in range(parsed):
+        if offsets[rank] == "Z":
+            zulu_places += [rank]
+    zulus = _spelling_allocation(
+        facts.zulu_case, parsing.ZULU_CASES, zulu_places, parsed, "upper"
+    )
+    spellings: "list[_DateStyle]" = []
+    for rank in range(parsed):
+        spellings += [
+            _DateStyle(
+                facts.parser_family,
+                widths[rank],
+                names[rank],
+                markers[rank],
+                zulus[rank],
+            )
+        ]
+    return spellings
+
+
+def _cell_of_ordinal(
+    ordinal: int,
+    resolution: str,
+    precision: str,
+    figures: int,
+    mark: str,
+    style: "_DateStyle" = _DateStyle("iso-datetime"),
+) -> str:
+    """One instant written AS ITS SOURCE WROTE IT (G7.5, landing 2b.6).
+
+    THE REVERSAL OF OWNER DECISION 5 (owner ruling of 2026-09-15). That
+    decision had this function write every instant in ISO at the recorded
+    precision, whatever the column's own spelling was, and residual
+    R-P2-7 disclosed the cost: a month-first table yielded ISO twin
+    dates, so `strptime('%m/%d/%Y')` parsed 400 real cells of 400 and no
+    twin cell at all, and the format argument in a person's own parsing
+    call had to change between the twin and the table. Under the ruling
+    that is a defect and not a disclosure. The cell is now written
+    through `parsing.written_date`, the inverse of the reader that read
+    the real column, in the member's own field order and delimiter and at
+    the width, year length, month-name case and length, mark and comma
+    the `style` allocated to this rank names.
+
+    The mark between the day and the clock is still the one
+    `_separator_allocation` gave this cell (plan P4-D39), and it is still
+    REQUIRED so that no caller can quietly write a mark it did not
+    choose. The figures after the second are still zeros: the
+    description says how MANY the finest cell carried and nothing about
+    their values, so any other figure would be a made-up fact -- that
+    part of decision 5's reasoning is untouched, and DT-8 of the
+    spelling audit is named as still open rather than quietly closed.
+
+    Guarantees: accepts an ordinal in the resolution's own unit, the
+    resolution, precision and fraction width the description records, the
+    mark this rank was allocated and its spelling; returns the cell text.
+    Whole-number arithmetic only. No I/O of any kind.
     """
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
-        return f"{year:04d}-Q{(ordinal % 4) + 1}"
+        return parsing.written_quarter(year, (ordinal % 4) + 1, style.marker)
     if resolution == "month":
         year = 1970 + (ordinal // 12)
         return f"{year:04d}-{(ordinal % 12) + 1:02d}"
     if resolution == "date":
         year, month, day = parsing.civil_from_days(ordinal)
-        return f"{year:04d}-{month:02d}-{day:02d}"
+        return parsing.written_date(
+            year, month, day, style.family, style.width, style.name_style
+        )
     days = ordinal // 86400
     rest = ordinal - days * 86400
     year, month, day = parsing.civil_from_days(days)
     hours = rest // 3600
     minutes = (rest - hours * 3600) // 60
     seconds = rest - hours * 3600 - minutes * 60
-    stamp = f"{year:04d}-{month:02d}-{day:02d}{mark}{hours:02d}:{minutes:02d}"
+    written = parsing.written_date(
+        year, month, day, style.family, style.width, style.name_style
+    )
+    stamp = f"{written}{mark}{hours:02d}:{minutes:02d}"
     if precision == "minute":
         return stamp
     stamp = f"{stamp}:{seconds:02d}"
@@ -3730,7 +4095,10 @@ def _ordinal_space(facts: contract.DatetimeFacts) -> str:
 
 
 def _space_cell(
-    ordinal: int, facts: contract.DatetimeFacts, mark: str
+    ordinal: int,
+    facts: contract.DatetimeFacts,
+    mark: str,
+    style: "_DateStyle | None" = None,
 ) -> str:
     """One cell from an ordinal in the column's own space (`_ordinal_space`).
 
@@ -3738,10 +4106,13 @@ def _space_cell(
     at the column's recorded precision, carrying the given mark; every
     other column's ordinal is written as `_cell_of_ordinal` writes it.
 
-    Guarantees: accepts an ordinal in `_ordinal_space(facts)`, the facts
-    and a mark; returns the cell text. Whole-number arithmetic only. No
-    I/O of any kind.
+    Guarantees: accepts an ordinal in `_ordinal_space(facts)`, the facts,
+    a mark and the spelling this rank was allocated -- the column's
+    commonest where a caller names none, which is what the report's own
+    windows want; returns the cell text. Whole-number arithmetic only.
+    No I/O of any kind.
     """
+    spelling = style if style is not None else _commonest_style(facts)
     if _ordinal_space(facts) == "date" and facts.resolution == "datetime":
         return _cell_of_ordinal(
             ordinal * 86400,
@@ -3749,6 +4120,7 @@ def _space_cell(
             facts.time_precision,
             facts.subsecond_digits,
             mark,
+            spelling,
         )
     return _cell_of_ordinal(
         ordinal,
@@ -3756,6 +4128,7 @@ def _space_cell(
         facts.time_precision,
         facts.subsecond_digits,
         mark,
+        spelling,
     )
 
 
@@ -3782,7 +4155,11 @@ def _commonest_mark(facts: contract.DatetimeFacts) -> str:
 
 
 def _endpoint_cell(
-    facts: contract.DatetimeFacts, published: str, offset: str, mark: str
+    facts: contract.DatetimeFacts,
+    published: str,
+    offset: str,
+    mark: str,
+    style: "_DateStyle | None" = None,
 ) -> str:
     """One END of a column of dates, from the published fields (G7.5).
 
@@ -3817,10 +4194,31 @@ def _endpoint_cell(
     text, carrying the mark allocated to its rank; whole-number
     arithmetic only. No I/O of any kind.
     """
+    spelling = style if style is not None else _commonest_style(facts)
     if facts.resolution != "datetime":
-        # A whole date and a quarter ARE their canonical text, and the
-        # ordinal route already gives it back character for character.
-        return published
+        # A whole date and a quarter are the same INSTANT as their
+        # canonical text, and until landing 2b.6 they were the same
+        # characters too, so this returned the published text itself.
+        # They are not the same characters any more: `2024-03-17` is how
+        # the description writes the day a month-first column spells
+        # `03/17/2024`. The end is still built from its own published
+        # fields and never from an ordinal -- that is what review item
+        # P2-C2-F5 bought -- and those fields are now written through the
+        # member's own writer.
+        if facts.resolution == "quarter":
+            return parsing.written_quarter(
+                int(published[0:4]), int(published[6]), spelling.marker
+            )
+        if facts.resolution == "month":
+            return published
+        return parsing.written_date(
+            int(published[0:4]),
+            int(published[5:7]),
+            int(published[8:10]),
+            spelling.family,
+            spelling.width,
+            spelling.name_style,
+        )
     seconds = published[17:19]
     minute = _ordinal_of(f"{published[0:17]}00", "datetime")
     if facts.datetimes_read_at == "utc":
@@ -3829,7 +4227,7 @@ def _endpoint_cell(
         # the move cannot disturb the seconds field, and a 60 survives
         # it on this clock exactly as it does on the local one.
         minute = minute + _offset_seconds(offset)
-    stamp = _cell_of_ordinal(minute, "datetime", "minute", 0, mark)
+    stamp = _cell_of_ordinal(minute, "datetime", "minute", 0, mark, spelling)
     if facts.time_precision == "minute":
         # A cell written to the minute has no seconds field. D10 admits
         # this precision only where both ends carry a seconds field of
@@ -12411,6 +12809,11 @@ def _datetime_content(
     # wears the source's space, a spelling another column declares
     # absent can be one this column writes (stage 2 review item 1).
     holes = _all_holes_of(plan)
+    # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
+    # decision 5). Allocated after the instants and the offsets, because
+    # which conventions a cell can show depends on the day it writes and
+    # on the clock it writes it on.
+    spellings = _cell_spellings(facts, ordinals, offsets, parsed)
     cells: list[str] = []
     for rank in range(parsed):
         end = ""
@@ -12427,13 +12830,28 @@ def _datetime_content(
                 # clock (landing 2b.3).
                 text = end[0:10]
             else:
-                text = _endpoint_cell(facts, end, offset, marks[rank])
+                text = _endpoint_cell(
+                    facts, end, offset, marks[rank], spellings[rank]
+                )
                 if _is_real_offset(offset) and offset:
-                    text = f"{text}{offset}"
-            cells += [_kept_datetime_cell(text, holes, _offered_marks(facts))]
+                    text = (
+                        f"{text}"
+                        f"{parsing.written_offset(offset, spellings[rank].zulu)}"
+                    )
+            cells += [
+                _kept_datetime_cell(
+                    text, holes, _offered_marks(facts), facts.parser_family
+                )
+            ]
             continue
         kept = _interior_cell(
-            facts, ordinal, offset, marks[rank], holes, whole[rank]
+            facts,
+            ordinal,
+            offset,
+            marks[rank],
+            holes,
+            whole[rank],
+            spellings[rank],
         )
         if space != "datetime" and _is_a_hole_spelling(kept, holes):
             window = (
@@ -12447,7 +12865,13 @@ def _datetime_content(
                         if other < low or other > high:
                             continue
                         tried = _interior_cell(
-                            facts, other, offset, marks[rank], holes, whole[rank]
+                            facts,
+                            other,
+                            offset,
+                            marks[rank],
+                            holes,
+                            whole[rank],
+                            spellings[rank],
                         )
                         if not _is_a_hole_spelling(tried, holes):
                             found = tried
@@ -12458,7 +12882,9 @@ def _datetime_content(
                     kept = found
                     break
         cells += [kept]
-    cells, balanced = _rebalanced_marks(column, marks, cells, holes)
+    cells, balanced = _rebalanced_marks(
+        column, marks, cells, holes, facts.parser_family
+    )
     notes = notes + balanced
     notes = notes + _worn_hole_notes(column, cells, holes)
     if parsed >= 1:
@@ -12497,6 +12923,7 @@ def _interior_cell(
     mark: str,
     holes: "tuple[str, ...]",
     whole: bool = False,
+    style: "_DateStyle | None" = None,
 ) -> str:
     """One interior cell of a column of dates, from its ordinal (G7.5).
 
@@ -12511,6 +12938,7 @@ def _interior_cell(
     absent spelling and whether the rank is a bare date; returns the cell
     text. No I/O of any kind.
     """
+    spelling = style if style is not None else _commonest_style(facts)
     local = ordinal
     if (
         facts.datetimes_read_at == "utc"
@@ -12525,43 +12953,42 @@ def _interior_cell(
             # stands at a midnight of its own day (`_snapped_to_midnight`).
             day = local // 86400
         return _kept_datetime_cell(
-            _cell_of_ordinal(day, "date", "date", 0, mark),
+            _cell_of_ordinal(day, "date", "date", 0, mark, spelling),
             holes,
             _offered_marks(facts),
+            facts.parser_family,
         )
-    text = _space_cell(local, facts, mark)
+    text = _space_cell(local, facts, mark, spelling)
     if _is_real_offset(offset) and offset:
-        text = f"{text}{offset}"
-    return _kept_datetime_cell(text, holes, _offered_marks(facts))
-
-
-def _parser_family(resolution: str) -> str:
-    """The shipped date reader's name for one published resolution."""
-    if resolution == "date":
-        return "iso-date"
-    if resolution == "quarter":
-        return "year-quarter"
-    if resolution == "month":
-        return "iso-month"
-    return "iso-datetime"
+        # ...AND THE OFFSET IS SPELLED AS THE SOURCE SPELLED IT (landing
+        # 2b.6): a column that wrote `z` gets `z` back, where the reading
+        # folded both cases onto the one offset key `Z`.
+        text = f"{text}{parsing.written_offset(offset, spelling.zulu)}"
+    return _kept_datetime_cell(
+        text, holes, _offered_marks(facts), facts.parser_family
+    )
 
 
 def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     """The instant one written twin cell reads back as, or None.
 
-    The cell is read with the SHIPPED date reader, under the format its
-    own resolution names, and put back on the clock the description
-    says the published instants are written on -- so what comes out is
+    The cell is read with the SHIPPED date reader, under THE MEMBER THAT
+    READ THE REAL COLUMN, and put back on the clock the description says
+    the published instants are written on -- so what comes out is
     comparable, character for character, with `earliest` and `latest`
     themselves. None says the cell did not read as a date at all.
+
+    UNDER THE PUBLISHED MEMBER SINCE LANDING 2b.6, and that is the
+    oracle half of reversing owner decision 5. This used to map the
+    published RESOLUTION onto an ISO member, because the twin's cells
+    were ISO whatever the source's spelling was. They are the source's
+    spelling now, so a month-first twin read under `iso-date` would read
+    as no date at all and every end, every rung and every recount in
+    this module would silently go missing. A column read jointly is
+    still read back jointly, so a bare date the twin writes reads as
+    midnight of its day (landing 2b.3).
     """
-    family = _parser_family(facts.resolution)
-    if facts.parser_family == contract.FORMAT_ISO_MIXED:
-        # A column read jointly is read back jointly, so a bare date the
-        # twin writes reads as midnight of its day (landing 2b.3); a cell
-        # with a clock reads exactly as the `iso-datetime` reader reads it.
-        family = contract.FORMAT_ISO_MIXED
-    found = parsing.parse_datetime(text, family)
+    found = parsing.parse_datetime(text, facts.parser_family)
     if found is None:
         return None
     if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
@@ -12574,7 +13001,10 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
 
 
 def _kept_datetime_cell(
-    text: str, holes: "tuple[str, ...]", named: "tuple[str, ...]"
+    text: str,
+    holes: "tuple[str, ...]",
+    named: "tuple[str, ...]",
+    family: str = "iso-datetime",
 ) -> str:
     """Keep a written moment from wearing a spelling the table calls absent.
 
@@ -12598,6 +13028,15 @@ def _kept_datetime_cell(
     if not isinstance(text, str):
         raise TypeError("a twin cell reached the spelling rule as something else")
     if not _is_a_hole_spelling(text, holes):
+        return text
+    if family not in _ISO_MARK_MEMBERS:
+        # NO OTHER MEMBER PUTS ITS MARK AT CHARACTER ELEVEN (landing
+        # 2b.6). `3/17/2024 14:05` has a `4` there and `17-MAR-2024` has
+        # a `2`, so the splice below would rewrite a digit of the date.
+        # These members also have exactly one permitted mark -- a space,
+        # by the contract's D12 -- so there is no other mark to offer
+        # and nothing is lost by declining: such a cell takes the
+        # neighbouring-instant route in `_datetime_content` instead.
         return text
     if len(text) < 11:
         return text
@@ -12902,6 +13341,7 @@ def _rebalanced_marks(
     wanted: "list[str]",
     cells: "list[str]",
     holes: "tuple[str, ...]",
+    family: str = "iso-datetime",
 ) -> "tuple[list[str], list[Deviation]]":
     """Give back a mark the absent-spelling swap took (stage 2 review item 2).
 
@@ -12927,6 +13367,14 @@ def _rebalanced_marks(
     cells and at most one deviation. Determinism: a function of the four;
     draws no word. No I/O of any kind.
     """
+    if family not in _ISO_MARK_MEMBERS:
+        # THE SWAP THIS REPAIRS NEVER HAPPENS ON THESE MEMBERS (landing
+        # 2b.6). `_kept_datetime_cell` declines to respell them, because
+        # character eleven of their cells is a digit of the date rather
+        # than the mark -- and reading it as a mark here counted a `4` as
+        # a spelling and reported a deviation on every unpadded slashed
+        # stamp the twin wrote.
+        return [cell for cell in cells], []
     fixed: list[str] = [cell for cell in cells]
     by_mark: dict[str, list[int]] = {}
     for rank in range(len(fixed)):
