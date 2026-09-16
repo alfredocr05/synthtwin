@@ -8561,16 +8561,6 @@ def _numeric_content(
     # that census is REPORT-ONLY with its shortfalls named.
     values, clear_notes = _clear_enough(column, facts, layout, values)
     notes = notes + clear_notes
-    # AND NO FINISHED NUMBER IS HELD BY MORE CELLS THAN THE CAP ALLOWS
-    # (integration repair of landing 2b.1). Every pass above bounds one
-    # STRATUM by `_stratum_cap`, and two strata can still be written as
-    # one number where the separation above found no free point inside
-    # either share: a 1,000-row column of one-decimal amounts published a
-    # `mode_count` of 32 and its twin wrote `0.2` 43 times, the sizes of
-    # two strata added together. This moves CELLS and never a value, so
-    # every value, sign count and end the passes above settled is
-    # untouched.
-    layout = _capped_by_value(column, facts, layout, plan.small_cell_floor, values)
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -9197,74 +9187,6 @@ def _grid_at(units: int, figures: int) -> str:
         digits = ("0" * (figures + 1 - len(digits))) + digits
     cut = len(digits) - figures
     return f"{sign}{digits[:cut]}.{digits[cut:]}"
-
-
-def _capped_by_value(
-    column: contract.ColumnBlock,
-    facts: contract.NumericFacts,
-    layout: "_NumericLayout",
-    floor: int,
-    values: "list[float]",
-) -> "_NumericLayout":
-    """Hold every finished NUMBER to the cap, not merely every stratum.
-
-    Method G5.2a's cap bounds one stratum, and `_levelled` applies it
-    there; but two strata written as one number hold the sum of their
-    cells between them. The separation of `_apart_enough` removes most
-    such pairs and cannot remove one whose shares hold no free point of
-    the grid, so the cap is asked again of the finished values here.
-
-    Cells move exactly as `_levelled` moves them: a stratum whose number
-    stands above the cap gives cells to the nearest stratum with room
-    whose number is a different one, the lower where two are equally
-    near, and the band totals, the stratum count and the rank order are
-    all unchanged. No value moves, so `n_zero`, `n_negative`, the two
-    ends and every published spelling stand as they were.
-
-    Guarantees: accepts the column, its numeric block, the layout, the
-    description's smallest group size and one value per stratum; returns
-    a layout of the same shape whose sizes hold the same total.
-    Determinism: a fixed function of those five. Raises nothing. No I/O.
-    """
-    cap = _stratum_cap(facts, _merged_rungs(facts), column.n_numeric, floor)
-    total = len(values)
-    if cap <= 0 or total < 2:
-        return layout
-    sizes = [size for size in layout.sizes]
-    held: "dict[float, int]" = {}
-    for place in range(total):
-        held[values[place]] = (
-            held[values[place]] if values[place] in held else 0
-        ) + sizes[place]
-    for place in range(total):
-        while held[values[place]] > cap and sizes[place] > 0:
-            target = -1
-            for step in range(1, total):
-                for other in (place - step, place + step):
-                    if other < 0 or other >= total or target >= 0:
-                        continue
-                    if values[other] == values[place]:
-                        continue
-                    if held[values[other]] < cap:
-                        target = other
-            if target < 0:
-                break
-            moved = min(
-                held[values[place]] - cap,
-                cap - held[values[target]],
-                sizes[place],
-            )
-            if moved <= 0:
-                break
-            sizes[place] = sizes[place] - moved
-            sizes[target] = sizes[target] + moved
-            held[values[place]] = held[values[place]] - moved
-            held[values[target]] = held[values[target]] + moved
-    if sizes == list(layout.sizes):
-        return layout
-    return dataclasses.replace(
-        layout, sizes=tuple(sizes), starts=tuple(_starts_of(sizes))
-    )
 
 
 def _apart_inside(

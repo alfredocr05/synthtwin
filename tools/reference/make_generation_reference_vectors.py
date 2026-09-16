@@ -936,43 +936,6 @@ def overshoot(lengths, index, cap):
     return max(0, lengths[index] + lengths[index + 1] - cap)
 
 
-def capped_by_value(values, lengths, cap):
-    """G5.2a's cap asked of the finished NUMBERS -- integration repair.
-
-    A stratum whose number stands above the cap gives cells to the
-    nearest stratum with room whose number is a different one, the lower
-    where two are equally near; the total, the stratum count and the rank
-    order are unchanged, and no value moves.
-    """
-    total = len(values)
-    sizes = list(lengths)
-    if cap <= 0 or total < 2:
-        return sizes
-    held = {}
-    for place in range(total):
-        held[values[place]] = held.get(values[place], 0) + sizes[place]
-    for place in range(total):
-        while held[values[place]] > cap and sizes[place] > 0:
-            target = -1
-            for step in range(1, total):
-                for other in (place - step, place + step):
-                    if 0 <= other < total and target < 0:
-                        if values[other] != values[place] and held[values[other]] < cap:
-                            target = other
-            if target < 0:
-                break
-            moved = min(
-                held[values[place]] - cap, cap - held[values[target]], sizes[place]
-            )
-            if moved <= 0:
-                break
-            sizes[place] -= moved
-            sizes[target] += moved
-            held[values[place]] -= moved
-            held[values[target]] += moved
-    return sizes
-
-
 def levelled(lengths, cap):
     """G5.2a step 4: no stratum above the cap.
 
@@ -6972,12 +6935,6 @@ def _numeric_content(column):
         ladder,
         numeric,
     )
-    # AND NO FINISHED NUMBER IS HELD BY MORE CELLS THAN THE CAP
-    # (integration repair of landing 2b.1): two strata written as one
-    # number hold the sum of their cells, and G5.2a's cap bounds one
-    # stratum. Cells move as `levelled` moves them and no value does.
-    sizes = capped_by_value(values, sizes, cap)
-    starts = restarted(sizes)
     cell_values = []
     for index, size in enumerate(sizes):
         cell_values.extend([values[index]] * size)

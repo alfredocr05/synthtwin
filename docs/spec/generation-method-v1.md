@@ -810,20 +810,6 @@ cap on its own, because interpolation rounds a plateau's edges onto it:
 333. Nothing moves where `Cap` is 0, or where the band's strata could
 not hold it under `Cap_band`.
 
-**And no finished NUMBER stands above the cap** (integration repair of
-landing 2b.1). The step above bounds one run, and two strata written as
-one number hold the sum of their cells: where G6.5a's separation finds
-no free point of the grid inside either share, both keep that number.
-So once the values are settled -- after G6.6's last mover -- the cap is
-asked again of the numbers themselves: visit the strata in rank order,
-and while the cells of a stratum's number stand above `Cap_band`, the
-nearest stratum with room whose number is a DIFFERENT one -- the lower
-where two are equally near -- takes as many as it has room for. Cells
-move and no value does, so every count, end and spelling the passes
-above settled is untouched. A 1,000-row column of one-decimal amounts
-publishing a `mode_count` of 32 wrote one number 43 times, the cells of
-two strata added together.
-
 The carrier and reach steps of G5.2b run after this and may move cells
 past the cap: `numeric_styles` is EXACT-OBSERVABLE and `mode_count` is
 REPORT-ONLY, so by plan P2-D6's feasibility rule 4 the published style

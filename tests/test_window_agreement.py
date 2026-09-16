@@ -103,18 +103,25 @@ GATE = [
 SIZES = (500, 2000, 4000)
 CASES = [(name, build, rows) for name, build in GATE for rows in SIZES]
 
-# ONE GATE CASE MISSES ONE OBLIGATION THAT IS NOT A WINDOW, and it is
-# pinned here by name rather than left out. The 2,000-row uniform column
-# publishes 862 different numbers and its twin holds 861 at every seed:
-# its first positive stratum's grid value reads as `0.000`, method G5.5's
-# sign repair sends it to the published maximum `1.000`, and G6.5a's
-# separation walk cannot bring it back, because every grid point within
-# its reach is held. The same shortfall of one number is measured on
-# one-figure columns that cross zero at 2,000 and 4,000 rows. It belongs
-# to part 1's grid value rule and G6.5a, not to the windows, and it is
-# carried in the landing's report. The assertion below turns red the
-# moment it is repaired, so this entry cannot outlive the defect.
-CARRIED = {("uniform_three_figures", 2000): ["distinct.n_distinct_values"]}
+# ONE GATE CASE USED TO MISS ONE OBLIGATION THAT IS NOT A WINDOW, and
+# the repair of it is why this map is empty (integration repair of
+# landing 2b.1). The 2,000-row uniform column publishes 862 different
+# numbers and its twin held 861 at every seed: its first positive
+# stratum's grid value reads as `0.000`, method G5.5's plain sign repair
+# sent it to the published maximum `1.000` -- a number another stratum
+# already held, which spends one of the column's different numbers --
+# and G6.5a's separation walk could not bring it back, because every grid
+# point within its reach was held. The same shortfall of one number was
+# measured on one-figure columns that cross zero. G5.5 now repairs a
+# stratum on a grid onto the nearest free grid point of its own side of
+# zero instead, so no two strata land on one number and the count comes
+# back; measured by withdrawing that repair alone, which restores the
+# miss on this shape and no other change does.
+#
+# The map stays here, empty, because the assertion below reads it: a
+# shape that begins to miss an obligation again turns this gate red
+# rather than being written into the map without a reason.
+CARRIED: "dict[tuple[str, int], list[str]]" = {}
 
 # The facts whose windows both reports print: the nine interior rungs and
 # the four moments.

@@ -352,18 +352,9 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     What still cannot be placed is a NAMED count, which no producer
     emits and a hand-written description can: forty-six `leading_plus`
     cells on a column two of whose cells must read back as numbers with
-    no point-free spelling.
-
-    AND THE THIRD MOVE IS THE CAP (integration repair of landing 2b.1).
-    This case expected forty-four `plain` cells, which is the twin
-    writing `7` forty-four times on a column publishing a `mode_count`
-    of forty: one number of the twin held by more cells than any number
-    of the real column was, which is the thing G5.2a's cap states. The
-    cap is now asked of the finished numbers as well as of each stratum,
-    so the strata come out 5/40/1 where they were 1/44/1, `7` is written
-    forty times exactly, and the six cells the census pooled are spelled
-    by their own values. The published `plain` count of forty is still
-    met, so the report still owes no deviation of `numeric_styles`.
+    no point-free spelling. Forty-four is the ceiling, the twin reaches
+    it, and the report names the published count beside the achieved
+    one.
     """
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
@@ -375,11 +366,7 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     assert document["columns"][0]["integer_valued"] is False
 
     twin = generation.generate(loaded, 0)
-    assert _styles_written(twin) == {"plain": 40, "decimal": 6}
-    # NO NUMBER OF THE TWIN IS HELD BY MORE CELLS THAN THE PUBLISHED
-    # `mode_count`, which is what the forty above is.
-    held = collections.Counter(cell for cell in twin.columns[0] if cell != "")
-    assert max(held.values()) <= document["columns"][0]["mode_count"]
+    assert _styles_written(twin) == {"plain": 44, "decimal": 2}
     quiet = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert quiet == [], [note.published for note in quiet]
 
@@ -400,15 +387,7 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)
     written = _styles_written(twin)
-    # FORTY, NOT FORTY-FOUR (integration repair of landing 2b.1). Two of
-    # the forty-six cells read back as numbers with no point-free
-    # spelling, which is what makes this count unplaceable; the ceiling
-    # was the other forty-four until the cap of G5.2a was asked of the
-    # finished NUMBERS as well as of each stratum, and one number held by
-    # forty-four cells is one the published `mode_count` of forty
-    # forbids. The corner stands: forty-six is published, forty is
-    # placed, and the report below names the shortfall.
-    assert written.get("leading_plus", 0) == 40, (
+    assert written.get("leading_plus", 0) == 44, (
         "this fixture no longer reaches the corner it was built for"
     )
 

@@ -198,32 +198,6 @@ CARRIED_SHORT = {("spreadsheet_narrow", 2000, "23"): 2}
 CARRIED_EXTRA = {("signed_change", 4000): 1, ("unsigned_change", 4000): 1}
 
 
-@pytest.mark.parametrize("seed", ("7", "1"))
-def test_no_finished_number_is_held_by_more_cells_than_the_cap(
-    tmp_path: pathlib.Path, seed: str
-) -> None:
-    """Two strata written as one number held 43 cells against a cap of 32.
-
-    The integration verdict. The cap of G5.2a bounds one stratum, and the
-    separation of G6.5a could find no free point of the grid inside either
-    share, so the two were written as one number and their cells added
-    together. The cap is asked of the finished numbers now.
-    """
-    draw = random.Random(25)
-    draw.getrandbits(384)
-    cells = [
-        f"{draw.choice([-1, 1]) * draw.lognormvariate(0.1, 1):.1f}".replace("-0.0", "0.0")
-        for _ in range(1000)
-    ]
-    first, _second, written, _twin_exit, real_exit = _round_trip(
-        tmp_path / "capped", cells, ("--smallest-group", "11"), True, seed
-    )
-    assert first["mode_count"] == 32
-    assert real_exit == 0
-    held = collections.Counter(_number(cell) for cell in written)
-    assert max(held.values()) <= first["mode_count"], held.most_common(3)
-
-
 def test_the_generator_and_the_oracle_join_the_same_pair(
     tmp_path: pathlib.Path,
 ) -> None:

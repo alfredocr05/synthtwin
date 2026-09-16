@@ -6433,7 +6433,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "09abfe68721ca29b",
         "09fcab151f03c000",
         "0a08d03cbaf8dd11",
-        "0a8a3c27dca119e0",
         "0aadf4baa8c01ee8",
         "0b377cab71e06f88",
         "0c1ac68e53324a90",
@@ -7707,7 +7706,7 @@ COUNTED: "dict[str, int]" = {
     "docs/spec/profile-contract-v4.md": 966,
     "docs/spec/profile-contract-v5.md": 319,
     "docs/spec/profile-contract-v6.md": 2549,
-    "docs/spec/generation-method-v1.md": 1091,
+    "docs/spec/generation-method-v1.md": 1090,
     "docs/spec/validation-method-v1.md": 241,
 }
 
