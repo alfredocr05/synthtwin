@@ -10060,6 +10060,2429 @@ def _thin_spaced():
     }
 
 
+# ---------------------------------------------------------------------
+# THE DOCUMENT TRANSFORMS: the written form (G2), the arrangement of the
+# rows (G2.1) and the twin of a workbook (G2.2)
+#
+# Everything above this line answers the question "what does ONE COLUMN
+# hold".  Everything below answers "what does the FILE look like", which
+# is a different transform with different inputs: no word is drawn here
+# at all, and the inputs are the description's own `source.dialect` and
+# `source.workbook` blocks rather than a column block.
+#
+# WHY THESE EXIST (landing 2b.17).  Landings 2b.9, 2b.10 and 2b.11 built
+# the written form, the row arrangement and the workbook writer, and left
+# all three with NO second implementation: `grep` for `twin_text`,
+# `arranged`, `row_order` or `workbook` in this file found nothing, so
+# the only check on any of them was a round trip through the very code
+# they check.  The method document stated none of the workbook writer's
+# rules either, which is why G2.2 had to be written before this could be.
+#
+# Each rule below is written from the METHOD'S STATEMENT of it and not
+# from the shipped code, which is the whole of what this file is for.
+# Where a rule the method states reaches further than the frozen cases
+# do, the mirror REFUSES rather than guessing: a mirror that quietly
+# invents a reading is worse than one that stops, because it agrees with
+# nothing and nobody notices.
+# ---------------------------------------------------------------------
+
+DOC_QUOTE = '"'
+DOC_BACKSLASH = "\\"
+DOC_BYTE_ORDER_MARK = "﻿"
+DOC_END_OF_FILE = "\x1a"
+DOC_SPACE = " "
+DOC_TAB = "\t"
+DOC_CR = "\r"
+DOC_LF = "\n"
+
+# G2: each line takes the next ending of `line_endings`, in file order.
+DOC_ENDING_TEXT = {"lf": "\n", "crlf": "\r\n", "cr": "\r", "crcrlf": "\r\r\n"}
+DOC_ENDING_ORDER = ("lf", "crlf", "cr", "crcrlf")
+
+# G2: quoting is per column and per cell class, in this order.
+DOC_CELL_CLASSES = ("absent", "empty", "number", "text")
+DOC_QUOTE_NEEDED = "needed"
+DOC_QUOTE_BARE = "bare"
+DOC_QUOTE_ALWAYS = "always"
+
+# G2: the four delimiters a description may publish, in the order the
+# reading rule below breaks a tie with.
+DOC_DELIMITERS = (",", ";", "\t", "|")
+DOC_ESCAPE_DOUBLED = "doubled"
+DOC_ESCAPE_BACKSLASH = "backslash"
+DOC_ESCAPES = (DOC_ESCAPE_DOUBLED, DOC_ESCAPE_BACKSLASH)
+
+# G2 and contract FD11: the shapes a line before the table is published
+# as, and the two neutral words a withheld line is written as.
+DOC_PREAMBLE_BLANK = "blank"
+DOC_PREAMBLE_COMMENT = "comment"
+DOC_PREAMBLE_TEXT = "text"
+DOC_WITHHELD_LINE = "withheld line"
+
+# How many records the reading rule looks at.
+DOC_SAMPLE_RECORDS = 400
+
+# The marks a cell of these cases may hold beside letters, digits and
+# spaces.  The class of a cell decides which quoting rule it takes, and
+# a class read wrongly writes the wrong bytes -- so this mirror reads
+# only cells it can place with certainty and stops on any other.
+DOC_TEXT_MARKS = "-_.,;|/#()\"'+:%&*[]@"
+
+# The spellings this method's own neutral vocabulary uses for a cell
+# holding no value.  A cell whose text is one of them is ABSENT and not
+# text, which is a different quoting rule.
+DOC_NOTHING_SPELLINGS = ("NA", "N/A", "NaN", "null", "NULL", "None", "nan")
+
+
+def doc_is_a_plain_number(text):
+    """Whether the text is a plain number: sign, figures, point, exponent.
+
+    The narrow grammar, stated rather than assumed: an optional sign,
+    figures, an optional point with figures on one side or both, and an
+    optional exponent with an optional sign.  A grouped number, a
+    decimal comma, a bracketed negative and a trailing minus are NOT
+    plain numbers here -- they are read as numbers by the profiler's own
+    grammar, and a case whose cells need that reading is refused below
+    rather than classed by a guess.
+    """
+    body = text
+    if body[:1] in ("-", "+"):
+        body = body[1:]
+    mantissa = body
+    exponent = ""
+    for marker in ("e", "E"):
+        place = mantissa.find(marker)
+        if place >= 0:
+            exponent = mantissa[place + 1 :]
+            mantissa = mantissa[:place]
+            break
+    if exponent:
+        if exponent[:1] in ("-", "+"):
+            exponent = exponent[1:]
+        if not exponent or not all(mark in "0123456789" for mark in exponent):
+            return False
+    point = mantissa.find(".")
+    if point >= 0:
+        whole = mantissa[:point]
+        fraction = mantissa[point + 1 :]
+        if not whole and not fraction:
+            return False
+        for piece in (whole, fraction):
+            if piece and not all(mark in "0123456789" for mark in piece):
+                return False
+        return True
+    if not mantissa:
+        return False
+    return all(mark in "0123456789" for mark in mantissa)
+
+
+def doc_reads_as_nothing(text):
+    """Whether the cell's text is one of the spellings meaning no value."""
+    body = text.strip()
+    for spelling in DOC_NOTHING_SPELLINGS:
+        if body.casefold() == spelling.casefold():
+            return True
+    return False
+
+
+def written_cell_class(cell):
+    """Which of G2's four cell classes one cell belongs to.
+
+    A column whose four quoting rules agree needs no class at all, which
+    is why an ordinary twin never reaches this.  Where they differ the
+    class decides the bytes, so this stops on a cell it cannot place.
+    """
+    if cell == "":
+        return "empty"
+    if doc_reads_as_nothing(cell):
+        return "absent"
+    if doc_is_a_plain_number(cell):
+        return "number"
+    for mark in cell:
+        if mark.isalpha() or mark.isdigit():
+            continue
+        if mark == DOC_SPACE or mark in DOC_TEXT_MARKS:
+            continue
+        raise AssertionError(
+            f"this oracle will not class the cell {cell!r}: its characters "
+            "are outside the narrow reading method section G2's per-class "
+            "quoting is mirrored under here, and a class read wrongly "
+            "writes the wrong bytes. State the reading, or freeze a cell "
+            "the reading covers."
+        )
+    return "text"
+
+
+def written_needs_quoting(cell, delimiter, escape, initial_space, alone):
+    """G2's `needed` rule: quoted when and only when it has to be.
+
+    ``alone`` says the cell is the only one on its line, where an empty
+    cell written bare would be a blank line and not a record -- which is
+    G2's canonical quoting exception 2.
+    """
+    if not cell:
+        return alone
+    for mark in (delimiter, DOC_QUOTE, DOC_CR, DOC_LF):
+        if mark and mark in cell:
+            return True
+    if escape == DOC_ESCAPE_BACKSLASH and DOC_BACKSLASH in cell:
+        return True
+    return initial_space and cell[:1] == DOC_SPACE
+
+
+def written_must_quote(cell, delimiter, escape, initial_space, alone):
+    """G2's `bare` rule: quoted only where it could not be read back."""
+    if not cell:
+        return alone
+    for mark in (delimiter, DOC_CR, DOC_LF):
+        if mark and mark in cell:
+            return True
+    if cell[:1] == DOC_QUOTE:
+        return True
+    if escape == DOC_ESCAPE_BACKSLASH and DOC_BACKSLASH in cell:
+        return True
+    return initial_space and cell[:1] == DOC_SPACE
+
+
+def written_field(cell, rule, form, alone, marked=False):
+    """One cell as the twin writes it, under one quoting rule of the form.
+
+    `mixed` is written `needed` (G2), which is the last branch here: a
+    rule that is neither `always` nor `bare` quotes when and only when
+    it must.
+    """
+    delimiter = form["delimiter"]
+    escape = form["escape"]
+    initial_space = form["initial_space"]
+    if rule == DOC_QUOTE_ALWAYS:
+        quote = True
+    elif rule == DOC_QUOTE_BARE:
+        quote = marked or written_must_quote(
+            cell, delimiter, escape, initial_space, alone
+        )
+    else:
+        quote = marked or written_needs_quoting(
+            cell, delimiter, escape, initial_space, alone
+        )
+    if not quote:
+        return cell
+    body = ""
+    for mark in cell:
+        if escape == DOC_ESCAPE_BACKSLASH:
+            if mark == DOC_QUOTE or mark == DOC_BACKSLASH:
+                body = body + DOC_BACKSLASH
+        elif mark == DOC_QUOTE:
+            body = body + DOC_QUOTE
+        body = body + mark
+    return DOC_QUOTE + body + DOC_QUOTE
+
+
+def quoting_rule_for(column, cell):
+    """The quoting rule a column applies to one cell (G2, per class)."""
+    rules = column["quoting"]
+    every = [rules[name] for name in DOC_CELL_CLASSES]
+    if every[0] == every[1] == every[2] == every[3]:
+        return every[0]
+    return rules[written_cell_class(cell)]
+
+
+def padded_cell(cell, column):
+    """A cell padded with spaces to its column's width, where shorter (G2)."""
+    pad = column["pad"]
+    if pad is None or len(cell) >= pad["width"]:
+        return cell
+    spaces = DOC_SPACE * (pad["width"] - len(cell))
+    if pad["side"] == "left":
+        return spaces + cell
+    return cell + spaces
+
+
+def joined_fields(parts, form):
+    """Fields put on one line with the form's delimiter (G2)."""
+    separator = form["delimiter"] + (DOC_SPACE if form["initial_space"] else "")
+    line = ""
+    for index in range(len(parts)):
+        if index:
+            line = line + separator
+        line = line + parts[index]
+    return line
+
+
+def header_written(names, form):
+    """The header record as the twin writes it, without its line ending.
+
+    G2's canonical quoting exception 1: a first column name beginning
+    with the byte-order mark is ALWAYS quoted.  Written bare it would
+    begin the file with that mark's own bytes, which the reader then
+    consumes, silently renaming the column.
+    """
+    shown = list(names)
+    for written in form["written_names"]:
+        if 1 <= written["position"] <= len(shown):
+            shown[written["position"] - 1] = written["text"]
+    alone = len(shown) == 1
+    parts = []
+    for index in range(len(shown)):
+        cell = shown[index]
+        marked = index == 0 and cell[:1] == DOC_BYTE_ORDER_MARK
+        parts += [written_field(cell, form["header_quoting"], form, alone, marked)]
+    line = joined_fields(parts, form)
+    if form["trailing_delimiter"]["header"]:
+        line = line + form["delimiter"]
+    return line
+
+
+def record_written(cells, form):
+    """One data record as the twin writes it, without its line ending (G2)."""
+    width = len(cells)
+    kept = width
+    if form["short_rows"]:
+        while kept > 1 and cells[kept - 1] == "":
+            kept = kept - 1
+    alone = width == 1
+    parts = []
+    for index in range(kept):
+        column = form["columns"][index]
+        cell = padded_cell(cells[index], column)
+        parts += [written_field(cell, quoting_rule_for(column, cell), form, alone)]
+    line = joined_fields(parts, form)
+    if form["trailing_delimiter"]["rows"]:
+        line = line + form["delimiter"]
+    return line
+
+
+def mark_breaks_a_line(mark, delimiter):
+    """Whether a published mark would stop its stand-in being one record.
+
+    Contract FD11, plan P4-D83.  A quote character opens a field nothing
+    closes; the delimiter cuts the stand-in into fields a reader takes
+    for the table's header.  Either leaves a twin that is not the file
+    the description published.
+    """
+    if DOC_QUOTE in mark:
+        return True
+    return bool(delimiter) and delimiter in mark
+
+
+def line_shape(line):
+    """One line before the table as its kind and its mark, never its text.
+
+    G2 and contract 4.3a: a line holding nothing, or nothing but spaces
+    and tabs, is BLANK and its mark is that whitespace; a line beginning
+    with anything that is not a letter or a digit is a COMMENT whose
+    mark is that opening punctuation; anything else is TEXT, of which
+    nothing whatever is published.
+    """
+    if not line or all(mark in (DOC_SPACE, DOC_TAB) for mark in line):
+        return (DOC_PREAMBLE_BLANK, line)
+    kept = ""
+    for mark in line:
+        if mark.isalpha() or mark.isdigit():
+            break
+        kept = kept + mark
+    if kept:
+        return (DOC_PREAMBLE_COMMENT, kept)
+    return (DOC_PREAMBLE_TEXT, "")
+
+
+def writable_mark(kind, mark, delimiter):
+    """A line's shape narrowed to a mark the twin can write (plan P4-D83).
+
+    The mark is written into the twin ahead of the stand-in, so a mark
+    that cannot be written leaves a twin that is not a file.  The mark
+    therefore ends before the first quote character or delimiter, and a
+    line whose punctuation BEGINS with one is a line of TEXT, whose
+    stand-in is the two neutral words -- which every reader reads as one
+    field.  A blank line is untouched: its mark is spaces and tabs,
+    which hold neither character.
+    """
+    if kind == DOC_PREAMBLE_BLANK or not mark_breaks_a_line(mark, delimiter):
+        return (kind, mark)
+    kept = ""
+    for mark_character in mark:
+        if mark_character == DOC_QUOTE or (
+            delimiter and mark_character == delimiter
+        ):
+            break
+        kept = kept + mark_character
+    if kept:
+        return (DOC_PREAMBLE_COMMENT, kept)
+    return (DOC_PREAMBLE_TEXT, "")
+
+
+def preamble_runs_of(lines, delimiter):
+    """The lines before the table, run-length encoded by their shape.
+
+    Contract FD11: seventeen leading blank lines are seventeen lines of
+    ONE shape, and are published as one run of seventeen.
+    """
+    runs = []
+    for line in lines:
+        kind, mark = writable_mark(*line_shape(line), delimiter)
+        last = len(runs) - 1
+        if last >= 0 and runs[last]["kind"] == kind and runs[last]["mark"] == mark:
+            runs[last] = {
+                "kind": kind,
+                "lines": runs[last]["lines"] + 1,
+                "mark": mark,
+            }
+            continue
+        runs += [{"kind": kind, "lines": 1, "mark": mark}]
+    return runs
+
+
+def preamble_stand_in(run):
+    """The neutral line a twin writes for one line of a run (G2).
+
+    A blank line stays blank and keeps its spaces, a comment keeps its
+    mark, and a line of text becomes two words holding a space.  No word
+    of the line itself is in the description to write.
+    """
+    if run["kind"] == DOC_PREAMBLE_BLANK:
+        return run["mark"]
+    return run["mark"] + DOC_WITHHELD_LINE
+
+
+def preamble_lines_for(form):
+    """Every line the twin writes before the table, in file order (G2)."""
+    lines = []
+    for run in form["preamble"]:
+        for _line in range(run["lines"]):
+            lines += [preamble_stand_in(run)]
+    return lines
+
+
+def spread_blank_places(spread):
+    """Where counted blank lines stand: evenly from the first to the last.
+
+    G2: the k-th of n stands after `first + k * (last - first) // (n - 1)`
+    records, so a file with one blank line after every record is written
+    exactly as it was.
+    """
+    places = []
+    span = spread["last"] - spread["first"]
+    for index in range(spread["lines"]):
+        after = spread["first"]
+        if spread["lines"] > 1:
+            after = spread["first"] + (index * span) // (spread["lines"] - 1)
+        last = len(places) - 1
+        if last >= 0 and places[last]["after"] == after:
+            places[last] = {
+                "after": after,
+                "lines": places[last]["lines"] + 1,
+                "text": spread["text"],
+            }
+            continue
+        places += [{"after": after, "lines": 1, "text": spread["text"]}]
+    return places
+
+
+def spread_line_endings(census):
+    """Each line's ending where the endings are published counted (G2).
+
+    The commonest ending (the earlier in the listed order on a tie) ends
+    every line no rarer one takes.  Each rarer ending, in that same
+    order, takes its c lines at the middles of c equal stretches of the
+    file, the next free line where that one is taken.
+    """
+    if not census:
+        return []
+    total = 0
+    most = 0
+    for index in range(len(census)):
+        total = total + census[index]["lines"]
+        if census[index]["lines"] > census[most]["lines"]:
+            most = index
+    endings = [census[most]["ending"] for _line in range(total)]
+    taken = [False for _line in range(total)]
+    low = 0
+    for index in range(len(census)):
+        if index == most:
+            continue
+        count = census[index]["lines"]
+        cursor = 0
+        for step in range(count):
+            target = ((2 * step + 1) * total) // (2 * count)
+            at = max(target, cursor)
+            while at < total and taken[at]:
+                at = at + 1
+            if at >= total:
+                while low < total and taken[low]:
+                    low = low + 1
+                at = low
+            taken[at] = True
+            endings[at] = census[index]["ending"]
+            cursor = at + 1
+    return endings
+
+
+def written_form_lines(names, rows, write_header, form):
+    """Every line of the twin in file order, without its line endings (G2).
+
+    The order is the one G2's table fixes: the separator hint, the lines
+    before the table, the header, the rows of column descriptions, then
+    the data records with the blank lines standing where the form places
+    them.
+    """
+    lines = []
+    if form["separator_line"]:
+        lines += ["sep=" + form["delimiter"]]
+    lines += preamble_lines_for(form)
+    if write_header:
+        lines += [header_written(names, form)]
+    for row in form["header_rows"]:
+        alone = len(row) == 1
+        parts = [
+            written_field(cell, form["header_rows_quoting"], form, alone)
+            for cell in row
+        ]
+        lines += [joined_fields(parts, form)]
+    places = form["blank_lines"]
+    if form["blank_lines_spread"] is not None:
+        places = spread_blank_places(form["blank_lines_spread"])
+    at = 0
+    for index in range(len(rows)):
+        while at < len(places) and places[at]["after"] == index:
+            for _line in range(places[at]["lines"]):
+                lines += [places[at]["text"]]
+            at = at + 1
+        lines += [record_written(rows[index], form)]
+    while at < len(places):
+        for _line in range(places[at]["lines"]):
+            lines += [places[at]["text"]]
+        at = at + 1
+    return lines
+
+
+def written_form_text(names, rows, write_header, form):
+    """The whole twin in its source's written form, as text (G2).
+
+    A byte-order mark leads where the form has one; each line takes the
+    next ending of the form's runs, or the ending the spread gives it;
+    the last line takes none unless the form ends its last line; and the
+    end-of-file mark follows where the form has one.
+    """
+    lines = written_form_lines(names, rows, write_header, form)
+    endings = []
+    for run in form["line_endings"]:
+        for _line in range(run["lines"]):
+            endings += [DOC_ENDING_TEXT[run["ending"]]]
+    if form["line_endings_spread"]:
+        endings = [
+            DOC_ENDING_TEXT[name]
+            for name in spread_line_endings(form["line_endings_spread"])
+        ]
+    text = DOC_BYTE_ORDER_MARK if form["byte_order_mark"] else ""
+    for index in range(len(lines)):
+        text = text + lines[index]
+        if index < len(endings):
+            text = text + endings[index]
+        elif index < len(lines) - 1 or form["final_line_ending"]:
+            text = text + DOC_LF
+    if form["end_of_file_mark"]:
+        text = text + DOC_END_OF_FILE
+    return text
+
+
+# -- G2.1: where the rows stand ----------------------------------------
+
+
+def sequence_cells_written(start, n_rows):
+    """The row sequence as cells: start, start + 1, ... in row order."""
+    return [f"{start + index}" for index in range(n_rows)]
+
+
+def empty_record_targets(form, n_rows):
+    """Which rows the form's records holding nothing stand in (G2.1 step 2).
+
+    `leading` at the top, `trailing` at the bottom, `interior` spread
+    evenly between.
+    """
+    empties = form["empty_rows"]
+    targets = [False for _row in range(n_rows)]
+    leading = min(empties["leading"], n_rows)
+    for row in range(leading):
+        targets[row] = True
+    trailing = min(empties["trailing"], n_rows - leading)
+    for row in range(n_rows - trailing, n_rows):
+        targets[row] = True
+    middle = n_rows - leading - trailing
+    interior = min(empties["interior"], middle)
+    for step in range(interior):
+        row = leading + ((step + 1) * middle) // (interior + 1)
+        while targets[row] and row < n_rows - trailing - 1:
+            row = row + 1
+        targets[row] = True
+    return targets
+
+
+def place_empty_records(grid, form, n_rows):
+    """Exchange cells within columns so exactly the target rows are empty.
+
+    G2.1 step 2.  First every target row is emptied: a cell holding
+    something is exchanged for an empty cell of the same column from the
+    first row that is not a target and has one.  Then every OTHER row
+    left with nothing in it is given a cell, taken from the first
+    non-target row that keeps something else.  Nothing is added, removed
+    or altered, so no column's cells change as a multiset.
+    """
+    width = len(grid)
+    targets = empty_record_targets(form, n_rows)
+    for place in range(width):
+        column = grid[place]
+        donor = 0
+        for row in range(n_rows):
+            if not targets[row] or column[row] == "":
+                continue
+            while donor < n_rows and (targets[donor] or column[donor] != ""):
+                donor = donor + 1
+            if donor >= n_rows:
+                break
+            column[row], column[donor] = column[donor], column[row]
+            donor = donor + 1
+    filled = [0 for _row in range(n_rows)]
+    for place in range(width):
+        for row in range(n_rows):
+            if grid[place][row] != "":
+                filled[row] = filled[row] + 1
+    giver = [0 for _place in range(width)]
+    for row in range(n_rows):
+        if targets[row] or filled[row]:
+            continue
+        for place in range(width):
+            column = grid[place]
+            source = giver[place]
+            while source < n_rows and (
+                targets[source] or column[source] == "" or filled[source] < 2
+            ):
+                source = source + 1
+            giver[place] = source
+            if source >= n_rows:
+                continue
+            column[row], column[source] = column[source], column[row]
+            filled[row] = filled[row] + 1
+            filled[source] = filled[source] - 1
+            break
+
+
+def decimal_comma_exchanged(text):
+    """A declared column's cell written the way the ordinary grammar reads.
+
+    Plan P4-D26: the COMMA is the person's decimal point and the POINT
+    their thousands mark, so both roles swap in one pass -- drop every
+    point, then read every comma as a point -- and `1.234,56` becomes
+    `1234.56`.
+    """
+    out = ""
+    for mark in text:
+        if mark == ".":
+            continue
+        out = out + ("." if mark == "," else mark)
+    return out
+
+
+def doc_read_number(text):
+    """The number a sort key holds, or None where it holds none (G2.1).
+
+    The narrow grammar again, and for the same reason: a key read
+    wrongly puts the rows in the wrong order, so a cell this cannot
+    place with certainty stops the run instead of sorting last by
+    accident.
+    """
+    body = text.strip()
+    if not body:
+        return None
+    if doc_is_a_plain_number(body):
+        return float(body)
+    for mark in body:
+        if mark.isalpha() or mark == DOC_SPACE or mark in DOC_TEXT_MARKS:
+            continue
+        raise AssertionError(
+            f"this oracle will not read {text!r} as a sort key: it is "
+            "neither a plain number nor ordinary text, and the collation "
+            "of method section G2.1 decides the twin's row order."
+        )
+    return None
+
+
+def sort_permutation(keys, order, count):
+    """The rows in the order the form's sort key puts them (G2.1 step 3).
+
+    Under the number collation a cell holding no number goes LAST; under
+    `decimal_comma` the same reader is applied to the cell with its
+    declared comma and point exchanged first, because the twin writes
+    this column's numbers with a comma and the ordinary grammar would
+    put `10,0` before `9,9`.  The sort is stable: rows the key cannot
+    tell apart keep the order the generator gave them.
+    """
+    collation = order["collation"]
+    direction = order["direction"]
+    if collation in ("number", "decimal_comma"):
+        numbered = []
+        for index in range(count):
+            text = keys[index]
+            if collation == "decimal_comma":
+                text = decimal_comma_exchanged(text)
+            number = doc_read_number(text)
+            if number is None:
+                numbered += [(1, 0.0, index)]
+            elif direction == "descending":
+                numbered += [(0, -number, index)]
+            else:
+                numbered += [(0, number, index)]
+        return [entry[2] for entry in sorted(numbered)]
+    lettered = []
+    for index in range(count):
+        lettered += [
+            (keys[index], index if direction == "ascending" else -index)
+        ]
+    placed = sorted(lettered)
+    if direction == "descending":
+        placed = list(reversed(placed))
+    return [abs(entry[1]) for entry in placed]
+
+
+def sequence_columns_written(grid, form, n_rows):
+    """Write every row-sequence column in place -- G2.1's LAST step.
+
+    It is last, and that is the rule rather than an ordering detail: the
+    sequence reads 0, 1, 2, ... down the finished file whatever moved,
+    so a reader who takes it for a record number gets the file's own row
+    numbers and not the generator's.
+    """
+    for index in range(len(grid)):
+        start = form["columns"][index]["sequence_start"]
+        if start is not None:
+            grid[index] = sequence_cells_written(start, n_rows)
+
+
+def row_arrangement(columns, form, n_rows):
+    """A twin's rows placed where the form says they stand (G2.1).
+
+    Three steps, drawing no word: the records holding nothing are placed
+    by moving cells WITHIN one column; whole rows are then permuted by
+    the sort column, the records holding nothing staying where they were
+    put and the others sorted into the places around them; and every
+    row-sequence column is written in place last.
+    """
+    width = len(columns)
+    if not width or not n_rows:
+        return [list(column) for column in columns]
+    grid = [list(column) for column in columns]
+    order = form["row_order"]
+    empties = form["empty_rows"]
+    total_empty = empties["leading"] + empties["interior"] + empties["trailing"]
+    targets = [False for _row in range(n_rows)]
+    if width >= 2 and (total_empty or order is None):
+        place_empty_records(grid, form, n_rows)
+        targets = empty_record_targets(form, n_rows)
+    if order is not None and order["column"] <= width:
+        free = [row for row in range(n_rows) if not targets[row]]
+        key = grid[order["column"] - 1]
+        placed = sort_permutation([key[row] for row in free], order, len(free))
+        for place in range(width):
+            column = grid[place]
+            moved = list(column)
+            for index in range(len(free)):
+                moved[free[index]] = column[free[placed[index]]]
+            grid[place] = moved
+    sequence_columns_written(grid, form, n_rows)
+    return grid
+
+
+# -- the reading that settles a file's delimiter (review item CODEX-5) --
+
+
+def physical_lines_of(text):
+    """The text cut into lines, each keeping its own ending."""
+    lines = []
+    line = ""
+    index = 0
+    while index < len(text):
+        mark = text[index]
+        line = line + mark
+        if mark == DOC_LF:
+            lines += [line]
+            line = ""
+        elif mark == DOC_CR:
+            if text[index + 1 : index + 2] == DOC_LF:
+                line = line + DOC_LF
+                index = index + 1
+            lines += [line]
+            line = ""
+        index = index + 1
+    if line:
+        lines += [line]
+    return lines
+
+
+def doc_read_records(text, delimiter, escape, initial_space, at, limit):
+    """Every record the standard reader yields, from ``at``.
+
+    A quoted field opens with a quote character and closes with one; a
+    quote inside it is written twice, or after a backslash under
+    backslash escaping.  A blank line is a record with no fields, which
+    is what the standard reader yields for one.
+
+    THIS MIRROR REFUSES WHAT IT DOES NOT MODEL, by name: a quoted field
+    that spans a line ending, and text following a closing quote.  Both
+    are readings the shipped lexer has rules for, and a mirror that
+    silently produced something else for them would agree with nothing.
+    """
+    span = text[at:] if limit < 0 else text[at : at + 1_048_576]
+    taken = []
+    for line in physical_lines_of(span):
+        if limit >= 0 and len(taken) >= limit:
+            break
+        body = line
+        for ending in ("\r\n", DOC_LF, DOC_CR):
+            if body[len(body) - len(ending) :] == ending:
+                body = body[: len(body) - len(ending)]
+                break
+        if not body:
+            taken += [{"fields": [], "raw": ""}]
+            continue
+        fields = []
+        value = ""
+        inside = False
+        closed = False
+        malformed = 0
+        skipping = initial_space
+        index = 0
+        while index < len(body):
+            mark = body[index]
+            if inside:
+                if escape == DOC_ESCAPE_BACKSLASH and mark == DOC_BACKSLASH:
+                    value = value + body[index + 1 : index + 2]
+                    index = index + 2
+                    continue
+                if mark == DOC_QUOTE:
+                    if (
+                        escape == DOC_ESCAPE_DOUBLED
+                        and body[index + 1 : index + 2] == DOC_QUOTE
+                    ):
+                        value = value + DOC_QUOTE
+                        index = index + 2
+                        continue
+                    inside = False
+                    closed = True
+                    index = index + 1
+                    continue
+                value = value + mark
+                index = index + 1
+                continue
+            if mark == delimiter:
+                fields += [value]
+                value = ""
+                closed = False
+                skipping = initial_space
+                index = index + 1
+                continue
+            if skipping and mark == DOC_SPACE:
+                index = index + 1
+                continue
+            skipping = False
+            if mark == DOC_QUOTE and not value and not closed:
+                inside = True
+                index = index + 1
+                continue
+            if closed:
+                # TEXT AFTER A CLOSING QUOTE is neither an error nor a
+                # refusal: the reader counts the field MALFORMED and
+                # carries on appending, so `"id"; "note"` read under the
+                # COMMA is one field reading `id; "note"`.  That reading
+                # is the whole reason the comma is rejected below, so a
+                # mirror that stopped here could not score any candidate
+                # against a file whose fields are quoted -- which is
+                # every file this rule was measured on.
+                malformed = malformed + 1
+                closed = False
+            value = value + mark
+            index = index + 1
+        if inside:
+            raise AssertionError(
+                "this oracle does not model a quoted field spanning a line "
+                f"ending, and the line {body!r} opens one"
+            )
+        fields += [value]
+        taken += [{"fields": fields, "malformed": malformed, "raw": body}]
+    return taken
+
+
+def leads_the_table(record):
+    """Whether a record has the shape of a line BEFORE a table, not a row.
+
+    A blank line; a line beginning `#`; or a line of one field that
+    reads as a title because it holds a space.  A one-field line holding
+    no space is the name of a one-column table as often as it is a
+    title, so it is not one.
+    """
+    if not record["fields"]:
+        return True
+    if record["raw"][:1] == "#":
+        return True
+    return len(record["fields"]) == 1 and DOC_SPACE in record["raw"]
+
+
+def width_share(sample):
+    """How many records sit at their commonest width, and that width.
+
+    Blank lines and lines of nothing but spaces are not records of any
+    width and are not counted.
+    """
+    counted = {}
+    total = 0
+    for record in sample:
+        width = len(record["fields"])
+        if not width:
+            continue
+        if width == 1 and all(
+            mark in (DOC_SPACE, DOC_TAB) for mark in record["fields"][0]
+        ):
+            continue
+        counted[width] = counted.get(width, 0) + 1
+        total = total + 1
+    if not total:
+        return (0, 0, 0)
+    best = 0
+    best_count = 0
+    for width in sorted(counted):
+        if counted[width] >= best_count:
+            best = width
+            best_count = counted[width]
+    return (best_count, total, best)
+
+
+def best_reading(text, candidate, at):
+    """The best the first records read under one candidate delimiter.
+
+    EVERY SETTING IS SCORED WITH THE DELIMITER (review item CODEX-5).
+    The settings decide what a delimiter READS AS, so choosing the
+    delimiter first and the spacing and escaping afterwards reads a
+    two-column file as one column: a file written `"id"; "note"` with
+    `"1"; "alpha; beta"` under it reads, with no space skipped, as a
+    header of two fields and rows of three -- the space before the quote
+    makes that quote an ordinary character -- and is rejected as ragged.
+
+    So each candidate is scored at its own best over the two spacings
+    and the two escapings, a reading counts only where the commonest
+    width is two or more, and THE TABLE'S FIRST RECORD HAS THE TABLE'S
+    WIDTH: the first record that is not a line before the table must
+    stand at that width, or the reading is rejected.
+    """
+    best = None
+    for spaced in (False, True):
+        for escape in DOC_ESCAPES:
+            sample = doc_read_records(
+                text, candidate, escape, spaced, at, DOC_SAMPLE_RECORDS
+            )
+            at_width, total, width = width_share(sample)
+            if width < 2:
+                continue
+            opening = 0
+            while opening < len(sample) and leads_the_table(sample[opening]):
+                opening = opening + 1
+            if opening < len(sample) and len(sample[opening]["fields"]) != width:
+                continue
+            found = {
+                "at_that_width": at_width,
+                "records": total,
+                "width": width,
+            }
+            if best is None or (at_width * best["records"], width) > (
+                best["at_that_width"] * total,
+                best["width"],
+            ):
+                best = found
+    return best
+
+
+def chosen_delimiter(readings):
+    """The delimiter a table is written with, from the readings above.
+
+    The candidate under which the most records share one width of two or
+    more fields wins, a wider table breaking a tie.  A table no candidate
+    reads as two or more fields is one column and its delimiter is the
+    comma.
+
+    A TIE OF BOTH is decided by the cells, which this oracle does not
+    reach: it stops rather than choosing, because the rule that settles
+    it counts how many cells read as numbers under each reading, and a
+    frozen case that needed it would need the whole number grammar with
+    it.
+    """
+    chosen = ","
+    best = None
+    for candidate in DOC_DELIMITERS:
+        found = readings[candidate]
+        if found is None:
+            continue
+        if best is None:
+            chosen, best = candidate, found
+            continue
+        here = found["at_that_width"] * best["records"]
+        there = best["at_that_width"] * found["records"]
+        if here > there or (here == there and found["width"] > best["width"]):
+            chosen, best = candidate, found
+            continue
+        if here == there and found["width"] == best["width"]:
+            raise AssertionError(
+                f"the readings under {best!r} and {found!r} tie on both the "
+                "share and the width, and the rule that settles such a tie "
+                "counts the cells that read as numbers, which this oracle "
+                "does not implement"
+            )
+    return chosen
+
+
+# -- G2.2: the twin of a workbook --------------------------------------
+
+SHEET_NOTHING_CLASSES = ("absent", "blank", "empty")
+SHEET_VALUE_CLASSES = ("error", "boolean", "number", "text")
+SHEET_FORMAT_KINDS = ("plain", "date", "datetime", "time", "elapsed", "text")
+SHEET_WITHHELD_CELL = "withheld"
+SHEET_NEUTRAL_NAME = "Sheet"
+SHEET_TABLE_NAME = "Table1"
+
+# The closed vocabulary of format codes a description may publish, with
+# the id a workbook stores each built-in one under.  These are the codes
+# of the file format itself and not text of anybody's table, which is
+# what makes them publishable at all.
+SHEET_BUILT_IN_FORMAT_IDS = {
+    "General": 0, "0": 1, "0.00": 2, "#,##0": 3, "#,##0.00": 4, "0%": 9,
+    "0.00%": 10, "0.00E+00": 11, "# ?/?": 12, "# ??/??": 13, "mm-dd-yy": 14,
+    "d-mmm-yy": 15, "d-mmm": 16, "mmm-yy": 17, "h:mm AM/PM": 18,
+    "h:mm:ss AM/PM": 19, "h:mm": 20, "h:mm:ss": 21, "m/d/yy h:mm": 22,
+    "#,##0 ;(#,##0)": 37, "#,##0 ;[Red](#,##0)": 38,
+    "#,##0.00;(#,##0.00)": 39, "#,##0.00;[Red](#,##0.00)": 40, "mm:ss": 45,
+    "[h]:mm:ss": 46, "mmss.0": 47, "##0.0E+0": 48, "@": 49,
+}
+
+SHEET_CANONICAL_FORMAT_CODES = {
+    "plain": "General",
+    "date": "yyyy\\-mm\\-dd",
+    "datetime": "yyyy\\-mm\\-dd\\ hh:mm:ss",
+    "time": "h:mm:ss",
+    "elapsed": "[h]:mm:ss",
+    "text": "@",
+}
+
+SHEET_FORMAT_CODE_KINDS = {
+    "General": "plain", "0": "plain", "0.00": "plain", "#,##0": "plain",
+    "#,##0.00": "plain", "0%": "plain", "0.00%": "plain",
+    "0.00E+00": "plain", "# ?/?": "plain", "# ??/??": "plain",
+    "mm-dd-yy": "date", "d-mmm-yy": "date", "d-mmm": "date",
+    "mmm-yy": "date", "h:mm AM/PM": "time", "h:mm:ss AM/PM": "time",
+    "h:mm": "time", "h:mm:ss": "time", "m/d/yy h:mm": "datetime",
+    "#,##0 ;(#,##0)": "plain", "#,##0 ;[Red](#,##0)": "plain",
+    "#,##0.00;(#,##0.00)": "plain", "#,##0.00;[Red](#,##0.00)": "plain",
+    "mm:ss": "time", "[h]:mm:ss": "elapsed", "mmss.0": "time",
+    "##0.0E+0": "plain", "@": "text",
+    "yyyy\\-mm\\-dd": "date",
+    "yyyy\\-mm\\-dd\\ hh:mm:ss": "datetime",
+}
+
+SHEET_DECLARATION = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+)
+SHEET_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+SHEET_RELS = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+)
+SHEET_PACKAGE = (
+    "http://schemas.openxmlformats.org/package/2006/relationships"
+)
+SHEET_TYPES = "http://schemas.openxmlformats.org/package/2006/content-types"
+SHEET_BOOK_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
+)
+
+
+def sheet_escaped(text):
+    """One piece of text as XML content."""
+    out = text
+    out = out.replace("&", "&amp;")
+    out = out.replace("<", "&lt;")
+    out = out.replace(">", "&gt;")
+    out = out.replace('"', "&quot;")
+    return out
+
+
+def sheet_cleaned(text):
+    """The text with the characters XML cannot carry taken out."""
+    out = ""
+    for mark in text:
+        place = ord(mark)
+        if place in (9, 10, 13) or place >= 32:
+            out = out + mark
+    return out
+
+
+def column_letters(number):
+    """The letters naming a column, counting from one: 1 is A, 28 is AB."""
+    letters = ""
+    left = number
+    while left > 0:
+        left = left - 1
+        letters = chr(65 + left % 26) + letters
+        left = left // 26
+    return letters
+
+
+def sheet_number_spelling(text):
+    """The text as a workbook stores a number, or "" where it is not one.
+
+    G2.2 step 1.  A grouped number, a decimal comma, a bracketed
+    negative, a percent or a currency mark is NOT one: in a workbook
+    those are a FORMAT worn by a plain number and never the stored
+    value, so a cell written that way is written as text and keeps its
+    characters.
+    """
+    if not text:
+        return ""
+    return text if doc_is_a_plain_number(text) else ""
+
+
+def sheet_boolean_spelling(text):
+    """`1` or `0` where the text is a boolean's spelling, else nothing."""
+    folded = text.casefold()
+    if folded in ("true", "1"):
+        return "1"
+    if folded in ("false", "0"):
+        return "0"
+    return ""
+
+
+def sheet_wanted(census, kind):
+    """How many cells of this class the description asks for (G2.2 step 1).
+
+    A count the smallest group held back is not a licence to write none:
+    it means the number was not published, so nothing is asked for here
+    and the leading class answers for those cells.
+    """
+    found = census.get(kind)
+    return found if isinstance(found, int) else 0
+
+
+def sheet_denied(census, kind):
+    """Whether the census says outright that no cell has this class."""
+    found = census.get(kind)
+    return isinstance(found, int) and found == 0
+
+
+def sheet_leading(census, among):
+    """Which of these classes the column holds most of (G2.2 step 1).
+
+    Ties go to the earlier of the order given, and A CLASS PUBLISHED AS
+    NOUGHT IS NEVER THE LEADING ONE: a published nought is a fact about
+    the column, so the remainder goes to a class whose number was not
+    published rather than to one the description denies.
+    """
+    best = among[len(among) - 1]
+    seen = -1
+    best_denied = True
+    for kind in among:
+        count = sheet_wanted(census, kind)
+        denied = sheet_denied(census, kind)
+        if count > seen:
+            seen, best, best_denied = count, kind, denied
+            continue
+        if count == seen and best_denied and not denied:
+            best, best_denied = kind, denied
+    return best
+
+
+def sheet_cell_classes(census, cells):
+    """Which class each generated cell of one column is written as (G2.2).
+
+    THE CLASS COMES FROM WHAT THE SOURCE HELD, never from what the
+    twin's characters could be read as -- which is what keeps a column
+    of text whose every cell looks like a number written as TEXT.
+    """
+    empty_order = []
+    full_order = []
+    for index in range(len(cells)):
+        if cells[index] == "":
+            empty_order += [index]
+            continue
+        full_order += [index]
+    out = ["" for _index in range(len(cells))]
+
+    leading_nothing = sheet_leading(census, SHEET_NOTHING_CLASSES)
+    at = 0
+    for kind in SHEET_NOTHING_CLASSES:
+        left = sheet_wanted(census, kind)
+        while left > 0 and at < len(empty_order):
+            out[empty_order[at]] = kind
+            at = at + 1
+            left = left - 1
+    while at < len(empty_order):
+        out[empty_order[at]] = leading_nothing
+        at = at + 1
+
+    numeric = []
+    other = []
+    for index in full_order:
+        if sheet_number_spelling(cells[index]):
+            numeric += [index]
+            continue
+        other += [index]
+    taken = {}
+    left = sheet_wanted(census, "number")
+    for index in numeric:
+        if left <= 0:
+            break
+        out[index] = "number"
+        taken[index] = True
+        left = left - 1
+
+    leading_value = sheet_leading(census, SHEET_VALUE_CLASSES)
+    waiting = [index for index in full_order if index not in taken]
+    at = 0
+    for kind in SHEET_VALUE_CLASSES:
+        if kind == "number":
+            continue
+        left = sheet_wanted(census, kind)
+        while left > 0 and at < len(waiting):
+            out[waiting[at]] = kind
+            at = at + 1
+            left = left - 1
+    while at < len(waiting):
+        out[waiting[at]] = leading_value
+        at = at + 1
+    return out
+
+
+def sheet_format_kinds(census, classes):
+    """Which kind of format each cell of one column wears (G2.2 step 2).
+
+    A mixture is reproduced as its COUNTS and never collapsed to the
+    majority.  An ABSENT cell is always plain: nothing is written for
+    it, so every reader sees the general format there.
+    """
+    written = [
+        index for index in range(len(classes)) if classes[index] != "absent"
+    ]
+    out = ["plain" for _index in range(len(classes))]
+    at = 0
+    for kind in SHEET_FORMAT_KINDS:
+        if kind == "plain":
+            continue
+        left = sheet_wanted(census, kind)
+        while left > 0 and at < len(written):
+            out[written[at]] = kind
+            at = at + 1
+            left = left - 1
+    return out
+
+
+def sheet_code_for_kind(kind, published):
+    """The code a cell of this kind is written with (G2.2 step 3)."""
+    if SHEET_FORMAT_CODE_KINDS.get(published) == kind:
+        return published
+    return SHEET_CANONICAL_FORMAT_CODES[kind]
+
+
+def sheet_placeholder_rows(above, n_columns):
+    """How many rows the twin writes above its header (G2.2 step 5).
+
+    A ONE-COLUMN TABLE CANNOT CARRY THEM: the header is found as the
+    first row reaching the table's width, so a one-cell row above the
+    header IS that width and would be read back as the header.
+    """
+    return 0 if n_columns <= 1 else above
+
+
+def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted):
+    """Move each column's cells holding nothing onto shared rows (G2.2).
+
+    A permutation WITHIN EACH COLUMN and nothing else, so each column
+    keeps its exact multiset of values and every published fact about it
+    still holds.
+    """
+    if wanted <= 0 or not classes:
+        return (classes, cells)
+    room = n_rows
+    for column in classes:
+        spare = 0
+        for kind in column:
+            if kind in SHEET_NOTHING_CLASSES:
+                spare = spare + 1
+        if spare < room:
+            room = spare
+    if room < wanted:
+        wanted = room
+    if wanted <= 0:
+        return (classes, cells)
+    out_classes = []
+    out_cells = []
+    for index in range(len(classes)):
+        kinds = list(classes[index])
+        values = list(cells[index])
+        spare_rows = [
+            row
+            for row in range(len(kinds))
+            if row >= wanted and kinds[row] in SHEET_NOTHING_CLASSES
+        ]
+        at = 0
+        for row in range(wanted):
+            if row < len(kinds) and kinds[row] in SHEET_NOTHING_CLASSES:
+                continue
+            if at >= len(spare_rows):
+                break
+            other = spare_rows[at]
+            at = at + 1
+            kinds[row], kinds[other] = kinds[other], kinds[row]
+            values[row], values[other] = values[other], values[row]
+        out_classes += [kinds]
+        out_cells += [values]
+    return (out_classes, out_cells)
+
+
+def sheet_empty_row_places(classes, n_rows, wanted):
+    """Which generated rows are written as records holding nothing (G2.2)."""
+    places = {}
+    if wanted <= 0:
+        return places
+    left = wanted
+    for row in range(n_rows):
+        if left <= 0:
+            break
+        holding = False
+        for column in classes:
+            if row < len(column) and column[row] not in SHEET_NOTHING_CLASSES:
+                holding = True
+                break
+        if not holding:
+            places[row] = True
+            left = left - 1
+    return places
+
+
+def sheet_shared_place(items, places, text):
+    """Where this text sits in the shared-string table, adding it if new."""
+    if text in places:
+        return places[text]
+    place = len(items)
+    items += [text]
+    places[text] = place
+    return place
+
+
+def sheet_published_name(name):
+    """The sheet's name where it may be published, else nothing.
+
+    One of the closed vocabulary of generic names, alone or followed by
+    figures.  A sheet name can hold a person's name, so what is not one
+    of those is withheld and the twin writes a neutral name.
+    """
+    if not name:
+        return None
+    figures = 0
+    for index in range(len(name)):
+        if name[len(name) - 1 - index] in "0123456789":
+            figures = figures + 1
+            continue
+        break
+    stem = name[: len(name) - figures]
+    safe = (
+        "codebook", "data", "export", "info", "notes", "page", "raw",
+        "report", "results", "sheet", "summary", "table", "values",
+        "worksheet",
+    )
+    return name if stem.casefold() in safe else None
+
+
+def sheet_twin_names(published):
+    """The name the twin writes each sheet under (G2.2 step 9).
+
+    A PUBLISHED NAME IS CLAIMED FIRST and a placeholder then walks up
+    until it finds a number no published name has taken, so a workbook
+    whose first sheet is withheld and whose second is called `Sheet1`
+    does not rename the sheet whose name the description publishes.
+    """
+    taken = {}
+    for name in published:
+        if name is not None:
+            taken[name] = True
+    out = []
+    for index in range(len(published)):
+        here = published[index]
+        if here is not None:
+            out += [here]
+            continue
+        number = index + 1
+        neutral = SHEET_NEUTRAL_NAME + f"{number}"
+        while neutral in taken:
+            number = number + 1
+            neutral = SHEET_NEUTRAL_NAME + f"{number}"
+        taken[neutral] = True
+        out += [neutral]
+    return out
+
+
+def sheet_hidden_states(sheets, chosen, chosen_hidden):
+    """Which of the twin's sheets are hidden (G2.2 step 9).
+
+    The reading rule read backwards: every sheet BEFORE the chosen one
+    is hidden, so the chosen sheet is the first visible one and the
+    twin's own reader lands on the table.  Where that would leave
+    nothing visible -- a workbook no spreadsheet application can open --
+    one sheet that is not the table's is shown instead.
+    """
+    states = []
+    for index in range(sheets):
+        number = index + 1
+        if number < chosen:
+            states += [True]
+            continue
+        if number == chosen:
+            states += [chosen_hidden]
+            continue
+        states += [False]
+    if states and all(states):
+        last = len(states) - 1
+        if last == chosen - 1 and last > 0:
+            last = last - 1
+        states[last] = False
+    return states
+
+
+def sheet_cell_element(reference, kind, value, style):
+    """One cell element.  It never carries a formula, whatever it holds."""
+    marks = f' r="{reference}"'
+    if kind:
+        marks = marks + f' t="{kind}"'
+    if style:
+        marks = marks + f' s="{style}"'
+    if not value:
+        return f"<c{marks}/>"
+    return f"<c{marks}><v>{sheet_escaped(value)}</v></c>"
+
+
+def sheet_styles_part(codes):
+    """The style table: one style per published code, plus the header's."""
+    customs = []
+    for code in codes:
+        if code not in SHEET_BUILT_IN_FORMAT_IDS and code not in customs:
+            customs += [code]
+    text = SHEET_DECLARATION + f'<styleSheet xmlns="{SHEET_MAIN}">'
+    if customs:
+        text = text + f'<numFmts count="{len(customs)}">'
+        for index in range(len(customs)):
+            text = text + (
+                f'<numFmt numFmtId="{164 + index}" '
+                f'formatCode="{sheet_escaped(customs[index])}"/>'
+            )
+        text = text + "</numFmts>"
+    text = text + (
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>'
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>'
+        '<fill><patternFill patternType="gray125"/></fill></fills>'
+        '<borders count="1"><border><left/><right/><top/><bottom/>'
+        "<diagonal/></border></borders>"
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" '
+        'borderId="0"/></cellStyleXfs>'
+    )
+    text = text + f'<cellXfs count="{len(codes) + 1}">'
+    for code in codes:
+        number = 0
+        if code in SHEET_BUILT_IN_FORMAT_IDS:
+            number = SHEET_BUILT_IN_FORMAT_IDS[code]
+        else:
+            for index in range(len(customs)):
+                if customs[index] == code:
+                    number = 164 + index
+        text = text + (
+            f'<xf numFmtId="{number}" fontId="0" fillId="0" borderId="0" '
+            'xfId="0" applyNumberFormat="1"/>'
+        )
+    text = text + (
+        '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" '
+        'applyFont="1"/>'
+    )
+    text = text + "</cellXfs>"
+    text = text + (
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" '
+        'builtinId="0"/></cellStyles></styleSheet>'
+    )
+    return text
+
+
+def sheet_shared_strings_part(items):
+    """The shared-string table, preserving every space a cell's text has."""
+    text = SHEET_DECLARATION + (
+        f'<sst xmlns="{SHEET_MAIN}" count="{len(items)}" '
+        f'uniqueCount="{len(items)}">'
+    )
+    for item in items:
+        shown = sheet_escaped(item)
+        if item != item.strip():
+            text = text + f'<si><t xml:space="preserve">{shown}</t></si>'
+            continue
+        text = text + f"<si><t>{shown}</t></si>"
+    return text + "</sst>"
+
+
+def sheet_core_part():
+    """Document properties, written NEUTRAL: they can name a person."""
+    return SHEET_DECLARATION + (
+        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/'
+        'package/2006/metadata/core-properties" xmlns:dc="http://purl.org/'
+        'dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        "<dc:title></dc:title><dc:subject></dc:subject>"
+        "<dc:creator></dc:creator><cp:lastModifiedBy></cp:lastModifiedBy>"
+        "</cp:coreProperties>"
+    )
+
+
+def sheet_app_part():
+    """The other half of the document properties, equally neutral."""
+    return SHEET_DECLARATION + (
+        '<Properties xmlns="http://schemas.openxmlformats.org/'
+        'officeDocument/2006/extended-properties">'
+        "<Application>synthtwin</Application><Company></Company>"
+        "</Properties>"
+    )
+
+
+def sheet_table_part(names, first_row, last_row, autofilter):
+    """A defined table over the twin's OWN rows, under a neutral name."""
+    width = len(names)
+    span = f"A{first_row}:{column_letters(width)}{last_row}"
+    text = SHEET_DECLARATION + (
+        f'<table xmlns="{SHEET_MAIN}" id="1" name="{SHEET_TABLE_NAME}" '
+        f'displayName="{SHEET_TABLE_NAME}" ref="{span}" totalsRowShown="0">'
+    )
+    if autofilter:
+        text = text + f'<autoFilter ref="{span}"/>'
+    text = text + f'<tableColumns count="{width}">'
+    for index in range(width):
+        shown = sheet_escaped(sheet_cleaned(names[index]))
+        text = text + f'<tableColumn id="{index + 1}" name="{shown}"/>'
+    text = text + "</tableColumns>"
+    text = text + (
+        '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" '
+        'showLastColumn="0" showRowStripes="1" showColumnStripes="0"/>'
+    )
+    return text + "</table>"
+
+
+def sheet_book_part(sheet_names, hidden, epoch_1904):
+    """The workbook: every sheet in its place, its state, and the epoch."""
+    text = SHEET_DECLARATION + (
+        f'<workbook xmlns="{SHEET_MAIN}" xmlns:r="{SHEET_RELS}">'
+    )
+    if epoch_1904:
+        text = text + '<workbookPr date1904="1"/>'
+    text = text + "<sheets>"
+    for index in range(len(sheet_names)):
+        shown = sheet_escaped(sheet_names[index])
+        state = ' state="hidden"' if hidden[index] else ""
+        text = text + (
+            f'<sheet name="{shown}" sheetId="{index + 1}"{state} '
+            f'r:id="rId{index + 1}"/>'
+        )
+    return text + "</sheets></workbook>"
+
+
+def sheet_book_rels_part(sheets):
+    """What the workbook points at: its sheets, its styles, its strings."""
+    text = SHEET_DECLARATION + f'<Relationships xmlns="{SHEET_PACKAGE}">'
+    for number in range(1, sheets + 1):
+        text = text + (
+            f'<Relationship Id="rId{number}" Type="{SHEET_RELS}/worksheet" '
+            f'Target="worksheets/sheet{number}.xml"/>'
+        )
+    following = sheets + 1
+    text = text + (
+        f'<Relationship Id="rId{following}" Type="{SHEET_RELS}/styles" '
+        'Target="styles.xml"/>'
+        f'<Relationship Id="rId{following + 1}" '
+        f'Type="{SHEET_RELS}/sharedStrings" Target="sharedStrings.xml"/>'
+    )
+    return text + "</Relationships>"
+
+
+def sheet_root_rels_part():
+    """What the package points at: the workbook and the property parts."""
+    return SHEET_DECLARATION + (
+        f'<Relationships xmlns="{SHEET_PACKAGE}">'
+        f'<Relationship Id="rId1" Type="{SHEET_RELS}/officeDocument" '
+        'Target="xl/workbook.xml"/>'
+        f'<Relationship Id="rId2" '
+        f'Type="{SHEET_PACKAGE}/metadata/core-properties" '
+        'Target="docProps/core.xml"/>'
+        f'<Relationship Id="rId3" Type="{SHEET_RELS}/extended-properties" '
+        'Target="docProps/app.xml"/>'
+        "</Relationships>"
+    )
+
+
+def sheet_content_types_part(sheets, table):
+    """What each part of the package is.  No macro type is ever written."""
+    text = SHEET_DECLARATION + f'<Types xmlns="{SHEET_TYPES}">'
+    text = text + (
+        '<Default Extension="rels" ContentType="application/vnd.'
+        'openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        f'<Override PartName="/xl/workbook.xml" '
+        f'ContentType="{SHEET_BOOK_TYPE}"/>'
+    )
+    for number in range(1, sheets + 1):
+        text = text + (
+            f'<Override PartName="/xl/worksheets/sheet{number}.xml" '
+            'ContentType="application/vnd.openxmlformats-officedocument.'
+            'spreadsheetml.worksheet+xml"/>'
+        )
+    text = text + (
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.'
+        'openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '<Override PartName="/xl/sharedStrings.xml" ContentType='
+        '"application/vnd.openxmlformats-officedocument.spreadsheetml.'
+        'sharedStrings+xml"/>'
+    )
+    if table:
+        text = text + (
+            '<Override PartName="/xl/tables/table1.xml" ContentType='
+            '"application/vnd.openxmlformats-officedocument.spreadsheetml.'
+            'table+xml"/>'
+        )
+    text = text + (
+        '<Override PartName="/docProps/core.xml" ContentType="application/'
+        'vnd.openxmlformats-package.core-properties+xml"/>'
+        '<Override PartName="/docProps/app.xml" ContentType="application/'
+        'vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+    )
+    return text + "</Types>"
+
+
+def sheet_rels_part():
+    """What a sheet carrying a defined table points at."""
+    return SHEET_DECLARATION + (
+        f'<Relationships xmlns="{SHEET_PACKAGE}">'
+        f'<Relationship Id="rId1" Type="{SHEET_RELS}/table" '
+        'Target="../tables/table1.xml"/>'
+        "</Relationships>"
+    )
+
+
+def sheet_other_part(extent, items, places):
+    """A sheet that is not the table's: its shape, and none of its cells.
+
+    G2.2 step 8.  It was written EMPTY once and a reader then met a
+    different workbook, so it is written with as many cells as it held,
+    each carrying one word of synthtwin's own.  A sheet that held
+    nothing is written holding nothing.
+    """
+    rows = extent["rows"] if extent is not None else 0
+    columns = extent["columns"] if extent is not None else 0
+    text = SHEET_DECLARATION + (
+        f'<worksheet xmlns="{SHEET_MAIN}" xmlns:r="{SHEET_RELS}">'
+    )
+    if rows and columns:
+        text = text + (
+            f'<dimension ref="A1:{column_letters(columns)}{rows}"/>'
+        )
+    else:
+        text = text + '<dimension ref="A1"/>'
+    text = text + (
+        '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+        "<sheetFormatPr/>"
+    )
+    if not rows or not columns:
+        return text + "<sheetData/></worksheet>"
+    place = sheet_shared_place(items, places, SHEET_WITHHELD_CELL)
+    text = text + "<sheetData>"
+    for row in range(rows):
+        number = row + 1
+        text = text + f'<row r="{number}">'
+        for column in range(columns):
+            reference = column_letters(column + 1) + f"{number}"
+            text = text + sheet_cell_element(reference, "s", f"{place}", 0)
+        text = text + "</row>"
+    return text + "</sheetData></worksheet>"
+
+
+def sheet_table_sheet_part(
+    names, cells, classes, styles, n_rows, write_header, header_style,
+    rows_above, empty_places, block, items, places,
+):
+    """The worksheet the table stands on (G2.2 step 7)."""
+    width = len(names)
+    trailing_rows = block["trailing_blank_rows"]
+    trailing_columns = block["trailing_blank_columns"]
+    empty_place = sheet_shared_place(items, places, "")
+    text = SHEET_DECLARATION + (
+        f'<worksheet xmlns="{SHEET_MAIN}" xmlns:r="{SHEET_RELS}">'
+    )
+    last_row = rows_above + (1 if write_header else 0) + n_rows + trailing_rows
+    last_column = width + trailing_columns
+    last_row = max(last_row, 1)
+    last_column = max(last_column, 1)
+    text = text + (
+        f'<dimension ref="A1:{column_letters(last_column)}{last_row}"/>'
+    )
+    frozen = block["frozen_rows"]
+    if frozen:
+        text = text + (
+            '<sheetViews><sheetView workbookViewId="0">'
+            f'<pane ySplit="{frozen}" topLeftCell="A{frozen + 1}" '
+            'activePane="bottomLeft" state="frozen"/>'
+            "</sheetView></sheetViews>"
+        )
+    else:
+        text = text + (
+            '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+        )
+    text = text + "<sheetFormatPr/><sheetData>"
+
+    number = 0
+    for _above in range(rows_above):
+        number = number + 1
+        text = text + f'<row r="{number}">'
+        text = text + sheet_cell_element(f"A{number}", "s", f"{empty_place}", 0)
+        text = text + "</row>"
+
+    if write_header:
+        number = number + 1
+        text = text + f'<row r="{number}">'
+        for index in range(width):
+            reference = column_letters(index + 1) + f"{number}"
+            place = sheet_shared_place(
+                items, places, sheet_cleaned(names[index])
+            )
+            text = text + sheet_cell_element(
+                reference, "s", f"{place}", header_style
+            )
+        for extra in range(trailing_columns):
+            reference = column_letters(width + extra + 1) + f"{number}"
+            text = text + sheet_cell_element(reference, "", "", 0)
+        text = text + "</row>"
+
+    for row in range(n_rows):
+        number = number + 1
+        if row in empty_places:
+            text = text + f'<row r="{number}"/>'
+            continue
+        line = ""
+        for index in range(width):
+            kind = classes[index][row]
+            if kind == "absent":
+                continue
+            reference = column_letters(index + 1) + f"{number}"
+            style = styles[index][row]
+            if kind == "blank":
+                line = line + sheet_cell_element(reference, "", "", style)
+                continue
+            if kind == "empty":
+                line = line + sheet_cell_element(
+                    reference, "s", f"{empty_place}", style
+                )
+                continue
+            value = sheet_cleaned(cells[index][row])
+            if kind == "error":
+                line = line + sheet_cell_element(reference, "e", value, style)
+                continue
+            if kind == "boolean":
+                spelled = sheet_boolean_spelling(value)
+                if spelled:
+                    line = line + sheet_cell_element(
+                        reference, "b", spelled, style
+                    )
+                    continue
+                place = sheet_shared_place(items, places, value)
+                line = line + sheet_cell_element(
+                    reference, "s", f"{place}", style
+                )
+                continue
+            if kind == "number":
+                spelled = sheet_number_spelling(value)
+                if spelled:
+                    line = line + sheet_cell_element(
+                        reference, "", spelled, style
+                    )
+                    continue
+                place = sheet_shared_place(items, places, value)
+                line = line + sheet_cell_element(
+                    reference, "s", f"{place}", style
+                )
+                continue
+            place = sheet_shared_place(items, places, value)
+            line = line + sheet_cell_element(reference, "s", f"{place}", style)
+        if not line:
+            text = text + f'<row r="{number}"/>'
+            continue
+        text = text + f'<row r="{number}">' + line + "</row>"
+
+    for _below in range(trailing_rows):
+        number = number + 1
+        text = text + f'<row r="{number}">'
+        text = text + sheet_cell_element(f"A{number}", "", "", 0)
+        text = text + "</row>"
+
+    text = text + "</sheetData>"
+    if block["autofilter"] and write_header and width:
+        first = rows_above + 1
+        text = text + (
+            f'<autoFilter ref="A{first}:{column_letters(width)}{last_row}"/>'
+        )
+    if block["defined_table"]:
+        text = text + (
+            '<tableParts count="1"><tablePart r:id="rId1"/></tableParts>'
+        )
+    return text + "</worksheet>"
+
+
+def workbook_parts(block, names, cells, n_rows, write_header):
+    """Every part of the twin's package, in the one fixed order (G2.2).
+
+    The order is part of the determinism, and so is the order the
+    shared-string table is built in: the sheets are written in workbook
+    order, and the table is filled as they are written.
+    """
+    width = len(names)
+    codes = ["General"]
+    style_of = {"General": 0}
+    classes = []
+    columns = []
+    for index in range(width):
+        census = block["columns"][index]["cell_classes"]
+        own = list(cells[index])
+        columns += [own]
+        classes += [sheet_cell_classes(census, own)]
+
+    items = []
+    places = {}
+    rows_above = sheet_placeholder_rows(block["rows_above_header"], width)
+    wanted_empty = block["empty_rows_inside"] or 0
+    classes, columns = sheet_aligned_for_empty_records(
+        classes, columns, n_rows, wanted_empty
+    )
+    empty_places = sheet_empty_row_places(classes, n_rows, wanted_empty)
+
+    styles = []
+    for index in range(width):
+        column = block["columns"][index]
+        kinds = sheet_format_kinds(column["format_kinds"], classes[index])
+        row_styles = []
+        for row in range(len(kinds)):
+            code = sheet_code_for_kind(kinds[row], column["format_code"])
+            if code not in style_of:
+                style_of[code] = len(codes)
+                codes += [code]
+            row_styles += [style_of[code]]
+        styles += [row_styles]
+
+    published = []
+    for index in range(block["sheet_count"]):
+        here = None
+        if index < len(block["sheet_names"]):
+            here = block["sheet_names"][index]
+        published += [here]
+    sheet_names = sheet_twin_names(published)
+
+    chosen = block["sheet_position"]
+    if chosen < 1 or chosen > len(sheet_names):
+        chosen = 1
+    hidden = sheet_hidden_states(
+        len(sheet_names), chosen, block["sheet_hidden"]
+    )
+
+    sheets = []
+    for index in range(len(sheet_names)):
+        number = index + 1
+        if number != chosen:
+            extent = None
+            if index < len(block["sheet_extents"]):
+                extent = block["sheet_extents"][index]
+            sheets += [
+                (
+                    f"xl/worksheets/sheet{number}.xml",
+                    sheet_other_part(extent, items, places),
+                )
+            ]
+            continue
+        sheets += [
+            (
+                f"xl/worksheets/sheet{number}.xml",
+                sheet_table_sheet_part(
+                    names, columns, classes, styles, n_rows, write_header,
+                    len(codes), rows_above, empty_places, block, items,
+                    places,
+                ),
+            )
+        ]
+
+    table = block["defined_table"]
+    first_row = rows_above + 1
+    last_row = rows_above + (1 if write_header else 0) + n_rows
+    members = [
+        (
+            "[Content_Types].xml",
+            sheet_content_types_part(len(sheet_names), table),
+        ),
+        ("_rels/.rels", sheet_root_rels_part()),
+        ("docProps/app.xml", sheet_app_part()),
+        ("docProps/core.xml", sheet_core_part()),
+        (
+            "xl/workbook.xml",
+            sheet_book_part(
+                sheet_names, hidden, block["date_system"] == "1904"
+            ),
+        ),
+        (
+            "xl/_rels/workbook.xml.rels",
+            sheet_book_rels_part(len(sheet_names)),
+        ),
+        ("xl/styles.xml", sheet_styles_part(codes)),
+        ("xl/sharedStrings.xml", sheet_shared_strings_part(items)),
+    ]
+    members += sheets
+    if table:
+        members += [
+            (
+                f"xl/worksheets/_rels/sheet{chosen}.xml.rels",
+                sheet_rels_part(),
+            ),
+            (
+                "xl/tables/table1.xml",
+                sheet_table_part(
+                    names, first_row, last_row, block["autofilter"]
+                ),
+            ),
+        ]
+    return members
+
+
+# -- the document cases ------------------------------------------------
+#
+# These five are a DIFFERENT SHAPE from every case above, and the shape
+# is the point rather than an inconvenience: a document case carries no
+# column block, no words and no word budget, because none of the
+# transforms it freezes consumes a word or reads a column's facts.  What
+# it carries is the description's own `source.dialect` or
+# `source.workbook` block -- the inputs those transforms really take --
+# and the bytes they produce.
+
+
+def _written_form_lines():
+    """A delimited file wearing most of what a written form can say."""
+    return {
+        "why": "method section G2's written form, end to end, on a file "
+        "that exercises most of what a dialect block can say: an Excel "
+        "separator hint, a byte-order mark, four lines before the table "
+        "in three runs of two shapes, an always-quoted header, a column "
+        "padded left to five characters, a second column whose four cell "
+        "classes take three DIFFERENT quoting rules, a trailing "
+        "delimiter on every record and none on the header, a blank line "
+        "after the third record, two runs of line endings, no ending on "
+        "the last line and an end-of-file mark after it. Before this "
+        "case the written form had no second implementation at all: "
+        "landing 2b.9 built it and `grep` for `twin_text` in this file "
+        "found nothing, so the only check on any of its rules was a "
+        "round trip through the code that implements them. This case's "
+        "mutant withdraws the lines before the table, and the file's "
+        "lines move.",
+        "kind": "delimited",
+        "names": ["reading", "note"],
+        "write_header": True,
+        "rows": [
+            ["12.5", "alpha"],
+            ["3", "beta; gamma"],
+            ["", "delta"],
+            ["100", ""],
+            ["7.25", "epsilon"],
+            ["42", "zeta"],
+        ],
+        "dialect": {
+            "blank_lines": [{"after": 3, "lines": 1, "text": ""}],
+            "blank_lines_spread": None,
+            "byte_order_mark": True,
+            "columns": [
+                {
+                    "pad": {"side": "left", "width": 5},
+                    "quoting": {
+                        "absent": "needed",
+                        "empty": "needed",
+                        "number": "needed",
+                        "text": "needed",
+                    },
+                    "sequence_start": None,
+                },
+                {
+                    "pad": None,
+                    "quoting": {
+                        "absent": "needed",
+                        "empty": "always",
+                        "number": "bare",
+                        "text": "always",
+                    },
+                    "sequence_start": None,
+                },
+            ],
+            "delimiter": ";",
+            "empty_rows": {"interior": 0, "leading": 0, "trailing": 0},
+            "end_of_file_mark": True,
+            "escape": "doubled",
+            "final_line_ending": False,
+            "header_quoting": "always",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": False,
+            # Thirteen lines stand in this file and its last one ends with
+            # nothing, so twelve endings account for it (contract FD2).
+            "line_endings": [
+                {"ending": "lf", "lines": 5},
+                {"ending": "crlf", "lines": 7},
+            ],
+            "line_endings_spread": [],
+            "preamble": [
+                {"kind": "blank", "lines": 1, "mark": "  "},
+                {"kind": "comment", "lines": 2, "mark": "# "},
+                {"kind": "text", "lines": 1, "mark": ""},
+            ],
+            "preamble_withheld": True,
+            "row_order": None,
+            "separator_line": True,
+            "short_rows": False,
+            "trailing_delimiter": {"header": False, "rows": True},
+            "written_names": [],
+        },
+    }
+
+
+def _row_arrangement():
+    """Both halves of G2.1: the sort, and the records holding nothing."""
+    plain_quoting = {
+        "absent": "needed",
+        "empty": "needed",
+        "number": "needed",
+        "text": "needed",
+    }
+
+    def column_form(sequence_start=None):
+        return {
+            "pad": None,
+            "quoting": dict(plain_quoting),
+            "sequence_start": sequence_start,
+        }
+
+    def form(columns, order, empty_rows):
+        return {
+            "blank_lines": [],
+            "blank_lines_spread": None,
+            "byte_order_mark": False,
+            "columns": columns,
+            "delimiter": ",",
+            "empty_rows": empty_rows,
+            "end_of_file_mark": False,
+            "escape": "doubled",
+            "final_line_ending": True,
+            "header_quoting": "needed",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": False,
+            "line_endings": [],
+            "line_endings_spread": [],
+            "preamble": [],
+            "preamble_withheld": False,
+            "row_order": order,
+            "separator_line": False,
+            "short_rows": False,
+            "trailing_delimiter": {"header": False, "rows": False},
+            "written_names": [],
+        }
+
+    return {
+        "why": "method section G2.1, whose three steps had no second "
+        "implementation either: `grep` for `arranged` or `row_order` in "
+        "this file found nothing, so a sorted twin was checked only "
+        "against the code that sorts it. Two arrangements stand here "
+        "because the steps do not meet in one file: a table with a row "
+        "order publishes no records holding nothing unless it also "
+        "publishes some, and contract FD5 refuses records holding "
+        "nothing beside a row sequence at all. The first pins the SORT "
+        "and the rule that the row sequence is written in place LAST -- "
+        "its nine rows are shuffled by a key that is not their order, "
+        "and every one of the three columns moves as a whole row. The "
+        "second pins WHERE the records holding nothing stand: one at the "
+        "top, one at the bottom and one spread into the middle, reached "
+        "by exchanging cells within each column alone, which is what "
+        "leaves every column's cells the same multiset. This case "
+        "carries TWO mutants, one for each rule.",
+        "kind": "arrangement",
+        "arrangements": [
+            {
+                "why": "the sort of G2.1 step 3 under the number "
+                "collation, with the row sequence written in place last. "
+                "Column 1 is the row sequence and stands first, as "
+                "contract FD12 requires; its generated cells are letters "
+                "so that a twin which failed to write the sequence back "
+                "could not be mistaken for one that did.",
+                "n_rows": 9,
+                "columns": [
+                    ["x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9"],
+                    ["5", "3", "9", "1", "7", "2", "8", "4", "6"],
+                    ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"],
+                ],
+                "dialect": form(
+                    [column_form(0), column_form(), column_form()],
+                    {
+                        "collation": "number",
+                        "column": 2,
+                        "direction": "ascending",
+                    },
+                    {"interior": 0, "leading": 0, "trailing": 0},
+                ),
+            },
+            {
+                "why": "the records holding nothing of G2.1 step 2: one "
+                "leading, one trailing and one interior, over eight rows "
+                "whose two columns hold their empty cells in DIFFERENT "
+                "rows, so that no row is empty in both until the cells "
+                "are moved.",
+                "n_rows": 8,
+                "columns": [
+                    ["", "u", "v", "", "w", "x", "", "y"],
+                    ["m", "", "n", "o", "", "p", "q", ""],
+                ],
+                "dialect": form(
+                    [column_form(), column_form()],
+                    None,
+                    {"interior": 1, "leading": 1, "trailing": 1},
+                ),
+            },
+        ],
+    }
+
+
+def _withheld_line_marks():
+    """The shape of a line before a table, and the mark a twin may write."""
+    return {
+        "why": "plan P4-D83 and contract FD11: what a description may "
+        "carry of a line standing before the table, and what the twin "
+        "writes in its place. Six lines of five shapes, over a file "
+        "whose delimiter is the semicolon. Two of them are the measured "
+        "defect this rule exists for: a title line wearing quotation "
+        "marks gives the mark `\"`, and the twin's first line was then "
+        "written `\"withheld line` -- a quoted field nothing closes -- "
+        "so the twin missed about 120 obligations of its own description "
+        "and could not be read back at all; a line whose punctuation "
+        "begins with the table's own delimiter breaks it the other way, "
+        "cutting the stand-in into fields a reader takes for the "
+        "header. Both are narrowed here to a line of TEXT, whose "
+        "stand-in is the two neutral words and is one field to every "
+        "reader. The case also pins that consecutive lines of one shape "
+        "are published as ONE RUN (review item CODEX-11) and that no "
+        "word of any line survives. Its mutant withdraws the narrowing, "
+        "and both the runs published and the lines written move.",
+        "kind": "preamble",
+        "delimiter": ";",
+        "lines": [
+            "   ",
+            "# exported for the unit",
+            "*** note ***",
+            '"Extract for unit 7"',
+            ";; leading",
+            "plain title line",
+        ],
+    }
+
+
+def _delimiter_reading():
+    """Which delimiter a file is written with, settings and all."""
+    return {
+        "why": "review item CODEX-5: every setting is scored WITH the "
+        "delimiter, because the settings decide what a delimiter reads "
+        "as. This is the file that measurement was taken on. Read with "
+        "the semicolon and no space skipped, its header is two fields "
+        "and its rows are three -- the space before the quotation mark "
+        "makes that mark an ordinary character, so the semicolon inside "
+        "the note splits the field -- and that reading is rejected as "
+        "ragged; nothing else reads as two fields at all, so the file "
+        "was described as ONE column whose name held a semicolon. Read "
+        "with the space skipped it is the two columns it is. The case "
+        "freezes the reading every candidate delimiter reaches and the "
+        "one the file is settled to be written with. Its mutant scores "
+        "each candidate ONE way, which is the rule this one replaced, "
+        "and the file is then read as one column under the comma.",
+        "kind": "reading",
+        "text": '"id"; "note"\n"1"; "alpha; beta"\n"2"; "gamma"\n',
+    }
+
+
+def _workbook_sheet():
+    """The twin of a workbook: every part of the package, as text."""
+    def census(**counts):
+        out = {
+            "absent": 0, "blank": 0, "empty": 0, "text": 0, "number": 0,
+            "boolean": 0, "error": 0,
+        }
+        out.update(counts)
+        return out
+
+    def kinds(**counts):
+        out = {
+            "plain": 0, "date": 0, "datetime": 0, "time": 0, "elapsed": 0,
+            "text": 0,
+        }
+        out.update(counts)
+        return out
+
+    rows = 22
+    half = 11
+    first = [f"10{index:02d}" for index in range(half)] + ["" for _ in range(half)]
+    second = ["" for _ in range(half)] + [f"20{index:02d}" for index in range(half)]
+    return {
+        "why": "method section G2.2, written at this landing because the "
+        "method stated NONE of the workbook writer's rules and nothing "
+        "could be mirrored from a statement that did not exist. Every "
+        "part of the package is frozen as TEXT, never as the packed "
+        "bytes: the deflate stream differs between zlib builds, which "
+        "the landing that wrote the writer states as a limit. Two "
+        "columns of twenty-two rows reach the rules that matter. The "
+        "second column's cells are digit strings and its census says "
+        "TEXT, so it pins the rule the whole seam exists for -- the "
+        "class comes from what the source held and never from what the "
+        "twin's characters could be read as -- and that is this case's "
+        "mutant. Each column holds its eleven cells that hold nothing in "
+        "DIFFERENT rows from the other, so the eleven records holding "
+        "nothing exist only after the alignment step has moved cells "
+        "within each column. One column's cells wear a published "
+        "built-in format code and the other's wear a kind their "
+        "published code is not, so the canonical code of that kind is "
+        "written as a custom format. The table's sheet is the SECOND of "
+        "three, so the first is hidden for the twin's own reader to land "
+        "on the table, the third's name is withheld and is written "
+        "neutrally, and the shared-string table is filled in the order "
+        "the sheets are written -- the word a sheet that is not the "
+        "table's carries comes before the empty string of the table's "
+        "own sheet, which no reading of the parts alone would predict.",
+        "kind": "workbook",
+        "names": ["reading", "note"],
+        "n_rows": rows,
+        "write_header": True,
+        "cells": [first, second],
+        "workbook": {
+            "autofilter": True,
+            "columns": [
+                {
+                    "cell_classes": census(absent=half, number=half),
+                    "format_code": "mm-dd-yy",
+                    "format_kinds": kinds(date=half, plain=half),
+                    "formulas": 0,
+                },
+                {
+                    "cell_classes": census(absent=half, text=half),
+                    "format_code": "@",
+                    "format_kinds": kinds(datetime=half, text=half),
+                    "formulas": 0,
+                },
+            ],
+            "date_system": "1904",
+            "defined_names": 0,
+            "defined_table": True,
+            "empty_rows_inside": half,
+            "frozen_rows": 1,
+            "macro_project": False,
+            "rows_above_header": 2,
+            "sheet_count": 3,
+            "sheet_extents": [
+                {"columns": 1, "rows": 1},
+                None,
+                {"columns": 0, "rows": 0},
+            ],
+            "sheet_hidden": False,
+            "sheet_names": ["Notes", "Data", None],
+            "sheet_position": 2,
+            "trailing_blank_columns": 1,
+            "trailing_blank_rows": 1,
+        },
+    }
+
+
+DOCUMENT_PART = "documents"
+
+# The cases landing 2b.17 added for the transforms that produce a WHOLE
+# DOCUMENT rather than one column's cells (G14.3).
+DOCUMENT_CASE_BUILDERS = {
+    "delimiter_reading": _delimiter_reading,
+    "row_arrangement": _row_arrangement,
+    "withheld_line_marks": _withheld_line_marks,
+    "workbook_sheet": _workbook_sheet,
+    "written_form_lines": _written_form_lines,
+}
+
+_DOCUMENT_ACCOUNT = (
+    "cases method section G14.3 adds for the transforms that produce a "
+    "WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the "
+    "written form of a delimited file (G2), the arrangement of its rows "
+    "(G2.1), the twin of a workbook (G2.2, written at that landing "
+    "because the method had stated none of the writer's rules), the "
+    "shape a line before the table is published as together with the "
+    "mark a twin may write for it (contract FD11, plan P4-D83), and the "
+    "reading that settles which delimiter a file is written with (review "
+    "item CODEX-5). Every one of those rules reached the twin's bytes "
+    "with NO second implementation at all, which landings 2b.9, 2b.10 "
+    "and 2b.11 each recorded and none could close. These cases carry no "
+    "words and no word budget, because none of these transforms draws a "
+    "word; what they carry is the description's own dialect or workbook "
+    "block, which is the input each of them really takes. They are "
+    "computed by the same oracle and the same proof layer as the three "
+    "files beside them -- tests/reference/generation-reference-vectors."
+    "json, tests/reference/generation-branch-vectors.json and "
+    "tests/reference/generation-branch-vectors-2.json -- and live in a "
+    "fourth file because the third holds 245567 bytes against the "
+    "provenance manifest's byte cap, which leaves room for no case of "
+    "any size."
+)
+
+# The transforms this file's own cases name, stated the way every other
+# definition here is stated: the rule, and the section that fixes it.
+DOCUMENT_DEFINITIONS = {
+    "written_form": "the twin's lines in file order -- the separator "
+    "hint, the lines before the table, the header, the rows of column "
+    "descriptions, then the records with the blank lines where the form "
+    "places them -- each cell written under its column's rule for its "
+    "own class (`needed` quotes when and only when the field holds the "
+    "delimiter, a quote character or a line break; `bare` only where it "
+    "could not be read back; `always`; `mixed` is written `needed`), "
+    "padded where its column is padded, joined by the delimiter and one "
+    "space where the form has one, with a trailing delimiter where the "
+    "form says so. A byte-order mark leads where the form has one, each "
+    "line takes the next ending of the runs, the last takes none unless "
+    "the form ends its last line, and the end-of-file mark follows "
+    "(G2).",
+    "row_arrangement": "three steps drawing no word: cells move WITHIN "
+    "one column so that exactly the published number of rows hold "
+    "nothing in every cell, leading at the top, trailing at the bottom "
+    "and interior spread evenly between; whole rows are then permuted by "
+    "the sort column's cells under its collation, stably, the records "
+    "holding nothing staying where they were put and the others sorted "
+    "into the places around them; and every row-sequence column is "
+    "written in place LAST, so it reads 0, 1, 2, ... whatever moved "
+    "(G2.1).",
+    "workbook_sheet": "the parts of the twin's package, in the one fixed "
+    "order, each carrying one fixed moment rather than the clock. Each "
+    "cell's CLASS comes from the column's published census and never "
+    "from the twin's own characters, the classes that hold nothing "
+    "taking the cells holding no text and the number class going first "
+    "to the cells that can carry one, with each group's remainder going "
+    "to the class the column holds most of and never to one published as "
+    "nought; each cell's format KIND likewise, an absent cell always "
+    "plain; cells holding nothing are then moved onto shared rows so "
+    "that the published records holding nothing exist; and every other "
+    "sheet is written with as many cells as it held, each carrying one "
+    "word of synthtwin's own (G2.2).",
+    "writable_mark": "a line before the table is published as its SHAPE "
+    "and never its text: blank with the whitespace it held, a comment "
+    "with the punctuation it began with, or text with nothing at all. "
+    "The mark is then narrowed to what the twin can write -- it ends "
+    "before the first quote character or delimiter, and a line whose "
+    "punctuation begins with one is a line of TEXT -- because the mark "
+    "is written into the twin ahead of the stand-in and a mark carrying "
+    "either leaves a twin that is not a file (contract FD11, plan "
+    "P4-D83).",
+    "best_reading": "each candidate delimiter is scored at its own best "
+    "over the two spacings and the two escapings, because the settings "
+    "decide what a delimiter reads as; a reading counts only where the "
+    "commonest width is two or more fields and the first record that is "
+    "not a line before the table stands at that width; and the candidate "
+    "under which the most records share one width wins, a wider table "
+    "breaking a tie (review item CODEX-5).",
+}
+
+# Where a document case publishes a whole number.  Every one of them is
+# a count or a place in a description's own dialect or workbook block,
+# or a count of records in a reading; a number at any other path in one
+# of these cases stops the run exactly as it does for every case above.
+DOCUMENT_NUMBER_KEYS = frozenset({
+    "after", "at_that_width", "column", "columns", "defined_names",
+    "empty_rows_inside", "first", "formulas", "frozen_rows", "interior",
+    "last", "leading", "lines", "n_rows", "position", "records", "rows",
+    "rows_above_header", "sequence_start", "sheet_count", "sheet_position",
+    "trailing", "trailing_blank_columns", "trailing_blank_rows", "width",
+})
+
+DOCUMENT_NUMBER_MAPS = frozenset({"cell_classes", "format_kinds"})
+
+
+def build_document_case(name):
+    """One finished document case, and the exact values recorded for it.
+
+    Nothing is proved here and nothing needs to be: these transforms
+    publish no binary64 at all.  The pair is returned so that this
+    builder and `build_case` can be used the same way, and so that a
+    document case which ever DID publish one would reach the same proof
+    layer rather than a second one.
+    """
+    spec = DOCUMENT_CASE_BUILDERS[name]()
+    kind = spec["kind"]
+    case = {"why": spec["why"], "kind": kind}
+    if kind == "delimited":
+        form = spec["dialect"]
+        names = spec["names"]
+        rows = spec["rows"]
+        headed = spec["write_header"]
+        case["names"] = names
+        case["rows"] = rows
+        case["write_header"] = headed
+        case["dialect"] = form
+        case["lines"] = written_form_lines(names, rows, headed, form)
+        case["text"] = written_form_text(names, rows, headed, form)
+    elif kind == "arrangement":
+        arranged = []
+        for entry in spec["arrangements"]:
+            grid = row_arrangement(
+                entry["columns"], entry["dialect"], entry["n_rows"]
+            )
+            placed = dict(entry)
+            placed["arranged"] = [list(column) for column in grid]
+            arranged += [placed]
+        case["arrangements"] = arranged
+    elif kind == "preamble":
+        delimiter = spec["delimiter"]
+        runs = preamble_runs_of(spec["lines"], delimiter)
+        written = []
+        for run in runs:
+            for _line in range(run["lines"]):
+                written += [preamble_stand_in(run)]
+        case["delimiter"] = delimiter
+        case["lines"] = spec["lines"]
+        case["runs"] = runs
+        case["written"] = written
+    elif kind == "reading":
+        text = spec["text"]
+        readings = {}
+        for candidate in DOC_DELIMITERS:
+            readings[candidate] = best_reading(text, candidate, 0)
+        case["text"] = text
+        case["readings"] = readings
+        case["delimiter"] = chosen_delimiter(readings)
+    elif kind == "workbook":
+        block = spec["workbook"]
+        names = spec["names"]
+        parts = workbook_parts(
+            block, names, spec["cells"], spec["n_rows"], spec["write_header"]
+        )
+        case["names"] = names
+        case["n_rows"] = spec["n_rows"]
+        case["write_header"] = spec["write_header"]
+        case["cells"] = [list(column) for column in spec["cells"]]
+        case["workbook"] = block
+        case["members"] = [member for member, _text in parts]
+        case["parts"] = {member: text for member, text in parts}
+    else:
+        raise AssertionError(
+            f"{name} names the case kind {kind!r}, which this builder has "
+            "no rule for"
+        )
+    return case, {}
+
+
 BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
@@ -10117,6 +12540,7 @@ CASE_SETS = {
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
     SECOND_BRANCH_PART: SECOND_BRANCH_CASE_BUILDERS,
+    DOCUMENT_PART: DOCUMENT_CASE_BUILDERS,
 }
 
 CASE_BUILDERS = {
@@ -10143,8 +12567,11 @@ _NAMED_ACCOUNT = (
     "5's second spelling family) are the same oracle's second file, "
     "tests/reference/generation-branch-vectors.json, and the cases the "
     "carried landings 2b.2, 2b.3 and 2b.4 added are its third, "
-    "tests/reference/generation-branch-vectors-2.json: one transform, one "
-    "proof layer, three files, because a committed fixture must stay under "
+    "tests/reference/generation-branch-vectors-2.json, and the cases "
+    "landing 2b.17 added for the transforms that produce a whole "
+    "DOCUMENT rather than one column's cells are its fourth, "
+    "tests/reference/generation-document-vectors.json: one transform, one "
+    "proof layer, four files, because a committed fixture must stay under "
     "the provenance manifest's byte cap and these already spend most of "
     "it."
 )
@@ -10169,7 +12596,11 @@ _BRANCH_ACCOUNT = (
     "in their own file only because a committed fixture must stay under "
     "the provenance manifest's byte cap; the cases the carried landings "
     "2b.2, 2b.3 and 2b.4 added are the third file, "
-    "tests/reference/generation-branch-vectors-2.json, for the same reason."
+    "tests/reference/generation-branch-vectors-2.json, for the same "
+    "reason, and the five landing 2b.17 added for the transforms that "
+    "produce a whole DOCUMENT rather than one column's cells are the "
+    "fourth, tests/reference/generation-document-vectors.json, for that "
+    "same reason again."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -10187,7 +12618,10 @@ _SECOND_BRANCH_ACCOUNT = (
     "as tests/reference/generation-reference-vectors.json and "
     "tests/reference/generation-branch-vectors.json, and live in a third "
     "file only because with them the second would pass the provenance "
-    "manifest's byte cap."
+    "manifest's byte cap. The five cases landing 2b.17 added are the "
+    "fourth file, tests/reference/generation-document-vectors.json, "
+    "opened because this one holds 245567 bytes against that cap and has "
+    "room for no case of any size."
 )
 
 CASE_SET_ACCOUNTS = {
@@ -10196,6 +12630,7 @@ CASE_SET_ACCOUNTS = {
     SECOND_BRANCH_PART: (
         f"The {len(SECOND_BRANCH_CASE_BUILDERS)} {_SECOND_BRANCH_ACCOUNT}"
     ),
+    DOCUMENT_PART: f"The {len(DOCUMENT_CASE_BUILDERS)} {_DOCUMENT_ACCOUNT}",
 }
 
 # The chain of interior values a case publishes lives under the key the
@@ -10901,6 +13336,24 @@ def whole_number_fields(document):
             ):
                 allowed.add(path)
                 continue
+        # A DOCUMENT CASE publishes counts and places of a description's
+        # own dialect or workbook block, and counts of records in a
+        # reading.  They are named the same way every other count here is
+        # named -- by leaf key -- so a field added to one of those blocks
+        # cannot arrive as a number nobody accounted for either.
+        if (
+            len(path) >= 3
+            and path[0] == "cases"
+            and path[1] in DOCUMENT_CASE_BUILDERS
+        ):
+            leaf = path[len(path) - 1]
+            if isinstance(leaf, str) and leaf in DOCUMENT_NUMBER_KEYS:
+                allowed.add(path)
+                continue
+            holder = path[len(path) - 2] if len(path) >= 4 else None
+            if isinstance(holder, str) and holder in DOCUMENT_NUMBER_MAPS:
+                allowed.add(path)
+                continue
         raise AssertionError(
             f"{_where(path)} publishes the whole number {value!r} at a place "
             "this document has no rule for. Name the field among the "
@@ -11221,6 +13674,14 @@ def build_document(part=None):
             f"{', '.join(sorted(CASE_SETS))}"
         )
     builders = CASE_SETS[part]
+    # WHICH BUILDER, and why there are two.  A document case carries no
+    # column block, no words and no word budget, because none of the
+    # transforms it freezes draws a word or reads a column's facts
+    # (G14.3).  It is the same oracle and the same proof layer: only the
+    # shape of what is published differs, and running one builder over
+    # both shapes is what would make a case describe something other
+    # than its own account.
+    builder = build_document_case if part == DOCUMENT_PART else build_case
     document = {
         "what": "Independent reference vectors for synthtwin's generation "
         "transform: the twin cells a conforming generator must write, "
@@ -11282,9 +13743,20 @@ def build_document(part=None):
         "definitions": DEFINITIONS,
         "cases": {},
     }
+    if part == DOCUMENT_PART:
+        document["definitions"] = {**DEFINITIONS, **DOCUMENT_DEFINITIONS}
+        document["word_source"] = (
+            "The cases in this file are given NO WORDS, and that is a fact "
+            "about the transforms rather than an omission: the written "
+            "form, the arrangement of the rows, the twin of a workbook, "
+            "the shape of a line before the table and the reading that "
+            "settles a delimiter each draw nothing at all. What these "
+            "vectors freeze is the transform from a description's own "
+            "blocks to the bytes of a file."
+        )
     claims = {}
     for name in sorted(builders):
-        case, case_claims = build_case(name)
+        case, case_claims = builder(name)
         document["cases"][name] = case
         claims.update(case_claims)
     return document, claims

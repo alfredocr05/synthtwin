@@ -1,0 +1,649 @@
+{
+  "case_set": "The 5 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size.",
+  "cases": {
+    "delimiter_reading": {
+      "delimiter": ";",
+      "kind": "reading",
+      "readings": {
+        "\t": null,
+        ",": null,
+        ";": {
+          "at_that_width": 3,
+          "records": 3,
+          "width": 2
+        },
+        "|": null
+      },
+      "text": "\"id\"; \"note\"\n\"1\"; \"alpha; beta\"\n\"2\"; \"gamma\"\n",
+      "why": "review item CODEX-5: every setting is scored WITH the delimiter, because the settings decide what a delimiter reads as. This is the file that measurement was taken on. Read with the semicolon and no space skipped, its header is two fields and its rows are three -- the space before the quotation mark makes that mark an ordinary character, so the semicolon inside the note splits the field -- and that reading is rejected as ragged; nothing else reads as two fields at all, so the file was described as ONE column whose name held a semicolon. Read with the space skipped it is the two columns it is. The case freezes the reading every candidate delimiter reaches and the one the file is settled to be written with. Its mutant scores each candidate ONE way, which is the rule this one replaced, and the file is then read as one column under the comma."
+    },
+    "row_arrangement": {
+      "arrangements": [
+        {
+          "arranged": [
+            [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8"
+            ],
+            [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9"
+            ],
+            [
+              "p4",
+              "p6",
+              "p2",
+              "p8",
+              "p1",
+              "p9",
+              "p5",
+              "p7",
+              "p3"
+            ]
+          ],
+          "columns": [
+            [
+              "x1",
+              "x2",
+              "x3",
+              "x4",
+              "x5",
+              "x6",
+              "x7",
+              "x8",
+              "x9"
+            ],
+            [
+              "5",
+              "3",
+              "9",
+              "1",
+              "7",
+              "2",
+              "8",
+              "4",
+              "6"
+            ],
+            [
+              "p1",
+              "p2",
+              "p3",
+              "p4",
+              "p5",
+              "p6",
+              "p7",
+              "p8",
+              "p9"
+            ]
+          ],
+          "dialect": {
+            "blank_lines": [],
+            "blank_lines_spread": null,
+            "byte_order_mark": false,
+            "columns": [
+              {
+                "pad": null,
+                "quoting": {
+                  "absent": "needed",
+                  "empty": "needed",
+                  "number": "needed",
+                  "text": "needed"
+                },
+                "sequence_start": 0
+              },
+              {
+                "pad": null,
+                "quoting": {
+                  "absent": "needed",
+                  "empty": "needed",
+                  "number": "needed",
+                  "text": "needed"
+                },
+                "sequence_start": null
+              },
+              {
+                "pad": null,
+                "quoting": {
+                  "absent": "needed",
+                  "empty": "needed",
+                  "number": "needed",
+                  "text": "needed"
+                },
+                "sequence_start": null
+              }
+            ],
+            "delimiter": ",",
+            "empty_rows": {
+              "interior": 0,
+              "leading": 0,
+              "trailing": 0
+            },
+            "end_of_file_mark": false,
+            "escape": "doubled",
+            "final_line_ending": true,
+            "header_quoting": "needed",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": false,
+            "line_endings": [],
+            "line_endings_spread": [],
+            "preamble": [],
+            "preamble_withheld": false,
+            "row_order": {
+              "collation": "number",
+              "column": 2,
+              "direction": "ascending"
+            },
+            "separator_line": false,
+            "short_rows": false,
+            "trailing_delimiter": {
+              "header": false,
+              "rows": false
+            },
+            "written_names": []
+          },
+          "n_rows": 9,
+          "why": "the sort of G2.1 step 3 under the number collation, with the row sequence written in place last. Column 1 is the row sequence and stands first, as contract FD12 requires; its generated cells are letters so that a twin which failed to write the sequence back could not be mistaken for one that did."
+        },
+        {
+          "arranged": [
+            [
+              "",
+              "u",
+              "v",
+              "w",
+              "",
+              "x",
+              "y",
+              ""
+            ],
+            [
+              "",
+              "m",
+              "n",
+              "o",
+              "",
+              "p",
+              "q",
+              ""
+            ]
+          ],
+          "columns": [
+            [
+              "",
+              "u",
+              "v",
+              "",
+              "w",
+              "x",
+              "",
+              "y"
+            ],
+            [
+              "m",
+              "",
+              "n",
+              "o",
+              "",
+              "p",
+              "q",
+              ""
+            ]
+          ],
+          "dialect": {
+            "blank_lines": [],
+            "blank_lines_spread": null,
+            "byte_order_mark": false,
+            "columns": [
+              {
+                "pad": null,
+                "quoting": {
+                  "absent": "needed",
+                  "empty": "needed",
+                  "number": "needed",
+                  "text": "needed"
+                },
+                "sequence_start": null
+              },
+              {
+                "pad": null,
+                "quoting": {
+                  "absent": "needed",
+                  "empty": "needed",
+                  "number": "needed",
+                  "text": "needed"
+                },
+                "sequence_start": null
+              }
+            ],
+            "delimiter": ",",
+            "empty_rows": {
+              "interior": 1,
+              "leading": 1,
+              "trailing": 1
+            },
+            "end_of_file_mark": false,
+            "escape": "doubled",
+            "final_line_ending": true,
+            "header_quoting": "needed",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": false,
+            "line_endings": [],
+            "line_endings_spread": [],
+            "preamble": [],
+            "preamble_withheld": false,
+            "row_order": null,
+            "separator_line": false,
+            "short_rows": false,
+            "trailing_delimiter": {
+              "header": false,
+              "rows": false
+            },
+            "written_names": []
+          },
+          "n_rows": 8,
+          "why": "the records holding nothing of G2.1 step 2: one leading, one trailing and one interior, over eight rows whose two columns hold their empty cells in DIFFERENT rows, so that no row is empty in both until the cells are moved."
+        }
+      ],
+      "kind": "arrangement",
+      "why": "method section G2.1, whose three steps had no second implementation either: `grep` for `arranged` or `row_order` in this file found nothing, so a sorted twin was checked only against the code that sorts it. Two arrangements stand here because the steps do not meet in one file: a table with a row order publishes no records holding nothing unless it also publishes some, and contract FD5 refuses records holding nothing beside a row sequence at all. The first pins the SORT and the rule that the row sequence is written in place LAST -- its nine rows are shuffled by a key that is not their order, and every one of the three columns moves as a whole row. The second pins WHERE the records holding nothing stand: one at the top, one at the bottom and one spread into the middle, reached by exchanging cells within each column alone, which is what leaves every column's cells the same multiset. This case carries TWO mutants, one for each rule."
+    },
+    "withheld_line_marks": {
+      "delimiter": ";",
+      "kind": "preamble",
+      "lines": [
+        "   ",
+        "# exported for the unit",
+        "*** note ***",
+        "\"Extract for unit 7\"",
+        ";; leading",
+        "plain title line"
+      ],
+      "runs": [
+        {
+          "kind": "blank",
+          "lines": 1,
+          "mark": "   "
+        },
+        {
+          "kind": "comment",
+          "lines": 1,
+          "mark": "# "
+        },
+        {
+          "kind": "comment",
+          "lines": 1,
+          "mark": "*** "
+        },
+        {
+          "kind": "text",
+          "lines": 3,
+          "mark": ""
+        }
+      ],
+      "why": "plan P4-D83 and contract FD11: what a description may carry of a line standing before the table, and what the twin writes in its place. Six lines of five shapes, over a file whose delimiter is the semicolon. Two of them are the measured defect this rule exists for: a title line wearing quotation marks gives the mark `\"`, and the twin's first line was then written `\"withheld line` -- a quoted field nothing closes -- so the twin missed about 120 obligations of its own description and could not be read back at all; a line whose punctuation begins with the table's own delimiter breaks it the other way, cutting the stand-in into fields a reader takes for the header. Both are narrowed here to a line of TEXT, whose stand-in is the two neutral words and is one field to every reader. The case also pins that consecutive lines of one shape are published as ONE RUN (review item CODEX-11) and that no word of any line survives. Its mutant withdraws the narrowing, and both the runs published and the lines written move.",
+      "written": [
+        "   ",
+        "# withheld line",
+        "*** withheld line",
+        "withheld line",
+        "withheld line",
+        "withheld line"
+      ]
+    },
+    "workbook_sheet": {
+      "cells": [
+        [
+          "1000",
+          "1001",
+          "1002",
+          "1003",
+          "1004",
+          "1005",
+          "1006",
+          "1007",
+          "1008",
+          "1009",
+          "1010",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "2000",
+          "2001",
+          "2002",
+          "2003",
+          "2004",
+          "2005",
+          "2006",
+          "2007",
+          "2008",
+          "2009",
+          "2010"
+        ]
+      ],
+      "kind": "workbook",
+      "members": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "docProps/app.xml",
+        "docProps/core.xml",
+        "xl/workbook.xml",
+        "xl/_rels/workbook.xml.rels",
+        "xl/styles.xml",
+        "xl/sharedStrings.xml",
+        "xl/worksheets/sheet1.xml",
+        "xl/worksheets/sheet2.xml",
+        "xl/worksheets/sheet3.xml",
+        "xl/worksheets/_rels/sheet2.xml.rels",
+        "xl/tables/table1.xml"
+      ],
+      "n_rows": 22,
+      "names": [
+        "reading",
+        "note"
+      ],
+      "parts": {
+        "[Content_Types].xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet3.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/><Override PartName=\"/xl/tables/table1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml\"/><Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/><Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/></Types>",
+        "_rels/.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>",
+        "docProps/app.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>synthtwin</Application><Company></Company></Properties>",
+        "docProps/core.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title></dc:title><dc:subject></dc:subject><dc:creator></dc:creator><cp:lastModifiedBy></cp:lastModifiedBy></cp:coreProperties>",
+        "xl/_rels/workbook.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet2.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet3.xml\"/><Relationship Id=\"rId4\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/><Relationship Id=\"rId5\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings\" Target=\"sharedStrings.xml\"/></Relationships>",
+        "xl/sharedStrings.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"15\" uniqueCount=\"15\"><si><t>withheld</t></si><si><t></t></si><si><t>reading</t></si><si><t>note</t></si><si><t>2000</t></si><si><t>2001</t></si><si><t>2002</t></si><si><t>2003</t></si><si><t>2004</t></si><si><t>2005</t></si><si><t>2006</t></si><si><t>2007</t></si><si><t>2008</t></si><si><t>2009</t></si><si><t>2010</t></si></sst>",
+        "xl/styles.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"4\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
+        "xl/tables/table1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Table1\" displayName=\"Table1\" ref=\"A3:B25\" totalsRowShown=\"0\"><autoFilter ref=\"A3:B25\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"reading\"/><tableColumn id=\"2\" name=\"note\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showFirstColumn=\"0\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/></table>",
+        "xl/workbook.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><workbookPr date1904=\"1\"/><sheets><sheet name=\"Notes\" sheetId=\"1\" state=\"hidden\" r:id=\"rId1\"/><sheet name=\"Data\" sheetId=\"2\" r:id=\"rId2\"/><sheet name=\"Sheet3\" sheetId=\"3\" r:id=\"rId3\"/></sheets></workbook>",
+        "xl/worksheets/_rels/sheet2.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/table\" Target=\"../tables/table1.xml\"/></Relationships>",
+        "xl/worksheets/sheet1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c></row></sheetData></worksheet>",
+        "xl/worksheets/sheet2.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:C26\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\" t=\"s\" s=\"3\"><v>2</v></c><c r=\"B3\" t=\"s\" s=\"3\"><v>3</v></c><c r=\"C3\"/></row><row r=\"4\"/><row r=\"5\"/><row r=\"6\"/><row r=\"7\"/><row r=\"8\"/><row r=\"9\"/><row r=\"10\"/><row r=\"11\"/><row r=\"12\"/><row r=\"13\"/><row r=\"14\"/><row r=\"15\"><c r=\"A15\" s=\"1\"><v>1000</v></c><c r=\"B15\" t=\"s\" s=\"2\"><v>4</v></c></row><row r=\"16\"><c r=\"A16\" s=\"1\"><v>1001</v></c><c r=\"B16\" t=\"s\" s=\"2\"><v>5</v></c></row><row r=\"17\"><c r=\"A17\" s=\"1\"><v>1002</v></c><c r=\"B17\" t=\"s\" s=\"2\"><v>6</v></c></row><row r=\"18\"><c r=\"A18\" s=\"1\"><v>1003</v></c><c r=\"B18\" t=\"s\" s=\"2\"><v>7</v></c></row><row r=\"19\"><c r=\"A19\" s=\"1\"><v>1004</v></c><c r=\"B19\" t=\"s\" s=\"2\"><v>8</v></c></row><row r=\"20\"><c r=\"A20\" s=\"1\"><v>1005</v></c><c r=\"B20\" t=\"s\" s=\"2\"><v>9</v></c></row><row r=\"21\"><c r=\"A21\" s=\"1\"><v>1006</v></c><c r=\"B21\" t=\"s\" s=\"2\"><v>10</v></c></row><row r=\"22\"><c r=\"A22\" s=\"1\"><v>1007</v></c><c r=\"B22\" t=\"s\" s=\"2\"><v>11</v></c></row><row r=\"23\"><c r=\"A23\" s=\"1\"><v>1008</v></c><c r=\"B23\" t=\"s\" s=\"2\"><v>12</v></c></row><row r=\"24\"><c r=\"A24\" s=\"1\"><v>1009</v></c><c r=\"B24\" t=\"s\" s=\"2\"><v>13</v></c></row><row r=\"25\"><c r=\"A25\" s=\"1\"><v>1010</v></c><c r=\"B25\" t=\"s\" s=\"2\"><v>14</v></c></row><row r=\"26\"><c r=\"A26\"/></row></sheetData><autoFilter ref=\"A3:B26\"/><tableParts count=\"1\"><tablePart r:id=\"rId1\"/></tableParts></worksheet>",
+        "xl/worksheets/sheet3.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData/></worksheet>"
+      },
+      "why": "method section G2.2, written at this landing because the method stated NONE of the workbook writer's rules and nothing could be mirrored from a statement that did not exist. Every part of the package is frozen as TEXT, never as the packed bytes: the deflate stream differs between zlib builds, which the landing that wrote the writer states as a limit. Two columns of twenty-two rows reach the rules that matter. The second column's cells are digit strings and its census says TEXT, so it pins the rule the whole seam exists for -- the class comes from what the source held and never from what the twin's characters could be read as -- and that is this case's mutant. Each column holds its eleven cells that hold nothing in DIFFERENT rows from the other, so the eleven records holding nothing exist only after the alignment step has moved cells within each column. One column's cells wear a published built-in format code and the other's wear a kind their published code is not, so the canonical code of that kind is written as a custom format. The table's sheet is the SECOND of three, so the first is hidden for the twin's own reader to land on the table, the third's name is withheld and is written neutrally, and the shared-string table is filled in the order the sheets are written -- the word a sheet that is not the table's carries comes before the empty string of the table's own sheet, which no reading of the parts alone would predict.",
+      "workbook": {
+        "autofilter": true,
+        "columns": [
+          {
+            "cell_classes": {
+              "absent": 11,
+              "blank": 0,
+              "boolean": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 11,
+              "text": 0
+            },
+            "format_code": "mm-dd-yy",
+            "format_kinds": {
+              "date": 11,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 11,
+              "text": 0,
+              "time": 0
+            },
+            "formulas": 0
+          },
+          {
+            "cell_classes": {
+              "absent": 11,
+              "blank": 0,
+              "boolean": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 0,
+              "text": 11
+            },
+            "format_code": "@",
+            "format_kinds": {
+              "date": 0,
+              "datetime": 11,
+              "elapsed": 0,
+              "plain": 0,
+              "text": 11,
+              "time": 0
+            },
+            "formulas": 0
+          }
+        ],
+        "date_system": "1904",
+        "defined_names": 0,
+        "defined_table": true,
+        "empty_rows_inside": 11,
+        "frozen_rows": 1,
+        "macro_project": false,
+        "rows_above_header": 2,
+        "sheet_count": 3,
+        "sheet_extents": [
+          {
+            "columns": 1,
+            "rows": 1
+          },
+          null,
+          {
+            "columns": 0,
+            "rows": 0
+          }
+        ],
+        "sheet_hidden": false,
+        "sheet_names": [
+          "Notes",
+          "Data",
+          null
+        ],
+        "sheet_position": 2,
+        "trailing_blank_columns": 1,
+        "trailing_blank_rows": 1
+      },
+      "write_header": true
+    },
+    "written_form_lines": {
+      "dialect": {
+        "blank_lines": [
+          {
+            "after": 3,
+            "lines": 1,
+            "text": ""
+          }
+        ],
+        "blank_lines_spread": null,
+        "byte_order_mark": true,
+        "columns": [
+          {
+            "pad": {
+              "side": "left",
+              "width": 5
+            },
+            "quoting": {
+              "absent": "needed",
+              "empty": "needed",
+              "number": "needed",
+              "text": "needed"
+            },
+            "sequence_start": null
+          },
+          {
+            "pad": null,
+            "quoting": {
+              "absent": "needed",
+              "empty": "always",
+              "number": "bare",
+              "text": "always"
+            },
+            "sequence_start": null
+          }
+        ],
+        "delimiter": ";",
+        "empty_rows": {
+          "interior": 0,
+          "leading": 0,
+          "trailing": 0
+        },
+        "end_of_file_mark": true,
+        "escape": "doubled",
+        "final_line_ending": false,
+        "header_quoting": "always",
+        "header_rows": [],
+        "header_rows_quoting": "needed",
+        "initial_space": false,
+        "line_endings": [
+          {
+            "ending": "lf",
+            "lines": 5
+          },
+          {
+            "ending": "crlf",
+            "lines": 7
+          }
+        ],
+        "line_endings_spread": [],
+        "preamble": [
+          {
+            "kind": "blank",
+            "lines": 1,
+            "mark": "  "
+          },
+          {
+            "kind": "comment",
+            "lines": 2,
+            "mark": "# "
+          },
+          {
+            "kind": "text",
+            "lines": 1,
+            "mark": ""
+          }
+        ],
+        "preamble_withheld": true,
+        "row_order": null,
+        "separator_line": true,
+        "short_rows": false,
+        "trailing_delimiter": {
+          "header": false,
+          "rows": true
+        },
+        "written_names": []
+      },
+      "kind": "delimited",
+      "lines": [
+        "sep=;",
+        "  ",
+        "# withheld line",
+        "# withheld line",
+        "withheld line",
+        "\"reading\";\"note\"",
+        " 12.5;\"alpha\";",
+        "    3;\"beta; gamma\";",
+        "     ;\"delta\";",
+        "",
+        "  100;\"\";",
+        " 7.25;\"epsilon\";",
+        "   42;\"zeta\";"
+      ],
+      "names": [
+        "reading",
+        "note"
+      ],
+      "rows": [
+        [
+          "12.5",
+          "alpha"
+        ],
+        [
+          "3",
+          "beta; gamma"
+        ],
+        [
+          "",
+          "delta"
+        ],
+        [
+          "100",
+          ""
+        ],
+        [
+          "7.25",
+          "epsilon"
+        ],
+        [
+          "42",
+          "zeta"
+        ]
+      ],
+      "text": "\ufeffsep=;\n  \n# withheld line\n# withheld line\nwithheld line\n\"reading\";\"note\"\r\n 12.5;\"alpha\";\r\n    3;\"beta; gamma\";\r\n     ;\"delta\";\r\n\r\n  100;\"\";\r\n 7.25;\"epsilon\";\r\n   42;\"zeta\";\u001a",
+      "why": "method section G2's written form, end to end, on a file that exercises most of what a dialect block can say: an Excel separator hint, a byte-order mark, four lines before the table in three runs of two shapes, an always-quoted header, a column padded left to five characters, a second column whose four cell classes take three DIFFERENT quoting rules, a trailing delimiter on every record and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it. Before this case the written form had no second implementation at all: landing 2b.9 built it and `grep` for `twin_text` in this file found nothing, so the only check on any of its rules was a round trip through the code that implements them. This case's mutant withdraws the lines before the table, and the file's lines move.",
+      "write_header": true
+    }
+  },
+  "column_shape": "Each case's 'column' is one column block in the profile's own wire shape, with one departure stated rather than left to be discovered: every published binary64 in it is written inside a 'float64' wrapper carrying the exact decimal it was read from, that decimal as an exact rational, and the proof shape. The wire value is the wrapper's 'float64' field. Writing those numbers bare would put a number in this file that nothing proved.",
+  "definitions": {
+    "best_reading": "each candidate delimiter is scored at its own best over the two spacings and the two escapings, because the settings decide what a delimiter reads as; a reading counts only where the commonest width is two or more fields and the first record that is not a line before the table stands at that width; and the candidate under which the most records share one width wins, a wider table breaking a tie (review item CODEX-5).",
+    "bounded": "bounded(w, m) = (w * m) >> 64, the whole part of (w / 2**64) * m and a value in 0..m-1. One word every call, so a run's word count is a fixed function of the published facts (G3.4b).",
+    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) -- that is, where the value is whole, at any width -- it is the sign, D and decpt - len(D) trailing zeros, and where it is not whole the value has no point-free spelling at all (G6.2, as owner decision 10 amended it; the -4 < decpt <= 16 window this sentence used to carry belongs to the canonical spelling above and not to this one).",
+    "class_repair": "a stratum in the negative band whose value is at or above zero takes max(min, -1); a stratum in the positive band whose value is at or below zero takes min(max, 1); the zero stratum needs none. Where the ladder and the sign counts disagree, the counts win (G5.5).",
+    "convex_interpolation": "T = (A << 53) // B and t = ldexp(T, -53); then u = 1 - t, x1 = u * L[j], x2 = t * L[j+1], v = x1 + x2 -- four IEEE-754 binary64 operations in that order and no others -- then the clamp, v = L[j] when below and v = L[j+1] when above. The difference form L[j] + t*(L[j+1]-L[j]) is not used: it overflows to an infinity when the rungs sit at opposite ends of the range and loses the interpolation between neighbouring subnormals (G5.3).",
+    "endpoint_fields": "the two endpoint cells are built from the published endpoint's OWN four fields and never from an ordinal: take the date with HH:MM and a seconds field of 00, move THAT to the clock this cell is allocated -- unchanged on the local clock, shifted by offset_in_seconds on the shared one -- cut the result to the recorded time_precision, and write the published seconds field back unchanged. Every offset is a whole number of minutes, so the move never touches the seconds field and a seconds field of 60 survives it; for every other seconds field this produces the bytes the ordinal route produces (G7.5).",
+    "float64": "the binary64 value published for the exact rational recorded beside it. 'proof' says which claim is being made: 'nearest' means the value is the correctly rounded (round-half-even) binary64 of that rational, and 'exact' means it IS that rational with nothing rounded away. Both are re-derived from the value's two binary64 neighbours in a separate pass over the finished document.",
+    "grid_packing": "the published families of counts over one set of cells are MARGINS of one packing, never one walk after another: every group takes one cell of the grid out of the set its own facts permit, and every quota of every margin is met exactly whenever such an assignment exists. Each margin ranks its counts in ascending order of their published values, ties by the contract's own order; a cell carries one rank per margin and the cells are filled in ascending order of those ranks read margin by margin. Within a cell the group SIZES are offered in ascending order and each size offers as many copies as the cell can still hold, falling back to fewer; a fill that leaves a later cell unable to finish is undone and the next is tried; groups are handed to their cells in group order. A cell that is the last which can answer for one of its counts takes what that count still owes rather than choosing. Nothing counts the work and nothing stops the walk early (G9.5, G9.6, G10.5).",
+    "integer_rule": "b = int(v) truncated toward zero; r = v - float(b); to nearest with ties toward POSITIVE INFINITY -- r > 0.5 or r == 0.5 gives b+1, r < -0.5 gives b-1, r == -0.5 gives b. Not banker's rounding and not toward zero. Applied by the published integer_valued fact and never by the role name, and never to a pinned stratum (G5.4).",
+    "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < PCT[j+1]*D, scanned upward from zero and stopped at the first that holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers (G5.1, G5.3, G7.3).",
+    "notation_reading": "what one finished cell's notation settles, asked of every cell by the recounts: a sign inside accounting parentheses is the contradictory class and settles neither the sign nor the whole-number status, ordinary text settles neither either, and a well-formed number is out of range exactly when its magnitude reaches the point where binary64 rounds to an infinity or falls to or below half the smallest subnormal -- so a 400-digit whole number is out of range and whole, and a fraction below that point is out of range and a fraction (G10.2, G10.5).",
+    "offset_form": "rank 0 takes earliest_utc_offset and rank P-1 takes latest_utc_offset where each names a real offset; the rest are spent over the remaining ranks in ascending rank, taking the keys in the profile's own sorted order with (none) and (withheld) last. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
+    "ordinal_transform": "N_r = r * 2**64 + w over D = P * 2**64; the segment is located as above and ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B. The floor division rounds toward the EARLIER instant always, before the epoch included, which is why it floors toward negative infinity rather than truncating toward zero (G7.3).",
+    "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
+    "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
+    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DD?HH:MM, ...:SS or ...:SS.ddd by the published time_precision, the ? being the mark separator_allocation gives the rank (T where the census names none), a column whose every moment stands at midnight writing its day with a midnight clock, and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "row_arrangement": "three steps drawing no word: cells move WITHIN one column so that exactly the published number of rows hold nothing in every cell, leading at the top, trailing at the bottom and interior spread evenly between; whole rows are then permuted by the sort column's cells under its collation, stably, the records holding nothing staying where they were put and the others sorted into the places around them; and every row-sequence column is written in place LAST, so it reads 0, 1, 2, ... whatever moved (G2.1).",
+    "separator_allocation": "the census of marks between day and clock is spent over the parsed ranks by a smooth weighted rotation: each rank adds every named count to that name's credit, takes the name holding the most credit (the first in sorted order among equals) and takes the weights' total back from it; ranks the named counts leave over are added to the commonest name's weight. No rank is pinned and no word is drawn; a column counted in days by ordinal_space is written with a midnight clock (P4-D39). Where a cell's text is a declared absent spelling (matched whatever the case of its letters) it takes the first mark the census names, then the other common mark (a space for T or t, a T for a space) unless that is absent too, and the mark it owed is handed to the first rank, in rank order, allocated the mark it now wears whose new text is not absent and whose change leaves the column no spelling fewer, nor one value fewer once case is ignored; no rank is touched twice. An interior rank of a column counted in whole units whose unit wears only absent spellings steps to the nearest unit, earlier before later, inside its own window and then inside the published range. No frozen case declares an absent spelling, so that exception is pinned by the agreement test rather than by committed cells (G7.5).",
+    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values. M_neg is the nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the ladder gives each band and fall back to G and P where there is no ladder (G5.2b). The zero stratum holds Z cells; each other band divides its C cells by the ladder's own plateaus (G5.2a): the value at every rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with G5.4 applied where integer_valued is true, equal neighbours make a run, and runs are joined -- smallest (min(L[j],L[j+1]), 0 if Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) first, leftmost on a tie -- or the longest divided into floor(L/2) and L-floor(L/2), leftmost on a tie, until there are M of them. The even split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where there is no ladder or M >= C.",
+    "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5).",
+    "workbook_sheet": "the parts of the twin's package, in the one fixed order, each carrying one fixed moment rather than the clock. Each cell's CLASS comes from the column's published census and never from the twin's own characters, the classes that hold nothing taking the cells holding no text and the number class going first to the cells that can carry one, with each group's remainder going to the class the column holds most of and never to one published as nought; each cell's format KIND likewise, an absent cell always plain; cells holding nothing are then moved onto shared rows so that the published records holding nothing exist; and every other sheet is written with as many cells as it held, each carrying one word of synthtwin's own (G2.2).",
+    "writable_mark": "a line before the table is published as its SHAPE and never its text: blank with the whitespace it held, a comment with the punctuation it began with, or text with nothing at all. The mark is then narrowed to what the twin can write -- it ends before the first quote character or delimiter, and a line whose punctuation begins with one is a line of TEXT -- because the mark is written into the twin ahead of the stand-in and a mark carrying either leaves a twin that is not a file (contract FD11, plan P4-D83).",
+    "written_form": "the twin's lines in file order -- the separator hint, the lines before the table, the header, the rows of column descriptions, then the records with the blank lines where the form places them -- each cell written under its column's rule for its own class (`needed` quotes when and only when the field holds the delimiter, a quote character or a line break; `bare` only where it could not be read back; `always`; `mixed` is written `needed`), padded where its column is padded, joined by the delimiter and one space where the form has one, with a trailing delimiter where the form says so. A byte-order mark leads where the form has one, each line takes the next ending of the runs, the last takes none unless the form ends its last line, and the end-of-file mark follows (G2)."
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "method_revision": 1,
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "readings_taken": "Seven places where the method fixes the parts but not their order are read here as follows, so a reader knows which reading these vectors freeze. (1) A datetime column's content list holds the parsed cells first, in ascending rank, and the counted stand-ins after. (2) An identifier column's spellings are laid into the groups as the identities in enumeration order followed by the partners in ascending identity order. (3) G9.5 fills the packing grid's margins in ascending order of their own published counts, ties by the contract's own order; for the three alphabet bands of a declared identifier that order is read as the figures first, then the code alphabet, then the rest, which is the order G9.5 step 4 itself names them in. (4) G9.6 fixes a non-zero leading digit for the figures band of a whole-number identifier, and gives the other two bands the templates <digits>e0 and <digits>. ; the digit block of those two templates is read as the ordinary figures enumeration of G9.2, with the non-zero rule applied where G9.6 states it and nowhere else. (5) A grid of more than two margins is read margin by margin in the order the section that publishes them names: the notation counts, then the whole-number counts, then the sign counts for an unrepresentable column (G10.5 step 3), and the class counts before the alphabet counts for free text (G9.5 steps 3 and 4). (6) Free text publishes no middle rung for its word counts, so the groups that are not pinned start at the whole number nearest words.mean, which is where length.p50 stands for the lengths. (7) The content list of a free-text or unrepresentable column is built group by group in group order, the order the multiplicity map itself states. What was reading (6) here is no longer a reading: which member of a fold-collision family a slot takes was worked out two ways by two implementations, and G9.3 now states the rule -- every slot walks its parent's family from that family's own start and takes the first member the column has not written whose length its own window admits, and the count of partners a parent has supplied decides which parent comes next and never which member is taken (review item P2-C4-F4).",
+  "what": "Independent reference vectors for synthtwin's generation transform: the twin cells a conforming generator must write, computed from the method specification alone.",
+  "word_source": "The cases in this file are given NO WORDS, and that is a fact about the transforms rather than an omission: the written form, the arrangement of the rows, the twin of a workbook, the shape of a line before the table and the reading that settles a delimiter each draw nothing at all. What these vectors freeze is the transform from a description's own blocks to the bytes of a file."
+}

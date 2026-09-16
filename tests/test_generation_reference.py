@@ -88,7 +88,14 @@ import numpy.ctypeslib
 import pytest
 
 import fixtures
-from synthtwin import contract, dialect, generation, parsing, rendering
+from synthtwin import (
+    contract,
+    dialect,
+    generation,
+    parsing,
+    rendering,
+    sheetwriting,
+)
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 GENERATOR = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
@@ -112,6 +119,16 @@ SECOND_BRANCH_VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
     / "generation-branch-vectors-2.json"
+)
+# THE FOURTH FILE (landing 2b.17): the cases for the transforms that
+# produce a whole DOCUMENT rather than one column's cells.
+DOCUMENT_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_document_vectors.py"
+)
+DOCUMENT_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-document-vectors.json"
 )
 
 
@@ -507,16 +524,24 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     named = _document()
     branch = _branch_document()
     second = _second_branch_document()
+    papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
-    assert not set(named["cases"]) & set(branch["cases"])
-    assert not set(named["cases"]) & set(second["cases"])
-    assert not set(branch["cases"]) & set(second["cases"])
-    assert (
-        tuple(sorted(set(named["cases"]) | set(branch["cases"]) | set(second["cases"])))
-        == ALL_CASES
+    assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
+    every = (named, branch, second, papers)
+    for index in range(len(every)):
+        for other in range(index + 1, len(every)):
+            assert not set(every[index]["cases"]) & set(every[other]["cases"])
+    held: "set" = set()
+    for one in every:
+        held = held | set(one["cases"])
+    assert tuple(sorted(held)) == EVERY_CASE
+    files = (
+        (named, VECTORS),
+        (branch, BRANCH_VECTORS),
+        (second, SECOND_BRANCH_VECTORS),
+        (papers, DOCUMENT_VECTORS),
     )
-    files = ((named, VECTORS), (branch, BRANCH_VECTORS), (second, SECOND_BRANCH_VECTORS))
     for document, own in files:
         assert document["never_imports"] == ["synthtwin", "numpy", "pandas"]
         assert document["method"] == "docs/spec/generation-method-v1.md"
@@ -529,7 +554,8 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
 
 
 @pytest.mark.parametrize(
-    "script", [GENERATOR, BRANCH_GENERATOR, SECOND_BRANCH_GENERATOR]
+    "script",
+    [GENERATOR, BRANCH_GENERATOR, SECOND_BRANCH_GENERATOR, DOCUMENT_GENERATOR],
 )
 def test_the_oracle_imports_none_of_the_code_it_checks(script) -> None:
     """The claim in the file's own header, held up against its source.
@@ -758,6 +784,15 @@ BRANCH_PUBLISHED_NUMBERS = 23
 BRANCH_NAMED_COUNTS = 121
 SECOND_BRANCH_PUBLISHED_NUMBERS = 336
 SECOND_BRANCH_NAMED_COUNTS = 370
+# The document file publishes NO binary64 at all, and that is a fact
+# about its transforms rather than a gap in its proof: the written form,
+# the arrangement, the workbook writer, the shape of a line before a
+# table and the reading of a delimiter produce bytes and counts and
+# never a measurement. Its whole-number floor is what holds it: every
+# count it publishes is named among the oracle's own whole-number
+# fields, and a number at any other path stops the run.
+DOCUMENT_PUBLISHED_NUMBERS = 0
+DOCUMENT_NAMED_COUNTS = 70
 
 # Each committed file, with the floors its own proof must clear and the
 # case set the oracle writes it from.
@@ -770,6 +805,12 @@ COMMITTED_FILES = (
         SECOND_BRANCH_PUBLISHED_NUMBERS,
         SECOND_BRANCH_NAMED_COUNTS,
     ),
+    (
+        DOCUMENT_VECTORS,
+        gen.DOCUMENT_PART,
+        DOCUMENT_PUBLISHED_NUMBERS,
+        DOCUMENT_NAMED_COUNTS,
+    ),
 )
 
 
@@ -778,7 +819,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -820,7 +861,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -839,7 +880,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1968,3 +2009,403 @@ def test_the_style_case_writes_each_published_form_as_itself() -> None:
         written[parsing.numeric_style(cell)] += 1
     published = _unwrap(case["column"])["numeric_styles"]
     assert {name: count for name, count in written.items() if count} == published
+
+
+def _every_empty_record_at_the_top(form, n_rows):
+    """G2.1's placing withdrawn: every record holding nothing leading.
+
+    The rule puts `leading` at the top, `trailing` at the bottom and
+    `interior` spread evenly between; this puts all of them at the top,
+    which is the arrangement a reader would take for a table whose first
+    rows were lost.
+    """
+    empties = form["empty_rows"]
+    total = empties["interior"] + empties["leading"] + empties["trailing"]
+    targets = [False for _row in range(n_rows)]
+    for row in range(min(total, n_rows)):
+        targets[row] = True
+    return targets
+
+
+def _one_reading_for_each_candidate(text, candidate, at):
+    """CODEX-5 withdrawn: one reading per candidate, settings afterwards.
+
+    The walk this replaced read each candidate ONE way -- no space after
+    the delimiter, doubled quotes -- and left the spacing and the
+    escaping to be settled from the delimiter it had already chosen.
+    """
+    sample = gen.doc_read_records(
+        text, candidate, gen.DOC_ESCAPE_DOUBLED, False, at,
+        gen.DOC_SAMPLE_RECORDS,
+    )
+    at_width, total, width = gen.width_share(sample)
+    if width < 2:
+        return None
+    opening = 0
+    while opening < len(sample) and gen.leads_the_table(sample[opening]):
+        opening = opening + 1
+    if opening < len(sample) and len(sample[opening]["fields"]) != width:
+        return None
+    return {"at_that_width": at_width, "records": total, "width": width}
+
+
+def _classed_by_their_characters(census, cells):
+    """G2.2 withdrawn: a cell's class read off the twin's own characters.
+
+    This is the defect the whole seam exists to prevent: the census says
+    the column held TEXT, its cells are digit strings, and a twin written
+    this way hands a reader a column of numbers where the source had
+    codes.
+    """
+    out = []
+    for cell in cells:
+        if cell == "":
+            out += ["absent"]
+            continue
+        out += ["number" if gen.sheet_number_spelling(cell) else "text"]
+    return out
+
+
+# ----------------------------------------- the document cases, bound
+
+# THE FIVE TRANSFORMS THAT PRODUCE A WHOLE DOCUMENT (landing 2b.17).
+# Every case above answers "what does one COLUMN hold". These five
+# answer "what does the FILE look like", and until this landing not one
+# of them had a second implementation of any kind: landings 2b.9, 2b.10
+# and 2b.11 built the written form, the row arrangement and the workbook
+# writer, each recorded the gap in its own report, and none could close
+# it -- the workbook writer's rules were stated in no specification at
+# all, so there was nothing to write a second implementation FROM. Method
+# section G2.2 was written at this landing for that reason, and these
+# bind the oracle written from it to the shipped code.
+#
+# A document case carries no column, no words and no word budget, so it
+# is NOT in `ALL_CASES` and the parametrized tests above do not reach it.
+# Its own bindings are below, one per transform, and its own mutant table
+# is at the foot of this file beside the other.
+DOCUMENT_CASES = (
+    "delimiter_reading",
+    "row_arrangement",
+    "withheld_line_marks",
+    "workbook_sheet",
+    "written_form_lines",
+)
+
+EVERY_CASE = tuple(sorted(ALL_CASES + DOCUMENT_CASES))
+
+
+def _document_document() -> dict:
+    return json.loads(DOCUMENT_VECTORS.read_text(encoding="utf-8"))
+
+
+def _document_case(name: str) -> dict:
+    return _document_document()["cases"][name]
+
+
+def _form_of(case: dict) -> "dialect.Dialect":
+    """One case's published dialect block, typed by the shipped loader.
+
+    The block is the INPUT the written form and the arrangement really
+    take, so the loader that reads it is the right way in: a block this
+    oracle wrote that the loader would refuse is a block no description
+    could carry, and that would be worth knowing here rather than later.
+    """
+    return contract._dialect_block(case["dialect"])
+
+
+def test_the_written_form_is_the_file_the_method_requires() -> None:
+    """Method G2, byte for byte, against a file the oracle wrote alone.
+
+    The whole text is one assertion and the lines are another, and they
+    are kept apart on purpose: a disagreement about the BYTES BETWEEN
+    lines -- an ending, the mark, the end-of-file byte -- is a different
+    defect from a disagreement about what a line holds, and a single
+    comparison of the finished text would report either as the other.
+    """
+    case = _document_case("written_form_lines")
+    form = _form_of(case)
+    names = tuple(case["names"])
+    rows = tuple(tuple(row) for row in case["rows"])
+    assert dialect.twin_text(names, rows, case["write_header"], form) == (
+        case["text"]
+    ), (
+        "the twin's bytes are not the ones method section G2 requires. The "
+        "oracle is the specification's answer; do not change it to match "
+        "the implementation."
+    )
+    # ...and each line, through the shipped writer's own parts, so that a
+    # failure names which line rather than which file.
+    lines = list(case["lines"])
+    at = 0
+    assert lines[at] == "sep=" + form.delimiter
+    at = at + 1
+    for run in form.preamble:
+        for _line in range(run.lines):
+            assert lines[at] == dialect.preamble_line(run)
+            at = at + 1
+    assert lines[at] == dialect.header_line(names, form)
+    at = at + 1
+    written = [line for line in lines[at:] if line != ""]
+    for index in range(len(rows)):
+        assert written[index] == dialect.data_line(rows[index], form)
+
+
+def test_the_rows_stand_where_the_method_puts_them() -> None:
+    """Method G2.1, both halves, against the shipped arrangement.
+
+    Two arrangements, because no one file can carry both rules: contract
+    FD5 refuses records holding nothing beside a row sequence, and a
+    table with a row order publishes records holding nothing only where
+    it has some.
+    """
+    case = _document_case("row_arrangement")
+    for entry in case["arrangements"]:
+        form = contract._dialect_block(entry["dialect"])
+        columns = [tuple(column) for column in entry["columns"]]
+        placed = dialect.arranged(columns, form, entry["n_rows"])
+        assert [list(column) for column in placed] == entry["arranged"], (
+            entry["why"]
+        )
+
+
+def test_the_lines_before_the_table_are_published_as_their_shape() -> None:
+    """Contract FD11 and plan P4-D83, on the two marks a twin cannot write.
+
+    Three rules in one case, asserted one at a time: what a line's shape
+    is, what the mark is narrowed to, and what the twin writes for it.
+    """
+    case = _document_case("withheld_line_marks")
+    delimiter = case["delimiter"]
+    runs = dialect.preamble_runs(list(case["lines"]), delimiter)
+    published = [
+        {"kind": run.kind, "lines": run.lines, "mark": run.mark}
+        for run in runs
+    ]
+    assert published == case["runs"]
+    written: list = []
+    for run in runs:
+        for _line in range(run.lines):
+            written += [dialect.preamble_line(run)]
+    assert written == case["written"]
+    # The narrowing itself, line by line, so that a failure names the
+    # line whose mark the twin could not have written.
+    for index in range(len(case["lines"])):
+        line = case["lines"][index]
+        kind, mark = dialect.writable_shape(
+            *dialect.preamble_shape(line), delimiter
+        )
+        assert not dialect.mark_breaks_a_line(mark, delimiter), line
+        assert written[index] == dialect.preamble_line(
+            dialect.PreambleRun(kind=kind, lines=1, mark=mark)
+        )
+
+
+def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
+    """Review item CODEX-5, on the file the item was measured on.
+
+    Each candidate's own best reading is asserted before the choice
+    between them, because the defect that item found was in the SCORING
+    and not in the comparison: a candidate scored one way reads a
+    two-column file as one column, and the comparison then picks
+    correctly between two wrong answers.
+    """
+    case = _document_case("delimiter_reading")
+    text = case["text"]
+    for candidate in dialect.DELIMITERS:
+        found = dialect._best_reading(text, candidate, 0)
+        published = case["readings"][candidate]
+        if published is None:
+            assert found is None, candidate
+            continue
+        assert found is not None, candidate
+        share, width, _sample = found
+        assert width == published["width"], candidate
+        assert share == published["at_that_width"] / published["records"], (
+            candidate
+        )
+    assert dialect.detected_delimiter(text, 0) == case["delimiter"]
+
+
+def _workbook_profile(case: dict, folder: pathlib.Path) -> contract.Profile:
+    """A description carrying this case's workbook block, loaded.
+
+    THE COLUMN BLOCKS ARE INERT HERE, and it is said rather than left to
+    be discovered: `sheetwriting.workbook_members` reads
+    `source.workbook` and the twin's own cells, and never a column
+    block's published facts. Two are carried because a description must
+    have one per column and the loader holds the workbook block to that
+    count (contract WB1); they are one frozen case's own column, twice,
+    so that nothing about them was invented here.
+    """
+    block = case["workbook"]
+    borrowed = _unwrap(_case("spaced_brackets")["column"])
+    columns = []
+    for index in range(len(case["names"])):
+        column = dict(borrowed)
+        column["name"] = case["names"][index]
+        column["position"] = index + 1
+        columns += [column]
+    document = {
+        "columns": columns,
+        "created_with": "0+unknown",
+        "n_columns": len(columns),
+        "n_rows": case["n_rows"],
+        "profile_version": 6,
+        "publication_notes": [],
+        "relationships": _relationships(),
+        "settings": _settings([]),
+        "source": {
+            "dialect": dialect.document_of(
+                dialect.ordinary(len(columns), case["n_rows"], True)
+            ),
+            "encoding": "utf-8-sig",
+            "used_fallback_encoding": False,
+            "header_source": "file",
+            "header_by_convention": False,
+            "header_evidence": "the first row of the sheet held the "
+            "columns' names.",
+            "workbook": block,
+        },
+    }
+    path = fixtures.write_profile(folder, "workbook.json", document)
+    return contract.load_profile(str(path))
+
+
+def test_the_workbook_twin_is_the_package_the_method_requires(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Method G2.2, part by part, against a package the oracle wrote alone.
+
+    The twin is built by hand from the case's own cells rather than
+    generated, and that is what the transform takes: the writer is
+    handed a description and a twin's CELLS, and turns them into the
+    parts of a package. Nothing about which cells a column generator
+    would produce is in question here, and a case that generated them
+    would be testing two transforms at once.
+    """
+    case = _document_case("workbook_sheet")
+    profile = _workbook_profile(case, tmp_path)
+    columns = tuple(tuple(column) for column in case["cells"])
+    rows = tuple(
+        tuple(columns[place][row] for place in range(len(columns)))
+        for row in range(case["n_rows"])
+    )
+    twin = generation.Twin(
+        names=tuple(case["names"]),
+        write_header=case["write_header"],
+        n_rows=case["n_rows"],
+        columns=columns,
+        rows=rows,
+        outcomes=(),
+        deviations=(),
+        approximations=(),
+        remarks=(),
+        words_drawn=0,
+        seed=0,
+    )
+    members = sheetwriting.workbook_members(profile, twin)
+    assert [name for name, _text in members] == case["members"], (
+        "the parts of the twin's package, or their order, are not the "
+        "ones method section G2.2 requires"
+    )
+    for name, text in members:
+        assert text == case["parts"][name], name
+
+
+DOCUMENT_MUTANTS = {
+    "written_form_lines": (
+        Mutant(
+            branch="G2's lines before the table; the mutant writes none "
+            "of them, which is what withdrawing the stand-in amounts to, "
+            "and the file loses four lines",
+            attribute="preamble_lines_for",
+            replacement=lambda form: [],
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "row_arrangement": (
+        Mutant(
+            branch="G2.1's rule that a row-sequence column is written in "
+            "place LAST; the mutant withdraws that step and the sequence "
+            "column keeps the generated cells the sort moved",
+            attribute="sequence_columns_written",
+            replacement=lambda grid, form, n_rows: None,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.1's placing of the records holding nothing -- "
+            "leading at the top, trailing at the bottom, interior spread "
+            "evenly between; the mutant puts every one of them at the top",
+            attribute="empty_record_targets",
+            replacement=_every_empty_record_at_the_top,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "withheld_line_marks": (
+        Mutant(
+            branch="plan P4-D83's narrowing of a mark the twin could not "
+            "write; the mutant hands back the shape unchanged, and the "
+            "twin's first line is then a quoted field nothing closes",
+            attribute="writable_mark",
+            replacement=lambda kind, mark, delimiter: (kind, mark),
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "delimiter_reading": (
+        Mutant(
+            branch="review item CODEX-5's rule that every setting is "
+            "scored WITH the delimiter; the mutant scores each candidate "
+            "one way -- no space skipped, doubled quotes -- which is the "
+            "rule it replaced, and the file is read as one column",
+            attribute="best_reading",
+            replacement=_one_reading_for_each_candidate,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "workbook_sheet": (
+        Mutant(
+            branch="G2.2's rule that a cell's class comes from the "
+            "column's published census and never from the twin's own "
+            "characters; the mutant classes each cell by what its "
+            "characters could be read as, and a column of text whose "
+            "cells are digit strings is written as numbers",
+            attribute="sheet_cell_classes",
+            replacement=_classed_by_their_characters,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+}
+
+
+def test_the_document_mutant_table_names_every_document_case() -> None:
+    """The keys ARE the document case set, for the reason the other is.
+
+    A document case added without a mutant beside it turns this red, and
+    so does a mutant left behind by a case that has gone.
+    """
+    assert tuple(sorted(DOCUMENT_MUTANTS)) == DOCUMENT_CASES
+    for name in DOCUMENT_CASES:
+        assert DOCUMENT_MUTANTS[name], name
+
+
+@pytest.mark.parametrize("name", DOCUMENT_CASES)
+def test_each_document_case_fails_when_its_own_rule_is_reverted(
+    name: str, monkeypatch
+) -> None:
+    """Every document case, put through the rule the method rules out.
+
+    `row_arrangement` carries two, because it pins two rules that no one
+    file can carry together, and a case with one mutant for two rules is
+    a case whose second rule could be withdrawn with every committed
+    byte where it was.
+    """
+    before, _claims = gen.build_document_case(name)
+    for mutant in DOCUMENT_MUTANTS[name]:
+        with monkeypatch.context() as patched:
+            patched.setattr(gen, mutant.attribute, mutant.replacement)
+            after, _mutant_claims = gen.build_document_case(name)
+            assert after != before, (
+                f"{name} is written the same way with its own branch "
+                f"reverted ({mutant.branch}), so no committed byte holds "
+                "that branch up"
+            )
