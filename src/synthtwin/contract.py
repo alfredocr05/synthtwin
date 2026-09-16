@@ -90,7 +90,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import canonical, errors, parsing
+from synthtwin import canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -171,11 +171,13 @@ TOP_LEVEL_KEYS = (
 )
 
 SOURCE_KEYS = (
+    "dialect",
     "encoding",
     "header_by_convention",
     "header_evidence",
     "header_source",
     "used_fallback_encoding",
+    "workbook",
 )
 
 SETTINGS_KEYS = (
@@ -187,8 +189,10 @@ SETTINGS_KEYS = (
     "declared_missing_values",
     "forced_codes",
     "forced_decimal_commas",
+    "forced_delimiter",
     "forced_identifiers",
     "forced_measurements",
+    "forced_metadata_rows",
     "identifier_minimum_rows",
     "identifier_uniqueness",
     "kept_values",
@@ -404,7 +408,7 @@ QUALITY_STATES = ("ok", "empty", "unrepresentable")
 
 STRUCTURAL_ROLES = ("data", "identifier")
 
-ENCODINGS = ("utf-8-sig", "latin-1")
+ENCODINGS = dialect.ENCODINGS
 
 HEADER_SOURCES = ("file", "generated")
 
@@ -961,8 +965,142 @@ INVARIANTS = {
     ),
     "S5": (
         "the description records that it fell back to another encoding "
-        "exactly when the encoding it names is the fallback one"
+        "exactly when the encoding it names is a fallback one, Latin-1 or "
+        "Windows-1252"
     ),
+    # How the table's file is written (plan P4-D86, contract 4.3a).
+    "FD1": (
+        "the written form describes one column for every column the "
+        "table has"
+    ),
+    "FD2": (
+        "the line endings account for every line the file holds -- the "
+        "separator hint, the preamble, the header, the rows of column "
+        "descriptions, the records and the blank lines -- less the last "
+        "where the file does not end its last line, in runs that each "
+        "end their lines one way, or, past the cap on runs and in their "
+        "place, as how many lines end each of two or more ways in the "
+        "listed order of endings"
+    ),
+    "FD3": (
+        "a byte-order mark is recorded only for UTF-8 or UTF-16 text, "
+        "and always for UTF-16"
+    ),
+    "FD4": (
+        "blank lines stand in file order after no more records than the "
+        "table has, hold nothing but spaces and tabs, and stand inside a "
+        "one-column table nowhere but after its last record; neither the "
+        "blank places nor the runs of line endings pass their caps; and "
+        "blank lines published counted stand in place of places, only "
+        "past that cap, in a table of two or more columns, from a first "
+        "place no later than the last and the last no later than the "
+        "table's end, holding nothing but spaces and tabs"
+    ),
+    "FD5": (
+        "records holding nothing are published only in a table of two or "
+        "more columns with no row sequence, and no more of them than any "
+        "column has absent cells"
+    ),
+    "FD6": (
+        "a column published as the row sequence has every cell present, "
+        "in a table of two or more rows"
+    ),
+    "FD7": (
+        "the column the rows are sorted by is a column of the table and "
+        "not the row sequence, holding no empty cell and no absent cell "
+        "the twin writes empty outside the records holding nothing -- "
+        "exactly as many of them as there are such records -- in a table "
+        "of three or more rows"
+    ),
+    "FD8": (
+        "a header cell written differently from its column's name stands "
+        "under a header read from the file, in column order, and the "
+        "header as written names every column what the description names "
+        "it"
+    ),
+    "FD9": (
+        "rows of column descriptions stand only under a header read from "
+        "the file, exactly as many of them as the person declared and no "
+        "more than two, each as wide as the table, and carry a quoting "
+        "rule only where they exist"
+    ),
+    "FD10": (
+        "only a header read from the file carries a trailing delimiter or "
+        "a quoting rule of its own, and rows do not both carry a trailing "
+        "delimiter and leave out their empty cells"
+    ),
+    # The rule that keeps a declared identifier out of the written form
+    # (plan P4-D76). The producer's half is `profile._published_form`.
+    "FD12": (
+        "a column the person declared to hold record numbers publishes "
+        "no row sequence and is not the column the rows are sorted by, "
+        "and a row sequence is published only for the first column, "
+        "named as a written row index is"
+    ),
+    # The rule that holds a declared delimiter to the written form (plan
+    # P4-D110, review item CODEX-4). The producer's half is the survey,
+    # which reads a declared delimiter and guesses none.
+    "FD13": (
+        "a delimiter the person declared is the delimiter the written "
+        "form publishes, and a workbook carries no such declaration"
+    ),
+    "FD11": (
+        "the lines before the table are published as runs of one shape, "
+        "within the cap, each carrying a mark holding no line break, no "
+        "quote character, not the table's own delimiter and no text of "
+        "the line, each the shape the line the twin writes for it is "
+        "read back as, and recorded as withheld exactly when one of "
+        "them held text"
+    ),
+    # How the table's file is a WORKBOOK (plan P4-D77, contract 4.3b).
+    "WB1": (
+        "a description of a workbook describes one column for every "
+        "column the table has"
+    ),
+    "WB2": (
+        "the sheet the table was read from is one of the sheets the "
+        "workbook has, counted from one"
+    ),
+    "WB3": (
+        "every published count of cells, and the count of records "
+        "holding nothing, is nought, or all of them, or clears the "
+        "smallest group at both ends, so that neither the count nor "
+        "its complement names one row"
+    ),
+    "WB4": (
+        "the records holding nothing inside the table are no more than "
+        "the table itself holds, and no more rows are frozen than the "
+        "sheet has"
+    ),
+    "WB5": (
+        "a workbook names one sheet for every sheet it has, and every "
+        "name it publishes is one this version would publish itself"
+    ),
+    "WB6": (
+        "the number format a column's twin wears is one of the codes "
+        "this version publishes, and its kind is one the column's own "
+        "census does not say no cell wears"
+    ),
+    "WB7": (
+        "a workbook describes the block of cells held by every sheet "
+        "that is not the table's, and none for the sheet the table was "
+        "read from; a block is nought by nought or reaches at most one "
+        "row or at most one column, because a block of two rows and two "
+        "columns is a table this description does not carry"
+    ),
+    # THE FIRST WB5 AND WB6 WERE WRITTEN AND TAKEN OUT AGAIN, and the reason
+    # is worth keeping. One said that a column's cell classes are the
+    # closed set and its format kinds the named kinds; the other that a
+    # workbook publishes no name of its own. Both are TRUE and neither
+    # is an invariant: the first is already the block loader's own key
+    # and range check, which refuses an unknown class by name before any
+    # rule runs, and the second is a property of what the producer never
+    # writes -- there is no field it could put a sheet name in. A rule
+    # in this table has to be one a description can BREAK, because every
+    # one of them owes a mutation that must be refused (the loader's own
+    # completeness guard). A rule that cannot fail is a defect here, so
+    # these two are stated where they are enforced and not counted as
+    # invariants.
     "S6": (
         "the first row can only have been taken as names by convention "
         "when the names came from the file at all"
@@ -1555,6 +1693,11 @@ class SourceBlock:
     header_source: str
     header_by_convention: bool
     header_evidence: str
+    # How the table's FILE is written (contract 4.3a, plan P4-D86).
+    dialect: "dialect.Dialect"
+    # What the table's file said about itself as a WORKBOOK (contract
+    # 4.3b, plan P4-D77), or None where the file was delimited text.
+    workbook: "WorkbookForm | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1628,6 +1771,21 @@ class SettingsBlock:
     # file, and refusing it would refuse the case this declaration was
     # built for.
     forced_decimal_commas: "tuple[str, ...]"
+    # THE FIFTH DECLARATION (plan P4-D81). How many rows under the
+    # column names DESCRIBE those columns -- a survey export writes two
+    # -- rather than holding somebody's record. It is a count and not a
+    # list of names, and it is the only thing that lets rows be taken
+    # out of the table and published as schema: without it they are
+    # data, which is what a file synthtwin has guessed wrong about
+    # needs them to be (review item CODEX-2).
+    forced_metadata_rows: int = 0
+    # THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4). The
+    # character the person said separates the columns of their file, or
+    # empty where they said nothing. A file that reads equally well
+    # under two delimiters cannot be settled by anything in its cells,
+    # so this is the one thing that settles it; FD13 holds it to the
+    # delimiter the written form publishes.
+    forced_delimiter: str = ""
 
 
 # TWO QUESTIONS, TWO NAMES, because a first version asked one and
@@ -3832,13 +3990,13 @@ def _is_an_offset(text: str) -> bool:
 
 
 def _source(value: object) -> SourceBlock:
-    """The five keys saying how the table was read (contract 4.3).
+    """The six keys saying how the table was read (contract 4.3, 4.3a).
 
     Guarantees: accepts the value under `source`; returns it as a typed
     object. Raises ProfileError for an unknown or missing key, a wrong
     type, a value outside its list, and for either of the two
     invariants: S5, which ties the fallback flag to the encoding it
-    names, and S6, which refuses a first row taken as names by
+    names -- Latin-1 or Windows-1252 -- and S6, which refuses a first row taken as names by
     convention when the names did not come from the file at all --
     generated names are not a convention about somebody's first record;
     they are names synthtwin made.
@@ -3859,7 +4017,7 @@ def _source(value: object) -> SourceBlock:
     evidence = _filled_text(
         mapping["header_evidence"], "header_evidence", where
     )
-    if fallback != (encoding == "latin-1"):
+    if fallback != (encoding in dialect.FALLBACK_ENCODINGS):
         raise _broken(
             "S5",
             where,
@@ -3879,7 +4037,821 @@ def _source(value: object) -> SourceBlock:
         header_source=header_source,
         header_by_convention=by_convention,
         header_evidence=evidence,
+        dialect=_dialect_block(mapping["dialect"]),
+        workbook=_workbook_block(mapping["workbook"]),
     )
+
+
+_WORKBOOK = "in the block saying how the table's workbook holds it"
+
+
+@dataclasses.dataclass(frozen=True)
+class WorkbookColumn:
+    """One column's census, as the description publishes it."""
+
+    cell_classes: "dict[str, int | None]"
+    # The number format the twin WEARS (plan P4-D79). One of
+    # `dialect.SHEET_FORMAT_CODES` and never a code out of the person's
+    # file: a custom code is published as the canonical code of its kind.
+    format_code: str
+    format_kinds: "dict[str, int | None]"
+    formulas: "int | None"
+
+
+@dataclasses.dataclass(frozen=True)
+class WorkbookForm:
+    """How a workbook holds the table (contract 4.3b)."""
+
+    autofilter: bool
+    columns: "tuple[WorkbookColumn, ...]"
+    date_system: str
+    defined_names: int
+    defined_table: bool
+    # Nothing where the smallest group held it back: this counts records
+    # of the table, so a count of one names one record (WB3).
+    empty_rows_inside: "int | None"
+    frozen_rows: int
+    macro_project: bool
+    rows_above_header: int
+    sheet_count: int
+    sheet_hidden: bool
+    # One entry per sheet in workbook order: the name where it may be
+    # published, or None where it was withheld (plan P4-D79).
+    sheet_names: "tuple[str | None, ...]"
+    # One entry per sheet in workbook order: the block of cells a sheet
+    # that is not the table's holds, as (rows, columns), and None for the
+    # sheet the table was read from (plan P4-D82).
+    sheet_extents: "tuple[tuple[int, int] | None, ...]"
+    sheet_position: int
+    trailing_blank_columns: int
+    trailing_blank_rows: int
+
+
+def _held_count(value: object, key: str, where: str) -> "int | None":
+    """A count the floor may have held back: a whole number, or nothing."""
+    if value is None:
+        return None
+    return _whole(value, key, where, 0)
+
+
+def _format_kind_of(code: str) -> str:
+    """Which kind a published format code is, by the closed vocabulary.
+
+    THE LOADER MUST NOT REACH THE READER to answer this. `workbook`
+    opens and parses; putting it in the loader's import graph is what
+    broke the profile/generator boundary in part 1 of this landing. The
+    published codes are a closed list, so the kind of each is a lookup
+    rather than a reading of the code.
+    """
+    if code in dialect.SHEET_FORMAT_CODE_KINDS:
+        found = dialect.SHEET_FORMAT_CODE_KINDS[code]
+        if isinstance(found, str):
+            return found
+    return dialect.SHEET_FORMAT_PLAIN
+
+
+def _sheet_names(value: object, where: str) -> "tuple[str | None, ...]":
+    """Each sheet's published name, or None where it was withheld.
+
+    A name that is not one `dialect.sheet_name_published` would publish
+    is refused rather than carried: the whole point of the rule is that
+    a description never holds a sheet name synthtwin could not have
+    written itself, and a loader that accepted one would let a hand-made
+    description put somebody's name back into a twin.
+    """
+    out: "list[str | None]" = []
+    for item in _listing(value, "sheet_names", where):
+        if item is None:
+            out += [None]
+            continue
+        name = _text(item, "sheet_names", where)
+        if dialect.sheet_name_published(name) != name:
+            raise _out_of_range(
+                "sheet_names", where, f"'{name}'",
+                "a name this version would publish itself",
+            )
+        out += [name]
+    return tuple(out)
+
+
+_SHEET_EXTENT_KEYS = ("columns", "rows")
+
+
+def _sheet_extents(
+    value: object, where: str
+) -> "tuple[tuple[int, int] | None, ...]":
+    """The block of cells each sheet that is not the table's holds.
+
+    `null` for the sheet the table was read from, whose own facts
+    describe it, and a block of two whole numbers for every other sheet
+    (plan P4-D82). What the block may be is WB7's rule, checked with the
+    other workbook invariants once the sheet count is known.
+    """
+    out: "list[tuple[int, int] | None]" = []
+    for item in _listing(value, "sheet_extents", where):
+        if item is None:
+            out += [None]
+            continue
+        entry = _mapping(item, "sheet_extents", where)
+        _keys(entry, where, _SHEET_EXTENT_KEYS, "a sheet's block of cells")
+        out += [
+            (
+                _whole(entry["rows"], "rows", where, 0),
+                _whole(entry["columns"], "columns", where, 0),
+            )
+        ]
+    return tuple(out)
+
+
+def _workbook_block(value: object) -> "WorkbookForm | None":
+    """The workbook block, typed, or None where the file was not one.
+
+    Guarantees: accepts the value under `source.workbook`; returns it as
+    a typed object or None. Raises ProfileError for an unknown or
+    missing key, a wrong type, and a value outside its list. The rules
+    that tie it to the columns and the row count are `_workbook_rules`.
+    """
+    if value is None:
+        return None
+    where = _WORKBOOK
+    mapping = _mapping(value, "workbook", where)
+    _keys(mapping, where, dialect.SHEET_KEYS, "that block")
+    columns: "list[WorkbookColumn]" = []
+    for item in _listing(mapping["columns"], "columns", where):
+        entry = _mapping(item, "columns", where)
+        _keys(entry, where, dialect.SHEET_COLUMN_KEYS, "a column's census")
+        classes = _mapping(entry["cell_classes"], "cell_classes", where)
+        _keys(classes, where, dialect.SHEET_CELL_CLASSES, "a column's cell classes")
+        counted: "dict[str, int | None]" = {}
+        for kind in dialect.SHEET_CELL_CLASSES:
+            counted[kind] = _held_count(classes[kind], kind, where)
+        formats = _mapping(entry["format_kinds"], "format_kinds", where)
+        _keys(formats, where, dialect.SHEET_FORMAT_KINDS, "a column's format kinds")
+        wearing: "dict[str, int | None]" = {}
+        for kind in dialect.SHEET_FORMAT_KINDS:
+            wearing[kind] = _held_count(formats[kind], kind, where)
+        columns += [
+            WorkbookColumn(
+                cell_classes=counted,
+                format_code=_one_of(
+                    entry["format_code"], "format_code", where,
+                    dialect.SHEET_FORMAT_CODES,
+                ),
+                format_kinds=wearing,
+                formulas=_held_count(entry["formulas"], "formulas", where),
+            )
+        ]
+    return WorkbookForm(
+        autofilter=_truth(mapping["autofilter"], "autofilter", where),
+        columns=tuple(columns),
+        date_system=_one_of(
+            mapping["date_system"], "date_system", where,
+            dialect.SHEET_DATE_SYSTEMS,
+        ),
+        defined_names=_whole(mapping["defined_names"], "defined_names", where, 0),
+        defined_table=_truth(mapping["defined_table"], "defined_table", where),
+        empty_rows_inside=_held_count(
+            mapping["empty_rows_inside"], "empty_rows_inside", where
+        ),
+        frozen_rows=_whole(mapping["frozen_rows"], "frozen_rows", where, 0),
+        macro_project=_truth(mapping["macro_project"], "macro_project", where),
+        rows_above_header=_whole(
+            mapping["rows_above_header"], "rows_above_header", where, 0
+        ),
+        sheet_count=_whole(mapping["sheet_count"], "sheet_count", where, 1),
+        sheet_hidden=_truth(mapping["sheet_hidden"], "sheet_hidden", where),
+        sheet_names=_sheet_names(mapping["sheet_names"], where),
+        sheet_extents=_sheet_extents(mapping["sheet_extents"], where),
+        sheet_position=_whole(
+            mapping["sheet_position"], "sheet_position", where, 1
+        ),
+        trailing_blank_columns=_whole(
+            mapping["trailing_blank_columns"], "trailing_blank_columns", where, 0
+        ),
+        trailing_blank_rows=_whole(
+            mapping["trailing_blank_rows"], "trailing_blank_rows", where, 0
+        ),
+    )
+
+
+def _workbook_rules(
+    source: SourceBlock,
+    columns: "tuple[ColumnBlock, ...]",
+    n_rows: int,
+    floor: int,
+) -> None:
+    """The invariants that tie a workbook block to the table (WB1-WB6)."""
+    form = source.workbook
+    if form is None:
+        return
+    where = _WORKBOOK
+    width = len(columns)
+    if len(form.columns) != width:
+        raise _broken(
+            "WB1", where,
+            f"the workbook describes {len(form.columns)} columns",
+            f"the table has {width}",
+        )
+    if form.sheet_position > form.sheet_count:
+        raise _broken(
+            "WB2", where,
+            f"the table was read from sheet {form.sheet_position}",
+            f"the workbook has {form.sheet_count}",
+        )
+    for column in form.columns:
+        for kind in dialect.SHEET_CELL_CLASSES:
+            counted = column.cell_classes[kind]
+            if counted is None:
+                continue
+            if counted and counted != n_rows and (
+                counted < floor or n_rows - counted < floor
+            ):
+                raise _broken(
+                    "WB3", where,
+                    f"a census publishes {counted} of {n_rows} cells",
+                    f"the smallest group is {floor}",
+                )
+        for code in sorted(column.format_kinds):
+            wearing = column.format_kinds[code]
+            if wearing is None:
+                continue
+            if wearing and wearing != n_rows and (
+                wearing < floor or n_rows - wearing < floor
+            ):
+                raise _broken(
+                    "WB3", where,
+                    f"a census publishes {wearing} of {n_rows} cells",
+                    f"the smallest group is {floor}",
+                )
+        if column.formulas is not None and column.formulas > n_rows:
+            raise _broken(
+                "WB3", where,
+                f"a column publishes {column.formulas} cells holding a formula",
+                f"the table has {n_rows} rows",
+            )
+    if len(form.sheet_names) != form.sheet_count:
+        raise _broken(
+            "WB5", where,
+            f"the workbook names {len(form.sheet_names)} sheets",
+            f"it has {form.sheet_count}",
+        )
+    for name in form.sheet_names:
+        if name is None:
+            continue
+        if dialect.sheet_name_published(name) != name:
+            raise _broken(
+                "WB5", where,
+                f"a sheet is named '{name}'",
+                "a name this version would publish itself",
+            )
+    # WHAT EVERY OTHER SHEET HOLDS (WB7, plan P4-D82). The twin writes
+    # each such sheet with a block of this shape, so a description that
+    # named a block for the table's own sheet, left one out, or asked
+    # for a block two rows by two columns -- a table this description
+    # does not carry -- would put a workbook on disk that no reading of
+    # the person's file could have produced.
+    if len(form.sheet_extents) != form.sheet_count:
+        raise _broken(
+            "WB7", where,
+            f"the workbook describes the cells of "
+            f"{len(form.sheet_extents)} sheets",
+            f"it has {form.sheet_count}",
+        )
+    for index in range(len(form.sheet_extents)):
+        extent = form.sheet_extents[index]
+        if index + 1 == form.sheet_position:
+            if extent is not None:
+                raise _broken(
+                    "WB7", where,
+                    "the sheet the table was read from describes a block "
+                    "of cells of its own",
+                    "the table's own facts, which describe that sheet",
+                )
+            continue
+        if extent is None:
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} describes no block of cells",
+                "one for every sheet that is not the table's",
+            )
+        if extent[0] >= 2 and extent[1] >= 2:
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} holds {extent[0]} rows and "
+                f"{extent[1]} columns of cells",
+                "a block of at most one row or at most one column",
+            )
+        if (extent[0] == 0) != (extent[1] == 0):
+            raise _broken(
+                "WB7", where,
+                f"sheet {index + 1} holds {extent[0]} rows and "
+                f"{extent[1]} columns of cells",
+                "both nought, or both more than nought",
+            )
+    if n_rows:
+        for column in form.columns:
+            kind = _format_kind_of(column.format_code)
+            wearing = column.format_kinds[kind]
+            if wearing is not None and wearing == 0:
+                raise _broken(
+                    "WB6", where,
+                    f"a column's twin wears a {kind} format",
+                    "a kind its own census says no cell wears",
+                )
+    if form.empty_rows_inside is not None:
+        if form.empty_rows_inside > n_rows:
+            raise _broken(
+                "WB4", where,
+                f"{form.empty_rows_inside} records hold nothing inside "
+                "the table",
+                f"the table has {n_rows} rows",
+            )
+        # THE RECORDS HOLDING NOTHING ARE A COUNT OF ROWS, so the floor
+        # that holds every census holds this too (repair of landing
+        # 2b.10). One such record inside a table names that row as
+        # surely as a census of one cell does, and the description
+        # published it raw at every floor until this rule.
+        counted = form.empty_rows_inside
+        if counted and counted != n_rows and (
+            counted < floor or n_rows - counted < floor
+        ):
+            raise _broken(
+                "WB3", where,
+                f"{counted} of {n_rows} records hold nothing",
+                f"the smallest group is {floor}",
+            )
+    if form.frozen_rows > n_rows + form.rows_above_header + 1:
+        raise _broken(
+            "WB4", where,
+            f"{form.frozen_rows} rows are frozen at the top",
+            "no more rows than the sheet holds",
+        )
+
+
+_WRITTEN = "in the block saying how the table's file is written"
+
+
+def _dialect_block(value: object) -> dialect.Dialect:
+    """The written form of the table's file, typed (contract 4.3a).
+
+    Guarantees: accepts the value under `source.dialect`; returns it as a
+    typed object. Raises ProfileError for an unknown or missing key, a
+    wrong type, and a value outside its list. The rules that tie the form
+    to the columns and the row count are `_dialect_rules`, run once the
+    columns are read.
+    """
+    where = _WRITTEN
+    mapping = _mapping(value, "dialect", "in the block saying how the table was read")
+    _keys(mapping, where, dialect.DOCUMENT_KEYS, "that block")
+    runs: list[dialect.EndingRun] = []
+    for item in _listing(mapping["line_endings"], "line_endings", where):
+        entry = _mapping(item, "line_endings", where)
+        _keys(entry, where, ("ending", "lines"), "a run of line endings")
+        runs += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.ENDINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    census: list[dialect.EndingRun] = []
+    for item in _listing(mapping["line_endings_spread"], "line_endings_spread", where):
+        entry = _mapping(item, "line_endings_spread", where)
+        _keys(entry, where, ("ending", "lines"), "a count of line endings")
+        census += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.ENDINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    spread: "dialect.BlankSpread | None" = None
+    if mapping["blank_lines_spread"] is not None:
+        counted = _mapping(mapping["blank_lines_spread"], "blank_lines_spread", where)
+        _keys(counted, where, ("first", "last", "lines", "text"), "the blank lines counted")
+        spread = dialect.BlankSpread(
+            first=_whole(counted["first"], "first", where, 0),
+            last=_whole(counted["last"], "last", where, 0),
+            lines=_whole(counted["lines"], "lines", where, 1),
+            text=_text(counted["text"], "text", where),
+        )
+    blanks: list[dialect.BlankPlace] = []
+    for item in _listing(mapping["blank_lines"], "blank_lines", where):
+        entry = _mapping(item, "blank_lines", where)
+        _keys(entry, where, ("after", "lines", "text"), "a place of blank lines")
+        blanks += [
+            dialect.BlankPlace(
+                after=_whole(entry["after"], "after", where, 0),
+                lines=_whole(entry["lines"], "lines", where, 1),
+                text=_text(entry["text"], "text", where),
+            )
+        ]
+    preamble: list[dialect.PreambleRun] = []
+    for item in _listing(mapping["preamble"], "preamble", where):
+        run = _mapping(item, "preamble", where)
+        _keys(
+            run, where, ("kind", "lines", "mark"),
+            "a run of lines before the table",
+        )
+        preamble += [
+            dialect.PreambleRun(
+                kind=_one_of(run["kind"], "kind", where, dialect.PREAMBLE_KINDS),
+                lines=_whole(run["lines"], "lines", where, 1),
+                mark=_text(run["mark"], "mark", where),
+            )
+        ]
+    header_rows: list[tuple[str, ...]] = []
+    for item in _listing(mapping["header_rows"], "header_rows", where):
+        header_rows += [
+            tuple(
+                [
+                    _text(cell, "header_rows", where)
+                    for cell in _listing(item, "header_rows", where)
+                ]
+            )
+        ]
+    written: list[dialect.WrittenName] = []
+    for item in _listing(mapping["written_names"], "written_names", where):
+        entry = _mapping(item, "written_names", where)
+        _keys(entry, where, ("position", "text"), "a header cell as written")
+        written += [
+            dialect.WrittenName(
+                position=_whole(entry["position"], "position", where, 1),
+                text=_text(entry["text"], "text", where),
+            )
+        ]
+    trailing = _mapping(mapping["trailing_delimiter"], "trailing_delimiter", where)
+    _keys(trailing, where, ("header", "rows"), "the trailing delimiter block")
+    empty = _mapping(mapping["empty_rows"], "empty_rows", where)
+    _keys(empty, where, ("interior", "leading", "trailing"), "the empty records block")
+    columns: list[dialect.ColumnForm] = []
+    for item in _listing(mapping["columns"], "columns", where):
+        entry = _mapping(item, "columns", where)
+        _keys(entry, where, ("pad", "quoting", "sequence_start"), "a column's written form")
+        quoting = _mapping(entry["quoting"], "quoting", where)
+        _keys(quoting, where, dialect.CELL_CLASSES, "a column's quoting")
+        rules = tuple(
+            [
+                _one_of(quoting[kind], kind, where, dialect.QUOTE_RULES)
+                for kind in dialect.CELL_CLASSES
+            ]
+        )
+        side = ""
+        width = 0
+        if entry["pad"] is not None:
+            pad = _mapping(entry["pad"], "pad", where)
+            _keys(pad, where, ("side", "width"), "a column's padding")
+            side = _one_of(pad["side"], "side", where, dialect.PAD_SIDES)
+            width = _whole(pad["width"], "width", where, 2)
+        start = -1
+        if entry["sequence_start"] is not None:
+            start = _whole(entry["sequence_start"], "sequence_start", where, 0)
+            if start not in dialect.SEQUENCE_STARTS:
+                raise _out_of_range(
+                    "sequence_start", where, f"{start}", "0 or 1"
+                )
+        columns += [
+            dialect.ColumnForm(
+                quoting=rules, pad_side=side, pad_width=width, sequence_start=start
+            )
+        ]
+    order = dialect.NO_ORDER
+    if mapping["row_order"] is not None:
+        sorted_by = _mapping(mapping["row_order"], "row_order", where)
+        _keys(sorted_by, where, ("collation", "column", "direction"), "the row order")
+        order = dialect.RowOrder(
+            column=_whole(sorted_by["column"], "column", where, 1),
+            direction=_one_of(sorted_by["direction"], "direction", where, dialect.DIRECTIONS),
+            collation=_one_of(sorted_by["collation"], "collation", where, dialect.COLLATIONS),
+        )
+    return dialect.Dialect(
+        delimiter=_one_of(mapping["delimiter"], "delimiter", where, dialect.DELIMITERS),
+        initial_space=_truth(mapping["initial_space"], "initial_space", where),
+        escape=_one_of(mapping["escape"], "escape", where, dialect.ESCAPES),
+        separator_line=_truth(mapping["separator_line"], "separator_line", where),
+        byte_order_mark=_truth(mapping["byte_order_mark"], "byte_order_mark", where),
+        line_endings=tuple(runs),
+        final_line_ending=_truth(mapping["final_line_ending"], "final_line_ending", where),
+        end_of_file_mark=_truth(mapping["end_of_file_mark"], "end_of_file_mark", where),
+        preamble=tuple(preamble),
+        preamble_withheld=_truth(mapping["preamble_withheld"], "preamble_withheld", where),
+        header_quoting=_one_of(mapping["header_quoting"], "header_quoting", where, dialect.QUOTE_RULES),
+        header_rows=tuple(header_rows),
+        header_rows_quoting=_one_of(
+            mapping["header_rows_quoting"], "header_rows_quoting", where, dialect.QUOTE_RULES
+        ),
+        written_names=tuple(written),
+        header_trailing_delimiter=_truth(trailing["header"], "header", where),
+        rows_trailing_delimiter=_truth(trailing["rows"], "rows", where),
+        short_rows=_truth(mapping["short_rows"], "short_rows", where),
+        blank_lines=tuple(blanks),
+        empty_rows_leading=_whole(empty["leading"], "leading", where, 0),
+        empty_rows_interior=_whole(empty["interior"], "interior", where, 0),
+        empty_rows_trailing=_whole(empty["trailing"], "trailing", where, 0),
+        columns=tuple(columns),
+        row_order=order,
+        line_endings_spread=tuple(census),
+        blank_lines_spread=spread,
+    )
+
+
+def _dialect_rules(
+    source: SourceBlock,
+    columns: "tuple[ColumnBlock, ...]",
+    n_rows: int,
+    floor: int,
+    declared: "tuple[str, ...]" = (),
+    metadata_rows: int = 0,
+    declared_delimiter: str = "",
+) -> None:
+    """The invariants that tie the file's written form to the table (FD1-FD13).
+
+    Run after the columns are read, because every one of them needs the
+    columns, the row count or the floor. Each names what it compared.
+    """
+    form = source.dialect
+    where = _WRITTEN
+    # A DECLARED DELIMITER IS THE ONE THE FILE WAS READ WITH (FD13, plan
+    # P4-D110). The declaration exists because nothing in the cells can
+    # settle a file that reads equally well two ways, so a description
+    # whose written form names another delimiter says two things about
+    # one file, and a twin written from it would be read back under the
+    # one the settings block does not name. A workbook has no delimiter
+    # at all, so it carries no such declaration.
+    if declared_delimiter and (
+        source.workbook is not None or form.delimiter != declared_delimiter
+    ):
+        raise _broken(
+            "FD13", where,
+            f"the person declared {dialect.DELIMITER_WORDS[declared_delimiter]} "
+            f"as the delimiter",
+            "a delimited file whose written form publishes that same delimiter",
+        )
+    headed = source.header_source == "file"
+    width = len(columns)
+    if len(form.columns) != width:
+        raise _broken(
+            "FD1", where,
+            f"the form describes {len(form.columns)} columns",
+            f"the table has {width}",
+        )
+    total = dialect.lines_of(form, n_rows, headed)
+    counted = 0
+    for index in range(len(form.line_endings)):
+        counted = counted + form.line_endings[index].lines
+        if index and form.line_endings[index].ending == form.line_endings[index - 1].ending:
+            raise _broken(
+                "FD2", where,
+                "two runs of line endings next to each other end lines the same way",
+                "a run is every consecutive line ending one way",
+            )
+    places = {dialect.ENDINGS[index]: index for index in range(len(dialect.ENDINGS))}
+    census = form.line_endings_spread
+    for index in range(len(census)):
+        counted = counted + census[index].lines
+    if census and (
+        form.line_endings
+        or len(census) < 2
+        or counted <= dialect.MAXIMUM_ENDING_RUNS
+        or any(
+            places[census[index].ending] <= places[census[index - 1].ending]
+            for index in range(1, len(census))
+        )
+    ):
+        raise _broken(
+            "FD2", where,
+            "the line endings are published counted",
+            "counts stand in place of runs, for two or more endings in their listed order, only past the cap on runs",
+        )
+    owed = total - (0 if form.final_line_ending or not total else 1)
+    if counted != owed or (form.final_line_ending and not total):
+        raise _broken(
+            "FD2", where,
+            f"the line endings account for {counted} lines",
+            f"the file holds {total} lines",
+        )
+    wide_encodings = (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE)
+    if (form.byte_order_mark and source.encoding in dialect.FALLBACK_ENCODINGS) or (
+        source.encoding in wide_encodings and not form.byte_order_mark
+    ):
+        raise _broken(
+            "FD3", where,
+            f"the file is named as '{source.encoding}'",
+            f"the record of a byte-order mark says {form.byte_order_mark}",
+        )
+    previous_after = -1
+    previous_text = ""
+    for place in form.blank_lines:
+        spaces_only = all(character in " \t" for character in place.text)
+        out_of_order = place.after < previous_after or (
+            place.after == previous_after and place.text == previous_text
+        )
+        inside_one_column = width == 1 and place.after < n_rows
+        if not spaces_only or out_of_order or place.after > n_rows or inside_one_column:
+            raise _broken(
+                "FD4", where,
+                f"blank lines are placed after {place.after} records",
+                f"the table has {n_rows} records and {width} columns",
+            )
+        previous_after = place.after
+        previous_text = place.text
+    if len(form.blank_lines) > dialect.MAXIMUM_BLANK_PLACES or len(
+        form.line_endings
+    ) > dialect.MAXIMUM_ENDING_RUNS:
+        raise _broken(
+            "FD4", where,
+            "the form is longer than a description may carry",
+            "the caps past which the producer publishes counts instead",
+        )
+    counted_blanks = form.blank_lines_spread
+    if counted_blanks is not None and (
+        form.blank_lines
+        or width < 2
+        or counted_blanks.first > counted_blanks.last
+        or counted_blanks.last > n_rows
+        or counted_blanks.lines <= dialect.MAXIMUM_BLANK_PLACES
+        or not all(character in " \t" for character in counted_blanks.text)
+    ):
+        raise _broken(
+            "FD4", where,
+            f"{counted_blanks.lines} blank lines are published counted, from after {counted_blanks.first} records to after {counted_blanks.last}",
+            f"counts stand in place of places, only past the cap on places, in file order within a table of {n_rows} records and two or more columns",
+        )
+    sequences = [column.sequence_start >= 0 for column in form.columns]
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if empties:
+        fewest = min([column.n_missing for column in columns]) if columns else 0
+        if (
+            width < 2
+            or empties > n_rows
+            or empties > fewest
+            or any(sequences)
+        ):
+            raise _broken(
+                "FD5", where,
+                f"{empties} records are published as holding nothing",
+                "every column holds at least that many absent cells, in a table of two or more columns with no row sequence",
+            )
+    for index in range(min(width, len(form.columns))):
+        if sequences[index] and (columns[index].n_missing or n_rows < 2):
+            raise _broken(
+                "FD6", where,
+                f"column {index + 1} is published as the row sequence",
+                "every one of its cells is present, in a table of two or more rows",
+            )
+    if form.row_order.column:
+        at = form.row_order.column
+        if (
+            at > width
+            or n_rows < 3
+            or sequences[at - 1]
+            or columns[at - 1].n_missing_blank + columns[at - 1].n_missing_withheld != empties
+        ):
+            raise _broken(
+                "FD7", where,
+                f"the rows are published as sorted by column {at}",
+                "a column of the table, not the row sequence, with no empty cell and no absent cell written empty outside the records holding nothing, in a table of three or more rows",
+            )
+    if form.written_names:
+        header = [column.name for column in columns]
+        last = 0
+        for written in form.written_names:
+            if (
+                not headed
+                or written.position <= last
+                or written.position > width
+                or written.text == columns[written.position - 1].name
+            ):
+                raise _broken(
+                    "FD8", where,
+                    f"a header cell is published as written at column {written.position}",
+                    "a header read from the file, with the cells in order and each differing from its column's name",
+                )
+            header[written.position - 1] = written.text
+            last = written.position
+        named = dialect.named_columns(tuple(header))
+        for index in range(width):
+            if named[index] != columns[index].name:
+                raise _broken(
+                    "FD8", where,
+                    f"the header as written names column {index + 1} differently",
+                    "the name the description gives that column",
+                )
+    # FD9 (plan P4-D81). THE PUBLISHED ROWS ARE THE DECLARED ROWS.
+    # Without the last clause a description could carry rows of column
+    # descriptions that nobody declared -- which is exactly what the
+    # producer used to write from a guess, publishing a person's own
+    # record as schema text (review item CODEX-2). The count is in the
+    # settings block, so the loader can hold the two to each other.
+    if form.header_rows and (
+        not headed
+        or len(form.header_rows) != 2
+        or len(form.header_rows) != metadata_rows
+        or any(len(row) != width for row in form.header_rows)
+    ):
+        raise _broken(
+            "FD9", where,
+            f"{len(form.header_rows)} rows of column descriptions are published",
+            f"the {metadata_rows} row(s) the person declared, under a header "
+            f"read from the file, each as wide as the table",
+        )
+    # A DECLARATION THAT FOUND NOTHING IS NOT A REFUSAL. Where a person
+    # declares rows of column descriptions and the file turns out not to
+    # have them -- they are narrower than the header, or the file is not
+    # the export they thought -- the survey takes none and the
+    # description publishes none. Refusing that would make a person's
+    # honest mistake about their own file into a run that cannot
+    # finish, and the reading it produces is the SAFE one: the rows
+    # stayed in the table.
+    if not form.header_rows and form.header_rows_quoting != dialect.QUOTE_NEEDED:
+        raise _broken(
+            "FD9", where,
+            "a quoting rule is published for rows of column descriptions",
+            "there are none",
+        )
+    if (not headed and (form.header_trailing_delimiter or form.header_quoting != dialect.QUOTE_NEEDED)) or (
+        form.short_rows and form.rows_trailing_delimiter
+    ):
+        raise _broken(
+            "FD10", where,
+            "the header is published with a trailing delimiter or a quoting rule, or the rows with both a trailing delimiter and left-out empty cells",
+            "a header read from the file, and rows written one of those ways at most",
+        )
+    # FD11 (plan P4-D80). THE FLOOR IS GONE FROM THIS RULE, and that is
+    # the point of it: a line before the table is free text somebody
+    # wrote, a floor governs how many rows share a value, and one line
+    # of prose is not a group of rows -- so the old rule let the whole
+    # line through at a floor of one, which is the default (review item
+    # CODEX-3). What a description may carry now is the line's SHAPE,
+    # and the check that no text rode in with it is that the twin's own
+    # neutral line is read back as the very shape published.
+    held_text = False
+    for run in form.preamble:
+        if run.kind != dialect.PREAMBLE_BLANK:
+            held_text = True
+        if "\r" in run.mark or "\n" in run.mark:
+            raise _broken(
+                "FD11", where,
+                "a run of lines before the table is marked with a line break",
+                "one line each",
+            )
+        # A MARK THE TWIN COULD NOT WRITE IS REFUSED BY NAME (plan
+        # P4-D83). The shape check below catches it too, but only by
+        # accident of what the stand-in is read back as; this says the
+        # rule itself, and it is the clause a description carrying the
+        # mark `"` breaks. The twin's first line was then
+        # `"withheld line` -- a quoted field nothing closes -- and the
+        # twin missed about 120 obligations of the very description
+        # that asked for it.
+        if dialect.mark_breaks_a_line(run.mark, form.delimiter):
+            raise _broken(
+                "FD11", where,
+                "a run of lines before the table carries a quote "
+                "character or the table's own delimiter in its mark",
+                "a mark the line the twin writes for it survives, which "
+                "is one record of the file",
+            )
+        standing = dialect.preamble_line(run)
+        kind, mark = dialect.preamble_shape(standing)
+        if kind != run.kind or mark != run.mark:
+            raise _broken(
+                "FD11", where,
+                f"a run of lines before the table is published as {run.kind}",
+                "a shape the line the twin writes for it is read back as",
+            )
+    if len(form.preamble) > dialect.MAXIMUM_PREAMBLE_LINES:
+        raise _broken(
+            "FD11", where,
+            f"{len(form.preamble)} runs of lines stand before the table",
+            f"at most {dialect.MAXIMUM_PREAMBLE_LINES}",
+        )
+    if form.preamble_withheld != held_text:
+        raise _broken(
+            "FD11", where,
+            f"the lines before the table are published as withheld: "
+            f"{form.preamble_withheld}",
+            "withheld exactly when one of them held text",
+        )
+    # FD12 (plan P4-D76). A row sequence is written back by the generator
+    # as the cells themselves, so it is published only for a written row
+    # index nobody declared; on a declared identifier it would hand back
+    # the values the declaration withholds.
+    for index in range(min(width, len(form.columns))):
+        if form.columns[index].sequence_start < 0:
+            continue
+        name = columns[index].name
+        if name in declared or index != 0 or name not in dialect.INDEX_NAMES:
+            raise _broken(
+                "FD12", where,
+                f"column {index + 1}, {name!r}, is published as the row sequence",
+                "a first column named as a written row index is, and not one declared to hold record numbers",
+            )
+    if form.row_order.column and form.row_order.column <= width:
+        name = columns[form.row_order.column - 1].name
+        if name in declared:
+            raise _broken(
+                "FD12", where,
+                f"the rows are published as sorted by {name!r}",
+                "a column not declared to hold record numbers",
+            )
 
 
 def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
@@ -4279,6 +5251,26 @@ def _settings(value: object) -> SettingsBlock:
         forced_codes=tuple(declared_codes),
         forced_measurements=tuple(declared_measurements),
         forced_decimal_commas=tuple(declared_commas),
+        # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan
+        # P4-D81). Read here so that FD9 can hold the published rows of
+        # column descriptions to the declaration, and so that the
+        # validator re-reads a checked file the way the description was
+        # written: without it, rows nobody declared could stand in a
+        # description as schema, which is how a person's own record was
+        # published verbatim (review item CODEX-2).
+        forced_metadata_rows=_whole(
+            mapping["forced_metadata_rows"], "forced_metadata_rows", where, 0
+        ),
+        # WHICH DELIMITER THE PERSON DECLARED (plan P4-D110). Nothing,
+        # or one of the four this format reads; FD13 then holds it to
+        # the written form once the source block and the table are both
+        # read.
+        forced_delimiter=_one_of(
+            mapping["forced_delimiter"],
+            "forced_delimiter",
+            where,
+            ("",) + dialect.DELIMITERS,
+        ),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -10815,6 +11807,18 @@ def _validated(document: "dict[str, object]") -> Profile:
         ),
     )
     _cross_checks(columns, settings, notes)
+    _dialect_rules(
+        source, columns, n_rows, settings.small_cell_floor,
+        settings.forced_identifiers, settings.forced_metadata_rows,
+        settings.forced_delimiter,
+    )
+    # ...and the same for a workbook, where the file was one (plan
+    # P4-D77). Run beside the written form's rules and for the same
+    # reason: every one of them needs the columns, the row count or the
+    # floor, so none of them can be checked while the block is read.
+    _workbook_rules(
+        source, columns, n_rows, settings.small_cell_floor
+    )
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,

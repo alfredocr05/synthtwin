@@ -140,7 +140,7 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
-from synthtwin import contract, errors, parsing, taxonomy
+from synthtwin import contract, dialect, errors, parsing, taxonomy
 
 import numpy.random
 
@@ -705,6 +705,10 @@ class Twin:
     remarks: "tuple[Remark, ...]"
     words_drawn: int
     seed: int
+    # The written form the twin's bytes take, from `source.dialect`
+    # (module `dialect`). None only for a twin built by hand, which is
+    # written in the ordinary form.
+    form: "dialect.Dialect | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25326,6 +25330,17 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         drawn = drawn + len(places)
         order = _arrangement(places, profile.n_rows)
         written = [content[order[place]] for place in range(profile.n_rows)]
+        # THE ROW SEQUENCE IS WRITTEN, NOT DRAWN (owner ruling 2026-09-15,
+        # plan P4-D86). A column the description names as the row
+        # sequence -- pandas' 0, 1, 2 or R's 1, 2, 3 -- holds exactly
+        # those cells in the real table, so the twin writes them, and
+        # writes them HERE, before anything below measures the column:
+        # the report then states what the file holds. The words the
+        # column's own plan drew are still drawn, so no later column's
+        # cells move.
+        start = _sequence_start(profile, column)
+        if start >= 0:
+            written = dialect.sequence_cells(start, profile.n_rows)
         # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
         # applied to the CELLS HANDED OUT and to nothing this loop then
         # measures. A column read with the comma as its decimal point
@@ -25489,6 +25504,11 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 remarks=each.remarks + tuple(spread),
             )
         ]
+    # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
+    # sorted in, its all-empty records in their places, the row sequence
+    # in place. Whole rows move for the sort and cells move only within
+    # one column for the empty records, so nothing measured above moves.
+    columns = dialect.arranged(columns, profile.source.dialect, profile.n_rows)
     rows = [
         tuple([columns[place][row] for place in range(len(columns))])
         for row in range(profile.n_rows)
@@ -25505,7 +25525,16 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         remarks=tuple(remarked),
         words_drawn=drawn,
         seed=seed,
+        form=profile.source.dialect,
     )
+
+
+def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:
+    """Where the row sequence a column holds starts, or -1 where it holds none."""
+    forms = profile.source.dialect.columns
+    if column.position < 1 or column.position > len(forms):
+        return -1
+    return forms[column.position - 1].sequence_start
 
 
 def _folded_excess_reason(column: contract.ColumnBlock) -> str:

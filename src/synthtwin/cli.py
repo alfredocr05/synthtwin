@@ -94,7 +94,7 @@ import os
 import pathlib
 import sys
 
-from synthtwin import asking, errors, parsing
+from synthtwin import asking, dialect, errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -177,6 +177,10 @@ _SEED_CEILING = "18446744073709551615"
 # '-profile.json' and '-profile.txt'.
 _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
+# THE TWIN OF A WORKBOOK IS A WORKBOOK (plan P4-D79), so it is named
+# like one. A person whose table arrived as `clinic.xlsx` gets
+# `clinic-twin.xlsx`, which opens in the program their table came from.
+_WORKBOOK_TWIN_SUFFIX = "-twin.xlsx"
 _REPORT_SUFFIX = "-twin-report.txt"
 
 # And the one file `validate` writes -- added to the name of the file it
@@ -376,10 +380,15 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
     """One sentence about how the file was read."""
     if used_fallback:
         return (
-            "It was not readable as UTF-8, so it was read as Western "
-            "European text (Latin-1); if any accented letter looks wrong "
-            "in this summary, save the file as 'CSV UTF-8' and run the "
-            "command again."
+            f"It was not readable as UTF-8, so it was read as "
+            f"{dialect.ENCODING_WORDS[encoding]}; if any accented letter "
+            f"looks wrong in this summary, save the file as 'CSV UTF-8' "
+            f"and run the command again."
+        )
+    if encoding in (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE):
+        return (
+            f"It was read as {dialect.ENCODING_WORDS[encoding]} text "
+            f"(encoding: {encoding})."
         )
     return f"It was read as UTF-8 text (encoding: {encoding})."
 
@@ -478,6 +487,17 @@ class _Options:
     missing_values: list[str]
     first_row: str
     day_first: bool
+    # How many rows under the column names describe those columns, as
+    # the person typed it, or empty (plan P4-D81). Text rather than a
+    # number for the reason `seed` is text: whether it is a number this
+    # tool can use is decided in words a person can act on.
+    metadata_rows: str
+    # Which character separates the columns, as the person typed it, or
+    # empty (plan P4-D110). Text for the reason `metadata_rows` is.
+    delimiter: str
+    # Which sheet of a workbook holds the table, or empty to settle it
+    # by the first visible one (plan P4-D77).
+    sheet: str
     seed: str
     replace: bool
 
@@ -708,6 +728,40 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--metadata-rows",
+        default=None,
+        metavar="N",
+        help=(
+            "say that the first N rows UNDER your column names describe "
+            "those columns rather than holding a record. Some survey "
+            "tools write two such rows -- the question wording, then a "
+            "row of ImportId markers -- and a reader that takes them "
+            "for data gets two rows of machine text mixed in with "
+            "people's answers. Takes 0 or 2. Without it, every row "
+            "under your column names is read as a record of your "
+            "table: synthtwin recognises that shape and will SAY so, "
+            "in the questions file and on the screen, but it never "
+            "acts on it by itself, because a file it recognised "
+            "wrongly would have two real records removed from every "
+            "count and their values published as column descriptions"
+        ),
+    )
+    parser.add_argument(
+        "--delimiter",
+        default=None,
+        metavar="CHARACTER",
+        help=(
+            "say which character separates the columns of your file: "
+            "',' ';' '|' or the word tab. synthtwin works this out by "
+            "itself, and it asks rather than guesses where a file reads "
+            "equally well two ways -- 'id,pair|code' over rows such as "
+            "'1,2|3' is two columns under the comma and two different "
+            "columns under the vertical bar, and nothing in the cells "
+            "can say which is yours. Only for delimited text; a "
+            "workbook has no such character"
+        ),
+    )
+    parser.add_argument(
         "--answers",
         default=None,
         metavar="FILE",
@@ -782,6 +836,24 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "many. Every column it touches says in its remarks which "
             "reading was used and why, and says so again where the "
             "column's own values point both ways at once"
+        ),
+    )
+    parser.add_argument(
+        "--sheet",
+        default="",
+        metavar="NAME",
+        help=(
+            "which sheet of a spreadsheet workbook holds your table, by "
+            "its name. Without this, synthtwin reads the first sheet "
+            "that is not hidden and says on screen which one it chose. "
+            "That is not what a spreadsheet's own readers do -- they "
+            "take the first sheet whatever its state, which on a "
+            "workbook whose first sheet is a hidden notes page means "
+            "they read the notes -- so if your table is on a different "
+            "sheet, name it here. The name has to match the tab exactly, "
+            "and if it has a space in it put quotation marks around it. "
+            "This option does nothing for a delimited text file, which "
+            "has only one table in it"
         ),
     )
     parser.add_argument(
@@ -876,6 +948,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
         day_first=bool(args.day_first),
+        metadata_rows=(
+            "" if args.metadata_rows is None else f"{args.metadata_rows}"
+        ),
+        delimiter=("" if args.delimiter is None else f"{args.delimiter}"),
+        sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
     )
@@ -1129,6 +1206,122 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
         f"    What does this column hold?{lines}\n"
         f"    Press Enter to keep the reading synthtwin made, "
         f"which is the first one above."
+    )
+
+
+def _metadata_rows_unseen_notice(rows: int) -> str:
+    """What is said when such rows are declared on a file not wearing the shape.
+
+    The declaration exists for a survey export whose rows under the
+    column names describe those columns. Given on any other file it
+    USED to take those rows out of the table and publish them as
+    schema -- text held to no smallest group, written into the twin as
+    it stands. Measured on an ordinary table of 120 records:
+    `--metadata-rows 2` published two people's records verbatim at a
+    floor of eleven, dropped them from every count, and nothing but
+    this notice questioned it.
+
+    THAT IS NO LONGER WHAT HAPPENS (review of landing 2b.17, MAJOR).
+    A notice is not a safeguard: it is read after the description has
+    been written, by a person who has already made the mistake, and
+    the disclosure it describes has happened by the time they read it.
+    So the rows now STAY in the table -- the safe reading the contract
+    already names for a declaration that found nothing -- and this
+    notice says so and says how to confirm the declaration in the
+    questions file if the person means it. The reading still obeys the
+    person; what it no longer does is obey a declaration the file
+    contradicts without asking them first.
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE DOES NOT WEAR THE SHAPE --metadata-rows IS FOR\n"
+        f"{'=' * 66}\n"
+        f"You said the {rows} row(s) under your column names describe "
+        f"those columns. What synthtwin looked for and did not see is "
+        f"the shape such a file usually has: rows as wide as your "
+        f"table whose second holds a marker in every cell. So those "
+        f"{rows} rows have STAYED in your table: they are counted "
+        f"among your rows, described as data like every other record, "
+        f"and nothing they hold is published anywhere in your "
+        f"description. If they really do describe your columns, say so "
+        f"in the questions file this run writes -- answer "
+        f"'metadata-rows' under 'about_your_file', then describe the "
+        f"table again with --answers -- and they will be taken out of "
+        f"the table and published as written. You are asked rather "
+        f"than taken at your word here because on a file this "
+        f"declaration is wrong about, those rows are somebody's "
+        f"records, and publishing one of those cannot be undone."
+    )
+
+
+# How `--delimiter` may be typed (plan P4-D110). A tab is hard to type
+# on most command lines, so the word stands for it beside the character.
+_DELIMITER_SPELLINGS = {
+    ",": ",",
+    ";": ";",
+    "|": "|",
+    "\t": "\t",
+    "tab": "\t",
+}
+
+
+def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
+    """What is said about a file that reads equally well two ways.
+
+    It names the delimiters, never a cell: which character separates the
+    columns is a fact about the file, and the reading taken is the one
+    the file would have had anyway (review item CODEX-4).
+    """
+    others = ""
+    for one in tied[1:]:
+        others = (
+            dialect.DELIMITER_WORDS[one]
+            if not others
+            else f"{others} or with {dialect.DELIMITER_WORDS[one]}"
+        )
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE READS EQUALLY WELL WITH MORE THAN ONE DELIMITER\n"
+        f"{'=' * 66}\n"
+        f"Every record of your file splits into the same number of "
+        f"columns whether it is read with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]} or with "
+        f"{others}, and nothing in the values can say "
+        f"which your file uses. synthtwin has read it with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}, the reading under which "
+        f"more of the values read as numbers. If that is not how your "
+        f"file is written, describe the table again with --delimiter, "
+        f"or answer the question under 'about_your_file' in the "
+        f"questions file this run writes: your column names, and every "
+        f"column's values, depend on it."
+    )
+
+
+def _metadata_rows_notice() -> str:
+    """What is said about a file wearing a survey export's shape.
+
+    It names what was SEEN, what was done about it (nothing), and the
+    one option that changes it. The shape is not evidence: a table
+    whose first record happens to be as wide as its header with a row
+    of markers under it wears it too, and acting on the resemblance is
+    how a person's own record became schema text (review item
+    CODEX-2).
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"THE TWO ROWS UNDER YOUR COLUMN NAMES MAY DESCRIBE THE COLUMNS\n"
+        f"{'=' * 66}\n"
+        f"They are each as wide as your table and every cell of the "
+        f"second is an ImportId marker, which is the shape some survey "
+        f"tools write to describe their columns. synthtwin has read "
+        f"them as RECORDS of your table, because that is what a row "
+        f"under the column names is unless you say otherwise, and "
+        f"because a file this shape was recognised wrongly in would "
+        f"have two real records taken out of every count and their "
+        f"values published as column descriptions. If those two rows "
+        f"do describe your columns, describe the table again with "
+        f"--metadata-rows 2, or answer the question under "
+        f"'about_your_file' in the questions file this run writes."
     )
 
 
@@ -1524,6 +1717,9 @@ def _run_profile(
     missing_values: list[str],
     first_row: str,
     day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1561,6 +1757,35 @@ def _run_profile(
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
 
+    # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
+    # Refused here, before the table is opened, like every other
+    # declaration that cannot be acted on.
+    metadata_rows = 0
+    # WHETHER THE PERSON CONFIRMED IT AFTER BEING TOLD WHAT IT COSTS
+    # (review of landing 2b.17, MAJOR). A declaration typed on the
+    # command line is read, and where the file does not bear it out the
+    # rows STAY in the table and the question is put in the questions
+    # file. An answer in that file is the confirmation: it is given
+    # after reading what each answer publishes, so it cannot be a
+    # typing slip, and it is the one route by which such rows leave the
+    # table on a file wearing none of the shape.
+    metadata_rows_confirmed = False
+    if metadata_rows_given:
+        if metadata_rows_given not in ("0", "2"):
+            _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
+            return 2
+        metadata_rows = int(metadata_rows_given)
+
+    # WHICH CHARACTER SEPARATES THE COLUMNS, WHERE THE PERSON SAID (plan
+    # P4-D110, review item CODEX-4). Refused before the table is opened
+    # where it is not one of the four this format reads.
+    declared_delimiter = ""
+    if delimiter_given:
+        if delimiter_given not in _DELIMITER_SPELLINGS:
+            _warn(errors.delimiter_not_supported(_shown(delimiter_given)))
+            return 2
+        declared_delimiter = _DELIMITER_SPELLINGS[delimiter_given]
+
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
     # A-P4-58). A file that is not a questions file, or that answers a
     # column with a word no question offered, is the person's mistake
@@ -1584,6 +1809,21 @@ def _run_profile(
         except ValueError as error:
             _warn(_shown(f"{error}"))
             return 2
+        # THE FIFTH ANSWER IS READ BEFORE THE TABLE IS OPENED, which is
+        # what makes it usable at all (plan P4-D81): it changes the
+        # READING of the file, so an answer arriving after the read
+        # would mean reading the table twice. A person answers the
+        # question in the file their last run wrote, and their next run
+        # reads their table the way they said.
+        if written.metadata_rows:
+            metadata_rows = written.metadata_rows
+            metadata_rows_confirmed = True
+        # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
+        # delimiter the file is written with decides how it is read, so
+        # the answer has to arrive before the read. It is the newer
+        # statement and replaces a typed one.
+        if written.delimiter:
+            declared_delimiter = written.delimiter
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -1656,7 +1896,62 @@ def _run_profile(
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
     )
-    read = reading.read_table(table, first_row)
+    read = reading.read_table(
+        table, first_row, sheet=sheet, metadata_rows=metadata_rows,
+        # ...and whether the person confirmed a declaration the file
+        # does not bear out, which is what decides whether those rows
+        # leave the table at all (review of landing 2b.17, MAJOR).
+        metadata_rows_confirmed=metadata_rows_confirmed,
+        # AND UNDER THE DECLARED GRAMMAR (review item CODEX-9). The
+        # survey reads the row order off the cells as written, and a
+        # column declared to write `0,5` and `10,0` reads as no number
+        # at all under the ordinary grammar -- so it fell to the text
+        # collation, where `10,0` sorts before `9,9`, and a table
+        # genuinely sorted by it published no order. The declaration
+        # has to reach the survey for the order to be read correctly.
+        decimal_comma_columns=tuple(forced_decimal_commas),
+        # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
+        # (plan P4-D110). Nothing is guessed about a declared one.
+        declared_delimiter=declared_delimiter,
+    )
+
+    # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
+    # LOUD (review item CODEX-4, plan P4-D110). It is read the way the
+    # cells favour, which is how every file this tool twinned before is
+    # still read, and the person is told the other reading exists and
+    # how to choose it: a silent misreading of their columns is the one
+    # outcome this may not leave them with.
+    delimiter_tie: "tuple[str, ...]" = ()
+    if read.survey is not None and not declared_delimiter:
+        delimiter_tie = read.survey.delimiter_tie
+    if delimiter_tie:
+        _say(f"\n{_delimiter_tie_notice(delimiter_tie)}\n")
+
+    # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan
+    # P4-D81). The shape some survey exports wear is recognised and
+    # deliberately left alone: saying nothing would leave a person
+    # whose file really is such an export with two rows of machine
+    # text among their records and no idea why.
+    surveyed = read.survey
+    if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
+        _say(f"\n{_metadata_rows_notice()}\n")
+
+    # ...AND A DECLARATION THE FILE DOES NOT BEAR OUT IS QUESTIONED THE
+    # OTHER WAY ROUND. The notice above exists because acting on a
+    # resemblance published a person's record as schema; the
+    # declaration itself is checked against nothing at all, so
+    # `--metadata-rows 2` on an ordinary table takes two records out of
+    # it and publishes them verbatim, exempt from the smallest group,
+    # with nothing said. The reading still obeys the person -- it is
+    # their file and their declaration -- and they are told what was
+    # seen.
+    metadata_declaration_unseen = (
+        bool(metadata_rows)
+        and (surveyed is None or not surveyed.metadata_shape)
+        and not metadata_rows_confirmed
+    )
+    if metadata_declaration_unseen:
+        _say(f"\n{_metadata_rows_unseen_notice(metadata_rows)}\n")
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -1764,6 +2059,8 @@ def _run_profile(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
+        forced_metadata_rows=metadata_rows,
+        forced_delimiter=declared_delimiter,
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -1905,6 +2202,8 @@ def _run_profile(
                     forced_codes,
                     forced_measurements,
                     forced_decimal_commas,
+                    forced_metadata_rows=metadata_rows,
+                    forced_delimiter=declared_delimiter,
                 )
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
@@ -2183,6 +2482,19 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     asked_about,
                     listed_about,
+                    asking.file_questions(
+                        surveyed is not None
+                        and surveyed.metadata_shape
+                        and not metadata_rows,
+                        # ...and the same subject from the other side:
+                        # a declaration the file does not bear out was
+                        # not acted on, so the person is asked here
+                        # rather than having it done to their table.
+                        metadata_rows if metadata_declaration_unseen else 0,
+                        # ...and the delimiter, where the file reads
+                        # equally well under more than one (P4-D110).
+                        delimiter_tie,
+                    ),
                 )
             ),
             sources=guarded_questions,
@@ -2304,7 +2616,9 @@ def _twin_stem(name: str) -> str:
 
 
 def _twin_paths(
-    description: pathlib.Path, out_dir: "str | None"
+    description: pathlib.Path,
+    out_dir: "str | None",
+    packaged: bool = False,
 ) -> "tuple[pathlib.Path, pathlib.Path]":
     """Where the twin and its report go (plan P2-D10).
 
@@ -2336,8 +2650,9 @@ def _twin_paths(
             raise errors.ProfileError(
                 errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
             )
+    ending = _WORKBOOK_TWIN_SUFFIX if packaged else _TWIN_SUFFIX
     twin_target = validate_local_path(
-        f"{folder / (stem + _TWIN_SUFFIX)}", purpose="output file"
+        f"{folder / (stem + ending)}", purpose="output file"
     )
     report_target = validate_local_path(
         f"{folder / (stem + _REPORT_SUFFIX)}", purpose="output file"
@@ -2395,14 +2710,28 @@ def _run_generate(
     rule that this command opens the description and nothing else -- so
     it refuses, names both files, and teaches `--replace`.
     """
-    from synthtwin import contract, generation, rendering, writing
+    from synthtwin import (
+        contract,
+        generation,
+        rendering,
+        sheetwriting,
+        writing,
+    )
 
     seed, refusal = _seed_or_refusal(seed_given)
     if seed is None:
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
-    twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
+    # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
+    # P4-D79, which supersedes P4-D78's refusal). The description says
+    # which the table was, so the twin's name, its bytes and the rules
+    # it is written by all follow from `source.workbook` rather than
+    # from anything this run reads.
+    packaged = loaded.source.workbook is not None
+    twin_path, report_path = _twin_paths(
+        pathlib.Path(description), out_dir, packaged
+    )
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
 
@@ -2449,7 +2778,36 @@ def _run_generate(
     # human-facing sink like the profiler's summary and crosses the
     # boundary once, here, so the file on disk and the screen carry the
     # same text and cannot differ.
-    twin_text = rendering.twin_csv(twin)
+    # A WORKBOOK TWIN IS BYTES AND A DELIMITED ONE IS TEXT, and the two
+    # are kept apart from here to the write: a zip package put through
+    # an encoding and a line-ending rule would be corrupted by both.
+    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D86), and
+    # that is checked before anything is shown or written: a cell holding
+    # a character the encoding has no byte for would otherwise stop the
+    # write half way. Every published label was read in that encoding and
+    # every made-up value is ASCII, so reaching this is a defect.
+    #
+    # A WORKBOOK ANSWERS NONE OF IT (plan P4-D79). Its parts are written
+    # as UTF-8 inside a zip package whatever the source's encoding was,
+    # because that is what a spreadsheet file IS; the source encoding
+    # describes a delimited file's bytes and there are none here.
+    twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
+    twin_members: "list[tuple[str, str]] | None" = None
+    twin_text = ""
+    if packaged:
+        twin_members = sheetwriting.workbook_members(loaded, twin)
+    else:
+        written = rendering.twin_csv(twin)
+        try:
+            written.encode(twin_codec)
+        except UnicodeEncodeError:
+            _warn(
+                errors.twin_not_writable_in_encoding(
+                    dialect.ENCODING_WORDS[loaded.source.encoding]
+                )
+            )
+            return 1
+        twin_text = written
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
@@ -2488,6 +2846,9 @@ def _run_generate(
             table_path=pathlib.Path(source),
             state=state,
             words=errors.TWIN_WORDS,
+            first_encoding=twin_codec,
+            first_newline="",
+            first_members=twin_members,
         )
     except BaseException:
         if state.sentence:
@@ -2595,7 +2956,9 @@ def _quality_path(
     return pathlib.Path(target)
 
 
-def _measured_path(description: str, twin_given: "str | None") -> str:
+def _measured_path(
+    description: str, twin_given: "str | None", packaged: bool = False
+) -> str:
     """Which file this run measures: the one named, or the twin beside it.
 
     The default is derived from the DESCRIPTION's own folder rather than
@@ -2606,7 +2969,9 @@ def _measured_path(description: str, twin_given: "str | None") -> str:
     """
     if twin_given is not None:
         return twin_given
-    twin_path, _report_path = _twin_paths(pathlib.Path(description), None)
+    twin_path, _report_path = _twin_paths(
+        pathlib.Path(description), None, packaged
+    )
     return f"{twin_path}"
 
 
@@ -2646,6 +3011,7 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
+    sheet: str = "",
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -2683,7 +3049,9 @@ def _run_validate(
     from synthtwin import contract, quality, validation, writing
 
     loaded = contract.load_profile(description)
-    measured = _measured_path(description, twin_given)
+    measured = _measured_path(
+        description, twin_given, loaded.source.workbook is not None
+    )
     quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
 
@@ -2714,7 +3082,12 @@ def _run_validate(
         _warn(errors.quality_target_already_there(shown_quality_path))
         return 1
 
-    outcome = validation.measure(loaded, measured)
+    # `--sheet` REACHES THIS COMMAND TOO (repair of landing 2b.10). The
+    # option was accepted here and then dropped on the floor: a person
+    # checking a real workbook whose table is not on the first visible
+    # sheet named the sheet, was given no error, and had a different
+    # sheet measured against their description.
+    outcome = validation.measure(loaded, measured, sheet)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
@@ -2890,7 +3263,11 @@ def main(argv: "list[str] | None" = None) -> int:
             )
         if validating:
             return _run_validate(
-                named, options.twin, options.out_dir, options.replace
+                named,
+                options.twin,
+                options.out_dir,
+                options.replace,
+                options.sheet,
             )
         return _run_profile(
             named,
@@ -2906,6 +3283,9 @@ def main(argv: "list[str] | None" = None) -> int:
             options.missing_values,
             options.first_row,
             options.day_first,
+            options.sheet,
+            options.metadata_rows,
+            options.delimiter,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

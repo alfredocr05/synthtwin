@@ -60,7 +60,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import contract, generation, parsing
+from synthtwin import contract, dialect, generation, parsing
 
 # -- the twin's bytes (method G2) -------------------------------------
 
@@ -264,44 +264,44 @@ def twin_csv(twin: generation.Twin) -> str:
     Guarantees:
 
     - Inputs: one twin as `generation.generate` built it, and nothing
-      else. No path, no file, no description: everything this needs the
-      twin already carries.
+      else. No path, no file: everything this needs the twin already
+      carries, the written form of its source table included.
     - Determinism: a fixed function of the twin. The same twin always
-      gives the same text, character for character, on every platform.
+      gives the same text, character for character, on every platform:
+      the line endings are in the text, so the caller writes it without
+      translating any.
     - Errors raised: none. Every cell is text by the time it arrives
       here, and no rule below can fail on any text.
     - Boundary: nothing is read and nothing is written; this hands back
       the text and the caller decides what becomes of it.
 
-    The format, stated in full because "CSV" is not one format:
+    THE FORMAT IS THE SOURCE'S (owner ruling 2026-09-15, plan P4-D86).
+    The twin is written the way the description records the real table
+    was: its delimiter, its quoting per column and per kind of cell, its
+    escaping, its line endings line by line, its byte-order mark, its
+    last line ending or the lack of one, its blank lines, its preamble,
+    its separator hint, its metadata rows, its header cells as written
+    and its trailing delimiters (`dialect.twin_text`, which states the
+    rules). An ordinary table -- a comma, UTF-8, line feeds, minimal
+    quoting, a final line ending -- is written exactly as every twin was
+    written before: fields separated by a comma, a field quoted when and
+    only when it holds a comma, a quote character, a carriage return or
+    a line feed, a quote character inside a quoted field written twice,
+    and the two canonical exceptions -- a header row whose first name
+    begins with the byte-order mark has that name quoted, and the one
+    cell of a one-column row that holds nothing is written as two quote
+    characters.
 
-    * fields are separated by a comma, rows by a line feed, and the last
-      row ends with a line feed like every other;
-    * a field is quoted when and only when it holds a comma, a quote
-      character, a carriage return or a line feed, and a quote character
-      inside a quoted field is written twice. There is no escape
-      character;
-    * TWO canonical exceptions to that rule: a header row whose first
-      name begins with the byte-order mark has that name quoted, and the
-      one cell of a one-column row that holds nothing is written as two
-      quote characters. `_line` says what each of them prevents;
-    * the header row is written when the description says the column
-      names came from the table's own file, and not written when the
-      description says synthtwin made them up;
-    * the columns are in the description's own order, which is the order
-      of the description's column list.
-
-    The caller writes it as UTF-8 with no byte-order mark of its own;
-    the twin's bytes are then the same on every platform (plan D12), and
-    a twin built from a table that was read as Western European text is
-    written as UTF-8 like every other (residual R-P2-5).
+    The header row is written when the description says the column names
+    came from the table's own file, and not written when it says
+    synthtwin made them up; the columns are in the description's own
+    order. The caller writes the text in the description's
+    `source.encoding`.
     """
-    text = ""
-    if twin.write_header:
-        text = text + _line(twin.names, True) + _NEWLINE
-    for row in twin.rows:
-        text = text + _line(row, False) + _NEWLINE
-    return text
+    form = twin.form
+    if form is None:
+        form = dialect.ordinary(len(twin.names), twin.n_rows, twin.write_header)
+    return dialect.twin_text(twin.names, twin.rows, twin.write_header, form)
 
 
 # -- the report (plan P2-D10, P2-D11) ---------------------------------
@@ -389,22 +389,120 @@ def _header_lines(profile: contract.Profile) -> "list[str]":
 
 
 def _encoding_lines(profile: contract.Profile) -> "list[str]":
-    """How the real file was read, and what the twin is written as."""
+    """How the real file was read, and the form the twin is written in.
+
+    THE TWIN IS WRITTEN THE WAY THE TABLE WAS (owner ruling 2026-09-15,
+    plan P4-D86), so this paragraph states that form rather than a fixed
+    one, and names the three places the twin cannot follow its table:
+    the text of the lines before the names, which is published at no
+    smallest group at all, quoting the table did in no single way, and a
+    line ending pattern it reproduces only where the description placed
+    it.
+    """
+    source = profile.source
+    form = source.dialect
+    mark = "with" if form.byte_order_mark else "without"
+    spaced = ", each followed by one space" if form.initial_space else ""
+    if form.line_endings_spread:
+        endings = "line endings of several kinds"
+    elif not form.line_endings:
+        endings = "no line endings"
+    elif len(form.line_endings) == 1:
+        endings = f"{dialect.ENDING_WORDS[form.line_endings[0].ending]} endings"
+    else:
+        endings = "line endings changing where your table's change"
+    last = (
+        "a line ending after the last line"
+        if form.final_line_ending
+        else "no line ending after the last line"
+    )
     lines = [
-        "The twin is UTF-8 text with newline line endings and no",
-        "byte-order mark, whatever your own table was written as.",
+        "The twin is written the way the description records your table",
+        "was: "
+        f"{dialect.ENCODING_WORDS[source.encoding]}, {mark} a byte-order mark;",
+        f"fields separated by {dialect.DELIMITER_WORDS[form.delimiter]}{spaced};",
+        f"{endings}, and {last}. Quoting, blank lines, the",
+        "lines before the column names and the order of the rows follow",
+        "your table too.",
     ]
-    if profile.source.used_fallback_encoding:
+    if form.preamble_withheld:
+        lines += [
+            "The lines your table has before its column names are written",
+            "as stand-ins: none of their text is published, at any",
+            "smallest group, and the twin holds a neutral line of the",
+            "same shape in each one's place.",
+        ]
+    if form.line_endings_spread:
+        lines += [
+            f"Your table's line endings change kind more than "
+            f"{dialect.MAXIMUM_ENDING_RUNS} times, so",
+            "the description records how many lines end each way, and the",
+            "twin ends as many lines each way with the rarer endings spread",
+            "evenly, not on the lines where your table has them.",
+        ]
+    if form.blank_lines_spread is not None:
+        lines += [
+            f"Your table has blank lines in more than "
+            f"{dialect.MAXIMUM_BLANK_PLACES} places, so the",
+            "description records how many there are and where the first and",
+            "last stand, and the twin spreads as many evenly between those",
+            "two places, not in every place your table has them.",
+        ]
+    # WHERE THE RECORDS HOLDING NOTHING STAND IS AN APPROXIMATION, AND
+    # THE REPORT SAYS SO (review item CODEX-13). The description
+    # publishes how many such records lead the table, stand inside it
+    # and follow it, and never WHICH rows they are: a row of a real
+    # table holding nothing is a fact about that row. So the twin
+    # spreads the interior ones evenly, and until this sentence nothing
+    # said it had -- measured on a table whose one empty record stood
+    # at row 7 and whose twin held it at row 60.
+    if form.empty_rows_interior:
+        lines += [
+            f"Your table holds {form.empty_rows_interior} record(s) with "
+            f"nothing in them",
+            "between its records. The twin holds as many, spread evenly",
+            "through it, and not in the rows yours has them: which rows",
+            "those are is a fact about your own rows, so it is not",
+            "published and the twin cannot follow it.",
+        ]
+    mixed = 0
+    for column in form.columns:
+        if dialect.QUOTE_MIXED in column.quoting:
+            mixed = mixed + 1
+    if mixed:
+        lines += [
+            f"Your table quoted the cells of {mixed} column(s) in no single",
+            "way; the twin quotes those cells only where a reader needs it.",
+        ]
+    # THE HEADER AND THE ROWS UNDER IT ARE COUNTED HERE TOO (review item
+    # CODEX-14). This walked the DATA columns alone, so a header written
+    # `"record_id",arm` -- quoted in no single way -- was published as
+    # `mixed`, written bare into the twin, and reported nowhere, while
+    # the page above claimed the twin's quoting follows the source.
+    if form.header_quoting == dialect.QUOTE_MIXED:
+        lines += [
+            "Your table quoted the cells of its HEADER row in no single",
+            "way; the twin quotes each name only where a reader needs it,",
+            "so the header line's quoting is not the one your table has.",
+        ]
+    if form.header_rows and form.header_rows_quoting == dialect.QUOTE_MIXED:
+        lines += [
+            "Your table quoted the rows describing the columns in no",
+            "single way; the twin quotes those cells only where a reader",
+            "needs it.",
+        ]
+    if source.used_fallback_encoding:
         return lines + [
             "The description records that your table was not readable as",
-            "UTF-8 and was read as Western European text (Latin-1), so any",
-            "accented letter in a published label reached the twin through",
-            "that reading.",
+            f"UTF-8 and was read as {dialect.ENCODING_WORDS[source.encoding]},",
+            "so any accented letter in a published label reached the twin",
+            "through that reading, and is written back in it.",
         ]
     return lines + [
         (
-            f"The description records that your table was read as UTF-8 "
-            f"(encoding: {_shown(profile.source.encoding)})."
+            f"The description records that your table was read as "
+            f"{dialect.ENCODING_WORDS[source.encoding]} "
+            f"(encoding: {_shown(source.encoding)})."
         ),
     ]
 

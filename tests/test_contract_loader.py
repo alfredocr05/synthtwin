@@ -49,7 +49,15 @@ import typing
 import pytest
 
 import fixtures
-from synthtwin import canonical, contract, errors, profile, reading, taxonomy
+from synthtwin import (
+    canonical,
+    contract,
+    errors,
+    profile,
+    reading,
+    taxonomy,
+    workbook,
+)
 
 Document = dict[str, typing.Any]
 Change = typing.Callable[[Document], None]
@@ -1465,6 +1473,11 @@ def battery() -> list[Mutation]:
         # replacement: "below the floor" would then reach counts of
         # nothing at all, which no count is.
         Mutation(
+            "R16", "a declared delimiter this format does not read",
+            edit_in("settings", forced_delimiter=":"),
+            names="forced_delimiter",
+        ),
+        Mutation(
             "R16", "a floor below the smallest one allowed",
             edit_in("settings", small_cell_floor=0),
             names="small_cell_floor",
@@ -1525,7 +1538,388 @@ def battery() -> list[Mutation]:
             edit_in("relationships", grain="one row per person"),
             names="update synthtwin",
         ),
+        # -- how the table's file is written (plan P4-D86) -------------
+        Mutation("FD1", "a written form one column short", _form_one_column_short),
+        Mutation("FD2", "line endings for one line too many", _form_one_line_too_many),
+        Mutation(
+            "FD2", "line endings counted out of their listed order",
+            _form_counted_out_of_order,
+        ),
+        Mutation(
+            "FD4", "blank lines counted below the cap on places",
+            _form_blank_lines_counted_below_the_cap,
+        ),
+        Mutation(
+            "FD3", "a byte-order mark on Latin-1 text", _form_marked_latin1
+        ),
+        Mutation(
+            "FD4", "blank lines after more records than the table has",
+            _form_blank_past_the_end,
+        ),
+        Mutation(
+            "FD5", "a record of nothing in a table with a column never absent",
+            _form_an_empty_record,
+        ),
+        Mutation(
+            "FD6", "a row sequence in a column with absent cells",
+            _form_sequence_with_holes,
+        ),
+        Mutation(
+            "FD7", "rows sorted by a column with absent cells",
+            _form_sorted_by_holes,
+        ),
+        Mutation(
+            "FD8", "a header cell written as another name",
+            _form_written_as_another_name,
+        ),
+        Mutation(
+            "FD9", "a quoting rule for rows of column descriptions that do not exist",
+            _form_rule_for_no_rows,
+        ),
+        Mutation(
+            "FD10", "rows with a trailing delimiter and left-out cells",
+            _form_trailing_and_short,
+        ),
+        Mutation(
+            "FD11", "a preamble recorded as withheld that holds nothing",
+            _form_withheld_nothing,
+        ),
+        Mutation(
+            "FD9", "rows of column descriptions nobody declared",
+            _form_rows_nobody_declared,
+        ),
+        Mutation(
+            "FD11", "a run of blank lines marked as a comment is",
+            _form_blank_run_marked_as_a_comment,
+        ),
+        Mutation(
+            "FD11", "a mark the twin could not write",
+            _form_preamble_marked_with_a_quote,
+        ),
+        # The rule that keeps a declared identifier out of the written
+        # form (plan P4-D76). `record_code` is declared in the base
+        # description above, so a row sequence published of it is the
+        # generator's instruction to write the very values the
+        # declaration exists to withhold.
+        Mutation(
+            "FD12", "a row sequence in a column declared to hold record numbers",
+            _form_sequence_on_a_declared_identifier,
+        ),
+        # The declared delimiter (plan P4-D110, review item CODEX-4). The
+        # base description declares none and reads its file with the
+        # comma, so a declaration of the semicolon says two things about
+        # one file; and a workbook has no delimiter to declare at all.
+        Mutation(
+            "FD13", "a declared delimiter the written form does not publish",
+            edit_in("settings", forced_delimiter=";"),
+        ),
+        Mutation(
+            "FD13", "a delimiter declared on a workbook",
+            _form_workbook_with_a_declared_delimiter,
+        ),
+        # The workbook block (plan P4-D77). The base is a delimited
+        # file's description, so each of these installs a conforming
+        # block first and then breaks one rule of it.
+        Mutation(
+            "WB1", "a workbook block describing the wrong number of columns",
+            _form_workbook_of_the_wrong_width,
+        ),
+        Mutation(
+            "WB2", "a sheet numbered past the last the workbook has",
+            _form_workbook_sheet_past_the_last,
+        ),
+        Mutation(
+            "WB3", "a cell census naming a single row",
+            _form_workbook_census_names_one_row,
+        ),
+        Mutation(
+            "WB4", "more records holding nothing than the table has rows",
+            _form_workbook_more_empty_rows_than_rows,
+        ),
+        Mutation(
+            "WB3", "a count of records holding nothing that names one row",
+            _form_workbook_empty_records_name_one_row,
+        ),
+        # The two rules the twin's WRITER needs (plan P4-D79). Both are
+        # rules a description can break, which is why they are
+        # invariants at all: the first two drafted in part 1 could not
+        # be broken by any document and were taken out again.
+        Mutation(
+            "WB5", "a workbook naming fewer sheets than it has",
+            _form_workbook_names_too_few_sheets,
+        ),
+        Mutation(
+            "WB6", "a format code of a kind the column's own census denies",
+            _form_workbook_format_code_denied_by_its_census,
+        ),
+        # What every sheet that is not the table's holds (plan P4-D82).
+        Mutation(
+            "WB7", "a block of cells on the sheet the table was read from",
+            _form_workbook_describes_the_tables_own_sheet,
+        ),
+        Mutation(
+            "WB7", "a second sheet holding a table this description does not carry",
+            _form_workbook_other_sheet_holds_a_table,
+        ),
     ]
+
+
+def _form(document: Document) -> Document:
+    """The written form of the base description (`source.dialect`)."""
+    return typing.cast(Document, document["source"]["dialect"])
+
+
+def _position_of(document: Document, name: str) -> int:
+    return typing.cast(int, at(document, name)["position"])
+
+
+def _form_one_column_short(document: Document) -> None:
+    _form(document)["columns"] = _form(document)["columns"][:-1]
+
+
+def _form_one_line_too_many(document: Document) -> None:
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_counted_out_of_order(document: Document) -> None:
+    """Counts that account for every line, with CRLF listed before LF."""
+    lines = typing.cast(int, _form(document)["line_endings"][0]["lines"])
+    _form(document)["line_endings"] = []
+    _form(document)["line_endings_spread"] = [
+        {"ending": "crlf", "lines": 1},
+        {"ending": "lf", "lines": lines - 1},
+    ]
+
+
+def _form_blank_lines_counted_below_the_cap(document: Document) -> None:
+    _form(document)["blank_lines_spread"] = {
+        "first": 0, "last": 1, "lines": 2, "text": "",
+    }
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_marked_latin1(document: Document) -> None:
+    document["source"]["encoding"] = "latin-1"
+    document["source"]["used_fallback_encoding"] = True
+    _form(document)["byte_order_mark"] = True
+
+
+def _form_blank_past_the_end(document: Document) -> None:
+    rows = typing.cast(int, document["n_rows"])
+    _form(document)["blank_lines"] = [{"after": rows + 1, "lines": 1, "text": ""}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_an_empty_record(document: Document) -> None:
+    _form(document)["empty_rows"]["interior"] = 1
+
+
+def _form_sequence_with_holes(document: Document) -> None:
+    place = _position_of(document, "visits") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _form_sorted_by_holes(document: Document) -> None:
+    _form(document)["row_order"] = {
+        "collation": "number",
+        "column": _position_of(document, "visits"),
+        "direction": "ascending",
+    }
+
+
+def _form_written_as_another_name(document: Document) -> None:
+    _form(document)["written_names"] = [{"position": 1, "text": "renamed"}]
+
+
+def _form_rule_for_no_rows(document: Document) -> None:
+    _form(document)["header_rows_quoting"] = "always"
+
+
+def _form_trailing_and_short(document: Document) -> None:
+    _form(document)["short_rows"] = True
+    _form(document)["trailing_delimiter"]["rows"] = True
+
+
+def _form_withheld_nothing(document: Document) -> None:
+    _form(document)["preamble_withheld"] = True
+
+
+def _form_rows_nobody_declared(document: Document) -> None:
+    # TWO ROWS OF COLUMN DESCRIPTIONS AND NOBODY DECLARED THEM (FD9,
+    # plan P4-D81). `settings.forced_metadata_rows` is nought in the
+    # base, so this IS the description the producer wrote from a guess
+    # before landing 2b.11: two rows taken out of the table and
+    # published as schema text, held to no smallest group and written
+    # into the twin as they stand. That is how a person's own record
+    # became schema (review item CODEX-2), and the clause that refuses
+    # it -- the published rows are the DECLARED rows -- could be taken
+    # out with the whole required gate still green until this entry
+    # existed.
+    width = len(_form(document)["columns"])
+    _form(document)["header_rows"] = [
+        [f"what column {place + 1} holds" for place in range(width)],
+        [f"marker {place + 1}" for place in range(width)],
+    ]
+    # Two rows of column descriptions are two more LINES of the file, so
+    # the line endings account for them: FD2 is about the file's shape
+    # and would otherwise refuse this description before FD9 read it,
+    # leaving the clause under test unexercised.
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_blank_run_marked_as_a_comment(document: Document) -> None:
+    # A RUN PUBLISHED AS BLANK WHOSE MARK IS A COMMENT'S (FD11, plan
+    # P4-D80). The twin writes `# ` for such a run, the survey reads
+    # that line back as a COMMENT, and the description said blank: the
+    # twin's own form is then not the form published. FD11's shape
+    # clause is the only rule that refuses this, and nothing in the
+    # required tests noticed its removal until this entry.
+    _form(document)["preamble"] = [{"kind": "blank", "lines": 1, "mark": "# "}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_preamble_marked_with_a_quote(document: Document) -> None:
+    # A MARK THE TWIN CANNOT WRITE (FD11, plan P4-D83). The twin writes
+    # `"withheld line` for this run -- a quoted field nothing closes --
+    # and such a twin missed about 120 obligations of its own
+    # description while `synthtwin profile` refused to read it at all.
+    # The shape clause CANNOT catch it: `"withheld line` is read back
+    # as a comment marked `"`, which is exactly what is published here.
+    _form(document)["preamble"] = [{"kind": "comment", "lines": 1, "mark": '"'}]
+    _form(document)["preamble_withheld"] = True
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_sequence_on_a_declared_identifier(document: Document) -> None:
+    place = _position_of(document, "record_code") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _workbook_block(document: Document, columns: int, rows: int) -> Document:
+    """Install a conforming workbook block on the base description.
+
+    The base is a description of a DELIMITED file, so it carries no
+    workbook block at all and no mutation of one could be built from it.
+    This writes the block the producer writes for a workbook of the same
+    shape -- every census holding to the base's floor of eleven -- so
+    that each entry below damages exactly one rule and nothing else.
+    """
+    classes: "dict[str, object]" = {}
+    for kind in workbook.CELL_CLASSES:
+        classes[kind] = 0
+    classes["number"] = rows
+    kinds: "dict[str, object]" = {}
+    for kind in workbook.FORMAT_KINDS:
+        kinds[kind] = 0
+    kinds["plain"] = rows
+    every: "list[object]" = []
+    for _place in range(columns):
+        every += [
+            {
+                "cell_classes": dict(classes),
+                "format_code": "General",
+                "format_kinds": dict(kinds),
+                "formulas": 0,
+            }
+        ]
+    block: Document = {
+        "autofilter": False,
+        "columns": every,
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": False,
+        "empty_rows_inside": 0,
+        "frozen_rows": 0,
+        "macro_project": False,
+        "rows_above_header": 0,
+        "sheet_count": 2,
+        "sheet_hidden": False,
+        "sheet_names": ["Data", "Notes"],
+        # The table's own sheet describes no block of cells and every
+        # other sheet describes one (WB7, plan P4-D82). The second sheet
+        # here holds a single cell, which is the shape a notes page
+        # takes and the one the twin writes back with a word of
+        # synthtwin's own.
+        "sheet_extents": [None, {"columns": 1, "rows": 1}],
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0,
+    }
+    document["source"]["workbook"] = block
+    return block
+
+
+def _form_workbook_with_a_declared_delimiter(document: Document) -> None:
+    _workbook_block(document, 16, 120)
+    document["settings"]["forced_delimiter"] = ","
+
+
+def _form_workbook_of_the_wrong_width(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    del block["columns"][-1]
+
+
+def _form_workbook_sheet_past_the_last(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    block["sheet_position"] = 3
+
+
+def _form_workbook_census_names_one_row(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # One cell of one class, at a floor of eleven: the row holding that
+    # cell is named by the count, and so is every other row by its
+    # complement.
+    block["columns"][0]["cell_classes"]["error"] = 1
+
+
+def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    block["empty_rows_inside"] = 1000
+
+
+def _form_workbook_empty_records_name_one_row(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # ONE record of 120 holding nothing, at a floor of eleven. The count
+    # names the row that holds nothing as surely as a census of one cell
+    # names the row that holds it, and its complement names every other
+    # row. Published raw at every floor until the repair of landing
+    # 2b.10, and the twin then wrote that one empty record back.
+    block["empty_rows_inside"] = 1
+
+
+def _form_workbook_names_too_few_sheets(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # Two sheets, one name. A twin built from this would have no name to
+    # write the second sheet under.
+    block["sheet_names"] = ["Data"]
+
+
+def _form_workbook_describes_the_tables_own_sheet(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # The sheet the table was read from is described by the table's own
+    # facts. A block of cells here as well says two things about one
+    # sheet, and the writer would put a page of withheld cells over the
+    # table it just wrote.
+    block["sheet_extents"] = [{"columns": 4, "rows": 12}, {"columns": 1, "rows": 1}]
+
+
+def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # A second sheet holding twelve rows by four columns is a TABLE this
+    # description does not carry. synthtwin refuses such a workbook when
+    # it reads one (plan P4-D82); a description asking for one would
+    # have the twin write a frame of withheld cells where a table stood,
+    # so code developed on it would read a table that is not there.
+    block["sheet_extents"] = [None, {"columns": 4, "rows": 12}]
+
+
+def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # The column's census says not one of its cells wears a date format,
+    # and its twin is told to wear one. A twin written from this would
+    # come back from every reader as a column of dates where the
+    # description publishes none.
+    block["columns"][0]["format_code"] = "mm-dd-yy"
 
 
 BATTERY = battery()

@@ -659,21 +659,23 @@ written. A loader refuses an empty name and refuses a repeated one.
 
 ### 4.3 STRUCTURAL rules for `source`
 
-`source` is an object with exactly these five keys and no others.
+`source` is an object with exactly these seven keys and no others.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `encoding` | string | `utf-8-sig`, `latin-1` | the encoding that read the table | REPORT-ONLY |
+| `dialect` | object | section 4.3a | how the table's file is written: its delimiter, quoting, line endings and the lines that are not records | EXACT-CONTROL |
+| `encoding` | string | `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`, `utf-16-be` | the encoding that read the table, which the twin is written in | REPORT-ONLY |
 | `used_fallback_encoding` | boolean | — | true when the fallback rather than the primary encoding read the file | REPORT-ONLY |
+| `workbook` | `null` or object | section 4.3b | how a spreadsheet workbook holds the table, or `null` where the file was delimited text | EXACT-CONTROL |
 | `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: no names were in the file and synthtwin named the columns `column_1`, `column_2`, … | EXACT-CONTROL |
 | `header_by_convention` | boolean | — | true when the first row was taken as names because nothing in the file said otherwise, rather than because the file showed it | REPORT-ONLY, with a required sentence |
 | `header_evidence` | string | any non-empty text | the header verdict in one plain sentence | REPORT-ONLY, with a required sentence |
 
-**Membership rule.** All five keys are REQUIRED. No other key may
+**Membership rule.** All seven keys are REQUIRED. No other key may
 appear under `source`.
 
 **Invariant S5.** `used_fallback_encoding` is true exactly when
-`encoding` is `latin-1`.
+`encoding` is `latin-1` or `cp1252`.
 
 **Invariant S6.** `header_by_convention` may be true only when
 `header_source` is `file`. Generated names are not a convention about
@@ -686,9 +688,294 @@ names — not merely that a header was written. Phase 1's R1 residual is
 exactly this uncertainty, and a report that says only "a header was
 written" hides a warning the profile is carrying (plan P2-D6).
 
+### 4.3a EXACT-CONTROL: `source.dialect`, the table's written form
+
+Owner ruling 2026-09-15, plan P4-D86: the twin is written the way its
+source file was. `dialect` is an object with exactly these twenty-two keys,
+all REQUIRED; the loader is the executable statement of every rule
+below (`contract._dialect_block`, `contract._dialect_rules`).
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null` |
+| `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
+| `byte_order_mark` | boolean | — | a byte-order mark leads the file |
+| `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
+| `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are |
+| `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
+| `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
+| `final_line_ending` | boolean | — | the last line ends with a line ending |
+| `header_quoting` | string | a quoting rule | how the header's cells are quoted |
+| `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
+| `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
+| `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not |
+| `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
+| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
+| `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
+| `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`, `decimal_comma`; `ascending`, `descending` | the leftmost column the rows are sorted by, and the grammar its cells are read under. `decimal_comma` is published only for a column named in `settings.forced_decimal_commas`: such a column writes `0,5` and `10,0`, which the ordinary number grammar reads as no number at all, so the column fell to `text` — where `10,0` sorts before `9,9` — and a table genuinely sorted by it published no order, or one its twin then wrote out of order (review item CODEX-9). The grammar is published here rather than left to be re-derived, so the generator and the validator both read it off the description instead of being told the declaration a second time |
+| `separator_line` | boolean | — | an Excel `sep=` line comes first |
+| `short_rows` | boolean | — | records leave out their trailing empty cells |
+| `trailing_delimiter` | object `{header, rows}` | booleans | a delimiter ends the header line, each record |
+| `written_names` | array of objects `{position, text}` | — | header cells written other than their column's name: blank or repeated, named `Unnamed: N` (N counted from 0) or with `.1`, `.2` after them |
+
+**Invariants FD1-FD13** (`contract.INVARIANTS`): FD1 one column form per
+column; FD2 the line endings account for every line the file holds, in
+runs that each end their lines one way, or past the cap on runs and in
+their place as counts of two or more endings in listed order; FD3 a mark only on UTF-8 or
+UTF-16, and always on UTF-16; FD4 blank lines in file order, within the
+table, spaces and tabs only, and in a one-column table only after its
+last record, within their caps, and blank lines published counted only
+past that cap, in place of places, within the table, in two or more
+columns; FD5 records holding nothing only in a table of two or more
+columns with no row sequence, no more than any column's absent cells; FD6 a row-sequence column has every
+cell present; FD7 the sort column is a column, not the row sequence, holding no
+empty cell and no absent cell the twin writes empty outside the records
+holding nothing, in three or more rows (the order is read over the
+records that hold something, and the twin sorts those around its
+records of nothing); FD8 written header cells stand
+under a header read from the file, in order, and name every column what
+the description names it; FD9 rows of column descriptions only under
+such a header, exactly as many of them as the person declared and no
+more than two, each as wide as the table; FD10 only a header read from the file
+carries a trailing delimiter or a quoting rule, and rows do not both
+carry a trailing delimiter and leave out empty cells; FD11 the lines
+before the table are published as runs of one shape, within the cap,
+each with a mark holding no line break, no quote character, not the
+table's own delimiter and no text of the line, each
+the shape the line the twin writes for it is read back as, and recorded
+as withheld exactly when one of them held text; FD12 a column declared to hold record numbers
+publishes no row sequence and is not the column the rows are sorted
+by, and a row sequence is published only for a first column named as
+a written row index is; FD13 a delimiter the person declared
+(`settings.forced_delimiter`, plan P4-D110) is the delimiter the
+written form publishes, and a workbook carries no such declaration.
+
+**What it discloses.** Every key describes the file's writer, not a
+person, except one: the metadata rows, which are column-level text,
+reach a description only where the person DECLARED them and are then
+published like names (4.4, plan P4-D81).
+
+A LINE BEFORE THE TABLE IS NEVER PUBLISHED AS TEXT, AT ANY SMALLEST
+GROUP (plan P4-D80). Such a line is free text somebody wrote above
+their table -- `Extract for unit 7`, `# exported for Dr Vance` -- and
+the twin definition's third clause says the description reveals nothing
+about any individual. The rule this replaced published the line whole
+at a smallest group of one, which is this version's DEFAULT: a floor
+governs how many rows share a value, and one line of prose is not a
+group of rows at all, so the floor was never a defence for it. Review
+item CODEX-3 measured a person's name travelling through that branch
+into the description and into the twin.
+
+What a description carries instead is that such lines exist, how many
+there are, and the SHAPE of each run of them: blank, a comment and the
+mark it began with, or a line of text. Every one of those is a fact
+about the tool that wrote the file. The twin writes
+`dialect.preamble_line` for each -- a blank line stays blank and keeps
+its spaces, a comment keeps its mark and reads `# withheld line`, a
+line of text reads `withheld line` -- so a reader that skips a title
+line, and code that passes `comment="#"`, skip as many lines in the
+twin as in the table. The loader's half of the rule is that the line
+the twin would write is read back as the very shape published, which
+is what makes a mark carrying a word impossible rather than merely
+unusual; the producer's half is `profile._PREAMBLE_MARK`, which
+refuses a mark holding any letter or digit.
+
+**AND THE MARK HOLDS NOTHING THE TWIN COULD NOT WRITE** (plan P4-D83).
+The mark is written into the twin ahead of the stand-in, so a mark
+carrying a quote character or the table's own delimiter leaves a twin
+that is not a file. Measured on the repair itself: a title line written
+`"Extract for unit 7"` gave the mark `"`, the twin's first line was
+written `"withheld line` -- a quoted field nothing closes -- the twin
+missed about 120 obligations of the description that asked for it, and
+`synthtwin profile` refused to read the twin at all, where the same
+bytes were twinned cleanly before lines before a table were withheld at
+all. The delimiter breaks it the other way, cutting the stand-in into
+fields a reader takes for the table's header. So `dialect.preamble_shape`
+ends the mark before the first such character -- a line whose
+punctuation begins with one is a line of TEXT, whose stand-in is the two
+neutral words -- and FD11 refuses a description carrying one, against
+the form's own delimiter.
+
+**THE LIMIT OF THIS RULE, STATED** (review item MAJOR-2 of the 2b.11
+review). It reaches only the lines synthtwin READS as standing before
+the table: a blank line, a line beginning `#`, and a line of one field
+holding a space. A title line that holds the delimiter -- `Extract for
+Dr Vance, unit 7` above a two-column table -- reads as a row of cells
+of the table's own width, so it is taken for the header and its words
+are published as the column names and written into the twin, and the
+row count is one too high. Column names ARE published as written, by
+S4 and by 4.4: the twin's header line has to carry them. What synthtwin
+owes such a person is to say so, and the summary's paragraph about the
+first row says it -- that the names were assumed, that what that row
+holds is published as written, and that `--first-row data` is the way
+to say the row is a record. Recognising such a line as a title instead
+would take the first row of every table whose header cells hold spaces
+-- `Gewicht, kg` -- out of the description, so this version tells
+rather than guesses.
+
+**S4 still holds of the names.** A blank or repeated header cell is not a
+name: the column is named by the rule in `written_names` above, which
+yields names that are non-empty and pairwise distinct, and the cell as
+written stands in `written_names` to be written back.
+
+### 4.3b EXACT-CONTROL: `source.workbook`, how a workbook holds the table
+
+Plan P4-D77, extended by P4-D79. `null` where the table was read from
+delimited text. Otherwise an object with exactly these sixteen keys, all
+REQUIRED; the loader is the executable statement of every rule below
+(`contract._workbook_block`, `contract._workbook_rules`).
+
+**This block is an OBLIGATION, not only a record** (plan P4-D79). A
+workbook's twin is a workbook, so every fact here is a promise the twin
+has to keep and the validator measures each one, under subchecks named
+`workbook.*` filed against this fact. The validation method states the
+rule and what it does and does not withhold on a workbook.
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `autofilter` | boolean | — | the sheet or its defined table carries a filter |
+| `columns` | array of objects `{cell_classes, format_kinds, formulas}` | one per column | the census of what each column's cells WERE, below |
+| `date_system` | string | `1900`, `1904` | which epoch the workbook counts its dates from; the 1904 system shifts every date by 1,462 days |
+| `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
+| `defined_table` | boolean | — | the sheet carries a defined table |
+| `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the smallest group held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held to the smallest group exactly as a census is (WB3): one such record names the row that holds it, and one short of the whole names the row that does not |
+| `frozen_rows` | integer | ≥ 0 | how many rows are frozen at the top of the sheet |
+| `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
+| `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
+| `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
+| `sheet_extents` | array of object-or-`null` | one per sheet, in workbook order | the block of cells each sheet that is NOT the table's holds, as `{rows, columns}` counted from the first cell, and `null` for the sheet the table was read from, whose own facts describe it. A sheet holding nothing is `0` by `0`. The twin writes a sheet of that shape carrying one word of synthtwin's own in every cell (WB7) |
+| `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
+| `sheet_names` | array of string-or-`null` | one per sheet, in workbook order | each sheet's name where it may be published, `null` where it was WITHHELD. A name may be published only when it is one this version would publish itself -- one of `dialect.SHEET_SAFE_NAMES`, optionally followed by figures -- because a sheet name can hold a person's name. A withheld sheet is written under a neutral name |
+| `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order |
+| `trailing_blank_columns` | integer | ≥ 0 | columns of formatted blanks standing beyond the table |
+| `trailing_blank_rows` | integer | ≥ 0 | rows of formatted blanks standing below the table |
+
+**A column's census — exactly four keys.** `format_code` is the number
+format the column's twin WEARS: one of `dialect.SHEET_FORMAT_CODES`,
+which is Excel's own built-in vocabulary plus one canonical code per
+kind, and never a code out of the person's file. `cell_classes` counts the
+class of every cell of that column, over the closed set `absent`,
+`blank`, `empty`, `text`, `number`, `boolean`, `error`
+(`workbook.CELL_CLASSES`); `format_kinds` counts what kind of thing
+each cell's number format makes of it, over `plain`, `date`,
+`datetime`, `time`, `elapsed`, `text` (`workbook.FORMAT_KINDS`);
+`formulas` counts the cells carrying a formula. Every count is a whole
+number, or `null` where the smallest group held it back.
+
+**Why the classes are the cell's own and not a reader's.** A workbook
+cell is typed, and what a reader shows a person is derived from the
+type, the stored number and a format code kept elsewhere. The readers
+disagree about nearly every one of those answers: a text cell of
+digits comes back as an integer from pandas and as its characters from
+openpyxl, and an empty-string cell, an absent cell and a styled blank
+are three things in the file and one missing value to pandas. A
+description that recorded what a reader made of a cell could not be
+written back, so what is recorded is what the file holds.
+
+**A sheet that is not the table's, and the one workbook that is
+refused** (plan P4-D82). A twin used to write every other sheet EMPTY,
+and a reader then met a different workbook: measured with pandas, the
+default sheet of a book whose first sheet is a notes page reads back as
+one column and no rows on the real file and as nothing at all on the
+twin. The person's own text may not be written back, and cells holding
+the empty string change nothing — every reader folds those into a
+missing value and trims the frame away again, measured as the same
+nothing. So `sheet_extents` publishes how much ROOM each such sheet's
+cells take and the twin writes a block of that shape carrying one word
+of synthtwin's own, which is the most a twin may hold of a sheet this
+description does not describe.
+
+A sheet holding a TABLE cannot be carried that way at all: its values
+are somebody's rows, so a twin would hand a reader a frame of withheld
+cells where a table stood, and statistics taken from it would be false
+while the file still opened. Such a workbook is REFUSED, in a sentence
+naming BOTH sheets and saying that each table has to be saved in a
+workbook of its own (`errors.workbook_other_sheet_holds_a_table`); a
+block of two rows and two columns is where that line falls (WB7).
+
+That sentence used to ask which sheet held the table and tell the
+person to run the command again with `--sheet`, and landing 2b.17's
+repair pass measured that the remedy it named is refused too:
+whichever of two table-holding sheets is named, the other is then the
+sheet holding a table, and the same refusal comes back. Naming a sheet
+settles which sheet is DESCRIBED; it cannot settle what the twin would
+have to carry on the sheets it does not describe. A message that sends
+a person back to the command line for a second refusal is worse than a
+plain one, so the sentence now names the only thing that does settle
+it.
+
+**Invariants WB1-WB7** (`contract.INVARIANTS`): WB1 one column census
+per column; WB2 the sheet the table was read from is one the workbook
+has, counted from one; WB3 every published count of cells, and the count
+of records holding nothing, is nought, or all of them, or clears the
+smallest group at both ends, so that neither the count nor its
+complement names one row; WB4 the records holding nothing inside the
+table are no more than the table itself holds, and no more rows are
+frozen than the sheet has; WB5 a workbook names one sheet for every
+sheet it has, and every name it publishes is one this version would
+publish itself; WB6 the number format a column's twin wears is one of
+the published codes, and its kind is one the column's own census does
+not say no cell wears; WB7 a workbook describes the block of cells held
+by every sheet that is not the table's and none for the sheet the table
+was read from, and no such block reaches two rows and two columns.
+
+**Which counts the smallest group holds, and which it does not.** Every
+per-column census, and `empty_rows_inside`, count ROWS OF THE TABLE, so
+each is held to the floor and published as `null` where it would name
+one row (WB3). The layout counts are exempt and each for the same
+reason: `rows_above_header`, `trailing_blank_rows`,
+`trailing_blank_columns`, `frozen_rows`, `defined_names`, `sheet_count`
+and `sheet_position` count the SHEET'S FURNITURE and not its records --
+one title row, one frozen row, one column of formatted blanks beyond
+the last, one defined name. None of them is a row of anybody's data, so
+publishing a count of one names nobody. The earlier wording of this
+section and of `workbook.py` claimed every count was floored while five
+were published raw; the claim is now the exact list above.
+
+**A published nought and a withheld count are different facts.** A
+count of `0` says no cell of that class is in the column; `null` says
+the number was not published. Both the writer and the validator read
+them apart: the twin never writes a cell of a class published as
+nought, and never writes a format code whose kind was withheld, while
+a withheld count is one the checked file is not held to at all. The
+validation method states which facts of this block a twin cannot be held
+to, and why each is withheld rather than measured.
+
+**What it discloses, and what it refuses to.** Every key above
+describes the FILE. The facts of a workbook that name or measure one
+person are not published at all: not the sheet's own NAME (a sheet or a
+title can be somebody's name), not a column width (an autofit width
+measures the longest value in that column, so it is a measurement of
+one cell), not a comment or its author, not a hidden row, not per-row
+styling, not a hyperlink's target, not the document's author or
+company, and not any cache of real values. The sheet is published by
+its position, the person is told on their own screen which sheet was
+read, and a name is published only where this version would have
+written that name itself.
+
+**The format code, and why part 1's narrowing was reversed** (plan
+P4-D79). Part 1 published the format KIND and withheld the CODE,
+because a custom code is text out of the file. That reasoning stands,
+and it is also true that a twin cannot be written from the kind alone:
+a date is a number wearing a format, so a date column written with no
+code comes back from every reader as a column of five-digit numbers. So
+a code IS published — but only ever one of `SHEET_FORMAT_CODES`, which
+is Excel's own published vocabulary and synthtwin's own, never the
+person's. A custom code is published as the CANONICAL code of its kind.
+THE LIMIT, unchanged in substance: the twin wears the standard spelling
+of a date rather than the one somebody typed.
+
+**A mixture of kinds is reproduced as its counts, not collapsed to the
+majority.** `format_kinds` publishes a count per kind and the twin
+writes a cell per count; an absent cell is always `plain`, because
+nothing is written for it and every reader sees the general format
+there.
+
 ### 4.4 `settings`
 
-An object with exactly these twenty keys. Its whole subtree is
+An object with exactly these twenty-two keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -709,8 +996,10 @@ claim.
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `affixed_number`, `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. **THE AFFIXED ROLE IS HONOURED OVER ITS CORE** (landing 2b.16, plan P4-D106, closing the affixed half of residual R-P4-52). Such a cell is a number wearing one shared piece of text, and the two halves are read differently on purpose: the CORE is read, and written back, in the column's declared grammar, while the WRAPPER is published character for character and is never translated — a wrapper carrying either mark, `U.S.$ ` or a unit written `kg.`, is the file's own text and not a number this tool spelled. Before it, the commonest European export there is — `795,64 EUR`, `37,5 %` — had no substring the splitter's reader could hold, so every cell proposed a wrapper of its own, none reached the parse line, and the column was described as free text and rebuilt as punctuation stand-ins, with `synthtwin validate` reporting exit 0 on both files. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — a separator between several numbers, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer; on `joined_numbers` the same mark may be the separator itself, and that half of residual R-P4-52 is open. A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
+| `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
+| `forced_metadata_rows` | integer | ≥ 0, and at most 2 rows may be published | THE FIFTH DECLARATION (plan P4-D81), and the only one that is a count rather than a list of names: how many rows immediately under the column names DESCRIBE those columns rather than holding somebody's record. Some survey exports write two — a question wording, then a row of `ImportId` markers. synthtwin RECOGNISES that shape but never acts on it unasked: undeclared, those rows stay in the table and are described as data. Declared, they are taken out of the table and published under `source.dialect.header_rows`, where they are schema text and are published like column names — but only where the file BEARS THE DECLARATION OUT, or the person confirmed it by answering `about_your_file` in the questions file. A `--metadata-rows` typed on a file wearing none of the shape is read and not acted on: the rows stay in the table, the person is told so and asked in the questions file, and answering there is what makes the declaration act (review of landing 2b.17). The reason is the same one the guess was taken out for, read from the other side — measured on an ordinary table of 122 records, `--metadata-rows 2` published two people's records verbatim as the columns' description, exempt from the smallest group, and left the table counted at 120 — and a notice on the screen is no safeguard against it, because by the time it is read the description has been written. So the settings value alone no longer says whether those rows left the table; the published rows say it, and `validate` reads a checked file by them. The guess this replaced took the rows out on its own, so a file it recognised WRONGLY had two real records removed from every count and published verbatim as schema, one of them a person's own row (review item CODEX-2). A declaration that finds no such rows publishes none and is not a refusal: the safe reading is the one where the rows stayed in the table |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
 | `kept_values` | object | exactly the five keys below | the declaration record for `--keep-value` |
@@ -721,11 +1010,16 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY keys are REQUIRED. No other key
+**C6-20 (membership).** All TWENTY-TWO keys are REQUIRED. No other key
 may appear under `settings`; a loader refuses one that does, naming
-it. A block of nineteen keys or of twenty-one — one of the twenty
-skipped, or a key of somebody's own added — is a document this
-contract does not describe.
+it. A block of twenty-one keys or of twenty-three — one of the
+twenty-two skipped, or a key of somebody's own added — is a document
+this contract does not describe. (It said TWENTY while section 4.4
+said twenty-one and the producer wrote twenty-one, from the landing
+that added `forced_metadata_rows` until landing 2b.17's repair pass
+added `forced_delimiter` and corrected all three counts together; the
+guard that compares this clause with the producer read only a word
+without a hyphen, so it could not state a count past twenty.)
 
 **THE COUNT WAS WRONG IN THREE PLACES AT ONCE and is corrected here
 (2026-08-26).** This clause said seventeen, the key list of section
@@ -7464,6 +7758,38 @@ and map:
   published count, so every pooled cell carries its own canonical text
   and no pool is re-spelled into a form never named.
 
+**C6-137 (a whole numeral the format cannot hold exactly).** Every
+spelling above is computed from the value a cell reads back as, and at
+or above 2**53 — the first whole number binary64 cannot hold exactly —
+that value is not the numeral that was written: a cell holding
+`9007199254740993` reads back as 9007199254740992.0. A cell whose text
+is FIGURES ALONE after an optional minus, which reads back as exactly
+the value compared against, and whose value is at or above that
+boundary, is in a permitted spelling of that value. Without this clause
+a real register of long whole numbers meets no spelling of its own
+description, however it is written, which no description of a real file
+may ask of it.
+
+The three conditions are each a way this still fails, and they are
+stated so that no wider reading is available: a point, an exponent or a
+mark between thousands puts a cell outside the clause, so a fraction
+width the census does not name is reported exactly as it was; and a
+numeral naming a different value is outside it at any width. A twin
+writes the canonical figures for such a column, which is a limit of
+what the description carries rather than a licence taken here.
+
+**Numbered C6-86 on its landing's branch and C6-137 here** (the
+integration of landings 2b.6 to 2b.10, 2026-09-16): landing 2b.7 had
+already given C6-86 to the placement of its two mixture censuses. The
+same integration found this clause's rule written TWICE in the
+validator, once by landing 2b.10 and once, wider, by landing 2b.7's
+source-spelling family (validation method V1.4, plan P4-D66.2), which
+also admits such a run carrying its sign, its thousands marks or a
+padded exponent. Every cell this clause admits is admitted there,
+measured over 264,387 such texts, so the validator keeps the one rule,
+and the three conditions above bound THIS clause rather than the whole
+family.
+
 `NW` is read off the VALUES, never the spellings: counting cells
 WRITTEN with a point would make the identity circular, a twin spelling
 a whole `1000` as `1000.0` inflating its own `D`. Where nothing pooled,
@@ -8907,13 +9233,16 @@ a document, so no document can violate it.
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty keys; nineteen or twenty-one is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-two keys; twenty-one or twenty-three is a document this contract does not describe | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
-can cite them: the nine top-level keys (4.1), the five `source` keys
+can cite them: the nine top-level keys (4.1), the seven `source` keys
 (4.3), a level entry's four (6.3.1), a `publication_notes` entry's two
-(4.5).
+(4.5). THE `source` COUNT READ FIVE while the block held six, and is
+corrected here with the seventh (`workbook`, 4.3b): a synopsis that
+counts wrong is how a loader written from it comes to accept a
+document this contract does not describe.
 
 **AND S13's OWN LIST IS THE EIGHT MAP POSITIONS IT NAMES, NOT FOUR.**
 An earlier synopsis here counted four pooled-entry maps and omitted
@@ -9372,7 +9701,7 @@ find one".
 | key | disposition | note |
 |---|---|---|
 | `columns` | STRUCTURAL | the four container rules: S1, S2, S3, S4 |
-| `source` | STRUCTURAL | membership: its five keys, section 4.3 |
+| `source` | STRUCTURAL | membership: its six keys, section 4.3 |
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
@@ -9380,7 +9709,9 @@ find one".
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
-| `source.encoding` | REPORT-ONLY | the twin is always UTF-8 with LF (residual R-P2-5) |
+| `source.encoding` | REPORT-ONLY | how the table was read; the twin is written back in it, which the byte rule `bytes.encoding` checks (plan P4-D86, which closes residual R-P2-5) |
+| `source.dialect` | EXACT-CONTROL | decides how the twin's bytes are written: section 4.3a |
+| `source.workbook` | EXACT-CONTROL | how a workbook holds the table, and what the twin has to be written as: section 4.3b |
 | `source.used_fallback_encoding` | REPORT-ONLY | |
 | `source.header_source` | EXACT-CONTROL | decides whether a header row is written at all |
 | `source.header_by_convention` | REPORT-ONLY, required sentence | section 4.3 |
@@ -10205,43 +10536,64 @@ version 5 document reads "version 5":
 > description again by running 'synthtwin profile' on your table,
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
-> --decimal-comma, --smallest-group, --first-row, --day-first and
-> --answers.
-> Every one of them changes what the description PUBLISHES about your
-> table, so any option you leave out can put something into the new
-> description that the old one held back: without the --smallest-group
-> you gave, a value that fewer rows share can be named; without the
-> --identifier you gave, a column of record numbers is described like
-> any other column; without the --code you gave, a column of codes is
-> described as measurements, so its smallest and largest values —
-> which are real codes — are published and its twin loses any leading
-> zeros; without the --measurement you gave, a column of readings
-> written as two numbers in one cell, such as a blood pressure, is
-> described as text and its twin holds no readings at all; without the
-> --decimal-comma you gave, a column whose numbers are written with a
-> comma where the decimal point goes is read by the ordinary rules, so
-> a column of quantities is described as text and every number in it
-> is lost, or a value such as 1,234 is published as one thousand two
-> hundred and thirty-four; without the --missing-value you gave, a
-> stand-in is read as a real reading, and the stand-in itself can be
-> published as the column's smallest value; without the --keep-value
-> you gave, a word you had counted as an ordinary value becomes a gap,
-> which can change what kind of column synthtwin sees and publish both
-> that word and the column's own numbers; without the --first-row you
-> gave, the first line of your file is read as the column names and
-> published as them; and without the --day-first you gave, a date
-> whose day and month are both written as numbers — with slashes, with
-> dots, or with a two-figure year — can be read the other way round,
-> which changes the dates the description publishes and can leave the
-> column described as text instead; and without the --answers you
-> gave, every answer you wrote in the questions file is gone — each of
-> them was a --code, an --identifier or a --measurement, so leaving the
-> file out costs whichever of those you had given, and this same
-> sentence says what each one costs. If you do not hold the table
-> yourself, ask whoever made this description to run it again for you.
-> Read the summary page synthtwin writes beside the new description
-> before either file goes anywhere, and use the description exactly as
-> synthtwin writes it.
+> --decimal-comma, --smallest-group, --first-row, --day-first,
+> --metadata-rows, --sheet, --delimiter and --answers. Every one of
+> them changes what the description PUBLISHES about your table, so any
+> option you leave out can put something into the new description that
+> the old one held back: without the --smallest-group you gave, a
+> value that fewer rows share can be named; without the --identifier
+> you gave, a column of record numbers is described like any other
+> column; without the --code you gave, a column of codes is described
+> as measurements, so its smallest and largest values — which are real
+> codes — are published and its twin loses any leading zeros; without
+> the --measurement you gave, a column of readings written as two
+> numbers in one cell, such as a blood pressure, is described as text
+> and its twin holds no readings at all; without the --decimal-comma
+> you gave, a column whose numbers are written with a comma where the
+> decimal point goes is read by the ordinary rules, so a column of
+> quantities is described as text and every number in it is lost, or a
+> value such as 1,234 is published as one thousand two hundred and
+> thirty-four; without the --missing-value you gave, a stand-in is
+> read as a real reading, and the stand-in itself can be published as
+> the column's smallest value; without the --keep-value you gave, a
+> word you had counted as an ordinary value becomes a gap, which can
+> change what kind of column synthtwin sees and publish both that word
+> and the column's own numbers; without the --first-row you gave, the
+> first line of your file is read as the column names and published as
+> them; and without the --day-first you gave, a date whose day and
+> month are both written as numbers — with slashes, with dots, or with
+> a two-figure year — can be read the other way round, which changes
+> the dates the description publishes and can leave the column
+> described as text instead; without the --metadata-rows you gave, the
+> rows under your column names that describe your columns are read as
+> records of your table, so their text is counted and described as
+> data and every count is two rows out; without the --sheet you gave,
+> another sheet of your workbook can be described, and everything the
+> new description publishes is then about that sheet's table; without
+> the --delimiter you gave, a file that reads equally well with two
+> delimiters can be split the other way, which changes every column
+> name the description publishes and every value it describes; and
+> without the --answers you gave, every answer you wrote in the
+> questions file is gone — each of them was a --code, an --identifier,
+> a --measurement, a --decimal-comma, a --metadata-rows or a
+> --delimiter, so leaving the file out costs whichever of those you
+> had given, and this same sentence says what each one costs. If you
+> do not hold the table yourself, ask whoever made this description to
+> run it again for you. Read the summary page synthtwin writes beside
+> the new description before either file goes anywhere, and use the
+> description exactly as synthtwin writes it.
+
+**Why it names thirteen options and prices each.** `--metadata-rows`
+(plan P4-D81) and `--sheet` (plan P4-D77) each reached the command
+line without reaching this clause, and the test deriving the owed set
+from the shipped parser was red for both. Landing 2b.17's repair pass
+added them beside `--delimiter` (plan P4-D110): leaving out the first
+counts two rows of column descriptions as records and describes their
+text as data, leaving out the second can describe a different sheet's
+table, and leaving out the third can split a file that reads equally
+well two ways the other way, which changes every column name. The
+`--answers` clause now names every declaration an answer can stand
+for, which grew past the three it listed.
 
 **Why it names ten options and prices each.** `--answers` joined them
 on 2026-09-10 with the hand-back (amendment A-P4-60), and it is not a
@@ -11248,9 +11600,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 `settings`, `source`.
 **`profile_version` — 1 permitted value:** the integer `6`.
 
-**`source` keys — 5** (4.3): `encoding`, `header_by_convention`,
-`header_evidence`, `header_source`, `used_fallback_encoding`.
-**`source.encoding` — 2:** `utf-8-sig`, `latin-1`.
+**`source` keys — 7** (4.3): `dialect`, `encoding`,
+`header_by_convention`, `header_evidence`, `header_source`,
+`used_fallback_encoding`, `workbook`.
+**`source.encoding` — 5:** `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`,
+`utf-16-be`.
+**`source.dialect` keys — 22** (4.3a).
 **`source.header_source` — 2:** `file`, `generated`.
 
 **`relationships` keys — 8** (4.6), every value exactly `null`:
@@ -11282,13 +11637,13 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 20** (4.4), in the ascending code-point order every
+**`settings` keys — 22** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
 `declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
-`forced_identifiers`,
-`forced_measurements`,
+`forced_delimiter`, `forced_identifiers`,
+`forced_measurements`, `forced_metadata_rows`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
 `near_threshold_slack`, `sentinel_minimum_share`,

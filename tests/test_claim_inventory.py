@@ -178,6 +178,7 @@ SURFACES = (
     "src/synthtwin/canonical.py",
     "src/synthtwin/cli.py",
     "src/synthtwin/contract.py",
+    "src/synthtwin/dialect.py",
     "src/synthtwin/errors.py",
     "src/synthtwin/generation.py",
     "src/synthtwin/parsing.py",

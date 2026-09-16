@@ -36,6 +36,9 @@ on purpose, because no single one caught both.
 
 import ast
 import pathlib
+import time
+
+from synthtwin import dialect
 
 PRODUCT = pathlib.Path(__file__).resolve().parent.parent / "src" / "synthtwin"
 
@@ -72,6 +75,40 @@ def _same_storage(left: ast.expr, right: ast.expr) -> bool:
             and _same_storage(left.value, right.value)
         )
     return False
+
+
+def test_naming_a_header_of_repeated_names_is_not_quadratic() -> None:
+    """A header repeating one name costs about the same per column.
+
+    THE SECOND QUADRATIC, AND WHY IT IS TIMED WHERE THE FIRST IS NOT
+    (review item CODEX-16; repair of landing 2b.10). The defect this
+    file was written for is one idiom, which is why it can be counted in
+    the source. This one is not an idiom at all: `named_columns`
+    restarted its suffix search at `.1` for every repeat, so the work
+    was triangular in the number of repeats, and nothing about the text
+    of that loop distinguishes it from a sound one.
+
+    WHAT THE FILE'S OWN DOCSTRING REJECTS IS A RATIO OVER TWO SAMPLES,
+    and this is not one. A ratio flakes because load lands on one sample
+    and not the other; an ABSOLUTE budget with three orders of magnitude
+    of headroom does not. The repaired code names 8,000 repeated columns
+    in 0.0024 s on the machine this was measured on and the quadratic
+    version took 2.45 s, so a budget of one second fails the defect by
+    2.4x and passes the repair by 400x. A workbook header may be 16,384
+    columns wide, so this path is now reachable from a file.
+    """
+    header = tuple("x" for _ in range(8_000))
+    start = time.perf_counter()
+    named = dialect.named_columns(header)
+    spent = time.perf_counter() - start
+    # The names themselves, which is what the remembered suffix must not
+    # change: the search resumes where it stopped rather than landing
+    # somewhere else.
+    assert named[0] == "x"
+    assert named[1] == "x.1"
+    assert named[7_999] == "x.7999"
+    assert len(set(named)) == 8_000
+    assert spent < 1.0, f"naming 8,000 repeated columns took {spent:.3f}s"
 
 
 def test_no_product_source_grows_a_list_by_copying_it() -> None:

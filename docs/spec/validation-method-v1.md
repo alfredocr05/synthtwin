@@ -2264,8 +2264,182 @@ count and order; the header present exactly when
 `source.header_source` says so and its names read back byte for byte,
 including the quoted U+FEFF exception.
 
+**V6.2-A2 On a description of a WORKBOOK every byte rule is WITHHELD**
+(2026-09-15, plan P4-D77). `source.dialect` describes how a DELIMITED
+file is written -- its delimiter, the space after it, its escaping, its
+line endings, its final newline, its byte-order mark, its quoting per
+column. A table read from a spreadsheet workbook has none of those: the
+file is a zip package of markup, and the description says so by
+carrying a `source.workbook` block that is not `null` (contract 4.3b).
+Measured against such a file the rules do not merely fail, they are
+unanswerable -- the reader's survey of a package yields no delimiter to
+compare -- and a report that called them MISSED would accuse a file of
+breaking a promise its description never made about it. So every rule
+of `_byte_checks` is WITHHELD there, on exactly the reasoning V6.2-A1
+already applies to a file the producer refuses: these are facts the
+description publishes ABOUT A DELIMITED FILE, and this file is not one.
+
+What is NOT withheld is everything else: the row count, the column
+count and order, the header, and every column obligation are checked on
+a workbook exactly as they are on delimited text, because the profiler
+read the workbook to state them and reads it again to check them. A
+workbook validates against its own description with no obligation
+missed.
+
+THIS IS A WITHHOLDING AND NOT A PASS. The count stands beside the
+verdict in the report's own census, as every withheld count does, so a
+reader sees that these rules were not checked rather than being told
+they held.
+
+**V6.2-A3 On a description of a WORKBOOK the workbook block IS checked**
+(2026-09-15, plan P4-D79). What V6.2-A2 withholds is the byte rules of
+`source.dialect`, which describe a DELIMITED file and are unanswerable
+against a package of markup. It withholds nothing else, and from this
+landing `source.workbook` is measured in full: the twin of a workbook is
+a workbook, so every fact that block publishes is an obligation. The
+subchecks are named `workbook.*` and filed under the fact
+`document.source.workbook` -- the sheet's place and count, the published
+sheet names, the date system, the rows above the header, the records
+holding nothing, the frozen rows, the formatted blanks beyond the table,
+the defined table, the autofilter, the macro project, and per column the
+cell-class census, the format-kind census and the format code.
+
+Two of them are the reason the landing exists. A column whose cells were
+TEXT publishes a text count, so a twin that wrote those cells as numbers
+-- which is what every ordinary writer does to `00123` -- MISSES
+`workbook.cell-classes`. A column whose cells wear a DATE format
+publishes that kind and that code, so a twin that wrote the numbers bare
+misses `workbook.format-kinds` and `workbook.format-code`. Without these
+checks those two failures would show up only as a reader handing back a
+different type, which is exactly the silent wrongness a quality report
+exists to catch.
+
+A file that is not a package at all, measured against a workbook
+description, MISSES `workbook.package`. That is a miss and not a
+withholding: the description says the table came out of a spreadsheet,
+and a file that is not one does not meet that.
+
+**V6.2-A4 What a workbook's twin cannot be held to** (2026-09-16, the
+repair of landing 2b.10). V6.2-A3 made every fact of `source.workbook`
+an obligation of the checked file. Four kinds of fact cannot be
+obligations, and holding them as such failed twins that had done
+exactly what the disclosure rule required.
+
+1. **What a twin never carries.** A twin holds no macro project, writes
+no formula and writes no defined name. `workbook.macro-project`,
+`workbook.defined-names` and each column's `workbook.formulas` are
+therefore WITHHELD, with that reason stated on the line. They cannot be
+checked on the real file and withheld on the twin, because THIS
+MEASUREMENT CANNOT TELL THE TWO APART: `validate` measures whatever
+file it is pointed at, and a real table is checked by pointing `--twin`
+at it. One verdict is owed for both, and a withholding that says why is
+the honest one. The facts are named to the person instead on the
+summary their own profiling run prints.
+
+2. **A name that was withheld.** `sheet_names` publishes `null` where a
+sheet's name may not be published, and the twin writes a NEUTRAL name
+there. So the obligation is not list-against-list: a published name
+must be on the sheet it names, and a withheld one must be either
+withheld still (the person's own file) or the neutral name a twin
+writes there (`dialect.twin_sheet_names`, one allocation shared by the
+writer and this check). The measured names are the file's own and are
+never printed. Compared as two rendered lists, every workbook whose tab
+is not one of the generic names failed at exit 3.
+
+3. **A count the smallest group held back.** A census entry or
+`empty_rows_inside` published as `null` states no number, so there is
+nothing for the file to meet: those entries are passed over, and
+`empty_rows_inside` is WITHHELD as a whole. A column's `format_code` is
+WITHHELD in the same way when the census entry for the code's own kind
+was held back, because the twin then writes no cell of that kind and
+the code appears nowhere in it.
+
+4. **A hidden state a lone sheet cannot keep.** `workbook.sheet-hidden`
+IS checked -- the writer hides every sheet standing before the table's,
+so that the twin's first visible sheet is the table's, and the twin
+carries the chosen sheet's own state. The one exception is a workbook of
+a single hidden sheet: such a file opens nowhere and synthtwin's own
+reader refuses it, so the twin's lone sheet is written visible and this
+subcheck is WITHHELD there.
+
+`--sheet` reaches this command as well as `profile`. It was accepted on
+the command line and never passed to the reader, so a real workbook
+whose table is not on the first visible sheet was measured at whichever
+sheet the reader settled on by itself.
+
+**V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
+P4-D86). The first four rules above are no longer constants: each asks
+what `source.encoding` and `source.dialect` record — the encoding
+(`bytes.encoding`, once `bytes.utf8`), the mark, the line endings in file
+order and the last line's ending — and every other fact of the written
+form is a subcheck of its own under `document.source.dialect`: the
+delimiter, the space after it, the escaping, the separator line, the
+end-of-file mark, the preamble, the header's quoting, the metadata rows
+and their quoting, the header cells written blank or repeated, the
+trailing delimiters, left-out cells, blank lines, records holding
+nothing, and per column its quoting per cell class, its padding, a row
+sequence and the row order. Each is measured on the checked file by the
+reader's own survey, so a twin passes by being written the way its table
+was and the real table passes by being itself. A class of cells a column
+does not hold holds any quoting rule; `mixed` holds of any file; a
+published left-out-cells or backslash rule holds of a file with no cell
+that would show it; the line-ending rule compares only the order of
+endings where the file holds a different number of lines, which the row
+and blank-line rules answer for. Where the description publishes the
+line endings or the blank lines COUNTED, past their caps
+(`line_endings_spread`, `blank_lines_spread`), the rule compares the
+checked file's own counts — how many lines end each way; how many blank
+lines, where the first and last stand, what most hold — whatever its runs
+or places number. The row order is asked of the records that hold
+something, as the producer reads it. A checked file is read in the
+published encoding wherever its bytes decode there without a mark
+(`dialect.decoded_as`), and a Latin-1 or Windows-1252 description is
+held to be written as UTF-8 only by a file that is valid UTF-8 beyond
+ASCII and, read in the published encoding, holds a character the
+description publishes nowhere (repair of landing 2b.9). Every one of these facts is published,
+so on a file the producer refuses they are WITHHELD. That supersedes the
+ruling of the plan's amendment A-P3-3 clause 6, by the test its
+amendment A-P3-5 clause 3 wrote down: the producer now publishes the
+line endings, the final newline and the mark about every file.
+
 **V6.3 The numeric-style identity** is contract 7.5.7's, clause by
 clause, with each published count a floor.
+
+**V6.3-A1 A whole numeral this format cannot hold exactly is a spelling
+of the value it reads back as** (2026-09-16, landing 2b.11, contract
+C6-137, numbered C6-86 on its branch). The six permitted spellings of a cell are computed from the
+VALUE that cell reads back as, and past 2**53 that value is not the
+numeral the person wrote: `9007199254740993` reads back as
+9007199254740992.0, whose spellings are the six forms of ...992. So a
+real register of long whole numbers was reported MISSED on
+`styles.spelled` for holding exactly the digits its owner typed — the
+file could not meet its own description by any writing of itself, which
+V1.2 forbids of a real file. Measured at exit 3 on 300 such rows as
+delimited text and again as a workbook.
+
+A cell is therefore in a permitted spelling of its value when its text
+is FIGURES ALONE after an optional minus, it reads back as exactly that
+value, and the value is at or above 2**53, the first whole number this
+format cannot hold exactly. The clause is narrow so that the subcheck
+can still fail, and each condition is one of the ways it still does: a
+point, an exponent or a grouping mark takes a cell outside it (a
+fraction width the census does not name is MISSED as before), and a
+numeral naming a different value is outside it whatever its width.
+
+**What this does not say.** The twin of such a column still writes the
+canonical figures, because the description carries the value the format
+read and not the digits that were typed. That is a limit of generation
+past 2**53 and is named as one; this clause is about the obligation,
+which was asking a real file for a spelling of a number its own cells
+never held.
+
+**One rule, not two** (the integration of landings 2b.6 to 2b.10,
+2026-09-16). Landing 2b.7 closed the same limit in V1.4's list of the
+spellings a real exporter writes -- the figures of a whole number too
+wide for binary64, with its sign -- and that clause admits every text
+this one does (264,387 measured, no exception). The validator holds
+that one rule; the conditions above describe this amendment's reach,
+not a narrowing of V1.4.
 
 **V6.4 The degenerate zero-row forms** (Phase 3 plan owner decision 7).
 A zero-row profile whose names were generated expects exactly zero

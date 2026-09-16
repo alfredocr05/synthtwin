@@ -44,7 +44,16 @@ import dataclasses
 import importlib.metadata
 import pathlib
 
-from synthtwin import canonical, errors, parsing, reading, taxonomy, writing
+from synthtwin import (
+    canonical,
+    dialect,
+    errors,
+    parsing,
+    reading,
+    taxonomy,
+    workbook,
+    writing,
+)
 from synthtwin.paths import validate_local_path
 from synthtwin.reading import Table
 
@@ -421,6 +430,8 @@ def _settings_block(
     forced_codes: list[str],
     forced_measurements: list[str],
     forced_decimal_commas: list[str],
+    forced_metadata_rows: int = 0,
+    forced_delimiter: str = "",
 ) -> dict[str, object]:
     """The rules that produced this profile, recorded inside it.
 
@@ -485,6 +496,24 @@ def _settings_block(
         # or every number of the column reads differently and the whole
         # column comes back missed.
         "forced_decimal_commas": _named_once(forced_decimal_commas),
+        # THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the
+        # delimiter the person said their file is written with, or
+        # empty. Recorded because the validator must read a checked
+        # file with it -- a file that reads equally well two ways is
+        # otherwise measured under whichever reading the cells favour
+        # -- and FD13 holds it to the written form.
+        "forced_delimiter": forced_delimiter,
+        # THE FIFTH DECLARATION (plan P4-D81), and the only one that is
+        # a COUNT rather than a list of names: how many rows under the
+        # column names describe those columns rather than holding a
+        # record. It is recorded because two readers downstream need
+        # it and neither can work it out. The loader holds the
+        # published rows of column descriptions to this number (FD9),
+        # so a description cannot carry rows nobody declared; and the
+        # validator re-reads a checked file under it, or the file's
+        # first two records line up against the wrong rows and every
+        # column comes back missed.
+        "forced_metadata_rows": forced_metadata_rows,
     }
 
 
@@ -676,6 +705,14 @@ _BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
 _STAND_IN_NUMBER = "numeric-sentinel-number"
 _NUMBER = "number"
 _MAYBE_NUMBER = "number-or-nothing"
+# A SHEET'S NAME, OR NOTHING AT ALL (plan P4-D79). This is a kind with a
+# GRAMMAR rather than a list, like `_WIDTH` and `_DIGITS` below and
+# unlike `_WORD`: the names a description may publish are the safe names
+# optionally followed by figures, which is `Sheet1` and `Table12` and
+# every other numbering, and no fixed tuple can hold them. `None` is the
+# withholding itself -- a sheet whose name could be somebody's is not
+# published at all, and the twin writes it under a neutral name.
+_SHEET_NAME = "sheet-name-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -716,6 +753,15 @@ _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
 _VERSION = "the-version-that-wrote-this"
+# The kinds of `source.dialect` (plan P4-D86). An object that may be
+# `null`; a header cell as the file writes it, which may be empty or a
+# repeat; a blank line's own text, nothing or only spaces and tabs; and a
+# the MARK a line before the table began with, which is punctuation and
+# whitespace and never a word of that line (plan P4-D80).
+_MAYBE_OBJECT = "object-or-nothing"
+_HEADER_TEXT = "a-header-cell-as-written"
+_BLANK_LINE = "a-blank-line-of-spaces-and-tabs"
+_PREAMBLE_MARK = "the-mark-a-line-before-the-table-began-with"
 
 # What a canonical datetime is made of. `parsing.parse_datetime` writes
 # `2024-03-17`, `2024-03-17 14:05:00` and `2024-Q1`, and nothing else,
@@ -804,6 +850,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_codes", _EACH): _KNOWN_NAME,
     ("settings", "forced_measurements"): _ARRAY,
     ("settings", "forced_measurements", _EACH): _KNOWN_NAME,
+    # How many rows under the names describe the columns (plan P4-D81).
+    ("settings", "forced_metadata_rows"): _COUNT,
+    # Which delimiter the person declared (plan P4-D110): one of the
+    # four this format reads, or nothing.
+    ("settings", "forced_delimiter"): _WORD,
     ("settings", "forced_decimal_commas"): _ARRAY,
     ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     # How the table was read.
@@ -813,6 +864,152 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "header_source"): _WORD,
     ("source", "header_by_convention"): _FLAG,
     ("source", "header_evidence"): _SENTENCE,
+    # How the table's FILE is written (owner ruling 2026-09-15, plan
+    # P4-D86): every fact the twin needs to be written the way the table
+    # was. None of them is a value of the table, and none is text a
+    # person wrote, except the rows of column descriptions -- which are
+    # schema, and reach a description only where a person DECLARED them
+    # (plan P4-D81). The lines before the table carry their shape alone
+    # (plan P4-D80). Each has a kind of its own here.
+    # The workbook block (plan P4-D77, contract 4.3b). Every key is a
+    # fact about the FILE: a count held to the floor, a flag, or one of
+    # synthtwin's own words. None of them is text out of the workbook.
+    ("source", "workbook"): _MAYBE_OBJECT,
+    ("source", "workbook", "autofilter"): _FLAG,
+    ("source", "workbook", "columns"): _ARRAY,
+    ("source", "workbook", "columns", _EACH): _OBJECT,
+    ("source", "workbook", "columns", _EACH, "cell_classes"): _OBJECT,
+    # THE KEYS OF BOTH CENSUSES ARE SYNTHTWIN'S OWN WORDS, which is why
+    # they are `_WORD` here and not the `_SPELLING` that `missing_by_
+    # source` uses. That map's keys are spellings out of the person's
+    # file; these are the closed sets `workbook.CELL_CLASSES` and
+    # `workbook.FORMAT_KINDS`, and no text of a workbook reaches either.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _KEY_OF): _WORD,
+    # A COUNT, NOTHING AT ALL, OR WITHHELD -- which is `_MAYBE_NUMBER`,
+    # the kind `sequence_start` already uses, and NOT `_FLOORED_ENTRY`.
+    # A census over a closed set of classes publishes `0` for a class no
+    # cell of the column has, and `null` where the floor held the count
+    # back; `_FLOORED_ENTRY` admits neither, because it describes a
+    # count standing under a key the DATA chose, where the key's own
+    # existence is the disclosure. Here the keys are fixed and carry no
+    # news, so what the floor governs is the number, and it is governed
+    # twice already: `workbook.floored` decides it and contract WB3
+    # refuses a document that breaks it.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _ANY_KEY): (
+        _MAYBE_NUMBER
+    ),
+    ("source", "workbook", "columns", _EACH, "format_kinds"): _OBJECT,
+    ("source", "workbook", "columns", _EACH, "format_kinds", _KEY_OF): _WORD,
+    ("source", "workbook", "columns", _EACH, "format_kinds", _ANY_KEY): (
+        _MAYBE_NUMBER
+    ),
+    ("source", "workbook", "columns", _EACH, "format_code"): _WORD,
+    ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
+    ("source", "workbook", "date_system"): _WORD,
+    ("source", "workbook", "defined_names"): _COUNT,
+    ("source", "workbook", "defined_table"): _FLAG,
+    # A COUNT OR THE WITHHOLDING, like the censuses beside it and unlike
+    # the layout counts below (repair of landing 2b.10). This counts
+    # records of the table, so the smallest group holds it back where it
+    # would name one, and `null` is then what the description publishes.
+    ("source", "workbook", "empty_rows_inside"): _MAYBE_NUMBER,
+    ("source", "workbook", "frozen_rows"): _COUNT,
+    ("source", "workbook", "macro_project"): _FLAG,
+    ("source", "workbook", "rows_above_header"): _COUNT,
+    ("source", "workbook", "sheet_count"): _COUNT,
+    ("source", "workbook", "sheet_hidden"): _FLAG,
+    # ONE ENTRY PER SHEET, each a name this version would publish itself
+    # or nothing at all (plan P4-D79). A sheet name is free text somebody
+    # typed, so what stands here is never whatever the file said: it is
+    # a name out of `dialect.SHEET_SAFE_NAMES`, optionally numbered, and
+    # every other name is withheld and written neutral.
+    ("source", "workbook", "sheet_names"): _ARRAY,
+    ("source", "workbook", "sheet_names", _EACH): _SHEET_NAME,
+    # HOW MUCH ROOM EVERY OTHER SHEET'S CELLS TAKE, and nothing about
+    # what they held (plan P4-D82). Two counts of the sheet's own
+    # furniture, in the same sense as the rows above a header: no value,
+    # no name and no text of that sheet is published or written, and the
+    # sheet the table was read from publishes nothing here at all.
+    ("source", "workbook", "sheet_extents"): _ARRAY,
+    ("source", "workbook", "sheet_extents", _EACH): _MAYBE_OBJECT,
+    ("source", "workbook", "sheet_extents", _EACH, "columns"): _COUNT,
+    ("source", "workbook", "sheet_extents", _EACH, "rows"): _COUNT,
+    ("source", "workbook", "sheet_position"): _COUNT,
+    ("source", "workbook", "trailing_blank_columns"): _COUNT,
+    ("source", "workbook", "trailing_blank_rows"): _COUNT,
+    ("source", "dialect"): _OBJECT,
+    ("source", "dialect", "blank_lines"): _ARRAY,
+    ("source", "dialect", "blank_lines", _EACH): _OBJECT,
+    ("source", "dialect", "blank_lines", _EACH, "after"): _COUNT,
+    ("source", "dialect", "blank_lines", _EACH, "lines"): _COUNT,
+    ("source", "dialect", "blank_lines", _EACH, "text"): _BLANK_LINE,
+    # Past the cap on places, the blank lines counted.
+    ("source", "dialect", "blank_lines_spread"): _MAYBE_OBJECT,
+    ("source", "dialect", "blank_lines_spread", "first"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "last"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "lines"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "text"): _BLANK_LINE,
+    ("source", "dialect", "byte_order_mark"): _FLAG,
+    ("source", "dialect", "columns"): _ARRAY,
+    ("source", "dialect", "columns", _EACH): _OBJECT,
+    ("source", "dialect", "columns", _EACH, "pad"): _MAYBE_OBJECT,
+    ("source", "dialect", "columns", _EACH, "pad", "side"): _WORD,
+    ("source", "dialect", "columns", _EACH, "pad", "width"): _COUNT,
+    ("source", "dialect", "columns", _EACH, "quoting"): _OBJECT,
+    **{
+        ("source", "dialect", "columns", _EACH, "quoting", kind): _WORD
+        for kind in dialect.CELL_CLASSES
+    },
+    ("source", "dialect", "columns", _EACH, "sequence_start"): _MAYBE_NUMBER,
+    ("source", "dialect", "delimiter"): _WORD,
+    ("source", "dialect", "empty_rows"): _OBJECT,
+    ("source", "dialect", "empty_rows", "interior"): _COUNT,
+    ("source", "dialect", "empty_rows", "leading"): _COUNT,
+    ("source", "dialect", "empty_rows", "trailing"): _COUNT,
+    ("source", "dialect", "end_of_file_mark"): _FLAG,
+    ("source", "dialect", "escape"): _WORD,
+    ("source", "dialect", "final_line_ending"): _FLAG,
+    ("source", "dialect", "header_quoting"): _WORD,
+    # One cell per column saying what the column is, which is schema and
+    # is published like a name.
+    ("source", "dialect", "header_rows"): _ARRAY,
+    ("source", "dialect", "header_rows", _EACH): _ARRAY,
+    ("source", "dialect", "header_rows", _EACH, _EACH): _HEADER_TEXT,
+    ("source", "dialect", "header_rows_quoting"): _WORD,
+    ("source", "dialect", "initial_space"): _FLAG,
+    ("source", "dialect", "line_endings"): _ARRAY,
+    ("source", "dialect", "line_endings", _EACH): _OBJECT,
+    ("source", "dialect", "line_endings", _EACH, "ending"): _WORD,
+    ("source", "dialect", "line_endings", _EACH, "lines"): _COUNT,
+    # Past the cap on runs, how many lines end each way.
+    ("source", "dialect", "line_endings_spread"): _ARRAY,
+    ("source", "dialect", "line_endings_spread", _EACH): _OBJECT,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): _WORD,
+    ("source", "dialect", "line_endings_spread", _EACH, "lines"): _COUNT,
+    # THE LINES BEFORE THE TABLE, AS SHAPES AND NEVER AS TEXT (plan
+    # P4-D80). Each entry is a run of lines of one shape: what kind they
+    # are, how many there are, and the punctuation or whitespace they
+    # began with. The text of such a line is published at no floor, and
+    # `_PREAMBLE_MARK` below is the check that none of it rode in.
+    ("source", "dialect", "preamble"): _ARRAY,
+    ("source", "dialect", "preamble", _EACH): _OBJECT,
+    ("source", "dialect", "preamble", _EACH, "kind"): _WORD,
+    ("source", "dialect", "preamble", _EACH, "lines"): _COUNT,
+    ("source", "dialect", "preamble", _EACH, "mark"): _PREAMBLE_MARK,
+    ("source", "dialect", "preamble_withheld"): _FLAG,
+    ("source", "dialect", "row_order"): _MAYBE_OBJECT,
+    ("source", "dialect", "row_order", "collation"): _WORD,
+    ("source", "dialect", "row_order", "column"): _COUNT,
+    ("source", "dialect", "row_order", "direction"): _WORD,
+    ("source", "dialect", "separator_line"): _FLAG,
+    ("source", "dialect", "short_rows"): _FLAG,
+    ("source", "dialect", "trailing_delimiter"): _OBJECT,
+    ("source", "dialect", "trailing_delimiter", "header"): _FLAG,
+    ("source", "dialect", "trailing_delimiter", "rows"): _FLAG,
+    ("source", "dialect", "written_names"): _ARRAY,
+    ("source", "dialect", "written_names", _EACH): _OBJECT,
+    ("source", "dialect", "written_names", _EACH, "position"): _COUNT,
+    ("source", "dialect", "written_names", _EACH, "text"): _HEADER_TEXT,
     # The reserved manifest, filled in below.
     ("relationships",): _OBJECT,
     # The notes, AFTER they were lifted here out of the column blocks.
@@ -1365,6 +1562,26 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         parsing.built_in_missing_texts()
     ),
     ("source", "encoding"): reading.ENCODINGS,
+    ("source", "dialect", "columns", _EACH, "pad", "side"): dialect.PAD_SIDES,
+    **{
+        ("source", "dialect", "columns", _EACH, "quoting", kind): dialect.QUOTE_RULES
+        for kind in dialect.CELL_CLASSES
+    },
+    ("source", "dialect", "delimiter"): dialect.DELIMITERS,
+    ("settings", "forced_delimiter"): ("",) + dialect.DELIMITERS,
+    ("source", "dialect", "escape"): dialect.ESCAPES,
+    ("source", "dialect", "header_quoting"): dialect.QUOTE_RULES,
+    ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
+    ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
+    # WHICH SHAPE A RUN OF LINES BEFORE THE TABLE HAS (plan P4-D80):
+    # blank, a comment, or a line of text. The MARK published beside it
+    # is held by `_PREAMBLE_MARK`, which refuses any letter or digit --
+    # so between the two, nothing of the line's own words can stand
+    # here at any floor (review item CODEX-3).
+    ("source", "dialect", "preamble", _EACH, "kind"): dialect.PREAMBLE_KINDS,
+    ("source", "dialect", "row_order", "collation"): dialect.COLLATIONS,
+    ("source", "dialect", "row_order", "direction"): dialect.DIRECTIONS,
     ("source", "header_source"): (
         reading.HEADER_FROM_FILE,
         reading.HEADER_GENERATED,
@@ -1470,6 +1687,22 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
 
 
 PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+    # The workbook block's three word-valued places (plan P4-D77). Each
+    # names a CLOSED set of synthtwin's own words -- the classes a
+    # workbook cell can have, the kinds of thing a number format makes
+    # of a number, and the two date systems a workbook can use. None of
+    # them is text out of anybody's file, which is exactly why they may
+    # stand as published words at all.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _KEY_OF): (
+        workbook.CELL_CLASSES
+    ),
+    ("source", "workbook", "columns", _EACH, "format_kinds", _KEY_OF): (
+        workbook.FORMAT_KINDS
+    ),
+    ("source", "workbook", "date_system"): workbook.DATE_SYSTEMS,
+    ("source", "workbook", "columns", _EACH, "format_code"): (
+        dialect.SHEET_FORMAT_CODES
+    ),
     **_STATED_WORDS,
     # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
     # P4-D37), read off a joined position's for the reason the rules
@@ -1891,6 +2124,35 @@ def _leaf_is_published(
         return value is None
     if kind == _SENTENCE:
         return _is_sentence(value)
+    if kind == _HEADER_TEXT:
+        # A header cell or a metadata cell exactly as the file writes it:
+        # the schema text the twin's header lines have to carry, which a
+        # blank or repeated name makes empty or a repeat (plan P4-D86). A
+        # name may hold a line break, written quoted, like any other name.
+        return isinstance(value, str)
+    if kind == _BLANK_LINE:
+        return isinstance(value, str) and all(
+            character in " \t" for character in value
+        )
+    if kind == _PREAMBLE_MARK:
+        # THE ONLY PART OF A LINE BEFORE THE TABLE THAT REACHES A
+        # DESCRIPTION, and it may hold no letter and no digit at any
+        # floor (plan P4-D80). The rule this replaced asked the floor
+        # first and handed the WHOLE line over at a floor of one, which
+        # is the default: review item CODEX-3 measured a person's name
+        # travelling through it into the description and into the twin.
+        # A floor is a rule about groups of rows and was never a
+        # defence for a line of prose, so no floor is consulted here.
+        if not isinstance(value, str) or "\r" in value or "\n" in value:
+            return False
+        # AND NO CHARACTER THAT WOULD STOP THE TWIN BEING A FILE (plan
+        # P4-D83). A quote character in a mark makes the twin's first
+        # line an unterminated quoted field. The delimiter is the
+        # other such character and this guard has no form in hand, so
+        # the loader -- which does -- holds that half (FD11).
+        if dialect.mark_breaks_a_line(value, ""):
+            return False
+        return dialect.holds_no_letter_or_digit(value)
     if kind == _TABLE_NAME:
         # A column's name IS text of the real table, and the matrix
         # authorizes it: the twin's header row has to carry it. So this
@@ -1914,6 +2176,15 @@ def _leaf_is_published(
         # given: a pair too rare to publish sends the column to the
         # next rule instead.
         return isinstance(value, str)
+    if kind == _SHEET_NAME:
+        # The grammar is the producer's own, asked here rather than
+        # restated: a name this document publishes must be one
+        # `dialect.sheet_name_published` would have published itself.
+        if value is None:
+            return True
+        if not isinstance(value, str):
+            return False
+        return dialect.sheet_name_published(value) == value
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
     if kind == _WIDTH:
@@ -2032,6 +2303,10 @@ def _check_published(
     if path not in PUBLICATION_RULES:
         raise _refuse(path)
     kind = PUBLICATION_RULES[path]
+    if kind == _MAYBE_OBJECT:
+        if node is None:
+            return
+        kind = _OBJECT
     if kind == _OBJECT:
         if not isinstance(node, dict):
             raise _refuse(path)
@@ -2269,6 +2544,115 @@ def check_publication(document: dict[str, object]) -> None:
     _affix_notes_are_bound(document)
 
 
+def _is_mechanical_index(
+    position: int, names: "list[str]", declared: "list[str]"
+) -> bool:
+    """Whether this column is a written row index nobody declared.
+
+    A mechanical index is the FIRST column and is named as one of the two
+    writers that produce it name it. A column of its own name holding
+    1, 2, 3, ... -- a REDCap `record_id`, a register's serial -- is not
+    one: it is the table's own data, and publishing its sequence would
+    let the generator write the real column back (plan P4-D76).
+    """
+    if position != 0 or position >= len(names):
+        return False
+    if names[position] in declared:
+        return False
+    return names[position] in dialect.INDEX_NAMES
+
+
+def _published_form(
+    table: Table,
+    columns: "list[dict[str, object]]",
+    declared_identifiers: "list[str]",
+) -> dialect.Dialect:
+    """The table's written form, with nothing of anybody's in it.
+
+    THE LINES BEFORE THE TABLE ARE NOT HELD TO THE FLOOR HERE ANY MORE,
+    because they are no longer text by the time they arrive: the survey
+    publishes each run of them as a kind, a count and a mark (plan
+    P4-D80). What this function still does is keep a DECLARED
+    IDENTIFIER out of the written form -- the row sequence and the row
+    order both hand back a declared column's own values -- and drop a
+    row order the twin could not keep.
+    """
+    surveyed = table.survey
+    if surveyed is None:
+        return dialect.ordinary(
+            len(table.column_names),
+            table.n_rows,
+            table.header_source == reading.HEADER_FROM_FILE,
+        )
+    form = surveyed.form
+    # NO FILE-LEVEL FACT MAY REBUILD A DECLARED IDENTIFIER, OR A REAL ROW
+    # (plan P4-D76). `sequence_start` is written back by the generator as
+    # the literal cells 0, 1, 2, ... or 1, 2, 3, ..., so a column
+    # published as the row sequence is a column the twin reproduces
+    # EXACTLY. On a declared identifier that publishes the very values
+    # the declaration exists to withhold, and on two such columns beside
+    # each other it reproduces whole real rows.
+    #
+    # So a sequence is published only for a MECHANICAL index -- a written
+    # row index nobody declared, which is the file's own numbering and
+    # not a value of anybody's -- and never for a column whose cells are
+    # absent anywhere, which the loader could not hold to FD6 either.
+    names = [f"{block['name']}" for block in columns]
+    kept: "list[dialect.ColumnForm]" = []
+    for index in range(len(form.columns)):
+        column = form.columns[index]
+        if column.sequence_start >= 0:
+            missing = 0
+            if index < len(columns) and "n_missing" in columns[index]:
+                counted = columns[index]["n_missing"]
+                missing = counted if isinstance(counted, int) else 0
+            if missing or not _is_mechanical_index(index, names, declared_identifiers):
+                column = dataclasses.replace(column, sequence_start=-1)
+        kept += [column]
+    form = dataclasses.replace(form, columns=tuple(kept))
+    # ...and the order the rows stand in is a fact about the declared
+    # column's own values, so it is not published of one either.
+    sorted_by = form.row_order.column
+    if sorted_by and sorted_by <= len(names) and names[sorted_by - 1] in declared_identifiers:
+        form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
+    # A ROW ORDER THE TWIN COULD NOT KEEP IS NOT PUBLISHED. The survey
+    # reads a sort column off cells that all hold something; the column's
+    # own description may still count some of them absent -- cells of
+    # nothing but spaces, or spellings too rare to publish -- and the twin
+    # writes those empty, which no order of the published kind can hold.
+    # Contract invariant FD7 refuses the pair, so the order is dropped
+    # here, where both are in hand.
+    #
+    # The records holding nothing are the exception: each gives the sort
+    # column one empty cell, which the twin writes in that record, so the
+    # column may count exactly that many cells empty and no more.
+    order = form.row_order.column
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if order and order <= len(columns):
+        block = columns[order - 1]
+        blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
+        pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
+        if not isinstance(blank, int) or not isinstance(pooled, int) or blank + pooled != empties:
+            form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
+    # AND THE LINES BEFORE THE TABLE ARE ALREADY SHAPES. The survey
+    # publishes their kind, their count and their mark, so there is
+    # nothing left here for a floor to hold back and no floor at which
+    # anything more is published. The branch this replaced returned the
+    # form untouched at a floor of one -- the default -- which is how a
+    # title line naming a person reached the description whole (review
+    # item CODEX-3).
+    return form
+
+
+def _published_workbook(
+    table: Table, floor: int
+) -> "dict[str, object] | None":
+    """The workbook block, or None where the table was not in one."""
+    if table.book is None or table.sheet is None:
+        return None
+    return workbook.document_of(table.book, table.sheet, floor)
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -2278,6 +2662,8 @@ def build_document(
     forced_decimal_commas: list[str] | None = None,
     declarations_are_reconstructed: bool = False,
     described_pairs: list[str] | None = None,
+    forced_metadata_rows: int = 0,
+    forced_delimiter: str = "",
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2377,6 +2763,9 @@ def build_document(
             declared_codes,
             declared_measurements,
             declared_commas,
+        
+            forced_metadata_rows,
+            forced_delimiter,
         ),
         # How the table was read. It belongs in the profile because the
         # twin has to be written in a form the same tools can open, and
@@ -2401,6 +2790,23 @@ def build_document(
             # The verdict in words, so a person reading the profile sees
             # the same sentence the summary gave them.
             "header_evidence": table.header_evidence,
+            # How the table's file is written -- its delimiter, quoting,
+            # line endings and the lines that are not records -- so the
+            # twin is written the same way (plan P4-D86).
+            "dialect": dialect.document_of(
+                _published_form(
+                    table, columns, forced_identifiers,
+                )
+            ),
+            # What the table's file said about itself as a WORKBOOK, or
+            # nothing where it was delimited text (plan P4-D77). Every
+            # count is held to the smallest group, and the facts the
+            # disclosure rule names -- the sheet's own name, a column
+            # width, a comment, a hidden row, a hyperlink's target, the
+            # document's author -- are not in it at all.
+            "workbook": _published_workbook(
+                table, settings.small_cell_floor
+            ),
         },
         "n_rows": table.n_rows,
         "n_columns": len(table.column_names),
@@ -2435,6 +2841,14 @@ def _without_table_suffix(name: str) -> str:
         return name[: len(name) - 4]
     if lowered.endswith(".txt"):
         return name[: len(name) - 4]
+    # A WORKBOOK'S ENDING COMES OFF TOO (plan P4-D77). Without this a
+    # table read from `clinic.xlsx` is described into
+    # `clinic.xlsx-profile.json`, which reads as a mistake and which the
+    # commands this run prints would then have to quote back.
+    if lowered.endswith(".xlsx"):
+        return name[: len(name) - 5]
+    if lowered.endswith(".xlsm"):
+        return name[: len(name) - 5]
     return name
 
 

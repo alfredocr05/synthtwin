@@ -25,14 +25,12 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_missing": ("/data/table.csv",),
     "path_is_a_folder": ("/data",),
     "file_unreadable": ("/data/table.csv", "permission denied"),
-    "not_utf8_or_latin1": ("/data/table.csv",),
     "looks_like_utf16": ("/data/table.csv",),
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
     "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
-    "duplicate_column_names": (["age", "age"],),
-    "empty_column_name": (3,),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
     "readers_disagree": ("/data/table.csv", "12 rows", "13 rows"),
@@ -48,6 +46,38 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # path the file may not be the reader's own table, and a refusal
     # travels as freely as a report does. The test below walks their
     # arguments and asserts no spelling from a file can be among them.
+    # Reading a workbook (plan P4-D77). Every argument is a path, a
+    # limit or a sheet name: no cell of a workbook reaches a refusal.
+    "workbook_unreadable": ("/data/table.xlsx",),
+    "workbook_part_unreadable": ("/data/table.xlsx",),
+    "workbook_declares_a_document_type": ("/data/table.xlsx",),
+    "workbook_is_a_compound_file": ("/data/table.xls",),
+    "workbook_is_markup": ("/data/table.xls",),
+    "workbook_expands_too_far": ("/data/table.xlsx", 256_000_000),
+    "workbook_part_expands_too_far": ("/data/table.xlsx", 200),
+    "workbook_too_many_parts": ("/data/table.xlsx", 4_096),
+    "workbook_part_named_away": ("/data/table.xlsx",),
+    "workbook_cell_too_long": ("/data/table.xlsx", 32_767),
+    "workbook_holds_too_many_cells": ("/data/table.xlsx", 8_000_000),
+    "workbook_too_many_shared_strings": ("/data/table.xlsx", 4_000_000),
+    "workbook_too_many_rows": ("/data/table.xlsx", 1_048_576),
+    "workbook_too_many_columns": ("/data/table.xlsx", 16_384),
+    "workbook_has_no_sheet": ("/data/table.xlsx",),
+    "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
+    "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
+    "workbook_other_sheet_holds_a_table": ("/data/table.xlsx", "Notes", "Data"),
+    # Registered here by landing 2b.11 part 2. The builder arrived with
+    # the `--metadata-rows` declaration of plan P4-D81 and reached this
+    # table with no entry, so this file -- whose whole job is that every
+    # refusal a person can meet has been read by somebody -- was red on
+    # the commit that added it.
+    "metadata_rows_not_supported": ("3",),
+    # Registered with the `--delimiter` declaration of plan P4-D110.
+    "delimiter_not_supported": ("x",),
+    "delimiter_declared_against_the_file": (
+        "/data/table.csv", "a semicolon", "a comma",
+    ),
+    "delimiter_declared_on_a_workbook": ("/data/table.xlsx",),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",
@@ -55,7 +85,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
-    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -442,7 +471,6 @@ CHECKED_FILE_FORMS = (
     "checked_file_readers_disagree_about_a_name",
     "checked_file_readers_disagree_about_a_value",
     "checked_file_unreadable_as_csv",
-    "checked_file_repeats_a_column_name",
 )
 
 

@@ -265,6 +265,11 @@ LAYOUT_SUBCHECKS = ("forms.published.@%%%%%",)
 # digests must come back character for character with this one check
 # taken out, and the assertion below names the column it lands on.
 WIDE_CHECK_COUNT = 416
+
+# The one fact every rule of the file's written form is filed under (plan
+# P4-D86): thirteen on the document, one quoting rule per column and the
+# row order on the column the table is sorted by.
+FORM_FACT = "document.source.dialect"
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
 )
@@ -297,6 +302,18 @@ NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
     "5978ec5be61bdfe2b0b4f21cad6c7b3ae2477c21c697fa20192f24f86656bf92"
 )
+# RE-RECORDED 2026-09-15 for plan P4-D86, AS ORDER-FREE IDENTITIES. The
+# demonstration table is sorted by `record_code`, the description now
+# publishes that row order, and the twin keeps it -- so every column's
+# cells moved to other rows while no cell changed. MEASURED before
+# re-recording, column by column against a git archive of 53bb012 at this
+# seed: each of the thirteen holds the same cells as a multiset, and
+# `unused` and `batch`, whose cells cannot be told apart, are unchanged
+# even in order. Each digest is now taken over the column's cells SORTED,
+# because where rows stand is the written form's own fact, checked by
+# `rows.order`; a digest that moved with it would re-record on every
+# order change and stop meaning "a cell changed". `unused` and `batch`
+# hash exactly as they did, which is the check that nothing else moved.
 NARROW_COLUMN_DIGESTS = {
     # RE-RECORDED AT LANDING 2b.18, and this is the ONE column of the
     # demonstration that may have moved: `record_code` is the table's
@@ -319,9 +336,15 @@ NARROW_COLUMN_DIGESTS = {
     # column but `record_code` is byte-identical; all 240 of its cells
     # still wear `@%%%%%`; and the quality report digest below did not
     # move, so every obligation is held as it was.
-    "record_code": "831384cc2284883fa8bb0b535966ba11",
-    "region": "48583e2c694ee365c884cd8b99719dd1",
-    "visits": "fac456b2607b807ffa636be2068ed181",
+    # MERGED WITH LANDING 2b.10 (2026-09-16): that landing takes these
+    # digests over the SORTED cells, and this column's cells are landing
+    # 2b.8's, so the sorted digest is taken over 2b.8's cells and the
+    # order digest below is the one 2b.8 recorded over the same cells as
+    # written. Measured on the merged twin, whose bytes equal the tree's
+    # before the merge.
+    "record_code": "24257362c21a19cb5c1108f3d2fed83c",
+    "region": "ba323f8f897027f35f93eb5e6add6ccc",
+    "visits": "39c2d46a66ba3ecd62edfd441b0e47c0",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
     # (amendment A-P4-55). `reading` is whole-valued, so G6.5a's pass
     # declined it until the first of those and two of its strata could
@@ -330,13 +353,13 @@ NARROW_COLUMN_DIGESTS = {
     # where it held 177 at some seeds before. MEASURED before
     # re-recording, which is what the sentence beside the twin digest
     # asks for.
-    "reading": "01d11476294ade427eb6806b3155e7b6",
+    "reading": "dc10f984d2fd088116d2302297a51302",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
     # ranks: 235 of its 240 cells moved, every one of them still a
     # two-figure number, and the quality report still misses nothing.
-    "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
+    "amount": "6a6bd7bdb202ac5c98ae4a74f40e6530",
     # RE-RECORDED at landing 2b.6 (2026-09-15). `recorded_on` is the
     # demonstration's one column of dates, and its interior cells move
     # because the placement rule of G7.3 moved: the nine interior rungs
@@ -345,15 +368,45 @@ NARROW_COLUMN_DIGESTS = {
     # each rank used to be interpolated inside its own slice. The two
     # ends, the member, the marks and every published count are
     # unchanged; what moved is where the ranks between the rungs land.
-    "recorded_on": "0ae8c7fa2ee77b4522dff2af7403baaf",
-    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
-    "comment": "8ec45aed18839baa03592651323aa6f6",
+    # MERGED WITH LANDING 2b.10, for the reason given at `record_code`:
+    # landing 2b.6's cells, sorted here and as written below.
+    "recorded_on": "6763c8168dc9c34495a2f4d8dc33af47",
+    "answer": "f96508b26b4c8cae171b5bf0984d34a3",
+    "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
     # RE-RECORDED at landing 2b.1 (2026-09-15). The cores publish a
     # withheld mode pair beside 180 different numbers over 240 cells, so
     # G5.2a's stratum cap reads the ladder and is six: the widest
     # stratum was seven, and 139 cells moved to hold it at six.
+    "dose": "48581f921dce1fd3f7ef625278fce1c7",
+    "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
+    "note": "f0a181daf5af6bdb2db3d44e0a83a641",
+}
+# AND THE SAME COLUMNS IN THE ORDER THEIR CELLS STAND (repair of landing
+# 2b.9). The sorted digests above say no cell changed wherever its row
+# stands, and on their own they stop noticing a change that moves cells
+# WITHIN a column and keeps the multiset -- a sort that lost its
+# stability, an empty record placed elsewhere -- which only `rows.order`
+# on the one sort column would still catch. These are taken over the
+# cells as written, at the same seed, after the published sort. Recorded
+# 2026-09-15 at the repair; `record_code`, the sort column, and `unused`
+# and `batch`, whose cells cannot be told apart, hash as their sorted
+# digests do, which is the check that the two digests read the same twin.
+NARROW_COLUMN_ORDER_DIGESTS = {
+    # MERGED (2026-09-16): landing 2b.8's cells as written, the digest
+    # it recorded before landing 2b.10 changed how the sorted ones are taken.
+    "record_code": "831384cc2284883fa8bb0b535966ba11",
+    "region": "48583e2c694ee365c884cd8b99719dd1",
+    "visits": "fac456b2607b807ffa636be2068ed181",
+    "reading": "01d11476294ade427eb6806b3155e7b6",
+    "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
+    # MERGED (2026-09-16): landing 2b.6's cells as written.
+    "recorded_on": "0ae8c7fa2ee77b4522dff2af7403baaf",
+    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
+    "comment": "8ec45aed18839baa03592651323aa6f6",
+    "unused": "73be54e263565328cf0122ffc4c15570",
+    "batch": "3a209af377e49829fb4ef147725677ca",
     "dose": "8c8b3c5b9f6513ccd30b32e02393ae8c",
     "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
@@ -385,8 +438,14 @@ def test_widening_the_demonstration_lost_no_obligation(
         tmp_path, "narrow-twin.csv", rendering.twin_csv(twin)
     )
     outcome = validation.measure(described, str(twin_path))
+    # THE ENCODING RULE WAS RENAMED, not added or dropped (plan P4-D86):
+    # `bytes.utf8` asks for `source.encoding` now and is called
+    # `bytes.encoding`. The frozen baselines below hash the name they were
+    # frozen with, so the rule is read back under that name.
     checks = sorted(
-        f"{c.column}|{c.fact}|{c.subcheck}" for c in outcome.checks
+        f"{c.column}|{c.fact}|"
+        + ("bytes.utf8" if c.subcheck == "bytes.encoding" else c.subcheck)
+        for c in outcome.checks
     )
     listings = sorted(
         f"{entry.column}|{entry.fact}|{entry.subcheck}"
@@ -399,6 +458,11 @@ def test_widening_the_demonstration_lost_no_obligation(
     def _since(entry: str) -> bool:
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
+            return True
+        # ...and the rules of the file's written form (plan P4-D86), one
+        # fact filed on the document and on every column, named rather
+        # than counted.
+        if f"|{FORM_FACT}|" in entry:
             return True
         for one in (
             AFFIX_SET_SUBCHECKS
@@ -612,8 +676,9 @@ def test_widening_the_demonstration_lost_no_obligation(
     ) == EMPTY_EDGE_LISTINGS
     for name, digest in NARROW_COLUMN_DIGESTS.items():
         cells = twin.columns[twin.names.index(name)]
+        # Sorted: the cells a column holds, wherever its rows stand.
         found = hashlib.sha256(
-            "\n".join(cells).encode("utf-8")
+            "\n".join(sorted(cells)).encode("utf-8")
         ).hexdigest()[:32]
         assert found == digest, (
             f"the twin's {name!r} column changed against the frozen "
@@ -622,6 +687,17 @@ def test_widening_the_demonstration_lost_no_obligation(
             "Satisfy yourself the new cells are the ones the method "
             "requires before re-recording, exactly as the twin digest "
             f"below asks. New digest: {found}"
+        )
+    for name, digest in NARROW_COLUMN_ORDER_DIGESTS.items():
+        cells = twin.columns[twin.names.index(name)]
+        # As written: where each cell stands is part of what is pinned.
+        found = hashlib.sha256("\n".join(cells).encode("utf-8")).hexdigest()[:32]
+        assert found == digest, (
+            f"the twin's {name!r} column holds its cells in a different "
+            "order against the frozen baseline. If the sorted digest above "
+            "held, no cell changed and only where cells stand moved: find "
+            "the change in the arrangement (method G2.1) before "
+            f"re-recording. New digest: {found}"
         )
 
 
@@ -1029,8 +1105,80 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # landing 2b.8's `layout_forms` `{"@%%%%%": 240}` on `record_code`.
 # Diffed both ways, the description moved against each side only in the
 # other side's keys.
+# RE-RECORDED 2026-09-15 for plan P4-D86 (owner ruling: the twin is
+# written the way its source file was). `source` gained ONE key,
+# `dialect`, the written form of the demonstration file -- a comma, UTF-8
+# with no mark, line feeds on every line, minimal quoting in every column,
+# and the rows sorted by `record_code`. HOW IT WAS CHECKED, by this file's
+# own procedure: the new document written out again with that one key
+# deleted hashes to the description of commit 53bb012 built the same
+# way, so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 again, at the repair of landing 2b.9:
+# `source.dialect` gained `blank_lines_spread: null` and
+# `line_endings_spread: []` (past their caps those facts are published
+# counted instead of the file being refused). This description with those
+# two keys deleted and written out again hashes to
+# abbe3bcaab895e50d741748cf0af427492f2dd54587a855dcb635e27ade88c4e, the
+# digest this one replaces; the twin, report and quality digests below did
+# not move.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5, and NO CELL CHANGED. The sorted digests above moved because
+# 2b.9 changed what they are taken OVER -- the cells sorted, not the cells
+# as written -- and because 2b.9 sorts the twin's rows. MEASURED rather
+# than argued, column by column against a git archive of the base commit
+# 367e1d7 at this seed: all thirteen columns hold an IDENTICAL multiset of
+# cells, and the twin's rows agree as a multiset while differing in order,
+# so whole rows moved and nothing was written differently. `unused` and
+# `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
+# RE-RECORDED 2026-09-15 for plan P4-D77 (reading a spreadsheet
+# workbook), and NO CELL OF THE TWIN MOVED. `source` gained ONE key,
+# `workbook`, and the demonstration table is a DELIMITED file, so its
+# value here is `null`. MEASURED by this file's own procedure: this
+# description written out again with that one key deleted hashes to
+# a32bf775c2373134793c7b67f58cc8a5515ecfd4f149919ce339f23d89d8a7bd,
+# the digest this one replaces, so the single added key is the whole of
+# the difference. The twin, report and quality digests below did not
+# move, which is the other half of the same statement: the generator is
+# handed one more key and writes exactly what it wrote before.
+# RE-RECORDED 2026-09-16 for plan P4-D81 (review item CODEX-2), and NO
+# CELL OF THE TWIN MOVED. `settings` gained ONE key,
+# `forced_metadata_rows`, how many rows under the column names the
+# person declared to DESCRIBE those columns; this run declares none, so
+# its value here is 0. MEASURED by this file's own procedure: this
+# description written out again with that one key deleted hashes to
+# b0537b40dc8141a5099a763e3cca88e925c4339e18277ee13e6e7f7e01426ee0,
+# the digest this one replaces, so the single added key is the whole of
+# the difference. The TWIN digest below did not move -- it is
+# 494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f on
+# this commit and on the one before it -- which is the other half of
+# the same statement: the generator is handed one more key and writes
+# exactly what it wrote before.
+# RE-RECORDED 2026-09-16 for plan P4-D110 (review item CODEX-4), and NO
+# CELL OF THE TWIN MOVED. `settings` gained ONE key, `forced_delimiter`,
+# the delimiter the person declared; this run declares none, so its
+# value here is the empty string. MEASURED by this file's own
+# procedure: this description written out again with that one key
+# deleted hashes to
+# d6ddc7ad0ec16c4f05865eca3e189b7c4d492d26f904ce35a390a0f7c7ace5d9,
+# the digest this one replaces. The twin, report and quality digests
+# below did not move.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.10 INTO LANDINGS 2b.6 TO 2b.8
+# (2026-09-16), for the cause recorded beside the profile golden:
+# diffed both ways, the description moved against each side only in the
+# other side's keys.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "9c2387e97f27765e2a261c1f8d5a26c2b3c2dae395f07121f7bd5cecfd968548"
+    "327450edb3a462738004f9dfe688422ad316bd3e9bd17081e29ef031f5455ac8"
 )
 
 
@@ -1158,6 +1306,42 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # `record_code` moved (240 cells, written to their published layout);
 # against landing 2b.8's own tree only `recorded_on` moved (214 cells,
 # placed on the pinned rungs of landing 2b.6). No other cell moved.
+# RE-RECORDED 2026-09-15 for plan P4-D86, and ONLY THE ORDER OF THE ROWS
+# MOVED. The demonstration table is sorted by `record_code`, so the
+# description now publishes that row order and the twin keeps it: its
+# rows are sorted by `record_code`, where the twin of commit 53bb012 was
+# not. MEASURED at this seed against a git archive of 53bb012: the header
+# line is the same and the two twins hold the same lines as a multiset,
+# so no cell was written differently; whole rows moved together.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5, and NO CELL CHANGED. The sorted digests above moved because
+# 2b.9 changed what they are taken OVER -- the cells sorted, not the cells
+# as written -- and because 2b.9 sorts the twin's rows. MEASURED rather
+# than argued, column by column against a git archive of the base commit
+# 367e1d7 at this seed: all thirteen columns hold an IDENTICAL multiset of
+# cells, and the twin's rows agree as a multiset while differing in order,
+# so whole rows moved and nothing was written differently. `unused` and
+# `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
+# The twin is now BYTE-IDENTICAL to commit 367e1d7's, which is the
+# whole of the claim: the only thing landing 2b.9 changed about this
+# twin was the row order it took from a declared identifier.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.10 INTO LANDINGS 2b.6 TO 2b.8
+# (2026-09-16), and THE TWIN DID NOT MOVE: its bytes are the tree's
+# before the merge, because landing 2b.10's twin of this demonstration
+# is byte-identical to commit 367e1d7's and its written form here is
+# UTF-8, comma, line feeds and a final line ending, which the twin
+# already wrote.
 GOLDEN_TWIN_SHA256 = (
     "ed198f28df9a7136f970686e9de64374db7173217eeabf32add6f6f6919d1fa3"
 )
@@ -1587,8 +1771,29 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # landing 2b.8's own tree only landing 2b.6's lines moved: the date rungs
 # on their published values with point windows, its sentence on what a
 # twin of dates does not reproduce, and the n_distinct note it removed.
+# RE-RECORDED 2026-09-15 for plan P4-D86. The paragraph on how the twin
+# is written no longer says it is UTF-8 with newline line endings
+# whatever the table was: it states the written form the description
+# records -- here UTF-8 without a mark, fields separated by a comma, line
+# feed endings and a line ending after the last line -- and that quoting,
+# blank lines, the lines before the names and the row order follow the
+# table too.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5, and NO CELL CHANGED. The sorted digests above moved because
+# 2b.9 changed what they are taken OVER -- the cells sorted, not the cells
+# as written -- and because 2b.9 sorts the twin's rows. MEASURED rather
+# than argued, column by column against a git archive of the base commit
+# 367e1d7 at this seed: all thirteen columns hold an IDENTICAL multiset of
+# cells, and the twin's rows agree as a multiset while differing in order,
+# so whole rows moved and nothing was written differently. `unused` and
+# `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.10 INTO LANDINGS 2b.6 TO 2b.8
+# (2026-09-16), read as a diff against each side. Against the tree
+# before the merge only the sentence on how the twin is written moved --
+# it now names the written form the description records. Against landing
+# 2b.10's own tree only landings 2b.6's and 2b.8's lines moved.
 GOLDEN_REPORT_SHA256 = (
-    "2da9d1bb5ba22238c056f9b39b49900d00a11065a0f58b5949946412c593eb99"
+    "4fdd544921fedf8e7a7deb9f35430329acde96b80f2ef2cebcd50fb760f4c2df"
 )
 
 
@@ -2160,8 +2365,71 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # `forms.published.@%%%%%` HELD on `record_code`, 508 to 509 obligations.
 # Against landing 2b.8's own tree only landings 2b.6's and 2b.7's lines
 # moved, as recorded above. No verdict otherwise moved.
+# RE-RECORDED 2026-09-15 for plan P4-D86, and the quality report says
+# MORE, not less. MEASURED on this run: 28 new checks under
+# `document.source.dialect`, all HELD -- thirteen on the document
+# (blank lines, delimiter, records of nothing, end-of-file mark, escaping,
+# header quoting, metadata rows, the space after a delimiter, preamble,
+# separator line, left-out cells, trailing delimiter, header cells written
+# blank or repeated), one quoting rule for each of the fourteen columns,
+# and the row order on `record_code`. The encoding rule `bytes.utf8` is
+# renamed `bytes.encoding` and still HELD. No check was dropped: the
+# widening test above reads every frozen obligation back by identity.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5, and NO CELL CHANGED. The sorted digests above moved because
+# 2b.9 changed what they are taken OVER -- the cells sorted, not the cells
+# as written -- and because 2b.9 sorts the twin's rows. MEASURED rather
+# than argued, column by column against a git archive of the base commit
+# 367e1d7 at this seed: all thirteen columns hold an IDENTICAL multiset of
+# cells, and the twin's rows agree as a multiset while differing in order,
+# so whole rows moved and nothing was written differently. `unused` and
+# `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
+# RE-RECORDED 2026-09-16 for plans P4-D80 and P4-D81 (review items
+# CODEX-3 and CODEX-2). The twin's own digest did not move -- it is
+# 494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f on
+# this commit and on the one before it -- so the measured file is
+# untouched and what moved is what the check SAYS. READ RATHER THAN
+# ASSUMED, as this file requires: the report was built on this commit
+# and on the one before it and the two were compared line by line.
+# They differ in exactly two places.
+#
+# ONE LINE IS REWORDED. The subcheck naming the lines before the table
+# read "0 line(s) before the table, as published" and now reads "0
+# line(s) before the table in 0 shape(s), as published", because those
+# lines are published as runs of one shape (P4-D80).
+#
+# AND ONE OBLIGATION LEAVES THE CENSUS: 534 to 533, with HELD 459 to
+# 458. This file warns that a census carrying fewer obligations than it
+# did is a defect even when nothing crashed, so the one that went is
+# named here. It is `bytes.header-rows`, which read "0 row(s)
+# describing the columns under the names, as published". Under P4-D81
+# a checked file is read under the description's OWN declaration of how
+# many rows describe the columns, and this description declares none --
+# so both sides of that comparison are empty whatever the file holds,
+# and no edit to any file could make it fail. It reported HELD on every
+# file while measuring nothing. That is the vacuity V3.4 refuses by
+# name, so it is no longer filed; it is filed, and falsifiable, on a
+# description that DECLARES such rows.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.10 INTO LANDINGS 2b.6 TO 2b.8
+# (2026-09-16), read as a diff against each side. Against the tree
+# before the merge only landing 2b.10's checks arrived: the written-form
+# obligations `bytes.*` [document.source.dialect], one per rule and one
+# quoting check per column, all HELD, 509 to 535 obligations. Against
+# landing 2b.10's own tree only landings 2b.6's, 2b.7's and 2b.8's lines
+# moved. No verdict otherwise moved.
 GOLDEN_QUALITY_SHA256 = (
-    "35d3a010f2b0a8c96cf36030067940dd9e376cd1d5fabffcdd8e2888048bdcf7"
+    "fec741e4541e1e52f64723b9518daef6f98f5f79a2012265d0860ad34840923a"
 )
 
 

@@ -161,7 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import contract, errors, parsing, profile, reading, taxonomy
+from synthtwin import contract, dialect, errors, parsing, profile, reading, taxonomy
 
 
 # ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
@@ -471,6 +471,12 @@ _SATURATION = 1 << 62
 # fact a check names is one the registry carries. A third name added to
 # this tuple is a fact somebody took out of the registry's reach, which
 # is a decision a reviewer reads in the diff.
+# SINCE PLAN P4-D86 THE DESCRIPTION DOES STATE THEM: `source.encoding`
+# and `source.dialect` record how the table's file is written, and the
+# method writes the twin that way. The two names are kept for the four
+# rules that stood here before -- the encoding, the byte-order mark, the
+# line endings and the final newline -- and every rule added with them is
+# filed under the registry fact `source.dialect`.
 BYTE_RULE_FACTS = ("document.encoding", "document.line-endings")
 
 INPUT_SIDE_ENTRIES = (
@@ -926,6 +932,22 @@ _GATE_REFUSED = (
     "describing this file on its own would publish nothing at all -- "
     "`synthtwin profile` refuses a file it cannot read a table out of -- "
     "so neither the measurement nor its outcome is shown"
+)
+
+# THE THIRD WAY THE GATE CLOSES (plan P4-D77, validation method
+# V6.2-A2). The rules above describe how a DELIMITED file is written --
+# its delimiter, the space after it, its escaping, its line endings, its
+# quoting per column. A table read from a spreadsheet workbook has none
+# of them: the file is a package of markup, and the description says so
+# by carrying a workbook block. Measured against such a file these rules
+# are not failed, they are unanswerable, and calling them MISSED would
+# accuse the file of breaking a promise its description never made about
+# it.
+_GATE_WORKBOOK = (
+    "the description records that this table was read from a "
+    "spreadsheet workbook, and these rules describe how a delimited "
+    "text file is written, so neither the measurement nor its outcome "
+    "is shown"
 )
 
 # The fact whose whole evidence is the header line, named once because
@@ -3201,73 +3223,6 @@ def _read_fallback(place: pathlib.Path) -> str:
     return str(data, "latin-1")
 
 
-def _starts_with_a_mark(data: bytes) -> bool:
-    """True when the file's first bytes are a UTF-8 byte-order mark.
-
-    A column name that genuinely begins with U+FEFF is written QUOTED,
-    so the file's first byte is the quote and the mark that follows is
-    inside a field rather than in front of the file. That exception is
-    why this looks at the file's first three bytes and at nothing else.
-    """
-    return data[:3] == b"\xef\xbb\xbf"
-
-
-def _a_return_ends_a_line(text: str) -> bool:
-    """True when a carriage return in this file ends one of its lines.
-
-    THE OBLIGATION IS ABOUT LINE ENDINGS, AND A QUOTED RETURN IS NOT ONE
-    (review item P3-V3-F5's second witness, re-derived). This was
-    `\\r in the bytes`, and the method writes a carriage return inside a
-    quoted field whenever a published name or label holds one -- so the
-    twin the shipped renderer writes for such a description was reported
-    as carrying carriage returns, which is a conforming file told it
-    broke a rule it kept. What is checked is what V6.2 names: that the
-    file's RECORDS are ended by line feeds.
-
-    The walk is the CSV quoting rule and nothing more: a field is quoted
-    when it opens with a quote character, a doubled quote inside one is
-    a quote and not the end of the field, and everything outside a
-    quoted field is the file's own punctuation. A carriage return found
-    there ends a line.
-    """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a file's text was not text")
-    # A file with no carriage return in it at all has none ending a
-    # line, and that is nearly every file: the walk below is a character
-    # at a time and this settles the ordinary case in one pass at the
-    # language's own speed.
-    if text.find(_CARRIAGE_RETURN) < 0:
-        return False
-    inside = False
-    opening = True
-    skip = False
-    for index in range(len(text)):
-        if skip:
-            skip = False
-            continue
-        character = text[index]
-        if inside:
-            if character != _QUOTE:
-                continue
-            if text[index + 1 : index + 2] == _QUOTE:
-                skip = True
-                continue
-            inside = False
-            opening = False
-            continue
-        if character == _QUOTE and opening:
-            inside = True
-            opening = False
-            continue
-        if character == _CARRIAGE_RETURN:
-            return True
-        if character == _COMMA or character == _LINE_FEED:
-            opening = True
-            continue
-        opening = False
-    return False
-
-
 # WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
 # `_first_line` returned the text up to the first line feed, and it was
 # the whole of the zero-row byte check: one physical line, ending in a
@@ -3356,7 +3311,9 @@ def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
     return lines
 
 
-def _records_of(text: str) -> "list[list[str]]":
+def _records_of(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[list[str]]":
     """Every record the file holds, read as `reading` reads them.
 
     WHY THIS IS A RECORD WALK AND NOT A LINE (review items P3-V2-D-F1
@@ -3385,11 +3342,13 @@ def _records_of(text: str) -> "list[list[str]]":
     - Determinism: a fixed function of that text.
     - Errors raised: none.
     """
-    records, _whole = _walked(text)
+    records, _whole = _walked(text, form)
     return records
 
 
-def _walked(text: str) -> "tuple[list[list[str]], bool]":
+def _walked(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "tuple[list[list[str]], bool]":
     """The records, and whether the walk reached the end of the file.
 
     THIS STANDS IN FOR THE READER, SO IT READS UNDER THE READER'S OWN
@@ -3425,7 +3384,14 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     try:
         csv.field_size_limit(reading.FIELD_SIZE_LIMIT)
         try:
-            for row in csv.reader(_split_lines(text)):
+            backslash = form is not None and form.escape == dialect.ESCAPE_BACKSLASH
+            for row in csv.reader(
+                _split_lines(text),
+                delimiter="," if form is None else form.delimiter,
+                doublequote=not backslash,
+                escapechar="\\" if backslash else None,
+                skipinitialspace=form is not None and form.initial_space,
+            ):
                 if not row:
                     # A blank line carries no values, exactly as
                     # `reading._read_streamed` drops it.
@@ -3438,7 +3404,9 @@ def _walked(text: str) -> "tuple[list[list[str]], bool]":
     return (records, True)
 
 
-def _first_record(text: str) -> "list[str]":
+def _first_record(
+    text: str, form: "dialect.Dialect | None" = None
+) -> "list[str]":
     """The names the file's first RECORD holds, as the READER reads it.
 
     It has to reach the answer `read_table` would reach, which is why
@@ -3450,10 +3418,19 @@ def _first_record(text: str) -> "list[str]":
     (V9) -- with a measured name in the refusal, which is the fault
     review item P3-V2-D-F1 was found on.
     """
-    records = _records_of(_without_a_mark(text))
-    if not records:
+    records = _records_of(_without_a_mark(text), form)
+    lead = _lead_records(form)
+    if len(records) <= lead:
         return []
-    return records[0]
+    return records[lead]
+
+
+def _lead_records(form: "dialect.Dialect | None") -> int:
+    """How many non-blank records stand before the header: hint and preamble."""
+    if form is None:
+        return 0
+    lead = 1 if form.separator_line else 0
+    return lead + dialect.preamble_lines_written(form.preamble)
 
 
 def _without_the_last_break(text: str) -> str:
@@ -3481,7 +3458,9 @@ def _without_the_last_break(text: str) -> str:
 # over every class of name the loader admits.
 
 
-def _canonical_record(cells: "list[str]") -> str:
+def _canonical_record(
+    cells: "list[str]", form: "dialect.Dialect | None" = None
+) -> str:
     """One record as method G2 writes it, without its line ending.
 
     Fields are joined by a comma; each is written by `_canonical_field`;
@@ -3493,16 +3472,23 @@ def _canonical_record(cells: "list[str]") -> str:
     """
     if len(cells) == 1 and not cells[0]:
         return _QUOTE + _QUOTE
+    delimiter = _COMMA if form is None else form.delimiter
+    separator = delimiter
+    if form is not None and form.initial_space:
+        separator = delimiter + " "
+    every = form is not None and form.header_quoting == dialect.QUOTE_ALWAYS
     text = ""
     for place in range(len(cells)):
         if place:
-            text = text + _COMMA
-        always = place == 0 and cells[place][:1] == _BYTE_ORDER_MARK
-        text = text + _canonical_field(cells[place], always)
+            text = text + separator
+        always = every or (place == 0 and cells[place][:1] == _BYTE_ORDER_MARK)
+        text = text + _canonical_field(cells[place], always, delimiter)
+    if form is not None and form.header_trailing_delimiter:
+        text = text + delimiter
     return text
 
 
-def _canonical_field(cell: str, always: bool) -> str:
+def _canonical_field(cell: str, always: bool, delimiter: str = _COMMA) -> str:
     """One cell as method G2 writes it.
 
     Quoted when and only when it holds a comma, a quote character, a
@@ -3516,7 +3502,7 @@ def _canonical_field(cell: str, always: bool) -> str:
         if character == _QUOTE:
             quoted = True
             special = True
-        elif character in _MUST_BE_QUOTED:
+        elif character in _MUST_BE_QUOTED or character == delimiter:
             special = True
     if not special and not always:
         return cell
@@ -4289,7 +4275,9 @@ def _withheld(column: str, fact: str, subcheck: str, why: str) -> Check:
 # -- the measurement --------------------------------------------------
 
 
-def measure(description: contract.Profile, path: str) -> Outcome:
+def measure(
+    description: contract.Profile, path: str, sheet: str = ""
+) -> Outcome:
     """Measure one CSV against one description; return every verdict.
 
     Guarantees:
@@ -4431,6 +4419,46 @@ def measure(description: contract.Profile, path: str) -> Outcome:
             path,
             first_row=first_row,
             refusals=reading.REFUSALS_NAME_POSITIONS,
+            encoding=description.source.encoding,
+            # WHICH SHEET, WHERE THE PERSON SAID (repair of landing
+            # 2b.10). `validate --sheet` was accepted by the command
+            # line and never arrived here, so a real workbook whose
+            # table sits behind a hidden or a later sheet was measured
+            # at whichever sheet the reader settled on by itself.
+            sheet=sheet,
+            # AND UNDER THE SAME METADATA DECLARATION the description
+            # was written under (plan P4-D81). The reader no longer
+            # guesses these rows, so a checked file read without the
+            # declaration keeps them as records: the row counts, every
+            # column's cells and the published rows of column
+            # descriptions would all be measured against a different
+            # reading of the same bytes.
+            metadata_rows=description.settings.forced_metadata_rows,
+            # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION
+            # SAYS IT WAS READ (review of landing 2b.17, MAJOR). A
+            # declaration the file does not bear out is not acted on
+            # unless the person confirmed it, so the settings block
+            # alone no longer says whether those rows left the table.
+            # The published rows do: where the description carries
+            # them, they were taken, and this reading takes them too.
+            metadata_rows_confirmed=bool(
+                description.source.dialect.header_rows
+            ),
+            # AND UNDER THE SAME DECIMAL-COMMA DECLARATION (review item
+            # CODEX-9). The survey reads the row order off the cells as
+            # written. A checked file surveyed without the declaration
+            # reads a declared column under the text collation, where
+            # `10,0` sorts before `9,9`, so a file genuinely in the
+            # published order is reported as not in it.
+            decimal_comma_columns=tuple(
+                description.settings.forced_decimal_commas
+            ),
+            # AND WITH THE DELIMITER THE PERSON DECLARED (review item
+            # CODEX-4, plan P4-D110). A file that reads equally well
+            # under two delimiters is read by the declaration and by
+            # nothing else, so a checked file read without it would be
+            # measured under the other reading of the same bytes.
+            declared_delimiter=description.settings.forced_delimiter,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -4520,8 +4548,9 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
         ) from error
-    checks = _byte_checks(description, data, text, headed, as_read, False)
+    checks = _byte_checks(description, data, table.survey, False)
     checks = checks + _structure_checks(description, table, headed)
+    checks = checks + _workbook_checks(description, redescribed, table)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
     # 2026-08-16; plan amendment A-P3-26). Asked once, of the
     # description alone, and asked HERE rather than inside the column
@@ -4656,7 +4685,12 @@ def _degenerate_report(
     - Errors raised: none.
     """
     return _assembled(
-        _byte_checks(description, data, text, headed, as_read, False)
+        _byte_checks(
+            description,
+            data,
+            _surveyed_quietly(data, headed, description.source.encoding),
+            False,
+        )
         + [_zero_row_form(description, data, text, headed)]
         + _zero_row_structure(description, text, headed),
         _zero_row_listings(description, headed),
@@ -4703,7 +4737,7 @@ def _report_on_a_refused_file(
       file, so nothing reaches that; re-raising rather than assuming is
       what keeps the assumption from becoming a wrong report.
     """
-    byte_rules = _byte_checks(description, data, text, headed, as_read, True)
+    byte_rules = _byte_checks(description, data, None, True)
     if refusal.kind == errors.NO_DATA_TO_DESCRIBE:
         return _assembled(
             byte_rules + _no_rows_at_all(description, headed),
@@ -4925,85 +4959,793 @@ def _assembled(
 # -- V6.2 and V6.4: the byte rules ------------------------------------
 
 
+# The fact every rule about the file's written form is filed under, beside
+# the two byte-rule names the four oldest rules keep (plan P4-D86).
+_DIALECT_FACT = "document.source.dialect"
+
+_RULE_WORDS = {
+    dialect.QUOTE_NEEDED: "quoted where a reader needs it",
+    dialect.QUOTE_BARE: "quoted only where a value could not be read back otherwise",
+    dialect.QUOTE_ALWAYS: "every one quoted",
+    dialect.QUOTE_MIXED: "quoted in no single way",
+}
+_CLASS_WORDS = {
+    dialect.CELL_ABSENT: "absent-value spellings",
+    dialect.CELL_EMPTY: "empty cells",
+    dialect.CELL_NUMBER: "numbers",
+    dialect.CELL_TEXT: "other text",
+}
+
+
+def _published_characters(value: object, found: "dict[str, bool]") -> None:
+    """Every character beyond ASCII that the description publishes, into ``found``.
+
+    Walks the loaded description -- every text in it, however deep --
+    so the question below is asked of what was published and of nothing
+    a list of fields could forget.
+    """
+    if isinstance(value, str):
+        for character in set(value):
+            if ord(character) > 127:
+                found[character] = True
+        return
+    if isinstance(value, (bool, int, float)) or value is None:
+        return
+    if isinstance(value, dict):
+        for key in value:
+            _published_characters(key, found)
+            _published_characters(value[key], found)
+        return
+    if isinstance(value, (tuple, list, frozenset, set)):
+        for item in value:
+            _published_characters(item, found)
+
+
+def _encoding_found(
+    data: bytes, encoding: str, description: "contract.Profile | None" = None
+) -> str:
+    """What the bytes are, in the words the published encoding is asked in.
+
+    A file holds the published encoding when its bytes decode under it --
+    UTF-16 behind its own mark -- and, for a Western European encoding,
+    when they are not UTF-8 text beyond ASCII, which is the twin's old
+    defect: written as UTF-8 whatever the table was.
+
+    UNLESS EVERY SUCH CHARACTER IS ONE THE DESCRIPTION PUBLISHES (repair
+    of landing 2b.9). A table that is UTF-8 but for one stray byte is
+    read as Latin-1, so its accented labels are published as that reading
+    gives them; where the stray byte stood in a cell the twin writes a
+    stand-in for, the twin is UTF-8 text beyond ASCII and still exactly
+    its description. A twin wrongly written as UTF-8 is not: read in the
+    published encoding, its accented letters come out as characters the
+    description never published.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    words = dialect.ENCODING_WORDS[encoding]
+    if encoding == dialect.ENCODING_UTF16_LE and data[:2] != b"\xff\xfe":
+        return f"not {words}"
+    if encoding == dialect.ENCODING_UTF16_BE and data[:2] != b"\xfe\xff":
+        return f"not {words}"
+    try:
+        str(data, dialect.READING_CODECS[encoding])
+    except UnicodeDecodeError:
+        return f"not {words}"
+    if encoding in dialect.FALLBACK_ENCODINGS:
+        try:
+            str(data, "ascii")
+        except UnicodeDecodeError:
+            try:
+                str(data, "utf-8")
+            except UnicodeDecodeError:
+                return f"written as {words}"
+            as_utf8 = f"written as {dialect.ENCODING_WORDS[dialect.ENCODING_UTF8]}"
+            if description is None:
+                return as_utf8
+            published: dict[str, bool] = {}
+            _published_characters(dataclasses.asdict(description), published)
+            for character in set(str(data, dialect.READING_CODECS[encoding])):
+                if ord(character) > 127 and character not in published:
+                    return as_utf8
+    return f"written as {words}"
+
+
+def _mark_words(marked: bool) -> str:
+    return "a byte-order mark" if marked else "no byte-order mark"
+
+
+def _final_words(ended: bool) -> str:
+    return "a newline at the end" if ended else "no newline at the end"
+
+
+def _ending_words(
+    runs: "tuple[dialect.EndingRun, ...]", counted: bool
+) -> str:
+    """Line endings in file order; with their line counts where ``counted``."""
+    if not runs:
+        return "no line endings"
+    if len(runs) == 1:
+        return f"{dialect.ENDING_WORDS[runs[0].ending]} endings"
+    text = ""
+    for run in runs:
+        piece = f"{dialect.ENDING_WORDS[run.ending]} endings"
+        if counted:
+            piece = f"{piece} on {run.lines} lines"
+        text = piece if not text else f"{text}, then {piece}"
+    return text
+
+
+def _census_words(census: "tuple[dialect.EndingRun, ...]") -> str:
+    """How many lines end each way, for a description that published counts."""
+    if not census:
+        return "no line endings"
+    text = ""
+    for run in census:
+        piece = f"{run.lines} lines ending with {dialect.ENDING_WORDS[run.ending]}"
+        text = piece if not text else f"{text}, {piece}"
+    return f"line endings counted: {text}"
+
+
+def _whitespace_words(text: str) -> str:
+    """What a blank line holds, named exactly (review item CODEX-12).
+
+    THE WORDS THIS REPLACED WERE LOSSY, and the field they stand for is
+    EXACT-CONTROL. Any whitespace at all became "holding spaces or
+    tabs", so a description published from a line of three spaces and a
+    file holding one tab produced the SAME sentence -- and the check
+    compared the two sentences, reported `bytes.blank-lines` HELD, and
+    counted zero misses on a file that did not hold what was published.
+
+    The runs are named in order, so the sentence determines the line's
+    own spelling and nothing but that spelling: three spaces and a tab
+    read differently from a tab and three spaces.
+    """
+    if not text:
+        return ""
+    parts: list[str] = []
+    kind = ""
+    run = 0
+    for character in text:
+        word = "tab" if character == "\t" else "space"
+        if word == kind:
+            run = run + 1
+            continue
+        if kind:
+            parts += [f"{run} {kind}(s)"]
+        kind = word
+        run = 1
+    parts += [f"{run} {kind}(s)"]
+    named = ""
+    for part in parts:
+        named = part if not named else f"{named} then {part}"
+    return f", holding {named}"
+
+
+def _counted_blank_words(counted: "dialect.BlankSpread | None") -> str:
+    """The blank lines counted, for a description that published them so."""
+    if counted is None:
+        return "no blank lines"
+    held = _whitespace_words(counted.text)
+    return (
+        f"blank lines counted: {counted.lines}, the first after record "
+        f"{counted.first} and the last after record {counted.last}{held}"
+    )
+
+
+def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
+    if not places:
+        return "no blank lines"
+    text = ""
+    for place in places:
+        piece = f"{place.lines} after record {place.after}"
+        piece = f"{piece}{_whitespace_words(place.text)}"
+        text = piece if not text else f"{text}; {piece}"
+    return f"blank lines: {text}"
+
+
+def _quoting_words(rules: "tuple[str, ...]") -> str:
+    text = ""
+    for index in range(len(dialect.CELL_CLASSES)):
+        piece = (
+            f"{_CLASS_WORDS[dialect.CELL_CLASSES[index]]} "
+            f"{_RULE_WORDS[rules[index]]}"
+        )
+        text = piece if not text else f"{text}; {piece}"
+    return text
+
+
+def _quoting_holds(
+    rules: "tuple[str, ...]", surveyed: dialect.Survey, index: int
+) -> bool:
+    """Whether a column's cells are quoted by the published rule per class.
+
+    A class the column holds no cell of holds any rule. The survey says
+    which rules each class of a checked column agrees with; where it did
+    not tell the classes apart -- a column quoted all one way -- a rule
+    it rules out is an obligation missed only if the column really holds
+    a cell of that class.
+    """
+    held = surveyed.quoting_holds[index]
+    present: "dict[str, bool] | None" = None
+    for place in range(len(dialect.CELL_CLASSES)):
+        rule = rules[place]
+        if rule == dialect.QUOTE_MIXED or rule in held[place]:
+            continue
+        if not surveyed.classified[index]:
+            if present is None:
+                present = {}
+                for cell in surveyed.columns[index]:
+                    present[dialect.cell_class(cell)] = True
+            if dialect.CELL_CLASSES[place] not in present:
+                continue
+        return False
+    return True
+
+
+def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
+    """What a file of no bytes shows about each fact of a written form."""
+    return dataclasses.replace(
+        form,
+        byte_order_mark=False,
+        line_endings=(),
+        line_endings_spread=(),
+        blank_lines_spread=None,
+        final_line_ending=False,
+        end_of_file_mark=False,
+        separator_line=False,
+        preamble=(),
+        preamble_withheld=False,
+        header_rows=(),
+        written_names=(),
+        header_trailing_delimiter=False,
+        rows_trailing_delimiter=False,
+        short_rows=False,
+        blank_lines=(),
+        empty_rows_leading=0,
+        empty_rows_interior=0,
+        empty_rows_trailing=0,
+    )
+
+
+def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
+    """What a file holding no record shows of a written form, off its bytes.
+
+    The survey of such a file stops at its first question -- it holds no
+    record to take as the names or as data -- and yet its mark, its
+    lines, their endings, a separator hint and an end-of-file mark are
+    all there to be read. Every other fact is shown by records alone,
+    and is given the description's own value, which no such file can
+    contradict.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("internal check: a file's bytes were not bytes")
+    marked = data[:3] == b"\xef\xbb\xbf" or data[:2] in (b"\xff\xfe", b"\xfe\xff")
+    try:
+        text = str(data, "utf-8")
+    except UnicodeDecodeError:
+        text = str(data, "latin-1")
+    if text[:1] == _BYTE_ORDER_MARK:
+        text = text[1:]
+    ended = text[len(text) - 1 :] == "\x1a"
+    if ended:
+        text = text[: len(text) - 1]
+    hinted = text[:4] == "sep=" and len(text) >= 5
+    runs: list[dialect.EndingRun] = []
+    blanks: list[str] = []
+    lines = dialect.physical_lines(text)
+    for index in range(len(lines)):
+        line = lines[index]
+        if line[len(line) - 2 :] == "\r\n":
+            word = "crlf"
+        elif line[len(line) - 1 :] == "\n":
+            word = "lf"
+        elif line[len(line) - 1 :] == "\r":
+            word = "cr"
+        else:
+            word = ""
+        if not (hinted and index == 0):
+            blanks += [""]
+        if not word:
+            continue
+        last = len(runs) - 1
+        if last >= 0 and runs[last].ending == word:
+            runs[last] = dialect.EndingRun(ending=word, lines=runs[last].lines + 1)
+        else:
+            runs += [dialect.EndingRun(ending=word, lines=1)]
+    final = text[len(text) - 1 :] in ("\n", "\r") and bool(text)
+    return dataclasses.replace(
+        _nothing_written(form),
+        byte_order_mark=marked,
+        line_endings=tuple(runs),
+        final_line_ending=final,
+        end_of_file_mark=ended,
+        separator_line=hinted,
+        preamble=(
+            (
+                dialect.PreambleRun(
+                    kind=dialect.PREAMBLE_BLANK, lines=len(blanks), mark=""
+                ),
+            )
+            if blanks
+            else ()
+        ),
+    )
+
+
+def _surveyed_quietly(
+    data: bytes, headed: bool, published: str
+) -> "dialect.Survey | None":
+    """The survey of a file the reader refused, or None where it has none.
+
+    The zero-row form's conforming file is one the reader refuses for
+    holding no rows, and its bytes still have a written form. It is read
+    in the description's encoding where it can be, as the reader reads
+    every checked file.
+    """
+    if not data:
+        return None
+    try:
+        text, encoding, marked = dialect.decoded_as(data, "", published)
+        return dialect.settle(text, encoding, marked, not headed, "")
+    except errors.ProfileError:
+        return None
+
+
 def _byte_checks(
     description: contract.Profile,
     data: bytes,
-    text: "str | None",
-    headed: bool,
-    as_read: str,
+    surveyed: "dialect.Survey | None",
     refused: bool,
 ) -> "list[Check]":
-    """Every rule about the file's bytes, each one able to fail.
+    """Every rule about the file's written form, each one able to fail.
 
-    ``as_read`` is the file in the encoding the READER settled on, and
-    it is what the line-ending rule is asked about: which characters are
-    line endings is a question about records, and only the text the
-    reader read can answer it.
+    THE FORM IS PUBLISHED, SO EVERY RULE HERE IS HELD TO THE DESCRIPTION
+    (owner ruling 2026-09-15, plan P4-D86). These rules used to be
+    constants -- UTF-8, line feeds, a newline at the end, no byte-order
+    mark -- which the description recorded nowhere, and a twin written
+    that way passed while code developed on it failed on the real table.
+    Each is now what `source.encoding` and `source.dialect` record,
+    measured on the checked file by the reader's own survey
+    (`surveyed`), so a twin passes by being written the way its table
+    was and the real table passes by being itself.
 
-    ``refused`` says the producer would refuse this file, and exactly ONE
-    of these four rules is gated on it (review item P3-V3-F3). Which
-    encoding a file was read under is a fact the producer PUBLISHES --
-    `source.encoding`, and `used_fallback_encoding` beside it -- so on a
-    file it publishes nothing about, stating it states what describing
-    that file never would (V5.1). The other three are not published about
-    any file at any count, which is the test amendment A-P3-3 clause 6
-    ruled them outside the envelope on and A-P3-5 clause 3 wrote down:
-    no cell, no name, no count and no person is in a line ending, a
-    terminal newline or a byte-order mark.
+    ``refused`` says the producer would refuse this file. Every one of
+    these facts is one the producer publishes, so on a file it publishes
+    nothing about, stating them states what describing that file never
+    would (V5.1), and every rule here is WITHHELD there. That supersedes
+    the ruling of amendment A-P3-3 clause 6, which kept the line endings
+    and the final newline outside the envelope on the ground that the
+    producer published them about no file, by the test amendment A-P3-5
+    clause 3 wrote down: it publishes them about every file now.
+
+    The four rules that stood here before keep their names --
+    `bytes.encoding` (once `bytes.utf8`), `bytes.byte-order-mark`,
+    `bytes.line-endings` and `bytes.terminal-newline` -- and the rest are
+    filed under `document.source.dialect`. The line-ending rule compares
+    which ending each line has; where the file holds a different number
+    of lines, which the row and blank-line rules answer for, it compares
+    the endings' order alone rather than accusing the file twice (V3.6).
     """
-    checks = [
-        Check(
-            "",
-            "document.encoding",
-            "bytes.utf8",
-            WITHHELD,
-            "written as UTF-8",
-            "",
-            _GATE_REFUSED,
+    form = description.source.dialect
+    encoding = description.source.encoding
+    headed = description.source.header_source == reading.HEADER_FROM_FILE
+    # A WORKBOOK ANSWERS NONE OF THESE (plan P4-D77, V6.2-A2). The rules
+    # below are about a delimited file's bytes, and this description
+    # says the table came out of a package of markup instead.
+    packaged = description.source.workbook is not None
+    closed = refused or packaged
+    gate = _GATE_REFUSED if refused else _GATE_WORKBOOK
+    measured = surveyed.form if surveyed is not None else _bare_form(form, data)
+    if refused:
+        measured = form
+    same_count = sum(
+        [run.lines for run in form.line_endings + form.line_endings_spread]
+    ) == sum(
+        [run.lines for run in measured.line_endings + measured.line_endings_spread]
+    )
+    # A DESCRIPTION THAT PUBLISHED COUNTS IS ANSWERED IN COUNTS, whatever
+    # the checked file's own runs number (repair of landing 2b.9): the
+    # twin writes the rarer endings spread evenly, and the real table
+    # holds them where they stood, and both hold as many of each.
+    ending_asked = _ending_words(form.line_endings, same_count)
+    ending_found = _ending_words(measured.line_endings, same_count)
+    if form.line_endings_spread:
+        census = dialect.census_of(measured.line_endings + measured.line_endings_spread)
+        if surveyed is not None and not refused:
+            census = surveyed.ending_census
+        ending_asked = _census_words(form.line_endings_spread)
+        ending_found = _census_words(census)
+    blank_asked = _blank_words(form.blank_lines)
+    blank_found = _blank_words(measured.blank_lines)
+    if form.blank_lines_spread is not None:
+        blank_asked = _counted_blank_words(form.blank_lines_spread)
+        blank_found = _counted_blank_words(
+            surveyed.blank_census
+            if surveyed is not None and not refused
+            else form.blank_lines_spread
+            if refused
+            else None
         )
-        if refused
-        else _exact(
+    escape = measured.escape
+    if (
+        form.escape == dialect.ESCAPE_BACKSLASH
+        and escape == dialect.ESCAPE_DOUBLED
+        and (surveyed is None or surveyed.escapes == 0)
+    ):
+        escape = form.escape
+    header_found = _RULE_WORDS[form.header_quoting]
+    if (
+        surveyed is not None
+        and headed
+        and form.header_quoting != dialect.QUOTE_MIXED
+        and form.header_quoting not in surveyed.header_holds
+    ):
+        header_found = _RULE_WORDS[measured.header_quoting]
+    # RUN FOR RUN, EXACTLY (plan P4-D80). Both sides are shapes now --
+    # a kind, a count and a mark -- and the twin writes a line of each
+    # shape, so a real table and its twin give the very same runs and
+    # this comparison needs no allowance for a stand-in.
+    preamble_held = measured.preamble == form.preamble
+    short_found = measured.short_rows
+    if form.short_rows and surveyed is not None and surveyed.short_vacuous:
+        short_found = True
+    delimiter_words = "fields separated by"
+    checks = [
+        _exact(
             "",
             "document.encoding",
-            "bytes.utf8",
-            "written as UTF-8",
-            "written as UTF-8" if text is not None else "not UTF-8",
+            "bytes.encoding",
+            f"written as {dialect.ENCODING_WORDS[encoding]}",
+            _encoding_found(data, encoding, description),
         ),
         _exact(
             "",
             "document.encoding",
             "bytes.byte-order-mark",
-            "no byte-order mark",
-            (
-                "a byte-order mark"
-                if _starts_with_a_mark(data)
-                else "no byte-order mark"
-            ),
+            _mark_words(form.byte_order_mark),
+            _mark_words(measured.byte_order_mark),
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.line-endings",
-            "line feed endings",
-            (
-                "carriage returns"
-                if _a_return_ends_a_line(as_read)
-                else "line feed endings"
-            ),
+            ending_asked,
+            ending_found,
         ),
         _exact(
             "",
             "document.line-endings",
             "bytes.terminal-newline",
-            "a newline at the end",
-            (
-                "a newline at the end"
-                if data[len(data) - 1 :] == b"\n"
-                else "no newline at the end"
-            ),
+            _final_words(form.final_line_ending),
+            _final_words(measured.final_line_ending),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.delimiter",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[form.delimiter]}",
+            f"{delimiter_words} {dialect.DELIMITER_WORDS[measured.delimiter]}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.initial-space",
+            "one space after each delimiter"
+            if form.initial_space
+            else "nothing between a delimiter and the next field",
+            "one space after each delimiter"
+            if measured.initial_space
+            else "nothing between a delimiter and the next field",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.escape",
+            f"a quote inside a quoted field written {form.escape}",
+            f"a quote inside a quoted field written {escape}",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.separator-line",
+            "a separator line first" if form.separator_line else "no separator line",
+            "a separator line first"
+            if measured.separator_line
+            else "no separator line",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.end-of-file-mark",
+            "an end-of-file mark after the last line"
+            if form.end_of_file_mark
+            else "no end-of-file mark",
+            "an end-of-file mark after the last line"
+            if measured.end_of_file_mark
+            else "no end-of-file mark",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.preamble",
+            f"{dialect.preamble_lines_total(form.preamble)} line(s) before "
+            f"the table in {len(form.preamble)} shape(s), as published",
+            preamble_held,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-quoting",
+            f"the header's cells {_RULE_WORDS[form.header_quoting]}",
+            f"the header's cells {header_found}",
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.header-rows",
+            f"{len(form.header_rows)} row(s) describing the columns under "
+            f"the names, as published",
+            measured.header_rows == form.header_rows,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _silent(
+            "",
+            _DIALECT_FACT,
+            "bytes.written-names",
+            f"{len(form.written_names)} header cell(s) written blank or "
+            f"repeated, as published",
+            measured.written_names == form.written_names,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.trailing-delimiter",
+            _trailing_words(form),
+            _trailing_words(measured),
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.short-rows",
+            "empty cells at the end of a record left out"
+            if form.short_rows
+            else "every record written to its last cell",
+            "empty cells at the end of a record left out"
+            if short_found
+            else "every record written to its last cell",
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.blank-lines",
+            blank_asked,
+            blank_found,
+        ),
+        _exact(
+            "",
+            _DIALECT_FACT,
+            "bytes.empty-rows",
+            _empty_row_words(form),
+            _empty_row_words(measured),
         ),
     ]
-    return checks
+    # A RULE NO FILE COULD MISS IS NOT FILED (V3.4). A headerless file
+    # has no header to quote, name as written, put metadata rows under or
+    # end with a delimiter; a description of no rows has no cell to
+    # quote, sort or leave out, and the survey decides a trailing
+    # delimiter from the first record; a headerless file of no rows
+    # cannot tell a blank line from the lines before its table; and a
+    # table of one column holds no record of nothing.
+    unfiled: set[str] = set()
+    if not headed:
+        unfiled = unfiled | {
+            "bytes.header-quoting",
+            "bytes.header-rows",
+            "bytes.written-names",
+            "bytes.trailing-delimiter",
+        }
+    if description.n_rows == 0:
+        unfiled = unfiled | {"bytes.short-rows", "bytes.trailing-delimiter"}
+        if not headed:
+            unfiled = unfiled | {"bytes.blank-lines"}
+    if description.n_columns < 2:
+        # One column: no record of nothing, no cell left out at the end
+        # of a record, and no row of column descriptions under the name.
+        unfiled = unfiled | {
+            "bytes.empty-rows",
+            "bytes.short-rows",
+            "bytes.header-rows",
+        }
+    if not form.header_rows:
+        # NO ROWS OF COLUMN DESCRIPTIONS ARE PUBLISHED, SO NONE CAN BE
+        # MEASURED (plan P4-D81, and V3.4's own condition). A checked
+        # file is read under the description's OWN declaration, and a
+        # description that declares none reads every row under the
+        # column names as a record -- so both sides of this comparison
+        # are empty whatever the file holds, and no edit to any file
+        # can make it fail. That is a subcheck that cannot verdict,
+        # which V3.4 refuses to file. It is filed, and falsifiable,
+        # exactly where the person DECLARED such rows.
+        unfiled = unfiled | {"bytes.header-rows"}
+    checks = [check for check in checks if check.subcheck not in unfiled]
+    if form.header_rows:
+        metadata_found = _RULE_WORDS[form.header_rows_quoting]
+        if (
+            surveyed is not None
+            and form.header_rows_quoting != dialect.QUOTE_MIXED
+            and form.header_rows_quoting not in surveyed.header_rows_holds
+        ):
+            metadata_found = _RULE_WORDS[measured.header_rows_quoting]
+        checks += [
+            _exact(
+                "",
+                _DIALECT_FACT,
+                "bytes.header-rows-quoting",
+                _RULE_WORDS[form.header_rows_quoting],
+                metadata_found,
+            )
+        ]
+    if description.n_rows == 0:
+        return _withheld_if(checks, closed, gate)
+    # EVERY DESCRIBED COLUMN FILES ITS OWN, whatever the file holds: the
+    # set of obligations is a function of the description (V3.1), so a
+    # file whose columns do not line up with the description's misses
+    # them rather than losing them.
+    aligned = (
+        not refused
+        and surveyed is not None
+        and len(surveyed.columns) == len(description.columns)
+    )
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        column = form.columns[index]
+        if not aligned or surveyed is None:
+            checks += _unaligned_column_checks(name, column)
+            continue
+        measured_column = surveyed.form.columns[index]
+        held = _quoting_holds(column.quoting, surveyed, index)
+        checks += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.quoting",
+                _quoting_words(column.quoting),
+                _quoting_words(column.quoting if held else measured_column.quoting),
+            )
+        ]
+        if column.pad_side:
+            asked = f"padded on the {column.pad_side} to {column.pad_width} characters"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "bytes.padding",
+                    asked,
+                    asked
+                    if (measured_column.pad_side, measured_column.pad_width)
+                    == (column.pad_side, column.pad_width)
+                    else "not padded to that width",
+                )
+            ]
+        if column.sequence_start >= 0:
+            asked = f"the row sequence from {column.sequence_start}"
+            checks += [
+                _exact(
+                    name,
+                    _DIALECT_FACT,
+                    "rows.sequence",
+                    asked,
+                    asked
+                    if measured_column.sequence_start == column.sequence_start
+                    else "not the row sequence",
+                )
+            ]
+    order = form.row_order
+    if order.column and order.column <= len(description.columns):
+        asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
+        held = aligned and surveyed is not None and dialect.holds_order_in(
+            surveyed.columns, order
+        )
+        checks += [
+            _exact(
+                description.columns[order.column - 1].name,
+                _DIALECT_FACT,
+                "rows.order",
+                asked,
+                asked if held else "rows not in that order",
+            )
+        ]
+    return _withheld_if(checks, closed, gate)
+
+
+def _withheld_if(
+    checks: "list[Check]", closed: bool, why: str = _GATE_REFUSED
+) -> "list[Check]":
+    """Every check WITHHELD where the gate is closed, else as is.
+
+    The per-column and row-order rules are filed on a refused file too,
+    so the obligations a report states stay a function of the
+    description (V3.1); none of them is stated there (V5.1).
+
+    ``why`` says WHICH gate closed, because there are two and they are
+    not the same statement: the producer would refuse this file, or the
+    description is of a workbook and these rules describe delimited text
+    (V6.2-A2). A reader of the report is told which.
+    """
+    if not closed:
+        return checks
+    return [
+        Check(
+            check.column,
+            check.fact,
+            check.subcheck,
+            WITHHELD,
+            check.published,
+            "",
+            why,
+        )
+        for check in checks
+    ]
+
+
+def _unaligned_column_checks(
+    name: str, column: dialect.ColumnForm
+) -> "list[Check]":
+    """A column's form checks, on a file whose columns do not line up.
+
+    Nothing can be measured of a column the file does not hold where the
+    description places it, and saying so is a miss: the obligation is
+    filed, and the file does not meet it.
+    """
+    unlined = "the file's columns do not line up with the description's"
+    found = [
+        _exact(
+            name,
+            _DIALECT_FACT,
+            "bytes.quoting",
+            _quoting_words(column.quoting),
+            unlined,
+        )
+    ]
+    if column.pad_side:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "bytes.padding",
+                f"padded on the {column.pad_side} to {column.pad_width} characters",
+                unlined,
+            )
+        ]
+    if column.sequence_start >= 0:
+        found += [
+            _exact(
+                name,
+                _DIALECT_FACT,
+                "rows.sequence",
+                f"the row sequence from {column.sequence_start}",
+                unlined,
+            )
+        ]
+    return found
+
+
+def _trailing_words(form: dialect.Dialect) -> str:
+    header = "a delimiter" if form.header_trailing_delimiter else "no delimiter"
+    rows = "a delimiter" if form.rows_trailing_delimiter else "no delimiter"
+    return f"{header} ending the header line, {rows} ending each record"
+
+
+def _empty_row_words(form: dialect.Dialect) -> str:
+    total = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if not total:
+        return "no record holding nothing"
+    return (
+        f"records holding nothing: {form.empty_rows_leading} first, "
+        f"{form.empty_rows_interior} between, {form.empty_rows_trailing} last"
+    )
 
 
 def _zero_row_form(
@@ -5063,7 +5805,8 @@ def _zero_row_form(
     if text is None:
         return Check("", fact, subcheck, MISSED, published, "not UTF-8")
     body = _without_a_mark(text)
-    records = _records_of(body)
+    form = description.source.dialect
+    records = _records_of(body, form)[_lead_records(form) :]
     if len(records) != 1:
         return _silent(
             "",
@@ -5073,7 +5816,7 @@ def _zero_row_form(
             False,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         )
-    written = _canonical_record(records[0])
+    written = _canonical_record(records[0], form)
     return _silent(
         "",
         fact,
@@ -5112,7 +5855,11 @@ def _zero_row_structure(
     - Errors raised: none.
     """
     names = [column.name for column in description.columns]
-    found = _first_record(text) if text is not None else []
+    found = (
+        _first_record(text, description.source.dialect)
+        if text is not None
+        else []
+    )
     if not headed:
         return [
             _exact(
@@ -5465,6 +6212,525 @@ def _structure_checks(
             ),
         ]
     return checks
+
+
+_WORKBOOK_FACT = "document.source.workbook"
+
+# What a workbook obligation is measured against when the checked file
+# turns out not to be a workbook at all. This is a MISS and not a
+# withholding: the description says the table came out of a spreadsheet
+# package, and a file that is not one does not meet that.
+_NOT_A_WORKBOOK = "not a spreadsheet workbook"
+
+# THREE FACTS A CONFORMING TWIN CANNOT CARRY, AND ONE MEASUREMENT THAT
+# CANNOT TELL IT FROM THE REAL FILE (repair of landing 2b.10). A twin
+# never carries a macro project -- that is the security rule the reader
+# and the writer both keep -- and it writes no formula and no defined
+# name. Those three facts are published about the person's own workbook,
+# and they were held against the checked file as obligations: every
+# macro-enabled workbook's twin failed at exit 3 on `workbook.macro-
+# project`, a promise the twin is FORBIDDEN to keep.
+#
+# They cannot simply be checked on the real file and withheld on the
+# twin, because nothing here knows which it has: `validate` measures
+# whatever file it is pointed at, by design (a real table is checked by
+# pointing `--twin` at it). So the honest verdict is one verdict for
+# both: WITHHELD, with the reason said out loud and counted in the
+# report's own census, and the fact named where a person reads it -- the
+# summary printed when their workbook is described.
+_WORKBOOK_TWIN_NEVER_CARRIES_IT = (
+    "a twin of a workbook never carries this -- no macro project, no "
+    "formula and no defined name is ever written into one -- and this "
+    "measurement cannot tell a twin from the file it was made from, so "
+    "neither the measurement nor its outcome is shown"
+)
+
+# A count the smallest group held back publishes nothing, so there is
+# nothing for the checked file to meet.
+_WORKBOOK_HELD_BACK = (
+    "the smallest group held this count back, so the description "
+    "publishes no number here for the file to meet"
+)
+
+# The one shape whose hidden state a twin cannot reproduce: a workbook
+# whose every sheet is hidden opens nowhere and is refused by
+# synthtwin's own reader, so a lone hidden sheet is written visible.
+_WORKBOOK_ONLY_SHEET_MUST_SHOW = (
+    "a workbook whose every sheet is hidden cannot be opened at all, so "
+    "the twin's one sheet is written visible and neither the "
+    "measurement nor its outcome is shown"
+)
+
+
+def _shown_census(
+    counts: "dict[str, object]", order: "tuple[str, ...]"
+) -> str:
+    """One census as a line, in the closed vocabulary's own order.
+
+    Every key here is one of synthtwin's own words and every value is a
+    count or the withholding, so nothing of the measured file's text can
+    reach the report through this.
+    """
+    text = ""
+    for key in order:
+        if key not in counts:
+            continue
+        held = counts[key]
+        shown = "withheld"
+        if isinstance(held, int):
+            shown = f"{held}"
+        if text:
+            text = text + ", "
+        text = text + f"{key} {shown}"
+    return text
+
+
+def _shown_sheet_names(names: "tuple[str | None, ...]") -> str:
+    """The published sheet names, the withheld ones named as withheld."""
+    text = ""
+    for name in names:
+        if text:
+            text = text + ", "
+        text = text + (name if name else "withheld")
+    return text
+
+
+def _census_of(entry: object, key: str) -> "dict[str, object]":
+    """One census out of a re-described column, or an empty one."""
+    if not isinstance(entry, dict):
+        return {}
+    if key not in entry:
+        return {}
+    found = entry[key]
+    if not isinstance(found, dict):
+        return {}
+    return found
+
+
+def _workbook_checks(
+    description: contract.Profile,
+    redescribed: "dict[str, object]",
+    table: reading.Table,
+) -> "list[Check]":
+    """Every fact the workbook block publishes, measured on the file.
+
+    THE TWIN OF A WORKBOOK IS A WORKBOOK, SO THESE ARE OBLIGATIONS (plan
+    P4-D79). Until the writer existed there was nothing to hold to them:
+    a workbook description had no twin, and the only file that could be
+    measured was the person's own. Now the twin is a workbook too, and
+    every fact `source.workbook` publishes is a promise the twin has to
+    keep -- which is what makes the census of what each column's cells
+    WERE a checkable thing rather than a note.
+
+    THE MEASURED SIDE IS THE PRODUCER'S OWN (V4.2): the file has already
+    been described again by `profile.build_document`, and its workbook
+    block is read off that description rather than measured a second
+    way here. One rule, written once.
+
+    The two rules the landing exists for are both in here. A column
+    whose cells were TEXT publishes a text count, so a twin that wrote
+    those cells as numbers -- which is what every ordinary writer does
+    to `00123` -- misses `workbook.cell-classes`. A column whose cells
+    wear a DATE format publishes that kind and that code, so a twin
+    that wrote the numbers bare misses `workbook.format-kinds` and
+    `workbook.format-code`. Those are the two misses that would
+    otherwise show up only as a reader returning different types.
+    """
+    form = description.source.workbook
+    if form is None:
+        return []
+    source = redescribed["source"]
+    block: object = None
+    if isinstance(source, dict) and "workbook" in source:
+        block = source["workbook"]
+    if not isinstance(block, dict):
+        return [
+            Check(
+                "",
+                _WORKBOOK_FACT,
+                "workbook.package",
+                MISSED,
+                "a spreadsheet workbook",
+                _NOT_A_WORKBOOK,
+            )
+        ]
+    checks: "list[Check]" = [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.package",
+            "a spreadsheet workbook", "a spreadsheet workbook",
+        )
+    ]
+    whole: "list[tuple[str, str, str]]" = [
+        (
+            "workbook.sheet-count",
+            _shown_count(form.sheet_count),
+            _shown_count(_whole_of(block, "sheet_count")),
+        ),
+        (
+            "workbook.sheet-position",
+            _shown_count(form.sheet_position),
+            _shown_count(_whole_of(block, "sheet_position")),
+        ),
+        (
+            "workbook.date-system",
+            form.date_system,
+            _word_of(block, "date_system"),
+        ),
+        (
+            "workbook.rows-above-header",
+            _shown_count(form.rows_above_header),
+            _shown_count(_whole_of(block, "rows_above_header")),
+        ),
+        (
+            "workbook.frozen-rows",
+            _shown_count(form.frozen_rows),
+            _shown_count(_whole_of(block, "frozen_rows")),
+        ),
+        (
+            "workbook.trailing-blank-rows",
+            _shown_count(form.trailing_blank_rows),
+            _shown_count(_whole_of(block, "trailing_blank_rows")),
+        ),
+        (
+            "workbook.trailing-blank-columns",
+            _shown_count(form.trailing_blank_columns),
+            _shown_count(_whole_of(block, "trailing_blank_columns")),
+        ),
+        (
+            "workbook.defined-table",
+            _shown_truth(form.defined_table),
+            _shown_truth(_truth_of(block, "defined_table")),
+        ),
+        (
+            "workbook.autofilter",
+            _shown_truth(form.autofilter),
+            _shown_truth(_truth_of(block, "autofilter")),
+        ),
+    ]
+    for subcheck, published, measured in whole:
+        checks += [_exact("", _WORKBOOK_FACT, subcheck, published, measured)]
+
+    # The names, against what the file's own sheets are really called.
+    checks += [_sheet_names_check(form.sheet_names, table)]
+
+    # WHAT EVERY OTHER SHEET HOLDS (plan P4-D82). The twin writes a sheet
+    # of the published shape, so this is an obligation like every other
+    # fact of the block: a twin that wrote those sheets empty -- which is
+    # what the writer did until this landing -- hands a reader a
+    # different workbook, and the report has to say so.
+    checks += [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.sheet-extents",
+            _shown_extents(form.sheet_extents),
+            _shown_extents(_extents_of(block)),
+        )
+    ]
+
+    # THE HIDDEN STATE IS AN OBLIGATION NOW, because the twin carries it:
+    # the writer hides every sheet standing before the table's, so that
+    # the twin's own reading rule -- the first VISIBLE sheet -- lands on
+    # the table. It went unchecked while the twin lost it silently.
+    if form.sheet_hidden and form.sheet_count <= 1:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _WORKBOOK_ONLY_SHEET_MUST_SHOW,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.sheet-hidden",
+                _shown_truth(form.sheet_hidden),
+                _shown_truth(_truth_of(block, "sheet_hidden")),
+            )
+        ]
+
+    # The records holding nothing, where the floor published a count.
+    if form.empty_rows_inside is None:
+        checks += [
+            _withheld(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _WORKBOOK_HELD_BACK,
+            )
+        ]
+    else:
+        checks += [
+            _exact(
+                "", _WORKBOOK_FACT, "workbook.empty-rows-inside",
+                _shown_count(form.empty_rows_inside),
+                _shown_count(_whole_of(block, "empty_rows_inside")),
+            )
+        ]
+
+    # The two facts a twin is forbidden to carry, named rather than
+    # measured, and counted among the withholdings in the census.
+    checks += [
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.macro-project",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+        _withheld(
+            "", _WORKBOOK_FACT, "workbook.defined-names",
+            _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+        ),
+    ]
+
+    every = block["columns"] if "columns" in block else []
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        if index >= len(form.columns):
+            continue
+        column = form.columns[index]
+        entry: object = None
+        if isinstance(every, list) and index < len(every):
+            entry = every[index]
+        checks += [
+            _census_check(
+                name, "workbook.cell-classes",
+                column.cell_classes,
+                _census_of(entry, "cell_classes"),
+                dialect.SHEET_CELL_CLASSES,
+            ),
+            _census_check(
+                name, "workbook.format-kinds",
+                column.format_kinds,
+                _census_of(entry, "format_kinds"),
+                dialect.SHEET_FORMAT_KINDS,
+            ),
+            _format_code_check(name, column, entry),
+            # A twin writes no formula, whatever the source column held,
+            # so this is named and not measured (see the reason above).
+            _withheld(
+                name, _WORKBOOK_FACT, "workbook.formulas",
+                _WORKBOOK_TWIN_NEVER_CARRIES_IT,
+            ),
+        ]
+    return checks
+
+
+def _as_counts(counts: "dict[str, int | None]") -> "dict[str, object]":
+    """One published census widened to the shape the renderer takes."""
+    out: "dict[str, object]" = {}
+    for key in counts:
+        out[key] = counts[key]
+    return out
+
+
+def _shown_extents(extents: "tuple[tuple[int, int] | None, ...]") -> str:
+    """The block of cells each sheet holds, as the report states it.
+
+    Counts of a sheet's own furniture, so they are printed: no value, no
+    name and no text of those sheets is published anywhere.
+    """
+    text = ""
+    for index in range(len(extents)):
+        held = extents[index]
+        if held is None:
+            said = f"sheet {index + 1}: the table's own"
+        else:
+            said = (
+                f"sheet {index + 1}: {held[0]} row(s) by {held[1]} column(s)"
+            )
+        text = said if not text else f"{text}; {said}"
+    if not text:
+        return "no sheets"
+    return text
+
+
+def _extents_of(block: object) -> "tuple[tuple[int, int] | None, ...]":
+    """The blocks of cells a re-described workbook block records."""
+    if not isinstance(block, dict) or "sheet_extents" not in block:
+        return ()
+    found = block["sheet_extents"]
+    if not isinstance(found, list):
+        return ()
+    out: "list[tuple[int, int] | None]" = []
+    for item in found:
+        if not isinstance(item, dict):
+            out += [None]
+            continue
+        rows = item["rows"] if "rows" in item else 0
+        columns = item["columns"] if "columns" in item else 0
+        if isinstance(rows, bool) or not isinstance(rows, int):
+            rows = 0
+        if isinstance(columns, bool) or not isinstance(columns, int):
+            columns = 0
+        out += [(rows, columns)]
+    return tuple(out)
+
+
+def _whole_of(block: object, key: str) -> int:
+    """A whole number out of a re-described block, or nought."""
+    if not isinstance(block, dict) or key not in block:
+        return 0
+    found = block[key]
+    if isinstance(found, bool) or not isinstance(found, int):
+        return 0
+    return found
+
+
+def _truth_of(block: object, key: str) -> bool:
+    """A flag out of a re-described block, or false."""
+    if not isinstance(block, dict) or key not in block:
+        return False
+    found = block[key]
+    return isinstance(found, bool) and found
+
+
+def _word_of(block: object, key: str) -> str:
+    """One of synthtwin's own words out of a re-described block."""
+    if not isinstance(block, dict) or key not in block:
+        return ""
+    found = block[key]
+    if not isinstance(found, str):
+        return ""
+    return found
+
+
+def _census_check(
+    name: str,
+    subcheck: str,
+    published: "dict[str, int | None]",
+    measured: "dict[str, object]",
+    order: "tuple[str, ...]",
+) -> Check:
+    """One census, compared wherever the description publishes a count.
+
+    A COUNT THE SMALLEST GROUP HELD BACK PUBLISHES NOTHING FOR THE FILE
+    TO MEET, and comparing the rendered lines rather than the counts
+    made one out of it (repair of landing 2b.10). A column of sixty
+    cells one of which is absent publishes that class as `withheld` at a
+    floor of eleven; its twin writes none and describes itself as `0`;
+    the two lines differ, so the twin was reported MISSED for failing to
+    reproduce a number nobody had told it. Measured on the study's own
+    titled book: twelve misses at a floor of eleven, none at the
+    default floor -- which is why the landing's gate, whose tables are
+    large, never saw it.
+
+    So each published count is compared as a count, and a withheld one
+    is passed over. Both lines are still SHOWN, so a reader sees which
+    entries were withheld and which were met.
+    """
+    shown = _shown_census(_as_counts(published), order)
+    found = _shown_census(measured, order)
+    for key in order:
+        if key not in published:
+            continue
+        wanted = published[key]
+        if wanted is None:
+            continue
+        got: object = None
+        if key in measured:
+            got = measured[key]
+        if isinstance(got, bool) or not isinstance(got, int) or got != wanted:
+            return Check(name, _WORKBOOK_FACT, subcheck, MISSED, shown, found)
+    return Check(name, _WORKBOOK_FACT, subcheck, HELD, shown, found)
+
+
+def _format_code_check(
+    name: str, column: contract.WorkbookColumn, entry: object
+) -> Check:
+    """The code the column's twin wears, where its kind was published.
+
+    THE TWIN CAN ONLY WEAR THE CODE ON CELLS IT WAS TOLD TO WRITE. The
+    code belongs to a kind, and the count of cells wearing that kind is
+    a census entry like any other -- so where the floor held that entry
+    back, the twin writes no cell of the kind, the code appears nowhere
+    in it, and the column describes itself with the general format. That
+    is the twin obeying the disclosure rule, not failing an obligation,
+    and it is WITHHELD here for the same reason the count is.
+    """
+    kind = ""
+    if column.format_code in dialect.SHEET_FORMAT_CODE_KINDS:
+        found = dialect.SHEET_FORMAT_CODE_KINDS[column.format_code]
+        if isinstance(found, str):
+            kind = found
+    wearing: "int | None" = None
+    if kind and kind in column.format_kinds:
+        wearing = column.format_kinds[kind]
+    if kind and wearing is None:
+        return _withheld(
+            name, _WORKBOOK_FACT, "workbook.format-code", _WORKBOOK_HELD_BACK
+        )
+    return _exact(
+        name, _WORKBOOK_FACT, "workbook.format-code",
+        column.format_code,
+        _word_of(entry, "format_code"),
+    )
+
+
+def _sheet_names_check(
+    published: "tuple[str | None, ...]", table: reading.Table
+) -> Check:
+    """The sheet names, against the names the checked file really carries.
+
+    WHY THIS IS NOT AN EXACT COMPARISON OF TWO PUBLISHED LISTS, and the
+    defect that taught it (repair of landing 2b.10). A sheet name that
+    may not be published is published as `null`, and the twin writes
+    that sheet under a NEUTRAL name -- which is a name this version
+    would publish itself, so describing the twin publishes it. Compared
+    list against list, every workbook whose tab is not one of the
+    generic words came back MISSED at exit 3: published `[null,
+    'Sheet2']`, measured `['Sheet1', 'Sheet2']`. The twin had done
+    exactly what the disclosure rule told it to do and was failed for
+    it.
+
+    So the obligation is stated the way it is meant: a published name
+    must be on the sheet it names, and a WITHHELD name must be either
+    withheld still (the person's own file, whose name this version
+    would not publish) or the neutral name a twin writes there, which
+    `dialect.twin_sheet_names` settles for the writer and for this
+    check alike.
+
+    THE MEASURED SIDE IS THE FILE'S OWN RAW NAMES and never reaches the
+    report, which is why this is a silent check: a sheet name can be a
+    person's name, and a quality report travels.
+
+    THE LIMIT, STATED: this measurement cannot tell a twin from the file
+    it was made from, so a twin that wrote a name this version would not
+    publish is indistinguishable here from the real table carrying its
+    own name. What keeps the writer honest is not this check but the
+    gate that reads the twin's own workbook part and asserts no withheld
+    name is in it.
+    """
+    shown = _shown_sheet_names(published)
+    book = table.book
+    if book is None:
+        return _silent(
+            "",
+            _WORKBOOK_FACT,
+            "workbook.sheet-names",
+            shown,
+            False,
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+    raw: "list[str]" = []
+    for entry in book.sheets:
+        raw += [entry.name]
+    expected = dialect.twin_sheet_names(published)
+    held = len(raw) == len(published)
+    if held:
+        for index in range(len(published)):
+            name = published[index]
+            found = raw[index]
+            if name is not None:
+                if found != name:
+                    held = False
+                continue
+            if found == expected[index]:
+                continue
+            if dialect.sheet_name_published(found) is None:
+                continue
+            held = False
+    return _silent(
+        "",
+        _WORKBOOK_FACT,
+        "workbook.sheet-names",
+        shown,
+        held,
+        _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+    )
 
 
 def _first_values(table: reading.Table) -> "list[str]":
@@ -11912,6 +13178,14 @@ def _cells_outside_the_styles(
         # description with the failing cells withheld. Asked only where
         # the family above found nothing, so a cell this generator
         # wrote is decided exactly as it was before.
+        #
+        # ADDED TWICE AND KEPT ONCE (the integration of landings 2b.6 to
+        # 2b.10). Landing 2b.10 closed the same limit -- a real column of
+        # whole numbers past 2**53 failing `styles.spelled` -- with a
+        # narrower clause of its own, figures alone read back as exactly
+        # this value at or above 2**53. Every text that clause admitted is
+        # admitted here too, measured over 264,387 such texts with no
+        # exception, so one rule answers and the duplicate was removed.
         if not worn and _wears_a_source_spelling(signed, value, offered):
             worn = True
         if not worn:

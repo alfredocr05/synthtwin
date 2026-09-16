@@ -373,6 +373,19 @@ PLAN4_REGIONS = {
         "### P4-D65.2 A mixture of conventions is published per "
         "convention and generated (landing 2b.7, 2026-09-15)"
     ),
+    # How a spreadsheet WORKBOOK holds the table (landing 2b.10): the
+    # sheet's place, the date system, where the table sits on the sheet
+    # and the census of what each column's cells were.
+    "workbook-form": (
+        "### P4-D77 A spreadsheet workbook is read, with the standard "
+        "library alone (landing 2b.10, 2026-09-15)"
+    ),
+    # The table's written form (owner ruling 2026-09-15): every fact the
+    # twin needs to be written the way its source file was.
+    "written-form": (
+        "### P4-D86 The twin is written the way its source file was "
+        "(owner ruling 2026-09-15)"
+    ),
     "moment-spellings": (
         "### P4-D39 The mark inside a moment, and a date held at midnight "
         "(stage 2, 2026-09-14)"
@@ -513,6 +526,18 @@ REGISTRY += [
     Fact("document", "source.encoding", REPORT_ONLY),
     Fact("document", "source.used_fallback_encoding", REPORT_ONLY),
     Fact("document", "source.header_source", EXACT_CONTROL),
+    Fact(
+        "document",
+        "source.dialect",
+        EXACT_CONTROL,
+        plan_region="written-form",
+    ),
+    Fact(
+        "document",
+        "source.workbook",
+        EXACT_CONTROL,
+        plan_region="workbook-form",
+    ),
     Fact(
         "document",
         "source.header_by_convention",

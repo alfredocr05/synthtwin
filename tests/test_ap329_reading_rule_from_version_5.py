@@ -999,10 +999,12 @@ def test_the_two_limits_contract_five_states_are_still_the_two(
         outcome = validation.measure(case.described, case.path)
         assert outcome.census.missed == 0, name
         assert "presence.n_present" in _unsupported(outcome), name
+        # The column's quoting is a fact of the written form (plan
+        # P4-D86), measured from the file's bytes, not from its cells.
         mine = [
             check.subcheck
             for check in outcome.checks
-            if check.column == name
+            if check.column == name and check.fact != "document.source.dialect"
         ]
         assert mine == ["position.at"], name
 

@@ -241,7 +241,18 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     # and is a subcheck now.
     # 57 became 60 when landing 2b.2 made the thousands mark, the
     # negative notation and the decimal plus checked obligations.
-    assert len(outcome.checks) == 60
+    # ...and the rules of the written form (plan P4-D86) are the file's,
+    # measured from its bytes, so they are counted apart from the column's:
+    # landing 2b.10 counted 53 of the 57 without them, and the merge of
+    # both adds landing 2b.2's three to that.
+    assert len(
+        [
+            check
+            for check in outcome.checks
+            if check.fact != "document.source.dialect"
+            and check.fact not in validation.BYTE_RULE_FACTS
+        ]
+    ) == 56
 
 
 def test_the_witness_really_is_reconstructible(

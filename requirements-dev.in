@@ -9,6 +9,13 @@
 numpy>=1.24.0
 pandas>=2.1.0
 # Development and build tooling.
+# openpyxl is TEST-ONLY (owner ruling 2026-09-15, landing 2b.10): the
+# tests read a twin workbook with an independent reader, so a defect in
+# synthtwin's own workbook reader cannot hide behind itself. src/ never
+# imports it, the offline scanner keeps it out of the product, and the
+# tests that use it skip where it is absent, so the minimum-versions job
+# stays green without a pin.
+openpyxl>=3.1
 pytest>=8.0
 ruff>=0.6
 mypy>=1.10

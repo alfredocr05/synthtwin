@@ -20,7 +20,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import contract, parsing, taxonomy
+from synthtwin import contract, dialect, parsing, taxonomy
 
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
@@ -1748,7 +1748,127 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
         "  as names and it is NOT counted among the rows above.",
         "  Run the command again with --first-row data if that is the case,",
         "  and synthtwin will name the columns itself and keep every record.",
+        "  AND WHAT THAT ROW HOLDS IS PUBLISHED AS WRITTEN. Column names",
+        "  are schema: they stand in the description as they are spelt and",
+        "  are written into the twin's own header line. So a title line",
+        "  above your table -- one holding your delimiter, which is what",
+        "  makes it read as a row of cells rather than as a line before",
+        "  the table -- becomes your column names and its words are",
+        "  carried, where a line synthtwin reads as standing BEFORE the",
+        "  table has no word of it published at any smallest group.",
     ]
+
+
+def _preamble_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about lines before the names published as written.
+
+    A line before the column names is free text that may name anybody,
+    and the description publishes NO text of it at any smallest group
+    (contract FD11, plan P4-D80). What is said here is that the lines
+    are there, how many held text, and that the twin carries a neutral
+    line of the same shape in each one's place -- because a person
+    whose title line does not appear in their twin is owed the reason.
+    Nothing is said where no line held text.
+    """
+    source = _map_of(document["source"])
+    if "dialect" not in source:
+        return []
+    form = _map_of(source["dialect"])
+    held = 0
+    for run in _list_of(form["preamble"]):
+        entry = _map_of(run)
+        if _text_of(entry["kind"]) != dialect.PREAMBLE_BLANK:
+            counted = entry["lines"]
+            held = held + (counted if isinstance(counted, int) else 0)
+    if not held:
+        return []
+    return [
+        "",
+        "About the lines before your column names:",
+        f"  {held} line(s) of text stand before the column names in your",
+        "  file. Such a line can name somebody, so NONE of its text is in",
+        "  the description, at any smallest group: what is recorded is how",
+        "  many lines there are and their shape -- blank, or the mark a",
+        "  comment began with. Your twin carries a neutral line of the same",
+        "  shape in each one's place, so code that skips these lines skips",
+        "  as many in the twin as in your table.",
+    ]
+
+
+def _workbook_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about the spreadsheet the table came from.
+
+    THREE THINGS A PERSON WAS NEVER TOLD (repair of landing 2b.10). The
+    command's own help promised synthtwin "says on screen which one it
+    chose"; the contract said "the person is told on their own screen
+    which sheet was read"; the plan carried a paragraph headed "what the
+    twin withholds, and why the report names each". None of the three
+    was true: a workbook was described with no word anywhere about which
+    sheet was read, that a sheet's name had been withheld, or that a
+    macro project had been found and not copied. The only trace of the
+    macro was a machine-readable line in a quality report.
+
+    Nothing here prints a name the description does not already
+    publish, so this page carries no word of the file that the
+    description itself withholds.
+    """
+    source = _map_of(document["source"])
+    if "workbook" not in source:
+        return []
+    block = source["workbook"]
+    if not isinstance(block, dict):
+        return []
+    form = _map_of(block)
+    position = _count_of(form["sheet_position"])
+    count = _count_of(form["sheet_count"])
+    names = _list_of(form["sheet_names"])
+    named = ""
+    if 1 <= position <= len(names):
+        found = names[position - 1]
+        if isinstance(found, str):
+            named = found
+    withheld = 0
+    for entry in names:
+        if not isinstance(entry, str):
+            withheld = withheld + 1
+    lines = ["", "About the sheet your table was read from:"]
+    if named:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}, the one",
+            f"  named {named}. Another sheet is read with --sheet and its name.",
+        ]
+    else:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}. Its name is",
+            "  not written here or in the description, because a sheet's name",
+            "  can be somebody's name. Another sheet is read with --sheet.",
+        ]
+    if withheld:
+        lines += [
+            f"  {withheld} sheet name(s) of this workbook are withheld for that",
+            "  reason. The twin writes those sheets under a neutral name, so",
+            "  code that names one of them by hand will not find it.",
+        ]
+    holding = 0
+    for entry in _list_of(form["sheet_extents"]):
+        if not isinstance(entry, dict):
+            continue
+        rows = entry["rows"] if "rows" in entry else 0
+        if isinstance(rows, int) and not isinstance(rows, bool) and rows > 0:
+            holding = holding + 1
+    if holding:
+        lines += [
+            f"  {holding} other sheet(s) of this workbook hold cells. The twin",
+            "  carries a sheet of the same shape there, with one word of",
+            "  synthtwin's own in every cell, so a reader meets the same",
+            "  workbook and nothing you wrote on those sheets is copied.",
+        ]
+    if form["macro_project"]:
+        lines += [
+            "  This workbook carries a macro project. synthtwin does not read",
+            "  it, does not describe it, and never copies it into the twin.",
+        ]
+    return lines
 
 
 def render(document: dict[str, object], encoding_note: str) -> str:
@@ -1784,6 +1904,8 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     # page. It goes here, near the top, and not in the disclosure block
     # at the end, because it changes what every later line means.
     lines = lines + _first_row_lines(document)
+    lines = lines + _workbook_lines(document)
+    lines = lines + _preamble_lines(document)
     lines += [
         "",
         "This is a description of your table, not a copy of it. Next,",

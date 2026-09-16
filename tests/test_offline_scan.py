@@ -176,6 +176,196 @@ def test_cli_exit_codes_and_line_format(tmp_path):
 # -- mutation checks, one per D6.5 bypass class ----------------------
 
 
+def test_admitted_workbook_attributes_stay_clean(tmp_path):
+    """The workbook reader's own names produce no violation (P4-D77).
+
+    This is the positive half of the admission: the exact attributes the
+    package uses to open a package and parse a part, in the shapes it
+    uses them in -- a plain assignment rather than a `with`, whose bound
+    name the audit does not trace, and handlers assigned into expat's
+    slots.
+
+    EACH HALF SITS IN THE MODULE THAT HOLDS ITS ADMISSION (repair of
+    landing 2b.10). The admissions are scoped now, so the zip API is
+    written here in `synthtwin.reading` and the parser in
+    `synthtwin.workbook`, exactly where the product writes them. The
+    mutations below move the same code one module over and watch it go
+    red.
+    """
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/reading.py": '''
+                import zipfile
+
+
+                def read(path: str):
+                    bundle = zipfile.ZipFile(path)
+                    data = b""
+                    try:
+                        for item in bundle.infolist():
+                            if item.file_size > item.compress_size:
+                                data = bundle.read(item)
+                    except zipfile.BadZipFile:
+                        return b""
+                    except zipfile.LargeZipFile:
+                        return b""
+                    finally:
+                        bundle.close()
+                    return data
+            ''',
+            "synthtwin/workbook.py": '''
+                import xml.parsers.expat
+
+
+                def parse(data: bytes):
+                    found = []
+
+                    def started(name, marks):
+                        found[len(found):] = [name]
+
+                    parser = xml.parsers.expat.ParserCreate()
+                    parser.StartElementHandler = started
+                    parser.buffer_text = True
+                    try:
+                        parser.Parse(data, True)
+                    except xml.parsers.expat.ExpatError:
+                        return []
+                    return found
+            ''',
+        },
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_the_zip_admission_does_not_reach_another_module(tmp_path):
+    """Bypass class: the zip API named from a module it was not admitted for.
+
+    The admission was argued from two modules' own need -- `reading`
+    opens the person's package, `writing` puts the twin's on disk -- but
+    the allowlist it was written into is package-wide, so until this
+    scoping the GENERATOR could have named `zipfile.ZipFile` and scanned
+    clean. The generator never opens a table at all (plan P2-D1), and
+    this is the line that says so to the audit rather than to a reader.
+    """
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/generation.py": '''
+                import zipfile
+
+
+                def build(path: str):
+                    return zipfile.ZipFile(path)
+            ''',
+        },
+    )
+    _assert_red(violations, "admitted for synthtwin.reading, synthtwin.writing only")
+
+
+def test_the_parser_admission_does_not_reach_another_module(tmp_path):
+    """Bypass class: the XML parser named from a module it was not admitted for.
+
+    expat was admitted for `synthtwin.workbook`, which parses the markup
+    a package holds and opens nothing. Anywhere else it is the same
+    violation it was before the admission.
+    """
+    violations = _scan_package(
+        tmp_path,
+        {
+            "synthtwin/__init__.py": "",
+            "synthtwin/generation.py": '''
+                import xml.parsers.expat
+
+
+                def parse(text: str):
+                    parser = xml.parsers.expat.ParserCreate()
+                    return parser
+            ''',
+        },
+    )
+    _assert_red(violations, "admitted for synthtwin.workbook only")
+
+
+def test_a_neighbouring_zipfile_attribute_goes_red(tmp_path):
+    """Bypass class: a zipfile name the workbook admission did not admit.
+
+    `zipfile.Path` is a real attribute of the same admitted module, and
+    admitting the module must not admit it. This is the mutation that
+    keeps P4-D77's admission an enumeration of four names rather than a
+    door into the module.
+    """
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import zipfile
+
+
+        def reach(path: str):
+            return zipfile.Path(path)
+        ''',
+    )
+    _assert_red(violations, "zipfile.Path")
+
+
+def test_the_zip_extractors_go_red(tmp_path):
+    """Bypass class: the two zipfile methods that WRITE to a path.
+
+    The workbook reader never extracts a member, which is what makes a
+    member named `..` harmless. These names are the ones that would
+    undo that, so they may never be reachable.
+    """
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import zipfile
+
+
+        def spill(path: str, where: str):
+            return zipfile.ZipFile.extractall(path, where)
+        ''',
+    )
+    assert violations, "extractall reached a path and was not reported"
+
+
+def test_a_neighbouring_expat_attribute_goes_red(tmp_path):
+    """Bypass class: an expat name the workbook admission did not admit."""
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import xml.parsers.expat
+
+
+        def reach(code: int):
+            return xml.parsers.expat.ErrorString(code)
+        ''',
+    )
+    _assert_red(violations, "ErrorString")
+
+
+def test_another_xml_module_goes_red(tmp_path):
+    """Bypass class: admitting expat admits no other XML module.
+
+    `xml.dom.minidom` and `xml.etree.ElementTree` both resolve entities
+    and both reach a network through a document's own declarations,
+    which is exactly what the DOCTYPE refusal in the workbook reader
+    exists to prevent.
+    """
+    violations = _scan_code(
+        tmp_path,
+        '''
+        import xml.dom.minidom
+
+
+        def parse(text: str):
+            return xml.dom.minidom.parseString(text)
+        ''',
+    )
+    _assert_red(violations, "xml.dom.minidom")
+
+
 def test_disallowed_import_goes_red(tmp_path):
     """Bypass class: importing a module that is not on the allowlist."""
     violations = _scan_code(

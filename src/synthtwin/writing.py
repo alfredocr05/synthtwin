@@ -61,6 +61,7 @@ no path arrives except from the caller.
 
 import dataclasses
 import pathlib
+import zipfile
 
 from synthtwin import errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
@@ -164,6 +165,12 @@ def _can_be_seen(target: pathlib.Path) -> str:
     except OSError:
         return "unknown"
     return "no"
+
+
+# THE ONE MOMENT EVERY MEMBER OF A WORKBOOK TWIN CARRIES. A zip member
+# ordinarily records when it was written, which would make the same twin
+# different bytes on every run; this is the earliest a zip can store.
+_PACKAGE_MOMENT = (1980, 1, 1, 0, 0, 0)
 
 
 def refuse_if_folder(
@@ -1098,7 +1105,13 @@ def _move_into_place(
 
 
 def _write_part(
-    part: pathlib.Path, text: str, words: errors.ArtifactWords
+    part: pathlib.Path,
+    text: str,
+    words: errors.ArtifactWords,
+    encoding: str = "utf-8",
+    newline: str = "\n",
+    data: "bytes | None" = None,
+    members: "list[tuple[str, str]] | None" = None,
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
 
@@ -1140,7 +1153,12 @@ def _write_part(
     """
     place = pathlib.Path(part)
     try:
-        write_text_file(place, text, words)
+        if members is not None:
+            write_workbook_file(place, members, words)
+        elif data is None:
+            write_text_file(place, text, words, encoding, newline)
+        else:
+            write_bytes_file(place, data, words)
     except PathValidationError as error:
         return (
             errors.output_not_writable(f"{place}", f"{error}", words),
@@ -1240,8 +1258,19 @@ def write_both_files(
     table_path: "pathlib.Path | None" = None,
     state: "DiskState | None" = None,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    first_encoding: str = "utf-8",
+    first_newline: str = "\n",
+    first_data: "bytes | None" = None,
+    first_members: "list[tuple[str, str]] | None" = None,
 ) -> "list[str]":
     """Write the two files as one outcome, or leave the folder untouched.
+
+    ``first_encoding`` and ``first_newline`` are how the FIRST file's
+    text is written. Left out, it is UTF-8 with line feeds like every
+    file this package writes; the generator passes the twin's source
+    encoding and an empty newline, because a twin is written in its
+    table's own form, its line endings already in its text (plan
+    P4-D86). The second file is always UTF-8 with line feeds.
 
     The two files are one thing: the machine-readable profile is what
     the twin gets built from, and the summary is the only place the
@@ -1487,7 +1516,15 @@ def write_both_files(
             )
 
         first_holds = errors.ON_DISK_WORKING
-        trouble, holds = _write_part(first_part, profile_text, words)
+        trouble, holds = _write_part(
+            first_part,
+            profile_text,
+            words,
+            first_encoding,
+            first_newline,
+            first_data,
+            first_members,
+        )
         if trouble:
             raise _stopped_clean(
                 trouble,
@@ -2081,12 +2118,100 @@ def write_one_file(
         raise
 
 
+def write_workbook_file(
+    target: pathlib.Path,
+    members: "list[tuple[str, str]]",
+    words: errors.ArtifactWords = errors.PROFILE_WORDS,
+) -> None:
+    """Write the parts of a spreadsheet package as one file.
+
+    THE ONE WRITE THIS PACKAGE MAKES OF A WORKBOOK (plan P4-D79).
+    `sheetwriting` builds the parts and never reaches a path; the zip
+    container is assembled here, where every other output of this
+    package is written, so the rule that one module writes still holds.
+
+    Guarantees:
+
+    - Inputs: one local path, the parts in the order they are to be
+      written, and the words this command uses for its own files.
+      Each part is handed over as TEXT and `writestr` writes it as
+      UTF-8, which is the same road `write_text_file` takes through
+      pathlib: nothing in this package encodes text by hand.
+    - Determinism: every member is given ONE FIXED MOMENT rather than
+      the clock and they are written in the order given, so the same
+      parts give the same file. Across platforms the compressed stream
+      itself may differ between zlib builds, which the landing states
+      as a limit rather than claiming past.
+    - Errors raised: PathValidationError when the path is not a plain
+      local one, and ProfileError, with a plain-language message, when
+      the location cannot be written.
+    - Boundary: one file is written and nothing is read.
+    """
+    validated = validate_local_path(f"{target}", purpose="output file")
+    destination = pathlib.Path(validated)
+    try:
+        bundle = zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED)
+        try:
+            for name, data in members:
+                entry = zipfile.ZipInfo(name, _PACKAGE_MOMENT)
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                entry.external_attr = 0o600 << 16
+                bundle.writestr(entry, data)
+        finally:
+            bundle.close()
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.output_not_writable(f"{destination}", f"{error}", words)
+        ) from error
+
+
+def write_bytes_file(
+    target: pathlib.Path,
+    data: bytes,
+    words: errors.ArtifactWords = errors.PROFILE_WORDS,
+) -> None:
+    """Write ``data`` to ``target`` exactly as it stands.
+
+    THE TWIN OF A WORKBOOK IS BYTES (plan P4-D79). Every other file this
+    package writes is text, and text is written through an encoding and
+    a line-ending rule; a zip package is neither, and putting one
+    through either would corrupt it. So this is the one write that
+    translates nothing at all.
+
+    Guarantees:
+
+    - Inputs: one local path, the whole bytes to put there, and the
+      words this command uses for its own files.
+    - Determinism: the same bytes give the same file on every platform.
+    - Errors raised: PathValidationError when the path is not a plain
+      local one -- checked immediately before the write, as the text
+      writer checks it -- and ProfileError, with a plain-language
+      message, when the location cannot be written.
+    - Boundary: one file is written and nothing is read.
+    """
+    validated = validate_local_path(f"{target}", purpose="output file")
+    destination = pathlib.Path(validated)
+    try:
+        destination.write_bytes(data)
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.output_not_writable(f"{destination}", f"{error}", words)
+        ) from error
+
+
 def write_text_file(
     target: pathlib.Path,
     text: str,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    encoding: str = "utf-8",
+    newline: str = "\n",
 ) -> None:
     """Write ``text`` to ``target`` as UTF-8 with newline line endings.
+
+    ``encoding`` and ``newline`` change that for one file only, and one
+    caller passes them: a twin is written in its source table's encoding
+    with its line endings already in its text, so it is written with an
+    empty ``newline``, which translates nothing (plan P4-D86).
 
     Guarantees:
 
@@ -2108,7 +2233,7 @@ def write_text_file(
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:
-        destination.write_text(text, encoding="utf-8", newline="\n")
+        destination.write_text(text, encoding=encoding, newline=newline)
     except OSError as error:
         raise errors.ProfileError(
             errors.output_not_writable(f"{destination}", f"{error}", words)

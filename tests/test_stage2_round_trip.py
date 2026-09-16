@@ -98,6 +98,7 @@ def _round_trip(
     written = [
         row[0]
         for row in csv.reader(io.StringIO(twin.read_text(encoding="utf-8")))
+        if row
     ][1:]
     checked = folder / "check-twin"
     checked.mkdir()

@@ -228,24 +228,16 @@ def file_unreadable(path: str, detail: str) -> str:
     )
 
 
-def not_utf8_or_latin1(path: str) -> str:
-    """Message for a file that is not text in either supported encoding."""
-    return (
-        f"The file {path} is not readable as text. synthtwin reads CSV "
-        f"files saved as UTF-8 (the usual choice) and, as a fallback, "
-        f"Western European text (Latin-1). If this file came from a "
-        f"spreadsheet, open it and save it again choosing 'CSV UTF-8'."
-    )
-
-
 def looks_like_utf16(path: str) -> str:
-    """Message for a UTF-16/UTF-32 file (or a binary file) given as CSV."""
+    """Message for a UTF-32 file, a marked-less UTF-16 one, or a binary file."""
     return (
-        f"The file {path} looks like it was saved as UTF-16 or UTF-32 "
-        f"text, or is not a text file at all: it contains "
-        f"the zero bytes those formats use. synthtwin reads UTF-8 CSV "
-        f"files. Open the file in your spreadsheet program and save it "
-        f"again choosing 'CSV UTF-8'."
+        f"The file {path} looks like it was saved as UTF-32 text, or as "
+        f"UTF-16 text without the byte-order mark that says so, or is not "
+        f"a text file at all: it contains the zero bytes those formats "
+        f"use. synthtwin reads delimited text saved as UTF-8, as UTF-16 "
+        f"with its byte-order mark (Excel's 'Unicode Text'), and as "
+        f"Western European text. Open the file in your spreadsheet "
+        f"program and save it again choosing 'CSV UTF-8'."
     )
 
 
@@ -451,59 +443,18 @@ def checked_file_unreadable_as_csv(path: str) -> str:
     )
 
 
-def checked_file_repeats_a_column_name(path: str) -> str:
-    """Message for a repeated name in a checked file, naming neither.
-
-    The profiler's form of this QUOTES the repeated name, and on the
-    checking path that name is a string out of a file nobody promised
-    was the reader's (V9).
-
-    AND IT NAMES NO POSITION EITHER (review item P3-V4-F3; plan
-    amendment A-P3-10 clause 2). The version this replaces put the two
-    column numbers in the name's place, on the reasoning that a number
-    publishes strictly less than a string. That reasoning was wrong, and
-    the way it was wrong is the point: `dup,a,dup` and `a,dup,dup` are
-    two files `synthtwin profile` refuses with the SAME sentence, and
-    the positions tell them apart. What the profiler's refusal
-    publishes about such a file is that one of its names is used twice,
-    so that is what this says.
-    """
-    return (
-        f"The first row of {path} uses one column name twice. Every "
-        f"column needs its own name, so that the description of one "
-        f"column can never be confused with another's. Rename the "
-        f"repeat and run the command again. synthtwin does not print "
-        f"what it found in the file, or where: this file may not be "
-        f"your own table."
-    )
-
-
-def duplicate_column_names(names: list[str]) -> str:
-    """Message for repeated column names in the header row."""
-    listed = _listed(names)
-    return (
-        f"The first row repeats the same column name more than once "
-        f"({listed}). Every column needs its own name, so that the "
-        f"description of one column can never be confused with "
-        f"another's. Rename the repeats and run the command again."
-    )
-
-
-def empty_column_name(position: int) -> str:
-    """Message for a header cell with no name in it."""
-    return (
-        f"Column number {position} has no name in the first row. Every "
-        f"column needs a name. Add one and run the command again."
-    )
-
-
 def ragged_rows(
-    path: str, expected: int, offenders: list[tuple[int, int]], total: int
+    path: str,
+    expected: int,
+    offenders: list[tuple[int, int]],
+    total: int,
+    delimiter: str = "a comma",
 ) -> str:
     """Message for rows whose value count differs from the header's.
 
     ``offenders`` holds up to three (data-row number, value count)
-    pairs; ``total`` is the full count of such rows.
+    pairs; ``total`` is the full count of such rows; ``delimiter`` names
+    the character the file's fields were read as separated by.
     """
     described = [f"row {number} has {count}" for number, count in offenders]
     listed = _listed(described)
@@ -513,8 +464,18 @@ def ragged_rows(
         f"values. The first row names {expected} columns, but {listed}"
         f"{tail}. Rows are counted after the first row, leaving out "
         f"blank lines. A row with too few or too many values usually "
-        f"means a value contains a comma and needs quotation marks "
+        f"means a value contains {delimiter} and needs quotation marks "
         f"around it. {_CHECK_AND_RETRY}"
+    )
+
+
+def twin_not_writable_in_encoding(encoding: str) -> str:
+    """Message for a twin holding a character its table's encoding lacks."""
+    return (
+        f"The twin could not be written as {encoding}, the encoding your "
+        f"table was read with: one of its cells holds a character that "
+        f"encoding has no byte for. This means a mistake in synthtwin; "
+        f"please report it. Nothing has been written."
     )
 
 
@@ -1221,6 +1182,60 @@ def unknown_column_named(purpose: str, name: str, known: list[str]) -> str:
     )
 
 
+def delimiter_not_supported(given: str) -> str:
+    """Message for a --delimiter value this format cannot read (plan P4-D110)."""
+    return (
+        f"--delimiter takes one of four characters, but {given} was "
+        f"given. It says which character separates the columns of your "
+        f"file: a comma, a semicolon, a vertical bar, or a tab. Please "
+        f"run the command again with --delimiter followed by ',' or "
+        f"';' or '|', or by the word tab, each in quotation marks where "
+        f"your command line needs them. Nothing was read and nothing "
+        f"was written."
+    )
+
+
+def delimiter_declared_against_the_file(
+    path: str, declared: str, written: str
+) -> str:
+    """Message for a --delimiter the file's own separator line contradicts."""
+    return (
+        f"You said the columns of {path} are separated by {declared}, "
+        f"and the file's first line says they are separated by "
+        f"{written}: that line is the separator line a spreadsheet "
+        f"writes to name the character it used. synthtwin will not "
+        f"choose between the two. If the file is right, run the command "
+        f"again without --delimiter; if it is not, the file itself "
+        f"needs correcting first. Nothing was written."
+    )
+
+
+def delimiter_declared_on_a_workbook(path: str) -> str:
+    """Message for a --delimiter given on a workbook (plan P4-D110)."""
+    return (
+        f"{path} is a workbook, and a workbook keeps its values in "
+        f"cells, so there is no character between its columns to "
+        f"declare. Please run the command again without --delimiter. "
+        f"Nothing was written."
+    )
+
+
+def metadata_rows_not_supported(given: str) -> str:
+    """Message for a --metadata-rows value this format cannot carry."""
+    return (
+        f"--metadata-rows takes 0 or 2, but {given} was given. It says "
+        f"how many rows immediately under your column names DESCRIBE "
+        f"those columns rather than holding a record -- the two rows a "
+        f"survey export writes, a question wording and a row of "
+        f"ImportId markers. A description can carry two such rows or "
+        f"none, so those are the two answers. Please run the command "
+        f"again with --metadata-rows 2, or with the option left out "
+        f"altogether: every row under your column names is then read as "
+        f"a record of your table, which is what it is unless you say "
+        f"otherwise."
+    )
+
+
 def floor_not_positive(given: str) -> str:
     """Message for a small-cell floor that is not a positive whole number."""
     return (
@@ -1536,7 +1551,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES TEN OPTIONS. It named two until 2026-08-17, five after
+    IT NAMES THIRTEEN OPTIONS. `--metadata-rows` (plan P4-D81) and
+    `--sheet` (plan P4-D77) reached the command line without reaching
+    this sentence, and the test that derives the owed set from the
+    shipped parser was red for both; landing 2b.17's repair pass added
+    them with `--delimiter` (plan P4-D110), each priced by what leaving
+    it out publishes. Before that it named ten. It named two until 2026-08-17, five after
     that, gained `--code` on 2026-08-25 with the declaration itself
     (plan amendment A-P4-38), and gained `--answers` on 2026-09-10 with
     the hand-back (amendment A-P4-60). `--answers` belongs here for a
@@ -1629,7 +1649,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first and --answers. "
+        f"--day-first, --metadata-rows, --sheet, --delimiter and "
+        f"--answers. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
         f"leave out can put something into the new description that the "
@@ -1649,9 +1670,20 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"with slashes, with dots, or with a two-figure year \u2014 can "
         f"be read the other way round, which changes "
         f"the dates the description publishes and can leave the column "
-        f"described as text instead; and without the --answers you "
+        f"described as text instead; without the --metadata-rows you "
+        f"gave, the rows under your column names that describe your "
+        f"columns are read as records of your table, so their text is "
+        f"counted and described as data and every count is two rows "
+        f"out; without the --sheet you gave, another sheet of your "
+        f"workbook can be described, and everything the new description "
+        f"publishes is then about that sheet's table; without the "
+        f"--delimiter you gave, a file that reads equally well with two "
+        f"delimiters can be split the other way, which changes every "
+        f"column name the description publishes and every value it "
+        f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
-        f"each of them was a --code, an --identifier or a --measurement, "
+        f"each of them was a --code, an --identifier, a --measurement, "
+        f"a --decimal-comma, a --metadata-rows or a --delimiter, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "
@@ -2155,4 +2187,242 @@ def answers_answer_is_not_offered(
         f"the answers that question offers. Write one of these instead: "
         f"{_listed(offered)}. Leave it blank to keep the reading "
         f"synthtwin made. {_ANSWER_IT_AGAIN}"
+    )
+
+
+# -- reading a workbook: what a spreadsheet file refuses --------------
+#
+# Plan P4-D77. Every one of these is a refusal about a file the person
+# pointed at, and each says which limit was passed and what to do about
+# it. None of them quotes a cell: a workbook synthtwin refuses may not
+# be the reader's own table, and a refusal travels as freely as a
+# report does.
+
+
+def workbook_unreadable(path: str) -> str:
+    """Message for a file that begins as a package but is not one."""
+    return (
+        f"The file {path} begins like a spreadsheet workbook but the "
+        f"rest of it could not be opened: the package is damaged or "
+        f"incomplete. Please open it in your spreadsheet program, save "
+        f"it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_part_unreadable(path: str) -> str:
+    """Message for a workbook part that is not well-formed markup."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose inside is "
+        f"damaged: one of its parts is not readable as the markup a "
+        f"workbook is made of. Please open it in your spreadsheet "
+        f"program, save it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_declares_a_document_type(path: str) -> str:
+    """Message for a workbook part carrying a document type declaration."""
+    return (
+        f"The file {path} contains a document type declaration, which "
+        f"no spreadsheet program writes and which is how a file is "
+        f"built to make a reader fetch something or expand without "
+        f"limit. synthtwin will not read it. Please open the workbook "
+        f"in your spreadsheet program, save it again as .xlsx, and use "
+        f"that path."
+    )
+
+
+def workbook_is_a_compound_file(path: str) -> str:
+    """Message for a legacy .xls file or an encrypted workbook."""
+    return (
+        f"The file {path} is an older Excel workbook, or one protected "
+        f"with a password. synthtwin reads the .xlsx and .xlsm formats "
+        f"only. Please open it in your spreadsheet program, remove any "
+        f"password, choose 'Save As' and pick 'Excel Workbook (.xlsx)', "
+        f"then run the command again on the saved file."
+    )
+
+
+def workbook_is_markup(path: str) -> str:
+    """Message for an HTML or XML export wearing a spreadsheet name."""
+    return (
+        f"The file {path} is named like a spreadsheet workbook but it "
+        f"holds a web page or markup rather than a workbook: many "
+        f"systems export a table this way and call it .xls. Please open "
+        f"it in your spreadsheet program, choose 'Save As' and pick "
+        f"'Excel Workbook (.xlsx)', then run the command again on the "
+        f"saved file."
+    )
+
+
+def workbook_expands_too_far(path: str, limit: int) -> str:
+    """Message for a package whose parts expand past the total cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose contents "
+        f"expand to more than {limit // 1_000_000} megabytes, which is "
+        f"more than synthtwin will open at once. A workbook this large "
+        f"is usually one built to exhaust a reader. Please check that "
+        f"the file is the table you meant to describe."
+    )
+
+
+def workbook_part_expands_too_far(path: str, limit: int) -> str:
+    """Message for one member whose expansion ratio passes the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part that "
+        f"expands to more than {limit} times its packed size, which no "
+        f"ordinary workbook does and which is how a file is built to "
+        f"exhaust a reader. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_too_many_parts(path: str, limit: int) -> str:
+    """Message for a package holding more members than the cap allows."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding more than "
+        f"{limit} parts, which is far more than a workbook of a table "
+        f"has. Please check that the file is the table you meant to "
+        f"describe."
+    )
+
+
+def workbook_part_named_away(path: str) -> str:
+    """Message for a member named outside the package."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part "
+        f"named as though it belonged outside the file. No spreadsheet "
+        f"program writes one, and synthtwin will not read it. Please "
+        f"check that the file is the table you meant to describe."
+    )
+
+
+def workbook_cell_too_long(path: str, limit: int) -> str:
+    """Message for one cell's text past the cap."""
+    return (
+        f"The file {path} holds a cell with more than {limit} "
+        f"characters of text in it, which is more than a spreadsheet "
+        f"cell can hold. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_holds_too_many_cells(path: str, limit: int) -> str:
+    """Message for a sheet holding more cells than the walk will read.
+
+    THE CAP THAT ANSWERS THE MEASURED ATTACK. A workbook may sit well
+    inside every other limit and still cost a reader minutes: the
+    study's own package packs 5.2 megabytes into 46, which is an
+    ordinary ratio, and spends it all on one sheet of a million styled
+    rows. Capping the cells read is what bounds the work whatever the
+    ratio, so this refusal exists beside the size ones rather than
+    instead of them.
+    """
+    return (
+        f"The sheet in {path} holds more than {limit} cells, which is "
+        f"more than synthtwin will read at once. Please open the "
+        f"workbook, keep the rows and columns your table needs, save it "
+        f"again, and run the command again."
+    )
+
+
+def workbook_too_many_shared_strings(path: str, limit: int) -> str:
+    """Message for a shared-string table past the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose table of "
+        f"stored text runs to more than {limit} entries, which is more "
+        f"than synthtwin will read at once. Please check that the file "
+        f"is the table you meant to describe."
+    )
+
+
+def workbook_too_many_rows(path: str, limit: int) -> str:
+    """Message for a sheet claiming more rows than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past row {limit}, which "
+        f"is further than a spreadsheet goes. Please open the workbook, "
+        f"delete the rows below your table, save it again, and run the "
+        f"command again."
+    )
+
+
+def workbook_too_many_columns(path: str, limit: int) -> str:
+    """Message for a sheet claiming more columns than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past column {limit}, "
+        f"which is further than a spreadsheet goes. Please open the "
+        f"workbook, delete the columns to the right of your table, save "
+        f"it again, and run the command again."
+    )
+
+
+def workbook_has_no_sheet(path: str) -> str:
+    """Message for a workbook whose sheets are all hidden, or absent."""
+    return (
+        f"The file {path} is a spreadsheet workbook with no sheet "
+        f"synthtwin can read: it has none at all, or every one of them "
+        f"is hidden. Please open it, unhide the sheet holding your "
+        f"table, save it again, and run the command again."
+    )
+
+
+def workbook_sheet_not_found(path: str, named: str, known: list[str]) -> str:
+    """Message for --sheet naming a sheet the workbook does not have."""
+    return (
+        f"The file {path} has no sheet called '{_shown(named)}'. Its "
+        f"sheets are: {_listed(known)}. Please check the spelling and "
+        f"run the command again with one of those names after --sheet."
+    )
+
+
+def workbook_other_sheet_holds_a_table(
+    path: str, named: str, chosen: str
+) -> str:
+    """Message for a second sheet holding a table synthtwin cannot twin.
+
+    WHY THIS IS A REFUSAL AND NOT A NOTE (plan P4-D82). synthtwin
+    describes ONE table, and the twin of a workbook writes every other
+    sheet with nothing of the person's on it. Measured with pandas: a
+    sheet holding one text cell reads back as one column and no rows on
+    the real file, and as nothing at all on the twin -- and a sheet
+    holding a whole table would read back as a frame of empty cells, so
+    code developed on the twin would run against a table that is not
+    there and statistics taken from it would be false. There is no
+    writing of that sheet this product may produce: its values are
+    somebody's rows.
+
+    AND IT NO LONGER NAMES `--sheet` (review of landing 2b.17, MAJOR).
+    This sentence used to ask "Which sheet holds the table you want
+    described?" and tell the person to run the command again with
+    `--sheet` -- and the remedy it named is refused too. Measured on a
+    workbook holding a table on each of two sheets: plain `profile`
+    exits 1, `--sheet Data` exits 1 and `--sheet Codebook` exits 1,
+    all three with this message. That is not a defect in `--sheet`,
+    which is honoured elsewhere: it settles which sheet is DESCRIBED,
+    and whichever of the two is named, the OTHER is then a sheet
+    holding a table the twin cannot carry. So no naming of a sheet can
+    settle this refusal, and a message that sends a person back to the
+    command line for a second refusal costs them a run and their
+    confidence in the first. The sentence names the one thing that
+    does settle it: one table per workbook.
+    """
+    return (
+        f"The file {path} holds a table on the sheet '{_shown(named)}' as "
+        f"well as on '{_shown(chosen)}', and synthtwin describes one "
+        f"table at a time. Its twin would carry '{_shown(named)}' with "
+        f"nothing on it, so anybody who opened that sheet would find "
+        f"rows on your workbook and an empty sheet on the twin. Naming "
+        f"a sheet does not settle this: whichever of the two you name, "
+        f"the OTHER one is then the sheet holding a table synthtwin "
+        f"cannot carry. Please save each table in a workbook of its "
+        f"own, and run the command again on the one you want described."
+    )
+
+
+def workbook_sheet_is_empty(path: str, named: str) -> str:
+    """Message for a chosen sheet holding no cell at all."""
+    return (
+        f"The sheet '{_shown(named)}' of {path} holds no cells at all, "
+        f"so there is nothing to describe. Please run the command again "
+        f"naming a sheet that holds your table, with --sheet followed "
+        f"by its name."
     )

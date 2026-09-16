@@ -97,18 +97,24 @@ implementer is tempted to breach:
 
 ## G2. The output bytes
 
-The twin is one CSV file. The exact byte-level rules, because "CSV" is
-not one format:
+The twin is one delimited text file, written the way the description
+records its source file was (owner ruling 2026-09-15, plan P4-D86;
+`source.encoding` and `source.dialect`, contract 4.3 and 4.3a). The
+exact byte-level rules, because "CSV" is not one format. For an
+ordinary source — UTF-8, comma, line feeds, minimal quoting, a final
+line ending — every row below reads as it did before P4-D86:
 
 | property | value |
 |---|---|
-| encoding | UTF-8, no byte-order mark |
-| line ending | LF (`\n`), on every line, including the last |
-| field separator | comma (U+002C) |
+| encoding | `source.encoding`, with a byte-order mark exactly when `source.dialect.byte_order_mark` |
+| line ending | each line takes the next ending of `line_endings`, in file order, or, where `line_endings_spread` counts them instead, the ending `dialect.spread_endings` gives it (the commonest ending, the earlier in the listed order on a tie, ends every line no rarer ending takes; each rarer ending, in that same order, places its `c` lines one at a time, and its k-th line, counting k from nought, is offered the line `((2k + 1) * total) // (2c)` — the middle of the k-th of `c` equal stretches of the file — or, where that stands higher, the line just below the one this same ending took last; where the offered line is already taken the next free line below it is used, and where the file ends before a free line is found, the first free line from the top. STATED IN FULL at landing 2b.17's repair pass, for the reason G2.1's placement is: "spread evenly" does not decide which lines, a committed case freezes them, and two conforming programs would otherwise both answer to the sentence); the last line has none unless `final_line_ending`; an end-of-file mark follows where `end_of_file_mark` |
+| field separator | `delimiter`, followed by one space where `initial_space` |
 | quote character | `"` (U+0022) |
-| doubling | an embedded `"` is written twice inside a quoted field |
-| escape character | none |
-| quoting | minimal: a field is quoted when and only when it contains a comma, a quote character, a carriage return or a line feed — **plus the two canonical exceptions below** |
+| doubling | an embedded `"` is written twice inside a quoted field, or after a backslash where `escape` is `backslash` (and a backslash is then written after one too) |
+| escape character | none, or the backslash where `escape` is `backslash` |
+| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
+| lines that are not records | the `sep=` line, the `preamble` lines, the header, the `header_rows`, and `blank_lines` standing after `after` data records, in that order; where `blank_lines_spread` counts them instead, its `lines` blank lines stand evenly from after `first` records to after `last` (`dialect.spread_places`) |
+| a record's width | a trailing delimiter where `trailing_delimiter` says so; trailing empty cells left out where `short_rows`; a padded column's cells padded with spaces to its width where shorter |
 | header row | written when `source.header_source` is `file`; not written when it is `generated` |
 | column order | the `columns` list order of the profile, which the contract fixes as the schema order (P2-D6, STRUCTURAL) |
 | row count | exactly the document-level `n_rows` data rows, not counting the header row when one is written |
@@ -130,10 +136,290 @@ cell, and an empty cell is what an absent value is. This exception
 cannot arise with two or more columns, because a row of absent cells is
 then written as one or more commas, which is not an empty line.
 
+**A line before the table is written as a stand-in, and the stand-in is
+one record** (plan P4-D80, P4-D83). For each `preamble` run the twin
+writes `dialect.preamble_line`: a blank line stays blank and keeps its
+spaces, a comment keeps its mark and reads `# withheld line`, a line of
+text reads `withheld line`. No word of the line itself is in the
+description to write. The mark a run carries holds no quote character
+and not the delimiter (contract FD11), so every line written here is
+one field or one comment to the file's own reader -- a twin whose first
+line was `"withheld line` was a file no reader could finish.
+
 **Every other cell is written as its exact text.** No trimming, no
-padding, no normalization, no locale, no alteration of a published
-label — including a label a spreadsheet would treat as a formula
-(P2-D10 and R-P2-6: counted and warned, never altered).
+padding but a padded column's, no normalization, no locale, no
+alteration of a published label — including a label a spreadsheet would
+treat as a formula (P2-D10 and R-P2-6: counted and warned, never
+altered).
+
+### G2.1 Where the rows stand (plan P4-D86)
+
+Three steps after every column is generated, drawing no word.
+
+1. **The row sequence.** A column whose `sequence_start` is not `null`
+   is written `start, start + 1, ...` in row order. It is written in
+   place of the column's generated cells before the column is measured,
+   so the report states what the file holds, and the words its plan drew
+   are still drawn.
+2. **The records holding nothing.** In a table of two or more columns
+   with no row order, or with a row order and published records holding
+   nothing, cells move only within one column so that exactly the
+   published number of rows hold nothing in every cell (below).
+3. **The sort.** Where `row_order` names a column, whole rows are
+   permuted by that column's cells under the collation — a number read
+   by the method's number reader, a cell with none last; or, under the
+   `decimal_comma` collation, that same reader applied to the cell with
+   its declared decimal comma and thousands point exchanged, because the
+   twin writes this column's numbers with a comma and reading its own
+   cells by the ordinary grammar would put `10,0` before `9,9` and hand
+   back a column the description calls ascending and is not (review item
+   CODEX-9); or the cell's
+   code points — ascending or descending, stably, so rows the key cannot
+   tell apart keep their generated order. The rows placed as holding
+   nothing in step 2 stay where they stand, and the other rows are
+   sorted into the places around them (repair of landing 2b.9: a sorted
+   Excel table with formatted-empty rows below it is sorted).
+
+   How step 2 places them: `leading` at the
+   top, `trailing` at the bottom, `interior` spread evenly between.
+
+   THIS PARAGRAPH STATES THE PLACEMENT IN FULL, and it was written at
+   landing 2b.17's repair pass because it did not. "Spread evenly
+   between" is not a rule an independent implementer can write: two
+   conforming programs would put the interior records in different
+   rows and both would answer to the sentence. A committed case now
+   freezes these rows (G14.3, `row_arrangement`), so the rule they
+   freeze has to be readable here — the way contract 4.3a states the
+   comparable spread of blank lines, as arithmetic and not as an
+   adverb. Counting rows from nought, with the published counts capped
+   in this order — `leading` at the table's rows, `trailing` at what is
+   left below the leading block, `middle` the rows between them and
+   `interior` at `middle`:
+
+   - the leading block is the first `leading` rows and the trailing
+     block the last `trailing` rows;
+   - the k-th interior record, counting k from one, is placed at row
+     `leading + k * middle // (interior + 1)`. Where that row is
+     already taken the next row down is taken instead, and that walk
+     down stops at the last row above the trailing block, which is
+     then used whether or not an earlier interior record took it (so
+     where the interior records crowd the bottom of the middle, fewer
+     rows are targets than `interior` counts).
+
+   The cells are then exchanged, one column at a time and never
+   between columns, in two walks taking the rows in order:
+
+   - **the target rows are emptied.** In each column, a target row
+     whose cell holds something is exchanged with the cell of the
+     first row that is not a target and holds nothing in that column
+     (a row that has received a cell holds something and is not asked
+     again), and where the column has no such row left, that column's
+     walk stops.
+   - **no other row is left holding nothing.** A row that is not a
+     target and holds nothing in every column takes one cell back: in
+     the first column, in column order, that has a giver, the giver's
+     cell is exchanged into it, and the row is done. A giver is the
+     first row, in row order, that is not a target, holds something in
+     that column, and holds something in two or more columns at that
+     moment, so that it still holds something after it gives.
+
+   A row-sequence column is written in place again last.
+
+Whole rows moving, and cells moving within one column, change no
+column's cells as a multiset, so no published fact of any column moves,
+and the twin carries no structure between columns for either to break.
+
+### G2.2 The twin of a workbook (plan P4-D79, P4-D82)
+
+Where `source.workbook` is not `null` the twin is a spreadsheet
+workbook and not delimited text (contract 4.3b). G2 above states the
+bytes of a delimited file and does not reach here: a workbook cell is
+TYPED, so what each cell IS in the file is a fact of its own, decided
+from the description's census and never from the characters the column
+generator wrote. That seam is what keeps the generator table-blind —
+it produces each column's cells as text, knowing nothing about
+workbooks — and it is why a column of text whose every cell looks like
+a number is written as TEXT.
+
+THIS SECTION WAS WRITTEN AT LANDING 2b.17 AND STATES RULES THAT WERE
+ALREADY SHIPPING. They lived in plan P4-D79, in contract 4.3b and in
+the writer's own docstrings, and this document said nothing about any
+of them — so the second implementation this method requires of every
+generator rule (G14) could not be written for the workbook writer at
+all, because there was no statement to write it from. Nothing here is
+new behaviour; what is new is that the behaviour is stated where the
+oracle can be built from it.
+
+**The package, and the one fixed order.** The twin is a zip package
+whose members are written in exactly this order, which is part of the
+determinism rather than a convenience:
+
+1. `[Content_Types].xml`
+2. `_rels/.rels`
+3. `docProps/app.xml`
+4. `docProps/core.xml`
+5. `xl/workbook.xml`
+6. `xl/_rels/workbook.xml.rels`
+7. `xl/styles.xml`
+8. `xl/sharedStrings.xml`
+9. `xl/worksheets/sheet1.xml` … one per sheet, in workbook order
+10. where the description publishes a defined table, and then only:
+    `xl/worksheets/_rels/sheet<chosen>.xml.rels` and
+    `xl/tables/table1.xml`
+
+**Every member carries one fixed moment**, 1980-01-01 00:00:00, which
+is the earliest a zip can store. A member ordinarily records when it
+was written, and that would make the same description and the same seed
+different bytes on every run. Across platforms the deflate stream
+itself may differ between zlib builds; this method states that as a
+limit rather than claiming past it, and what it freezes is the TEXT of
+each member.
+
+**Step 1 — the class of each cell** (`cell_classes`). One column's
+generated cells and its published `cell_classes` census go in; one
+class per cell comes out. A count the smallest group held back (`null`)
+counts as NONE ASKED FOR, and a count published as `0` is a FACT that
+no cell has that class; the two are never read the same way.
+
+- The cells holding no text take the three classes that hold nothing —
+  `absent`, `blank`, `empty`, in that order — each handed out in row
+  order to as many of those cells as its published count names.
+- The cells holding text take the four that hold a value. The `number`
+  class goes FIRST and only to cells whose text a workbook would store
+  as a number (an optional sign, figures, an optional point and
+  figures, an optional exponent — never a grouped number, a decimal
+  comma, a bracketed negative, a percent or a currency mark, which in a
+  workbook are a FORMAT worn by a plain number and not the stored
+  value). The remaining cells then take `error`, `boolean` and `text`
+  in that order, in row order, by their published counts.
+- Whatever is left over in each group takes that group's LEADING class:
+  the one the column holds most of, ties going to the earlier of the
+  order above, **except that a class published as nought is never the
+  leading one**. A withheld count is not a licence to write none, and a
+  published nought is not a count to fall back on; the remainder goes
+  to a class whose number was not published rather than to one the
+  description denies.
+
+**Step 2 — the kind of format each cell wears** (`cell_format_kinds`).
+A mixture is reproduced as its COUNTS and never collapsed to the
+majority: the census publishes a count per kind and the twin owes a
+cell per count. An ABSENT cell is always `plain`, because nothing is
+written for it and every reader sees the general format there — so the
+kinds that are not plain are handed out, in the order `date`,
+`datetime`, `time`, `elapsed`, `text`, in row order, among the cells
+that ARE written, and `plain` takes the rest.
+
+**Step 3 — the code each cell is written with.** The column's own
+published `format_code` is used for the kind it IS; a cell of any other
+kind takes the canonical code of its own kind. Every code written is
+one of the closed published vocabulary and never a code out of the
+person's file.
+
+**Step 4 — the style table.** One style per distinct code, the general
+format standing first so an unstyled cell is still right, and the codes
+collected in column order and then row order. The header's style is
+written LAST in the table, and is the bold font with the general
+format.
+
+**Step 5 — the rows above the header.** The twin writes as many rows
+above its header as `rows_above_header` names, and puts NOTHING of the
+person's in them: each is one cell holding the empty string, which is
+content to every reader — so the count comes back when the twin is
+described again — and carries no character of anybody's table. A title
+or a banner is free text somebody typed, and the disclosure rule names
+it outright. A ONE-COLUMN TABLE CANNOT CARRY THEM and writes none: the
+header is found as the first row reaching the table's width, so on a
+table one column wide a one-cell row above the header IS the width and
+would be read back as the header.
+
+**Step 6 — the records holding nothing.** `empty_rows_inside` is a
+fact about the WHOLE ROW and the column generator cannot produce one:
+it fills each column's missing cells independently, so on a table of
+any width no row comes out empty in every column at once. Two steps
+repair that, and neither adds, removes or changes a cell:
+
+- each column's cells are exchanged AMONG ITS OWN ROWS so that the
+  cells holding nothing come to rest on the same leading rows in every
+  column, as many rows as the published count asks for, capped by the
+  fewest cells holding nothing any column has;
+- a row is then written as a record holding nothing only where every
+  column's class already holds nothing, taken in row order until the
+  published count is met.
+
+Each column keeps its exact multiset of cells, so every published fact
+about that column still holds. Where fewer rows qualify than the source
+had, the twin writes fewer and that is a stated limit rather than a
+value quietly thrown away.
+
+**Step 7 — the sheet the table was read from.** Its worksheet part
+carries, in order: the dimension, which reaches the last row the twin
+writes (the rows above, the header where one is written, the records,
+and the rows of formatted blanks below) and the last column (the
+table's own, and the columns of formatted blanks beyond it), each
+floored at one; a frozen pane where `frozen_rows` is not nought; then
+the rows —
+
+- the rows above the header, one empty-string cell apiece;
+- the header, where `source.header_source` is `file`, one shared-string
+  cell per column in the header's own style, followed by one blank cell
+  for each column of formatted blanks beyond the table;
+- each record: an `absent` cell is written as NO CELL AT ALL, a `blank`
+  as a cell holding nothing in its style, an `empty` as the empty
+  string, an `error` and a `boolean` and a `number` as their own kinds
+  where the text can carry them and as shared text where it cannot, and
+  anything else as shared text. A row placed as a record holding
+  nothing is written with no cells at all, and so is a row every one of
+  whose cells turned out to be absent;
+- the rows of formatted blanks below the table, one blank cell apiece.
+
+Then the filter, where the description publishes one and a header is
+written, over the header row down to the last row; and the reference to
+the defined table where the description publishes one.
+
+**Step 8 — every other sheet.** A sheet that is not the table's is
+written with AS MANY CELLS AS IT HELD, each carrying one word of
+synthtwin's own, and a sheet that held nothing is written holding
+nothing. It was written EMPTY once and a reader then met a different
+workbook: measured with pandas, the default sheet of a book whose first
+sheet is a notes page reads back as one column and no rows on the real
+file and as nothing whatever on the twin. Writing the person's own text
+is what the disclosure rule forbids, and cells holding the empty string
+change nothing at all, because every reader folds those into a missing
+value and trims the frame away again — measured, the same nothing. A
+sheet holding a TABLE never reaches here: contract WB7 refuses that
+description and the reader asks which sheet the table is on.
+
+**Step 9 — the names, and which sheets are hidden.** Each sheet is
+written under the name the description publishes for it, and a sheet
+whose name was withheld under a neutral one — the published names
+claimed first, and a placeholder walking up until it finds a number no
+published name has taken. Every sheet BEFORE the chosen one is hidden,
+so the chosen sheet is the first visible one and a reader that opens
+the workbook without naming a sheet lands on the table; the chosen
+sheet keeps the hidden state the description publishes, and the sheets
+after it stay visible. Where that would leave nothing visible at all —
+a workbook no spreadsheet application can open — one sheet that is not
+the table's is shown instead, and the table's own where there is no
+other.
+
+**Step 10 — the shared strings.** Every piece of text is written once
+and pointed at, which is how a spreadsheet application's own save
+writes it. The table is built IN THE ORDER THE SHEETS ARE WRITTEN, one
+sheet at a time in workbook order, and within the chosen sheet in the
+order above: the empty string first, then the header's names, then each
+record's cells in row and column order. Edge spaces are preserved.
+
+**What a twin workbook NEVER carries**, each one a way a spreadsheet
+file can act on the person who opens it: no formula, whatever a cell's
+text begins with; no macro project; no external link, hyperlink or
+connection; no cache of any kind; and no document author or company —
+the study behind this landing measured one writer recording the
+operating-system user name as the file's creator and another writing
+the signed-in user's name into `lastModifiedBy`, and both name a
+person. A defined table's own NAME is text somebody typed, so the twin
+writes a neutral one and publishes none; what is written back is that a
+table is there and that it covers the twin's own rows, because that is
+what a structured reference and a query read.
 
 ## G3. The single stream: one generator, one draw shape, integer primitives
 
@@ -8521,24 +8807,30 @@ fail.
 
 ### G14.2 The vector file shape
 
-**Three committed JSON files, and ONE oracle** (review item P2-C3-F3).
+**Four committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first and
-`tests/reference/generation-branch-vectors.json` carries the fourteen it
+`tests/reference/generation-branch-vectors.json` carries the twenty it
 names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
 R-P4-17, then the exponent case of G10.5 revision 5, and then the
-midnight-day and mixed-mark cases of plan P4-D39), and
+midnight-day and mixed-mark cases of plan P4-D39, then the
+mixed-convention case of landing 2b.7, and then the five cases of landing
+2b.18), and
 `tests/reference/generation-branch-vectors-2.json` carries the sixteen
 it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added,
-less the one landing 2b.6 withdrew with the rule it pinned. This sentence carried the
+less the one landing 2b.6 withdrew with the rule it pinned,
+and `tests/reference/generation-document-vectors.json` carries the five
+landing 2b.17 added for the transforms that produce a WHOLE DOCUMENT
+rather than one column's cells. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
-next case has an obvious place to be recorded. All three are written by
+next case has an obvious place to be recorded. All four are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
-through the entry point `tools/reference/make_generation_branch_vectors.py`
-and the third through `tools/reference/make_generation_branch_vectors_2.py`,
+through the entry point `tools/reference/make_generation_branch_vectors.py`,
+the third through `tools/reference/make_generation_branch_vectors_2.py`
+and the fourth through `tools/reference/make_generation_document_vectors.py`,
 each of which runs that oracle and asks it for its own case set — so there
 is one transform, one proof layer and one set of rules behind every file.
 Each is registered in `tools/provenance/fixture-manifest.json` with its
@@ -8552,7 +8844,8 @@ carry about 123000 bytes. Splitting them is the one thing that must NOT
 be done by dropping a case or shortening a proof: the limit is a rule
 about a committed file, and the case list of G14.3 is a rule about
 coverage. A third file follows the same rule the moment the second
-approaches the limit. Two copies of the oracle would not, and are
+approaches the limit, and a fourth the moment the third does, which
+landing 2b.17 reached. Two copies of the oracle would not, and are
 forbidden here: a proof layer that exists twice can be repaired once.
 
 **The third file** (the integration of landings 2b.1 to 2b.5,
@@ -8573,6 +8866,81 @@ and gave every block of dates its four written-form censuses — 240399
 bytes, still under the cap, which was not raised;
 that is room bought by a rule going away, not by shortening a proof, and
 the next case of the usual size still opens a fourth file.
+
+**The fourth file** (landing 2b.17). It is the one the sentence above
+predicted, opened for the reason that sentence gives: the third file
+has no room. It carries the five DOCUMENT cases — the written form of a
+delimited file, the arrangement of its rows, the twin of a workbook,
+the shape a line before the table is published as, and the reading that
+settles which delimiter a file is written with. Those five transforms
+had reached the twin's bytes with NO second implementation of any kind:
+landings 2b.9, 2b.10 and 2b.11 built them, each recorded the gap, and
+none could close it — because the workbook writer's rules were stated
+in no specification at all, and a rule that is not stated cannot be
+implemented a second time FROM ITS STATEMENT. G2.2 was written first,
+at this landing, for exactly that reason.
+
+**A document case is a different shape, and the shape is the point.**
+It carries no `column`, no `words` and no `word_budget`, because none
+of these transforms reads a column's published facts or draws a single
+word. What it carries instead is the description's own `source.dialect`
+or `source.workbook` block — the input each transform really takes —
+and the bytes that come out: the file's lines and its whole text, the
+arranged rows, the runs published for the lines before a table beside
+the lines the twin writes for them, the reading each candidate
+delimiter reaches, or every part of a workbook package. The workbook's
+parts are frozen as TEXT and never as the packed bytes, because the
+compressed stream differs between library builds, which G2.2 states as
+a limit rather than claiming past it.
+
+**WHERE THE SECOND WRITING IS INDEPENDENT, AND WHERE IT IS NOT.** This
+section's rule is that each transform is written from the rule's
+STATEMENT and not from the code, because a second writing copied from
+the implementation agrees with it by construction and cannot disagree
+with it, which is the one thing these vectors exist to do. Landing
+2b.17's review measured the document transforms against that rule and
+found it half kept, so the measurement and its result are recorded
+here rather than left for the next reader to rediscover.
+
+Normalise every function of the oracle — docstrings, comments and
+annotations dropped — and score it against its closest normalised
+function in `src/synthtwin`. The transforms added for the document
+cases scored far higher against the shipped code than the oracle's
+own earlier work does, and two of them reproduced arithmetic that no
+governing document stated at all: the placement of the records holding
+nothing (G2.1) and the spread of the rarer line endings (G2). Those
+two sentences said only "spread evenly", which does not decide a
+single row or line, so the mirror could not have come from them.
+
+Both rules are now STATED — in G2.1 and in G2's line-ending row — and
+the two walks were rewritten from those statements, which moved no
+committed byte. No committed case publishes counted line endings, so
+the second of the two is held by no frozen byte: the review's repair
+compared it with the shipped spread over twenty thousand drawn
+censuses instead, and the placement over twenty thousand drawn grids,
+and both agreed on every one. That comparison is a measurement taken
+once and is not a vector; a case publishing counted endings is owed
+the day a file has room for it.
+
+What remains close to the shipped code is named here rather than
+summed up. Measured after the rewriting, 13 of the 53 added transforms
+of six statements or more score 0.60 or above (17 before it), against
+a median of 0.41. Nine of the thirteen write the workbook package: the
+cell element, the escaping of text, the spelling of a boolean, the
+hidden states, the styles part, the defined table, the content types,
+the place of a shared string and the class of each cell. The file
+format fixes most of those bytes, so an element writer and its mirror
+converge however each was written. The other four are short rules
+whose statement leaves one natural writing: the joining of fields
+with the delimiter, the letters of a column, the share of records at
+the commonest width, and whether a sheet's name is one synthtwin's own
+vocabulary can rebuild. A reader should take the placement and the
+spread as independently written, the delimiter reading, the written
+form, the marks of the lines before a table and the arrangement's sort
+as written from G2, G2.1 and FD11, and the part-emitting code of G2.2
+as written against the shipped writer and stated afterwards. The
+frozen cases hold all of them to the same bytes; only the first kinds
+can find a defect in the rule they mirror.
 
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the
@@ -8598,7 +8966,10 @@ Phase 1 vectors use, so a reviewer reads one shape and not two.
                      canonical_spelling, style_allocation,
                      ordinal_transform, precision_form, endpoint_fields,
                      offset_form, grid_packing, partner_family,
-                     notation_reading, separator_allocation
+                     notation_reading, separator_allocation, and, for the
+                     document cases of the fourth file, written_form,
+                     row_arrangement, workbook_sheet, writable_mark,
+                     best_reading
   "cases": {
      "<case name>": {
         "why":            what this case exists to pin
@@ -8664,7 +9035,10 @@ census, the shape a stand-in owed no form takes, and the census of
 spellings of a count column (landing 2b.18 part 2), which no earlier
 case reaches, and one for a layout census's zero fill two noughts deep,
 its interior space and the mixes that write its pool (landing 2b.18's
-repair pass), which `identifier_layout` reaches none of.
+repair pass), which `identifier_layout` reaches none of,
+and five for the transforms that produce a WHOLE DOCUMENT rather than
+one column's cells, which landings 2b.9, 2b.10 and 2b.11 left with no
+second implementation of any kind (landing 2b.17).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -8703,13 +9077,14 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All forty-five are required.** Landing 2b.6 withdrew one of the
+**All fifty are required.** Landing 2b.6 withdrew one of the
 cases named above, `accidental_midnight`, with the rule it pinned, so
-forty-six are named and forty-five stand (counted at the integration of
-landings 2b.6 to 2b.8, 2026-09-16). The
+fifty-one are named and fifty stand (counted at the integration of
+landings 2b.6 to 2b.10, 2026-09-16). The
 first nine are the first committed file, the next twenty the second,
-and the last sixteen -- the cases the carried landings 2b.2, 2b.3 and
-2b.4 added, less the one landing 2b.6 withdrew -- the third
+the next sixteen -- the cases the carried landings 2b.2, 2b.3 and
+2b.4 added, less the one landing 2b.6 withdrew -- the third, and the
+last five the fourth
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -8763,6 +9138,12 @@ case passed, which is the failure the count exists to prevent:
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
+
+| `written_form_lines` | G2's written form end to end: an `sep=` hint, a byte-order mark, four lines before the table in three runs, an always-quoted header, a left-padded column, a second column taking three DIFFERENT quoting rules over its four cell classes, a trailing delimiter on the records and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it |
+| `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
+| `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
+| `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
+| `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
