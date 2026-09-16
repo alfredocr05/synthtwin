@@ -1887,3 +1887,95 @@ def test_the_loader_reaches_neither_the_reader_nor_pandas() -> None:
                         waiting.append(module)
     assert "reading" not in seen
     assert "profile" not in seen
+
+
+# -- the raised floor of the midnight count, which the battery above
+# cannot witness (landing 2b.14) --------------------------------------
+
+
+def _stamps_partly_at_midnight() -> str:
+    """Four hundred moments, five of them standing at midnight."""
+    rows: "list[str]" = []
+    for index in range(400):
+        if index < 5:
+            rows += [f"2024-03-{index + 1:02d} 00:00:00"]
+        else:
+            rows += [
+                f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d} "
+                f"{(index % 23) + 1:02d}:{index % 60:02d}:"
+                f"{(index * 7) % 59:02d}"
+            ]
+    return fixtures.single_column_table("when", rows)
+
+
+@pytest.fixture(scope="module")
+def at_a_floor_of_one(tmp_path_factory: pytest.TempPathFactory) -> Document:
+    """An honest description of that column, asked for at a floor of ONE.
+
+    THE BATTERY ABOVE CANNOT BE THIS DOCUMENT, and that is the point.
+    Its base declares a floor of eleven, because a whole family of rules
+    there can only be broken by damaging something held back, and at a
+    floor of one nothing is. But D15 carries a floor OF ITS OWN -- never
+    below two, whatever the run asked for -- and at a floor of eleven
+    that raise decides nothing: the ordinary floor refuses a count of one
+    long before the raise is consulted. So the raise sits underneath
+    every one of the battery's five D15 entries without being exercised
+    by any of them. Measured, not assumed: with the raise withdrawn from
+    the loader, `tests/test_contract_loader.py` passes entire.
+
+    This column is where the raise is the only rule standing. A floor of
+    one holds nothing back, so S13 is silent and the description loads;
+    five of the four hundred moments stand at midnight, which a floor of
+    one publishes as an ordinary count.
+    """
+    folder = tmp_path_factory.mktemp("midnight-floor-one")
+    path = fixtures.write(folder, "stamps.csv", _stamps_partly_at_midnight())
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    return json.loads(json.dumps(document))
+
+
+def test_the_witness_starts_from_a_description_that_loads(
+    tmp_path: pathlib.Path, at_a_floor_of_one: Document
+) -> None:
+    """A witness refused for some other reason would witness nothing."""
+    contract.load_profile(written(tmp_path, at_a_floor_of_one))
+    settings = typing.cast(Document, at_a_floor_of_one["settings"])
+    assert settings["small_cell_floor"] == 1, settings["small_cell_floor"]
+    block = at_a_floor_of_one["columns"][0]
+    assert block["n_at_midnight"] == 5, block["n_at_midnight"]
+    assert block["all_at_midnight"] is False, block["all_at_midnight"]
+
+
+@pytest.mark.parametrize(
+    "counted,names",
+    [
+        (1, "the one person who holds the value"),
+        (399, "the one person who does not hold it"),
+    ],
+)
+def test_the_count_at_midnight_names_nobody_even_at_a_floor_of_one(
+    tmp_path: pathlib.Path,
+    at_a_floor_of_one: Document,
+    counted: int,
+    names: str,
+) -> None:
+    """D15's own floor of two, at the one floor where it is the rule deciding.
+
+    Both directions, because the disclosure rule has two halves and the
+    raise is what enforces each: a count of one names the person holding
+    the value, and a count one short of every value names the person who
+    does not. At a floor of one the run's own floor admits both, so a
+    refusal here is the raise and nothing else -- which is exactly what
+    the battery above, written at a floor of eleven, cannot show.
+    """
+    document = copy.deepcopy(at_a_floor_of_one)
+    block = at_a_floor_of_one["columns"][0]
+    parsed = int(block["n_present"]) - int(block["n_unparsed"])
+    assert counted < parsed, "the count must leave the column short"
+    document["columns"][0]["n_at_midnight"] = counted
+    document["columns"][0]["all_at_midnight"] = False
+    message = refusal(tmp_path, document)
+    assert contract.INVARIANTS["D15"] in message, (names, message)

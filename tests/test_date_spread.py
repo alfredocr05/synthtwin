@@ -574,8 +574,9 @@ def test_a_twin_written_one_day_early_is_missed_at_every_rung(
     assert named == {f"p{percent:02d}" for percent in INTERIOR}, sorted(named)
 
 
+@pytest.mark.parametrize("resolution", ["month", "quarter"])
 def test_the_report_of_a_column_of_periods_names_only_what_a_period_can_lose(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, resolution: str
 ) -> None:
     """The sentence is the one true OF THE COLUMN (repair pass of 2b.6).
 
@@ -587,22 +588,28 @@ def test_the_report_of_a_column_of_periods_names_only_what_a_period_can_lose(
     two-clause form instead.
     """
     draw = random.Random(21)
-    cells = sorted(
-        f"{2000 + draw.randrange(0, 24)}-{draw.randrange(1, 13):02d}"
-        for _place in range(300)
-    )
-    folder = tmp_path / "months"
+    if resolution == "month":
+        cells = sorted(
+            f"{2000 + draw.randrange(0, 24)}-{draw.randrange(1, 13):02d}"
+            for _place in range(300)
+        )
+    else:
+        cells = sorted(
+            f"{2000 + draw.randrange(0, 24)}-Q{draw.randrange(1, 5)}"
+            for _place in range(300)
+        )
+    folder = tmp_path / f"periods-{resolution}"
     folder.mkdir()
     table = folder / "real.csv"
     table.write_text(
-        fixtures.rows_to_csv(["month"], [[cell] for cell in cells]),
+        fixtures.rows_to_csv([resolution], [[cell] for cell in cells]),
         encoding="utf-8",
         newline="",
     )
     assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
     described = folder / "real-profile.json"
     block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
-    assert block["resolution"] == "month", block["resolution"]
+    assert block["resolution"] == resolution, block["resolution"]
     assert (
         _exit_of(
             [
@@ -630,7 +637,8 @@ def test_the_report_of_a_column_of_periods_names_only_what_a_period_can_lose(
         "how these dates are spread across the calendar",
     ):
         assert absent not in report, (
-            f"a column of months has no {absent!r} to lose, and its report "
+            f"a column of {resolution}s has no {absent!r} to lose, and its "
+            f"report "
             f"says it does"
         )
 
@@ -699,3 +707,91 @@ def test_a_column_beside_the_dates_is_untouched_by_this_rule(
         "the column of numbers beside the dates moved when only the dates' "
         "own shape changed, so the two columns are sharing words"
     )
+
+
+class _WordSpy(list):  # type: ignore[type-arg]
+    """A word list that records the highest index the construction read."""
+
+    high = -1
+
+    def __getitem__(self, index):  # type: ignore[no-untyped-def]
+        if index > self.high:
+            self.high = index
+        return list.__getitem__(self, index)
+
+
+@pytest.mark.parametrize("parsed", [11, 12, 13, 60, 240, 400, 401, 1500])
+def test_a_pinned_rank_spends_no_word_and_the_budget_is_unchanged(
+    parsed: int,
+) -> None:
+    """THE RULE FIVE DOCUMENTS STATED WRONGLY, measured (landing 2b.14).
+
+    Every one of them said that each rank between the ends spends
+    exactly one word, a pinned rank included, because a pinned rank
+    draws its word and discards it. The construction does no such thing:
+    it takes a word only for the ranks strictly BETWEEN two pins. The
+    repair pass of landing 2b.6 amended four of the five places after
+    its reviewer measured 389 words read of 398; the plan was the fifth
+    and still carried the withdrawn sentence, which landing 2b.14
+    amended.
+
+    Nothing was pinning either rule, which is why the two could drift
+    apart at all -- the oracle mirrored the CODE while its own docstring
+    stated the other rule, so no vector comparison could see it. This is
+    that pin, and it states the rule in the form that makes it
+    checkable: a column reads one word for every rank that is not
+    pinned, so `read == parsed - (the number of DISTINCT pinned ranks)`.
+
+    The budget is the half that matters for every other column, and it
+    is asserted here too: the column is handed `parsed - 2` words
+    whatever it does with them, so the words a pinned rank does not
+    draw are simply left unread and no column generated afterwards
+    moves.
+    """
+    from synthtwin import generation
+
+    span = 365
+    ladder = (
+        [0]
+        + [round(span * percent / 100) for percent in INTERIOR]
+        + [span]
+    )
+    handed = max(parsed - 2, 0)
+    words = _WordSpy(range(1, handed + 1))
+    ordinals = generation._spread_ordinals(ladder, parsed, words)
+    pins = generation._ordinal_pins(ladder, parsed)
+    read = words.high + 1
+    assert ordinals == sorted(ordinals), "the ranks must stay ascending"
+    # ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE.
+    assert read == parsed - len(set(pins)), (
+        f"{parsed} ranks over {len(set(pins))} distinct pins read {read} "
+        f"words; the rule says one for each rank that is not pinned"
+    )
+    # ...AND THE BUDGET IS UNCHANGED, the surplus simply never read.
+    assert read <= handed, (read, handed)
+    assert handed - read == len(set(pins)) - 2, (
+        f"{handed - read} words left unread against {len(set(pins))} "
+        f"distinct pins: the two ends are not drawn for either way"
+    )
+
+
+def test_the_measured_word_spend_of_a_four_hundred_row_column() -> None:
+    """The number the amended sentences carry, asserted as a number.
+
+    A rule stated as arithmetic can be met by an implementation that
+    pins nothing, so the headline measurement is pinned as itself: a
+    400-row column with eleven distinct pins is handed 398 content words
+    and reads 389 of them.
+    """
+    from synthtwin import generation
+
+    span = 365
+    ladder = (
+        [0]
+        + [round(span * percent / 100) for percent in INTERIOR]
+        + [span]
+    )
+    words = _WordSpy(range(1, 399))
+    generation._spread_ordinals(ladder, 400, words)
+    assert len(set(generation._ordinal_pins(ladder, 400))) == 11
+    assert words.high + 1 == 389, words.high + 1

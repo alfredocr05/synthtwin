@@ -4219,8 +4219,16 @@ the floor, and either every parsed cell or leaves at least the floor off
 midnight. THE FLOOR HERE IS NEVER BELOW TWO, whatever
 `small_cell_floor` is, because one is not a group: a count of one names
 the person who holds the value, and a count one short of every value
-names the person who does not. It is present only where `resolution` is
-`datetime` and, on the `utc` clock, the map pools no offset. It equals
+names the person who does not. WHERE THAT RAISE IS WITNESSED (landing
+2b.14): at any raised floor the ordinary floor above refuses such a
+count first, so the raise decides nothing there and a battery whose
+base is written at a floor of eleven cannot show it working — withdrawn
+from the loader, every entry of that battery still passes. It is
+witnessed at a floor of ONE, where the ordinary floor would admit a
+count of one and the raise alone refuses it, in both directions: the
+count itself and the count one short of every value. It is present only
+where `resolution` is `datetime` and, on the `utc` clock, the map pools
+no offset. It equals
 `n_present - n_unparsed` exactly where `all_at_midnight` is `true`, so
 the statement and the count cannot disagree; below the floor both are
 empty, and the statement's own floor is not contradicted.
