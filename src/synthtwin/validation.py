@@ -2770,8 +2770,10 @@ def _identifier_capacity_at(
     Where every value IS a whole number, G9.6 fixes one family per band
     and each is far narrower than the alphabet:
 
-    - figures alone open with a digit that is not zero, so a value's
-      length is its count of figures;
+    - figures alone open with a digit that is not zero wherever the
+      value is longer than one figure, so a value's length is its count
+      of figures, and the lone figure `0` is one of ten one-figure
+      values (plan P4-D155);
     - inside the code alphabet the form is `<digits>e0`, which needs
       two characters beyond its digits and has nothing at all to write
       at one character -- one character that reads as a whole number IS
@@ -2791,6 +2793,8 @@ def _identifier_capacity_at(
     """
     if whole:
         if band == _BAND_DIGITS:
+            if length == 1:
+                return _DIGIT_SIZE
             return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
         if band == _BAND_CODE:
             if length == 2:
@@ -9073,12 +9077,12 @@ def _role_checks(
         # was raised for.
         return _label_checks(column, facts, block, floor) + _form_checks(
             column.name, "label.shape_forms", facts.shape_forms,
-            block, floor,
+            block, floor, cells=cells,
         )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(column, facts, block, floor, mine)
     if isinstance(facts, contract.TextFacts):
-        return _text_checks(column, facts, block, floor)
+        return _text_checks(column, facts, block, floor, cells)
     if isinstance(facts, contract.IdentifierFacts):
         return _identifier_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
@@ -15201,6 +15205,7 @@ def _text_checks(
     facts: contract.TextFacts,
     block: "dict[str, object]",
     floor: int,
+    cells: "list[str] | None" = None,
 ) -> "list[Check]":
     """A column no rule claimed, which publishes none of its values."""
     name = column.name
@@ -15259,7 +15264,8 @@ def _text_checks(
         )
     ]
     checks = checks + _form_checks(
-        name, "free_text.shape_forms", facts.shape_forms, block, floor
+        name, "free_text.shape_forms", facts.shape_forms, block, floor,
+        cells=cells,
     )
     return checks
 
@@ -15272,6 +15278,7 @@ def _form_checks(
     floor: int,
     census_key: str = "shape_forms",
     named: str = "forms",
+    cells: "list[str] | None" = None,
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -15284,6 +15291,21 @@ def _form_checks(
     shaped like one would be published and never checked.
     """
     measured = _map_at(block, census_key)
+    if measured is not None and cells is not None and (
+        census_key == "shape_forms"
+    ):
+        # RECOUNTED UNDER THE SUBMITTED CENSUS'S OWN CASE CONVENTION (plan
+        # P4-D159), off the cells, and not read off the file's own census.
+        # That census decides for ITSELF whether a form's lower-case cells
+        # are named apart, on the measured file's own values: a twin whose
+        # 200 lower-case cells no longer fold onto a capitalised neighbour
+        # names them `&&%%%` where the published census, blind to case,
+        # names `@@%%%` -- and the file holding every one of the 200 was
+        # told it held fewer than eleven. `parsing.census_form` is the
+        # reading the generator writes to, so a cell is counted under the
+        # key the published census files it under. A count below the
+        # floor stays unprinted, as the file's own census would leave it.
+        measured = _form_recount(census, cells, floor)
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
@@ -15304,6 +15326,30 @@ def _form_checks(
             )
         ]
     return checks
+
+
+def _form_recount(
+    census: "dict[str, int]", cells: "list[str]", floor: int
+) -> "dict[str, int]":
+    """Each published form's cells in a file, under the census's own keys.
+
+    Only a key the census names is counted, blank cells are not cells
+    of the census at all, and a count under the floor is left out, so
+    the check says "below the floor" rather than printing it.
+    """
+    counted: "dict[str, int]" = {}
+    for cell in cells:
+        if not parsing.trimmed(cell):
+            continue
+        key = parsing.census_form(cell, census)
+        if not key or key not in census or key == taxonomy.SUPPRESSED_LABEL:
+            continue
+        counted[key] = (counted[key] if key in counted else 0) + 1
+    kept: "dict[str, int]" = {}
+    for key in sorted(counted):
+        if counted[key] >= floor:
+            kept[key] = counted[key]
+    return kept
 
 
 def _group_span(

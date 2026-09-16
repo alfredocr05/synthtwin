@@ -1640,6 +1640,15 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   own layouts its description may name, and a conforming file whose
   made-up cells left one cell off its named layouts would have a layout
   it holds at the published count taken back and be reported MISSED.
+  **The form census of 7.9 is recounted off the cells too, under the
+  SUBMITTED census's case convention** (plan P4-D159): a cell counts
+  under the key `parsing.census_form` files it under in that census, so
+  a lower-case cell counts toward a form the census names blind to
+  case. The file's own census decides for itself whether to name
+  lower-case cells apart, on the measured values, and a twin whose 200
+  lower-case codes no longer folded onto a capitalised neighbour named
+  them `&&%%%` against a published `@@%%%` and was told it held fewer
+  than eleven. A recount under the floor is not printed.
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells

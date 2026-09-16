@@ -5810,8 +5810,9 @@ def identifier_family(band, whole_numbers, length):
     Where it publishes ``all_whole_numbers`` TRUE, G9.6 fixes one
     whole-number spelling per band and the bands still come from the two
     published alphabet counts and from nothing else.  The figures write
-    the digits themselves with a non-zero leading digit, so the
-    spelling's length is its digit count; the code band writes
+    the digits themselves with a non-zero leading digit wherever there
+    is more than one, so the spelling's length is its digit count and
+    the lone figure 0 is one of the ten one-figure spellings; the code band writes
     ``<digits>e0``, which reads back as a whole number and holds a
     character the figures do not; and outside the code alphabet the cell
     is written ``<digits>.``, which reads back as a whole number and
@@ -5828,6 +5829,10 @@ def identifier_family(band, whole_numbers, length):
     standing.
     """
     if whole_numbers:
+        if band == FIGURES and length == 1:
+            # The lone figure 0 is a whole number one figure long, and
+            # its length is its count of figures (plan P4-D155).
+            return DIGITS, length, None, ""
         if band == FIGURES:
             return DIGITS, length, _not_a_leading_zero, ""
         if band == CODE_BAND:
@@ -6181,14 +6186,25 @@ def layout_convention(values):
     Decided for the column, which is that clause's whole point: decided
     per character a figure is ambiguous between the two cases, and a
     column of braced GUIDs shatters into one layout per cell.
+
+    And only where some position, among the described cells of one
+    length, holds a letter in one cell and a figure in another (plan
+    P4-D154): letters a to f that never trade places with a figure are
+    letters, and `A1000000` beside `F1000005` is a letter and seven
+    figures, not eight hexadecimal characters.
     """
     lower = upper = 0
+    kinds_at = {}
     for value in values:
         if not _described_by_a_layout(value):
             continue
-        for character in value:
+        for place, character in enumerate(value):
+            if _ascii_digit(character):
+                kinds_at.setdefault((len(value), place), set()).add("figure")
+                continue
             if not _ascii_letter(character):
                 continue
+            kinds_at.setdefault((len(value), place), set()).add("letter")
             if character in "abcdef":
                 lower += 1
                 continue
@@ -6197,6 +6213,8 @@ def layout_convention(values):
                 continue
             return LAYOUT_PLAIN
     if lower + upper < 1:
+        return LAYOUT_PLAIN
+    if not any(len(kinds) == 2 for kinds in kinds_at.values()):
         return LAYOUT_PLAIN
     return LAYOUT_HEX_UPPER if upper > lower else LAYOUT_HEX_LOWER
 
@@ -6341,16 +6359,47 @@ def layout_offer(column):
     return [name for name in sorted(census) if name != WITHHELD]
 
 
-def _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+# Contract section 14.4's vocabulary of "no value", written from that
+# section: seventeen spellings matched after trimming and case folding,
+# and one matched byte for byte.
+ABSENT_FOLDED = (
+    "", "-", "--", ".", "?", "n/a", "na", "nan", "none", "null",
+    "#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!",
+)
+ABSENT_EXACT = ("NaT",)
+
+
+def reads_as_absent(text, holes=()):
+    """Whether a reader of the description reads this spelling as absent.
+
+    Method G9.6 (plan P4-D158): a record number is never written in a
+    spelling of contract section 14.4's vocabulary, nor in one the
+    document publishes as the spelling of an absent cell, matched after
+    trimming and case folding.  A function of its own so the frozen
+    case's registered mutant can take it away: with nothing read as
+    absent the layout fills `NA`, and the committed cells move.
+    """
+    if text in ABSENT_EXACT:
+        return True
+    body = folded(text)
+    if any(body == folded(word) for word in ABSENT_FOLDED):
+        return True
+    return any(body == folded(hole) for hole in holes)
+
+
+def _fits_its_slot(candidate, layout, convention, band, whole_numbers, holes=()):
     """Whether one filling of a layout may stand in a slot, freeness aside.
 
     Every guard method G9.6 states but the one about what the column has
     already written: the cell recounts into the band it was made for,
-    reads as a number exactly where that band says it must, and RECOUNTS
-    INTO THE LAYOUT IT WAS WRITTEN TO -- `%%%%` filled at a step whose
-    leading figure is nought spells `0123`, whose layout is `!%%%`.
+    reads as a number exactly where that band says it must, is no
+    spelling a reader reads as absent, and RECOUNTS INTO THE LAYOUT IT
+    WAS WRITTEN TO -- `%%%%` filled at a step whose leading figure is
+    nought spells `0123`, whose layout is `!%%%`.
     """
     if layout_of(candidate, convention) != layout:
+        return False
+    if reads_as_absent(candidate, holes):
         return False
     bare = candidate.strip()
     digits = bool(bare) and set(bare) <= DIGIT_CHARACTERS
@@ -6369,11 +6418,27 @@ def _fits_its_slot(candidate, layout, convention, band, whole_numbers):
 
 
 FORMULA_OPENINGS = ("=", "+", "-", "@", " ")
+
+
+def _a_signed_number(layout):
+    """A sign, then figures with at most one point among them (P4-D156).
+
+    Such a layout is worn only by a signed number, so the census proves
+    the table held sign-leading numbers and the opening is not refused;
+    every other layout opening with a formula character still is.
+    """
+    body = layout[1:]
+    return (
+        layout[:1] in ("-", "+")
+        and body.count("%") >= 1
+        and body.count(".") <= 1
+        and set(body) <= {"%", "."}
+    )
 LAYOUT_STEPS = 4096
 LAYOUT_ADMISSION_STEPS = 64
 
 
-def _layout_spelling(layout, convention, steps, used, band, whole_numbers):
+def _layout_spelling(layout, convention, steps, used, band, whole_numbers, holes=()):
     """The next free spelling of one layout that keeps its slot's band.
 
     At most 4,096 fillings are read, counted on from wherever this
@@ -6388,11 +6453,13 @@ def _layout_spelling(layout, convention, steps, used, band, whole_numbers):
         candidate = filled_layout(layout, steps[layout])
         steps[layout] += 1
         tried += 1
-        if candidate[:1] in FORMULA_OPENINGS:
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
             return None
         if candidate in used:
             continue
-        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+        if _fits_its_slot(
+            candidate, layout, convention, band, whole_numbers, holes
+        ):
             return candidate
     return None
 
@@ -6406,7 +6473,7 @@ def _layout_admits(layout, convention, band, whole_numbers):
     """
     for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
         candidate = filled_layout(layout, step)
-        if candidate[:1] in FORMULA_OPENINGS:
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
             return False
         if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
             return True
@@ -6430,7 +6497,9 @@ def _convention_of_the_keys(offered):
     return LAYOUT_PLAIN
 
 
-def layout_preferences(column, groups, families, bands, windows, pinned):
+def layout_preferences(
+    column, groups, families, bands, windows, pinned, demands=None,
+):
     """Which published layout each identity is offered FIRST (method G9.6).
 
     Written from the rule statement.  The identities are visited with
@@ -6446,6 +6515,16 @@ def layout_preferences(column, groups, families, bands, windows, pinned):
     taken back from it.  Credit is kept per family.  ``""`` is no
     preference.
 
+    AN IDENTITY CARRIES ITS PARTNERS' CELLS (plan P4-D157).  ``demands``
+    maps an identity's position to the cell counts of the partners G9.3
+    hands it, first partner first.  Where any partner of any published
+    layout wears a published layout (`partner_layouts`), an identity
+    owing partners is visited after the end carriers and before every
+    identity owing none, and a layout is a candidate for it only where
+    its own remaining count covers the identity and each published
+    layout its partners wear has their cells left -- the layout itself
+    counting both where they coincide; all of them are debited together.
+
     A function of its own so the frozen case's registered mutant can
     take it away: with no preference every group is offered the layouts
     in sorted order, the singletons that come first take the first
@@ -6459,11 +6538,18 @@ def layout_preferences(column, groups, families, bands, windows, pinned):
     preferred = [""] * len(groups)
     wearable = {}
     credits = {}
+    demands = demands or {}
+    paired = partners_wear_published_layouts(column, convention, demands)
     visits = sorted(
-        (0 if position in pinned else 1, -groups[position], position)
+        (
+            0 if position in pinned else 1,
+            -1 if paired and demands.get(position) else 0,
+            -groups[position],
+            position,
+        )
         for position in range(len(groups))
     )
-    for _pinned, _size, position in visits:
+    for _pinned, _owes, _size, position in visits:
         family = families[position]
         if family not in wearable:
             wearable[family] = [
@@ -6475,25 +6561,80 @@ def layout_preferences(column, groups, families, bands, windows, pinned):
         weight = sum(census[name] for name in wearable[family])
         best = ""
         best_credit = 0
+        best_needs = {}
         for name in wearable[family]:
-            if remaining[name] < covering or len(name) not in windows[position]:
+            if demands.get(position) and _a_signed_number(name):
+                # A signed layout is not given to an identity owed a
+                # partner (plan P4-D156): its partner could only be
+                # edge-spaced, a second cell opening with the sign.
+                continue
+            needs = {name: covering}
+            if paired and demands.get(position):
+                owed = demands[position]
+                worn = partner_layouts(
+                    name, convention, len(owed), column, offered
+                )
+                for order, cells in enumerate(owed):
+                    if worn[order] in remaining:
+                        needs[worn[order]] = needs.get(worn[order], 0) + cells
+            if any(remaining[key] < needs[key] for key in needs):
+                continue
+            if len(name) not in windows[position]:
                 continue
             credit = credits[family][name] + census[name] * covering
             if best == "" or credit > best_credit:
-                best, best_credit = name, credit
+                best, best_credit, best_needs = name, credit, needs
         if best == "":
             continue
         for name in wearable[family]:
             credits[family][name] += census[name] * covering
         credits[family][best] -= weight * covering
-        remaining[best] -= covering
+        for key, cells in best_needs.items():
+            remaining[key] -= cells
         preferred[position] = best
     return preferred
 
 
+PARTNER_LAYOUT_STEPS = 64
+
+
+def partner_layouts(layout, convention, count, column, offered):
+    """The published layouts the first ``count`` partners of a layout wear.
+
+    Method G9.6 (plan P4-D157), written from the rule statement.  The
+    layout's first filling is walked through its partner family in
+    G9.3's order, at most 64 members, inside the published length range;
+    the members wearing a PUBLISHED layout are taken in that order, one
+    per partner, and a partner past them wears "".
+    """
+    worn = []
+    family = partner_family(filled_layout(layout, 0), column["max_length"])
+    for step, member in enumerate(family):
+        if step >= PARTNER_LAYOUT_STEPS or len(worn) >= count:
+            break
+        if len(member) < column["min_length"]:
+            continue
+        if layout_of(member, convention) in offered:
+            worn.append(layout_of(member, convention))
+    return worn + [""] * (count - len(worn))
+
+
+def partners_wear_published_layouts(column, convention, demands):
+    """Whether any partner of any published layout wears a published layout."""
+    most = max((len(owed) for owed in demands.values()), default=0)
+    if most < 1:
+        return False
+    offered = layout_offer(column)
+    return any(
+        worn
+        for name in offered
+        for worn in partner_layouts(name, convention, most, column, offered)
+    )
+
+
 def _offer_a_layout(
     quotas, steps, lengths, convention, used, band, whole_numbers,
-    covering, letters_needed, preferred,
+    covering, letters_needed, preferred, holes=(), owes=False,
 ):
     """The layout this slot takes, spelled (G9.6), or None.
 
@@ -6519,8 +6660,10 @@ def _offer_a_layout(
                 for character in layout
             ):
                 continue
+            if owes and _a_signed_number(layout):
+                continue
             found = _layout_spelling(
-                layout, convention, steps, used, band, whole_numbers
+                layout, convention, steps, used, band, whole_numbers, holes
             )
             if found is None:
                 continue
@@ -6577,6 +6720,7 @@ def layout_mix(base, kinds, step):
 
 def layout_stand_in(
     bases, census, mixed, steps, lengths, convention, used, band, whole_numbers,
+    holes=(),
 ):
     """A group no named layout serves, written to a mix of its kinds (G9.6).
 
@@ -6604,7 +6748,7 @@ def layout_stand_in(
             if mix not in steps:
                 steps[mix] = 1 + len(steps) * LAYOUT_STEPS
             found = _layout_spelling(
-                mix, convention, steps, used, band, whole_numbers
+                mix, convention, steps, used, band, whole_numbers, holes
             )
             if found is not None:
                 return found
@@ -6627,8 +6771,15 @@ def _identifier_recount(column, content):
     P2-C2-F7).
     """
     trimmed = [cell.strip() for cell in content]
+    holes = tuple(sorted(column.get("missing_by_source") or {}))
     measured = {
-        "n_present": len(content),
+        # PRESENCE IS RECOUNTED AS A READER COUNTS IT (plan P4-D158): a
+        # cell spelled `NA` is written, and read back as absent, so a
+        # construction that wrote one is refused here rather than
+        # certified as a present value.
+        "n_present": sum(
+            1 for cell in content if not reads_as_absent(cell, holes)
+        ),
         "min_length": min(len(cell) for cell in content),
         "max_length": max(len(cell) for cell in content),
         "n_all_digits": sum(
@@ -6791,6 +6942,11 @@ def _identifier_content(column):
     partners_wanted = distinct - column["n_distinct_folded"]
     identities_wanted = column["n_distinct_folded"]
     used = set()
+    # The spellings a reader reads as absent: contract section 14.4's
+    # vocabulary, and the column's own published hole spellings, which on
+    # a one-column document are every spelling the document declares
+    # absent (plan P4-D158).
+    holes = tuple(sorted(column.get("missing_by_source") or {}))
 
     def take(band, lengths, letters_needed):
         """The first unused spelling of this band at the first length that has one.
@@ -6828,6 +6984,8 @@ def _identifier_content(column):
                     )
                     if candidate in used:
                         continue
+                    if reads_as_absent(candidate, holes):
+                        continue
                     if ask and not any(char.isalpha() for char in candidate):
                         continue
                     used.add(candidate)
@@ -6861,6 +7019,17 @@ def _identifier_content(column):
     bases = layout_stand_in_bases(column)
     mixed = {}
     preferred = [""] * identities_wanted
+    # WHICH PARTNERS EACH IDENTITY IS HANDED (G9.3 step 4): the k-th
+    # partner goes to the (k mod identities)-th identity.
+    demands = {}
+    for taking in range(partners_wanted):
+        demands.setdefault(taking % identities_wanted, []).append(
+            groups[identities_wanted + taking]
+        )
+    paired = bool(offered) and partners_wear_published_layouts(
+        column, convention, demands
+    )
+    predicted = {}
     if offered:
         preferred = layout_preferences(
             column,
@@ -6869,6 +7038,7 @@ def _identifier_content(column):
             bands,
             [slot_lengths(p, low, high) for p in range(identities_wanted)],
             {0, 1} if high > low else {0},
+            demands,
         )
 
     identities = []
@@ -6887,6 +7057,8 @@ def _identifier_content(column):
                 groups[position],
                 letters_needed,
                 preferred[position],
+                holes,
+                bool(demands.get(position)),
             )
         if laid is None and bases:
             laid = layout_stand_in(
@@ -6899,10 +7071,27 @@ def _identifier_content(column):
                 used,
                 bands[position],
                 whole_numbers,
+                holes,
             )
         if laid is not None:
             used.add(laid)
             identities.append(laid)
+            # Its partners' cells are debited with it, off the layout it
+            # took, and remembered by partner (plan P4-D157).
+            if paired and demands.get(position):
+                owed = demands[position]
+                worn = partner_layouts(
+                    layout_of(laid, convention), convention, len(owed),
+                    column, offered,
+                )
+                slots = [
+                    taking for taking in range(partners_wanted)
+                    if taking % identities_wanted == position
+                ]
+                for order, taking in enumerate(slots):
+                    predicted[taking] = worn[order]
+                    if worn[order] in quotas:
+                        quotas[worn[order]] -= owed[order]
             continue
         identities.append(
             take(
@@ -6933,11 +7122,34 @@ def _identifier_content(column):
         window = slot_lengths(slot, low, high)
         position = taking % identities_wanted
         partner = None
+        size = groups[slot]
+        if paired and predicted.get(taking) in quotas:
+            quotas[predicted[taking]] += size
+        unnamed = first = None
         for candidate in partner_family(identities[position], high):
             if candidate in used or len(candidate) not in window:
                 continue
-            partner = candidate
-            break
+            if reads_as_absent(candidate, holes):
+                continue
+            if not paired:
+                partner = candidate
+                break
+            # THE MEMBER A PARTNER TAKES ON A PAIRED COLUMN (plan
+            # P4-D157): the first wearing a published layout with its
+            # cells left, else the first wearing none, else the first.
+            first = first or candidate
+            worn = layout_of(candidate, convention)
+            if worn in quotas:
+                if quotas[worn] >= size:
+                    partner = candidate
+                    break
+                continue
+            unnamed = unnamed or candidate
+        if paired and partner is None:
+            partner = unnamed or first
+        if paired and partner is not None:
+            if layout_of(partner, convention) in quotas:
+                quotas[layout_of(partner, convention)] -= size
         if partner is None:
             raise AssertionError(
                 f"the identities carry {len(partners)} partners and the profile "
@@ -10971,6 +11183,81 @@ def _identifier_layout_mixes():
     }
 
 
+def _identifier_absent_words():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=20, n_missing=0, n_distinct=20, n_distinct_folded=20,
+        n_numeric=0, n_not_numeric=20, n_out_of_range=0, n_contradictory=0,
+        min_length=2, max_length=2, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=20,
+        n_distinct_by_occurrences={"1": 20},
+        layout_forms={"@@": 20},
+    )
+    return {
+        "why": "a declared identifier publishing `{\"@@\": 20}`, whose layout "
+        "walk reaches `NA` at its thirteenth filling (G9.6, plan P4-D158). A "
+        "record number is never written in a spelling a reader reads as "
+        "absent, so `NA` is stepped over and the walk takes `VY` after `UI`; "
+        "presence is recounted as a reader counts it, so a construction that "
+        "wrote `NA` would recount nineteen present cells. This case's mutant "
+        "withdraws the reading of absence, `NA` is written, and the cells "
+        "move.",
+        "column": column,
+        "rows": 20,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_signed_layout():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=5, max_length=5, all_whole_numbers=True,
+        n_all_digits=0, n_code_alphabet=12,
+        n_distinct_by_occurrences={"1": 12},
+        layout_forms={"-%%%%": 12},
+    )
+    return {
+        "why": "a declared identifier of signed whole numbers publishing "
+        "`{\"-%%%%\": 12}` (G9.6, plan P4-D156). A layout that is a sign "
+        "before figures is worn by signed numbers alone, so the census proves "
+        "the table held them and the opening sign is not refused as a "
+        "formula: every cell is a minus and four figures. This case's mutant "
+        "refuses the sign, no filling of the layout is written, and the "
+        "check of 7.12 stops the oracle.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_layout_partners():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=33, n_missing=0, n_distinct=33, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=33, n_out_of_range=0, n_contradictory=0,
+        min_length=3, max_length=3, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=33,
+        n_distinct_by_occurrences={"1": 33},
+        layout_forms={"&%%": 11, "@%%": 22},
+    )
+    return {
+        "why": "a declared identifier whose eleven fold-collision partners "
+        "wear a published layout (G9.6, plan P4-D157), `{\"@%%\": 22, "
+        "\"&%%\": 11}` over twenty-two identities. An identity owed a "
+        "partner is visited first and takes a layout only where its "
+        "partner's layout, its letter turned over, has a cell left, and both "
+        "are debited together; the partner takes the member wearing a layout "
+        "with a cell left. This case's mutant withdraws the partners' "
+        "layouts, the identities take the census, the partners turn them "
+        "over, and the check of 7.12 stops the oracle.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": True,
+    }
+
+
 def _lower_case_stand_ins():
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
@@ -14470,6 +14757,9 @@ BRANCH_CASE_BUILDERS = {
     # THE FILL, THE SPACE AND THE MIXES OF A LAYOUT CENSUS (landing 2b.18's
     # repair pass). In this file, which has the room.
     "identifier_layout_mixes": _identifier_layout_mixes,
+    # THE PROVEN SIGN OF A LAYOUT CENSUS (plan P4-D156), in this file
+    # because the third had no room left beside its two neighbours.
+    "identifier_signed_layout": _identifier_signed_layout,
     # THE CASE OF A LETTER AND THE SHAPE OF A PUBLISHED LABEL (landing
     # 2b.18 part 2). Both go in this file, which has the room.
     "lower_case_stand_ins": _lower_case_stand_ins,
@@ -14529,6 +14819,13 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "spaced_decimal_comma": _spaced_decimal_comma,
     "narrow_spaced": _narrow_spaced,
     "thin_spaced": _thin_spaced,
+    # TWO RULES OF G9.6 THE REPAIR OF THE FINAL REVIEW OF THE LABELS ADDED
+    # (plans P4-D157 and P4-D158): a spelling read as absent is never
+    # written, and a partner wears the layout its identity reserved. The
+    # third, the proven sign, is in the first branch file, because both
+    # together passed this file's byte cap.
+    "identifier_absent_words": _identifier_absent_words,
+    "identifier_layout_partners": _identifier_layout_partners,
 }
 
 CASE_SETS = {
@@ -15199,6 +15496,36 @@ GIVEN_WORDS = {
         18209141115321277810, 4121229174028038910, 3400813849530246077,
         16764169360987406787, 9284587010259531064, 16054953443299658383,
         10855639821522867941,
+    ),
+    # Nineteen, eleven and thirty-two words: each identifier column's
+    # placement budget and its whole budget, as `identifier_layout`'s are.
+    "identifier_absent_words": (
+        13582273234154262364, 18398104693322419879, 34070170978230141,
+        3341762675134395213, 9954870715852195741, 11074722499558924578,
+        7086877514108549857, 5428095448531052280, 9858665311344715186,
+        14335373683300192717, 13568817218928113682, 7443554488824773121,
+        1507543091965614910, 15036176574875485406, 11305006835104430484,
+        3919574237267079812, 4662566541854203892, 2785393505384254902,
+        18167102002877775314,
+    ),
+    "identifier_signed_layout": (
+        411179136531786142, 1982861595377018348, 11950373906050309963,
+        17721752918347183196, 14209512559177407037, 16754303442300708120,
+        4204783424237075846, 4681831488814884530, 6446403972659101316,
+        8427775216937654035, 10211324520233377560,
+    ),
+    "identifier_layout_partners": (
+        7624411207500017663, 18018633891298768539, 9327666861298971719,
+        12069654061041524425, 13056208526174774753, 16270608102264184673,
+        7136254884387832689, 2146649404055757979, 8299392471497780641,
+        2314006865244965464, 6452669892852346852, 14498537279786915597,
+        5807170461159552380, 13761051749839567673, 13496788994203422708,
+        17658594639995542130, 11946899400267459287, 8643193479102873906,
+        7601562399756904492, 5111893150072507382, 10575175848735182819,
+        8657697069614245099, 13726072828175306438, 5859875945738675844,
+        808640240039876655, 9923500839825069631, 17981466901741366856,
+        7759697397388857000, 9890344465002701988, 16504403711328310884,
+        5583668501587289150, 12607117446844355094,
     ),
 }
 

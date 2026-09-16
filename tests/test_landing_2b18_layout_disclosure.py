@@ -470,14 +470,18 @@ def test_a_space_stands_between_two_characters_and_nowhere_else() -> None:
 
 
 def test_the_hexadecimal_case_is_the_case_most_letters_wear() -> None:
-    """P4-D125: case decides the marks, never whether a column is hexadecimal."""
-    assert parsing.layout_convention(["ab12", "CD34", "ef56"]) == (
+    """P4-D125: case decides the marks, never whether a column is hexadecimal.
+
+    Every column here has a position holding a letter in one cell and a
+    figure in another, which P4-D154 asks of a hexadecimal column.
+    """
+    assert parsing.layout_convention(["ab12", "CD34", "e5f6"]) == (
         parsing.LAYOUT_HEX_LOWER
     )
-    assert parsing.layout_convention(["AB12", "CD34", "ef56"]) == (
+    assert parsing.layout_convention(["AB12", "CD34", "e5f6"]) == (
         parsing.LAYOUT_HEX_UPPER
     )
-    assert parsing.layout_convention(["ab", "CD"]) == parsing.LAYOUT_HEX_LOWER
+    assert parsing.layout_convention(["a1", "1D"]) == parsing.LAYOUT_HEX_LOWER
     assert parsing.layout_convention(["ab12", "gh34"]) == parsing.LAYOUT_PLAIN
     assert parsing.layout_convention(["1234"]) == parsing.LAYOUT_PLAIN
 

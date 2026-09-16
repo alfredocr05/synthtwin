@@ -1,5 +1,5 @@
 {
-  "case_set": "The 20 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at, and, for landing 2b.18, the layout census of a declared record number, the lower-case key of a form census, and the shape of a published label worn by the stand-ins a census owes no form. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason, and the five landing 2b.17 added for the transforms that produce a whole DOCUMENT rather than one column's cells are the fourth, tests/reference/generation-document-vectors.json, for that same reason again.",
+  "case_set": "The 21 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at, and, for landing 2b.18, the layout census of a declared record number, the lower-case key of a form census, and the shape of a published label worn by the stand-ins a census owes no form. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason, and the five landing 2b.17 added for the transforms that produce a whole DOCUMENT rather than one column's cells are the fourth, tests/reference/generation-document-vectors.json, for that same reason again.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -1832,10 +1832,10 @@
     },
     "identifier_edge_spacing": {
       "cells": [
-        "1  ",
-        "1 ",
-        " 1",
-        "1"
+        "0  ",
+        "0 ",
+        " 0",
+        "0"
       ],
       "column": {
         "all_whole_numbers": true,
@@ -1878,12 +1878,12 @@
         "structural_role": "identifier"
       },
       "content": [
-        "1",
-        "1  ",
-        "1 ",
-        " 1"
+        "0",
+        "0  ",
+        "0 ",
+        " 0"
       ],
-      "csv_bytes": "1  \n1 \n 1\n1\n",
+      "csv_bytes": "0  \n0 \n 0\n0\n",
       "float64": [],
       "why": "a fold collision no case change can build. The column is written in figures alone, so its one identity holds no character with a case and the case-flip half of G9.3's partner family is empty from the start; the three partners the published counts ask for can come only from the edge spacing, which the fold trims away. The family's order is visible in all three: the total number of spaces ascends, and within one total the leading share ascends, so the spaces go to the end first and are then moved leftward one at a time. The second slot carries the longest published length, which a partner may hold only because spacing lengthens -- the whole point of the second slot being open to a partner when the column comes down to one identity. WHICH member each slot takes is G9.3 step 2's own rule since review item P2-C4-F4: every slot walks the family from that family's own start and takes the first member the column has not written whose length its own window admits, so the slot pinned to the longest length takes the first two-space placement and the two open slots after it take the two one-space placements in the family's order. A walk that began at an ordinal of the slot's own would step over a member nothing has written and no window has turned down, which is how two implementations came to write different bytes for this column. Every other published fact survives the spacing: the alphabet counts and the whole-number fact are read after trimming, the writer quotes a field for a comma, a quote character or a line ending and for nothing else, and the reader gives the spaces back unchanged.",
       "word_budget": {
@@ -2224,6 +2224,98 @@
         "6430887874155946278",
         "17302433675516304856",
         "15120724432689965450"
+      ]
+    },
+    "identifier_signed_layout": {
+      "cells": [
+        "-2714",
+        "-3458",
+        "-4274",
+        "-5090",
+        "-6807",
+        "-1997",
+        "-8449",
+        "-0181",
+        "-9265",
+        "-7623",
+        "-2632",
+        "-1816"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {
+          "-%%%%": 12
+        },
+        "max_length": 5,
+        "min_length": 5,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 12,
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_by_occurrences": {
+          "1": 12
+        },
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 12,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "-1816",
+        "-2632",
+        "-3458",
+        "-4274",
+        "-5090",
+        "-6807",
+        "-7623",
+        "-8449",
+        "-9265",
+        "-0181",
+        "-1997",
+        "-2714"
+      ],
+      "csv_bytes": "-2714\n-3458\n-4274\n-5090\n-6807\n-1997\n-8449\n-0181\n-9265\n-7623\n-2632\n-1816\n",
+      "float64": [],
+      "why": "a declared identifier of signed whole numbers publishing `{\"-%%%%\": 12}` (G9.6, plan P4-D156). A layout that is a sign before figures is worn by signed numbers alone, so the census proves the table held them and the opening sign is not refused as a formula: every cell is a minus and four figures. This case's mutant refuses the sign, no filling of the layout is written, and the check of 7.12 stops the oracle.",
+      "word_budget": {
+        "content": 0,
+        "placement": 11
+      },
+      "words": [
+        "411179136531786142",
+        "1982861595377018348",
+        "11950373906050309963",
+        "17721752918347183196",
+        "14209512559177407037",
+        "16754303442300708120",
+        "4204783424237075846",
+        "4681831488814884530",
+        "6446403972659101316",
+        "8427775216937654035",
+        "10211324520233377560"
       ]
     },
     "joined_readings": {

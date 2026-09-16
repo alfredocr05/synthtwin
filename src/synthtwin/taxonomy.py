@@ -5892,8 +5892,11 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
       difference where it was; for the two alphabet totals it is the
       smallest such layout those totals cover.
 
-    Each step raises the difference by at least two or ends the rule, so
-    it ends. What it costs is stated, not hidden: a column in which
+    The question is asked while anything is published, a census writing
+    only its pool included (plan P4-D151), and of the shared rule
+    `parsing.census_names_one_row`, which the loader asks too (plan
+    P4-D150). Each step raises the difference by at least two or ends the
+    rule, so it ends. What it costs is stated, not hidden: a column in which
     exactly one cell wears no named layout, and whose only named layout
     is the one taken back, publishes no layout at all.
 
@@ -5918,20 +5921,30 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
         (cells.code_alphabet, _LAYOUT_CODE_MARKS),
         (cells.all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
     ]
-    while named:
+    # THE LOOP RUNS WHILE ANYTHING IS PUBLISHED, THE POOL ALONE INCLUDED
+    # (plan P4-D151). It ran while a layout was NAMED, so a census that
+    # named none and wrote only its pool was never asked the question:
+    # 800 record numbers beside one cell of another layout, at a floor of
+    # eleven, published `{"(withheld)": 800}` beside 801 present cells,
+    # which names the one cell outside the pool -- and the loader then
+    # refused the producer's own document. The question is asked of the
+    # shared rule, `parsing.census_names_one_row`, which the loader asks
+    # too.
+    while named or written_pool:
         taken = ""
+        readings: list[tuple[int, int]] = []
         for total, marks in totals:
-            covered = _layout_cells_within(named, marks)
-            if covered >= 1 and total - covered == 1:
-                taken = _layout_to_take_back(named, marks)
-                break
-        if not taken:
-            named_cells = _layout_cells_within(named, "")
-            left = len(cells.present) - named_cells
-            if written_pool:
-                left = left - pooled
-            if left != 1:
-                break
+            readings += [(total, _layout_cells_within(named, marks))]
+        whole = _layout_cells_within(named, "")
+        if written_pool:
+            whole = whole + pooled
+        readings += [(len(cells.present), whole)]
+        failed = parsing.census_names_one_row({}, readings)
+        if failed < 0:
+            break
+        if failed < len(totals):
+            taken = _layout_to_take_back(named, totals[failed][1])
+        else:
             if written_pool:
                 written_pool = False
                 continue
@@ -6037,7 +6050,6 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # into keys the floor then pools: the decision below is taken per
     # form, once the whole count is known.
     lower: dict[str, int] = {}
-    withheld = 0
     for value in cells.present:
         form = parsing.shape_form(value)
         if form and parsing.is_lower_case_text(value):
@@ -6107,7 +6119,60 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # the values wearing any one form, so the test errs toward
     # refusing -- the safe direction.
     room_needed = cells.raw_distinct + cells.settings.small_cell_floor
+    published_counts = _form_census(counts, lower, cells, room_needed, True)
+    # A CASE SPLIT NEVER LEAVES A POOL OF ONE (plan P4-D153). The pool is
+    # a count a reader holds, and where a lower-case key stands the pool
+    # can be the one cell of that form written otherwise -- 799 `abc-00001`
+    # beside one `ABC-00799` published `{"&&&-%%%%%": 799, "(withheld)":
+    # 1}`, which names the one row. The split already refuses a remainder
+    # of one; this refuses the pool it would join, asked of the shared
+    # rule the loader asks, and the census is then written blind to case
+    # exactly as it was before any lower-case key existed.
+    if _holds_a_lower_case_key(published_counts) and (
+        parsing.census_names_one_row(_pool_of(published_counts), []) != -1
+    ):
+        published_counts = _form_census(
+            counts, lower, cells, room_needed, False
+        )
+    return published_counts
+
+
+def _pool_of(census: "dict[str, int]") -> "dict[str, int]":
+    """The pooled key of a census alone, or nothing where none is written.
+
+    A NAMED form is held to the floor, and at a floor of one a form one
+    cell wore is named by the owner's own choice of floor; the POOL is
+    what a case split can leave at one behind the floor's back.
+    """
+    if SUPPRESSED_LABEL in census:
+        return {SUPPRESSED_LABEL: census[SUPPRESSED_LABEL]}
+    return {}
+
+
+def _holds_a_lower_case_key(census: "dict[str, int]") -> bool:
+    """Whether any key of a form census is a lower-case key."""
+    for key in sorted(census):
+        if parsing.SHAPE_LOWER in key:
+            return True
+    return False
+
+
+def _form_census(
+    counts: "dict[str, int]",
+    lower: "dict[str, int]",
+    cells: _Cells,
+    room_needed: int,
+    split_case: bool,
+) -> "dict[str, int]":
+    """The form census from its per-form counts, split by case or not.
+
+    The body `_shape_forms` always ran, taken out so the census can be
+    built a second time blind to case where the split would leave a
+    count of one (plan P4-D153). ``split_case`` False names every form
+    blind to case, which is the census as it stood before P4-D121.
+    """
     floor = cells.settings.small_cell_floor
+    withheld = 0
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
         if parsing.form_room(form) < room_needed:
@@ -6125,7 +6190,7 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
         # twin's partners came out `A-a` and missed three keys by
         # thirty-three cells, where the case-blind census it had before
         # is met (plan P4-D121).
-        if cells.raw_distinct != len(cells.folded_counts):
+        if cells.raw_distinct != len(cells.folded_counts) or not split_case:
             lowered = 0
         split = _lower_case_split(
             form, counts[form], lowered, floor, room_needed
@@ -6175,17 +6240,20 @@ def _lower_case_split(
       key alone.
     - both at or over the line: both keys, the form's own key then
       counting the cells that were NOT all lower case.
-    - ``rest`` under the floor: the lower-case key, and the rest go to
-      the pool, where a group too small to name always goes -- and the
-      pool names no form, so it says nothing about which.
-    - ``rest`` at the floor but under two, which is a floor of one and
-      a single cell: nothing can be pooled at that floor and a count of
-      one may not stand beside its complement, so the form is named
-      blind to case as before.
+    - ``rest`` exactly one, at ANY floor (plan P4-D153): the form is
+      named blind to case. Pooled, that one cell is the one cell of the
+      form written otherwise, and where nothing else joins the pool the
+      census publishes it as a count of one -- 799 `abc-00001` beside one
+      `ABC-00799` published `{"&&&-%%%%%": 799, "(withheld)": 1}`.
+    - ``rest`` of two or more under the floor: the lower-case key, and
+      the rest go to the pool, where a group too small to name always
+      goes -- and the pool names no form, so it says nothing about which.
 
     A reader of a case-blind key therefore is shown nothing about case:
     it is written where the lower-case cells were too few to name, where
-    they were none, and where the rest were exactly one.
+    they were none, and where the rest were exactly one. `_shape_forms`
+    adds the census-wide half: a census that would name a lower-case key
+    beside a pool of one is built blind to case instead.
 
     Guarantees: returns {} or a mapping of the keys to name, the pooled
     key included where the rest are pooled. Raises nothing. No I/O.
@@ -6201,6 +6269,12 @@ def _lower_case_split(
         return {lower_key: lowered}
     if rest >= line:
         return {lower_key: lowered, form: rest}
+    if rest == 1:
+        # A REMAINDER OF ONE IS NEVER SPLIT OFF, AT ANY FLOOR (plan
+        # P4-D153). Pooled, it is the one cell of the form not written in
+        # lower case, and where nothing else joins the pool the census
+        # publishes it as a count of one.
+        return {}
     if rest < floor:
         return {lower_key: lowered, SUPPRESSED_LABEL: rest}
     return {}
