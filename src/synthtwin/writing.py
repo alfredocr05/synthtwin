@@ -1098,7 +1098,11 @@ def _move_into_place(
 
 
 def _write_part(
-    part: pathlib.Path, text: str, words: errors.ArtifactWords
+    part: pathlib.Path,
+    text: str,
+    words: errors.ArtifactWords,
+    encoding: str = "utf-8",
+    newline: str = "\n",
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
 
@@ -1140,7 +1144,7 @@ def _write_part(
     """
     place = pathlib.Path(part)
     try:
-        write_text_file(place, text, words)
+        write_text_file(place, text, words, encoding, newline)
     except PathValidationError as error:
         return (
             errors.output_not_writable(f"{place}", f"{error}", words),
@@ -1240,8 +1244,17 @@ def write_both_files(
     table_path: "pathlib.Path | None" = None,
     state: "DiskState | None" = None,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    first_encoding: str = "utf-8",
+    first_newline: str = "\n",
 ) -> "list[str]":
     """Write the two files as one outcome, or leave the folder untouched.
+
+    ``first_encoding`` and ``first_newline`` are how the FIRST file's
+    text is written. Left out, it is UTF-8 with line feeds like every
+    file this package writes; the generator passes the twin's source
+    encoding and an empty newline, because a twin is written in its
+    table's own form, its line endings already in its text (plan
+    P4-D40). The second file is always UTF-8 with line feeds.
 
     The two files are one thing: the machine-readable profile is what
     the twin gets built from, and the summary is the only place the
@@ -1487,7 +1500,9 @@ def write_both_files(
             )
 
         first_holds = errors.ON_DISK_WORKING
-        trouble, holds = _write_part(first_part, profile_text, words)
+        trouble, holds = _write_part(
+            first_part, profile_text, words, first_encoding, first_newline
+        )
         if trouble:
             raise _stopped_clean(
                 trouble,
@@ -2085,8 +2100,15 @@ def write_text_file(
     target: pathlib.Path,
     text: str,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    encoding: str = "utf-8",
+    newline: str = "\n",
 ) -> None:
     """Write ``text`` to ``target`` as UTF-8 with newline line endings.
+
+    ``encoding`` and ``newline`` change that for one file only, and one
+    caller passes them: a twin is written in its source table's encoding
+    with its line endings already in its text, so it is written with an
+    empty ``newline``, which translates nothing (plan P4-D40).
 
     Guarantees:
 
@@ -2108,7 +2130,7 @@ def write_text_file(
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:
-        destination.write_text(text, encoding="utf-8", newline="\n")
+        destination.write_text(text, encoding=encoding, newline=newline)
     except OSError as error:
         raise errors.ProfileError(
             errors.output_not_writable(f"{destination}", f"{error}", words)

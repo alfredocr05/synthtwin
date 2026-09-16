@@ -187,11 +187,18 @@ def test_a_static_file_can_reach_the_name_disagreement(
     tmp_path: pathlib.Path,
 ) -> None:
     # Found by differential fuzzing: nobody rewrites this file, and the
-    # two readers still name its one column differently.
-    target = _write(tmp_path, b"\r \" \n \r \r\\'\t\t")
+    # two readers still name its one column differently. Re-found for
+    # plan P4-D40, whose survey reads the file the fuzz found first as a
+    # header over no rows: this one is read as semicolon text, and pandas
+    # still names a column differently from the survey and the standard
+    # reader, which agree.
+    target = _write(tmp_path, b'\r;\\\\b"b;\r;|"bb"')
     with pytest.raises(errors.ProfileError) as caught:
         reading.read_table(str(target))
-    assert "name of column number 1" in f"{caught.value}", f"{caught.value}"
+    # Which column the two readers part company on is a fact of these
+    # fuzzed bytes and not of the refusal: what this pins is that a file
+    # nobody rewrites can reach it at all.
+    assert "name of column number" in f"{caught.value}", f"{caught.value}"
 
 
 # --------------------------------------------------------------------

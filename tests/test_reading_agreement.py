@@ -51,8 +51,8 @@ def test_a_file_rewritten_between_the_passes_is_refused(
     target = _write(tmp_path, b"old_name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row, refusals):
-        found = real(table_path, shown, first_row, refusals)
+    def rewrite_after_reading(table_path, shown, first_row, refusals, *rest):
+        found = real(table_path, shown, first_row, refusals, *rest)
         pathlib.Path(table_path).write_bytes(
             b"new_name,value\nnew_a,8\nnew_b,9\n"
         )
@@ -74,8 +74,8 @@ def test_values_rewritten_between_the_passes_are_refused(
     target = _write(tmp_path, b"name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row, refusals):
-        found = real(table_path, shown, first_row, refusals)
+    def rewrite_after_reading(table_path, shown, first_row, refusals, *rest):
+        found = real(table_path, shown, first_row, refusals, *rest)
         pathlib.Path(table_path).write_bytes(b"name,value\nnew_a,8\nnew_b,9\n")
         return found
 
@@ -261,11 +261,15 @@ def test_the_command_refuses_and_then_accepts_the_answer(
 def test_the_authoritative_pass_does_not_hold_every_row(
     tmp_path: pathlib.Path,
 ) -> None:
-    # The claim P1-D3 made and the code did not keep. A pass that
-    # streams peaks a hair above what it hands back; one that builds a
-    # list of every row and turns it into columns afterwards peaks at
-    # about 1.43 times that, measured at 5,000, 50,000 and 200,000 rows.
-    # The threshold sits between the two.
+    # The claim P1-D3 made and the code did not keep, RESTATED for plan
+    # P4-D40. The pass no longer streams: it holds the file's text and its
+    # lines while it fills the columns, because what it publishes about
+    # how the file is written is read off that text. What it must still
+    # never do is hold a SECOND copy of every row -- a list of rows turned
+    # into columns afterwards -- on top of that. Measured at 20,000 and
+    # 80,000 rows of this shape: the peak sits 5.4 times the file's size
+    # above what the pass hands back, at both sizes, so it grows with the
+    # file and not with the rows twice. The bound is drawn at seven.
     target = tmp_path / "big.csv"
     with target.open("w", encoding="utf-8", newline="") as handle:
         handle.write("record_code,site,amount,note\n")
@@ -282,10 +286,11 @@ def test_the_authoritative_pass_does_not_hold_every_row(
     held, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     assert found.n_rows == 20_000
-    assert peak <= held * 1.15, (
+    size = target.stat().st_size
+    assert peak - held <= 7 * size, (
         f"the authoritative pass peaked at {peak} bytes while handing back "
-        f"{held}: it is holding more than one row at a time, which is what "
-        f"P1-D3 promises it does not do"
+        f"{held} from a file of {size}: it is holding more than the file's "
+        f"text beside the columns it fills"
     )
 
 
@@ -347,9 +352,6 @@ def test_a_lone_high_byte_is_not_a_byte_order_mark(
     "name,body",
     sorted(
         {
-            "UTF-16 little-endian": b"\xff\xfe"
-            + "a,b\n1,2\n".encode("utf-16-le"),
-            "UTF-16 big-endian": b"\xfe\xff" + "a,b\n1,2\n".encode("utf-16-be"),
             "UTF-32 little-endian": b"\xff\xfe\x00\x00"
             + "a,b\n1,2\n".encode("utf-32-le"),
         }.items()
@@ -362,3 +364,24 @@ def test_a_complete_byte_order_mark_is_refused(
     with pytest.raises(errors.ProfileError) as caught:
         reading.read_table(str(target))
     assert "UTF-16" in f"{caught.value}"
+
+
+@pytest.mark.parametrize(
+    "name,body",
+    sorted(
+        {
+            "UTF-16 little-endian": b"\xff\xfe"
+            + "a,b\n1,2\n".encode("utf-16-le"),
+            "UTF-16 big-endian": b"\xfe\xff" + "a,b\n1,2\n".encode("utf-16-be"),
+        }.items()
+    ),
+)
+def test_a_complete_utf16_mark_is_read_as_utf16(
+    tmp_path: pathlib.Path, name: str, body: bytes
+) -> None:
+    # Refused until plan P4-D40: a UTF-16 file behind its whole mark is
+    # delimited text, and Excel's 'Unicode Text' is written that way.
+    target = _write(tmp_path, body)
+    table = reading.read_table(str(target))
+    assert table.column_names == ["a", "b"]
+    assert table.encoding in ("utf-16-le", "utf-16-be")

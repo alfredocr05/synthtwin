@@ -44,7 +44,7 @@ import dataclasses
 import importlib.metadata
 import pathlib
 
-from synthtwin import canonical, errors, parsing, reading, taxonomy, writing
+from synthtwin import canonical, dialect, errors, parsing, reading, taxonomy, writing
 from synthtwin.paths import validate_local_path
 from synthtwin.reading import Table
 
@@ -681,6 +681,15 @@ _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
 _VERSION = "the-version-that-wrote-this"
+# The kinds of `source.dialect` (plan P4-D40). An object that may be
+# `null`; a header cell as the file writes it, which may be empty or a
+# repeat; a blank line's own text, nothing or only spaces and tabs; and a
+# preamble line, which is free text of the file and stands here only at a
+# smallest group of one -- above it, only its stand-in may.
+_MAYBE_OBJECT = "object-or-nothing"
+_HEADER_TEXT = "a-header-cell-as-written"
+_BLANK_LINE = "a-blank-line-of-spaces-and-tabs"
+_PREAMBLE_LINE = "a-line-before-the-table"
 
 # What a canonical datetime is made of. `parsing.parse_datetime` writes
 # `2024-03-17`, `2024-03-17 14:05:00` and `2024-Q1`, and nothing else,
@@ -778,6 +787,77 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "header_source"): _WORD,
     ("source", "header_by_convention"): _FLAG,
     ("source", "header_evidence"): _SENTENCE,
+    # How the table's FILE is written (owner ruling 2026-09-15, plan
+    # P4-D40): every fact the twin needs to be written the way the table
+    # was. None of them is a value of the table except the preamble lines
+    # and the metadata rows, and each has a kind of its own here.
+    ("source", "dialect"): _OBJECT,
+    ("source", "dialect", "blank_lines"): _ARRAY,
+    ("source", "dialect", "blank_lines", _EACH): _OBJECT,
+    ("source", "dialect", "blank_lines", _EACH, "after"): _COUNT,
+    ("source", "dialect", "blank_lines", _EACH, "lines"): _COUNT,
+    ("source", "dialect", "blank_lines", _EACH, "text"): _BLANK_LINE,
+    # Past the cap on places, the blank lines counted.
+    ("source", "dialect", "blank_lines_spread"): _MAYBE_OBJECT,
+    ("source", "dialect", "blank_lines_spread", "first"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "last"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "lines"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "text"): _BLANK_LINE,
+    ("source", "dialect", "byte_order_mark"): _FLAG,
+    ("source", "dialect", "columns"): _ARRAY,
+    ("source", "dialect", "columns", _EACH): _OBJECT,
+    ("source", "dialect", "columns", _EACH, "pad"): _MAYBE_OBJECT,
+    ("source", "dialect", "columns", _EACH, "pad", "side"): _WORD,
+    ("source", "dialect", "columns", _EACH, "pad", "width"): _COUNT,
+    ("source", "dialect", "columns", _EACH, "quoting"): _OBJECT,
+    **{
+        ("source", "dialect", "columns", _EACH, "quoting", kind): _WORD
+        for kind in dialect.CELL_CLASSES
+    },
+    ("source", "dialect", "columns", _EACH, "sequence_start"): _MAYBE_NUMBER,
+    ("source", "dialect", "delimiter"): _WORD,
+    ("source", "dialect", "empty_rows"): _OBJECT,
+    ("source", "dialect", "empty_rows", "interior"): _COUNT,
+    ("source", "dialect", "empty_rows", "leading"): _COUNT,
+    ("source", "dialect", "empty_rows", "trailing"): _COUNT,
+    ("source", "dialect", "end_of_file_mark"): _FLAG,
+    ("source", "dialect", "escape"): _WORD,
+    ("source", "dialect", "final_line_ending"): _FLAG,
+    ("source", "dialect", "header_quoting"): _WORD,
+    # One cell per column saying what the column is, which is schema and
+    # is published like a name.
+    ("source", "dialect", "header_rows"): _ARRAY,
+    ("source", "dialect", "header_rows", _EACH): _ARRAY,
+    ("source", "dialect", "header_rows", _EACH, _EACH): _HEADER_TEXT,
+    ("source", "dialect", "header_rows_quoting"): _WORD,
+    ("source", "dialect", "initial_space"): _FLAG,
+    ("source", "dialect", "line_endings"): _ARRAY,
+    ("source", "dialect", "line_endings", _EACH): _OBJECT,
+    ("source", "dialect", "line_endings", _EACH, "ending"): _WORD,
+    ("source", "dialect", "line_endings", _EACH, "lines"): _COUNT,
+    # Past the cap on runs, how many lines end each way.
+    ("source", "dialect", "line_endings_spread"): _ARRAY,
+    ("source", "dialect", "line_endings_spread", _EACH): _OBJECT,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): _WORD,
+    ("source", "dialect", "line_endings_spread", _EACH, "lines"): _COUNT,
+    # Free text that may name anybody: published only at a smallest group
+    # of one, and otherwise as its stand-in (`dialect.withheld_line`).
+    ("source", "dialect", "preamble"): _ARRAY,
+    ("source", "dialect", "preamble", _EACH): _PREAMBLE_LINE,
+    ("source", "dialect", "preamble_withheld"): _FLAG,
+    ("source", "dialect", "row_order"): _MAYBE_OBJECT,
+    ("source", "dialect", "row_order", "collation"): _WORD,
+    ("source", "dialect", "row_order", "column"): _COUNT,
+    ("source", "dialect", "row_order", "direction"): _WORD,
+    ("source", "dialect", "separator_line"): _FLAG,
+    ("source", "dialect", "short_rows"): _FLAG,
+    ("source", "dialect", "trailing_delimiter"): _OBJECT,
+    ("source", "dialect", "trailing_delimiter", "header"): _FLAG,
+    ("source", "dialect", "trailing_delimiter", "rows"): _FLAG,
+    ("source", "dialect", "written_names"): _ARRAY,
+    ("source", "dialect", "written_names", _EACH): _OBJECT,
+    ("source", "dialect", "written_names", _EACH, "position"): _COUNT,
+    ("source", "dialect", "written_names", _EACH, "text"): _HEADER_TEXT,
     # The reserved manifest, filled in below.
     ("relationships",): _OBJECT,
     # The notes, AFTER they were lifted here out of the column blocks.
@@ -1255,6 +1335,19 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         parsing.built_in_missing_texts()
     ),
     ("source", "encoding"): reading.ENCODINGS,
+    ("source", "dialect", "columns", _EACH, "pad", "side"): dialect.PAD_SIDES,
+    **{
+        ("source", "dialect", "columns", _EACH, "quoting", kind): dialect.QUOTE_RULES
+        for kind in dialect.CELL_CLASSES
+    },
+    ("source", "dialect", "delimiter"): dialect.DELIMITERS,
+    ("source", "dialect", "escape"): dialect.ESCAPES,
+    ("source", "dialect", "header_quoting"): dialect.QUOTE_RULES,
+    ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
+    ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "row_order", "collation"): dialect.COLLATIONS,
+    ("source", "dialect", "row_order", "direction"): dialect.DIRECTIONS,
     ("source", "header_source"): (
         reading.HEADER_FROM_FILE,
         reading.HEADER_GENERATED,
@@ -1702,6 +1795,20 @@ def _leaf_is_published(
         return value is None
     if kind == _SENTENCE:
         return _is_sentence(value)
+    if kind == _HEADER_TEXT:
+        # A header cell or a metadata cell exactly as the file writes it:
+        # the schema text the twin's header lines have to carry, which a
+        # blank or repeated name makes empty or a repeat (plan P4-D40). A
+        # name may hold a line break, written quoted, like any other name.
+        return isinstance(value, str)
+    if kind == _BLANK_LINE:
+        return isinstance(value, str) and all(
+            character in " \t" for character in value
+        )
+    if kind == _PREAMBLE_LINE:
+        if not isinstance(value, str) or "\r" in value or "\n" in value:
+            return False
+        return context.floor <= 1 or dialect.withheld_line(value) == value
     if kind == _TABLE_NAME:
         # A column's name IS text of the real table, and the matrix
         # authorizes it: the twin's header row has to carry it. So this
@@ -1822,6 +1929,10 @@ def _check_published(
     if path not in PUBLICATION_RULES:
         raise _refuse(path)
     kind = PUBLICATION_RULES[path]
+    if kind == _MAYBE_OBJECT:
+        if node is None:
+            return
+        kind = _OBJECT
     if kind == _OBJECT:
         if not isinstance(node, dict):
             raise _refuse(path)
@@ -2059,6 +2170,63 @@ def check_publication(document: dict[str, object]) -> None:
     _affix_notes_are_bound(document)
 
 
+def _published_form(
+    table: Table, floor: int, columns: "list[dict[str, object]]"
+) -> dialect.Dialect:
+    """The table's written form, with its preamble held to the floor.
+
+    A preamble line is free text of the file and may name anybody, so it
+    is published as written only where the smallest group is one -- where
+    every label is already published at its own count -- and above that
+    as its stand-in (`dialect.withheld_line`), keeping the punctuation a
+    line began with so code that skips such lines still skips them.
+    """
+    surveyed = table.survey
+    if surveyed is None:
+        return dialect.ordinary(
+            len(table.column_names),
+            table.n_rows,
+            table.header_source == reading.HEADER_FROM_FILE,
+        )
+    form = surveyed.form
+    # A ROW ORDER THE TWIN COULD NOT KEEP IS NOT PUBLISHED. The survey
+    # reads a sort column off cells that all hold something; the column's
+    # own description may still count some of them absent -- cells of
+    # nothing but spaces, or spellings too rare to publish -- and the twin
+    # writes those empty, which no order of the published kind can hold.
+    # Contract invariant FD7 refuses the pair, so the order is dropped
+    # here, where both are in hand.
+    #
+    # The records holding nothing are the exception: each gives the sort
+    # column one empty cell, which the twin writes in that record, so the
+    # column may count exactly that many cells empty and no more.
+    order = form.row_order.column
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if order and order <= len(columns):
+        block = columns[order - 1]
+        blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
+        pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
+        if not isinstance(blank, int) or not isinstance(pooled, int) or blank + pooled != empties:
+            form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
+    if floor <= 1:
+        return form
+    stood_in = tuple([dialect.withheld_line(line) for line in form.preamble])
+    # WITHHELD MEANS "PUBLISHED AS STAND-INS", which is contract FD11's
+    # rule: some line held text and the floor is above one. It is not
+    # "the stand-in differs from the line", which a twin whose preamble
+    # already IS the stand-in would answer False for, describing the same
+    # form two ways.
+    held_text = False
+    for line in form.preamble:
+        if parsing.trimmed(line):
+            held_text = True
+    return dataclasses.replace(
+        form,
+        preamble=stood_in,
+        preamble_withheld=held_text,
+    )
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -2191,6 +2359,12 @@ def build_document(
             # The verdict in words, so a person reading the profile sees
             # the same sentence the summary gave them.
             "header_evidence": table.header_evidence,
+            # How the table's file is written -- its delimiter, quoting,
+            # line endings and the lines that are not records -- so the
+            # twin is written the same way (plan P4-D40).
+            "dialect": dialect.document_of(
+                _published_form(table, settings.small_cell_floor, columns)
+            ),
         },
         "n_rows": table.n_rows,
         "n_columns": len(table.column_names),

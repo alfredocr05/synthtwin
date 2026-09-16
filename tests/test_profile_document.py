@@ -315,8 +315,29 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
+# RE-RECORDED 2026-09-15 for plan P4-D40 (owner ruling: the twin is
+# written the way the source file was). `source` gained ONE key,
+# `dialect`, the written form of the demonstration file: a comma, UTF-8
+# with no mark, line feeds on every line, minimal quoting in every
+# column, and the rows sorted by `record_code`. HOW IT WAS CHECKED, by
+# this file's own procedure: the new document written out again with
+# that one key deleted hashes to the digest this one replaces --
+# dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf
+# -- so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 again, at the repair of landing 2b.9: past their
+# caps the written form publishes line endings and blank lines COUNTED
+# rather than refusing the file, so `source.dialect` gained two keys,
+# `blank_lines_spread: null` and `line_endings_spread: []`, on every
+# description. Checked the same way: this document with those two keys
+# deleted hashes to 37db1d0303a771bfae871bb1ea30c4e8597b4b00b037a3c6f5169786fbdd3aca,
+# the digest this one replaces.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5. The two landings' causes stand together above. CHECKED by
+# this file's own procedure: this document written out again with
+# `source.dialect` deleted hashes to the digest the base commit 367e1d7
+# froze, so 2b.9's single added key is the whole of the difference.
 GOLDEN_SHA256 = (
-    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
+    "4b5dc01def67ea46f9432b5d7c1b50d7b933ae38a3a0c1c5d2598abb07727a1d"
 )
 
 

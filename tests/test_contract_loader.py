@@ -1271,7 +1271,133 @@ def battery() -> list[Mutation]:
             edit_in("relationships", grain="one row per person"),
             names="update synthtwin",
         ),
+        # -- how the table's file is written (plan P4-D40) -------------
+        Mutation("FD1", "a written form one column short", _form_one_column_short),
+        Mutation("FD2", "line endings for one line too many", _form_one_line_too_many),
+        Mutation(
+            "FD2", "line endings counted out of their listed order",
+            _form_counted_out_of_order,
+        ),
+        Mutation(
+            "FD4", "blank lines counted below the cap on places",
+            _form_blank_lines_counted_below_the_cap,
+        ),
+        Mutation(
+            "FD3", "a byte-order mark on Latin-1 text", _form_marked_latin1
+        ),
+        Mutation(
+            "FD4", "blank lines after more records than the table has",
+            _form_blank_past_the_end,
+        ),
+        Mutation(
+            "FD5", "a record of nothing in a table with a column never absent",
+            _form_an_empty_record,
+        ),
+        Mutation(
+            "FD6", "a row sequence in a column with absent cells",
+            _form_sequence_with_holes,
+        ),
+        Mutation(
+            "FD7", "rows sorted by a column with absent cells",
+            _form_sorted_by_holes,
+        ),
+        Mutation(
+            "FD8", "a header cell written as another name",
+            _form_written_as_another_name,
+        ),
+        Mutation(
+            "FD9", "a quoting rule for rows of column descriptions that do not exist",
+            _form_rule_for_no_rows,
+        ),
+        Mutation(
+            "FD10", "rows with a trailing delimiter and left-out cells",
+            _form_trailing_and_short,
+        ),
+        Mutation(
+            "FD11", "a preamble recorded as withheld that holds nothing",
+            _form_withheld_nothing,
+        ),
     ]
+
+
+def _form(document: Document) -> Document:
+    """The written form of the base description (`source.dialect`)."""
+    return typing.cast(Document, document["source"]["dialect"])
+
+
+def _position_of(document: Document, name: str) -> int:
+    return typing.cast(int, at(document, name)["position"])
+
+
+def _form_one_column_short(document: Document) -> None:
+    _form(document)["columns"] = _form(document)["columns"][:-1]
+
+
+def _form_one_line_too_many(document: Document) -> None:
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_counted_out_of_order(document: Document) -> None:
+    """Counts that account for every line, with CRLF listed before LF."""
+    lines = typing.cast(int, _form(document)["line_endings"][0]["lines"])
+    _form(document)["line_endings"] = []
+    _form(document)["line_endings_spread"] = [
+        {"ending": "crlf", "lines": 1},
+        {"ending": "lf", "lines": lines - 1},
+    ]
+
+
+def _form_blank_lines_counted_below_the_cap(document: Document) -> None:
+    _form(document)["blank_lines_spread"] = {
+        "first": 0, "last": 1, "lines": 2, "text": "",
+    }
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_marked_latin1(document: Document) -> None:
+    document["source"]["encoding"] = "latin-1"
+    document["source"]["used_fallback_encoding"] = True
+    _form(document)["byte_order_mark"] = True
+
+
+def _form_blank_past_the_end(document: Document) -> None:
+    rows = typing.cast(int, document["n_rows"])
+    _form(document)["blank_lines"] = [{"after": rows + 1, "lines": 1, "text": ""}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_an_empty_record(document: Document) -> None:
+    _form(document)["empty_rows"]["interior"] = 1
+
+
+def _form_sequence_with_holes(document: Document) -> None:
+    place = _position_of(document, "visits") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _form_sorted_by_holes(document: Document) -> None:
+    _form(document)["row_order"] = {
+        "collation": "number",
+        "column": _position_of(document, "visits"),
+        "direction": "ascending",
+    }
+
+
+def _form_written_as_another_name(document: Document) -> None:
+    _form(document)["written_names"] = [{"position": 1, "text": "renamed"}]
+
+
+def _form_rule_for_no_rows(document: Document) -> None:
+    _form(document)["header_rows_quoting"] = "always"
+
+
+def _form_trailing_and_short(document: Document) -> None:
+    _form(document)["short_rows"] = True
+    _form(document)["trailing_delimiter"]["rows"] = True
+
+
+def _form_withheld_nothing(document: Document) -> None:
+    _form(document)["preamble_withheld"] = True
 
 
 BATTERY = battery()

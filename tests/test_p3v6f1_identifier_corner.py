@@ -77,6 +77,11 @@ def _letters() -> "list[str]":
     return upper + lower
 
 
+def _interleaved(cells: "list[str]") -> "list[str]":
+    """The even places, then the odd: the same cells, in no order."""
+    return cells[0::2] + cells[1::2]
+
+
 def _figures(low: int, high: int) -> "list[str]":
     """The whole numbers from ``low`` to ``high``, written in figures."""
     return [f"{number}" for number in range(low, high + 1)]
@@ -113,8 +118,11 @@ _BATTERY: "tuple[tuple[str, list[str]], ...]" = (
     ("wide-over-the-line", _outside_the_code_alphabet(26)),
     # Boundary 2 -- whole numbers in figures alone open with a figure
     # that is not zero (G9.6), so one character spells nine and not ten.
-    ("figures-at-the-line", _figures(1, 9)),
-    ("figures-over-the-line", _figures(0, 9)),
+    # Interleaved: in order, a column of 0..9 or 1..9 is the row sequence
+    # (plan P4-D40) and is written exactly, whatever its corner. The
+    # order of a column's cells is none of the facts a corner reads.
+    ("figures-at-the-line", _interleaved(_figures(1, 9))),
+    ("figures-over-the-line", _interleaved(_figures(0, 9))),
     # Boundary 3 -- the same rule two characters wide.
     ("padded-at-the-line", _padded(10, 99)),
     ("padded-over-the-line", _padded(0, 99)),
@@ -406,7 +414,11 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
     """
     folder = tmp_path / "figures"
     folder.mkdir()
-    described = _describe(folder, _figures(0, 9), "figures-ten")
+    # Interleaved, as the battery's own witnesses are: in order the ten
+    # figures are the row sequence (plan P4-D40) and are written exactly.
+    described = _describe(
+        folder, _interleaved(_figures(0, 9)), "figures-ten"
+    )
     column = described.columns[0]
     facts = column.facts
     assert isinstance(facts, contract.IdentifierFacts)

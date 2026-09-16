@@ -41,7 +41,6 @@ Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
-import dataclasses
 import os
 import pathlib
 import typing
@@ -241,7 +240,11 @@ _BATTERY: "dict[str, str | bytes]" = {
     "a name holding a line break": '"age\nsite"\n',
     "no bytes at all": "",
     "blank lines alone": "\n\n",
-    # -- files whose first row cannot name columns --------------------
+    # -- files whose header repeats a name or leaves one blank --------
+    # Refused at that row until plan P4-D40; the reader now names such a
+    # column the way pandas names it, so the producer DESCRIBES these,
+    # and the properties below, which are about files it refuses, pass
+    # them by.
     "a repeated name, first and last": "dup,a,dup\n" + _ROWS + "\n",
     "a repeated name, last two": "a,dup,dup\n" + _ROWS + "\n",
     "a repeated name, first two": "dup,dup,c\n" + _ROWS + "\n",
@@ -254,9 +257,15 @@ _BATTERY: "dict[str, str | bytes]" = {
     "a NUL in the header": b"a\x00b,c,d\n",
     "a NUL in the header, one row": b"a\x00b,c,d\n1,2,3\n",
     "a NUL beside a repeated name": b"dup,dup,c\n1,2,3\n\x00,2,3\n",
-    "ragged": "a,b,c\n1,2\n3,4,5\n",
-    "ragged with a repeated name": "dup,dup,c\n1,2\n3,4,5\n",
-    "ragged with a blank name": ",b,c\n1,2\n3,4,5\n",
+    "a NUL in a value": b"a,b,c\n1,\x00,3\n",
+    # Ragged by a row one field TOO LONG. A row short by its trailing
+    # empty cells is a way some writers write every row that ends empty,
+    # and since plan P4-D40 a file doing that consistently is read; a
+    # row too long is still a file no rule of the written form reads.
+    "ragged": "a,b,c\n1,2,3,4\n3,4,5\n",
+    "ragged with a repeated name": "dup,dup,c\n1,2,3,4\n3,4,5\n",
+    "ragged with a blank name": ",b,c\n1,2,3,4\n3,4,5\n",
+    "ragged under other names": "x,y,z\n1,2,3,4\n3,4,5\n",
     "an unclosed quotation mark": 'a,b,c\n"1,2,3\n',
     # -- files the producer reads ------------------------------------
     "the table itself": "age,site,note\n" + _ROWS + "\n",
@@ -315,12 +324,10 @@ def test_two_files_the_producer_refuses_alike_get_one_report(
 @pytest.mark.parametrize(
     ("one", "two"),
     (
-        ("a repeated name, first and last", "a repeated name, last two"),
         ("a NUL in the header", "a NUL in the header, one row"),
         ("ragged", "ragged with a repeated name"),
         ("ragged", "ragged with a blank name"),
         ("the published names", "two other names"),
-        ("a repeated name, first two", "a repeated name, first and last"),
     ),
 )
 def test_the_named_routes(
@@ -331,9 +338,10 @@ def test_the_named_routes(
     Each pair is two files `synthtwin profile` cannot tell apart, named
     so a reader of the failure knows which route reopened:
 
-    * the positions of a repeated name -- the profiler's refusal quotes
-      the NAME and names no position, so `dup,a,dup` and `a,dup,dup` are
-      one file to it;
+    * the positions of a repeated name was the first of them, and it
+      closed with plan P4-D40: the profiler no longer refuses a repeated
+      name, so `dup,a,dup` and `a,dup,dup` are two files it describes and
+      owe each other no report;
     * whether a NUL-bearing header is followed by a row -- the reader
       raises the zero-byte refusal inside its own streaming loop, before
       it has counted a row, so the row's existence is not in its reply;
@@ -355,74 +363,42 @@ def test_the_named_routes(
     assert first == second
 
 
-def test_a_report_never_names_where_a_repeated_name_stands(
+def test_a_blank_or_repeated_name_is_read_and_its_header_misses(
     tmp_path: pathlib.Path, headed: contract.Profile
 ) -> None:
-    """The one thing the report used to say that the refusal does not.
+    """What stands where the two header-refusal tests stood (plan P4-D40).
 
-    Amendment A-P3-7 clause 2 held that naming the column NUMBERS
-    publishes strictly less than describing the file would. It does not:
-    the profiler's refusal quotes the repeated NAME and names no
-    position, so the numbers are a fact of their own. A-P3-10 clause 2
-    corrects that account. What the report says now is the fact the
-    refusal carries, and this asserts both halves -- no position, and
-    still a MISS.
+    Those tests held a report to the refusal's own reply: no position
+    for a repeated name, the position for a blank one. The profiler
+    refuses neither now -- it names the column the way pandas names it
+    and publishes the cell as written -- so there is no refusal to be
+    equivalent to. What holds instead: the file is read, its names and
+    its written header cells miss against a description publishing
+    other ones, and no spelling of the file is in the report.
     """
-    folder = tmp_path / "positions"
+    folder = tmp_path / "names"
     folder.mkdir()
     for label in (
         "a repeated name, first and last",
         "a repeated name, last two",
         "a repeated name, first two",
+        "a blank name at one",
+        "a blank name at two",
     ):
         target = _written(folder, _BATTERY[label])
         outcome = validation.measure(headed, str(target))
-        named = [
-            check
-            for check in outcome.checks
-            if check.subcheck in ("header.names", "columns.order")
-        ]
-        assert len(named) == 2, label
-        for check in named:
-            assert check.verdict == validation.MISSED, (label, check)
-            assert "column number" not in check.achieved, (label, check)
+        for subcheck in ("header.names", "bytes.written-names"):
+            verdicts = [
+                check.verdict
+                for check in outcome.checks
+                if check.subcheck == subcheck
+            ]
+            assert verdicts == [validation.MISSED], (label, subcheck)
         spoken = " ".join(
             f"{check.published} {check.achieved} {check.citation}"
             for check in outcome.checks
         )
-        for spelling in ("dup", "qq", "ww"):
-            assert spelling not in spoken, (label, spelling)
-
-
-def test_a_blank_name_still_names_the_position_its_refusal_names(
-    tmp_path: pathlib.Path, headed: contract.Profile
-) -> None:
-    """The other direction: what the refusal DOES carry is still said.
-
-    The profiler's refusal for a blank name names the column number, so
-    a report may state it and two files with the blank in different
-    columns may differ. A repair that answered the positions problem by
-    taking every number off would have taken this with it, and the
-    report would then say less than the person gets by running the
-    producer -- which is the vacuity V3.4 refuses, in the small.
-    """
-    folder = tmp_path / "blank"
-    folder.mkdir()
-    first = _the_report_says(folder, headed, _BATTERY["a blank name at one"])
-    second = _the_report_says(folder, headed, _BATTERY["a blank name at two"])
-    assert first != second, (
-        "two files the profiler refuses with two different sentences got "
-        "one report, so the report says less than running the producer "
-        "would"
-    )
-    target = _written(folder, _BATTERY["a blank name at two"])
-    outcome = validation.measure(headed, str(target))
-    named = [
-        check for check in outcome.checks if check.subcheck == "header.names"
-    ]
-    assert len(named) == 1
-    assert named[0].verdict == validation.MISSED
-    assert "column number 2" in named[0].achieved
+        assert "dup" not in spoken, label
 
 
 def test_a_file_the_reader_refuses_for_anything_else_is_refused(
@@ -521,7 +497,7 @@ def test_the_zero_row_residual_is_where_the_amendment_left_it(
     """
     folder = tmp_path / "zero"
     folder.mkdir()
-    zero_row = dataclasses.replace(headed, n_rows=0)
+    zero_row = fixtures.zero_rows(headed)
     first = _the_report_says(folder, zero_row, "age,site,note\n")
     second = _the_report_says(folder, zero_row, "foo,bar,baz\n")
     assert first != second, (
@@ -580,7 +556,7 @@ def test_a_zero_row_description_reaches_its_report_through_the_reader(
     """
     folder = tmp_path / "zero-battery"
     folder.mkdir()
-    zero_row = dataclasses.replace(headed, n_rows=0)
+    zero_row = fixtures.zero_rows(headed)
     grouped: dict[str, list[str]] = {}
     words: dict[str, str] = {}
     for label, body in _BATTERY.items():
@@ -637,7 +613,7 @@ def test_the_named_zero_row_witness_is_one_refusal_and_one_answer(
         ),
         "one-column",
     )
-    zero_row = dataclasses.replace(one_column, n_rows=0)
+    zero_row = fixtures.zero_rows(one_column)
     named = "column_1\n1,2\n"
     other = "other\n1,2\n"
     assert _the_producer_says(folder, named) == _the_producer_says(
@@ -663,7 +639,7 @@ def test_no_verdict_is_stated_about_a_file_no_reading_finishes(
     """
     folder = tmp_path / "unreadable"
     folder.mkdir()
-    zero_row = dataclasses.replace(headed, n_rows=0)
+    zero_row = fixtures.zero_rows(headed)
     reached = 0
     for label, body in _BATTERY.items():
         if _the_readers_word(folder, body) != "(refused for something else)":

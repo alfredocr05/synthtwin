@@ -90,7 +90,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import canonical, errors, parsing
+from synthtwin import canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -149,6 +149,7 @@ TOP_LEVEL_KEYS = (
 )
 
 SOURCE_KEYS = (
+    "dialect",
     "encoding",
     "header_by_convention",
     "header_evidence",
@@ -382,7 +383,7 @@ QUALITY_STATES = ("ok", "empty", "unrepresentable")
 
 STRUCTURAL_ROLES = ("data", "identifier")
 
-ENCODINGS = ("utf-8-sig", "latin-1")
+ENCODINGS = dialect.ENCODINGS
 
 HEADER_SOURCES = ("file", "generated")
 
@@ -888,7 +889,74 @@ INVARIANTS = {
     ),
     "S5": (
         "the description records that it fell back to another encoding "
-        "exactly when the encoding it names is the fallback one"
+        "exactly when the encoding it names is a fallback one, Latin-1 or "
+        "Windows-1252"
+    ),
+    # How the table's file is written (plan P4-D40, contract 4.3a).
+    "FD1": (
+        "the written form describes one column for every column the "
+        "table has"
+    ),
+    "FD2": (
+        "the line endings account for every line the file holds -- the "
+        "separator hint, the preamble, the header, the rows of column "
+        "descriptions, the records and the blank lines -- less the last "
+        "where the file does not end its last line, in runs that each "
+        "end their lines one way, or, past the cap on runs and in their "
+        "place, as how many lines end each of two or more ways in the "
+        "listed order of endings"
+    ),
+    "FD3": (
+        "a byte-order mark is recorded only for UTF-8 or UTF-16 text, "
+        "and always for UTF-16"
+    ),
+    "FD4": (
+        "blank lines stand in file order after no more records than the "
+        "table has, hold nothing but spaces and tabs, and stand inside a "
+        "one-column table nowhere but after its last record; neither the "
+        "blank places nor the runs of line endings pass their caps; and "
+        "blank lines published counted stand in place of places, only "
+        "past that cap, in a table of two or more columns, from a first "
+        "place no later than the last and the last no later than the "
+        "table's end, holding nothing but spaces and tabs"
+    ),
+    "FD5": (
+        "records holding nothing are published only in a table of two or "
+        "more columns with no row sequence, and no more of them than any "
+        "column has absent cells"
+    ),
+    "FD6": (
+        "a column published as the row sequence has every cell present, "
+        "in a table of two or more rows"
+    ),
+    "FD7": (
+        "the column the rows are sorted by is a column of the table and "
+        "not the row sequence, holding no empty cell and no absent cell "
+        "the twin writes empty outside the records holding nothing -- "
+        "exactly as many of them as there are such records -- in a table "
+        "of three or more rows"
+    ),
+    "FD8": (
+        "a header cell written differently from its column's name stands "
+        "under a header read from the file, in column order, and the "
+        "header as written names every column what the description names "
+        "it"
+    ),
+    "FD9": (
+        "rows of column descriptions stand only under a header read from "
+        "the file, two of them, each as wide as the table, and carry a "
+        "quoting rule only where they exist"
+    ),
+    "FD10": (
+        "only a header read from the file carries a trailing delimiter or "
+        "a quoting rule of its own, and rows do not both carry a trailing "
+        "delimiter and leave out their empty cells"
+    ),
+    "FD11": (
+        "every line before the table is one line, within the cap, and is "
+        "published as written only at a smallest group of one -- above "
+        "it, as its stand-in, and recorded as withheld exactly when one "
+        "held text"
     ),
     "S6": (
         "the first row can only have been taken as names by convention "
@@ -1385,6 +1453,8 @@ class SourceBlock:
     header_source: str
     header_by_convention: bool
     header_evidence: str
+    # How the table's FILE is written (contract 4.3a, plan P4-D40).
+    dialect: "dialect.Dialect"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3561,13 +3631,13 @@ def _is_an_offset(text: str) -> bool:
 
 
 def _source(value: object) -> SourceBlock:
-    """The five keys saying how the table was read (contract 4.3).
+    """The six keys saying how the table was read (contract 4.3, 4.3a).
 
     Guarantees: accepts the value under `source`; returns it as a typed
     object. Raises ProfileError for an unknown or missing key, a wrong
     type, a value outside its list, and for either of the two
     invariants: S5, which ties the fallback flag to the encoding it
-    names, and S6, which refuses a first row taken as names by
+    names -- Latin-1 or Windows-1252 -- and S6, which refuses a first row taken as names by
     convention when the names did not come from the file at all --
     generated names are not a convention about somebody's first record;
     they are names synthtwin made.
@@ -3588,7 +3658,7 @@ def _source(value: object) -> SourceBlock:
     evidence = _filled_text(
         mapping["header_evidence"], "header_evidence", where
     )
-    if fallback != (encoding == "latin-1"):
+    if fallback != (encoding in dialect.FALLBACK_ENCODINGS):
         raise _broken(
             "S5",
             where,
@@ -3608,7 +3678,378 @@ def _source(value: object) -> SourceBlock:
         header_source=header_source,
         header_by_convention=by_convention,
         header_evidence=evidence,
+        dialect=_dialect_block(mapping["dialect"]),
     )
+
+
+_WRITTEN = "in the block saying how the table's file is written"
+
+
+def _dialect_block(value: object) -> dialect.Dialect:
+    """The written form of the table's file, typed (contract 4.3a).
+
+    Guarantees: accepts the value under `source.dialect`; returns it as a
+    typed object. Raises ProfileError for an unknown or missing key, a
+    wrong type, and a value outside its list. The rules that tie the form
+    to the columns and the row count are `_dialect_rules`, run once the
+    columns are read.
+    """
+    where = _WRITTEN
+    mapping = _mapping(value, "dialect", "in the block saying how the table was read")
+    _keys(mapping, where, dialect.DOCUMENT_KEYS, "that block")
+    runs: list[dialect.EndingRun] = []
+    for item in _listing(mapping["line_endings"], "line_endings", where):
+        entry = _mapping(item, "line_endings", where)
+        _keys(entry, where, ("ending", "lines"), "a run of line endings")
+        runs += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.ENDINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    census: list[dialect.EndingRun] = []
+    for item in _listing(mapping["line_endings_spread"], "line_endings_spread", where):
+        entry = _mapping(item, "line_endings_spread", where)
+        _keys(entry, where, ("ending", "lines"), "a count of line endings")
+        census += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.ENDINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    spread: "dialect.BlankSpread | None" = None
+    if mapping["blank_lines_spread"] is not None:
+        counted = _mapping(mapping["blank_lines_spread"], "blank_lines_spread", where)
+        _keys(counted, where, ("first", "last", "lines", "text"), "the blank lines counted")
+        spread = dialect.BlankSpread(
+            first=_whole(counted["first"], "first", where, 0),
+            last=_whole(counted["last"], "last", where, 0),
+            lines=_whole(counted["lines"], "lines", where, 1),
+            text=_text(counted["text"], "text", where),
+        )
+    blanks: list[dialect.BlankPlace] = []
+    for item in _listing(mapping["blank_lines"], "blank_lines", where):
+        entry = _mapping(item, "blank_lines", where)
+        _keys(entry, where, ("after", "lines", "text"), "a place of blank lines")
+        blanks += [
+            dialect.BlankPlace(
+                after=_whole(entry["after"], "after", where, 0),
+                lines=_whole(entry["lines"], "lines", where, 1),
+                text=_text(entry["text"], "text", where),
+            )
+        ]
+    preamble = tuple(
+        [
+            _text(item, "preamble", where)
+            for item in _listing(mapping["preamble"], "preamble", where)
+        ]
+    )
+    header_rows: list[tuple[str, ...]] = []
+    for item in _listing(mapping["header_rows"], "header_rows", where):
+        header_rows += [
+            tuple(
+                [
+                    _text(cell, "header_rows", where)
+                    for cell in _listing(item, "header_rows", where)
+                ]
+            )
+        ]
+    written: list[dialect.WrittenName] = []
+    for item in _listing(mapping["written_names"], "written_names", where):
+        entry = _mapping(item, "written_names", where)
+        _keys(entry, where, ("position", "text"), "a header cell as written")
+        written += [
+            dialect.WrittenName(
+                position=_whole(entry["position"], "position", where, 1),
+                text=_text(entry["text"], "text", where),
+            )
+        ]
+    trailing = _mapping(mapping["trailing_delimiter"], "trailing_delimiter", where)
+    _keys(trailing, where, ("header", "rows"), "the trailing delimiter block")
+    empty = _mapping(mapping["empty_rows"], "empty_rows", where)
+    _keys(empty, where, ("interior", "leading", "trailing"), "the empty records block")
+    columns: list[dialect.ColumnForm] = []
+    for item in _listing(mapping["columns"], "columns", where):
+        entry = _mapping(item, "columns", where)
+        _keys(entry, where, ("pad", "quoting", "sequence_start"), "a column's written form")
+        quoting = _mapping(entry["quoting"], "quoting", where)
+        _keys(quoting, where, dialect.CELL_CLASSES, "a column's quoting")
+        rules = tuple(
+            [
+                _one_of(quoting[kind], kind, where, dialect.QUOTE_RULES)
+                for kind in dialect.CELL_CLASSES
+            ]
+        )
+        side = ""
+        width = 0
+        if entry["pad"] is not None:
+            pad = _mapping(entry["pad"], "pad", where)
+            _keys(pad, where, ("side", "width"), "a column's padding")
+            side = _one_of(pad["side"], "side", where, dialect.PAD_SIDES)
+            width = _whole(pad["width"], "width", where, 2)
+        start = -1
+        if entry["sequence_start"] is not None:
+            start = _whole(entry["sequence_start"], "sequence_start", where, 0)
+            if start not in dialect.SEQUENCE_STARTS:
+                raise _out_of_range(
+                    "sequence_start", where, f"{start}", "0 or 1"
+                )
+        columns += [
+            dialect.ColumnForm(
+                quoting=rules, pad_side=side, pad_width=width, sequence_start=start
+            )
+        ]
+    order = dialect.NO_ORDER
+    if mapping["row_order"] is not None:
+        sorted_by = _mapping(mapping["row_order"], "row_order", where)
+        _keys(sorted_by, where, ("collation", "column", "direction"), "the row order")
+        order = dialect.RowOrder(
+            column=_whole(sorted_by["column"], "column", where, 1),
+            direction=_one_of(sorted_by["direction"], "direction", where, dialect.DIRECTIONS),
+            collation=_one_of(sorted_by["collation"], "collation", where, dialect.COLLATIONS),
+        )
+    return dialect.Dialect(
+        delimiter=_one_of(mapping["delimiter"], "delimiter", where, dialect.DELIMITERS),
+        initial_space=_truth(mapping["initial_space"], "initial_space", where),
+        escape=_one_of(mapping["escape"], "escape", where, dialect.ESCAPES),
+        separator_line=_truth(mapping["separator_line"], "separator_line", where),
+        byte_order_mark=_truth(mapping["byte_order_mark"], "byte_order_mark", where),
+        line_endings=tuple(runs),
+        final_line_ending=_truth(mapping["final_line_ending"], "final_line_ending", where),
+        end_of_file_mark=_truth(mapping["end_of_file_mark"], "end_of_file_mark", where),
+        preamble=preamble,
+        preamble_withheld=_truth(mapping["preamble_withheld"], "preamble_withheld", where),
+        header_quoting=_one_of(mapping["header_quoting"], "header_quoting", where, dialect.QUOTE_RULES),
+        header_rows=tuple(header_rows),
+        header_rows_quoting=_one_of(
+            mapping["header_rows_quoting"], "header_rows_quoting", where, dialect.QUOTE_RULES
+        ),
+        written_names=tuple(written),
+        header_trailing_delimiter=_truth(trailing["header"], "header", where),
+        rows_trailing_delimiter=_truth(trailing["rows"], "rows", where),
+        short_rows=_truth(mapping["short_rows"], "short_rows", where),
+        blank_lines=tuple(blanks),
+        empty_rows_leading=_whole(empty["leading"], "leading", where, 0),
+        empty_rows_interior=_whole(empty["interior"], "interior", where, 0),
+        empty_rows_trailing=_whole(empty["trailing"], "trailing", where, 0),
+        columns=tuple(columns),
+        row_order=order,
+        line_endings_spread=tuple(census),
+        blank_lines_spread=spread,
+    )
+
+
+def _dialect_rules(
+    source: SourceBlock,
+    columns: "tuple[ColumnBlock, ...]",
+    n_rows: int,
+    floor: int,
+) -> None:
+    """The invariants that tie the file's written form to the table (FD1-FD11).
+
+    Run after the columns are read, because every one of them needs the
+    columns, the row count or the floor. Each names what it compared.
+    """
+    form = source.dialect
+    where = _WRITTEN
+    headed = source.header_source == "file"
+    width = len(columns)
+    if len(form.columns) != width:
+        raise _broken(
+            "FD1", where,
+            f"the form describes {len(form.columns)} columns",
+            f"the table has {width}",
+        )
+    total = dialect.lines_of(form, n_rows, headed)
+    counted = 0
+    for index in range(len(form.line_endings)):
+        counted = counted + form.line_endings[index].lines
+        if index and form.line_endings[index].ending == form.line_endings[index - 1].ending:
+            raise _broken(
+                "FD2", where,
+                "two runs of line endings next to each other end lines the same way",
+                "a run is every consecutive line ending one way",
+            )
+    places = {dialect.ENDINGS[index]: index for index in range(len(dialect.ENDINGS))}
+    census = form.line_endings_spread
+    for index in range(len(census)):
+        counted = counted + census[index].lines
+    if census and (
+        form.line_endings
+        or len(census) < 2
+        or counted <= dialect.MAXIMUM_ENDING_RUNS
+        or any(
+            places[census[index].ending] <= places[census[index - 1].ending]
+            for index in range(1, len(census))
+        )
+    ):
+        raise _broken(
+            "FD2", where,
+            "the line endings are published counted",
+            "counts stand in place of runs, for two or more endings in their listed order, only past the cap on runs",
+        )
+    owed = total - (0 if form.final_line_ending or not total else 1)
+    if counted != owed or (form.final_line_ending and not total):
+        raise _broken(
+            "FD2", where,
+            f"the line endings account for {counted} lines",
+            f"the file holds {total} lines",
+        )
+    wide_encodings = (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE)
+    if (form.byte_order_mark and source.encoding in dialect.FALLBACK_ENCODINGS) or (
+        source.encoding in wide_encodings and not form.byte_order_mark
+    ):
+        raise _broken(
+            "FD3", where,
+            f"the file is named as '{source.encoding}'",
+            f"the record of a byte-order mark says {form.byte_order_mark}",
+        )
+    previous_after = -1
+    previous_text = ""
+    for place in form.blank_lines:
+        spaces_only = all(character in " \t" for character in place.text)
+        out_of_order = place.after < previous_after or (
+            place.after == previous_after and place.text == previous_text
+        )
+        inside_one_column = width == 1 and place.after < n_rows
+        if not spaces_only or out_of_order or place.after > n_rows or inside_one_column:
+            raise _broken(
+                "FD4", where,
+                f"blank lines are placed after {place.after} records",
+                f"the table has {n_rows} records and {width} columns",
+            )
+        previous_after = place.after
+        previous_text = place.text
+    if len(form.blank_lines) > dialect.MAXIMUM_BLANK_PLACES or len(
+        form.line_endings
+    ) > dialect.MAXIMUM_ENDING_RUNS:
+        raise _broken(
+            "FD4", where,
+            "the form is longer than a description may carry",
+            "the caps past which the producer publishes counts instead",
+        )
+    counted_blanks = form.blank_lines_spread
+    if counted_blanks is not None and (
+        form.blank_lines
+        or width < 2
+        or counted_blanks.first > counted_blanks.last
+        or counted_blanks.last > n_rows
+        or counted_blanks.lines <= dialect.MAXIMUM_BLANK_PLACES
+        or not all(character in " \t" for character in counted_blanks.text)
+    ):
+        raise _broken(
+            "FD4", where,
+            f"{counted_blanks.lines} blank lines are published counted, from after {counted_blanks.first} records to after {counted_blanks.last}",
+            f"counts stand in place of places, only past the cap on places, in file order within a table of {n_rows} records and two or more columns",
+        )
+    sequences = [column.sequence_start >= 0 for column in form.columns]
+    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    if empties:
+        fewest = min([column.n_missing for column in columns]) if columns else 0
+        if (
+            width < 2
+            or empties > n_rows
+            or empties > fewest
+            or any(sequences)
+        ):
+            raise _broken(
+                "FD5", where,
+                f"{empties} records are published as holding nothing",
+                "every column holds at least that many absent cells, in a table of two or more columns with no row sequence",
+            )
+    for index in range(min(width, len(form.columns))):
+        if sequences[index] and (columns[index].n_missing or n_rows < 2):
+            raise _broken(
+                "FD6", where,
+                f"column {index + 1} is published as the row sequence",
+                "every one of its cells is present, in a table of two or more rows",
+            )
+    if form.row_order.column:
+        at = form.row_order.column
+        if (
+            at > width
+            or n_rows < 3
+            or sequences[at - 1]
+            or columns[at - 1].n_missing_blank + columns[at - 1].n_missing_withheld != empties
+        ):
+            raise _broken(
+                "FD7", where,
+                f"the rows are published as sorted by column {at}",
+                "a column of the table, not the row sequence, with no empty cell and no absent cell written empty outside the records holding nothing, in a table of three or more rows",
+            )
+    if form.written_names:
+        header = [column.name for column in columns]
+        last = 0
+        for written in form.written_names:
+            if (
+                not headed
+                or written.position <= last
+                or written.position > width
+                or written.text == columns[written.position - 1].name
+            ):
+                raise _broken(
+                    "FD8", where,
+                    f"a header cell is published as written at column {written.position}",
+                    "a header read from the file, with the cells in order and each differing from its column's name",
+                )
+            header[written.position - 1] = written.text
+            last = written.position
+        named = dialect.named_columns(tuple(header))
+        for index in range(width):
+            if named[index] != columns[index].name:
+                raise _broken(
+                    "FD8", where,
+                    f"the header as written names column {index + 1} differently",
+                    "the name the description gives that column",
+                )
+    if form.header_rows and (
+        not headed
+        or len(form.header_rows) != 2
+        or any(len(row) != width for row in form.header_rows)
+    ):
+        raise _broken(
+            "FD9", where,
+            f"{len(form.header_rows)} rows of column descriptions are published",
+            "two, under a header read from the file, each as wide as the table",
+        )
+    if not form.header_rows and form.header_rows_quoting != dialect.QUOTE_NEEDED:
+        raise _broken(
+            "FD9", where,
+            "a quoting rule is published for rows of column descriptions",
+            "there are none",
+        )
+    if (not headed and (form.header_trailing_delimiter or form.header_quoting != dialect.QUOTE_NEEDED)) or (
+        form.short_rows and form.rows_trailing_delimiter
+    ):
+        raise _broken(
+            "FD10", where,
+            "the header is published with a trailing delimiter or a quoting rule, or the rows with both a trailing delimiter and left-out empty cells",
+            "a header read from the file, and rows written one of those ways at most",
+        )
+    has_text = False
+    for line in form.preamble:
+        if "\r" in line or "\n" in line:
+            raise _broken(
+                "FD11", where, "a line before the table holds a line break",
+                "one line each",
+            )
+        if line and not all(character in " \t" for character in line):
+            has_text = True
+    withheld_owed = floor > 1 and has_text
+    if form.preamble_withheld != withheld_owed or len(form.preamble) > dialect.MAXIMUM_PREAMBLE_LINES:
+        raise _broken(
+            "FD11", where,
+            f"the lines before the table are published as withheld: {form.preamble_withheld}",
+            f"the smallest group is {floor}",
+        )
+    if floor > 1:
+        for line in form.preamble:
+            if dialect.withheld_line(line) != line:
+                raise _broken(
+                    "FD11", where,
+                    "a line before the table is published as written",
+                    f"the smallest group is {floor}, where only its stand-in may be",
+                )
 
 
 def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
@@ -9520,6 +9961,7 @@ def _validated(document: "dict[str, object]") -> Profile:
         ),
     )
     _cross_checks(columns, settings, notes)
+    _dialect_rules(source, columns, n_rows, settings.small_cell_floor)
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,

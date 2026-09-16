@@ -367,6 +367,12 @@ PLAN4_REGIONS = {
         "### P4-D41 How a number's grouping and sign are written "
         "(landing 2b.2, 2026-09-15)"
     ),
+    # The table's written form (owner ruling 2026-09-15): every fact the
+    # twin needs to be written the way its source file was.
+    "written-form": (
+        "### P4-D40 The twin is written the way its source file was "
+        "(owner ruling 2026-09-15)"
+    ),
     "moment-spellings": (
         "### P4-D39 The mark inside a moment, and a date held at midnight "
         "(stage 2, 2026-09-14)"
@@ -504,6 +510,12 @@ REGISTRY += [
     Fact("document", "source.encoding", REPORT_ONLY),
     Fact("document", "source.used_fallback_encoding", REPORT_ONLY),
     Fact("document", "source.header_source", EXACT_CONTROL),
+    Fact(
+        "document",
+        "source.dialect",
+        EXACT_CONTROL,
+        plan_region="written-form",
+    ),
     Fact(
         "document",
         "source.header_by_convention",

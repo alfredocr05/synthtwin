@@ -824,10 +824,14 @@ def test_the_position_obligation_is_the_one_that_stays_a_check(
     """
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
+    # How the column's cells are QUOTED is a fact of the file's written
+    # form (plan P4-D40), measured from the file's bytes and not from any
+    # cell this rule concerns, so it is not among what this counts.
     mine = [
         check.subcheck
         for check in outcome.checks
         if check.column == witness.described.columns[0].name
+        and check.fact != "document.source.dialect"
     ]
     assert mine == ["position.at"]
     assert outcome.checks[-1].verdict == validation.HELD
@@ -852,7 +856,15 @@ def test_what_moves_on_the_free_text_witness_is_written_out(
     """
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
-    assert len(outcome.checks) == 10
+    # The rules of the written form (plan P4-D40) are the file's, measured
+    # from its bytes, and none of them moves with this ruling.
+    assert len(
+        [
+            check
+            for check in outcome.checks
+            if check.fact != "document.source.dialect"
+        ]
+    ) == 10
     assert len(_unsupported(outcome)) == 21
     # THIRTY-THREE, AND NONE OF THE MOVEMENT IS THIS RULING'S. The
     # census also carries every REPORT-ONLY fact of the description.

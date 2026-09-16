@@ -88,7 +88,7 @@ import numpy.ctypeslib
 import pytest
 
 import fixtures
-from synthtwin import contract, generation, parsing, rendering
+from synthtwin import contract, dialect, generation, parsing, rendering
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 GENERATOR = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
@@ -438,6 +438,9 @@ def _profile_document(case: dict, name: str) -> dict:
         "relationships": _relationships(),
         "settings": _settings(declared, commas),
         "source": {
+            "dialect": dialect.document_of(
+                dialect.ordinary(1, len(case["cells"]), False)
+            ),
             "encoding": "utf-8-sig",
             "used_fallback_encoding": False,
             "header_source": "generated",

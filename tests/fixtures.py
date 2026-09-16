@@ -645,3 +645,26 @@ def labels(seed: int, count: int, pool: tuple[str, ...] = LABELS) -> list[str]:
     """``count`` labels drawn from ``pool`` with ``seed``."""
     rng = random.Random(seed)
     return [pool[rng.randrange(len(pool))] for _index in range(count)]
+
+
+def zero_rows(described: "object") -> "object":
+    """A loaded description cut down to the degenerate zero-row form.
+
+    `dataclasses.replace` is the only way to build one -- the producer
+    refuses a table with no rows -- and cutting `n_rows` alone left the
+    WRITTEN FORM of the file it was cut from: line endings for every
+    row, a row order, per-column quoting. A zero-row file holds its
+    header line or nothing (owner decision 7), so its form is the
+    ordinary one for no rows (plan P4-D40).
+    """
+    import dataclasses
+
+    from synthtwin import dialect, reading
+
+    headed = described.source.header_source == reading.HEADER_FROM_FILE
+    form = dialect.ordinary(len(described.columns), 0, headed)
+    return dataclasses.replace(
+        described,
+        n_rows=0,
+        source=dataclasses.replace(described.source, dialect=form),
+    )

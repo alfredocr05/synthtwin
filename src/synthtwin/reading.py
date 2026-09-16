@@ -11,12 +11,16 @@ The file is read TWICE, by two different readers, and the two results
 must agree ABOUT EVERY VALUE -- not, as until review round 1, about the
 number of rows and columns:
 
-1. **The reading pass** (`csv` from the standard library) streams the
-   file one row at a time and is AUTHORITATIVE. It establishes the
-   encoding, the header, the value count of every row, the number of
-   data rows, and every value. It never holds more than one row on top
-   of the columns it is filling, so it adds nothing to the memory the
-   answer itself needs.
+1. **The reading pass** is AUTHORITATIVE, and since plan P4-D40 it is
+   the survey of `dialect`: the file's bytes are decoded once, and the
+   text is walked by the standard library `csv` reader's own states,
+   which also records what that reader drops -- which fields were
+   quoted, what ended each record, the lines that are not records -- so
+   that the twin can be written the way the file was. The standard
+   reader itself is then run over the same text, configured by the form
+   the survey found, and every record must agree with the survey's. It
+   establishes the encoding, the delimiter, the header, the value count
+   of every row, the number of data rows, and every value.
 2. **The checking pass** (`pandas.read_csv`) reads the same file
    independently and is compared, cell by cell, against what the first
    pass produced: the column names it found, the shape, and every
@@ -154,10 +158,12 @@ file and nothing is written, so no record is lost there either.
 The question is put to the person AFTER the checking pass below, never
 before it. A file whose two readers disagree about a name or a value
 has no single right reading to choose between, so that disagreement is
-reported first; the two checks on the names themselves -- a blank name,
-a name used twice -- stay ahead of the checking pass, because pandas
-rewrites exactly those two and the rewrite would be reported as a
-disagreement rather than as the repeated name it is.
+reported first. A blank or repeated name is no longer refused (plan
+P4-D40): the column is named the way pandas names it, `Unnamed: N` or
+with `.1`, `.2` after it (`dialect.named_columns`), the cell as the file
+writes it is published so the twin writes it back, and pandas is asked
+to read such a header as a row so its own renaming is not reported as a
+disagreement.
 
 WHERE THIS RULE IS WRONG, AND WHY IT IS DRAWN HERE
 ==================================================
@@ -194,10 +200,16 @@ membership of anything.
 ENCODINGS AND BYTE-ORDER MARKS
 ==============================
 
-UTF-8 first (accepting a byte-order mark), then one documented fallback,
-Latin-1. Latin-1 can decode any byte sequence, so a file that is really
-UTF-16, UTF-32, or not text at all would come through as nonsense rather
-than as an error.
+A UTF-32 mark is refused; UTF-16 is read behind its own mark; then
+UTF-8, with or without its mark; then Windows-1252, where a byte between
+0x80 and 0x9F is present and every such byte is defined there; then
+Latin-1 (`dialect.decoded`). Latin-1 can decode any byte sequence, so a
+file that is really UTF-16 without its mark, UTF-32, or not text at all
+would come through as nonsense rather than as an error, which is what
+the zero-byte and mark checks below stop. The twin is written back in
+the encoding the table was read with (plan P4-D40), and Latin-1 and
+Windows-1252 map each byte they define to one character and back, so a
+guess between them costs no byte of any published label.
 
 Byte-order marks are matched as COMPLETE byte sequences. Latin-1 maps
 each of the 256 bytes to the code point of the same number and back
@@ -209,11 +221,9 @@ Latin-1 header beginning with the single byte 0xFF -- an ordinary
 being read as a mark; a mark is two or four bytes and is now required to
 be all of them.
 
-Reading a real byte prefix instead would be the obvious way to do this,
-and it is not available: the offline policy accepts no method call on an
-open file object (`handle.read(4)` is rejected by the scanner), and the
-one accepted way to obtain bytes from a path, `Path.read_bytes`, reads
-the whole file. The Latin-1 identity is exact, so nothing is lost.
+The whole file is read with `Path.read_bytes`, the one accepted way to
+obtain bytes from a path (the offline policy accepts no method call on an
+open file object), and the mark is also tested on the bytes themselves.
 
 IMPORTS
 =======
@@ -242,7 +252,7 @@ import pathlib
 
 import pandas
 
-from synthtwin import errors, parsing, taxonomy
+from synthtwin import dialect, errors, parsing, taxonomy
 from synthtwin.paths import validate_local_path
 
 # The per-value size the standard reader will accept while a table is
@@ -259,9 +269,9 @@ FIELD_SIZE_LIMIT = 10_000_000
 # left private because the publication guard checks that field against
 # this enumeration (plan P2-D2): a value the reader never produces may
 # not appear there.
-PRIMARY_ENCODING = "utf-8-sig"
-FALLBACK_ENCODING = "latin-1"
-ENCODINGS = (PRIMARY_ENCODING, FALLBACK_ENCODING)
+PRIMARY_ENCODING = dialect.ENCODING_UTF8
+FALLBACK_ENCODING = dialect.ENCODING_LATIN1
+ENCODINGS = dialect.ENCODINGS
 
 # How far outside the range of a column's own numbers the first row's
 # number still counts as one of them, as a share of that range's width
@@ -391,6 +401,11 @@ class Table:
     # enumerated form (plan P2-D2). `read_table` never leaves it empty.
     header_evidence: str = ""
     header_by_convention: bool = False
+    # How the file is written: its delimiter, quoting, line endings and
+    # the lines that are not records (module `dialect`). The profile
+    # publishes its form, and the validator holds a checked file to the
+    # form a description publishes.
+    survey: "dialect.Survey | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -405,6 +420,7 @@ class _Reading:
     header_source: str
     header_evidence: str = ""
     header_by_convention: bool = False
+    survey: "dialect.Survey | None" = None
 
 
 def _has_zero_byte(text: str) -> bool:
@@ -605,148 +621,164 @@ def _generated_column_names(width: int) -> list[str]:
     return [f"column_{position}" for position in range(1, width + 1)]
 
 
-def _read_streamed(
-    table_path: pathlib.Path, encoding: str, shown: str, first_row: str
-) -> "_Reading | None":
-    """The authoritative pass: stream the file into columns.
+def _as_text(value: object) -> str:
+    """``value`` proven to be text, which is what lets a method run on it."""
+    if not isinstance(value, str):
+        raise TypeError("internal check: a file's text was not text")
+    return value
 
-    Returns None when the file cannot be decoded with ``encoding``, so
-    the caller can try the fallback. Holds one row at a time on top of
-    the columns it is filling: no list of all rows is ever built, which
-    is what P1-D3 always claimed and what review item P1-R1-F15 found
-    untrue.
 
-    Blank lines are dropped, exactly as the checking pass drops them, so
-    both passes count the same rows.
+def _physical_lines(text: str) -> "list[str]":
+    """The text's lines as a file opened with ``newline=""`` hands them over.
+
+    Nothing is translated, and the lines are the survey's own
+    (`dialect.physical_lines`), so the standard reader reads exactly the
+    text the survey read -- including a text whose end-of-file mark has
+    been taken off, which a file handle could not give it.
     """
-    file_path = pathlib.Path(table_path)
-    header: list[str] | None = None
-    columns: list[list[str]] = []
-    width = 0
-    n_rows = 0
-    offenders: list[tuple[int, int]] = []
-    ragged = 0
-    blank_pending = 0
-    blank_inside = 0
-    try:
-        with file_path.open(
-            mode="r", encoding=encoding, newline=""
-        ) as handle:
-            for row in csv.reader(handle):
-                if not row:
-                    # A blank line carries no values, so it is dropped,
-                    # exactly as the checking pass drops it. In a table
-                    # of ONE column that is not a safe thing to do: a
-                    # blank line there is indistinguishable from a
-                    # record whose only value is missing, and dropping
-                    # it would delete a record and a missing value from
-                    # the description without a word. Where that is
-                    # what happened -- a blank line with data still to
-                    # come -- the file is refused below instead.
-                    blank_pending = blank_pending + 1
-                    continue
-                if blank_pending and header is not None and not blank_inside:
-                    blank_inside = n_rows + 1
-                blank_pending = 0
-                if header is None:
-                    header = [f"{cell}" for cell in row]
-                    width = len(header)
-                    columns = [[] for _position in range(width)]
-                    # The byte-order-mark test belongs here, on the
-                    # file's own first cell, and not later on the
-                    # column names: with --first-row data those names
-                    # are generated and the file's first cell has
-                    # become a value. Only the Latin-1 reading is
-                    # tested, because that is the reading whose
-                    # characters ARE the file's bytes (module
-                    # docstring).
-                    marked = encoding == FALLBACK_ENCODING and (
-                        _starts_with_a_byte_order_mark(header[0])
+    return dialect.physical_lines(text)
+
+
+def _agrees_with_the_standard_reader(
+    text: str,
+    surveyed: dialect.Survey,
+    headed: bool,
+    shown: str,
+    refusals: str,
+) -> None:
+    """Hold the survey's reading to the standard library reader's, value by value.
+
+    The survey walks the text by the standard reader's own states so that
+    it can see what that reader drops -- which fields were quoted, what
+    ended each record. This runs the standard reader itself over the same
+    text, configured by the form the survey found, and requires the same
+    header, the same metadata rows and every data value in the same
+    place. The lines the survey placed outside the table -- the
+    separator hint, the preamble, blank lines -- are passed over where
+    the form says they stand. A difference is a refusal: it would mean
+    the survey read something the standard reader did not.
+    """
+    form = surveyed.form
+    body = _as_text(text)
+    if form.end_of_file_mark:
+        body = body[: len(body) - 1]
+    backslash = form.escape == dialect.ESCAPE_BACKSLASH
+    rows = csv.reader(
+        _physical_lines(body),
+        delimiter=form.delimiter,
+        doublequote=not backslash,
+        escapechar="\\" if backslash else None,
+        skipinitialspace=form.initial_space,
+    )
+    lead = 1 if form.separator_line else 0
+    for line in form.preamble:
+        if line:
+            lead = lead + 1
+    expected_header: list[str] = []
+    if headed:
+        expected_header = list(surveyed.header)
+        if form.header_trailing_delimiter:
+            expected_header += [""]
+    header_pending = headed
+    metadata_pending = len(form.header_rows)
+    width = len(surveyed.columns)
+    # Every place, counted or not: past its cap the form publishes the
+    # blank lines counted, and the file still holds each where it stands.
+    places = [place for place in surveyed.every_blank_place if place.text]
+    place_at = 0
+    place_left = places[0].lines if places else 0
+    row = 0
+    for record in rows:
+        cells = [f"{cell}" for cell in record]
+        if not cells:
+            continue
+        if lead:
+            lead = lead - 1
+            continue
+        if header_pending:
+            header_pending = False
+            if cells != expected_header:
+                _disagree_about_a_name(shown, surveyed, refusals)
+            continue
+        if metadata_pending:
+            expected = list(form.header_rows[len(form.header_rows) - metadata_pending])
+            metadata_pending = metadata_pending - 1
+            if cells != expected:
+                raise errors.ProfileError(
+                    errors.readers_disagree(
+                        shown, "a row of column descriptions", "a different row"
                     )
-                    if marked:
-                        raise errors.ProfileError(
-                            errors.looks_like_utf16(shown)
-                        )
-                    for position in range(width):
-                        if _has_zero_byte(header[position]):
-                            raise errors.ProfileError(
-                                errors.looks_like_utf16(shown)
-                            )
-                        if first_row == FIRST_ROW_DATA:
-                            # Growing a list with `+= [value]` rather
-                            # than with .append: the offline policy
-                            # accepts no method call on a container
-                            # (plan D6.2), and `+=` on a list extends it
-                            # in place, so this is a constant cost per
-                            # value and not a copy of the column per row.
-                            columns[position] += [header[position]]
-                    if first_row == FIRST_ROW_DATA:
-                        n_rows = 1
-                    continue
-                if len(row) != width:
-                    # A wrong-length row is already a refusal; its values
-                    # are not stored, because the columns they would go
-                    # into are the ones whose width is in doubt. The scan
-                    # continues so the message can say how many such rows
-                    # there are.
-                    ragged = ragged + 1
-                    if len(offenders) < _MAX_REPORTED_OFFENDERS:
-                        offenders += [(n_rows + 1, len(row))]
-                    n_rows = n_rows + 1
-                    continue
-                for position in range(width):
-                    value = f"{row[position]}"
-                    # A zero byte anywhere in the text -- not only in the
-                    # first five rows, as until review item P1-R1-F4 --
-                    # means this is a UTF-16/UTF-32 file read as Latin-1
-                    # or a file that is not text at all. The two readers
-                    # demonstrably disagree about such a value: pandas'
-                    # C reader stops the value at the zero byte and the
-                    # standard reader keeps it whole.
-                    if _has_zero_byte(value):
-                        raise errors.ProfileError(errors.looks_like_utf16(shown))
-                    columns[position] += [value]
-                n_rows = n_rows + 1
-    except UnicodeDecodeError:
-        return None
-    if header is None:
-        # A file with no record in it at all has no rows to describe,
-        # which is what `no_data_rows` below says of a file with only a
-        # header. The two sentences differ because the advice does; the
-        # SHAPE word is the same, so a caller reporting on a file the
-        # producer refuses does not have to tell them apart to know that
-        # nothing in this file was described (review item P3-V4-F3).
-        raise errors.shape_refusal(
-            errors.file_is_empty(shown), errors.NO_DATA_TO_DESCRIBE
-        )
-    if ragged:
+                )
+            continue
+        if (
+            len(cells) == 1
+            and width >= 2
+            and place_at < len(places)
+            and places[place_at].after == row
+            and places[place_at].text == cells[0]
+        ):
+            place_left = place_left - 1
+            if not place_left:
+                place_at = place_at + 1
+                place_left = places[place_at].lines if place_at < len(places) else 0
+            continue
+        if (
+            form.rows_trailing_delimiter
+            and len(cells) == width + 1
+            and cells[width] == ""
+        ):
+            cells = cells[:width]
+        if form.short_rows and len(cells) < width:
+            cells = cells + ["" for _place in range(width - len(cells))]
+        if len(cells) != width or row >= surveyed.n_rows:
+            raise errors.ProfileError(
+                errors.readers_disagree(
+                    shown,
+                    f"{surveyed.n_rows} rows of {width} values",
+                    "a row the standard reader read differently",
+                )
+            )
+        for place in range(width):
+            if cells[place] != surveyed.columns[place][row]:
+                _disagree_about_a_value(shown, surveyed, row, place, refusals)
+        row = row + 1
+    if row != surveyed.n_rows or header_pending:
         raise errors.ProfileError(
-            errors.ragged_rows(shown, width, offenders, ragged)
+            errors.readers_disagree(
+                shown,
+                f"{surveyed.n_rows} rows of {width} values",
+                f"{row} rows",
+            )
         )
-    if width == 1 and blank_inside:
+
+
+def _disagree_about_a_name(
+    shown: str, surveyed: dialect.Survey, refusals: str
+) -> None:
+    """Refuse a header the standard reader read differently from the survey."""
+    if refusals == REFUSALS_NAME_POSITIONS:
         raise errors.ProfileError(
-            errors.blank_line_in_one_column(shown, blank_inside)
+            errors.checked_file_readers_disagree_about_a_name(shown, 1)
         )
-    if first_row == FIRST_ROW_DATA:
-        names = _generated_column_names(width)
-        source = HEADER_GENERATED
-        evidence = _SAID_DATA
-    else:
-        names = header
-        source = HEADER_FROM_FILE
-        # The caller who said FIRST_ROW_NAMES has settled it already;
-        # FIRST_ROW_AUTOMATIC is settled in `_settle_the_first_row`,
-        # which replaces this sentence with what the file's own values
-        # say, or stops and asks because they say nothing.
-        evidence = _SAID_NAMES
-    return _Reading(
-        column_names=names,
-        columns=columns,
-        n_rows=n_rows,
-        encoding=encoding,
-        used_fallback_encoding=encoding == FALLBACK_ENCODING,
-        header_source=source,
-        header_evidence=evidence,
+    first = surveyed.header[0] if surveyed.header else ""
+    raise errors.ProfileError(
+        errors.readers_disagree_about_a_name(shown, 1, first, "")
+    )
+
+
+def _disagree_about_a_value(
+    shown: str, surveyed: dialect.Survey, row: int, place: int, refusals: str
+) -> None:
+    """Refuse a value the standard reader read differently from the survey."""
+    if refusals == REFUSALS_NAME_POSITIONS or not surveyed.header:
+        raise errors.ProfileError(
+            errors.checked_file_readers_disagree_about_a_value(
+                shown, row + 1, place + 1
+            )
+        )
+    names = dialect.named_columns(surveyed.header)
+    raise errors.ProfileError(
+        errors.readers_disagree_about_a_value(shown, row + 1, names[place])
     )
 
 
@@ -755,35 +787,51 @@ def _read_authoritatively(
     shown: str,
     first_row: str,
     refusals: str = REFUSALS_MAY_QUOTE,
+    encoding: str = "",
 ) -> _Reading:
-    """Run the authoritative pass; raise ProfileError with a plain message."""
+    """Survey the file, hold it to the standard reader; refuse in plain words.
+
+    The bytes are read once and decoded once (`dialect.decoded`); the
+    survey is the reading, and the standard reader is run over the same
+    text as its check. Where the survey and the standard reader both
+    stand, a zero byte, a byte-order mark read as text and a value past
+    the reader's size limit are refused exactly as they were when the
+    standard reader was the reading.
+    """
+    file_path = pathlib.Path(table_path)
+    try:
+        data = file_path.read_bytes()
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.out_of_memory(shown, _file_size(table_path))
+        ) from error
+    if encoding:
+        text, encoding, marked = dialect.decoded_as(data, shown, encoding)
+    else:
+        text, encoding, marked = dialect.decoded(data, shown)
+    # The bytes are not needed once they are text, and holding both while
+    # the survey fills the table is one file's size of memory for nothing.
+    data = b""
+    if encoding in dialect.FALLBACK_ENCODINGS and _starts_with_a_byte_order_mark(
+        text
+    ):
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    if _has_zero_byte(text):
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    headed = first_row != FIRST_ROW_DATA
     previous_limit = csv.field_size_limit()
     try:
         csv.field_size_limit(FIELD_SIZE_LIMIT)
         try:
-            found = _read_streamed(
-                table_path, PRIMARY_ENCODING, shown, first_row
+            surveyed = dialect.settle(text, encoding, marked, not headed, shown)
+            _agrees_with_the_standard_reader(
+                text, surveyed, headed, shown, refusals
             )
-            if found is None:
-                found = _read_streamed(
-                    table_path, FALLBACK_ENCODING, shown, first_row
-                )
-            if found is None:
-                raise errors.ProfileError(errors.not_utf8_or_latin1(shown))
         except csv.Error as error:
             detail = f"{error}"
             if "field larger than field limit" in detail:
                 raise errors.ProfileError(
                     errors.field_too_long(shown, FIELD_SIZE_LIMIT)
-                ) from error
-            if "NUL" in detail:
-                # Python 3.10's reader refuses a zero byte itself, and
-                # later versions hand it through to the check inside the
-                # streaming loop. Both paths end at the same message, so
-                # the advice a reader gets does not depend on their
-                # interpreter.
-                raise errors.ProfileError(
-                    errors.looks_like_utf16(shown)
                 ) from error
             if refusals == REFUSALS_NAME_POSITIONS:
                 # The reader's own account of the trouble can carry a
@@ -802,88 +850,31 @@ def _read_authoritatively(
     finally:
         csv.field_size_limit(previous_limit)
 
-    if not found.n_rows:
+    if not surveyed.n_rows:
         raise errors.shape_refusal(
             errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
         )
-    if found.header_source == HEADER_FROM_FILE:
-        _check_the_names_are_usable(found.column_names, shown, refusals)
-    return found
-
-
-def _check_the_names_are_usable(
-    header: list[str],
-    shown: str,
-    refusals: str = REFUSALS_MAY_QUOTE,
-) -> None:
-    """Refuse names no table can carry: a blank one, or one used twice.
-
-    These two run BEFORE the checking pass, and the WHICH-row question
-    runs after it, because pandas rewrites exactly these two: a repeated
-    name comes back as ``a`` and ``a.1``, and a blank one as
-    ``Unnamed: 1``. Compared against the file's own first row, that
-    rewrite reads as the two passes disagreeing about a name, and the
-    person would be sent to look for a file that changed under them
-    rather than at the duplicated name that is really there.
-
-    ``refusals`` IS WHY THIS TAKES A PATH AT ALL (review item
-    P3-V2-D-F1). Its two neighbours have taken it since round 1 and this
-    one did not, so it was the one escape left in the reader: whatever
-    the caller had asked for, the repeated-name refusal here QUOTED the
-    repeated name, and on the checking path that name is a string out of
-    a file nobody promised was the reader's (V9).
-
-    AND BOTH REFUSALS ARE RAISED AS SHAPE REFUSALS, WHICH IS WHAT MAKES
-    THE CHECKING CALLER'S REPORT EQUIVALENT TO THIS ONE BY CONSTRUCTION
-    (review item P3-V4-F3). `synthtwin validate` reports on these two
-    rather than passing them on, and it used to decide which report a
-    file gets by walking the file itself before ever calling this
-    reader. Those two readings drifted: a ragged file with a repeated
-    name reached the reader's ragged refusal here and the header report
-    there, and a NUL-bearing header reached the zero-byte refusal here
-    and a report there as soon as a row was added. Now the caller
-    catches what this raises and reports on THAT, so this function is
-    the one place the precedence lives.
-
-    The blank-name refusal names the column NUMBER on both paths,
-    because the profiler's own form of it does and a report may state
-    what that refusal states. The repeated-name refusal names neither
-    the name nor a position on the checking path: the profiler's form
-    quotes the NAME, which two files with the repeat in different
-    columns share, so a position is a fact that refusal does not carry.
-
-    THE CHECKING FORM'S SENTENCE IS THE BELT AND IS MEANT TO BE ONE. The
-    caller that asks for it reports on this refusal instead of showing
-    it, so a person reaches these words only where that caller hands one
-    back -- which today it does only for an internal contradiction, a
-    header fault raised about a reading whose names it never took from
-    the file. The sentence is written for that reader anyway, and it now
-    carries neither the name nor the place, so escaping costs nothing
-    either way.
-    """
-    for position, name in enumerate(header, start=1):
-        if not parsing.trimmed(name):
-            raise errors.shape_refusal(
-                errors.empty_column_name(position),
-                errors.HEADER_NAME_MISSING,
-                position,
-            )
-    seen: dict[str, int] = {}
-    for name in header:
-        if name in seen:
-            seen[name] = seen[name] + 1
-        else:
-            seen[name] = 1
-    repeated = sorted(name for name in seen if seen[name] > 1)
-    if not repeated:
-        return
-    if refusals == REFUSALS_NAME_POSITIONS:
-        raise errors.shape_refusal(
-            errors.checked_file_repeats_a_column_name(shown),
-            errors.HEADER_NAME_REPEATED,
-        )
-    raise errors.shape_refusal(
-        errors.duplicate_column_names(repeated), errors.HEADER_NAME_REPEATED
+    if headed:
+        names = list(dialect.named_columns(surveyed.header))
+        source = HEADER_FROM_FILE
+        # The caller who said FIRST_ROW_NAMES has settled it already;
+        # FIRST_ROW_AUTOMATIC is settled in `_settle_the_first_row`,
+        # which replaces this sentence with what the file's own values
+        # say, or stops and asks because they say nothing.
+        evidence = _SAID_NAMES
+    else:
+        names = _generated_column_names(len(surveyed.columns))
+        source = HEADER_GENERATED
+        evidence = _SAID_DATA
+    return _Reading(
+        column_names=names,
+        columns=surveyed.columns,
+        n_rows=surveyed.n_rows,
+        encoding=encoding,
+        used_fallback_encoding=encoding in dialect.FALLBACK_ENCODINGS,
+        header_source=source,
+        header_evidence=evidence,
+        survey=surveyed,
     )
 
 
@@ -1003,8 +994,15 @@ def read_table(
     raw_path: str,
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
+    encoding: str = "",
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``encoding``, where given, is a description's published encoding,
+    and the bytes are read in it wherever they can be
+    (`dialect.decoded_as`); the validator passes it, so a checked file
+    is read the way the description's labels were. Otherwise the
+    encoding is detected (`dialect.decoded`).
 
     Guarantees:
 
@@ -1049,11 +1047,12 @@ def read_table(
       ``header_by_convention``, and a publisher must show the second
       and third beside the first.
     - Memory: NOT bounded, and this is the honest statement of it
-      rather than the streaming claim P1-D3 used to make. The
-      authoritative pass genuinely holds one row at a time, but what it
-      is filling is the whole table as text, and while the checking
-      pass runs the second reader's copy is held beside it. That
-      moment is the peak. Measured as peak resident growth over the
+      rather than the streaming claim P1-D3 used to make. Since plan
+      P4-D40 the authoritative pass holds the file's bytes, its text and
+      its lines while it fills the whole table as text, and while the
+      checking pass runs the second reader's copy is held beside it.
+      That moment is the peak. The measurements below were taken before
+      P4-D40 added the file's text to it. Measured as peak resident growth over the
       file's size, three shapes on one machine:
 
           200,000 rows x 4 columns, 9.2 MB    5.8x pass one, 13.0x peak
@@ -1080,7 +1079,8 @@ def read_table(
       the catalog (missing file, folder given instead of a file,
       unreadable encoding, empty file, no data rows, a first row that
       cannot be column names, a first row that could be a record,
-      duplicate or empty column names, wrong-length rows, an over-long
+      wrong-length rows no rule of the written form accounts for, a
+      form past one of its caps, an over-long
       value, a zero byte anywhere in the text, the two readers
       disagreeing about a name or a value, and running out of memory).
     - Boundary: this is the only function in the package that opens the
@@ -1116,7 +1116,9 @@ def read_table(
     if table_path.is_dir():
         raise errors.ProfileError(errors.path_is_a_folder(shown))
     try:
-        found = _read_authoritatively(table_path, shown, first_row, refusals)
+        found = _read_authoritatively(
+            table_path, shown, first_row, refusals, encoding
+        )
     except PermissionError as error:
         raise errors.ProfileError(
             errors.file_unreadable(shown, f"{error}")
@@ -1153,7 +1155,33 @@ def read_table(
         header_source=found.header_source,
         header_evidence=found.header_evidence,
         header_by_convention=found.header_by_convention,
+        survey=found.survey,
     )
+
+
+def _pandas_may_rename(cell: str, cells: "list[str]") -> bool:
+    """Whether pandas may name a column other than its header cell.
+
+    Pandas renames a blank cell `Unnamed: N` and a repeated one with a
+    number after it, and the numbering differs between its versions, so
+    a cell that is blank, repeated, or already reads as such a made-up
+    name is one whose name pandas may change. Every other cell must come
+    back exactly; the survey and the standard reader have already read
+    every cell as written.
+    """
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a header cell was not text")
+    if not parsing.trimmed(cell) or cell[:9] == "Unnamed: ":
+        return True
+    seen = 0
+    for other in cells:
+        if other == cell:
+            seen = seen + 1
+        elif cell[: len(other) + 1] == f"{other}." and parsing.is_digit_text(
+            cell[len(other) + 1 :]
+        ):
+            return True
+    return seen > 1
 
 
 def _check_against_pandas(
@@ -1170,6 +1198,17 @@ def _check_against_pandas(
     about it, and a file rewritten between the passes was accepted with
     the old header and the new values (review item P1-R1-F4).
 
+    PANDAS IS CONFIGURED BY THE FORM THE SURVEY FOUND, and the form
+    decides nothing pandas then fails to check. The delimiter, the
+    escaping, the skipped initial space and the encoding are pandas' own
+    options; the separator hint and the preamble are skipped as the
+    records they are; an end-of-file mark is left unread by asking for
+    no more rows than the survey read. Where the header's written cells
+    are not the columns' names -- a blank or repeated name, a trailing
+    delimiter, metadata rows under the names -- pandas would rename or
+    add columns, so it reads the header as a row and that row is
+    compared with the cells as written.
+
     The path is validated again here, immediately before the library
     call, rather than trusted from the caller. That is what makes the
     fence checkable: the offline scanner requires the argument handed to
@@ -1181,11 +1220,34 @@ def _check_against_pandas(
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
-    header_row = None if found.header_source == HEADER_GENERATED else 0
+    surveyed = found.survey
+    if surveyed is None:
+        raise ValueError("synthtwin internal check: a reading without its survey")
+    form = surveyed.form
+    headed = found.header_source == HEADER_FROM_FILE
+    # The lines above the header, counted as pandas counts `header`: over
+    # the lines that are not blank, a line of nothing but spaces being
+    # blank to it too.
+    lead = 1 if form.separator_line else 0
+    for line in form.preamble:
+        if parsing.trimmed(line):
+            lead = lead + 1
+    # WHAT PANDAS TAKES AS NAMES. A headed file: its header row, found
+    # past the lead. A headerless file with lines above it: its first
+    # record, which pandas is asked to take as names only so that it
+    # skips those lines -- that record's values are compared as names
+    # below. A headerless file with nothing above it reads as before.
+    header_row = lead if (headed or lead) else None
+    offset = len(form.header_rows)
+    first_as_names = not headed and bool(lead)
+    wanted = None
+    if form.end_of_file_mark:
+        wanted = found.n_rows + offset - (1 if first_as_names else 0)
+    backslash = form.escape == dialect.ESCAPE_BACKSLASH
     try:
         frame = pandas.read_csv(
             file_path,
-            encoding=found.encoding,
+            encoding=dialect.READING_CODECS[found.encoding],
             encoding_errors="strict",
             header=header_row,
             index_col=False,
@@ -1194,12 +1256,13 @@ def _check_against_pandas(
             na_filter=False,
             skip_blank_lines=True,
             engine="c",
-            sep=",",
+            sep=form.delimiter,
             quotechar='"',
-            doublequote=True,
-            escapechar=None,
-            skipinitialspace=False,
+            doublequote=not backslash,
+            escapechar="\\" if backslash else None,
+            skipinitialspace=form.initial_space,
             comment=None,
+            nrows=wanted,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -1221,29 +1284,40 @@ def _check_against_pandas(
 
     found_rows = len(frame)
     keys = list(frame.columns)
-    if found_rows != found.n_rows or len(keys) != len(found.column_names):
+    width = len(found.column_names)
+    if form.header_trailing_delimiter and len(keys) == width + 1:
+        # The delimiter ending the header line, which pandas names as a
+        # column of its own holding nothing.
+        keys = keys[:width]
+    expected_rows = found.n_rows + offset - (1 if first_as_names else 0)
+    if found_rows != expected_rows or len(keys) != width:
         raise errors.ProfileError(
             errors.readers_disagree(
                 shown,
-                f"{found.n_rows} rows of {len(found.column_names)} values",
-                f"{found_rows} rows of {len(keys)} values",
+                f"{found.n_rows} rows of {width} values",
+                f"{found_rows - offset} rows of {len(keys)} values",
             )
         )
-    if found.header_source == HEADER_FROM_FILE:
-        for index in range(len(keys)):
-            second = f"{keys[index]}"
-            if second != found.column_names[index]:
-                if refusals == REFUSALS_NAME_POSITIONS:
-                    raise errors.ProfileError(
-                        errors.checked_file_readers_disagree_about_a_name(
-                            shown, index + 1
-                        )
-                    )
+    named_cells: list[str] = []
+    if headed:
+        named_cells = list(surveyed.header)
+    elif first_as_names:
+        named_cells = [found.columns[place][0] for place in range(width)]
+    for index in range(len(named_cells)):
+        second = f"{keys[index]}"
+        expected = named_cells[index]
+        if second != expected and not _pandas_may_rename(expected, named_cells):
+            if refusals == REFUSALS_NAME_POSITIONS:
                 raise errors.ProfileError(
-                    errors.readers_disagree_about_a_name(
-                        shown, index + 1, found.column_names[index], second
+                    errors.checked_file_readers_disagree_about_a_name(
+                        shown, index + 1
                     )
                 )
+            raise errors.ProfileError(
+                errors.readers_disagree_about_a_name(
+                    shown, index + 1, found.column_names[index], second
+                )
+            )
     for index in range(len(keys)):
         mine = found.columns[index]
         # One column of the second reading is turned into text at a
@@ -1251,8 +1325,34 @@ def _check_against_pandas(
         # memory, and materializing all of it a second time would add a
         # third copy of the table for no gain.
         theirs = [f"{cell}" for cell in list(frame[keys[index]])]
-        for position in range(found_rows):
-            if theirs[position] != mine[position]:
+        if first_as_names:
+            theirs = [mine[0]] + theirs
+        if offset:
+            above = [row[index] for row in form.header_rows]
+            for place in range(offset):
+                if theirs[place] != above[place]:
+                    if refusals == REFUSALS_NAME_POSITIONS:
+                        raise errors.ProfileError(
+                            errors.checked_file_readers_disagree_about_a_name(
+                                shown, index + 1
+                            )
+                        )
+                    raise errors.ProfileError(
+                        errors.readers_disagree_about_a_name(
+                            shown, index + 1, above[place], theirs[place]
+                        )
+                    )
+        last = len(theirs) - 1
+        if (
+            form.end_of_file_mark
+            and not form.final_line_ending
+            and theirs[last][len(theirs[last]) - 1 :] == "\x1a"
+        ):
+            # The end-of-file mark glued to the last value, which pandas
+            # reads as part of it; the survey took it off the text.
+            theirs[last] = theirs[last][: len(theirs[last]) - 1]
+        for position in range(found.n_rows):
+            if theirs[position + offset] != mine[position]:
                 if refusals == REFUSALS_NAME_POSITIONS:
                     # The column's NAME is a string out of this file,
                     # and this file may not be the person's own table,
