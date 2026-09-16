@@ -1231,7 +1231,19 @@ rather than in ISO:
   length — so how many of a file's cells could carry one is a fact about
   that file's values, and a faithful twin whose interior instants fall a
   day either side of the real ones carries a different number of them.
-  A count check would accuse the tool's own twin.
+  A count check would accuse the tool's own twin. THOSE CELLS ARE
+  COUNTED ON THE FILE ITSELF (plan P4-D139), by the producer's own tally
+  and its folds — a one-field width into the joint word agreeing with
+  it, a name of May into its column's length — and not read off the
+  file's floored description, which withholds a census whole where what
+  it leaves over is a handful: a twin whose dates put seven cells in May
+  beside a published `either` style of eleven was told it missed every
+  style, on four seeds of eight. A convention only a date's value can
+  show — a one-field width, an `either` name — is owed on a floor's
+  worth of the file's cells or on every cell of that kind the file
+  holds, whichever is fewer. A count the file's description does not
+  name is printed as not named, and an unnamed total under the line as
+  fewer than it, never as the number.
 - each of `quarter_marker_case` and `zulu_case` is compared COUNT FOR
   COUNT (`markers.<word>`, `zulu.<word>`), and the unnamed cells are
   held to nought (plan P4-D134). Every cell those two count over shows

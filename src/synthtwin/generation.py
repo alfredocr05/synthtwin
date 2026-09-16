@@ -14791,7 +14791,7 @@ _PIN_PASSES = 128
 
 
 def _pin_places(pinned: "dict[int, int]") -> "tuple[list[int], list[int]]":
-    """Where inside its own unit every pinned rank stands (plan P4-D130).
+    """Where inside its own unit every pinned rank stands (P4-D130, P4-D138).
 
     ONE UNIT OF THE ORDINAL SPACE IS A STRETCH OF TIME AND NOT A POINT.
     A rung published as 31 January says that the rank it is read off
@@ -14801,43 +14801,108 @@ def _pin_places(pinned: "dict[int, int]") -> "tuple[list[int], list[int]]":
     place, in `_PIN_STEPS` steps to the unit, and a gap's ranks are drawn
     across the stretch between its two pins' places.
 
-    THE PLACES ARE THE STRAIGHTEST COUNT THE PINS ALLOW. The first pin,
-    `earliest`, stands at the very start of its unit and the last,
-    `latest`, at the very end: nothing lies beyond either. Every interior
-    pin starts at the middle of its unit and then, `_PIN_PASSES` times in
-    rank order, moves to the point on the straight line between its two
-    neighbours' places at its own rank, kept inside its own unit -- which
-    is the cumulative count with the fewest changes of slope that still
-    puts every pinned rank in the unit it was published in. Two pins on
-    one value share their unit, so the ranks between them stay on it.
+    TWO SETS OF PLACES ARE BUILT, AND THE SMOOTHER IS TAKEN (plan
+    P4-D138, method G7.3). In both, the first pin stands at the very start
+    of its unit and the last at the very end of its own.
 
-    WHAT IT REPLACES AND WHY (review of 158c811, item 2). Every gap drew
-    over `[low, high]` INCLUSIVE, so a pinned value's unit received a
-    whole unit's mass from each of its two gaps and the pin on top.
-    Measured on 3,000 dates drawn uniformly over sixty days, seed 4: the
-    per-day variance rose from the real column's 45.47 to 301.33, 6.63
-    times, with 31 January at 91 values against 44 -- a spike at every
-    published rung -- and both files validated with nothing missed.
-    Taking each pin to the middle of its unit instead left the spike at
-    1.47 to 1.83 times on that column and at 6.40 times on 500 dates over
-    a week, because a gap a day wide is then given half a day too much or
-    too little; the straightest count is what brings those back.
+    - THE STRAIGHTEST (`_straightest_places`): a HEAP -- two pins or more
+      on one unit holding neither the first pin nor the last -- stands at
+      its unit's middle, and every other pin is moved `_PIN_PASSES`
+      times onto the straight line between its neighbours' places at its
+      own rank, kept inside its own unit.
+    - THE MIDDLES (`_middle_places`): every other pin at its unit's
+      middle.
+
+    Each set spreads the column's ranks over its units in a way that can
+    be counted without a word (`_unit_counts`), and the set whose counts
+    bend least from unit to unit on a proportional scale
+    (`_bend_of_places`) is taken, the straightest on a tie.
+
+    WHY TWO, AND WHY THIS CHOICE (skeptic of the review of 158c811,
+    finding 1). The straightest count alone puts a gap's density equal on
+    both sides of every pin it can, and on a column whose days thin out
+    fast it cannot: 500 dates over a week, a quarter of them on each of
+    the first days' ranks, came back with the first day at 0.55 to 0.57
+    of its real count and a mean 0.32 to 0.42 standard deviations late,
+    where the inclusive draw of 158c811 had held 0.79 and 0.06 to 0.19.
+    The middles alone give back what 158c811 held on those columns but
+    not its spikes on a flat one -- 1.37 to 7.34 times the real per-day
+    variance over a week to two weeks. On a flat column the straightest
+    bends less and is taken; on a column that thins out or peaks, the
+    middles bend less and are taken. A heap stands at its middle in the
+    straightest too, because a peak's own day holds at least the ranks
+    its pins span and the straight line gives it exactly that and no
+    more: 1,500 dates peaking over a fortnight had their heaviest day at
+    0.74 of its real count, against 1.29 on 158c811.
 
     Guarantees: accepts the pinned ranks with their ordinals, non-
     decreasing in rank; returns the pinned ranks in order and one place
-    per rank, in steps, each inside its own unit and non-decreasing.
-    Determinism: whole-number arithmetic on the pins alone; draws no
-    word. Raises nothing. No I/O of any kind.
+    per rank, in steps, each inside its own unit (the last at its unit's
+    end) and non-decreasing. Determinism: whole-number arithmetic on the
+    pins alone; draws no word. Raises nothing. No I/O of any kind.
     """
     ranks = sorted(pinned)
-    count = len(ranks)
+    straightest = _straightest_places(pinned, ranks)
+    middles = _middle_places(pinned, ranks)
+    if len(ranks) < 3:
+        return ranks, straightest
+    if _bend_of_places(pinned, ranks, middles) < _bend_of_places(
+        pinned, ranks, straightest
+    ):
+        return ranks, middles
+    return ranks, straightest
+
+
+def _middle_places(pinned: "dict[int, int]", ranks: "list[int]") -> "list[int]":
+    """The first pin at its unit's start, the last at its end, the rest mid-unit."""
     places = [pinned[rank] * _PIN_STEPS + _PIN_STEPS // 2 for rank in ranks]
+    count = len(ranks)
     if count == 0:
-        return ranks, places
+        return places
     places[0] = pinned[ranks[0]] * _PIN_STEPS
     places[count - 1] = pinned[ranks[count - 1]] * _PIN_STEPS + _PIN_STEPS
+    return places
+
+
+def _heap_flags(pinned: "dict[int, int]", ranks: "list[int]") -> "list[bool]":
+    """Which pins stand in a HEAP: two or more on one unit, neither end among them.
+
+    Guarantees: accepts the pins and their ranks in order; returns one
+    flag per rank. Determinism: a function of the two. No I/O.
+    """
+    count = len(ranks)
+    flags = [False for _rank in ranks]
+    if count == 0:
+        return flags
+    first_unit = pinned[ranks[0]]
+    last_unit = pinned[ranks[count - 1]]
+    for index in range(1, count - 1):
+        unit = pinned[ranks[index]]
+        if unit == first_unit or unit == last_unit:
+            continue
+        shared = pinned[ranks[index - 1]] == unit or pinned[ranks[index + 1]] == unit
+        flags[index] = shared
+    return flags
+
+
+def _straightest_places(
+    pinned: "dict[int, int]", ranks: "list[int]"
+) -> "list[int]":
+    """The straightest count the pins allow, with every heap at its middle.
+
+    The first pin at its unit's start and the last at its end; a heap
+    (`_heap_flags`) at its unit's middle and never moved; every other pin
+    starts at its unit's middle and then, `_PIN_PASSES` times in rank
+    order, moves to the point on the straight line between its two
+    neighbours' places at its own rank, kept inside its own unit.
+    """
+    places = _middle_places(pinned, ranks)
+    count = len(ranks)
+    held = _heap_flags(pinned, ranks)
     for _pass in range(_PIN_PASSES):
         for index in range(1, count - 1):
+            if held[index]:
+                continue
             before = ranks[index - 1]
             after = ranks[index + 1]
             line = places[index - 1] + (
@@ -14847,7 +14912,83 @@ def _pin_places(pinned: "dict[int, int]") -> "tuple[list[int], list[int]]":
             lowest = pinned[ranks[index]] * _PIN_STEPS
             highest = lowest + _PIN_STEPS - 1
             places[index] = min(max(line, lowest), highest)
-    return ranks, places
+    return places
+
+
+# THE SCALE A UNIT'S COUNT IS HELD AT while two sets of places are
+# compared (plan P4-D138): a count is a fraction of a rank wherever a gap's
+# stretch covers part of a unit, so it is held in whole numbers of this
+# many parts of a rank.
+_COUNT_SCALE = 4294967296
+
+
+def _unit_count(
+    pinned: "dict[int, int]", ranks: "list[int]", places: "list[int]", unit: int
+) -> int:
+    """How many ranks one set of places spreads onto one unit, in `_COUNT_SCALE`.
+
+    Each pin on the unit counts one. The ranks strictly between two pins
+    count by the share of their stretch the unit covers, which is where
+    `_gap_draw` puts them on average: all of them where the two pins
+    share a unit or the stretch is empty, and `m * overlap // stretch`
+    otherwise.
+    """
+    total = 0
+    count = len(ranks)
+    low = unit * _PIN_STEPS
+    high = low + _PIN_STEPS
+    for index in range(count):
+        if pinned[ranks[index]] == unit:
+            total = total + _COUNT_SCALE
+    for index in range(count - 1):
+        between = ranks[index + 1] - ranks[index] - 1
+        if between <= 0:
+            continue
+        start = places[index]
+        stop = places[index + 1]
+        home = pinned[ranks[index]]
+        if home == pinned[ranks[index + 1]] or stop <= start:
+            if home == unit:
+                total = total + between * _COUNT_SCALE
+            continue
+        overlap = min(stop, high) - max(start, low)
+        if overlap > 0:
+            total = total + (between * overlap * _COUNT_SCALE) // (stop - start)
+    return total
+
+
+def _bend_of_places(
+    pinned: "dict[int, int]", ranks: "list[int]", places: "list[int]"
+) -> int:
+    """How sharply one set of places bends the count from unit to unit.
+
+    Over every unit `u` strictly inside the span with a pin on `u - 1`,
+    `u` or `u + 1` -- elsewhere three neighbouring units lie inside one
+    gap and hold one count, so they add nothing -- with `c` the unit's
+    count plus one rank, the sum of
+
+        (c(u - 1) * c(u + 1) / c(u)**2 - 1)**2
+
+    in whole numbers of `_COUNT_SCALE` squared: nought where the counts
+    change by a steady proportion, which a flat column and one thinning
+    at a steady rate both do.
+    """
+    count = len(ranks)
+    first = pinned[ranks[0]]
+    last = pinned[ranks[count - 1]]
+    near: "dict[int, bool]" = {}
+    for rank in ranks:
+        for unit in (pinned[rank] - 1, pinned[rank], pinned[rank] + 1):
+            if first < unit < last:
+                near[unit] = True
+    bend = 0
+    for unit in sorted(near):
+        before = _unit_count(pinned, ranks, places, unit - 1) + _COUNT_SCALE
+        here = _unit_count(pinned, ranks, places, unit) + _COUNT_SCALE
+        after = _unit_count(pinned, ranks, places, unit + 1) + _COUNT_SCALE
+        ratio = (before * after * _COUNT_SCALE) // (here * here)
+        bend = bend + (ratio - _COUNT_SCALE) * (ratio - _COUNT_SCALE)
+    return bend
 
 
 def _gap_draw(

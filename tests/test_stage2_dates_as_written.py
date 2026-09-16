@@ -335,23 +335,20 @@ def test_a_hand_entered_textual_column_keeps_both_of_its_styles(
         tmp_path / "textual", cells, (), True, "8"
     )
     real_styles = sorted(first["month_name_styles"])
-    # The two styles, each also as the `either` word its cells of May
-    # showed (plan P4-D133), and no case paired with the other's mark.
-    assert [style for style in real_styles if "-either-" not in style] == [
+    # The two styles, and no case paired with the other's mark. Each
+    # style's cells of May are folded into it (plan P4-D139), where they
+    # stood beside it as an `either` word of their own (plan P4-D133).
+    assert real_styles == [
         "title-abbreviated-space-no-comma",
         "upper-abbreviated-hyphen-no-comma",
     ]
-    assert set(real_styles) <= {
-        "title-abbreviated-space-no-comma",
-        "title-either-space-no-comma",
-        "upper-abbreviated-hyphen-no-comma",
-        "upper-either-hyphen-no-comma",
-    }
     assert sorted(second["month_name_styles"]) == real_styles
     for cell in written:
         if not cell:
             continue
         style = parsing.month_name_style(cell, "textual-day-first-date")
+        if style is not None:
+            style = parsing.name_style_at_length(style, False)
         assert style in (None,) + tuple(real_styles), (cell, style)
     assert (twin_exit, real_exit) == (0, 0)
 

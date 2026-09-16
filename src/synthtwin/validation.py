@@ -9133,7 +9133,7 @@ def _role_checks(
             block, floor,
         )
     if isinstance(facts, contract.DatetimeFacts):
-        return _datetime_checks(column, facts, block, floor, mine)
+        return _datetime_checks(column, facts, block, floor, mine, cells)
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
@@ -13935,6 +13935,7 @@ def _datetime_checks(
     block: "dict[str, object]",
     floor: int,
     mine: "tuple[str, ...]",
+    cells: "list[str]",
 ) -> "list[Check]":
     """A column of dates and times."""
     name = column.name
@@ -14006,7 +14007,7 @@ def _datetime_checks(
     # cases, never silent.
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor)
-    checks = checks + _written_form_checks(column, facts, block, floor)
+    checks = checks + _written_form_checks(column, facts, block, floor, cells)
     checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(column, facts, block)
     return checks
@@ -14107,6 +14108,7 @@ def _written_form_checks(
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
     floor: int,
+    cells: "list[str]",
 ) -> "list[Check]":
     """The censuses of HOW the dates were written, held (landing 2b.6).
 
@@ -14130,6 +14132,19 @@ def _written_form_checks(
     convention the real column used, each on at least a floor's worth of
     the file's cells.
 
+    AND THE WIDTHS AND NAMES ARE COUNTED ON THE FILE'S OWN CELLS, NOT
+    READ OFF ITS DESCRIPTION (plan P4-D139; skeptic of the review of
+    158c811, finding 3). The file's description holds a census back whole
+    where what it leaves over is a handful, so a twin whose dates put
+    seven cells in May beside a published style of eleven had its whole
+    census withheld and was told it missed every style, on four seeds of
+    eight, while the table it came from met them. The count is the
+    producer's own tally (`taxonomy.width_tally`,
+    `taxonomy.name_style_tally`), folded as the producer folds it. A
+    style only a date's VALUE can show -- a one-field width, the `either`
+    length of May -- is owed on a floor's worth of the file's cells or on
+    every cell of that kind the file holds, whichever is fewer.
+
     AND NO CONVENTION THE DESCRIPTION DOES NOT NAME BEYOND WHAT IT LEAVES
     OVER. A census names no pool (contract D17 to D20), so the cells a
     description gives no form are the published total less the named
@@ -14143,11 +14158,13 @@ def _written_form_checks(
     was not named, and never a number the file's description withholds.
 
     Guarantees: accepts the column, its facts, the file's re-described
-    block and the floor; returns a check per named convention and one
-    per census for the conventions nobody published. No I/O of any kind.
+    block, the floor and the cells that description reads; returns a
+    check per named convention and one per census for the conventions
+    nobody published. No I/O of any kind.
     """
     name = column.name
     checks: "list[Check]" = []
+    line = parsing.disclosure_line(floor)
     for key, family in _WRITTEN_FORMS:
         census = _written_census_of(facts, key)
         if not census:
@@ -14160,6 +14177,8 @@ def _written_form_checks(
             )
         fact = f"datetime.{key}"
         measured = _map_at(block, key)
+        raw = _raw_written_tally(key, cells, facts.parser_family)
+        tally = _folded_written_tally(key, raw)
         published_total = 0
         for named in census:
             published_total = published_total + census[named]
@@ -14181,20 +14200,35 @@ def _written_form_checks(
                     )
                 ]
                 continue
-            if named not in measured:
+            if exact:
+                if named not in measured:
+                    checks += [
+                        Check(
+                            name,
+                            fact,
+                            f"{family}.{named}",
+                            MISSED,
+                            asked,
+                            _FORM_NOT_NAMED,
+                        )
+                    ]
+                    continue
+                found = measured[named]
                 checks += [
                     Check(
                         name,
                         fact,
                         f"{family}.{named}",
-                        MISSED,
+                        HELD if found == census[named] else MISSED,
                         asked,
-                        _FORM_NOT_NAMED,
+                        _shown_count(found),
                     )
                 ]
                 continue
-            found = measured[named]
-            met = found == census[named] if exact else found >= floor
+            met = _written_form_met(key, named, raw, tally, floor)
+            shown = _FORM_NOT_NAMED
+            if named in measured:
+                shown = _shown_count(measured[named])
             checks += [
                 Check(
                     name,
@@ -14202,7 +14236,7 @@ def _written_form_checks(
                     f"{family}.{named}",
                     HELD if met else MISSED,
                     asked,
-                    _shown_count(found),
+                    shown,
                 )
             ]
         if measured is None:
@@ -14218,18 +14252,22 @@ def _written_form_checks(
                 )
             ]
             continue
+        counted = measured if exact else tally
         measured_total = 0
-        for named in measured:
-            measured_total = measured_total + measured[named]
+        for named in counted:
+            measured_total = measured_total + counted[named]
         # A CELL BEYOND THE PUBLISHED TOTAL HAS NO PUBLISHED IDENTITY,
         # which is the same widening `_mark_checks` gives a joint
         # column's clock-writing cells: how many of a file's own cells
         # could show the convention is a fact about its values.
         bound = left_over + max(0, measured_total - published_total)
         unnamed = 0
-        for named in measured:
+        for named in counted:
             if named not in census:
-                unnamed = unnamed + measured[named]
+                unnamed = unnamed + counted[named]
+        shown_unnamed = _shown_count(unnamed)
+        if 0 < unnamed < line:
+            shown_unnamed = _below_the_floor(line)
         checks += [
             Check(
                 name,
@@ -14237,10 +14275,63 @@ def _written_form_checks(
                 f"{family}.unnamed",
                 HELD if unnamed <= bound else MISSED,
                 f"at most {_shown_count(bound)}",
-                _shown_count(unnamed),
+                shown_unnamed,
             )
         ]
     return checks
+
+
+def _raw_written_tally(
+    key: str, cells: "list[str]", format_name: str
+) -> "dict[str, int]":
+    """The file's own unfloored, unfolded tally of widths or of names."""
+    if key == "date_field_widths":
+        return taxonomy.width_tally(cells, format_name)
+    if key == "month_name_styles":
+        return taxonomy.name_style_tally(cells, format_name)
+    return {}
+
+
+def _folded_written_tally(
+    key: str, raw: "dict[str, int]"
+) -> "dict[str, int]":
+    """That tally folded as the producer folds it (plan P4-D139)."""
+    if key == "date_field_widths":
+        return parsing.folded_width_tally(raw)
+    return parsing.folded_name_tally(raw)
+
+
+def _written_form_met(
+    key: str,
+    named: str,
+    raw: "dict[str, int]",
+    tally: "dict[str, int]",
+    floor: int,
+) -> bool:
+    """Whether a file carries one named width or name style (plan P4-D139).
+
+    A style any cell can show is owed on at least `floor` of the file's
+    cells, counted as the producer folds them. A style only a date's
+    value can show -- a one-field width, the `either` length of May -- is
+    owed on `floor` of the file's cells or on every cell of its kind the
+    file holds, whichever is fewer, counted before folding: a file whose
+    dates put none in that kind owes none of it.
+    """
+    bound = parsing.width_is_value_bound(named)
+    kind: "tuple[str, ...]" = parsing.FIELD_WIDTH_STYLES_FIRST
+    if key == "month_name_styles":
+        bound = parsing.name_is_value_bound(named)
+        kind = parsing.MONTH_NAME_STYLES_EITHER
+    elif named in parsing.FIELD_WIDTH_STYLES_SECOND:
+        kind = parsing.FIELD_WIDTH_STYLES_SECOND
+    if not bound:
+        return named in tally and tally[named] >= floor
+    held = 0
+    for word in kind:
+        if word in raw:
+            held = held + raw[word]
+    found = raw[named] if named in raw else 0
+    return found >= min(floor, held)
 
 
 def _at_least(floor: int) -> str:

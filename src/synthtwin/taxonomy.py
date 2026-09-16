@@ -8113,15 +8113,13 @@ def _floored_census(
     )
 
 
-def _width_counts(
-    sources: "list[str]", format_name: str, settings: Settings
-) -> "dict[str, int]":
-    """How many parsed cells wrote each joint width convention (2b.6).
+def width_tally(sources: "list[str]", format_name: str) -> "dict[str, int]":
+    """How many cells wrote each width word, before any floor (2b.6, P4-D132).
 
     Counted over the cells that could SHOW one -- a field below ten --
-    so a column of dates every one of which falls after the ninth of a
-    month above September publishes an empty census, honestly: nothing
-    in it says how it would have written a single figure.
+    and NOT folded; `parsing.folded_width_tally` folds it. The validator
+    asks this of a file's own cells, so the producer and the checker
+    count one way.
     """
     counts: "dict[str, int]" = {}
     for value in sources:
@@ -8132,17 +8130,15 @@ def _width_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    return _floored_census(counts, len(sources), settings)
+    return counts
 
 
-def _name_style_counts(
-    sources: "list[str]", format_name: str, settings: Settings
-) -> "dict[str, int]":
-    """How many parsed cells wrote each joint month-name style (2b.6).
+def name_style_tally(sources: "list[str]", format_name: str) -> "dict[str, int]":
+    """How many cells wrote each month-name style, before any floor (2b.6).
 
-    A cell whose month is MAY is counted under no key: `May` is its own
-    abbreviation, so that cell says nothing about whether the column
-    writes names in full.
+    NOT folded; `parsing.folded_name_tally` folds a name of May into the
+    length its column's other cells wrote. A spelling outside the three
+    cases is counted under no key.
     """
     counts: "dict[str, int]" = {}
     for value in sources:
@@ -8153,6 +8149,47 @@ def _name_style_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
+    return counts
+
+
+def _width_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each width convention (2b.6, P4-D139).
+
+    Counted over the cells that could SHOW one -- a field below ten --
+    so a column of dates every one of which falls after the ninth of a
+    month above September publishes an empty census, honestly: nothing
+    in it says how it would have written a single figure.
+
+    AND WHAT THE NAMED COUNTS LEAVE OVER IS COUNTED AGAINST THOSE CELLS,
+    not against every parsed cell (plan P4-D139; skeptic of the review of
+    158c811, finding 2). A date whose two fields are both ten or more was
+    written with no convention at all, so it is no form a reader could
+    learn by subtraction; counted as one, a single `12/25/2019` among 244
+    dates written `m/d/yyyy` left a remainder of one, the census was
+    withheld whole, and 212 of the twin's 245 cells were written
+    `04/14/2020`. One-field counts are folded into the joint words first
+    (`parsing.folded_width_tally`).
+    """
+    counts = parsing.folded_width_tally(width_tally(sources, format_name))
+    shown = 0
+    for name in counts:
+        shown = shown + counts[name]
+    return _floored_census(counts, shown, settings)
+
+
+def _name_style_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each joint month-name style (2b.6).
+
+    A cell whose month is MAY shows no length and is folded into the
+    style of the same case, mark and comma its column's other cells
+    wrote (`parsing.folded_name_tally`, plan P4-D139); it keeps its
+    `either` word only where no other cell wrote those three.
+    """
+    counts = parsing.folded_name_tally(name_style_tally(sources, format_name))
     return _floored_census(counts, len(sources), settings)
 
 

@@ -4286,6 +4286,109 @@ MISSING_CLASSES = (
 MIDNIGHT_DISCLOSURE_FLOOR = 2
 
 
+def _tally_add(tally: "dict[str, int]", name: str, count: int) -> None:
+    """Add a count under a name, opening the name where it is new."""
+    if name in tally:
+        tally[name] = tally[name] + count
+    else:
+        tally[name] = count
+
+
+def width_is_value_bound(name: str) -> bool:
+    """Whether a width word is one only a cell's VALUE lets it show (P4-D139).
+
+    The four one-field words: a date is counted under one only where its
+    other field is ten or more, so how many a column holds is a fact
+    about its dates rather than about how it wrote them.
+    """
+    return name in FIELD_WIDTH_STYLES_FIRST or name in FIELD_WIDTH_STYLES_SECOND
+
+
+def name_is_value_bound(name: str) -> bool:
+    """Whether a month-name style is one only a name of May shows (P4-D139)."""
+    return _name_parts(name)[1] == NAME_LENGTH_EITHER
+
+
+def folded_width_tally(tally: "dict[str, int]") -> "dict[str, int]":
+    """A tally of widths with each one-field count joined to a joint word.
+
+    A CELL THAT SHOWS ONE FIELD IS CONSISTENT WITH TWO JOINT WORDS, and
+    it goes to whichever of them the column's own cells showing both
+    fields wrote more often -- vocabulary order on a tie -- so that a
+    column writing `m/dd/yyyy` counts `5/17/2024` and `12/05/2024` under
+    the `second-padded` its `5/04/2024` cells wrote. A one-field count
+    with no joint word agreeing with it stays under its own word.
+
+    WHY (plan P4-D139; skeptic of the review of 158c811, items 2 and
+    3). Counted apart, the one-field classes put a floor on how many of a
+    twin's dates happen to fall past the ninth of a month or in October
+    to December: 150 dates written `m/d/yyyy` at a smallest group of
+    eleven published `second-field-unpadded` at 14, and the twin whose
+    dates held fewer than eleven such cells failed its own check.
+
+    Guarantees: accepts a raw tally of width words; returns a tally over
+    the same total with keys in sorted order. Determinism: a function of
+    the tally. Raises nothing. No I/O of any kind.
+    """
+    folded: "dict[str, int]" = {}
+    for name in sorted(tally):
+        if not width_is_value_bound(name):
+            _tally_add(folded, name, tally[name])
+    for name in sorted(tally):
+        if not width_is_value_bound(name):
+            continue
+        which = 1 if name in FIELD_WIDTH_STYLES_FIRST else 2
+        padded = name == WIDTH_FIRST_FIELD_PADDED or name == WIDTH_SECOND_FIELD_PADDED
+        best = ""
+        for joint in FIELD_WIDTH_STYLES_BOTH:
+            if joint not in tally:
+                continue
+            if pair_widths(joint)[which - 1] != padded:
+                continue
+            if not best or tally[joint] > tally[best]:
+                best = joint
+        _tally_add(folded, best if best else name, tally[name])
+    return {name: folded[name] for name in sorted(folded)}
+
+
+def folded_name_tally(tally: "dict[str, int]") -> "dict[str, int]":
+    """A tally of month-name styles with each name of May joined to a length.
+
+    A NAME OF MAY IS WRITTEN THE SAME AT EITHER LENGTH, so a cell of May
+    goes to the style of the same case, mark and comma that the column's
+    other cells wrote more often -- the abbreviated one on a tie -- and
+    stays under its `either` word only where no other cell wrote that
+    case, mark and comma at all (plan P4-D139).
+
+    WHY (skeptic of the review of 158c811, finding 2). Counted apart, one
+    `15-MAY-2023` among 269 `DD-MON-YYYY` dates was a count of one, the
+    disclosure rule withheld the whole census for it, and the twin was
+    written `20 Jan 2022`: `%d-%b-%Y` read 269 of 269 twin cells on
+    158c811 and none after it.
+
+    Guarantees: accepts a raw tally of style words; returns a tally over
+    the same total with keys in sorted order. Determinism: a function of
+    the tally. Raises nothing. No I/O of any kind.
+    """
+    folded: "dict[str, int]" = {}
+    for name in sorted(tally):
+        if not name_is_value_bound(name):
+            _tally_add(folded, name, tally[name])
+    for name in sorted(tally):
+        if not name_is_value_bound(name):
+            continue
+        case, _length, mark, comma = _name_parts(name)
+        best = ""
+        for length in NAME_LENGTHS:
+            sibling = f"{case}-{length}-{mark}-{comma}"
+            if sibling not in tally:
+                continue
+            if not best or tally[sibling] > tally[best]:
+                best = sibling
+        _tally_add(folded, best if best else name, tally[name])
+    return {name: folded[name] for name in sorted(folded)}
+
+
 def disclosure_line(floor: int) -> int:
     """The smallest count a census of written forms may name (P4-D131).
 

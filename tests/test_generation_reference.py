@@ -164,11 +164,14 @@ def _second_branch_document() -> dict:
 
 
 # The nine cases method section G14.3 names, and the four the review of
-# 158c811 added beside them (plans P4-D130, P4-D132, P4-D133), which live
-# in this file because it has the room.
+# 158c811 added beside them (plans P4-D130, P4-D132, P4-D133), and the two
+# its skeptic added (plan P4-D138), which live in this file because it
+# has the room.
 REQUIRED_CASES = (
     "date_gap_places",
     "date_only",
+    "date_peak_heap",
+    "date_thinning_week",
     "identifier_fold_collisions",
     "identifier_whole_numbers",
     "label_variants",
@@ -344,6 +347,8 @@ SEEDS = {
     "month_first_widths": 142,
     "may_month_names": 143,
     "reserved_name_floor": 144,
+    "date_thinning_week": 145,
+    "date_peak_heap": 146,
     "quarter": 102,
     "offset_bearing": 103,
     "mixed_parsed_unparsed": 104,
@@ -1280,6 +1285,55 @@ def _inclusive_gap_draws(rungs, parsed, words):
     return ordinals
 
 
+def _straightest_places_alone(pins):
+    """G7.3's places with the middles never chosen (plan P4-D138).
+
+    The heaps stay at their middles; what is withdrawn is the choice, so
+    every column takes the straightest count.
+    """
+    ranks = sorted(pins)
+    places = {rank: pins[rank] * gen.PIN_STEPS + gen.PIN_STEPS // 2 for rank in ranks}
+    places[ranks[0]] = pins[ranks[0]] * gen.PIN_STEPS
+    places[ranks[-1]] = pins[ranks[-1]] * gen.PIN_STEPS + gen.PIN_STEPS
+    ends = {pins[ranks[0]], pins[ranks[-1]]}
+    shared = {}
+    for rank in ranks:
+        shared[pins[rank]] = shared.get(pins[rank], 0) + 1
+    for _pass in range(gen.PIN_PASSES):
+        for index in range(1, len(ranks) - 1):
+            here = ranks[index]
+            if pins[here] not in ends and shared[pins[here]] >= 2:
+                continue
+            before, after = ranks[index - 1], ranks[index + 1]
+            line = places[before] + (
+                (here - before) * (places[after] - places[before])
+            ) // (after - before)
+            first = pins[here] * gen.PIN_STEPS
+            places[here] = min(max(line, first), first + gen.PIN_STEPS - 1)
+    return places
+
+
+def _no_heap_held(pins):
+    """G7.3's places with every heap moved onto the line like any pin (P4-D138)."""
+    ranks = sorted(pins)
+    middles = {rank: pins[rank] * gen.PIN_STEPS + gen.PIN_STEPS // 2 for rank in ranks}
+    middles[ranks[0]] = pins[ranks[0]] * gen.PIN_STEPS
+    middles[ranks[-1]] = pins[ranks[-1]] * gen.PIN_STEPS + gen.PIN_STEPS
+    places = dict(middles)
+    for _pass in range(gen.PIN_PASSES):
+        for index in range(1, len(ranks) - 1):
+            here = ranks[index]
+            before, after = ranks[index - 1], ranks[index + 1]
+            line = places[before] + (
+                (here - before) * (places[after] - places[before])
+            ) // (after - before)
+            first = pins[here] * gen.PIN_STEPS
+            places[here] = min(max(line, first), first + gen.PIN_STEPS - 1)
+    if len(ranks) >= 3 and gen.bend_of_places(pins, middles) < gen.bend_of_places(pins, places):
+        return middles
+    return places
+
+
 def _field_class_from_the_joint_words(census, which):
     """G7.5's one-field class written as the joint words pad that field.
 
@@ -1947,6 +2001,22 @@ CASE_MUTANTS = {
         "as 158c811 did, and the ranks next to the pinned days move",
         attribute="spread_ordinals",
         replacement=_inclusive_gap_draws,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_thinning_week": Mutant(
+        branch="G7.3's choice of the middles (plan P4-D138); the mutant keeps "
+        "the straightest count on every column, and the ranks the first day "
+        "would have taken move to the days after it",
+        attribute="pin_places",
+        replacement=_straightest_places_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_peak_heap": Mutant(
+        branch="G7.3's heaps (plan P4-D138); the mutant moves every pin "
+        "sharing a day onto the straight line like any other, and the ranks "
+        "beside the peak's days move",
+        attribute="pin_places",
+        replacement=_no_heap_held,
         outcome=CHANGES_THE_CELLS,
     ),
     "month_first_widths": Mutant(

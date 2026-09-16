@@ -4110,23 +4110,62 @@ description can carry.
   ordinal = step // 2**20,  kept inside [Lo_a, Lo_b]
   ```
 
-  **A PIN'S PLACE INSIDE ITS OWN UNIT (plan P4-D130).** One unit of the
-  ordinal space is a stretch of time and not a point, split here into
-  `2**20` steps. Take the distinct pinned ranks in order,
-  `k_0 = 0 < k_1 < ... < k_m = P - 1`, with ordinals `Lo_i`. The first
-  stands at `X_0 = Lo_0 * 2**20`, the start of its unit; the last at
-  `X_m = Lo_m * 2**20 + 2**20`, the end of its own; every other starts at
-  `X_i = Lo_i * 2**20 + 2**19`, its unit's middle. Then 128 times over,
-  for `i = 1 .. m - 1` in order,
+  **A PIN'S PLACE INSIDE ITS OWN UNIT (plans P4-D130 and P4-D138).** One
+  unit of the ordinal space is a stretch of time and not a point, split
+  here into `2**20` steps. Take the distinct pinned ranks in order,
+  `k_0 = 0 < k_1 < ... < k_m = P - 1`, with ordinals `Lo_i`. TWO SETS OF
+  PLACES are built, and in both the first stands at
+  `X_0 = Lo_0 * 2**20`, the start of its unit, and the last at
+  `X_m = Lo_m * 2**20 + 2**20`, the end of its own.
+
+  - THE MIDDLES: every other pin at `X_i = Lo_i * 2**20 + 2**19`, its
+    unit's middle.
+  - THE STRAIGHTEST: a HEAP — two or more pins on one unit that holds
+    neither `k_0` nor `k_m` — stands at its unit's middle and does not
+    move. Every other pin starts at its unit's middle; then 128 times
+    over, for `i = 1 .. m - 1` in order, skipping the heaps,
+
+    ```
+    line = X_(i-1) + ((k_i - k_(i-1)) * (X_(i+1) - X_(i-1))) // (k_(i+1) - k_(i-1))
+    X_i  = line, kept inside [Lo_i * 2**20, Lo_i * 2**20 + 2**20 - 1]
+    ```
+
+  With fewer than three distinct pins the straightest is taken. Otherwise
+  each set is scored by how sharply it bends the count from unit to unit.
+  A set puts a count `c(u)` on each unit `u`, in parts of `2**32` to a
+  rank: `2**32` for each pin on `u`, and for each two neighbouring pins
+  with `b` ranks strictly between them, `b * 2**32` on the first pin's
+  unit where the two share a unit or `X_(i+1) <= X_i`, and otherwise
+  `b * o * 2**32 // (X_(i+1) - X_i)` on each unit, `o` the steps of
+  `[X_i, X_(i+1))` inside it. Over each unit `u` strictly between the
+  first and last pinned units that holds a pin or stands next to one,
+  with `C(u) = c(u) + 2**32`,
 
   ```
-  line = X_(i-1) + ((k_i - k_(i-1)) * (X_(i+1) - X_(i-1))) // (k_(i+1) - k_(i-1))
-  X_i  = line, kept inside [Lo_i * 2**20, Lo_i * 2**20 + 2**20 - 1]
+  r    = C(u - 1) * C(u + 1) * 2**32 // (C(u) * C(u))
+  bend = the sum of (r - 2**32) ** 2
   ```
 
+  and THE MIDDLES ARE TAKEN ONLY WHERE THEIR BEND IS STRICTLY LESS. Two
+  pins on one value share a unit, so every rank between them stays on
+  it.
+
+  *Amended by the skeptic of the review of 158c811 (plan P4-D138).* The
+  rule above P4-D138 was the straightest set alone, with no heap held,
   which is the cumulative count with the fewest changes of slope that
-  still puts every pinned rank in the unit it was published in. Two pins
-  on one value share a unit, so every rank between them stays on it.
+  puts every pinned rank in its unit. On a column that thins out or peaks
+  that count is the flattest the pins allow, and it starves the heavy
+  days: 500 dates over a week, drawn thinning from the first day, came
+  back with the first day at 0.57 of its real count and a mean 0.32
+  standard deviations late on every seed, and 1,500 dates peaking in a
+  fortnight had the peak day at 0.74 and a mean 0.151 early, where the
+  inclusive draw of 158c811 had held 0.79 to 0.89 and 0.06 to 0.11, and
+  1.28 to 1.34 and 0.04 to 0.06. The middles alone give those back but
+  not the flat column: 1.37 to 7.34 times the real per-day variance over
+  a week to a fortnight. With both sets and the bend choosing, the
+  thinning week measures +0.057 to +0.104 and 0.79 to 0.89, the peaked
+  fortnight -0.059 to -0.037 and 1.28 to 1.34, and every flat short span
+  of the gate below exactly as the straightest alone did.
 
   *Amended by the review of 158c811.* This rule drew over `[Lo_a, Lo_b]`
   inclusive, `ordinal = Lo_a + (w * (Lo_b - Lo_a + 1)) // 2**64`, so a
@@ -8893,7 +8932,8 @@ fail.
 
 **Four committed JSON files, and ONE oracle** (review item P2-C3-F3).
 `tests/reference/generation-reference-vectors.json` carries the nine
-cases G14.3 names first and
+cases G14.3 names first, with the four the review of 158c811 added and
+the two its skeptic added (plan P4-D138), and
 `tests/reference/generation-branch-vectors.json` carries the twenty it
 names after them (five, until owner decision 11 added the
 pooled-spelling case; then the month-span case of plan P4-D4.3,
@@ -9125,7 +9165,9 @@ a name of May and the reservation of a named form's least (the review of
 158c811, plans P4-D130, P4-D132 and P4-D133) -- no case in any file
 published a non-empty census of written forms before them, so every
 allocation of G7.5 could have been withdrawn with every committed byte
-unchanged -- and five for the transforms that produce a WHOLE DOCUMENT rather than
+unchanged -- and two for G7.3's choice of the middles and its heaps (the
+skeptic of that review, plan P4-D138), which no flat case reaches -- and
+five for the transforms that produce a WHOLE DOCUMENT rather than
 one column's cells, which landings 2b.9, 2b.10 and 2b.11 left with no
 second implementation of any kind (landing 2b.17).
 
@@ -9228,6 +9270,8 @@ case passed, which is the failure the count exists to prevent:
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
 | `date_gap_places` | G7.3's places for its pins inside their own units (plan P4-D130): forty dates over ten days, four pins on the first day and three on the last, whose gaps are drawn across the stretch between two places. Its mutant draws each gap over its two pinned days whole and the ranks beside the pinned days move |
+| `date_thinning_week` | G7.3's choice between its two sets of places (plan P4-D138): forty dates thinning out over a week, five pins on the first day, where every pin at its unit's middle bends the count less than the straightest count and is taken. Its mutant keeps the straightest count and the ranks beside the first day move |
+| `date_peak_heap` | G7.3's heaps (plan P4-D138): forty dates peaking over a week, two pins on each of three days holding neither end, each heap at its day's middle in the straightest count, which is taken. Its mutant moves every heap onto the straight line and the ranks beside the peak's days move |
 | `month_first_widths` | G7.5's classes of width (plan P4-D132): eighty month-first dates publishing `padded` and `unpadded` at eleven each and `first-field-padded` at eleven beside `first-field-unpadded` at thirty; a date whose month alone is below ten is written from the first-field words, eleven of them reserved to the padded one. Its mutant writes that class as the joint words pad its field, and those dates take the other padding |
 | `may_month_names` | G7.5's `either` length (plan P4-D133): sixty day-first textual dates publishing `upper-abbreviated-hyphen-no-comma` at forty and `title-either-space-no-comma` at twenty; a date of May is written `02 May 2024` and every other `23-JUL-2024`. Its mutant offers May no `either` word and those dates take the hyphens and capitals |
 | `reserved_name_floor` | G7.5's reservation (plan P4-D132): sixty day-first textual dates publishing `title-abbreviated-space-no-comma` at eleven -- the floor -- beside thirty `upper-abbreviated-hyphen-no-comma` and nineteen `upper-either-hyphen-no-comma`, whose twin holds fewer dates outside May than the real column, so a proportional share gives the title-case style fewer than eleven. Its mutant spends the class by the rotation alone and the style falls under the floor |

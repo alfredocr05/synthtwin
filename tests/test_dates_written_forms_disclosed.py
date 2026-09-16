@@ -236,8 +236,9 @@ def test_a_month_unpadded_day_padded_column_keeps_its_convention(
         tmp_path / floor, cells, ("--smallest-group", floor)
     )
     assert first["format"] == "month-first-date"
-    assert "second-padded" in first["date_field_widths"]
-    assert "first-field-unpadded" in first["date_field_widths"]
+    # A date whose month alone or day alone showed a width is folded into
+    # the joint word its column's two-field dates wrote (plan P4-D139).
+    assert sorted(first["date_field_widths"]) == ["second-padded"]
     broken = [cell for cell in written if cell and not _keeps_the_convention(cell)]
     assert not broken, (len(broken), broken[:5])
     for name in first["date_field_widths"]:
@@ -245,32 +246,36 @@ def test_a_month_unpadded_day_padded_column_keeps_its_convention(
     assert (twin_exit, real_exit) == (0, 0)
 
 
+@pytest.mark.parametrize("seed", ["5", "9"])
 def test_a_rare_published_width_is_given_its_floor_in_the_twin(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, seed: str
 ) -> None:
     """The reservation: a word published at the floor keeps the floor.
 
-    Three per cent of 400 cells written `%m/%d/%Y` and the rest
-    `m/d/yyyy`, at a smallest group size of six. The twin's own class of
-    cells whose first field alone shows a width is smaller than the real
-    column's, so a proportional share gives `first-field-padded` five cells
-    against a published six and the twin misses it; reserved first, it
-    holds.
+    Two per cent of 400 cells written `%m/%d/%Y` and the rest `m/d/yyyy`,
+    at a smallest group size of six, publish `padded` at exactly six. The
+    twin's own dates show a width on fewer cells than the real column's
+    at seeds 5 and 9, so a proportional share gives `padded` five and the
+    twin misses it; reserved first, it holds. (Re-measured for plan
+    P4-D139: the three per cent shape this test used counted the rare
+    form under `first-field-padded`, which is folded into `padded` now,
+    and with the reservation withdrawn in a copy of the package seeds 5
+    and 9 are the two of 4 to 11 that fail.)
     """
-    draw = random.Random(2)
+    draw = random.Random(10)
     start = datetime.date(2022, 1, 1)
     days = [start + datetime.timedelta(days=draw.randrange(900)) for _ in range(400)]
     cells = [
         day.strftime("%m/%d/%Y")
-        if draw.random() < 0.03
+        if draw.random() < 0.02
         else f"{day.month}/{day.day}/{day.year}"
         for day in days
     ]
     first, second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "rare", cells, ("--smallest-group", "6")
+        tmp_path / "rare", cells, ("--smallest-group", "6"), seed=seed
     )
-    assert first["date_field_widths"]["first-field-padded"] == 6
-    assert second["date_field_widths"]["first-field-padded"] >= 6
+    assert first["date_field_widths"]["padded"] == 6
+    assert second["date_field_widths"]["padded"] >= 6
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -316,10 +321,12 @@ def test_may_beside_other_months_writes_other_months_in_the_same_style(
     first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "mixed", cells
     )
+    # Its names of May are folded into the length its other months wrote
+    # (plan P4-D139), and written back in their case, mark and comma.
     assert sorted(first["month_name_styles"]) == [
         "upper-abbreviated-hyphen-no-comma",
-        "upper-either-hyphen-no-comma",
     ]
+    assert any("-MAY-" in cell for cell in written)
     for cell in written:
         datetime.datetime.strptime(cell, "%d-%b-%Y")
         assert cell == cell.upper(), cell
@@ -399,3 +406,209 @@ def test_reversed_quarter_marker_cases_are_missed(tmp_path: pathlib.Path) -> Non
     )
     assert code == 3
     assert "markers.lower [datetime.quarter_marker_case]: MISSED" in report
+
+
+# -- 5. a cell that shows nothing of a convention costs no census --------
+#
+# The skeptic of the review of 158c811 (items 2 and 3), plan P4-D139.
+# A name of May shows no length and a date whose two fields are both ten
+# or more shows no width; counted as a form of their own, one such cell
+# left a remainder of one and the disclosure rule withheld the whole
+# census, so the twin was written in another format and nothing said so.
+# And a one-field width or an `either` name published near the floor put
+# a floor on how many of a twin's dates happen to fall in May or past the
+# ninth, so twins failed their own check on some seeds.
+
+
+def _days(count: int, seed: int, span: int, start: datetime.date) -> "list[datetime.date]":
+    draw = random.Random(seed)
+    return [start + datetime.timedelta(days=draw.randrange(span)) for _ in range(count)]
+
+
+def _read_by(cells: "list[str]", pattern: str, upper: "bool | None" = None) -> int:
+    """How many cells `strptime` reads under `pattern`, in the case asked."""
+    read = 0
+    for cell in cells:
+        try:
+            datetime.datetime.strptime(cell, pattern)
+        except ValueError:
+            continue
+        letters = "".join(character for character in cell if character.isalpha())
+        if upper is not None and letters and (letters == letters.upper()) != upper:
+            continue
+        read += 1
+    return read
+
+
+def test_the_folds_join_what_shows_nothing_to_what_its_column_wrote() -> None:
+    """`parsing.folded_width_tally` and `folded_name_tally`, asked directly."""
+    assert parsing.folded_width_tally(
+        {"second-padded": 40, "first-field-unpadded": 30, "second-field-padded": 9}
+    ) == {"second-padded": 79}
+    # With no joint word agreeing, a one-field count keeps its own word.
+    assert parsing.folded_width_tally(
+        {"padded": 5, "first-field-unpadded": 7}
+    ) == {"first-field-unpadded": 7, "padded": 5}
+    # The commonest agreeing word takes it; vocabulary order on a tie.
+    assert parsing.folded_width_tally(
+        {"padded": 3, "first-padded": 8, "first-field-padded": 2}
+    ) == {"first-padded": 10, "padded": 3}
+    assert parsing.folded_name_tally(
+        {"upper-abbreviated-hyphen-no-comma": 268, "upper-either-hyphen-no-comma": 1}
+    ) == {"upper-abbreviated-hyphen-no-comma": 269}
+    assert parsing.folded_name_tally(
+        {"title-full-space-comma": 12, "title-abbreviated-space-comma": 12,
+         "title-either-space-comma": 2}
+    ) == {"title-abbreviated-space-comma": 14, "title-full-space-comma": 12}
+    # A name of May in a case no other cell wrote keeps its `either` word.
+    assert parsing.folded_name_tally(
+        {"title-abbreviated-space-no-comma": 187, "upper-either-hyphen-no-comma": 13}
+    ) == {"title-abbreviated-space-no-comma": 187, "upper-either-hyphen-no-comma": 13}
+
+
+def test_one_may_among_upper_case_dates_keeps_the_names_census(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's (a): 269 `DD-MON-YYYY` dates with no May, and one May.
+
+    After 8be4b12 the census was `{}` and `%d-%b-%Y` in upper case read no
+    twin cell of 269, where 158c811 read all of them.
+    """
+    cells = [
+        day.strftime("%d-%b-%Y").upper()
+        for day in _days(300, 3, 3650, datetime.date(2015, 1, 1))
+        if day.month != 5
+    ] + ["15-MAY-2023"]
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "one-may", cells
+    )
+    assert first["month_name_styles"] == {
+        "upper-abbreviated-hyphen-no-comma": len(cells)
+    }
+    assert _read_by(written, "%d-%b-%Y", upper=True) == len(written)
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_full_month_names_with_a_few_mays_keep_the_names_census(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's (b): 200 dates `%B %-d, %Y` at a smallest group of eleven.
+
+    Ten or so names of May fell under the floor and withheld the census;
+    the twin was written `Feb 26 2016` and `%B %d, %Y` read none of it.
+    """
+    cells = [
+        f"{day.strftime('%B')} {day.day}, {day.year}"
+        for day in _days(200, 4, 3650, datetime.date(2015, 1, 1))
+    ]
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "full-names", cells, ("--smallest-group", "11")
+    )
+    assert first["month_name_styles"] == {"title-full-space-comma": 200}
+    assert _read_by(written, "%B %d, %Y") == len(written)
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_one_date_showing_no_width_keeps_the_widths_census(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's (c): 244 `m/d/yyyy` dates that each show a width, and `12/25/2019`.
+
+    The one date showing no width left a remainder of one over the values
+    read as dates, the census was withheld whole, and 212 of 245 twin
+    cells were written padded.
+    """
+    cells = [
+        f"{day.month}/{day.day}/{day.year}"
+        for day in _days(300, 5, 3650, datetime.date(2015, 1, 1))
+        if not (day.month >= 10 and day.day >= 10)
+    ] + ["12/25/2019"]
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "no-width", cells
+    )
+    assert first["date_field_widths"] == {"unpadded": len(cells) - 1}
+    unpadded = [
+        cell for cell in written
+        if all(part == str(int(part)) for part in cell.split("/")[:2])
+    ]
+    assert len(unpadded) == len(written)
+    assert (twin_exit, real_exit) == (0, 0)
+    # The loader holds a width census to its line and its pool, and not to
+    # a remainder over every date: the date showing no width is not a form.
+    _path, document = _described(tmp_path / "loads", cells)
+    path = fixtures.write_profile(tmp_path, "widths.json", document)
+    contract.load_profile(f"{path}")
+
+
+@pytest.mark.parametrize("seed", ["0", "1", "2", "3", "4", "5", "6", "7"])
+def test_a_twin_of_upper_case_month_names_near_the_floor_validates(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The skeptic's finding 3: 120 `DD-MON-YYYY` dates at a floor of eleven.
+
+    8be4b12 published `upper-either-hyphen-no-comma: 11` beside the
+    abbreviated style, and the twin exited 3 on seeds 1, 4, 5 and 7.
+    """
+    cells = [
+        day.strftime("%d-%b-%Y").upper()
+        for day in _days(120, 2, 3650, datetime.date(2015, 1, 1))
+    ]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / seed, cells, ("--smallest-group", "11"), seed=seed,
+        check_real=seed == "0",
+    )
+    assert first["month_name_styles"] == {"upper-abbreviated-hyphen-no-comma": 120}
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", ["0", "1", "2", "3", "4", "5", "6", "7"])
+def test_a_twin_of_unpadded_month_first_dates_near_the_floor_validates(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The skeptic's finding 3: 150 `m/d/yyyy` dates at a floor of eleven.
+
+    8be4b12 published `second-field-unpadded: 14` beside two other width
+    words, and the twin exited 3 on seed 2.
+    """
+    cells = [
+        f"{day.month}/{day.day}/{day.year}"
+        for day in _days(150, 13, 3650, datetime.date(2015, 1, 1))
+    ]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / seed, cells, ("--smallest-group", "11"), seed=seed,
+        check_real=seed == "0",
+    )
+    assert first["date_field_widths"] == {"unpadded": 114}
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", ["0", "1", "2", "3", "9"])
+def test_a_style_only_may_shows_is_owed_on_the_twin_s_own_mays(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """A style no fold removes, held on the cells that can show it (P4-D139).
+
+    150 dates written `17 Jan 2019`, with every date in May written
+    `17-MAY-2019`: no other cell writes upper case with hyphens, so the
+    names of May keep `upper-either-hyphen-no-comma`, published at 11 at a
+    smallest group of eleven. The twin's own dates put 7 to 10 cells in
+    May at these seeds, every one written in that style. Checked against
+    the twin's own description, that style fell under the floor and its
+    whole census was withheld, and the twin exited 3; counted on the
+    twin's own cells, it is owed on every May the twin holds.
+    """
+    cells = [
+        day.strftime("%d-%b-%Y").upper() if day.month == 5 else day.strftime("%d %b %Y")
+        for day in _days(150, 34, 3650, datetime.date(2010, 1, 1))
+    ]
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / seed, cells, ("--smallest-group", "11"), seed=seed,
+        check_real=seed == "0",
+    )
+    assert first["month_name_styles"] == {
+        "title-abbreviated-space-no-comma": 139,
+        "upper-either-hyphen-no-comma": 11,
+    }
+    mays = [cell for cell in written if "-MAY-" in cell]
+    assert 0 < len(mays) < 11
+    assert (twin_exit, real_exit) == (0, 0)

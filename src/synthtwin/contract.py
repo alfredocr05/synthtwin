@@ -1414,8 +1414,7 @@ INVARIANTS = {
         "counted only for a member whose fields can show one, is named "
         "only when at least the smallest group size of cells wrote it "
         "and never fewer than two, names no pool, and comes to no more "
-        "than the values that read as dates while leaving none of them "
-        "over or at least that many"
+        "than the values that read as dates"
     ),
     "D18": (
         "the case, length, mark and comma a cell wrote a month NAME with "
@@ -7431,6 +7430,7 @@ def _datetime_facts(
         or parser_family in parsing.TEXTUAL_MEMBERS,
         n_present - unparsed,
         "D17",
+        False,
     )
     name_styles = _written_census(
         mapping,
@@ -7662,6 +7662,7 @@ def _written_census(
     reachable: bool,
     most: int,
     rule: str,
+    remainder_published: bool = True,
 ) -> "dict[str, int]":
     """One census of HOW a column's dates were written (landing 2b.6).
 
@@ -7695,10 +7696,21 @@ def _written_census(
     them. What the twin is held to is the SET of conventions and each
     one's floor, which is what `_written_form_checks` measures.
 
+    AND THE WIDTHS' REMAINDER IS NOT A NUMBER THE DOCUMENT PUBLISHES
+    (`remainder_published` false; plan P4-D139). A date whose two fields
+    are both ten or more shows no width, so what the width census leaves
+    over is counted against the cells that COULD show one, which no field
+    of the block states: the published ceiling less the named counts is
+    those cells plus any form held back, and a reader cannot part the two.
+    The producer holds that remainder (`taxonomy._width_counts`); here a
+    width census is held to its vocabulary, its line, no pool and the
+    ceiling.
+
     Guarantees: accepts the datetime block, the census's key, where it
     stands, the floor, the member's vocabulary, whether the member can
-    show the convention, the ceiling on the total and the invariant's
-    name; returns the census. Raises ProfileError for a key outside the
+    show the convention, the ceiling on the total, the invariant's name
+    and whether the remainder over the ceiling is published; returns the
+    census. Raises ProfileError for a key outside the
     vocabulary and for the named invariant. No I/O of any kind.
     """
     value: object = mapping[key] if key in mapping else {}
@@ -7736,6 +7748,8 @@ def _written_census(
             f"the counted written forms come to {total}",
             f"at most {most} of the column's values could show one",
         )
+    if not remainder_published:
+        return census
     if total and not parsing.census_discloses(census, most, floor):
         raise _broken(
             rule,

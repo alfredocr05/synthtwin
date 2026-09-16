@@ -5382,30 +5382,111 @@ PIN_PASSES = 128
 
 
 def pin_places(pins):
-    """Where inside its own unit each pinned rank stands (method G7.3, P4-D130).
+    """Where inside its own unit each pinned rank stands (method G7.3, P4-D130, P4-D138).
 
     Written from the rule statement.  A unit of the ordinal space is a
-    stretch, split into ``PIN_STEPS`` steps.  The first pin stands at the
-    first step of its unit and the last pin at the step one past its
-    unit's end; every other pin starts at its unit's middle step.  Then,
-    ``PIN_PASSES`` times, each interior pin in rank order moves to the
-    step on the straight line between its two neighbours' current steps
-    at its own rank -- floor division -- kept between its unit's first
-    and last step.  Returns rank -> step.
+    stretch, split into ``PIN_STEPS`` steps.  Two sets of places are
+    built, and in both the first pin stands at the first step of its unit
+    and the last pin at the step one past its unit's end.
+
+    THE MIDDLES: every other pin at its unit's middle step.
+
+    THE STRAIGHTEST: a heap -- two or more pins sharing a unit that holds
+    neither the first pin nor the last -- stands at its unit's middle step
+    and never moves; every other pin starts at its unit's middle step and
+    then, ``PIN_PASSES`` times, in rank order, moves to the step on the
+    straight line between its two neighbours' current steps at its own
+    rank -- floor division -- kept between its unit's first and last step.
+
+    With fewer than three pins the straightest is taken.  Otherwise each
+    set is scored by ``bend_of_places`` and the middles are taken only
+    where they score strictly less.  Returns rank -> step.
     """
     ranks = sorted(pins)
-    at = {rank: pins[rank] * PIN_STEPS + PIN_STEPS // 2 for rank in ranks}
     if not ranks:
-        return at
-    at[ranks[0]] = pins[ranks[0]] * PIN_STEPS
-    at[ranks[-1]] = pins[ranks[-1]] * PIN_STEPS + PIN_STEPS
+        return {}
+    middles = {rank: pins[rank] * PIN_STEPS + PIN_STEPS // 2 for rank in ranks}
+    middles[ranks[0]] = pins[ranks[0]] * PIN_STEPS
+    middles[ranks[-1]] = pins[ranks[-1]] * PIN_STEPS + PIN_STEPS
+    end_units = {pins[ranks[0]], pins[ranks[-1]]}
+    on_unit = {}
+    for rank in ranks:
+        on_unit[pins[rank]] = on_unit.get(pins[rank], 0) + 1
+    heap = {
+        rank: pins[rank] not in end_units and on_unit[pins[rank]] >= 2
+        for rank in ranks
+    }
+    straightest = dict(middles)
     for _pass in range(PIN_PASSES):
         for index in range(1, len(ranks) - 1):
-            before, here, after = ranks[index - 1], ranks[index], ranks[index + 1]
-            line = at[before] + ((here - before) * (at[after] - at[before])) // (after - before)
+            here = ranks[index]
+            if heap[here]:
+                continue
+            before, after = ranks[index - 1], ranks[index + 1]
+            line = straightest[before] + (
+                (here - before) * (straightest[after] - straightest[before])
+            ) // (after - before)
             first = pins[here] * PIN_STEPS
-            at[here] = min(max(line, first), first + PIN_STEPS - 1)
-    return at
+            straightest[here] = min(max(line, first), first + PIN_STEPS - 1)
+    if len(ranks) < 3:
+        return straightest
+    if bend_of_places(pins, middles) < bend_of_places(pins, straightest):
+        return middles
+    return straightest
+
+
+COUNT_SCALE = 2 ** 32
+
+
+def unit_count(pins, at, unit):
+    """How many ranks a set of places spreads onto one unit, in COUNT_SCALE parts.
+
+    One for each pin on the unit.  The ranks strictly between two
+    neighbouring pins all count on the first pin's unit where the two
+    share a unit or their stretch is empty; otherwise each unit takes
+    ``between * overlap * COUNT_SCALE // stretch`` of them, with
+    ``overlap`` the steps of the stretch inside the unit.
+    """
+    ranks = sorted(pins)
+    low, high = unit * PIN_STEPS, unit * PIN_STEPS + PIN_STEPS
+    total = COUNT_SCALE * sum(1 for rank in ranks if pins[rank] == unit)
+    for below, above in zip(ranks, ranks[1:]):
+        between = above - below - 1
+        if between <= 0:
+            continue
+        start, stop = at[below], at[above]
+        if pins[below] == pins[above] or stop <= start:
+            if pins[below] == unit:
+                total += between * COUNT_SCALE
+            continue
+        overlap = min(stop, high) - max(start, low)
+        if overlap > 0:
+            total += (between * overlap * COUNT_SCALE) // (stop - start)
+    return total
+
+
+def bend_of_places(pins, at):
+    """The proportional bend of a set of places' unit counts (P4-D138).
+
+    Over each unit strictly between the first pin's unit and the last
+    pin's unit that is a pinned unit or next to one, with ``c`` a unit's
+    count plus one whole rank, the sum of the squares of
+    ``c(u-1) * c(u+1) * COUNT_SCALE // c(u)**2 - COUNT_SCALE``.
+    """
+    ranks = sorted(pins)
+    first, last = pins[ranks[0]], pins[ranks[-1]]
+    units = sorted(
+        {unit for rank in ranks for unit in (pins[rank] - 1, pins[rank], pins[rank] + 1)
+         if first < unit < last}
+    )
+    bend = 0
+    for unit in units:
+        before = unit_count(pins, at, unit - 1) + COUNT_SCALE
+        here = unit_count(pins, at, unit) + COUNT_SCALE
+        after = unit_count(pins, at, unit + 1) + COUNT_SCALE
+        ratio = (before * after * COUNT_SCALE) // (here * here)
+        bend += (ratio - COUNT_SCALE) ** 2
+    return bend
 
 
 def spread_ordinals(rungs, parsed, words):
@@ -9878,6 +9959,81 @@ def _date_gap_places():
     }
 
 
+def _date_thinning_week():
+    """A week of dates thinning out from its first day (plan P4-D138).
+
+    Forty dates, a dozen on the first day and one on the last: the five
+    lowest pins share the first day, and every other gap is a day or two
+    wide. The straightest count gives the first day only the ranks its
+    pins span, so the middles bend the count less and are taken.
+    """
+    rungs = [
+        "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-01",
+        "2024-03-02", "2024-03-03", "2024-03-05", "2024-03-05", "2024-03-06",
+        "2024-03-07",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=40, n_missing=0, n_distinct=7, n_distinct_folded=7,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 40},
+    )
+    return {
+        "why": "G7.3's choice between its two sets of places (plan P4-D138): on "
+        "a week whose dates thin out from the first day, every pin at its "
+        "unit's middle bends the count from day to day less than the "
+        "straightest count does, so the middles are taken. The straightest "
+        "count alone gave the first day only the ranks its pins span -- 0.57 "
+        "of a thinning week's real first day -- and that is this case's "
+        "mutant.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
+def _date_peak_heap():
+    """Forty dates peaking over a week, two pins on each of three days (P4-D138).
+
+    The pins at the tenth and twenty-fifth percents share a day, the
+    fiftieth and seventy-fifth share the next, the ninetieth and
+    ninety-fifth the one after: three heaps, none holding an end, each
+    standing at its unit's middle in the straightest count, which is
+    taken.
+    """
+    rungs = [
+        "2024-03-02", "2024-03-02", "2024-03-02", "2024-03-04", "2024-03-04",
+        "2024-03-05", "2024-03-05", "2024-03-06", "2024-03-06", "2024-03-06",
+        "2024-03-07",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=40, n_missing=0, n_distinct=6, n_distinct_folded=6,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 40},
+    )
+    return {
+        "why": "G7.3's heaps (plan P4-D138): two or more pins on a day holding "
+        "neither end stand at that day's middle in the straightest count and "
+        "do not move. Moved onto the straight line like any other pin, a "
+        "peak's day kept only the ranks its pins span -- 0.74 of a peaked "
+        "fortnight's real peak -- and that is this case's mutant.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
 def _month_first_widths():
     """A month-first column counting each class of width by its own words.
 
@@ -11347,7 +11503,11 @@ NAMED_CASE_BUILDERS = {
     # non-empty census of written forms, so every allocation of G7.5 could
     # have been withdrawn with every committed byte unchanged, and G7.3's
     # places were pinned by none. They go in this file, which has the room.
+    # AND TWO MORE FROM ITS SKEPTIC (plan P4-D138): G7.3's choice of the
+    # middles and its heaps, each with its own mutant.
     "date_gap_places": _date_gap_places,
+    "date_peak_heap": _date_peak_heap,
+    "date_thinning_week": _date_thinning_week,
     "may_month_names": _may_month_names,
     "month_first_widths": _month_first_widths,
     "reserved_name_floor": _reserved_name_floor,
@@ -14907,6 +15067,62 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "date_peak_heap": (
+        14766693206355676505, 6992157754349396863, 7838749716675263788,
+        6260884635299288984, 16683963525250038006, 2929686537832769934,
+        2071875313487354258, 13349647098881792378, 1551110936622519113,
+        1353110449592196458, 17307339043402969394, 6151673706957319088,
+        1919595005328611936, 8476328626393059232, 15247229415546912329,
+        6517722599748709312, 11553436059773369373, 11269210997479015415,
+        6167618492286883184, 14625991199064179370, 8138596820396397001,
+        8539488409251745151, 779240757970203613, 16679182503145436217,
+        11982031602075414604, 5508324759865584647, 2610525744345252956,
+        8749227166237231008, 18242928711690456347, 7498450071216871015,
+        736853949146623621, 6729718628367637034, 14304344870152288214,
+        7616852576711505503, 8381666801314064950, 13780545569617316078,
+        4826664362350657762, 3492663118806061649, 6089009591588996131,
+        17756337892691158891, 16719592472474065696, 72079691224040853,
+        6523895488822866630, 5647034530723381259, 5029885900170472086,
+        12793461229313348238, 1303226997728965567, 8258220809841507654,
+        11130630313922382584, 9676368676516251084, 4659117894285289725,
+        2201284052227080037, 7227452119973509919, 13727759001878204432,
+        9795480541515733080, 6434767888092282255, 994462249439909175,
+        12118406020017173180, 15104171236716321650, 6920231579164432269,
+        4962820653922746784, 12434911003628762574, 1656476672774081503,
+        3791232627580938504, 15974657973910230499, 5129423072227879236,
+        18191266426893455499, 2844670899663405278, 11703772692705477423,
+        7065468433315722716, 385531002873873270, 5614027444090623099,
+        10561073587658038565, 1483354294859502419, 6996927556167716518,
+        10118285601421975715, 13817057510851749147,
+    ),
+    "date_thinning_week": (
+        11079678160230914977, 4954812553690575453, 16055455646014030800,
+        3862566106636356417, 16245795031161184184, 12569060163420238655,
+        5009103289862267414, 14215352683306337838, 4865000564004434859,
+        16796880053323686440, 5194306685916341992, 7847678842380058076,
+        5230705852901393350, 11798063569124903186, 6075326664027947,
+        9455656810271046659, 11701532591040608264, 3579216433710878606,
+        12411381346985564628, 2716908277590758005, 11965093471224593099,
+        12633817745152957120, 2274065125571139258, 15394111227982530067,
+        15649011496529710023, 15469938750659786732, 15777769424741237768,
+        17891270777846587067, 7705746092959135942, 17068665242803066670,
+        515995206931573676, 9324249909376588643, 8872584017910170190,
+        14932960399753190805, 15607457803414003521, 17750121684488565463,
+        1599950418171924953, 5060213957147658689, 1603727249314529272,
+        8126335040947758948, 2053321559920411412, 11189687114212635589,
+        4268490824490242005, 8703147062316955401, 10322674905973002807,
+        17787473613551231505, 519604157333400118, 41980820982561003,
+        667108904226507373, 2318141621240746246, 14441661313213643469,
+        18302446780740922673, 11646858179307892659, 5015360047219947662,
+        5412554084687807230, 6731110393170337823, 12901609537192193203,
+        12967157853018607235, 3839606383366968531, 4603813393130198212,
+        528261728206944320, 1797334392541920177, 7207154503668962165,
+        13126400342626726343, 13379377835769567197, 14867530458230300932,
+        15140659055465307474, 11011854492896435342, 1323904669204375680,
+        11120658615021462214, 16172915239446243357, 13518863192834238754,
+        11381489319053512577, 17182182428581280277, 351165963239372741,
+        17316092617392718017, 12973131163195499433,
+    ),
     "date_gap_places": (
         13582273234154262364, 18398104693322419879, 34070170978230141,
         3341762675134395213, 9954870715852195741, 11074722499558924578,
