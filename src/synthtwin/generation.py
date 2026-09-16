@@ -16110,6 +16110,17 @@ _HELD_BACK_UNPLACED_REASON = (
 # numbers, and stops believing the report. This one says what is true --
 # the numbers are published and the walk cannot spell them -- and the
 # location is invented either way.
+# AND THE SENTENCE MOVED WITH THE RULE (landing 2b.15 repair, plan
+# P4-D101). While the bound refused every spelling of such a column,
+# "they count upward from the smallest step this column's forms write"
+# was true: the cells came out `1`. P4-D100 holds them between the
+# smallest and the largest number the column published instead, and on
+# the column that rule is for they come out `5.0E6` -- so the old
+# sentence became false about the very cells it describes, which is the
+# defect this constant exists to prevent rather than a nuance. It now
+# states BOTH cases, and carries the clause `_HELD_BACK_NUMBERS_REASON`
+# already carries: a made-up number can equal a held-back one and is
+# still worked out from the published numbers alone.
 _HELD_BACK_UNSPELLED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
     "keeps their number and their sizes but not the labels. Where "
@@ -16117,9 +16128,15 @@ _HELD_BACK_UNSPELLED_REASON = (
     "every number this column published is written in a way this "
     "version cannot step from, such as an exponent, a grouping mark "
     "or a leading plus, so nothing in the description says where the "
-    "made-up ones lie: they count upward from the smallest step this "
-    "column's forms write, and a statistic computed over them means "
-    "nothing about your table."
+    "made-up ones lie. They are held between the smallest and the "
+    "largest number this column published, where a form of theirs "
+    "spells one there, and they count upward from the smallest step "
+    "this column's forms write where it does not. A made-up number "
+    "can equal one your table held back, but it is worked out from "
+    "the published numbers alone and from no fact about the held-back "
+    "one, and where between those ends it falls is this version's own "
+    "choice, so a statistic computed over these cells is not a fact "
+    "about your table."
 )
 
 

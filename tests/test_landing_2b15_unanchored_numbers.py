@@ -191,3 +191,138 @@ def test_p4_d92_is_not_withdrawn_where_the_ladder_has_its_own_ends(
     assert twin_exit == 0
     assert real_exit == 0
     assert "5.0E6" in written
+
+
+# -- P4-D101: what the bound costs where the held-back level is a TAIL --
+
+
+def _amounts_with_the_rare_level_below_the_span() -> "list[str]":
+    """The same column, with its held-back level BELOW everything it
+    published -- which is where a rare value usually sits.
+
+    Twenty-six cells read as numbers and wear `%.%@%`; the published
+    levels are 5,000,000 and 8,800,000 and the level held back on four
+    rows is 1,100,000, smaller than either. No in-span spelling can
+    stand where that level stood.
+    """
+    return (
+        ["alpha"] * 20
+        + ["5.0e6"] * 11
+        + ["8.8e6"] * 11
+        + ["1.1e6"] * 4
+    )
+
+
+@pytest.mark.parametrize("seed", ["4", "13"])
+def test_a_held_back_level_below_the_span_is_paid_from_inside_it(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """THE NAMED COST, pinned so it cannot be mistaken for a win.
+
+    P4-D100 settles this column's census in full -- and every spelling it
+    can reach lies above the level it is standing in for, so the twin's
+    numbers move AWAY from the table's while the exit code goes quiet.
+    Measured at three seeds on both trees: the base wrote `1` four
+    times at twin validate 3, with the mean 2.82 per cent low and the
+    spread 11.56 per cent high; this rule writes `8.1E6` four times at
+    twin validate 0, with the mean 17.93 per cent HIGH and the spread
+    33.96 per cent LOW.
+
+    This test asserts what the twin actually does, not that it is good.
+    If a later change makes the mean here land on the table's, read
+    P4-D101 before believing it: no spelling inside the published span
+    can do that, so the question to ask is what left the span.
+    """
+    cells = _amounts_with_the_rare_level_below_the_span()
+    _first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path, cells, _FLOOR, seed
+    )
+    assert _worn(written)["%.%@%"] == 26
+    assert twin_exit == 0
+    assert real_exit == 0
+    # The stand-in is held inside the published span, which is the one
+    # thing P4-D92 bought and P4-D100 must never spend.
+    values = _numbers(written)
+    assert len(values) == 26
+    for value in values:
+        assert 5000000.0 <= value <= 8800000.0
+    # AND THE COST IS REAL: the twin's mean stands above the table's,
+    # because the level it stood in for lay below the whole span.
+    table = _numbers(cells)
+    assert sum(values) / len(values) > sum(table) / len(table)
+
+
+@pytest.mark.parametrize("seed", ["4"])
+def test_the_report_says_where_the_made_up_numbers_were_held(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The twin's report describes the cells this rule actually writes.
+
+    While the bound refused every spelling, the note said those cells
+    "count upward from the smallest step this column's forms write",
+    and that was true -- they came out `1`. Under P4-D100 they come out
+    `5.0E6`, chosen because its value lies inside the published ends, so
+    the sentence became false about the very cells it describes. That is
+    the class of defect this repository treats as a defect rather than a
+    nuance, which is why the constant it lives in exists at all.
+    """
+    cells = _amounts_in_scientific_notation()
+    _first, _second, written, twin_exit, _real_exit = _round_trip(
+        tmp_path, cells, _FLOOR, seed
+    )
+    assert twin_exit == 0
+    assert "5.0E6" in written
+    report = (tmp_path / "real-twin-report.txt").read_text(encoding="utf-8")
+    # What is true of these cells now.
+    assert "held between the smallest and the largest number" in report
+    # ...and the clause the placed sentence already carried.
+    assert "can equal one your table held back" in report
+    # The sentence that was false of them is GONE as an unconditional
+    # claim: it now stands only as the case where the span spells none.
+    assert "made-up ones lie: they count upward" not in report
+
+
+# -- NAMED LIMIT 3 of P4-D100, pinned (it was pinned by nothing) --
+
+
+def _rungs_narrower_than_the_published_values() -> "list[str]":
+    """A column whose PLAIN rungs are narrower than its own values.
+
+    `1100000` and `1200000` are plain decimals, so the ladder is
+    anchored and its ends are 1,100,000 to 1,200,000; `8.8e6` is a
+    value those rungs do not reach, so the published span runs to
+    8,800,000. The held-back level owes `%.%@%` four times, and the
+    stand-in is `''` under the rungs against `5.0E6` under the span.
+    """
+    return (
+        ["alpha"] * 20
+        + ["1100000"] * 11
+        + ["1200000"] * 11
+        + ["8.8e6"] * 11
+        + ["5.5e6"] * 4
+    )
+
+
+@pytest.mark.parametrize("seed", ["4", "77"])
+def test_the_anchored_bound_keeps_its_own_narrower_ends(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """P4-D100 limit 3, which the landing named and nothing held.
+
+    Where the ladder has rungs of its own the bound is the RUNGS, not
+    the value span, so this column's form debt goes short and says so
+    at exit 3 -- its four made-up cells falling back to the plain
+    `1100001`, which settles the class and not the form. Widening the
+    anchored branch to the value span would pay it with `5.0E6` and
+    turn this test red, which is the whole point of writing it: the
+    limit was measured and left standing deliberately, and a later
+    change that takes it now has to say so.
+    """
+    cells = _rungs_narrower_than_the_published_values()
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path, cells, _FLOOR, seed
+    )
+    assert first["shape_forms"]["%.%@%"] == 15
+    assert _worn(written)["%.%@%"] == 11
+    assert twin_exit == 3
+    assert real_exit == 0

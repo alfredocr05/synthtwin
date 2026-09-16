@@ -4630,8 +4630,24 @@ number when it is one under that reading.
    every spelling is refused, the debt stands, and the report line and
    the exit code announcing it stand with it.
 
-   A shortfall a reader can see is not exchanged for a
-   larger one nothing can check. Only NUMBER is bounded this way; the
+   A shortfall a reader can see is not exchanged for a larger one
+   nothing can check WHERE THIS VERSION CAN TELL THE TWO APART, which
+   is where the CANDIDATE leaves the published ends. It cannot tell
+   them apart where the HELD-BACK LEVEL lies outside those ends
+   (landing 2b.15 repair, plan P4-D101). Nothing below the floor
+   reaches this walk, so a level smaller or larger than every number
+   the column published is indistinguishable here from one inside the
+   span, and the stand-in is written from inside the span either way.
+   Measured at three generate seeds on a column publishing 5,000,000
+   and 8,800,000 with 1,100,000 held back on four rows: the census is
+   met twenty-six of twenty-six and validate exits 0 where the unpaid
+   twin exited 3, and the twin's mean moves from 2.8 per cent low to
+   17.9 per cent high while its spread moves from 11.6 per cent high to
+   34.0 per cent low. That cost is NAMED here rather than claimed away;
+   it is not paid by choosing a different spelling, which was measured
+   and refused; and the report says over those cells that where between
+   the published ends they fall is this version's own choice. Only
+   NUMBER is bounded this way; the
    other two classes are constructed outright by G10.3 and mean
    magnitudes no envelope covers. The rule above is not withdrawn by
    this — a column publishing the same census beside PLAIN spellings
@@ -4788,7 +4804,15 @@ number when it is one under that reading.
    numbers, and stops believing the report. The two cases are told apart
    and the second says what is true -- every number this column
    published is written in a way this version cannot step from -- with
-   the location invented either way. Placing those numbers is not done
+   the location invented either way. **WHAT THE REPORT SAYS OF THOSE
+   NUMBERS MOVED WITH THE RULE** (landing 2b.15 repair, plan P4-D101).
+   Step 2's bound now holds them between the smallest and the largest
+   number the column published, so the sentence saying they count
+   upward from the smallest step this column's forms write is true only
+   where that span spells none of them; it states both cases, and it
+   carries the clause the placed sentence carries -- a made-up number
+   can equal one the table held back and is worked out from the
+   published numbers alone. Placing those numbers is not done
    here: building the anchors from the exponent, grouped and
    leading-plus spellings was measured at landing 2b.4's integration and
    withdrawn, because the leading-plus column then lost `n_numeric` and
