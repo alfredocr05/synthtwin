@@ -2065,6 +2065,34 @@ verdict in the report's own census, as every withheld count does, so a
 reader sees that these rules were not checked rather than being told
 they held.
 
+**V6.2-A3 On a description of a WORKBOOK the workbook block IS checked**
+(2026-09-15, plan P4-D79). What V6.2-A2 withholds is the byte rules of
+`source.dialect`, which describe a DELIMITED file and are unanswerable
+against a package of markup. It withholds nothing else, and from this
+landing `source.workbook` is measured in full: the twin of a workbook is
+a workbook, so every fact that block publishes is an obligation. The
+subchecks are named `workbook.*` and filed under the fact
+`document.source.workbook` -- the sheet's place and count, the published
+sheet names, the date system, the rows above the header, the records
+holding nothing, the frozen rows, the formatted blanks beyond the table,
+the defined table, the autofilter, the macro project, and per column the
+cell-class census, the format-kind census and the format code.
+
+Two of them are the reason the landing exists. A column whose cells were
+TEXT publishes a text count, so a twin that wrote those cells as numbers
+-- which is what every ordinary writer does to `00123` -- MISSES
+`workbook.cell-classes`. A column whose cells wear a DATE format
+publishes that kind and that code, so a twin that wrote the numbers bare
+misses `workbook.format-kinds` and `workbook.format-code`. Without these
+checks those two failures would show up only as a reader handing back a
+different type, which is exactly the silent wrongness a quality report
+exists to catch.
+
+A file that is not a package at all, measured against a workbook
+description, MISSES `workbook.package`. That is a miss and not a
+withholding: the description says the table came out of a spreadsheet,
+and a file that is not one does not meet that.
+
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D75). The first four rules above are no longer constants: each asks
 what `source.encoding` and `source.dialect` record — the encoding

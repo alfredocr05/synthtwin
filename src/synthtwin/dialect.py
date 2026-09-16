@@ -245,12 +245,230 @@ SHEET_KEYS = (
     "rows_above_header",
     "sheet_count",
     "sheet_hidden",
+    "sheet_names",
     "sheet_position",
     "trailing_blank_columns",
     "trailing_blank_rows",
 )
 
-SHEET_COLUMN_KEYS = ("cell_classes", "format_kinds", "formulas")
+SHEET_COLUMN_KEYS = ("cell_classes", "format_code", "format_kinds", "formulas")
+
+
+# -- what the twin is WRITTEN with (plan P4-D79) -----------------------
+#
+# Part 1 of this landing read a workbook and published the KIND of thing
+# each cell's number format made of it, deliberately withholding the
+# format CODE: a custom code is text out of somebody's file, and a
+# census keyed by codes would publish that text as a key.
+#
+# A twin that is itself a workbook cannot be written from the kind
+# alone. A date is a number wearing a format, so a column written with
+# no format code comes back from every reader as a column of five-digit
+# numbers rather than as dates, and the twin then fails the one thing it
+# exists for: code developed on it does not run unchanged on the real
+# table. So a code IS published now -- but only ever one of these, which
+# are Excel's own published vocabulary and synthtwin's own, and never
+# the person's. A custom code is published as the CANONICAL code of its
+# kind, which is the stated limit of the landing: the twin wears the
+# standard code for a date rather than the one somebody typed.
+
+# Excel's built-in number formats, by the id the file stores. These are
+# the codes of the OOXML standard itself, not text of anybody's table,
+# which is what makes them publishable at all. The writer needs the id
+# for each so it can write a built-in format rather than making up a
+# custom one, and the reader needs the code for each id.
+SHEET_BUILT_IN_FORMAT_IDS = {
+    "General": 0,
+    "0": 1,
+    "0.00": 2,
+    "#,##0": 3,
+    "#,##0.00": 4,
+    "0%": 9,
+    "0.00%": 10,
+    "0.00E+00": 11,
+    "# ?/?": 12,
+    "# ??/??": 13,
+    "mm-dd-yy": 14,
+    "d-mmm-yy": 15,
+    "d-mmm": 16,
+    "mmm-yy": 17,
+    "h:mm AM/PM": 18,
+    "h:mm:ss AM/PM": 19,
+    "h:mm": 20,
+    "h:mm:ss": 21,
+    "m/d/yy h:mm": 22,
+    "#,##0 ;(#,##0)": 37,
+    "#,##0 ;[Red](#,##0)": 38,
+    "#,##0.00;(#,##0.00)": 39,
+    "#,##0.00;[Red](#,##0.00)": 40,
+    "mm:ss": 45,
+    "[h]:mm:ss": 46,
+    "mmss.0": 47,
+    "##0.0E+0": 48,
+    "@": 49,
+}
+
+# The canonical code for each kind, used where the file's own code is
+# not one of Excel's built-in ones. Each is an ordinary unambiguous
+# spelling of its kind and none of them carries a currency symbol, a
+# unit or a label, because those are the parts of a custom code that
+# could be somebody's text.
+SHEET_CANONICAL_FORMAT_CODES = {
+    SHEET_FORMAT_PLAIN: "General",
+    SHEET_FORMAT_DATE: "yyyy\\-mm\\-dd",
+    SHEET_FORMAT_DATETIME: "yyyy\\-mm\\-dd\\ hh:mm:ss",
+    SHEET_FORMAT_TIME: "h:mm:ss",
+    SHEET_FORMAT_ELAPSED: "[h]:mm:ss",
+    SHEET_FORMAT_TEXT: "@",
+}
+
+
+def _sheet_format_codes() -> "tuple[str, ...]":
+    """Every code a description may publish, in a fixed order."""
+    out: "list[str]" = []
+    for code in sorted(SHEET_BUILT_IN_FORMAT_IDS):
+        out += [code]
+    for kind in SHEET_FORMAT_KINDS:
+        code = SHEET_CANONICAL_FORMAT_CODES[kind]
+        if code not in SHEET_BUILT_IN_FORMAT_IDS:
+            out += [code]
+    return tuple(out)
+
+
+SHEET_FORMAT_CODES = _sheet_format_codes()
+
+# WHICH KIND EACH PUBLISHABLE CODE IS. The reader works this out by
+# reading the code (`workbook.format_kind`), which is the one rule; this
+# map is that rule's answer for the closed list of codes a description
+# may publish, written out so the LOADER can ask the question without
+# reaching the reader. The loader must not import a module that opens or
+# parses a table -- doing so broke the profile/generator boundary in
+# part 1 of this landing -- and every entry here was measured against
+# `workbook.format_kind` rather than typed from memory.
+SHEET_FORMAT_CODE_KINDS = {
+    "General": SHEET_FORMAT_PLAIN,
+    "0": SHEET_FORMAT_PLAIN,
+    "0.00": SHEET_FORMAT_PLAIN,
+    "#,##0": SHEET_FORMAT_PLAIN,
+    "#,##0.00": SHEET_FORMAT_PLAIN,
+    "0%": SHEET_FORMAT_PLAIN,
+    "0.00%": SHEET_FORMAT_PLAIN,
+    "0.00E+00": SHEET_FORMAT_PLAIN,
+    "# ?/?": SHEET_FORMAT_PLAIN,
+    "# ??/??": SHEET_FORMAT_PLAIN,
+    "mm-dd-yy": SHEET_FORMAT_DATE,
+    "d-mmm-yy": SHEET_FORMAT_DATE,
+    "d-mmm": SHEET_FORMAT_DATE,
+    "mmm-yy": SHEET_FORMAT_DATE,
+    "h:mm AM/PM": SHEET_FORMAT_TIME,
+    "h:mm:ss AM/PM": SHEET_FORMAT_TIME,
+    "h:mm": SHEET_FORMAT_TIME,
+    "h:mm:ss": SHEET_FORMAT_TIME,
+    "m/d/yy h:mm": SHEET_FORMAT_DATETIME,
+    "#,##0 ;(#,##0)": SHEET_FORMAT_PLAIN,
+    "#,##0 ;[Red](#,##0)": SHEET_FORMAT_PLAIN,
+    "#,##0.00;(#,##0.00)": SHEET_FORMAT_PLAIN,
+    "#,##0.00;[Red](#,##0.00)": SHEET_FORMAT_PLAIN,
+    "mm:ss": SHEET_FORMAT_TIME,
+    "[h]:mm:ss": SHEET_FORMAT_ELAPSED,
+    "mmss.0": SHEET_FORMAT_TIME,
+    "##0.0E+0": SHEET_FORMAT_PLAIN,
+    "@": SHEET_FORMAT_TEXT,
+    # The two canonical codes that are not built in, named rather than
+    # spelled again: their own spelling carries escapes and one copy of
+    # it is enough.
+    SHEET_CANONICAL_FORMAT_CODES[SHEET_FORMAT_DATE]: SHEET_FORMAT_DATE,
+    SHEET_CANONICAL_FORMAT_CODES[SHEET_FORMAT_DATETIME]: (
+        SHEET_FORMAT_DATETIME
+    ),
+}
+
+
+# -- a sheet's NAME, and when it may be published ----------------------
+#
+# A sheet name is free text somebody typed, and the disclosure rule
+# names it outright as a fact that can hold a person's name. It is also
+# the one piece of a workbook's shape a reader meets first: code that
+# says `read_excel(path, sheet_name="Data")` fails against a twin whose
+# sheet is called something else, so withholding every name would break
+# the first goal to protect the third.
+#
+# Both are held by publishing a name ONLY when it is one synthtwin can
+# rebuild from its own vocabulary -- a generic name of the kind an
+# exporter writes, optionally numbered -- and withholding every other,
+# which the twin then writes under a neutral name. That is the same
+# standard the publication guard already applies to every other
+# published word: not "does this look like a person's name", which
+# nothing can answer, but "is this one of the words we know".
+SHEET_SAFE_NAMES = (
+    "Codebook",
+    "Data",
+    "Export",
+    "Info",
+    "Notes",
+    "Page",
+    "Raw",
+    "Report",
+    "Results",
+    "Sheet",
+    "Summary",
+    "Table",
+    "Values",
+    "Worksheet",
+)
+
+# The same names folded, written out as literals. The comparison below
+# needs a folded form of each, and folding them in a loop would call a
+# text method on a value the offline audit cannot trace to a literal.
+SHEET_SAFE_NAMES_FOLDED = (
+    "codebook",
+    "data",
+    "export",
+    "info",
+    "notes",
+    "page",
+    "raw",
+    "report",
+    "results",
+    "sheet",
+    "summary",
+    "table",
+    "values",
+    "worksheet",
+)
+
+SHEET_NEUTRAL_NAME = "Sheet"
+
+
+def sheet_name_published(name: str) -> "str | None":
+    """The sheet's name where it may be published, else nothing.
+
+    A name may be published when it is one of `SHEET_SAFE_NAMES`,
+    alone or followed by figures ("Data", "Sheet1", "Table12"). The
+    comparison ignores the case the person typed but the name is
+    published AS TYPED, because a reader naming the sheet has to spell
+    it the way the file does.
+    """
+    if not isinstance(name, str):
+        raise TypeError("internal check: a sheet name was not text")
+    if not name:
+        return None
+    figures = 0
+    for index in range(len(name)):
+        place = ord(name[len(name) - 1 - index])
+        if 48 <= place <= 57:
+            figures = figures + 1
+            continue
+        break
+    stem = name[: len(name) - figures]
+    if stem.casefold() in SHEET_SAFE_NAMES_FOLDED:
+        return name
+    return None
+
+
+def neutral_sheet_name(position: int) -> str:
+    """The name a sheet is written under when its own is withheld."""
+    return SHEET_NEUTRAL_NAME + f"{position}"
 
 
 MAXIMUM_ENDING_RUNS = 64

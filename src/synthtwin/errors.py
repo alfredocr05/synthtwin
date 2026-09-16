@@ -2127,30 +2127,6 @@ def answers_answer_is_not_offered(
 # report does.
 
 
-def no_workbook_twin_yet(path: str) -> str:
-    """Message for `generate` on a description of a workbook.
-
-    THE REFUSAL EXISTS SO THAT NOTHING WORSE HAPPENS QUIETLY. The twin
-    is written the way its source file was (owner ruling 2026-09-15),
-    and the writer that produces a workbook is the next landing's. A
-    generator that met this description today would write a delimited
-    text file and call it the twin of a spreadsheet: every published
-    fact about the sheet, the cell types and the number formats would be
-    silently dropped, and the twin would not open in the program the
-    table came from. Refusing says so instead.
-    """
-    return (
-        f"The description at {path} describes a table that was read "
-        f"from a spreadsheet workbook, and this version of synthtwin "
-        f"can describe a workbook but cannot yet write one. Writing the "
-        f"twin as a text file instead would lose the sheet, the cell "
-        f"types and the number formats the description records. Please "
-        f"open the workbook, save the sheet as CSV, and run 'synthtwin "
-        f"profile' on that file to get a description this command can "
-        f"build a twin from."
-    )
-
-
 def workbook_unreadable(path: str) -> str:
     """Message for a file that begins as a package but is not one."""
     return (

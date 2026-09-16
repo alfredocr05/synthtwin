@@ -760,10 +760,16 @@ written stands in `written_names` to be written back.
 
 ### 4.3b EXACT-CONTROL: `source.workbook`, how a workbook holds the table
 
-Plan P4-D77. `null` where the table was read from delimited text.
-Otherwise an object with exactly these fourteen keys, all REQUIRED; the
-loader is the executable statement of every rule below
+Plan P4-D77, extended by P4-D79. `null` where the table was read from
+delimited text. Otherwise an object with exactly these fifteen keys, all
+REQUIRED; the loader is the executable statement of every rule below
 (`contract._workbook_block`, `contract._workbook_rules`).
+
+**This block is an OBLIGATION, not only a record** (plan P4-D79). A
+workbook's twin is a workbook, so every fact here is a promise the twin
+has to keep and the validator measures each one, under subchecks named
+`workbook.*` filed against this fact. The validation method states the
+rule and what it does and does not withhold on a workbook.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -778,11 +784,15 @@ loader is the executable statement of every rule below
 | `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
 | `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
-| `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order. The sheet's NAME is never published (below) |
+| `sheet_names` | array of string-or-`null` | one per sheet, in workbook order | each sheet's name where it may be published, `null` where it was WITHHELD. A name may be published only when it is one this version would publish itself -- one of `dialect.SHEET_SAFE_NAMES`, optionally followed by figures -- because a sheet name can hold a person's name. A withheld sheet is written under a neutral name |
+| `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order |
 | `trailing_blank_columns` | integer | ≥ 0 | columns of formatted blanks standing beyond the table |
 | `trailing_blank_rows` | integer | ≥ 0 | rows of formatted blanks standing below the table |
 
-**A column's census — exactly three keys.** `cell_classes` counts the
+**A column's census — exactly four keys.** `format_code` is the number
+format the column's twin WEARS: one of `dialect.SHEET_FORMAT_CODES`,
+which is Excel's own built-in vocabulary plus one canonical code per
+kind, and never a code out of the person's file. `cell_classes` counts the
 class of every cell of that column, over the closed set `absent`,
 `blank`, `empty`, `text`, `number`, `boolean`, `error`
 (`workbook.CELL_CLASSES`); `format_kinds` counts what kind of thing
@@ -801,13 +811,17 @@ are three things in the file and one missing value to pandas. A
 description that recorded what a reader made of a cell could not be
 written back, so what is recorded is what the file holds.
 
-**Invariants WB1-WB4** (`contract.INVARIANTS`): WB1 one column census
+**Invariants WB1-WB6** (`contract.INVARIANTS`): WB1 one column census
 per column; WB2 the sheet the table was read from is one the workbook
 has, counted from one; WB3 every published count of cells is nought, or
 all of them, or clears the smallest group at both ends, so that neither
 the count nor its complement names one row; WB4 the rows above the
 header, the records holding nothing inside the table and the formatted
-blanks beyond it are each no more than the table itself holds.
+blanks beyond it are each no more than the table itself holds; WB5 a
+workbook names one sheet for every sheet it has, and every name it
+publishes is one this version would publish itself; WB6 the number
+format a column's twin wears is one of the published codes, and its kind
+is one the column's own census does not say no cell wears.
 
 **What it discloses, and what it refuses to.** Every key above
 describes the FILE. The facts of a workbook that name or measure one
@@ -817,12 +831,27 @@ measures the longest value in that column, so it is a measurement of
 one cell), not a comment or its author, not a hidden row, not per-row
 styling, not a hyperlink's target, not the document's author or
 company, and not any cache of real values. The sheet is published by
-its position and the person is told on their own screen which sheet was
-read. A number format CODE is read — it is what decides the kind — but
-it is not published either: a custom code is text out of the file, and
-a census keyed by codes would publish that text as a key. The twin
-therefore cannot reproduce a custom format code, and that is a stated
-limit of this landing.
+its position, the person is told on their own screen which sheet was
+read, and a name is published only where this version would have
+written that name itself.
+
+**The format code, and why part 1's narrowing was reversed** (plan
+P4-D79). Part 1 published the format KIND and withheld the CODE,
+because a custom code is text out of the file. That reasoning stands,
+and it is also true that a twin cannot be written from the kind alone:
+a date is a number wearing a format, so a date column written with no
+code comes back from every reader as a column of five-digit numbers. So
+a code IS published — but only ever one of `SHEET_FORMAT_CODES`, which
+is Excel's own published vocabulary and synthtwin's own, never the
+person's. A custom code is published as the CANONICAL code of its kind.
+THE LIMIT, unchanged in substance: the twin wears the standard spelling
+of a date rather than the one somebody typed.
+
+**A mixture of kinds is reproduced as its counts, not collapsed to the
+majority.** `format_kinds` publishes a count per kind and the twin
+writes a cell per count; an absent cell is always `plain`, because
+nothing is written for it and every reader sees the general format
+there.
 
 ### 4.4 `settings`
 

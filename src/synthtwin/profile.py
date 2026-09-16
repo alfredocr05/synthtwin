@@ -651,6 +651,14 @@ _ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
 _STAND_IN_NUMBER = "numeric-sentinel-number"
 _NUMBER = "number"
 _MAYBE_NUMBER = "number-or-nothing"
+# A SHEET'S NAME, OR NOTHING AT ALL (plan P4-D79). This is a kind with a
+# GRAMMAR rather than a list, like `_WIDTH` and `_DIGITS` below and
+# unlike `_WORD`: the names a description may publish are the safe names
+# optionally followed by figures, which is `Sheet1` and `Table12` and
+# every other numbering, and no fixed tuple can hold them. `None` is the
+# withholding itself -- a sheet whose name could be somebody's is not
+# published at all, and the twin writes it under a neutral name.
+_SHEET_NAME = "sheet-name-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -832,6 +840,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "columns", _EACH, "format_kinds", _ANY_KEY): (
         _MAYBE_NUMBER
     ),
+    ("source", "workbook", "columns", _EACH, "format_code"): _WORD,
     ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
     ("source", "workbook", "date_system"): _WORD,
     ("source", "workbook", "defined_names"): _COUNT,
@@ -842,6 +851,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "rows_above_header"): _COUNT,
     ("source", "workbook", "sheet_count"): _COUNT,
     ("source", "workbook", "sheet_hidden"): _FLAG,
+    # ONE ENTRY PER SHEET, each a name this version would publish itself
+    # or nothing at all (plan P4-D79). A sheet name is free text somebody
+    # typed, so what stands here is never whatever the file said: it is
+    # a name out of `dialect.SHEET_SAFE_NAMES`, optionally numbered, and
+    # every other name is withheld and written neutral.
+    ("source", "workbook", "sheet_names"): _ARRAY,
+    ("source", "workbook", "sheet_names", _EACH): _SHEET_NAME,
     ("source", "workbook", "sheet_position"): _COUNT,
     ("source", "workbook", "trailing_blank_columns"): _COUNT,
     ("source", "workbook", "trailing_blank_rows"): _COUNT,
@@ -1481,6 +1497,9 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         workbook.FORMAT_KINDS
     ),
     ("source", "workbook", "date_system"): workbook.DATE_SYSTEMS,
+    ("source", "workbook", "columns", _EACH, "format_code"): (
+        dialect.SHEET_FORMAT_CODES
+    ),
     **_STATED_WORDS,
     # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
     # P4-D37), read off a joined position's for the reason the rules
@@ -1899,6 +1918,15 @@ def _leaf_is_published(
         # given: a pair too rare to publish sends the column to the
         # next rule instead.
         return isinstance(value, str)
+    if kind == _SHEET_NAME:
+        # The grammar is the producer's own, asked here rather than
+        # restated: a name this document publishes must be one
+        # `dialect.sheet_name_published` would have published itself.
+        if value is None:
+            return True
+        if not isinstance(value, str):
+            return False
+        return dialect.sheet_name_published(value) == value
     if kind == _DIGITS:
         return isinstance(value, str) and parsing.is_digit_text(value)
     if kind == _WIDTH:

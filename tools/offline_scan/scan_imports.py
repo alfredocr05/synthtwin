@@ -88,11 +88,24 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
   reader needs and no others:
 
     zipfile.ZipFile      opens a package for READING and hands back
-                         members as bytes. It writes nothing here: the
-                         reader never extracts to a path, so a member
-                         named `..` reaches no filesystem, and the
+                         members as bytes, and -- since plan P4-D79 --
+                         builds the twin's own package IN MEMORY. It
+                         reaches no path either way: the reader never
+                         extracts to one, so a member named `..`
+                         reaches no filesystem, and the writer is
+                         handed a bytes buffer and hands bytes back,
+                         leaving the one write in `writing`. The
                          `extract`/`extractall` names -- the ones that
-                         would -- are NOT admitted and stay violations.
+                         would reach a path -- are NOT admitted and
+                         stay violations.
+    zipfile.ZipInfo      one member's name and its fixed moment, which
+                         is what makes the twin's package
+                         deterministic: written without it, every
+                         member would carry the clock and the same
+                         description and seed would give different
+                         bytes on every run. It names a member and
+                         opens nothing.
+    zipfile.ZIP_DEFLATED the compression constant, a plain integer.
     zipfile.BadZipFile   the two exceptions a damaged or oversized
     zipfile.LargeZipFile package raises, caught so the person gets a
                          sentence rather than a traceback.
@@ -598,7 +611,9 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # _policy_for because their messages are more specific.)
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
-    "zipfile": frozenset({"BadZipFile", "LargeZipFile", "ZipFile"}),
+    "zipfile": frozenset(
+        {"BadZipFile", "LargeZipFile", "ZipFile", "ZipInfo", "ZIP_DEFLATED"}
+    ),
     "xml.parsers.expat": frozenset({"ExpatError", "ParserCreate"}),
     "csv": frozenset({"Error", "field_size_limit", "reader", "writer"}),
     "dataclasses": frozenset(

@@ -1438,6 +1438,58 @@ def _leading_kind(codes: "list[str]") -> str:
     return best
 
 
+def _leading_code(codes: "list[str]") -> str:
+    """The format code this column may publish, from its commonest one.
+
+    THE CODE IS PUBLISHED NOW, AND ONLY EVER ONE OF OURS (plan P4-D79).
+    Part 1 of this landing published the KIND alone and withheld the
+    code, on the ground that a custom code is text out of the person's
+    file. That reasoning stands and is unchanged -- what changed is that
+    a twin of a workbook has to be WRITTEN, and a date column written
+    with no format code comes back from every reader as a column of
+    five-digit numbers. So the column's commonest code is published when
+    it is one of Excel's own built-in codes, which are the standard's
+    vocabulary and nobody's text, and otherwise the CANONICAL code of
+    its kind is published in its place. A code somebody typed is never
+    published and never written: the twin wears the standard spelling of
+    a date rather than theirs, which is the landing's stated limit.
+    """
+    counts: "dict[str, int]" = {}
+    for code in codes:
+        if code in counts:
+            counts[code] = counts[code] + 1
+            continue
+        counts[code] = 1
+    best = GENERAL_FORMAT
+    seen = 0
+    for code in sorted(counts):
+        if counts[code] > seen:
+            seen = counts[code]
+            best = code
+    if best in dialect.SHEET_BUILT_IN_FORMAT_IDS:
+        return best
+    canonical = dialect.SHEET_CANONICAL_FORMAT_CODES[format_kind(best)]
+    if isinstance(canonical, str):
+        return canonical
+    return GENERAL_FORMAT
+
+
+def _published_sheet_names(reading: Reading) -> "list[object]":
+    """Each sheet's name where it may be published, else nothing.
+
+    A sheet name is free text somebody typed and can hold a person's
+    name, so it is published only when it is one synthtwin can rebuild
+    from its own vocabulary (`dialect.sheet_name_published`) and is
+    withheld otherwise. The twin writes a withheld sheet under a neutral
+    name and the report says which were withheld, so nothing is lost
+    silently.
+    """
+    out: "list[object]" = []
+    for entry in reading.sheets:
+        out += [dialect.sheet_name_published(entry.name)]
+    return out
+
+
 def document_of(
     reading: Reading, sheet: Sheet, floor: int
 ) -> "dict[str, object]":
@@ -1466,6 +1518,7 @@ def document_of(
                 "format_kinds": _format_census(
                     sheet.formats[index], total, floor
                 ),
+                "format_code": _leading_code(sheet.formats[index]),
                 "formulas": floored(formulas, total, floor),
             }
         ]
@@ -1483,6 +1536,7 @@ def document_of(
         "rows_above_header": sheet.rows_above,
         "sheet_count": len(reading.sheets),
         "sheet_hidden": reading.chosen_hidden,
+        "sheet_names": _published_sheet_names(reading),
         "sheet_position": position,
         "trailing_blank_columns": sheet.trailing_blank_columns,
         "trailing_blank_rows": sheet.trailing_blank_rows,

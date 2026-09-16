@@ -48,7 +48,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # arguments and asserts no spelling from a file can be among them.
     # Reading a workbook (plan P4-D77). Every argument is a path, a
     # limit or a sheet name: no cell of a workbook reaches a refusal.
-    "no_workbook_twin_yet": ("/data/table-profile.json",),
     "workbook_unreadable": ("/data/table.xlsx",),
     "workbook_part_unreadable": ("/data/table.xlsx",),
     "workbook_declares_a_document_type": ("/data/table.xlsx",),

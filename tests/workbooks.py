@@ -801,3 +801,267 @@ def markup_named_xls() -> bytes:
         "<tr><td>1</td><td>North</td></tr>"
         "</table></body></html>"
     ).encode("utf-8")
+
+
+# -- the study's own shapes, at the sizes a real table comes in --------
+#
+# Plan P4-D79's gate needs workbooks that are REALISTIC rather than
+# minimal: every cell class the study measured, every kind of number
+# format it found deciding a reader's type, at the row counts a
+# research table actually has, written the three ways the study watched
+# them being written. These build them from a seed, so no data-format
+# file is ever committed.
+
+
+def _words(seed: int, count: int) -> "list[int]":
+    """`count` whole numbers from a seed, by a written-out recurrence.
+
+    A recurrence of this file's own rather than a library's, so a
+    fixture is the same on every machine and in every Python.
+    """
+    out: "list[int]" = []
+    state = (seed * 6364136223846793005 + 1442695040888963407) % (2**64)
+    for _place in range(count):
+        state = (state * 6364136223846793005 + 1442695040888963407) % (2**64)
+        out += [state >> 11]
+    return out
+
+
+# The columns the study says a description MUST carry, with the style
+# each wears. The style numbers are indexes into FORMAT_CODES above.
+STUDY_COLUMNS = (
+    ("record_code", 0),
+    ("site", 0),
+    ("note", 0),
+    ("spare", 0),
+    ("flag", 0),
+    ("trouble", 0),
+    ("reading", 0),
+    ("amount", 0),
+    ("recorded_on", 1),
+    ("stamp", 2),
+    ("clock", 3),
+    ("elapsed", 4),
+    ("share", 5),
+    ("cost", 6),
+    ("padded", 7),
+    ("grouped", 9),
+)
+
+_NA_TEXTS = ("NA", "n/a", "NULL", "nan")
+
+
+def study_book(
+    n_rows: int = 200,
+    seed: int = 0,
+    shape: str = "excel",
+    sheets: int = 1,
+    titled: bool = False,
+    table: bool = False,
+    epoch_1904: bool = False,
+) -> bytes:
+    """A realistic workbook of sixteen typed columns (plan P4-D79).
+
+    ``shape`` is which writer's output this imitates:
+
+    * `excel` -- shared strings and styles, as Excel's own save writes;
+    * `pandas` -- a written row index whose header corner is empty,
+      which is what `to_excel` produces by default;
+    * `writexl` -- inline strings, which is how R's writexl writes text.
+
+    Every column is one the study named: a text code with leading zeros
+    that must not become a number, NA-like text that must not become a
+    missing value, empty-string cells beside absent ones, a boolean with
+    blanks, error cells, dates in the workbook's own epoch, a time, an
+    elapsed duration, a percentage, a currency, a padded number and a
+    grouped one.
+    """
+    inline = shape == "writexl"
+    indexed = shape == "pandas"
+    figures = _words(seed, n_rows * 4)
+    names: "list[str]" = []
+    for name, _style in STUDY_COLUMNS:
+        names += [name]
+    texts: "list[str]" = []
+    if indexed:
+        texts += [""]
+    for name in names:
+        texts += [name]
+    for site in SITES:
+        texts += [site]
+    for spelling in _NA_TEXTS:
+        texts += [spelling]
+    codes: "list[str]" = []
+    for place in range(n_rows):
+        codes += ["%06d" % (place + 1)]
+    for code in codes:
+        texts += [code]
+    texts += [""]
+    where: "dict[str, int]" = {}
+    for place in range(len(texts)):
+        if texts[place] not in where:
+            where[texts[place]] = place
+
+    def _shared(value: str) -> int:
+        return where[value]
+
+    def _text_cell(reference: str, value: str, style: int = 0) -> str:
+        if inline:
+            return cell(reference, value, "inlineStr", style)
+        return cell(reference, f"{_shared(value)}", "s", style)
+
+    first = 1
+    body: "list[tuple[int, list[str]]]" = []
+    if titled:
+        # A title above the table, then a blank row, as a person types.
+        body += [(1, [_text_cell("A1", "Cohort extract")])]
+        body += [(2, [])]
+        first = 3
+    head: "list[str]" = []
+    offset = 1 if indexed else 0
+    for place in range(len(names)):
+        reference = f"{_column(place + 1 + offset)}{first}"
+        head += [_text_cell(reference, names[place], HEADER_STYLE)]
+    body += [(first, head)]
+
+    for place in range(n_rows):
+        number = first + 1 + place
+        word = figures[place * 4]
+        second = figures[place * 4 + 1]
+        line: "list[str]" = []
+        if indexed:
+            line += [cell(f"A{number}", f"{place}")]
+        at = offset
+        for index in range(len(STUDY_COLUMNS)):
+            name, style = STUDY_COLUMNS[index]
+            reference = f"{_column(index + 1 + at)}{number}"
+            if name == "record_code":
+                line += [_text_cell(reference, codes[place])]
+            elif name == "site":
+                line += [_text_cell(reference, SITES[word % 4])]
+            elif name == "note":
+                # NA-like text every few rows, ordinary text otherwise.
+                if second % 5 == 0:
+                    line += [_text_cell(reference, _NA_TEXTS[word % 4])]
+                else:
+                    line += [_text_cell(reference, SITES[second % 4])]
+            elif name == "spare":
+                # An empty-string cell, a styled blank, or nothing at all.
+                if word % 3 == 0:
+                    line += [_text_cell(reference, "")]
+                elif word % 3 == 1:
+                    line += [cell(reference, "", "", 8)]
+            elif name == "flag":
+                if word % 7 == 0:
+                    line += [cell(reference, "", "", 8)]
+                else:
+                    line += [cell(reference, f"{word % 2}", "b")]
+            elif name == "trouble":
+                if second % 11 == 0:
+                    kind = "#N/A" if word % 2 else "#DIV/0!"
+                    line += [cell(reference, kind, "e")]
+                else:
+                    line += [cell(reference, f"{word % 50}")]
+            elif name == "reading":
+                line += [cell(reference, f"{word % 500}")]
+            elif name == "amount":
+                line += [cell(reference, f"{(word % 10000) / 100}")]
+            elif name == "recorded_on":
+                line += [cell(reference, f"{43834 + place % 900}", "", style)]
+            elif name == "stamp":
+                line += [
+                    cell(reference, f"{43834 + place % 900}.5", "", style)
+                ]
+            elif name == "clock":
+                line += [cell(reference, f"0.{word % 899999:06d}", "", style)]
+            elif name == "elapsed":
+                line += [cell(reference, f"{word % 400}.25", "", style)]
+            elif name == "share":
+                line += [cell(reference, f"0.{word % 99:02d}", "", style)]
+            elif name == "cost":
+                line += [cell(reference, f"{word % 90000 / 100}", "", style)]
+            elif name == "padded":
+                line += [cell(reference, f"{word % 999999}", "", style)]
+            else:
+                line += [cell(reference, f"{word % 900000}", "", style)]
+        body += [(number, line)]
+
+    last = first + n_rows
+    width = len(STUDY_COLUMNS) + offset
+    span = f"A{first}:{_column(width)}{last}"
+    pages: "list[tuple[str, str]]" = [("Data", "")]
+    for extra in range(sheets - 1):
+        pages += [(f"Sheet{extra + 2}", "")]
+    members: "list[tuple[str, bytes]]" = [
+        ("[Content_Types].xml", _content_types(len(pages), not inline, table, False)),
+        ("_rels/.rels", _root_rels()),
+        ("xl/workbook.xml", _workbook(pages, epoch_1904=epoch_1904)),
+        ("xl/_rels/workbook.xml.rels", _workbook_rels(len(pages), not inline)),
+        ("xl/styles.xml", _styles()),
+    ]
+    if not inline:
+        members += [("xl/sharedStrings.xml", _shared_strings(texts))]
+    members += [
+        (
+            "xl/worksheets/sheet1.xml",
+            sheet(
+                body,
+                dimension=f"A1:{_column(width)}{last}",
+                frozen=first,
+                autofilter=span if table else "",
+                table=table,
+            ),
+        )
+    ]
+    for extra in range(sheets - 1):
+        members += [
+            (
+                f"xl/worksheets/sheet{extra + 2}.xml",
+                sheet([(1, [])], dimension="A1"),
+            )
+        ]
+    if table:
+        members += [
+            (
+                "xl/worksheets/_rels/sheet1.xml.rels",
+                (
+                    _DECLARATION
+                    + '<Relationships xmlns="http://schemas.openxmlformats.'
+                    'org/package/2006/relationships"><Relationship Id="rId1" '
+                    f'Type="{_RELS}/table" Target="../tables/table1.xml"/>'
+                    "</Relationships>"
+                ).encode("utf-8"),
+            ),
+            ("xl/tables/table1.xml", _table(names, span, offset)),
+        ]
+    return package(members)
+
+
+def _column(number: int) -> str:
+    """The letters naming a column, counting from one."""
+    letters = ""
+    left = number
+    while left > 0:
+        left = left - 1
+        letters = chr(65 + left % 26) + letters
+        left = left // 26
+    return letters
+
+
+def _table(names: "list[str]", span: str, offset: int) -> bytes:
+    """A defined table over the header and the records below it."""
+    parts = [
+        _DECLARATION,
+        f'<table xmlns="{_MAIN}" id="1" name="tblStudy" '
+        f'displayName="tblStudy" ref="{span}" totalsRowShown="0">',
+        f'<tableColumns count="{len(names) + offset}">',
+    ]
+    number = 0
+    if offset:
+        number = number + 1
+        parts += [f'<tableColumn id="{number}" name="index"/>']
+    for name in names:
+        number = number + 1
+        parts += [f'<tableColumn id="{number}" name="{_escaped(name)}"/>']
+    parts += ["</tableColumns></table>"]
+    return "".join(parts).encode("utf-8")

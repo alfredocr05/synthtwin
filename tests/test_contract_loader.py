@@ -1353,6 +1353,18 @@ def battery() -> list[Mutation]:
             "WB4", "more records holding nothing than the table has rows",
             _form_workbook_more_empty_rows_than_rows,
         ),
+        # The two rules the twin's WRITER needs (plan P4-D79). Both are
+        # rules a description can break, which is why they are
+        # invariants at all: the first two drafted in part 1 could not
+        # be broken by any document and were taken out again.
+        Mutation(
+            "WB5", "a workbook naming fewer sheets than it has",
+            _form_workbook_names_too_few_sheets,
+        ),
+        Mutation(
+            "WB6", "a format code of a kind the column's own census denies",
+            _form_workbook_format_code_denied_by_its_census,
+        ),
     ]
 
 
@@ -1463,6 +1475,7 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
         every += [
             {
                 "cell_classes": dict(classes),
+                "format_code": "General",
                 "format_kinds": dict(kinds),
                 "formulas": 0,
             }
@@ -1479,6 +1492,7 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
         "rows_above_header": 0,
         "sheet_count": 2,
         "sheet_hidden": False,
+        "sheet_names": ["Data", "Notes"],
         "sheet_position": 1,
         "trailing_blank_columns": 0,
         "trailing_blank_rows": 0,
@@ -1508,6 +1522,22 @@ def _form_workbook_census_names_one_row(document: Document) -> None:
 def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
     block = _workbook_block(document, 16, 120)
     block["empty_rows_inside"] = 1000
+
+
+def _form_workbook_names_too_few_sheets(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # Two sheets, one name. A twin built from this would have no name to
+    # write the second sheet under.
+    block["sheet_names"] = ["Data"]
+
+
+def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # The column's census says not one of its cells wears a date format,
+    # and its twin is told to wear one. A twin written from this would
+    # come back from every reader as a column of dates where the
+    # description publishes none.
+    block["columns"][0]["format_code"] = "mm-dd-yy"
 
 
 BATTERY = battery()

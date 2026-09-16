@@ -987,7 +987,16 @@ INVARIANTS = {
         "formatted blanks beyond it are each no more than the table "
         "itself holds"
     ),
-    # WB5 AND WB6 WERE WRITTEN HERE AND TAKEN OUT AGAIN, and the reason
+    "WB5": (
+        "a workbook names one sheet for every sheet it has, and every "
+        "name it publishes is one this version would publish itself"
+    ),
+    "WB6": (
+        "the number format a column's twin wears is one of the codes "
+        "this version publishes, and its kind is one the column's own "
+        "census does not say no cell wears"
+    ),
+    # THE FIRST WB5 AND WB6 WERE WRITTEN AND TAKEN OUT AGAIN, and the reason
     # is worth keeping. One said that a column's cell classes are the
     # closed set and its format kinds the named kinds; the other that a
     # workbook publishes no name of its own. Both are TRUE and neither
@@ -3736,6 +3745,10 @@ class WorkbookColumn:
     """One column's census, as the description publishes it."""
 
     cell_classes: "dict[str, int | None]"
+    # The number format the twin WEARS (plan P4-D79). One of
+    # `dialect.SHEET_FORMAT_CODES` and never a code out of the person's
+    # file: a custom code is published as the canonical code of its kind.
+    format_code: str
     format_kinds: "dict[str, int | None]"
     formulas: "int | None"
 
@@ -3755,6 +3768,9 @@ class WorkbookForm:
     rows_above_header: int
     sheet_count: int
     sheet_hidden: bool
+    # One entry per sheet in workbook order: the name where it may be
+    # published, or None where it was withheld (plan P4-D79).
+    sheet_names: "tuple[str | None, ...]"
     sheet_position: int
     trailing_blank_columns: int
     trailing_blank_rows: int
@@ -3765,6 +3781,46 @@ def _held_count(value: object, key: str, where: str) -> "int | None":
     if value is None:
         return None
     return _whole(value, key, where, 0)
+
+
+def _format_kind_of(code: str) -> str:
+    """Which kind a published format code is, by the closed vocabulary.
+
+    THE LOADER MUST NOT REACH THE READER to answer this. `workbook`
+    opens and parses; putting it in the loader's import graph is what
+    broke the profile/generator boundary in part 1 of this landing. The
+    published codes are a closed list, so the kind of each is a lookup
+    rather than a reading of the code.
+    """
+    if code in dialect.SHEET_FORMAT_CODE_KINDS:
+        found = dialect.SHEET_FORMAT_CODE_KINDS[code]
+        if isinstance(found, str):
+            return found
+    return dialect.SHEET_FORMAT_PLAIN
+
+
+def _sheet_names(value: object, where: str) -> "tuple[str | None, ...]":
+    """Each sheet's published name, or None where it was withheld.
+
+    A name that is not one `dialect.sheet_name_published` would publish
+    is refused rather than carried: the whole point of the rule is that
+    a description never holds a sheet name synthtwin could not have
+    written itself, and a loader that accepted one would let a hand-made
+    description put somebody's name back into a twin.
+    """
+    out: "list[str | None]" = []
+    for item in _listing(value, "sheet_names", where):
+        if item is None:
+            out += [None]
+            continue
+        name = _text(item, "sheet_names", where)
+        if dialect.sheet_name_published(name) != name:
+            raise _out_of_range(
+                "sheet_names", where, f"'{name}'",
+                "a name this version would publish itself",
+            )
+        out += [name]
+    return tuple(out)
 
 
 def _workbook_block(value: object) -> "WorkbookForm | None":
@@ -3797,6 +3853,10 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
         columns += [
             WorkbookColumn(
                 cell_classes=counted,
+                format_code=_one_of(
+                    entry["format_code"], "format_code", where,
+                    dialect.SHEET_FORMAT_CODES,
+                ),
                 format_kinds=wearing,
                 formulas=_held_count(entry["formulas"], "formulas", where),
             )
@@ -3820,6 +3880,7 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
         ),
         sheet_count=_whole(mapping["sheet_count"], "sheet_count", where, 1),
         sheet_hidden=_truth(mapping["sheet_hidden"], "sheet_hidden", where),
+        sheet_names=_sheet_names(mapping["sheet_names"], where),
         sheet_position=_whole(
             mapping["sheet_position"], "sheet_position", where, 1
         ),
@@ -3887,6 +3948,31 @@ def _workbook_rules(
                 f"a column publishes {column.formulas} cells holding a formula",
                 f"the table has {n_rows} rows",
             )
+    if len(form.sheet_names) != form.sheet_count:
+        raise _broken(
+            "WB5", where,
+            f"the workbook names {len(form.sheet_names)} sheets",
+            f"it has {form.sheet_count}",
+        )
+    for name in form.sheet_names:
+        if name is None:
+            continue
+        if dialect.sheet_name_published(name) != name:
+            raise _broken(
+                "WB5", where,
+                f"a sheet is named '{name}'",
+                "a name this version would publish itself",
+            )
+    if n_rows:
+        for column in form.columns:
+            kind = _format_kind_of(column.format_code)
+            wearing = column.format_kinds[kind]
+            if wearing is not None and wearing == 0:
+                raise _broken(
+                    "WB6", where,
+                    f"a column's twin wears a {kind} format",
+                    "a kind its own census says no cell wears",
+                )
     if form.empty_rows_inside > n_rows:
         raise _broken(
             "WB4", where,

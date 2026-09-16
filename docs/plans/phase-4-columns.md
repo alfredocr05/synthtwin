@@ -9712,6 +9712,99 @@ The written form went around the withholding. `sequence_start` is written back b
 
 The alternative is not "no twin" but a WRONG one. The twin is written the way its source file was (P4-D75), and the writer that produces a workbook is the next landing's. A generator that met this description today would write delimited text and call it the twin of a spreadsheet: the sheet, the cell types and the number formats the description publishes would be silently dropped, and the person would be handed a file that does not open in the program their table came from. Writing it another way QUIETLY is the one outcome the owner's ruling forbids, so the refusal says so instead and tells the person the one thing that works today -- save the sheet as CSV and describe that.
 
+**SUPERSEDED 2026-09-15 by P4-D79 (landing 2b.10, part 2).** The writer
+arrived in the same landing. `generate` no longer refuses a workbook
+description; it writes the twin as a workbook. The reasoning above is
+kept because it is the reason the twin is a WORKBOOK rather than
+delimited text under a spreadsheet's name, and that reasoning is now
+carried out rather than deferred.
+
+### P4-D79 A workbook's twin is a workbook, written by us (landing 2b.10, 2026-09-15)
+
+`source.workbook` becomes an OBLIGATION and not only a record: the twin
+of a table that arrived in a spreadsheet is a spreadsheet, and every
+fact the block publishes is a promise the twin has to keep.
+
+**Why a writer of our own.** The study measured both common Python
+writers corrupting exactly the cells this landing exists to carry:
+openpyxl turns any text beginning with `=` into a formula with no
+cached value, and xlsxwriter turns the same text into a formula with a
+cached 0 and turns `http://...` text into a hyperlink. A twin is a file
+of values, so the writer is written here out of the standard library --
+`zipfile` alone, with the XML written rather than parsed, which is what
+keeps the generator's import graph free of anything that opens or
+parses a table.
+
+**What the twin carries.** Shared strings; a style per published number
+format code; the published cell type of every cell; the 1904 flag; the
+chosen sheet under its published name and position, with every other
+sheet written as an empty sheet of the same name; the header and the
+rows above it; records holding nothing, in place; a defined table and
+an autofilter resized to the twin's own rows; frozen panes; neutral
+document properties. It never carries a formula, a macro project, a
+link, or a cache of any kind.
+
+**What the twin withholds, and why the report names each.** A sheet's
+own name can hold a person's name, so a name is published only when it
+is one synthtwin can rebuild from its own vocabulary -- a generic name,
+optionally numbered -- and every other is WITHHELD and written neutral. A defined table's name is never published
+and the twin's table is named neutrally. The text of the rows above the
+header is never published at any floor: the twin writes as many rows as
+the source had and puts nothing of the person's in them.
+
+**The format code, and the narrowing this reverses.** Part 1 published
+the format KIND and withheld the CODE, because a custom code is text
+out of the file. That reasoning stands, and a twin still cannot be
+written from the kind alone: a date is a number wearing a format, so a
+date column written with no code comes back from every reader as
+five-digit numbers and the first goal fails. So a code is published,
+but only ever one of a closed list -- Excel's own built-in codes, which
+are the standard's vocabulary and nobody's text, plus one canonical
+code per kind. A custom code is published as the canonical code of its
+kind. THE LIMIT: the twin wears the standard spelling of a date rather
+than the one somebody typed.
+
+**A mixture is reproduced as its counts.** A column may hold more than
+one kind of format -- values wearing none and blanks wearing the text
+format is the ordinary case -- and the census publishes a count per
+kind. The twin writes a cell per count rather than giving every cell
+the column's commonest code. This was measured into its present form: a
+first writing gave every cell one code, and the validator caught a
+column publishing `plain 133, text 67` whose twin came back `plain 200,
+text 0`. An ABSENT cell is always plain, because nothing is written for
+it and every reader sees the general format there.
+
+**Records holding nothing are made by permutation.** The generator
+fills each column's missing cells independently, so no row is empty in
+every column at once and a source that had such records got a twin with
+none (measured: `empty_rows_inside` 1 became 0). The twin's columns are
+permuted WITHIN THEMSELVES so that the cells holding nothing come to
+rest on shared rows. No cell is added, removed or changed, so every
+column keeps its exact multiset of values and every published fact
+about it still holds. Where a column has fewer empty cells than the
+count asks for, fewer records are emptied.
+
+**Invariants WB5 and WB6** are the loader's statement of the two rules
+the writer needs, and unlike the WB5 and WB6 drafted in part 1 both are
+rules a description can BREAK, which is why they are invariants at all:
+WB5, a workbook names one sheet for every sheet it has and every name
+it publishes is one this version would publish itself; WB6, the number
+format a column's twin wears is one of the published codes and its kind
+is one the column's own census does not say no cell wears.
+
+**Determinism.** Every member of the package carries one fixed moment
+rather than the clock and the members are written in one fixed order,
+so the same description and seed give the same bytes. Across platforms
+the compressed stream may differ between zlib builds, which is a stated
+limit rather than a claim.
+
+**The limits this landing leaves.** The BLANK rows above a header are
+not published at all (only the rows of content above it are), so a
+reader that counts them -- pandas does -- sees fewer rows in the twin
+than in the source. A custom format code is not reproduced. A table one
+column wide cannot carry rows above its header, because the header is
+found as the first row reaching the table's width.
+
 This is a stated, temporary limit of part 1 of landing 2b.10 and it is what makes the reading half landable on its own.
 
 ### P4-D15 The date shapes a spreadsheet actually writes
@@ -13931,6 +14024,7 @@ documentation however much it looks like it.
 | **A-P4-62** | 2026-09-15 | Decision P4-D76: a column declared with `--identifier` publishes no row sequence and is not the column the rows are sorted by, and a row sequence is published only for a first column named as a written row index is (`dialect.INDEX_NAMES`). Invariant FD12 is the loader's statement of it. | A review of landing 2b.9 measured a table of two declared identifier columns whose twin reproduced all 120 real rows byte for byte: the written form was handing back the values the declaration exists to withhold. | A REDCap `record_id` is no longer written back in order, and its twin holds made-up record numbers. Descriptions that published such a sequence are refused by FD12 and are made again (version 6 is extended in place, A-P4-41). Clause 2 of the twin's definition is held structurally and not by comparison, because the generator never reads the real table; a narrow-domain chance collision is carried as an owner question. |
 | **A-P4-63** | 2026-09-15 | Decision P4-D77: a spreadsheet workbook is READ, with `zipfile` and `xml.parsers.expat` and nothing else. `source` gains a seventh key, `workbook` (contract 4.3b), carrying the sheet's place, the date system, the rows above the header, the records holding nothing inside the table, the formatted blanks beyond it and a census per column of what its cells were and what kind of thing their formats made of them. Invariants WB1-WB4 are the loader's statement of it; the offline scanner admits four zipfile names and two expat names, each justified in its own table and each mutation-tested. | Owner ruling 2026-09-15: synthtwin reads Excel files and delimited text files only. Until this landing it read neither, and most researchers' tables arrive as workbooks. | Every profile gains `source.workbook`, so a description written before it is refused as missing a key (version 6 is extended in place, A-P4-41). A number format code is read but not published, so a twin cannot reproduce a custom one. A workbook is read once, without the second independent reading the delimited path gets. |
 | **A-P4-64** | 2026-09-15 | Decision P4-D78: `synthtwin generate` refuses a description of a workbook, because this version can describe one and cannot yet write one. | Writing a delimited twin of a spreadsheet would silently drop the sheet, the cell types and the number formats the description publishes, which is what the owner's ruling of 2026-09-15 forbids. | A workbook description has no twin until the writer lands; the refusal names the one route that works today. |
+| **A-P4-65** | 2026-09-15 | Decision P4-D79: a workbook's twin is a WORKBOOK, written by a writer of synthtwin's own out of the standard library. `source.workbook` becomes an obligation the validator holds the twin to; it gains `sheet_names` and a per-column `format_code`, both drawn from closed vocabularies; invariants WB5 and WB6 are the loader's statement of them, each with a mutation. THIS SUPERSEDES P4-D78, which refused a workbook description a twin. | Owner ruling 2026-09-15: the twin is written the way its source file was, and a spreadsheet's twin that was delimited text would drop the sheet, the cell types and the number formats. | Every profile gains two workbook entries, so a description written before this is refused as missing a key (version 6 is extended in place, A-P4-41). A custom format code is published as the canonical code of its kind, so the twin wears the standard spelling of a date rather than the person's. The blank rows above a header are still not published, so a reader that counts them sees fewer rows in the twin than in the source. |
 | **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 

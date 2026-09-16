@@ -4436,6 +4436,7 @@ def measure(description: contract.Profile, path: str) -> Outcome:
         ) from error
     checks = _byte_checks(description, data, table.survey, False)
     checks = checks + _structure_checks(description, table, headed)
+    checks = checks + _workbook_checks(description, redescribed)
     # THE COLUMNS THIS DESCRIPTION CANNOT BE READ BACK FOR (owner ruling
     # 2026-08-16; plan amendment A-P3-26). Asked once, of the
     # description alone, and asked HERE rather than inside the column
@@ -6046,6 +6047,255 @@ def _structure_checks(
             ),
         ]
     return checks
+
+
+_WORKBOOK_FACT = "document.source.workbook"
+
+# What a workbook obligation is measured against when the checked file
+# turns out not to be a workbook at all. This is a MISS and not a
+# withholding: the description says the table came out of a spreadsheet
+# package, and a file that is not one does not meet that.
+_NOT_A_WORKBOOK = "not a spreadsheet workbook"
+
+
+def _shown_census(
+    counts: "dict[str, object]", order: "tuple[str, ...]"
+) -> str:
+    """One census as a line, in the closed vocabulary's own order.
+
+    Every key here is one of synthtwin's own words and every value is a
+    count or the withholding, so nothing of the measured file's text can
+    reach the report through this.
+    """
+    text = ""
+    for key in order:
+        if key not in counts:
+            continue
+        held = counts[key]
+        shown = "withheld"
+        if isinstance(held, int):
+            shown = f"{held}"
+        if text:
+            text = text + ", "
+        text = text + f"{key} {shown}"
+    return text
+
+
+def _shown_sheet_names(names: "tuple[str | None, ...]") -> str:
+    """The published sheet names, the withheld ones named as withheld."""
+    text = ""
+    for name in names:
+        if text:
+            text = text + ", "
+        text = text + (name if name else "withheld")
+    return text
+
+
+def _census_of(entry: object, key: str) -> "dict[str, object]":
+    """One census out of a re-described column, or an empty one."""
+    if not isinstance(entry, dict):
+        return {}
+    if key not in entry:
+        return {}
+    found = entry[key]
+    if not isinstance(found, dict):
+        return {}
+    return found
+
+
+def _workbook_checks(
+    description: contract.Profile,
+    redescribed: "dict[str, object]",
+) -> "list[Check]":
+    """Every fact the workbook block publishes, measured on the file.
+
+    THE TWIN OF A WORKBOOK IS A WORKBOOK, SO THESE ARE OBLIGATIONS (plan
+    P4-D79). Until the writer existed there was nothing to hold to them:
+    a workbook description had no twin, and the only file that could be
+    measured was the person's own. Now the twin is a workbook too, and
+    every fact `source.workbook` publishes is a promise the twin has to
+    keep -- which is what makes the census of what each column's cells
+    WERE a checkable thing rather than a note.
+
+    THE MEASURED SIDE IS THE PRODUCER'S OWN (V4.2): the file has already
+    been described again by `profile.build_document`, and its workbook
+    block is read off that description rather than measured a second
+    way here. One rule, written once.
+
+    The two rules the landing exists for are both in here. A column
+    whose cells were TEXT publishes a text count, so a twin that wrote
+    those cells as numbers -- which is what every ordinary writer does
+    to `00123` -- misses `workbook.cell-classes`. A column whose cells
+    wear a DATE format publishes that kind and that code, so a twin
+    that wrote the numbers bare misses `workbook.format-kinds` and
+    `workbook.format-code`. Those are the two misses that would
+    otherwise show up only as a reader returning different types.
+    """
+    form = description.source.workbook
+    if form is None:
+        return []
+    source = redescribed["source"]
+    block: object = None
+    if isinstance(source, dict) and "workbook" in source:
+        block = source["workbook"]
+    if not isinstance(block, dict):
+        return [
+            Check(
+                "",
+                _WORKBOOK_FACT,
+                "workbook.package",
+                MISSED,
+                "a spreadsheet workbook",
+                _NOT_A_WORKBOOK,
+            )
+        ]
+    checks: "list[Check]" = [
+        _exact(
+            "", _WORKBOOK_FACT, "workbook.package",
+            "a spreadsheet workbook", "a spreadsheet workbook",
+        )
+    ]
+    whole: "list[tuple[str, str, str]]" = [
+        (
+            "workbook.sheet-count",
+            _shown_count(form.sheet_count),
+            _shown_count(_whole_of(block, "sheet_count")),
+        ),
+        (
+            "workbook.sheet-position",
+            _shown_count(form.sheet_position),
+            _shown_count(_whole_of(block, "sheet_position")),
+        ),
+        (
+            "workbook.sheet-names",
+            _shown_sheet_names(form.sheet_names),
+            _shown_sheet_names(_names_of(block)),
+        ),
+        (
+            "workbook.date-system",
+            form.date_system,
+            _word_of(block, "date_system"),
+        ),
+        (
+            "workbook.rows-above-header",
+            _shown_count(form.rows_above_header),
+            _shown_count(_whole_of(block, "rows_above_header")),
+        ),
+        (
+            "workbook.empty-rows-inside",
+            _shown_count(form.empty_rows_inside),
+            _shown_count(_whole_of(block, "empty_rows_inside")),
+        ),
+        (
+            "workbook.frozen-rows",
+            _shown_count(form.frozen_rows),
+            _shown_count(_whole_of(block, "frozen_rows")),
+        ),
+        (
+            "workbook.trailing-blank-rows",
+            _shown_count(form.trailing_blank_rows),
+            _shown_count(_whole_of(block, "trailing_blank_rows")),
+        ),
+        (
+            "workbook.trailing-blank-columns",
+            _shown_count(form.trailing_blank_columns),
+            _shown_count(_whole_of(block, "trailing_blank_columns")),
+        ),
+        (
+            "workbook.defined-table",
+            _shown_truth(form.defined_table),
+            _shown_truth(_truth_of(block, "defined_table")),
+        ),
+        (
+            "workbook.autofilter",
+            _shown_truth(form.autofilter),
+            _shown_truth(_truth_of(block, "autofilter")),
+        ),
+        (
+            "workbook.macro-project",
+            _shown_truth(form.macro_project),
+            _shown_truth(_truth_of(block, "macro_project")),
+        ),
+    ]
+    for subcheck, published, measured in whole:
+        checks += [_exact("", _WORKBOOK_FACT, subcheck, published, measured)]
+
+    every = block["columns"] if "columns" in block else []
+    for index in range(len(description.columns)):
+        name = description.columns[index].name
+        if index >= len(form.columns):
+            continue
+        column = form.columns[index]
+        entry: object = None
+        if isinstance(every, list) and index < len(every):
+            entry = every[index]
+        checks += [
+            _exact(
+                name, _WORKBOOK_FACT, "workbook.cell-classes",
+                _shown_census(_as_counts(column.cell_classes), dialect.SHEET_CELL_CLASSES),
+                _shown_census(_census_of(entry, "cell_classes"), dialect.SHEET_CELL_CLASSES),
+            ),
+            _exact(
+                name, _WORKBOOK_FACT, "workbook.format-kinds",
+                _shown_census(_as_counts(column.format_kinds), dialect.SHEET_FORMAT_KINDS),
+                _shown_census(_census_of(entry, "format_kinds"), dialect.SHEET_FORMAT_KINDS),
+            ),
+            _exact(
+                name, _WORKBOOK_FACT, "workbook.format-code",
+                column.format_code,
+                _word_of(entry, "format_code"),
+            ),
+        ]
+    return checks
+
+
+def _as_counts(counts: "dict[str, int | None]") -> "dict[str, object]":
+    """One published census widened to the shape the renderer takes."""
+    out: "dict[str, object]" = {}
+    for key in counts:
+        out[key] = counts[key]
+    return out
+
+
+def _whole_of(block: object, key: str) -> int:
+    """A whole number out of a re-described block, or nought."""
+    if not isinstance(block, dict) or key not in block:
+        return 0
+    found = block[key]
+    if isinstance(found, bool) or not isinstance(found, int):
+        return 0
+    return found
+
+
+def _truth_of(block: object, key: str) -> bool:
+    """A flag out of a re-described block, or false."""
+    if not isinstance(block, dict) or key not in block:
+        return False
+    found = block[key]
+    return isinstance(found, bool) and found
+
+
+def _word_of(block: object, key: str) -> str:
+    """One of synthtwin's own words out of a re-described block."""
+    if not isinstance(block, dict) or key not in block:
+        return ""
+    found = block[key]
+    if not isinstance(found, str):
+        return ""
+    return found
+
+
+def _names_of(block: object) -> "tuple[str | None, ...]":
+    """The sheet names a re-described block publishes."""
+    if not isinstance(block, dict) or "sheet_names" not in block:
+        return ()
+    found = block["sheet_names"]
+    if not isinstance(found, list):
+        return ()
+    out: "list[str | None]" = []
+    for item in found:
+        out += [item if isinstance(item, str) else None]
+    return tuple(out)
 
 
 def _first_values(table: reading.Table) -> "list[str]":

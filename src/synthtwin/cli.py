@@ -177,6 +177,10 @@ _SEED_CEILING = "18446744073709551615"
 # '-profile.json' and '-profile.txt'.
 _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
+# THE TWIN OF A WORKBOOK IS A WORKBOOK (plan P4-D79), so it is named
+# like one. A person whose table arrived as `clinic.xlsx` gets
+# `clinic-twin.xlsx`, which opens in the program their table came from.
+_WORKBOOK_TWIN_SUFFIX = "-twin.xlsx"
 _REPORT_SUFFIX = "-twin-report.txt"
 
 # And the one file `validate` writes -- added to the name of the file it
@@ -2329,7 +2333,9 @@ def _twin_stem(name: str) -> str:
 
 
 def _twin_paths(
-    description: pathlib.Path, out_dir: "str | None"
+    description: pathlib.Path,
+    out_dir: "str | None",
+    packaged: bool = False,
 ) -> "tuple[pathlib.Path, pathlib.Path]":
     """Where the twin and its report go (plan P2-D10).
 
@@ -2361,8 +2367,9 @@ def _twin_paths(
             raise errors.ProfileError(
                 errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
             )
+    ending = _WORKBOOK_TWIN_SUFFIX if packaged else _TWIN_SUFFIX
     twin_target = validate_local_path(
-        f"{folder / (stem + _TWIN_SUFFIX)}", purpose="output file"
+        f"{folder / (stem + ending)}", purpose="output file"
     )
     report_target = validate_local_path(
         f"{folder / (stem + _REPORT_SUFFIX)}", purpose="output file"
@@ -2420,27 +2427,28 @@ def _run_generate(
     rule that this command opens the description and nothing else -- so
     it refuses, names both files, and teaches `--replace`.
     """
-    from synthtwin import contract, generation, rendering, writing
+    from synthtwin import (
+        contract,
+        generation,
+        rendering,
+        sheetwriting,
+        writing,
+    )
 
     seed, refusal = _seed_or_refusal(seed_given)
     if seed is None:
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
-    # A WORKBOOK'S TWIN IS A WORKBOOK, AND THIS VERSION CANNOT WRITE ONE
-    # (plan P4-D78). Refused HERE, before any path is worked out and
-    # before anything is written, because the alternative is not "no
-    # twin" but a WRONG one: the generator would write delimited text
-    # and call it the twin of a spreadsheet, dropping the sheet, the
-    # cell types and the number formats the description publishes, and
-    # handing back a file that does not open in the program the table
-    # came from. The owner's ruling is that the twin is written the way
-    # its source file was; writing it another way quietly is the one
-    # outcome that ruling forbids.
-    if loaded.source.workbook is not None:
-        _warn(errors.no_workbook_twin_yet(_shown(description)))
-        return 2
-    twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
+    # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
+    # P4-D79, which supersedes P4-D78's refusal). The description says
+    # which the table was, so the twin's name, its bytes and the rules
+    # it is written by all follow from `source.workbook` rather than
+    # from anything this run reads.
+    packaged = loaded.source.workbook is not None
+    twin_path, report_path = _twin_paths(
+        pathlib.Path(description), out_dir, packaged
+    )
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
 
@@ -2487,23 +2495,37 @@ def _run_generate(
     # human-facing sink like the profiler's summary and crosses the
     # boundary once, here, so the file on disk and the screen carry the
     # same text and cannot differ.
-    twin_text = rendering.twin_csv(twin)
-    report_text = parsing.visible_lines(rendering.report(loaded, twin))
+    # A WORKBOOK TWIN IS BYTES AND A DELIMITED ONE IS TEXT, and the two
+    # are kept apart from here to the write: a zip package put through
+    # an encoding and a line-ending rule would be corrupted by both.
     # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D75), and
     # that is checked before anything is shown or written: a cell holding
     # a character the encoding has no byte for would otherwise stop the
     # write half way. Every published label was read in that encoding and
     # every made-up value is ASCII, so reaching this is a defect.
+    #
+    # A WORKBOOK ANSWERS NONE OF IT (plan P4-D79). Its parts are written
+    # as UTF-8 inside a zip package whatever the source's encoding was,
+    # because that is what a spreadsheet file IS; the source encoding
+    # describes a delimited file's bytes and there are none here.
     twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
-    try:
-        twin_text.encode(twin_codec)
-    except UnicodeEncodeError:
-        _warn(
-            errors.twin_not_writable_in_encoding(
-                dialect.ENCODING_WORDS[loaded.source.encoding]
+    twin_members: "list[tuple[str, str]] | None" = None
+    twin_text = ""
+    if packaged:
+        twin_members = sheetwriting.workbook_members(loaded, twin)
+    else:
+        written = rendering.twin_csv(twin)
+        try:
+            written.encode(twin_codec)
+        except UnicodeEncodeError:
+            _warn(
+                errors.twin_not_writable_in_encoding(
+                    dialect.ENCODING_WORDS[loaded.source.encoding]
+                )
             )
-        )
-        return 1
+            return 1
+        twin_text = written
+    report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
     # ONE LINE ON THE SCREEN NAMING WHAT THE TWIN INVENTED (plan P4-D2
@@ -2543,6 +2565,7 @@ def _run_generate(
             words=errors.TWIN_WORDS,
             first_encoding=twin_codec,
             first_newline="",
+            first_members=twin_members,
         )
     except BaseException:
         if state.sentence:
@@ -2650,7 +2673,9 @@ def _quality_path(
     return pathlib.Path(target)
 
 
-def _measured_path(description: str, twin_given: "str | None") -> str:
+def _measured_path(
+    description: str, twin_given: "str | None", packaged: bool = False
+) -> str:
     """Which file this run measures: the one named, or the twin beside it.
 
     The default is derived from the DESCRIPTION's own folder rather than
@@ -2661,7 +2686,9 @@ def _measured_path(description: str, twin_given: "str | None") -> str:
     """
     if twin_given is not None:
         return twin_given
-    twin_path, _report_path = _twin_paths(pathlib.Path(description), None)
+    twin_path, _report_path = _twin_paths(
+        pathlib.Path(description), None, packaged
+    )
     return f"{twin_path}"
 
 
@@ -2738,7 +2765,9 @@ def _run_validate(
     from synthtwin import contract, quality, validation, writing
 
     loaded = contract.load_profile(description)
-    measured = _measured_path(description, twin_given)
+    measured = _measured_path(
+        description, twin_given, loaded.source.workbook is not None
+    )
     quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
 
