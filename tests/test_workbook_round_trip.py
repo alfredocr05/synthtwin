@@ -721,17 +721,34 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
     written back -- its values are somebody's rows -- and writing it as
     withheld cells would hand a reader a frame where a table stood, so
     statistics taken from the twin's second sheet would be false while
-    the file still opened. The refusal names the sheet and asks which
-    sheet holds the table to describe.
+    the file still opened. The refusal names both sheets.
+
+    AND IT MAY NOT NAME A REMEDY THAT IS ALSO REFUSED (review of
+    landing 2b.17, MAJOR). THE REPRODUCTION: this message used to end
+    "Run the command again with --sheet followed by that sheet's
+    name", and doing exactly that was refused too -- `--sheet Data`
+    and `--sheet Codebook` both exit 1 on this very workbook, because
+    whichever sheet is named the OTHER is then the sheet holding a
+    table. Both runs are made below, so the message and the behaviour
+    cannot drift apart: what the sentence tells a person to do has to
+    be something that works.
     """
     path = _written(tmp_path, "two.xlsx", workbooks.two_table_book(20))
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(path))
     spoken = f"{raised.value}"
     assert "Codebook" in spoken, spoken
-    assert "--sheet" in spoken, spoken
+    assert "Data" in spoken, spoken
+    assert "workbook of its own" in spoken, spoken
+    # THE REMEDY IT NAMES IS NOT ONE THE TOOL THEN REFUSES.
+    assert "--sheet" not in spoken, spoken
     # ...and the command itself refuses rather than describing one half.
     assert _quiet(["profile", str(path), "--out-dir", str(tmp_path)]) != 0
+    # ...naming either sheet, which is what the old sentence asked for.
+    for named in ("Data", "Codebook"):
+        assert _quiet(
+            ["profile", str(path), "--out-dir", str(tmp_path), "--sheet", named]
+        ) != 0, named
 
 
 def test_a_defined_table_is_written_over_the_twins_own_rows(

@@ -818,6 +818,7 @@ def _read_authoritatively(
     given: bytes = b"",
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
+    metadata_rows_confirmed: bool = False,
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -855,7 +856,7 @@ def _read_authoritatively(
         try:
             surveyed = dialect.settle(
                 text, encoding, marked, not headed, shown, metadata_rows,
-                decimal_comma_columns,
+                decimal_comma_columns, metadata_rows_confirmed,
             )
             _agrees_with_the_standard_reader(
                 text, surveyed, headed, shown, refusals
@@ -1154,6 +1155,7 @@ def read_table(
     sheet: str = "",
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
+    metadata_rows_confirmed: bool = False,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -1306,7 +1308,7 @@ def read_table(
     try:
         found = _read_authoritatively(
             table_path, shown, first_row, refusals, encoding, data,
-            metadata_rows, decimal_comma_columns,
+            metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
         )
     except PermissionError as error:
         raise errors.ProfileError(

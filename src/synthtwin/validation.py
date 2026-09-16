@@ -4358,6 +4358,16 @@ def measure(
             # descriptions would all be measured against a different
             # reading of the same bytes.
             metadata_rows=description.settings.forced_metadata_rows,
+            # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION
+            # SAYS IT WAS READ (review of landing 2b.17, MAJOR). A
+            # declaration the file does not bear out is not acted on
+            # unless the person confirmed it, so the settings block
+            # alone no longer says whether those rows left the table.
+            # The published rows do: where the description carries
+            # them, they were taken, and this reading takes them too.
+            metadata_rows_confirmed=bool(
+                description.source.dialect.header_rows
+            ),
             # AND UNDER THE SAME DECIMAL-COMMA DECLARATION (review item
             # CODEX-9). The survey reads the row order off the cells as
             # written. A checked file surveyed without the declaration

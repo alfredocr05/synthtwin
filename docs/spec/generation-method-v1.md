@@ -107,7 +107,7 @@ line ending — every row below reads as it did before P4-D75:
 | property | value |
 |---|---|
 | encoding | `source.encoding`, with a byte-order mark exactly when `source.dialect.byte_order_mark` |
-| line ending | each line takes the next ending of `line_endings`, in file order, or, where `line_endings_spread` counts them instead, the ending `dialect.spread_endings` gives it (the commonest on every line but the rarer endings' lines, spread evenly); the last line has none unless `final_line_ending`; an end-of-file mark follows where `end_of_file_mark` |
+| line ending | each line takes the next ending of `line_endings`, in file order, or, where `line_endings_spread` counts them instead, the ending `dialect.spread_endings` gives it (the commonest ending, the earlier in the listed order on a tie, ends every line no rarer ending takes; each rarer ending, in that same order, places its `c` lines one at a time, and its k-th line, counting k from nought, is offered the line `((2k + 1) * total) // (2c)` — the middle of the k-th of `c` equal stretches of the file — or, where that stands higher, the line just below the one this same ending took last; where the offered line is already taken the next free line below it is used, and where the file ends before a free line is found, the first free line from the top. STATED IN FULL at landing 2b.17's repair pass, for the reason G2.1's placement is: "spread evenly" does not decide which lines, a committed case freezes them, and two conforming programs would otherwise both answer to the sentence); the last line has none unless `final_line_ending`; an end-of-file mark follows where `end_of_file_mark` |
 | field separator | `delimiter`, followed by one space where `initial_space` |
 | quote character | `"` (U+0022) |
 | doubling | an embedded `"` is written twice inside a quoted field, or after a backslash where `escape` is `backslash` (and a backslash is then written after one too) |
@@ -181,12 +181,49 @@ Three steps after every column is generated, drawing no word.
    Excel table with formatted-empty rows below it is sorted).
 
    How step 2 places them: `leading` at the
-   top, `trailing` at the bottom, `interior` spread evenly between; a
-   target row's cell holding something is exchanged for an empty cell of
-   the same column from the first non-target row that has one, and then
-   every other row left empty takes a cell from the first non-target row
-   that keeps something else. A row-sequence column is written in place
-   again last.
+   top, `trailing` at the bottom, `interior` spread evenly between.
+
+   THIS PARAGRAPH STATES THE PLACEMENT IN FULL, and it was written at
+   landing 2b.17's repair pass because it did not. "Spread evenly
+   between" is not a rule an independent implementer can write: two
+   conforming programs would put the interior records in different
+   rows and both would answer to the sentence. A committed case now
+   freezes these rows (G14.3, `row_arrangement`), so the rule they
+   freeze has to be readable here — the way contract 4.3a states the
+   comparable spread of blank lines, as arithmetic and not as an
+   adverb. Counting rows from nought, with the published counts capped
+   in this order — `leading` at the table's rows, `trailing` at what is
+   left below the leading block, `middle` the rows between them and
+   `interior` at `middle`:
+
+   - the leading block is the first `leading` rows and the trailing
+     block the last `trailing` rows;
+   - the k-th interior record, counting k from one, is placed at row
+     `leading + k * middle // (interior + 1)`. Where that row is
+     already taken the next row down is taken instead, and that walk
+     down stops at the last row above the trailing block, which is
+     then used whether or not an earlier interior record took it (so
+     where the interior records crowd the bottom of the middle, fewer
+     rows are targets than `interior` counts).
+
+   The cells are then exchanged, one column at a time and never
+   between columns, in two walks taking the rows in order:
+
+   - **the target rows are emptied.** In each column, a target row
+     whose cell holds something is exchanged with the cell of the
+     first row that is not a target and holds nothing in that column
+     (a row that has received a cell holds something and is not asked
+     again), and where the column has no such row left, that column's
+     walk stops.
+   - **no other row is left holding nothing.** A row that is not a
+     target and holds nothing in every column takes one cell back: in
+     the first column, in column order, that has a giver, the giver's
+     cell is exchanged into it, and the row is done. A giver is the
+     first row, in row order, that is not a target, holds something in
+     that column, and holds something in two or more columns at that
+     moment, so that it still holds something after it gives.
+
+   A row-sequence column is written in place again last.
 
 Whole rows moving, and cells moving within one column, change no
 column's cells as a multiset, so no published fact of any column moves,
@@ -7975,6 +8012,55 @@ delimiter reaches, or every part of a workbook package. The workbook's
 parts are frozen as TEXT and never as the packed bytes, because the
 compressed stream differs between library builds, which G2.2 states as
 a limit rather than claiming past it.
+
+**WHERE THE SECOND WRITING IS INDEPENDENT, AND WHERE IT IS NOT.** This
+section's rule is that each transform is written from the rule's
+STATEMENT and not from the code, because a second writing copied from
+the implementation agrees with it by construction and cannot disagree
+with it, which is the one thing these vectors exist to do. Landing
+2b.17's review measured the document transforms against that rule and
+found it half kept, so the measurement and its result are recorded
+here rather than left for the next reader to rediscover.
+
+Normalise every function of the oracle — docstrings, comments and
+annotations dropped — and score it against its closest normalised
+function in `src/synthtwin`. The transforms added for the document
+cases scored far higher against the shipped code than the oracle's
+own earlier work does, and two of them reproduced arithmetic that no
+governing document stated at all: the placement of the records holding
+nothing (G2.1) and the spread of the rarer line endings (G2). Those
+two sentences said only "spread evenly", which does not decide a
+single row or line, so the mirror could not have come from them.
+
+Both rules are now STATED — in G2.1 and in G2's line-ending row — and
+the two walks were rewritten from those statements, which moved no
+committed byte. No committed case publishes counted line endings, so
+the second of the two is held by no frozen byte: the review's repair
+compared it with the shipped spread over twenty thousand drawn
+censuses instead, and the placement over twenty thousand drawn grids,
+and both agreed on every one. That comparison is a measurement taken
+once and is not a vector; a case publishing counted endings is owed
+the day a file has room for it.
+
+What remains close to the shipped code is named here rather than
+summed up. Measured after the rewriting, 13 of the 53 added transforms
+of six statements or more score 0.60 or above (17 before it), against
+a median of 0.41. Nine of the thirteen write the workbook package: the
+cell element, the escaping of text, the spelling of a boolean, the
+hidden states, the styles part, the defined table, the content types,
+the place of a shared string and the class of each cell. The file
+format fixes most of those bytes, so an element writer and its mirror
+converge however each was written. The other four are short rules
+whose statement leaves one natural writing: the joining of fields
+with the delimiter, the letters of a column, the share of records at
+the commonest width, and whether a sheet's name is one synthtwin's own
+vocabulary can rebuild. A reader should take the placement and the
+spread as independently written, the delimiter reading, the written
+form, the marks of the lines before a table and the arrangement's sort
+as written from G2, G2.1 and FD11, and the part-emitting code of G2.2
+as written against the shipped writer and stated afterwards. The
+frozen cases hold all of them to the same bytes; only the first kinds
+can find a defect in the rule they mirror.
 
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the

@@ -10480,40 +10480,48 @@ def spread_blank_places(spread):
 def spread_line_endings(census):
     """Each line's ending where the endings are published counted (G2).
 
-    The commonest ending (the earlier in the listed order on a tie) ends
-    every line no rarer one takes.  Each rarer ending, in that same
-    order, takes its c lines at the middles of c equal stretches of the
-    file, the next free line where that one is taken.
+    Written from G2's line-ending row as it is stated there: the
+    commonest ending (the earlier in the listed order on a tie) ends
+    every line no rarer one takes; each rarer ending, in the listed
+    order, places its c lines one at a time, its k-th offered the line
+    ((2k + 1) * total) // (2c) or the line just below the one it took
+    last where that stands lower; a taken line passes the offer down to
+    the next free line, and past the end of the file to the first free
+    line from the top.
+
+    The rarer endings' lines are kept as a mapping from line to ending
+    and every other line is filled in at the end, because the rule
+    names which lines the rarer endings TAKE and leaves the rest to the
+    commonest.
     """
     if not census:
         return []
-    total = 0
-    most = 0
+    counts = [entry["lines"] for entry in census]
+    total = sum(counts)
+    commonest = 0
+    for index in range(1, len(counts)):
+        if counts[index] > counts[commonest]:
+            commonest = index
+    placed = {}
     for index in range(len(census)):
-        total = total + census[index]["lines"]
-        if census[index]["lines"] > census[most]["lines"]:
-            most = index
-    endings = [census[most]["ending"] for _line in range(total)]
-    taken = [False for _line in range(total)]
-    low = 0
-    for index in range(len(census)):
-        if index == most:
+        if index == commonest:
             continue
-        count = census[index]["lines"]
-        cursor = 0
-        for step in range(count):
-            target = ((2 * step + 1) * total) // (2 * count)
-            at = max(target, cursor)
-            while at < total and taken[at]:
-                at = at + 1
-            if at >= total:
-                while low < total and taken[low]:
-                    low = low + 1
-                at = low
-            taken[at] = True
-            endings[at] = census[index]["ending"]
-            cursor = at + 1
-    return endings
+        c = counts[index]
+        below_last = 0
+        for k in range(c):
+            line = max(((2 * k + 1) * total) // (2 * c), below_last)
+            while line < total and line in placed:
+                line = line + 1
+            if line >= total:
+                line = 0
+                while line in placed:
+                    line = line + 1
+            placed[line] = census[index]["ending"]
+            below_last = line + 1
+    return [
+        placed[line] if line in placed else census[commonest]["ending"]
+        for line in range(total)
+    ]
 
 
 def written_form_lines(names, rows, write_header, form):
@@ -10595,25 +10603,32 @@ def sequence_cells_written(start, n_rows):
 def empty_record_targets(form, n_rows):
     """Which rows the form's records holding nothing stand in (G2.1 step 2).
 
-    `leading` at the top, `trailing` at the bottom, `interior` spread
-    evenly between.
+    Written from G2.1's placement paragraph: the leading block, the
+    trailing block, and the k-th interior record at
+    `leading + k * middle // (interior + 1)`, moved down past a row
+    already taken and never past the last row above the trailing block.
+
+    The places are collected as a set and the row-by-row answer is
+    built from it at the end, because the rule is about WHICH ROWS are
+    taken and says nothing about walking the table.
     """
     empties = form["empty_rows"]
-    targets = [False for _row in range(n_rows)]
     leading = min(empties["leading"], n_rows)
-    for row in range(leading):
-        targets[row] = True
     trailing = min(empties["trailing"], n_rows - leading)
-    for row in range(n_rows - trailing, n_rows):
-        targets[row] = True
     middle = n_rows - leading - trailing
     interior = min(empties["interior"], middle)
+    taken = {}
+    for row in range(leading):
+        taken[row] = True
+    for row in range(n_rows - trailing, n_rows):
+        taken[row] = True
+    lowest = n_rows - trailing - 1
     for step in range(interior):
-        row = leading + ((step + 1) * middle) // (interior + 1)
-        while targets[row] and row < n_rows - trailing - 1:
-            row = row + 1
-        targets[row] = True
-    return targets
+        place = leading + ((step + 1) * middle) // (interior + 1)
+        while place in taken and place < lowest:
+            place = place + 1
+        taken[place] = True
+    return [row in taken for row in range(n_rows)]
 
 
 def place_empty_records(grid, form, n_rows):
@@ -10628,40 +10643,55 @@ def place_empty_records(grid, form, n_rows):
     """
     width = len(grid)
     targets = empty_record_targets(form, n_rows)
+
+    # THE FIRST WALK. Each column's rows that are not targets and hold
+    # nothing are the rows that can receive, in row order; a target row
+    # holding something hands its cell to the next one of them. The
+    # rule says each such row gives once, so they are listed once and
+    # spent in order rather than searched for again per row.
     for place in range(width):
         column = grid[place]
-        donor = 0
+        receivers = [
+            row
+            for row in range(n_rows)
+            if not targets[row] and column[row] == ""
+        ]
+        spent = 0
         for row in range(n_rows):
             if not targets[row] or column[row] == "":
                 continue
-            while donor < n_rows and (targets[donor] or column[donor] != ""):
-                donor = donor + 1
-            if donor >= n_rows:
+            if spent >= len(receivers):
                 break
-            column[row], column[donor] = column[donor], column[row]
-            donor = donor + 1
-    filled = [0 for _row in range(n_rows)]
-    for place in range(width):
-        for row in range(n_rows):
-            if grid[place][row] != "":
-                filled[row] = filled[row] + 1
-    giver = [0 for _place in range(width)]
+            other = receivers[spent]
+            spent = spent + 1
+            column[row], column[other] = column[other], column[row]
+
+    # THE SECOND WALK. How many columns each row now holds something in
+    # decides both who needs a cell (none) and who may give one (two or
+    # more, since a giver must still hold something afterwards).
+    holds = []
     for row in range(n_rows):
-        if targets[row] or filled[row]:
+        held = 0
+        for place in range(width):
+            if grid[place][row] != "":
+                held = held + 1
+        holds += [held]
+    for row in range(n_rows):
+        if targets[row] or holds[row]:
             continue
         for place in range(width):
             column = grid[place]
-            source = giver[place]
-            while source < n_rows and (
-                targets[source] or column[source] == "" or filled[source] < 2
-            ):
-                source = source + 1
-            giver[place] = source
-            if source >= n_rows:
+            source = -1
+            for other in range(n_rows):
+                if targets[other] or column[other] == "" or holds[other] < 2:
+                    continue
+                source = other
+                break
+            if source < 0:
                 continue
             column[row], column[source] = column[source], column[row]
-            filled[row] = filled[row] + 1
-            filled[source] = filled[source] - 1
+            holds[row] = holds[row] + 1
+            holds[source] = holds[source] - 1
             break
 
 
@@ -11340,22 +11370,30 @@ def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted):
 
 
 def sheet_empty_row_places(classes, n_rows, wanted):
-    """Which generated rows are written as records holding nothing (G2.2)."""
+    """Which generated rows are written as records holding nothing (G2.2).
+
+    G2.2 step 6: a row is written as a record holding nothing only
+    where EVERY column's class already holds nothing, and those rows
+    are taken in row order until the published count is met. So the
+    rows that QUALIFY are gathered first and the count is spent on
+    them, which is the shape of the rule's own sentence.
+    """
+    qualifying = []
+    for row in range(n_rows):
+        empty = True
+        for column in classes:
+            if row < len(column) and column[row] not in SHEET_NOTHING_CLASSES:
+                empty = False
+                break
+        if empty:
+            qualifying += [row]
     places = {}
     if wanted <= 0:
         return places
-    left = wanted
-    for row in range(n_rows):
-        if left <= 0:
+    for index in range(len(qualifying)):
+        if index >= wanted:
             break
-        holding = False
-        for column in classes:
-            if row < len(column) and column[row] not in SHEET_NOTHING_CLASSES:
-                holding = True
-                break
-        if not holding:
-            places[row] = True
-            left = left - 1
+        places[qualifying[index]] = True
     return places
 
 

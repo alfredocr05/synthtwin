@@ -1192,28 +1192,43 @@ def _metadata_rows_unseen_notice(rows: int) -> str:
 
     The declaration exists for a survey export whose rows under the
     column names describe those columns. Given on any other file it
-    still takes those rows out of the table and publishes them as
+    USED to take those rows out of the table and publish them as
     schema -- text held to no smallest group, written into the twin as
     it stands. Measured on an ordinary table of 120 records:
     `--metadata-rows 2` published two people's records verbatim at a
-    floor of eleven and nothing on the screen questioned it. So the
-    person is told what was seen, what it costs, and how to run again
-    without it.
+    floor of eleven, dropped them from every count, and nothing but
+    this notice questioned it.
+
+    THAT IS NO LONGER WHAT HAPPENS (review of landing 2b.17, MAJOR).
+    A notice is not a safeguard: it is read after the description has
+    been written, by a person who has already made the mistake, and
+    the disclosure it describes has happened by the time they read it.
+    So the rows now STAY in the table -- the safe reading the contract
+    already names for a declaration that found nothing -- and this
+    notice says so and says how to confirm the declaration in the
+    questions file if the person means it. The reading still obeys the
+    person; what it no longer does is obey a declaration the file
+    contradicts without asking them first.
     """
     return (
         f"{'=' * 66}\n"
         f"YOUR FILE DOES NOT WEAR THE SHAPE --metadata-rows IS FOR\n"
         f"{'=' * 66}\n"
         f"You said the {rows} row(s) under your column names describe "
-        f"those columns, and synthtwin has read them that way. What it "
-        f"looked for and did not see is the shape such a file usually "
-        f"has: rows as wide as your table whose second holds a marker "
-        f"in every cell. Those {rows} rows have left your table. They "
-        f"are not counted among your rows and not described as data, "
-        f"and what they hold is published as your columns' description "
-        f"and written into the twin exactly as it stands -- whatever it "
-        f"says, and whoever it names. If those rows are records of your "
-        f"table, run the command again without --metadata-rows."
+        f"those columns. What synthtwin looked for and did not see is "
+        f"the shape such a file usually has: rows as wide as your "
+        f"table whose second holds a marker in every cell. So those "
+        f"{rows} rows have STAYED in your table: they are counted "
+        f"among your rows, described as data like every other record, "
+        f"and nothing they hold is published anywhere in your "
+        f"description. If they really do describe your columns, say so "
+        f"in the questions file this run writes -- answer "
+        f"'metadata-rows' under 'about_your_file', then describe the "
+        f"table again with --answers -- and they will be taken out of "
+        f"the table and published as written. You are asked rather "
+        f"than taken at your word here because on a file this "
+        f"declaration is wrong about, those rows are somebody's "
+        f"records, and publishing one of those cannot be undone."
     )
 
 
@@ -1680,6 +1695,15 @@ def _run_profile(
     # Refused here, before the table is opened, like every other
     # declaration that cannot be acted on.
     metadata_rows = 0
+    # WHETHER THE PERSON CONFIRMED IT AFTER BEING TOLD WHAT IT COSTS
+    # (review of landing 2b.17, MAJOR). A declaration typed on the
+    # command line is read, and where the file does not bear it out the
+    # rows STAY in the table and the question is put in the questions
+    # file. An answer in that file is the confirmation: it is given
+    # after reading what each answer publishes, so it cannot be a
+    # typing slip, and it is the one route by which such rows leave the
+    # table on a file wearing none of the shape.
+    metadata_rows_confirmed = False
     if metadata_rows_given:
         if metadata_rows_given not in ("0", "2"):
             _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
@@ -1717,6 +1741,7 @@ def _run_profile(
         # reads their table the way they said.
         if written.metadata_rows:
             metadata_rows = written.metadata_rows
+            metadata_rows_confirmed = True
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -1791,6 +1816,10 @@ def _run_profile(
     )
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,
+        # ...and whether the person confirmed a declaration the file
+        # does not bear out, which is what decides whether those rows
+        # leave the table at all (review of landing 2b.17, MAJOR).
+        metadata_rows_confirmed=metadata_rows_confirmed,
         # AND UNDER THE DECLARED GRAMMAR (review item CODEX-9). The
         # survey reads the row order off the cells as written, and a
         # column declared to write `0,5` and `10,0` reads as no number
@@ -1819,7 +1848,12 @@ def _run_profile(
     # with nothing said. The reading still obeys the person -- it is
     # their file and their declaration -- and they are told what was
     # seen.
-    if metadata_rows and (surveyed is None or not surveyed.metadata_shape):
+    metadata_declaration_unseen = (
+        bool(metadata_rows)
+        and (surveyed is None or not surveyed.metadata_shape)
+        and not metadata_rows_confirmed
+    )
+    if metadata_declaration_unseen:
         _say(f"\n{_metadata_rows_unseen_notice(metadata_rows)}\n")
 
     # An option naming a column that is not there is refused here, with
@@ -2352,7 +2386,12 @@ def _run_profile(
                     asking.file_questions(
                         surveyed is not None
                         and surveyed.metadata_shape
-                        and not metadata_rows
+                        and not metadata_rows,
+                        # ...and the same subject from the other side:
+                        # a declaration the file does not bear out was
+                        # not acted on, so the person is asked here
+                        # rather than having it done to their table.
+                        metadata_rows if metadata_declaration_unseen else 0,
                     ),
                 )
             ),

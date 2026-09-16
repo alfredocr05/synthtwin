@@ -2333,16 +2333,32 @@ def workbook_other_sheet_holds_a_table(
     there and statistics taken from it would be false. There is no
     writing of that sheet this product may produce: its values are
     somebody's rows.
+
+    AND IT NO LONGER NAMES `--sheet` (review of landing 2b.17, MAJOR).
+    This sentence used to ask "Which sheet holds the table you want
+    described?" and tell the person to run the command again with
+    `--sheet` -- and the remedy it named is refused too. Measured on a
+    workbook holding a table on each of two sheets: plain `profile`
+    exits 1, `--sheet Data` exits 1 and `--sheet Codebook` exits 1,
+    all three with this message. That is not a defect in `--sheet`,
+    which is honoured elsewhere: it settles which sheet is DESCRIBED,
+    and whichever of the two is named, the OTHER is then a sheet
+    holding a table the twin cannot carry. So no naming of a sheet can
+    settle this refusal, and a message that sends a person back to the
+    command line for a second refusal costs them a run and their
+    confidence in the first. The sentence names the one thing that
+    does settle it: one table per workbook.
     """
     return (
         f"The file {path} holds a table on the sheet '{_shown(named)}' as "
         f"well as on '{_shown(chosen)}', and synthtwin describes one "
         f"table at a time. Its twin would carry '{_shown(named)}' with "
         f"nothing on it, so anybody who opened that sheet would find "
-        f"rows on your workbook and an empty sheet on the twin. Which "
-        f"sheet holds the table you want described? Run the command "
-        f"again with --sheet followed by that sheet's name, and keep "
-        f"the other table in a workbook of its own."
+        f"rows on your workbook and an empty sheet on the twin. Naming "
+        f"a sheet does not settle this: whichever of the two you name, "
+        f"the OTHER one is then the sheet holding a table synthtwin "
+        f"cannot carry. Please save each table in a workbook of its "
+        f"own, and run the command again on the one you want described."
     )
 
 

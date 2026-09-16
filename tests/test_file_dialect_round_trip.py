@@ -972,18 +972,31 @@ def test_the_report_says_the_records_of_nothing_move(
 def test_a_declaration_the_file_does_not_bear_out_is_questioned(
     tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
 ) -> None:
-    """`--metadata-rows` on a file not wearing the shape is questioned.
+    """`--metadata-rows` on a file not wearing the shape is not acted on.
 
-    THE REPRODUCTION (review of landing 2b.11, MINOR-4). On an ordinary
-    table of 120 records `--metadata-rows 2 --smallest-group 11` took
-    two records out of the table and published them verbatim as the
-    columns' description -- exempt from the smallest group, written
-    back into the twin -- and nothing on the screen said a word. The
-    reading still obeys the person; what changes is that they are told
-    what was looked for and not seen, and how to run again without it.
+    THE REPRODUCTION (review of landing 2b.11, MINOR-4; still open at
+    the review of landing 2b.17, MAJOR). On an ordinary table of 122
+    records `--metadata-rows 2 --smallest-group 11` took two records
+    out of the table and published them verbatim as the columns'
+    description -- `Person-ZETA-000` and its result, exempt from the
+    smallest group, written back into the twin -- and left the table
+    counted at 120, so those two people were gone from every figure as
+    well. A notice on the screen was all that questioned it, and a
+    notice is no safeguard: it is read after the description has been
+    written, by a person who has already made the mistake.
+
+    So the rows STAY in the table, which is the reading the contract
+    already calls safe for a declaration that found nothing, and the
+    person is asked in the questions file instead. The capability is
+    not lost and that is asserted here too: answering `metadata-rows`
+    there and describing the table again DOES take them out, because a
+    person whose file really has such rows must still be able to say
+    so -- what they can no longer do is disclose two of their own
+    records by a typing slip.
     """
     people = ["person,result"] + [
-        f"Person-{index},result-{index}" for index in range(ROWS)
+        f"Person-ZETA-{index:03d},private-result-{index:03d}"
+        for index in range(ROWS + 2)
     ]
     folder = tmp_path / "declared"
     folder.mkdir()
@@ -995,7 +1008,56 @@ def test_a_declaration_the_file_does_not_bear_out_is_questioned(
     ) == 0
     said = capsys.readouterr().out
     assert "YOUR FILE DOES NOT WEAR THE SHAPE" in said, said[-900:]
-    assert "run the command again without --metadata-rows" in said
+    assert "have STAYED in your table" in said, said[-900:]
+
+    # NOTHING OF THEIRS IS PUBLISHED, AND NOBODY IS MISSING FROM THE
+    # COUNT. Both halves of the disclosure are asserted: the rows are
+    # not in the description, and the two people are still records.
+    described = json.loads((folder / "real-profile.json").read_text())
+    assert described["source"]["dialect"]["header_rows"] == []
+    assert described["n_rows"] == ROWS + 2
+    written_out = (folder / "real-profile.json").read_bytes()
+    assert b"Person-ZETA-000" not in written_out
+    assert b"private-result-000" not in written_out
+
+    # AND THE QUESTION IS PUT WHERE IT CAN BE ANSWERED, with the
+    # declaration still recorded as made.
+    assert described["settings"]["forced_metadata_rows"] == 2
+    questions = json.loads((folder / "real-questions.json").read_text())
+    about = questions["about_your_file"]
+    assert len(about) == 1, about
+    assert "metadata-rows" in json.dumps(about), about
+
+    # ANSWERING IT IS WHAT MAKES THE DECLARATION ACT.
+    about[0]["your_answer"] = "metadata-rows"
+    answers = folder / "answered.json"
+    # The line ending is fixed here rather than left to the platform,
+    # which tests/test_description_line_endings.py holds every write in
+    # this suite to: the same bytes on every machine.
+    answers.write_text(json.dumps(questions, indent=2), newline="\n")
+    second = tmp_path / "confirmed"
+    second.mkdir()
+    again = second / "real.csv"
+    again.write_bytes(("\n".join(people) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(again), "--out-dir", str(second), "--replace",
+         "--metadata-rows", "2", "--answers", str(answers)]
+    ) == 0
+    confirmed = json.loads((second / "real-profile.json").read_text())
+    assert len(confirmed["source"]["dialect"]["header_rows"]) == 2
+    assert confirmed["n_rows"] == ROWS
+
+    # AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION SAYS IT WAS.
+    # The settings block alone no longer says whether those rows left
+    # the table -- a declaration can be recorded and not acted on -- so
+    # the validator goes by the PUBLISHED ROWS. One that did not would
+    # read this file as 122 records against a description of 120 and
+    # miss the published rows of column descriptions besides, which is
+    # why the reading and the description are held together here.
+    assert _exit_of(
+        ["validate", str(second / "real-profile.json"), "--twin", str(again),
+         "--out-dir", str(second)]
+    ) == 0
 
     # AND THE FILE THAT DOES WEAR IT IS NOT QUESTIONED. The notice is
     # about a declaration the file does not bear out, so a survey

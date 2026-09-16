@@ -2469,6 +2469,7 @@ def survey(
     trailing_guess: bool = True,
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
+    metadata_rows_confirmed: bool = False,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -2558,8 +2559,28 @@ def survey(
         # they describe the columns. Each has to be as wide as the
         # header, because a narrower record is a row of the table
         # however it was declared.
+        #
+        # AND ONLY WHERE THE FILE BEARS THE DECLARATION OUT, OR THE
+        # PERSON HAS CONFIRMED IT (review of landing 2b.17, MAJOR).
+        # `--metadata-rows 2` typed on an ordinary table took two
+        # records out of it and published them verbatim as the columns'
+        # description -- two people's rows, exempt from the smallest
+        # group, written into the twin, and gone from every count --
+        # while the screen said the shape was not there. A declaration
+        # the file plainly does not bear out is now READ but not acted
+        # on: the rows stay in the table, the safe reading the contract
+        # already names for a declaration that found nothing, and the
+        # person is asked in the questions file, where the answer says
+        # what it costs before it is acted on. Answering there is the
+        # confirmation this flag carries. It is the CODEX-2 ruling read
+        # from the other side: that one stopped a resemblance from
+        # taking rows out unasked, and this stops a typing slip from
+        # doing the same.
+        wanted_rows = metadata_rows
+        if metadata_rows and not metadata_shape and not metadata_rows_confirmed:
+            wanted_rows = 0
         taken = 0
-        while taken < metadata_rows and len(header) >= 2:
+        while taken < wanted_rows and len(header) >= 2:
             ahead = _peek(stream, 0)
             if ahead is None or len(ahead.fields) != len(header):
                 break
@@ -2730,6 +2751,7 @@ def survey(
                 False,
                 metadata_rows,
                 decimal_comma_columns,
+                metadata_rows_confirmed,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -3037,6 +3059,7 @@ def settle(
     shown: str,
     metadata_rows: int = 0,
     decimal_comma_columns: "tuple[str, ...]" = (),
+    metadata_rows_confirmed: bool = False,
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -3053,6 +3076,7 @@ def settle(
             text, encoding, byte_order_mark, first_row_is_data, shown,
             metadata_rows=metadata_rows,
             decimal_comma_columns=decimal_comma_columns,
+            metadata_rows_confirmed=metadata_rows_confirmed,
         )
     except errors.ProfileError as refusal:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
@@ -3069,6 +3093,7 @@ def settle(
                 text, encoding, byte_order_mark, first_row_is_data, shown,
                 None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
+                metadata_rows_confirmed=metadata_rows_confirmed,
             )
         except errors.ProfileError:
             raise refusal from None
@@ -3080,6 +3105,7 @@ def settle(
             text, encoding, byte_order_mark, first_row_is_data, shown, False,
             metadata_rows=metadata_rows,
             decimal_comma_columns=decimal_comma_columns,
+            metadata_rows_confirmed=metadata_rows_confirmed,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -3093,6 +3119,7 @@ def settle(
                 ESCAPE_BACKSLASH,
                 metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
+                metadata_rows_confirmed=metadata_rows_confirmed,
             )
         except errors.ProfileError:
             return found

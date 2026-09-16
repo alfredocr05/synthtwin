@@ -132,6 +132,12 @@ METADATA_ROWS_DECLARED = 2
 METADATA_SUBJECT = "the rows under your column names"
 
 BECAUSE_EXPORT_SHAPE = "export-metadata-shape"
+# ...and the same question asked from the other side: the person
+# DECLARED such rows on a file that does not wear that shape, so the
+# rows stayed in the table and the question is put in the file where
+# they can answer it after reading what it costs (review of landing
+# 2b.17, MAJOR; the CODEX-2 ruling read the other way round).
+BECAUSE_DECLARED_UNSEEN = "declared-metadata-rows-not-seen"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
@@ -802,20 +808,75 @@ def questions_for(
     return asked
 
 
-def file_questions(metadata_shape: bool) -> "list[Question]":
+def file_questions(
+    metadata_shape: bool, declared_unseen: int = 0
+) -> "list[Question]":
     """The questions about the FILE rather than about a column.
 
-    One so far: whether the two rows under the column names describe
-    those columns (plan P4-D81). It is asked only where synthtwin saw
-    that shape -- two records as wide as the header, the second every
-    cell an ImportId object -- and NOTHING is done about it unless the
-    person answers, because acting on the shape unasked is how a
-    person's own record became schema text (review item CODEX-2).
+    One subject, asked from either side: whether the rows under the
+    column names describe those columns (plan P4-D81).
 
-    Guarantees: a fixed function of the argument; opens nothing; and
+    WHERE THE SHAPE WAS SEEN it is asked because synthtwin will not act
+    on a resemblance -- two records as wide as the header, the second
+    every cell an ImportId object -- and NOTHING is done about it
+    unless the person answers, because acting on the shape unasked is
+    how a person's own record became schema text (review item
+    CODEX-2).
+
+    WHERE THE PERSON DECLARED SUCH ROWS AND THE SHAPE IS NOT THERE it
+    is asked for the mirror-image reason (review of landing 2b.17,
+    MAJOR). `--metadata-rows 2` on an ordinary table used to take two
+    records out of it and publish them verbatim as the columns'
+    description -- two people's rows, exempt from the smallest group,
+    written into the twin, and gone from every count -- on the
+    strength of a declaration the file plainly did not bear out. The
+    rows now stay in the table and the person is asked here, where the
+    answer says what it will cost before it is acted on. Answering
+    `metadata-rows` in this file is what makes the declaration act,
+    and it is a deliberate second step rather than a typing slip.
+
+    Guarantees: a fixed function of the arguments; opens nothing; and
     carries no value of the table -- the shape it reports is a count of
     rows and the name of a marker synthtwin itself looks for.
     """
+    if declared_unseen and not metadata_shape:
+        return [
+            Question(
+                METADATA_SUBJECT,
+                "",
+                BECAUSE_DECLARED_UNSEEN,
+                (
+                    f"you said the {declared_unseen} row(s) under your "
+                    f"column names describe those columns, and what "
+                    f"synthtwin looked for and did not see is the shape "
+                    f"such a file usually has: rows as wide as your "
+                    f"table whose second holds a marker in every cell"
+                ),
+                [
+                    Choice(
+                        ANSWER_DATA,
+                        "they are records of your table, like any other row",
+                        (
+                            "they stay in the table, counted and described "
+                            "as data, which is what this run did"
+                        ),
+                    ),
+                    Choice(
+                        ANSWER_METADATA_ROWS,
+                        (
+                            "they describe the columns; they are not "
+                            "anybody's record"
+                        ),
+                        (
+                            "they are taken out of the table and published "
+                            "as written, like the column names, and the "
+                            "twin writes them back unchanged"
+                        ),
+                    ),
+                ],
+                ANSWER_DATA,
+            )
+        ]
     if not metadata_shape:
         return []
     return [
