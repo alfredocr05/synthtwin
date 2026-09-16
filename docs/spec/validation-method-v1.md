@@ -1441,8 +1441,14 @@ states its own published word empties** (2026-09-16, landing 2b.13;
 the plan's decision P4-D90 is the ruling and this follows it).
 `styles.canonical.wide` asks whether every point-free cell past 2**53 is
 the figures its own value writes — asked of the cell's CORE and of the
-two point-free forms, `plain` and `leading_plus`, so that the checker's
-class and the producer's are one class (plan P4-D91) — the question `styles.spelled` cannot
+three point-free forms, `plain`, `leading_plus` and `leading_zero`, so
+that the checker's class and the producer's are one class (plan P4-D91),
+the padded cell asked once its PAD IS READ OFF: a canonical run never
+begins with a zero, so every leading zero is pad and what remains is the
+run, which both sides read from the text and neither reads from the
+published width census (landing 2b.16 part 2, plan P4-D107; measured
+before it, 800 padded wide keys with every cell respelled published
+`"none"` and were checked by nothing) — the question `styles.spelled` cannot
 ask, because past that bound more than one run of figures reads back as
 one double and admitting them all is what P4-D66.2 decided. The column
 publishes `wide_runs`, and the subcheck is EXECUTABLE on `"canonical"`

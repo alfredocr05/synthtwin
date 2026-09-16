@@ -417,3 +417,225 @@ def test_a_column_of_month_codes_keeps_its_two_character_field(
         if cell:
             assert len(cell) <= 2, cell
     assert real_exit == 0
+
+
+# THE PADDED WIDE KEYS NOTHING CHECKED (landing 2b.16 part 2, plan
+# P4-D107). Nineteen characters of field holding a seventeen-figure
+# key, which is the shape a real accession or account export writes.
+KEY_WIDTH = 19
+
+
+def _canonical_wide_keys(
+    seed: int, width: int = KEY_WIDTH, sign: str = ""
+) -> "list[str]":
+    """Padded keys whose runs ARE the text their own values write.
+
+    The value is snapped to its own double before it is written, which
+    is what makes the column canonical rather than nearly so: past
+    2**53 a drawn integer is usually NOT held exactly, so a column
+    written from the draw is `respelled` and would pin nothing.
+    """
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    while len(cells) < ROWS:
+        value = float(draw.randrange(10**16, 9 * 10**16))
+        figures = f"{int(value)}"
+        if len(figures) > width:
+            continue
+        cells += [sign + figures.rjust(width, "0")]
+    return cells
+
+
+def _a_value_preserving_neighbour(text: str) -> str:
+    """A DIFFERENT run of figures, in the same field, reading back the same.
+
+    The respelling the padded form hid: past 2**53 the spacing between
+    doubles reaches two, so a run one or two away denotes the very same
+    number, and padded into the same field it wears the same form and
+    the same width as the run it replaced.
+    """
+    sign = ""
+    body = text
+    if body[:1] == "+" or body[:1] == "-":
+        sign = body[:1]
+        body = body[1:]
+    figures = body
+    while figures[:1] == "0" and len(figures) > 1:
+        figures = figures[1:]
+    value = float(figures)
+    whole = int(figures)
+    for step in (1, -1, 2, -2):
+        candidate = f"{whole + step}"
+        if float(candidate) == value and len(candidate) == len(figures):
+            return sign + candidate.rjust(len(body), "0")
+    return text
+
+
+def _accused_of_respelling(folder: pathlib.Path, cells: "list[str]") -> int:
+    """Check a file against a description already written, and count the misses.
+
+    The attack the word exists to catch: the description is published
+    from the CANONICAL column, and the file handed to the checker is
+    that column respelled cell by cell.
+    """
+    written = folder / "respelled.csv"
+    written.write_text(
+        fixtures.rows_to_csv(["code"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    out = folder / "attack"
+    out.mkdir()
+    code = _exit_of(
+        [
+            "validate",
+            str(folder / "real-profile.json"),
+            "--twin",
+            str(written),
+            "--out-dir",
+            str(out),
+            "--replace",
+        ]
+    )
+    named = 0
+    for report in out.glob("*.txt"):
+        for line in report.read_text(encoding="utf-8").splitlines():
+            if "styles.canonical.wide" in line and "MISSED" in line:
+                named += 1
+    assert named > 0, "the report never named the subcheck"
+    return code
+
+
+@pytest.mark.parametrize("seed", [1, 7])
+def test_a_padded_column_of_wide_keys_is_asked_the_canonical_question(
+    seed: int, tmp_path: pathlib.Path
+) -> None:
+    """The limit landing 2b.13 named, closed by reading the pad first.
+
+    MEASURED ON THE BASE of this landing, through the real reader,
+    producer, loader and validator: 800 zero-padded nineteen-wide keys
+    at floor eleven, every cell respelled into the value-preserving
+    neighbour a double cannot tell apart -- 786 of 800 moved at seed 1,
+    780 at seed 7 -- published `wide_runs: none`, and the twin, the real
+    table and the canonical description handed the respelled file ALL
+    exited 0 with nothing named. Nothing checked the column.
+
+    The shape is asserted before the answer, because a column of narrow
+    padded codes passes every line below with the defect still in place.
+    """
+    cells = _canonical_wide_keys(seed)
+    folder = tmp_path / "padded"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, cells, str(seed)
+    )
+    # The shape the question turns on.
+    assert first["numeric_styles"] == {"leading_zero": ROWS}, first[
+        "numeric_styles"
+    ]
+    assert first["pad_widths"] == {f"{KEY_WIDTH}": ROWS}, first["pad_widths"]
+    # ...and the answer, which was `none` before this landing.
+    assert first["wide_runs"] == "canonical", first["wide_runs"]
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    for cell in written:
+        if cell:
+            assert len(cell) == KEY_WIDTH, cell
+            figures = cell
+            while figures[:1] == "0" and len(figures) > 1:
+                figures = figures[1:]
+            assert figures == f"{int(float(cell))}", cell
+    # ...AND THE CHECK CAN FAIL, which is the half that makes the rest
+    # worth asserting. The same description, the same field, the same
+    # form on every cell -- and a run the value does not write.
+    respelled = [_a_value_preserving_neighbour(cell) for cell in cells]
+    moved = 0
+    for before, after in zip(cells, respelled):
+        assert float(before) == float(after)
+        assert len(before) == len(after)
+        if before != after:
+            moved += 1
+    assert moved > 700, moved
+    assert _accused_of_respelling(folder, respelled) == 3
+
+
+@pytest.mark.parametrize("seed", [1, 7])
+def test_a_real_padded_export_that_respells_its_keys_is_never_accused(
+    seed: int, tmp_path: pathlib.Path
+) -> None:
+    """The other direction, which is the one that must not break.
+
+    A real export of literal seventeen-figure keys writes runs that are
+    NOT their values' canonical text -- measured on this base, 663 of
+    800 at seed 1 and 657 of 800 at seed 7 of a column drawn the way a
+    real one is. Holding such a file to a ceiling of nought is the false
+    accusation plan P4-D66.2 exists to end, so the column says
+    `respelled` about its own writer and the fact is LISTED rather than
+    checked.
+    """
+    cells = [
+        _a_value_preserving_neighbour(cell)
+        for cell in _canonical_wide_keys(seed)
+    ]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "respelled", cells, str(seed)
+    )
+    assert first["numeric_styles"] == {"leading_zero": ROWS}, first[
+        "numeric_styles"
+    ]
+    assert first["wide_runs"] == "respelled", first["wide_runs"]
+    # The REAL table meets its own description, which is the whole point.
+    assert real_exit == 0
+    assert twin_exit == 0
+
+
+def test_a_plus_signed_padded_column_reads_its_pad_off_too(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The form the rule already admitted, whose pad it never read.
+
+    `+0019094652364241860` is `leading_plus`, not `leading_zero`, so
+    this question was asked of it before this landing -- and its PADDED
+    figures were compared with its value's. Measured on this base: a
+    column of 800 plus-signed padded keys, every one written
+    canonically, was counted 800 of 800 NOT canonical, so the column
+    published `respelled` about a file that respells nothing. That is a
+    defect in the form the old bound kept, not in the one it excluded,
+    and one reading answers both.
+    """
+    cells = _canonical_wide_keys(1, sign="+")
+    folder = tmp_path / "plus"
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        folder, cells, "1"
+    )
+    assert first["numeric_styles"] == {"leading_plus": ROWS}, first[
+        "numeric_styles"
+    ]
+    assert first["wide_runs"] == "canonical", first["wide_runs"]
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    respelled = [_a_value_preserving_neighbour(cell) for cell in cells]
+    assert _accused_of_respelling(folder, respelled) == 3
+
+
+def test_a_narrow_padded_code_column_still_says_none(
+    tmp_path: pathlib.Path,
+) -> None:
+    """And the ordinary padded column is untouched, which is the control.
+
+    Five-figure postal codes: no cell is anywhere near the bound, so
+    the word stays `none`, the fact is LISTED, and both files pass. A
+    rule that read the pad off and then forgot the bound would call
+    this column canonical and file a ceiling on it.
+    """
+    draw = random.Random(1)
+    cells = [f"{draw.randrange(0, 99999):05d}" for _ in range(ROWS)]
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "codes", cells, "1"
+    )
+    assert first["pad_widths"], first["pad_widths"]
+    assert first["wide_runs"] == "none", first["wide_runs"]
+    assert second["wide_runs"] == "none", second["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0

@@ -6781,6 +6781,44 @@ def _decimal_plus(cells: _Cells) -> "dict[str, int]":
         return {"+": counted}
     return {UNAVAILABLE_LABEL: 0}
 
+def _figures_past_the_pad(digits: str) -> str:
+    """The run a padded cell writes, once its pad is read off.
+
+    THE PAD IS READ BEFORE THE CANONICAL QUESTION IS ASKED (landing
+    2b.16 part 2, plan P4-D107), and this is the whole of that reading.
+    `_wide_runs` beside it asks whether a wide run is the text its own
+    value writes; a padded cell's figures are not that text until its
+    padding is off, which is why the padded form was left out of the
+    question until this landing and why 800 respelled padded keys went
+    unseen.
+
+    NO CENSUS DECIDES THE SPLIT, and that is the reason this can be a
+    function of the text alone. Past `parsing.WIDE_RUN_FLOOR` every
+    value is a whole number, and the figures a whole number writes never
+    begin with a zero -- so every leading zero of the run is pad, and
+    what remains is the run. The published width census is not consulted
+    and does not need to be: a column pooling its width under
+    `(withheld)`, or publishing none, splits exactly where a column
+    naming `19` splits.
+
+    A RUN OF ZEROS KEEPS ONE, so the answer is never the empty text. No
+    such cell reaches the canonical question -- zero is far below the
+    wide floor -- and a rule whose answer is a run of figures should
+    return one whatever it is handed.
+
+    Guarantees: accepts a run of base-ten figures with its sign already
+    taken off; returns the same run with its leading zeros removed, and
+    a single `0` where it was all zeros. Determinism: a fixed function
+    of the text. Raises nothing. No I/O of any kind -- the answer is a
+    SHORTER PIECE of the text handed in, so no figure this column did
+    not already write travels out through it.
+    """
+    kept = digits
+    while kept[:1] == "0" and len(kept) > 1:
+        kept = kept[1:]
+    return kept
+
+
 def _wide_runs(cells: _Cells) -> str:
     """Whether this column's wide runs of figures are their own values' text.
 
@@ -6824,14 +6862,41 @@ def _wide_runs(cells: _Cells) -> str:
     run it replaced, so no census beside this one can see it. So
     `leading_plus` is asked too.
 
-    `leading_zero` is NOT, and that bound has a reason this one can
-    keep: a padded cell's figures are not its value's figures BY
-    CONSTRUCTION -- `0090071992547409931` is the padding the width
-    census governs -- so the canonical question cannot be asked of it
-    without first deciding which zeros are the pad, which is that
-    census's job and not this word's. A padded column's wide runs are
-    therefore outside what this word answers for, and the limit is
-    named in plan P4-D91 rather than left to be found.
+    AND `leading_zero` IS ASKED TOO, ONCE THE PAD IS READ OFF (landing
+    2b.16 part 2, plan P4-D107). Until this landing the padded form was
+    left out, on the ground that a padded cell's figures are not its
+    value's figures BY CONSTRUCTION -- `0090071992547409931` carries the
+    padding the width census governs -- so the canonical question could
+    not be asked without first deciding which zeros are the pad. That
+    ground held for the reading and not for the exclusion, and the
+    measurement is what says so: 800 zero-padded nineteen-wide keys at
+    floor eleven, every cell respelled into the value-preserving
+    neighbour a double cannot tell apart -- 786 of 800 moved at seed 1,
+    780 at seed 7 -- published `none`, and the twin, the real table and
+    the canonical description handed the respelled file all exited 0
+    with nothing named. The word was false about the whole file and the
+    ceiling had nothing to govern.
+
+    THE PAD NEEDS NO CENSUS TO DECIDE IT, which is the sentence the old
+    bound was missing. A canonical run NEVER begins with a zero: past
+    `WIDE_RUN_FLOOR` every value is a whole number and the figures it
+    writes are its own, so a leading zero can only be pad. The split is
+    therefore a fact of the TEXT and not of the published width, and
+    `_figures_past_the_pad` takes it -- the pad is read first, and the
+    canonical question is asked of the figures that remain. A column
+    whose published width is `(withheld)`, or that publishes no width at
+    all, is read exactly the same way, which is what keeps this word
+    from waiting on a census it never needed.
+
+    THE SAME READING REPAIRS THE FORM THIS RULE ALREADY ADMITTED, which
+    is the other half of the argument that the pad belongs to the
+    reading. `+0019094652364241860` is `leading_plus`, not
+    `leading_zero`, so it was counted here before this landing and its
+    PADDED figures were compared with its value's: measured, a column of
+    800 plus-signed padded keys, every one written canonically, was
+    counted 800 of 800 NOT canonical, and the column published
+    `respelled` about a file that respells nothing. One reading answers
+    for all three point-free forms, and none of them is a special case.
 
     AND OF THE CORE, because the form beside it is read off the core:
     brackets, the minus sign of the character tables, a surrounding
@@ -6865,7 +6930,7 @@ def _wide_runs(cells: _Cells) -> str:
             continue
         text = cell.numeric_text
         style = numeric_style(text)
-        if style != parsing.STYLE_PLAIN and style != parsing.STYLE_LEADING_PLUS:
+        if style not in POINT_FREE_STYLES:
             continue
         value = parsing.parse_number(text)
         if value is None:
@@ -6877,7 +6942,7 @@ def _wide_runs(cells: _Cells) -> str:
         digits = core
         if digits[:1] == "-" or digits[:1] == "+":
             digits = digits[1:]
-        if digits != parsing.wide_run_figures(value):
+        if _figures_past_the_pad(digits) != parsing.wide_run_figures(value):
             odd = odd + 1
     floor = cells.settings.small_cell_floor
     if counted < 1 or counted < floor:

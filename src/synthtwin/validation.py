@@ -11075,10 +11075,23 @@ def _wide_cells_respelled(cells: "list[str]") -> int:
     thousands marks taken out, which is what `number_core` takes out
     before the form is decided over there.
 
-    `leading_zero` is left out on both sides, and for a reason that
-    holds: a padded cell's figures are not its value's figures by
-    construction, so the question cannot be asked of it without first
-    deciding which zeros are the pad -- which is the width census's job.
+    `leading_zero` IS ASKED ON BOTH SIDES, once the pad is read off
+    (landing 2b.16 part 2, plan P4-D107). It was left out of both until
+    this landing, on the ground that a padded cell's figures are not its
+    value's figures until somebody decides which zeros are the pad --
+    which was taken to be the width census's job. Measured, that left
+    800 zero-padded nineteen-wide keys, every one respelled, publishing
+    `none` and checked by nothing, with the twin, the real table and the
+    canonical description handed the respelled file all at exit 0.
+
+    NOTHING PUBLISHED DECIDES THE SPLIT. Past 2**53 every value is a
+    whole number and the figures it writes never begin with a zero, so
+    every leading zero is pad and what remains is the run: the split is
+    a fact of the text, and this side reads it from the text exactly as
+    the producer reads it from the text, which is what keeps the two
+    one class. The width census is not consulted here, and this module
+    could not consult it without asking the file's own description what
+    to count -- which is the reading V1.4 refuses.
 
     THE MARKS ARE TAKEN OUT HERE, NOT BORROWED (V1.4), exactly as the
     minus notation above is: a column of 800 grouped wide runs, every
@@ -11091,7 +11104,11 @@ def _wide_cells_respelled(cells: "list[str]") -> int:
         if not body:
             continue
         style = parsing.numeric_style(body)
-        if style != parsing.STYLE_PLAIN and style != parsing.STYLE_LEADING_PLUS:
+        if (
+            style != parsing.STYLE_PLAIN
+            and style != parsing.STYLE_LEADING_PLUS
+            and style != parsing.STYLE_LEADING_ZERO
+        ):
             continue
         if parsing.classify_number(body) != parsing.NUMBER:
             continue
@@ -11103,6 +11120,8 @@ def _wide_cells_respelled(cells: "list[str]") -> int:
             continue
         digits = signed
         if digits[:1] == "-" or digits[:1] == "+":
+            digits = digits[1:]
+        while digits[:1] == "0" and len(digits) > 1:
             digits = digits[1:]
         whole = int(value)
         if whole < 0:

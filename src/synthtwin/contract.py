@@ -6823,30 +6823,39 @@ def _numeric_facts(
     negative = _negative_form(mapping, where)
     wide = _wide_runs(mapping, where)
     # INVARIANT WR1 (landing 2b.13, plan P4-D90; the floor and the
-    # second form added by its repair pass, plan P4-D91), the room the
-    # forms map leaves. A wide run is a cell written point-free -- plain
-    # or with a leading plus -- so a column saying anything but `none`
-    # about its wide runs claims at least the smallest group size of
-    # them, and where such a form was pooled the pool is where they
-    # would be. Read the same way DP1 reads the room for a signed
-    # decimal, and floored the way NS1 floors the notation beside it:
-    # the word names the FORM of the cells it is about, so a description
-    # naming it for fewer cells than the floor would say what the forms
-    # map pooled them to avoid saying.
+    # second form added by its repair pass, plan P4-D91; the THIRD form
+    # by landing 2b.16 part 2, plan P4-D107), the room the forms map
+    # leaves. A wide run is a cell written point-free, and all THREE
+    # point-free forms are point-free: plain, a leading plus, and a
+    # padded cell whose pad the producer reads off before it asks
+    # whether the run is its own value's text. So a column saying
+    # anything but `none` about its wide runs claims at least the
+    # smallest group size of them among those three, and where such a
+    # form was pooled the pool is where they would be. Read the same way
+    # DP1 reads the room for a signed decimal, and floored the way NS1
+    # floors the notation beside it: the word names the FORM of the
+    # cells it is about, so a description naming it for fewer cells than
+    # the floor would say what the forms map pooled them to avoid
+    # saying. Measured before the third form was counted here: a column
+    # of 800 padded wide keys publishing `canonical` was refused by this
+    # loader on room of nought, so the description its own producer
+    # writes could not be read back.
     if wide != parsing.WIDE_NONE:
-        plain_room = 0
+        point_free_room = 0
         if parsing.STYLE_PLAIN in styles:
-            plain_room = plain_room + styles[parsing.STYLE_PLAIN]
+            point_free_room = point_free_room + styles[parsing.STYLE_PLAIN]
         if parsing.STYLE_LEADING_PLUS in styles:
-            plain_room = plain_room + styles[parsing.STYLE_LEADING_PLUS]
+            point_free_room = point_free_room + styles[parsing.STYLE_LEADING_PLUS]
+        if parsing.STYLE_LEADING_ZERO in styles:
+            point_free_room = point_free_room + styles[parsing.STYLE_LEADING_ZERO]
         if WITHHELD in styles:
-            plain_room = plain_room + styles[WITHHELD]
-        if plain_room < 1 or plain_room < frame.floor:
+            point_free_room = point_free_room + styles[WITHHELD]
+        if point_free_room < 1 or point_free_room < frame.floor:
             raise _broken(
                 "WR1",
                 where,
                 f"the wide runs of figures are said to be '{wide}'",
-                f"the forms map leaves room for {plain_room} point-free "
+                f"the forms map leaves room for {point_free_room} point-free "
                 f"cell(s) and the smallest group size is {frame.floor}",
             )
     # INVARIANT NS1 (landing 2b.2). A notation is a majority of the

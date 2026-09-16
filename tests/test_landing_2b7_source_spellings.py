@@ -455,16 +455,30 @@ def test_the_wide_run_class_is_one_class_on_both_sides() -> None:
     # AND THE BOUNDS, which is what keeps the class from being every
     # cell in every file.
     #
-    # A PADDED CELL IS EXCLUDED BY THE FORM, NOT BY THE CLASS, and the
-    # two are different questions: `0088...` IS a run of figures past
-    # the bound, so the class test admits it, and both callers then
-    # decline it because its form is `leading_zero` -- its figures are
-    # not its value's figures by construction and which of them are the
-    # pad is the width census's question (plan P4-D91). Asserted this
-    # way round so that the bound is pinned where it actually lives.
+    # A PADDED CELL IS ASKED LIKE ANY OTHER, ONCE ITS PAD IS READ OFF
+    # (landing 2b.16 part 2, plan P4-D107). Until that landing this
+    # asserted the opposite -- that both callers DECLINED a padded cell,
+    # because its figures are not its value's figures until somebody
+    # decides which zeros are the pad, which was taken to be the width
+    # census's question (plan P4-D91). Measured, that bound left 800
+    # zero-padded nineteen-wide keys, every one respelled, publishing
+    # `none` and checked by nothing. Nothing published decides the
+    # split: a canonical run never begins with a zero, so every leading
+    # zero is pad and what remains is the run. The padded respelling is
+    # therefore counted, and the padded CANONICAL cell is not -- which
+    # is the pair that says the pad was read rather than the cell
+    # refused.
     padded = "0" + odd
     assert parsing.numeric_style(padded) == parsing.STYLE_LEADING_ZERO
-    assert validation._wide_cells_respelled([padded]) == 0, padded
+    assert validation._wide_cells_respelled([padded]) == 1, padded
+    tidy_padded = "0" + canonical
+    assert parsing.numeric_style(tidy_padded) == parsing.STYLE_LEADING_ZERO
+    assert validation._wide_cells_respelled([tidy_padded]) == 0, tidy_padded
+    # ...and the width of the pad is nothing to the question: a run
+    # carrying four zeros of padding answers exactly as one carrying
+    # one, so no census has to be consulted to read either.
+    assert validation._wide_cells_respelled(["0000" + odd]) == 1
+    assert validation._wide_cells_respelled(["0000" + canonical]) == 0
     # A trailing minus with no point is text this reader refuses, and a
     # narrow run is held exactly, so its own figures are the only run
     # there is: neither is of the class at all.
@@ -649,19 +663,42 @@ def test_a_padded_value_no_field_can_hold_gives_the_style_up() -> None:
 
 
 def test_a_padded_cell_with_no_partner_keeps_the_style() -> None:
-    """And where no cell can take it, nothing is invented.
+    """And where there is no OTHER point-free form, nothing is invented.
 
-    Every cell not wearing the padded style here already needs the
-    whole field, so there is no exchange to make. The pass must leave
-    the column exactly as it found it rather than move a style onto a
-    value that cannot wear it -- which is the measured shape of the
-    month column this landing does NOT close, and the reason it is
-    carried rather than claimed.
+    AMENDED BY PLAN P4-D105 (landing 2b.16 part 1), which is the
+    decision that moved the rule under it. This fixture was written at
+    landing 2b.7 with two `plain` cells beside the padded ones and
+    asserted that the pass left the column exactly as it found it. That
+    is no longer what the rule says: a cell wearing the padded style
+    whose value no published width can hold now gives the style up EVEN
+    WHERE NO PARTNER EXISTS, taking the point-free form the published
+    map carries most of, because leaving the style where it was is what
+    wrote a six-character code into a five-character field.
+
+    What survives of the original intent is the clause that still
+    holds, and it is the one this now pins: where the map carries no
+    other point-free form at all -- every cell of the column padded --
+    there is nothing to give the style up to, so the cell KEEPS it and
+    G13's recount names the shortfall. A form no cell of the column
+    wears is never offered, which is the sentence both writings share.
     """
     from synthtwin import generation
 
-    styles = ["leading_zero", "leading_zero", "leading_zero", "plain", "plain"]
-    holds = [12.0, 3.0, 4.0, 11.0, 10.0]
+    # Every cell padded, so there is no other point-free form to take:
+    # the column comes back exactly as it went in.
+    styles = ["leading_zero", "leading_zero", "leading_zero"]
+    holds = [12.0, 3.0, 4.0]
     assert generation._padded_style_swaps(
         styles, holds, {"2": 3}, [], True
     ) == styles
+    # ...and with a `plain` cell in the map, the overflowing cell gives
+    # the style up to it rather than keeping a field it cannot wear
+    # (plan P4-D105). `12.0` needs both figures of a two-figure field,
+    # so no published width can pad it.
+    beside = ["leading_zero", "leading_zero", "leading_zero", "plain", "plain"]
+    holds_beside = [12.0, 3.0, 4.0, 11.0, 10.0]
+    moved = generation._padded_style_swaps(
+        beside, holds_beside, {"2": 3}, [], True
+    )
+    assert moved[0] == "plain", moved
+    assert generation._pad_need(12.0, True) >= 2
