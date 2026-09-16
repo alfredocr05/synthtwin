@@ -634,8 +634,18 @@ writer gives `v[i]` at `f` figures. A run is then a run of one WRITTEN
 number, and `GridValue(x)` below names this reading. A column is on a
 written grid of `f` figures where `fraction_widths` names the one width
 `f` and either that width covers every numeric cell — G6.5a's WHICH GRID
-clause — or its count and `W`, the point-free count of G5.2's carrier
-step, add up to every numeric cell (landing 2b.1, repair, 2026-09-16).
+clause — or its count and the NAMED point-free style counts (`plain`,
+`leading_zero` and `leading_plus`, the `(withheld)` share EXCLUDED) add
+up to every numeric cell (landing 2b.1, repair, 2026-09-16; the
+withheld share excluded by landing 2b.7, 2026-09-15). That pool is not
+read here even though G6.4 WRITES it in the plain style: a pooled count
+says how many cells it covered and never which form they took, so it
+cannot prove its cells carry no point. Counting it proved a grid that
+does not exist — 490 cells at one decimal place beside ten `-1e-2`
+cells publish the width `1` for 490 and pool the other ten, and 490 + 10
+read as full coverage of the grid of tenths, which `-0.01` is not on.
+Its twin held 28 different numbers against a published 31 at seeds 1, 7
+and 23, and holds 30 with the pool excluded.
 The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
 how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
 the grid point whose last `f` figures are zero, so every number of such
@@ -743,19 +753,38 @@ strata to fit its cells under the cap at all.
 
 `F` is the description's `small_cell_floor`, and its term stands only
 where `F >= 3` and the description does not itself prove a number held
-by `F` cells or more — neither `ceil(K / n_distinct_values)` nor
-`floor((r - 1) * (K - 1) / 100)` reaches `F`; everywhere else the term
-is absent (landing 2b.1, repair, 2026-09-16). The profiler withholds the
+by `F` cells or more — `ceil(K / n_distinct_values)` does not reach `F`;
+everywhere else the term is absent (landing 2b.1, repair, 2026-09-16;
+narrowed by landing 2b.7, 2026-09-15). The profiler withholds the
 pair exactly where the commonest number is held by fewer than `F` cells
 or by one, so under a floor of 3 or more the pair's absence proves no
 number was held by more than `F - 1`; under a lower floor it proves only
 that every number is different, which the first term already says. The
-two exceptions are descriptions that contradict that reading: every
+ONE exception is a description that contradicts that reading: every
 number of a column holds at least `ceil(K / n_distinct_values)` cells
-on average, and the rungs at the two ends of a run of `r` equal rungs
-stand `(K - 1)(r - 1) / 100` type-7 positions apart, with every sorted
-position from just past the first to the second reading that number. A
-withheld pair under the floor was not withheld by it there. Without the
+on average, so a withheld pair under the floor was not withheld by it
+there.
+
+**A RUN OF EQUAL RUNGS IS NOT THE SECOND EXCEPTION, AND WAS** (landing
+2b.7, 2026-09-15, withdrawing the `floor((r - 1) * (K - 1) / 100)` term
+of the clause above). The argument for it was that the rungs at the two
+ends of a run of `r` equal rungs stand `(K - 1)(r - 1) / 100` type-7
+positions apart with every sorted position between them reading that
+number — which is true of the ladder and false of the column, because
+RUNGS ARE COMPARED AS BINARY64. Equal rungs prove that many equal
+ROUNDED values and say nothing about how often one exact value was held.
+A hundred exact decimals `1.0000000000000001` upward at four cells each
+is the column that separates the two: every number is different, none is
+held more than four times, the profiler withholds the mode pair because
+four is under a floor of 11 — and 101 rungs carry 46 different binary64
+values with a longest equal run of 4, so the withdrawn term read
+`floor(3 * 399 / 100) = 11` and stood the floor aside. All three
+writings then capped a stratum at 21 where the withheld pair proves 10.
+The count term is unaffected: it reads `ceil(400 / 100) = 4`, which does
+not reach the floor, so the floor binds. One frozen case moves with this
+withdrawal and only one — `numeric_point_free_styles`, whose 33 cells
+are all the number 5 and whose hand-written description withholds its
+mode pair while its own flat ladder said a number was held 33 times. Without the
 term, 4,000 amounts described under `--smallest-group 11` came back
 holding one number 45 times and 2,500 thousandths 27 times, where the
 withheld pair proved no real number was held more than 10 times, and

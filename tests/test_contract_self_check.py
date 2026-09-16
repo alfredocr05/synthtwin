@@ -82,6 +82,49 @@ def test_a_second_prose_definition_is_reported(tmp_path: pathlib.Path) -> None:
     assert any("DUPLICATE IDENTIFIER Q20" in item for item in items), items
 
 
+def test_a_bold_and_a_prose_definition_of_one_identifier_collide(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Mixed syntax hid a duplicate that either syntax alone reported.
+
+    The Codex review of landing 2b.5 (item 5): a bolded opener beside a
+    singular prose definition of the same identifier returned no item,
+    while two bolded openers or two prose sentences each reported the
+    collision. The prose pass skipped any name a bolded opener had already
+    defined in the region -- deduplication that belongs to the PLURAL
+    introduction ("their identifiers are P6c, P7c and P9c", whose rules are
+    each opened as a bullet of their own) and not to the singular sentence,
+    which states the rule in the paragraph it opens.
+    """
+    text = "\n".join(
+        [
+            "**Q20 (a count).** Count must be two.",
+            "",
+            "One binds, and its identifier is Q20. Count must be three.",
+            "",
+        ]
+    )
+    items = _items(_copy(tmp_path, text))
+    assert any("DUPLICATE IDENTIFIER Q20" in item for item in items), items
+
+
+def test_a_plural_prose_introduction_is_not_a_second_definition(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The shape the shipped contract uses for P6c, P7c and P9c."""
+    text = "\n".join(
+        [
+            "Three bind, and their identifiers are P6c, P7c and P9c.",
+            "",
+            "- **P6c.** A floor.",
+            "- **P7c.** A width.",
+            "- **P9c (the sum).** Bounded on both sides.",
+            "",
+        ]
+    )
+    assert _items(_copy(tmp_path, text)) == []
+
+
 def test_a_cited_invariant_nobody_wrote_is_reported(tmp_path: pathlib.Path) -> None:
     text = CONTRACT.read_text(encoding="utf-8")
     opener = "**Invariant Q18 (`mode` and `mode_count` stand together).**"

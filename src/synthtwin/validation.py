@@ -3695,8 +3695,6 @@ def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = ((longest - 1) * (numbers - 1)) // 100
     if facts.n_distinct_values > 0:
         proven = max(proven, -((-numbers) // facts.n_distinct_values))
     if proven >= floor:

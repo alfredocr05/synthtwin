@@ -741,14 +741,34 @@ def test_the_generator_and_the_oracle_read_one_written_grid(
         facts = column.facts
         assert isinstance(facts, contract.NumericFacts), (name, type(facts))
         mine = generation._written_grid(column, facts)
-        effective = oracle._effective_style_map(dict(facts.numeric_styles))
         theirs = oracle.written_grid(
             dict(facts.fraction_widths),
             facts.integer_valued,
             column.n_numeric,
-            sum(effective[style] for style in oracle.POINT_FREE_STYLES),
+            oracle.named_point_free(dict(facts.numeric_styles)),
         )
         assert mine == theirs == expected, (name, mine, theirs, dict(facts.fraction_widths))
+
+    # AND A COLUMN WHOSE POINT-FREE CELLS ARE AN ANONYMOUS POOL (landing
+    # 2b.7). Ten `-1e-2` cells under a floor of eleven are pooled, so the
+    # styles map NAMES no point-free form at all: 490 cells at one width
+    # do not cover the column, and neither writing may read a grid. Read
+    # off the pooled share instead, both would read the grid of tenths,
+    # which `-0.01` is not a point of.
+    pooled = [f"{draw.gauss(37, 0.5):.1f}" for _ in range(490)] + ["-1e-2"] * 10
+    column = _describe(tmp_path, "withheld_pool", pooled, floor=11)
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert dict(facts.numeric_styles).get("(withheld)") == 10, dict(facts.numeric_styles)
+    assert dict(facts.fraction_widths) == {"1": 490}, dict(facts.fraction_widths)
+    mine = generation._written_grid(column, facts)
+    theirs = oracle.written_grid(
+        dict(facts.fraction_widths),
+        facts.integer_valued,
+        column.n_numeric,
+        oracle.named_point_free(dict(facts.numeric_styles)),
+    )
+    assert mine == theirs == -1, (mine, theirs)
 
 
 def test_the_nearest_giver_is_one_rule_in_the_generator_and_the_oracle() -> None:
@@ -791,11 +811,17 @@ def test_a_withheld_pair_the_description_contradicts_is_not_read_as_the_floor(
     """The floor term of G5.2a's cap, and its two exceptions, in all three.
 
     A withheld pair under a floor of 11 caps every stratum at 10. But a
-    description whose own ladder is flat, or whose count of different
-    numbers leaves the commonest holding 11 cells or more, proves a number
-    held that often, so the pair was not withheld by the floor and the term
-    stands aside. Both columns are described and then have their pair
-    withheld by hand, which is exactly the contradiction no profiler writes.
+    description whose COUNT OF DIFFERENT NUMBERS leaves the commonest
+    holding 11 cells or more proves a number held that often, so the pair
+    was not withheld by the floor and the term stands aside. The columns
+    are described and then have their pair withheld by hand, which is
+    exactly the contradiction no profiler writes.
+
+    A FLAT LADDER IS NO LONGER ONE OF THOSE PROOFS (Codex review of
+    landing 2b.1, item 2). It was, and it was wrong: rungs are compared as
+    binary64, so a run of equal rungs proves that many equal ROUNDED
+    values and says nothing about how often one exact value was held. The
+    companion test below builds the column that separates the two.
     """
     oracle = _oracle()
     draw = random.Random(11)
@@ -822,8 +848,73 @@ def test_a_withheld_pair_the_description_contradicts_is_not_read_as_the_floor(
         assert first == second == third, (name, first, second, third)
         outcomes[name] = (first, generation._stratum_cap(facts, rungs, numbers, 1))
     assert outcomes["free"][0] == 10, outcomes
-    # The flat ladder and the thirty-number count each prove a number held
-    # eleven times or more, so the floor changes nothing there.
-    assert outcomes["flat"][0] == outcomes["flat"][1], outcomes
+    # THE COUNT OF DIFFERENT NUMBERS IS THE PROOF THAT SURVIVES: 400 cells
+    # over thirty numbers hold one of them at least fourteen times, so that
+    # description's pair was not withheld by the floor.
     assert outcomes["few"][0] == outcomes["few"][1], outcomes
-    assert outcomes["flat"][1] > 10 and outcomes["few"][1] > 10, outcomes
+    assert outcomes["few"][1] > 10, outcomes
+    # AND THE FLAT LADDER IS NO LONGER A PROOF: its own count of different
+    # numbers does not reach the floor, so the floor binds after all.
+    assert outcomes["flat"][0] == 10, outcomes
+    assert outcomes["flat"][1] > 10, outcomes
+
+
+def test_equal_rounded_rungs_prove_no_exact_identity(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A producer-valid description whose ladder is flat only by rounding.
+
+    THE COLUMN THE WITHDRAWN RULE GOT WRONG (Codex review of landing 2b.1,
+    item 2). A hundred exact decimals `1.0000000000000001` upward, four
+    cells each: every one is a different number, none is held by more than
+    four cells, and the profiler withholds the mode pair because four is
+    under the floor of eleven. Every rung of the ladder is nevertheless
+    EQUAL, because the hundred decimals round to one binary64 value.
+
+    Read as proof, that flat run said some number was held eleven times or
+    more and stood the floor term aside, capping a stratum at 21 where the
+    withheld pair proves 10. Nothing is hand-contradicted here: this is a
+    description the producer writes.
+    """
+    oracle = _oracle()
+    cells = [f"1.{place:016d}" for place in range(1, 101) for _each in range(4)]
+    column = _describe(tmp_path, "rounded", cells, floor=11)
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.mode is None and facts.mode_count == 0
+    assert facts.n_distinct_values == 100, facts.n_distinct_values
+    numbers = validation._numeric_cells(facts)
+    rungs = generation._merged_rungs(facts)
+    assert rungs is not None
+    # A HUNDRED DIFFERENT EXACT DECIMALS, and a ladder that cannot see
+    # them: 101 rungs carry only 46 different binary64 values, and the
+    # longest run of equal rungs is 4.
+    assert len({cell for cell in cells}) == 100
+    assert len(set(rungs)) < len(rungs), len(set(rungs))
+    longest = 1
+    run = 1
+    for place in range(1, len(rungs)):
+        if rungs[place] == rungs[place - 1]:
+            run = run + 1
+            longest = max(longest, run)
+        else:
+            run = 1
+    assert longest == 4, longest
+    # THE WITHDRAWN PROOF WOULD HAVE STOOD THE FLOOR ASIDE, and the
+    # count of different numbers does not: that is the whole of the
+    # defect, written as arithmetic so the gate cannot drift from it.
+    assert ((longest - 1) * (numbers - 1)) // 100 >= 11
+    assert -((-numbers) // facts.n_distinct_values) == 4
+    first = generation._stratum_cap(facts, rungs, numbers, 11)
+    second = validation._stratum_bound(facts, 11)
+    third = oracle.stratum_cap(
+        {
+            "mode": None,
+            "mode_count": 0,
+            "n_distinct_values": facts.n_distinct_values,
+        },
+        list(rungs),
+        numbers,
+        11,
+    )
+    assert first == second == third == 10, (first, second, third)

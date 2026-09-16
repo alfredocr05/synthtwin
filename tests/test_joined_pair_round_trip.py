@@ -294,15 +294,31 @@ def test_a_column_read_as_pairs_from_its_values_is_always_asked(
     assert answers == ["keep", "code", "identifier"]
 
 
-def test_a_pair_too_large_for_this_format_is_described_and_not_a_crash(
+def test_a_pair_too_large_for_this_format_is_not_admitted_as_a_pair(
     tmp_path: pathlib.Path,
 ) -> None:
     """300 pairs opening `10 ** 310`: every part is past what binary64 holds.
 
-    The integration verdict: the position's numbers were all
-    unrepresentable, so the quantile walk was handed an empty list and
-    `synthtwin profile` raised `IndexError`. A null rung carries no
-    obligation (contract L3), which is the truth about such a position.
+    RULE 9c ADMITS A PART ON ITS SPELLING AND ON ITS REPRESENTABILITY,
+    and the second half is what the Codex review of landing 2b.5 (item 4)
+    added. `10 ** 310` is figures alone with no sign, no point and no
+    padding, so the spelling test admitted it -- and then every statistic
+    over that position was taken on a value binary64 cannot carry.
+
+    Two shapes, and this pins both. Where EVERY cell is such a pair the
+    column is not read as pairs at all: it falls to the rules below rule
+    9c, exactly as a cell nothing can read always has. Where 299 ordinary
+    pairs stand beside ONE too-large cell, the one is counted unparsed
+    and the parse line decides the column, so `n_joined` counts the cells
+    whose statistics were actually taken.
+
+    WHAT THE OLD READING COST, which is why this expectation moved. Admitted
+    on spelling, the all-too-large column was published as `joined_numbers`
+    with a wholly null ladder, and the 299-plus-one column published
+    `n_joined` 300 while the first position's statistics had used 299
+    values -- a description its own loader then refused under invariant
+    Q2, so `synthtwin profile` wrote a file `synthtwin generate` would not
+    read (exit 1). Both now generate.
     """
     folder = tmp_path / "huge"
     folder.mkdir()
@@ -317,9 +333,45 @@ def test_a_pair_too_large_for_this_format_is_described_and_not_a_crash(
     described = json.loads(
         (folder / "real-profile.json").read_text(encoding="utf-8")
     )["columns"][0]
-    assert described["role"] == "joined_numbers"
-    ladder = described["parts"][0]["percentiles"]
-    assert all(ladder[rung] is None for rung in ladder)
+    assert described["role"] != "joined_numbers", described["role"]
+    # THE DESCRIPTION IS ONE THE LOADER READS, which the old reading's
+    # was not: generation opens it and writes a twin.
+    assert _exit_of(
+        [
+            "generate", str(folder / "real-profile.json"),
+            "--out-dir", str(folder), "--seed", "4", "--replace",
+        ]
+    ) == 0
+
+    # ...AND ONE TOO-LARGE CELL AMONG ORDINARY PAIRS IS UNPARSED.
+    draw = random.Random(77)
+    mixed = [
+        f"{draw.randrange(100, 200)}/{draw.randrange(50, 99)}"
+        for _each in range(299)
+    ] + [f"{10 ** 310}/79"]
+    other = tmp_path / "mixed"
+    other.mkdir()
+    beside = other / "real.csv"
+    beside.write_text(
+        "bp\n" + "".join(cell + "\n" for cell in mixed),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(beside), "--out-dir", str(other), "--replace"]
+    ) == 0
+    block = json.loads(
+        (other / "real-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]
+    assert block["role"] == "joined_numbers"
+    assert block["n_joined"] == 299, block["n_joined"]
+    assert block["n_unparsed"] == 1, block["n_unparsed"]
+    assert _exit_of(
+        [
+            "generate", str(other / "real-profile.json"),
+            "--out-dir", str(other), "--seed", "4", "--replace",
+        ]
+    ) == 0
 
 
 def test_the_carried_reading_still_misses_a_file_that_is_not_pairs(

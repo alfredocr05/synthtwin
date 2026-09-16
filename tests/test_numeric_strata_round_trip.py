@@ -378,6 +378,49 @@ def test_a_pair_the_floor_withheld_caps_every_number_under_the_floor(
         assert real_exit == 0, (name, seed)
 
 
+def test_a_withheld_style_pool_is_not_a_written_grid(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An anonymous style pool proves no point-free cell (Codex 2b.1, item 4).
+
+    490 cells written at one decimal place beside ten `-1e-2` cells. The
+    census names the width `1` for 490 of them and the styles map names
+    `decimal` 490 and pools the other ten under `(withheld)`, because ten
+    is under the floor of eleven.
+
+    Counting that pool as point-free demand made 490 + 10 the whole numeric
+    count, so the column was read as being written on the grid of tenths --
+    and `-0.01` is not a tenth. A pooled count says how many cells it
+    covered and never which form they took, so it cannot prove its cells
+    carry no point. Measured at seeds 1, 7 and 23: the twin held 28
+    different numbers against a published 31, and reads 30 with the grid
+    inferred from the NAMED counts alone.
+
+    The real table misses here whichever way the grid reads -- its lone
+    exponent style is pooled below the floor -- so the twin is what this
+    gate checks, and that shortfall is named rather than asserted away.
+    """
+    draw = random.Random(17)
+    cells = [f"{draw.gauss(37, 0.5):.1f}" for _each in range(490)] + ["-1e-2"] * 10
+    for seed in SEEDS:
+        first, _second, written, _twin_exit, _real_exit = _round_trip(
+            tmp_path / f"pool-{seed}",
+            cells,
+            ("--smallest-group", "11"),
+            check_real=False,
+            seed=seed,
+        )
+        assert first["fraction_widths"] == {"1": 490}, first["fraction_widths"]
+        assert first["numeric_styles"]["(withheld)"] == 10, first["numeric_styles"]
+        held = {float(cell) for cell in written}
+        assert len(held) >= 30, (seed, len(held), first["n_distinct_values"])
+    (tmp_path / "grid").mkdir()
+    _loaded, column = _described(tmp_path / "grid", cells)
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert generation._written_grid(column, facts) == -1
+
+
 def _described(
     folder: pathlib.Path, cells: "list[str]"
 ) -> "tuple[contract.Profile, contract.ColumnBlock]":

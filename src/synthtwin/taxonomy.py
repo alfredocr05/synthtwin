@@ -7476,6 +7476,19 @@ def _reads_as_a_plain_whole(text: str) -> bool:
             return False
     if len(text) > 1 and text[0] == "0":
         return False
+    # AND THE FIGURES MUST BE A NUMBER THIS FORMAT CAN HOLD. Spelling is
+    # not representability: `10**310` is figures alone with no padding,
+    # and every statistic over it is taken on a value binary64 cannot
+    # carry. Admitted on its spelling, a column of such pairs described
+    # a position whose statistics used none of its cells while
+    # `n_joined` counted them all, and the loader then refused the
+    # description under invariant Q2 -- so `synthtwin profile` wrote a
+    # file `synthtwin generate` would not read. A part that is not
+    # representable leaves the cell unparsed, and the parse line of
+    # `_joined_reading` decides the column as it does for every other
+    # cell it cannot read.
+    if not math.isfinite(float(text)):
+        return False
     return True
 
 

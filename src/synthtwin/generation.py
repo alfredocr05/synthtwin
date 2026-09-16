@@ -3460,6 +3460,34 @@ def _whole_demand(facts: contract.NumericFacts) -> int:
     return owed
 
 
+def _named_whole_demand(facts: contract.NumericFacts) -> int:
+    """How many cells the map NAMES as written point-free (landing 2b.7).
+
+    `_whole_demand` beside this one answers a different question and both
+    are needed: G6.4 WRITES the withheld remainder in the plain style, so
+    the demand the cell step must satisfy counts it. Whether the column
+    is on a WRITTEN GRID is a question about proof, and an anonymous pool
+    proves nothing about the form its cells took: a description that
+    pools a style below the floor says how many cells it covered and
+    never which style they wore, so those cells may carry a point.
+
+    Measured (Codex review of landing 2b.1, item 4): 490 cells written at
+    one decimal place beside ten `-1e-2` cells publish widths `{1: 490}`
+    and styles `{decimal: 490, (withheld): 10}`. Counting the pool as
+    point-free made 490 + 10 the whole numeric count, so the column read
+    as the grid `1` -- and `-0.01` is not on that grid. Its twin came
+    back with 28 different numbers against a published 31 at seeds 1, 7
+    and 23, where reading no grid gives 30.
+
+    Guarantees: accepts a numeric block; returns a whole number.
+    Determinism: a fixed function of the block. Raises nothing. No I/O.
+    """
+    owed = 0
+    for name in _WHOLE_STYLES:
+        owed = owed + _style_named(facts.numeric_styles, name)
+    return owed
+
+
 def _style_for(
     left: "dict[str, int]",
     pool: int,
@@ -4598,8 +4626,6 @@ def _floored_cap(
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = ((longest - 1) * (numbers - 1)) // 100
     if distinct > 0:
         proven = max(proven, -((-numbers) // distinct))
     if proven >= floor:
@@ -8938,9 +8964,11 @@ def _written_grid(
 
     `_pinned_fraction`'s one width, and ALSO the one width `f > 0` of a
     column whose other numeric cells are all written with no point: a
-    census naming that width alone, where its count and the published
-    point-free style count (`plain`, `leading_zero`, `leading_plus` and
-    the withheld share G6.4 writes plain) add up to every numeric cell.
+    census naming that width alone, where its count and the NAMED
+    point-free style counts (`plain`, `leading_zero` and `leading_plus`)
+    add up to every numeric cell. The withheld share is NOT counted: an
+    anonymous pool names no form, so it cannot prove its cells carry no
+    point (Codex review of landing 2b.1, item 4).
     That is how a spreadsheet writes tenths -- `37` beside `37.4` -- and
     a zero-inflated column writes `0` beside `2.5`. Every number of such
     a column is a point of the grid `f`, a point-free cell being the
@@ -8969,7 +8997,7 @@ def _written_grid(
                 return -1
         if int(figures) <= 0:
             return -1
-        if census[figures] + _whole_demand(facts) != column.n_numeric:
+        if census[figures] + _named_whole_demand(facts) != column.n_numeric:
             return -1
         return int(figures)
     return -1

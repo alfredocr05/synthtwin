@@ -1020,8 +1020,6 @@ def floored_cap(bound, floor, numeric, distinct, longest):
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = (longest - 1) * (numeric - 1) // 100
     if distinct > 0:
         proven = max(proven, -(-numeric // distinct))
     if proven >= floor:
@@ -2247,14 +2245,31 @@ def whole_number_values(
     return values
 
 
+def named_point_free(published):
+    """The point-free cells a styles map NAMES, the withheld share excluded.
+
+    ``_effective_style_map`` beside this one adds the withheld remainder
+    to ``plain``, because that is the style G6.4 writes it in.  The GRID
+    test may not read it that way: a pooled count names no form, so those
+    cells are not proved point-free (Codex review of landing 2b.1, item
+    4).
+    """
+    owed = 0
+    for style in POINT_FREE_STYLES:
+        if style in published:
+            owed += published[style]
+    return owed
+
+
 def written_grid(fraction_widths, integer_valued, numeric, point_free):
     """The grid G5.2a step 1 and G5.3 read the ladder on, or -1 (landing 2b.1).
 
     ``grid_of``'s one width where it covers every numeric cell, and ALSO the
     one width ``f > 0`` of a column whose other numeric cells are all written
     with no point: a census naming that width alone, whose count and the
-    published point-free style count (``point_free``, the withheld share
-    counted as plain) add up to every numeric cell.  A point-free cell is the
+    NAMED point-free style count (``point_free``, the withheld share
+    EXCLUDED -- an anonymous pool names no form) add up to every numeric
+    cell.  A point-free cell is the
     grid point whose last ``f`` figures are zero, so such a column -- ``37``
     beside ``37.4``, ``0`` beside ``2.5`` -- is on the grid ``f`` too.  A
     whole-valued column answers -1: G5.4 already reads it on the integers.
@@ -6787,7 +6802,7 @@ def _numeric_content(column):
         column.get("fraction_widths", {}),
         integer_valued,
         numeric,
-        sum(effective[style] for style in POINT_FREE_STYLES),
+        named_point_free(column["numeric_styles"]),
     )
     cap = stratum_cap(column, ladder, numeric, CASE_SMALL_CELL_FLOOR)
     pair = band_strata(
