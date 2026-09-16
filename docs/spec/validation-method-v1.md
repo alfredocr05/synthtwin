@@ -2038,6 +2038,33 @@ count and order; the header present exactly when
 `source.header_source` says so and its names read back byte for byte,
 including the quoted U+FEFF exception.
 
+**V6.2-A2 On a description of a WORKBOOK every byte rule is WITHHELD**
+(2026-09-15, plan P4-D77). `source.dialect` describes how a DELIMITED
+file is written -- its delimiter, the space after it, its escaping, its
+line endings, its final newline, its byte-order mark, its quoting per
+column. A table read from a spreadsheet workbook has none of those: the
+file is a zip package of markup, and the description says so by
+carrying a `source.workbook` block that is not `null` (contract 4.3b).
+Measured against such a file the rules do not merely fail, they are
+unanswerable -- the reader's survey of a package yields no delimiter to
+compare -- and a report that called them MISSED would accuse a file of
+breaking a promise its description never made about it. So every rule
+of `_byte_checks` is WITHHELD there, on exactly the reasoning V6.2-A1
+already applies to a file the producer refuses: these are facts the
+description publishes ABOUT A DELIMITED FILE, and this file is not one.
+
+What is NOT withheld is everything else: the row count, the column
+count and order, the header, and every column obligation are checked on
+a workbook exactly as they are on delimited text, because the profiler
+read the workbook to state them and reads it again to check them. A
+workbook validates against its own description with no obligation
+missed.
+
+THIS IS A WITHHOLDING AND NOT A PASS. The count stands beside the
+verdict in the report's own census, as every withheld count does, so a
+reader sees that these rules were not checked rather than being told
+they held.
+
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D75). The first four rules above are no longer constants: each asks
 what `source.encoding` and `source.dialect` record — the encoding

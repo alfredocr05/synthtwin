@@ -247,12 +247,13 @@ not import this module and cannot reach a file.
 """
 
 import csv
+import zipfile
 import dataclasses
 import pathlib
 
 import pandas
 
-from synthtwin import dialect, errors, parsing, taxonomy
+from synthtwin import dialect, errors, parsing, taxonomy, workbook
 from synthtwin.paths import validate_local_path
 
 # The per-value size the standard reader will accept while a table is
@@ -263,6 +264,9 @@ from synthtwin.paths import validate_local_path
 # value is restored afterwards, because this setting belongs to the
 # whole program, not to us.
 FIELD_SIZE_LIMIT = 10_000_000
+# Enough opening bytes to tell a package, a compound file and markup
+# apart, and never enough to be a value of anybody's.
+_OPENING_BYTES = 8
 
 # The two encodings a table is read under, and the whole of what the
 # profile's `source.encoding` may say. They are named here rather than
@@ -406,6 +410,11 @@ class Table:
     # publishes its form, and the validator holds a checked file to the
     # form a description publishes.
     survey: "dialect.Survey | None" = None
+    # What a WORKBOOK said about itself, where the table came from one
+    # (module `workbook`, plan P4-D77). Both are None for delimited
+    # text, and the description then publishes no workbook block.
+    book: "workbook.Reading | None" = None
+    sheet: "workbook.Sheet | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -421,6 +430,8 @@ class _Reading:
     header_evidence: str = ""
     header_by_convention: bool = False
     survey: "dialect.Survey | None" = None
+    book: "workbook.Reading | None" = None
+    sheet: "workbook.Sheet | None" = None
 
 
 def _has_zero_byte(text: str) -> bool:
@@ -788,6 +799,7 @@ def _read_authoritatively(
     first_row: str,
     refusals: str = REFUSALS_MAY_QUOTE,
     encoding: str = "",
+    given: bytes = b"",
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -800,7 +812,7 @@ def _read_authoritatively(
     """
     file_path = pathlib.Path(table_path)
     try:
-        data = file_path.read_bytes()
+        data = given if given else file_path.read_bytes()
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory(shown, _file_size(table_path))
@@ -990,11 +1002,135 @@ def _file_size(table_path: pathlib.Path) -> int:
         return 0
 
 
+def opened_workbook(table_path: str, shown: str) -> "dict[str, bytes]":
+    """Every member of a workbook package, expanded under the caps.
+
+    THIS LIVES HERE AND NOT IN `workbook` BECAUSE IT OPENS A FILE. The
+    vocabulary and the parsing of a workbook are reached by the loader,
+    and the loader is in the GENERATOR's import graph; the generator
+    never reads a table, and the rule is that the module which opens one
+    is not in that graph at any instant (plan P2-D1). So the package is
+    opened beside the only other code in this package that opens the
+    user's table, and `workbook` works on the members this hands it.
+
+    Guarantees:
+
+    - Order: the package's own directory is read first, and every cap
+      that can be checked from it -- the member count, the declared
+      expanded total, and each member's declared expansion ratio -- is
+      checked BEFORE a single member is expanded. That order is what
+      makes these caps a defence rather than a report of what has
+      already happened.
+    - Errors raised: ProfileError for a package that is not one, for a
+      member named outside the package, and for each cap by name.
+    - Boundary: opens for reading only. No member is ever extracted to
+      a path, so a member named `..` reaches no filesystem.
+    """
+    try:
+        bundle = zipfile.ZipFile(table_path)
+    except zipfile.BadZipFile as error:
+        raise errors.ProfileError(errors.workbook_unreadable(shown)) from error
+    except zipfile.LargeZipFile as error:
+        raise errors.ProfileError(errors.workbook_unreadable(shown)) from error
+    parts: "dict[str, bytes]" = {}
+    try:
+        listing = bundle.infolist()
+        if len(listing) > workbook.MAXIMUM_MEMBERS:
+            raise errors.ProfileError(
+                errors.workbook_too_many_parts(shown, workbook.MAXIMUM_MEMBERS)
+            )
+        total = 0
+        for item in listing:
+            if workbook.names_a_place_outside(item.filename):
+                raise errors.ProfileError(
+                    errors.workbook_part_named_away(shown)
+                )
+            total = total + item.file_size
+            if total > workbook.MAXIMUM_EXPANDED_BYTES:
+                raise errors.ProfileError(
+                    errors.workbook_expands_too_far(
+                        shown, workbook.MAXIMUM_EXPANDED_BYTES
+                    )
+                )
+            packed = item.compress_size
+            if packed and item.file_size > packed * workbook.MAXIMUM_MEMBER_RATIO:
+                raise errors.ProfileError(
+                    errors.workbook_part_expands_too_far(
+                        shown, workbook.MAXIMUM_MEMBER_RATIO
+                    )
+                )
+        for item in listing:
+            if workbook.names_a_folder(item.filename):
+                continue
+            try:
+                parts[item.filename] = bundle.read(item)
+            except zipfile.BadZipFile as error:
+                raise errors.ProfileError(
+                    errors.workbook_unreadable(shown)
+                ) from error
+    finally:
+        bundle.close()
+    return parts
+
+
+def _read_workbook_table(
+    table_path: str, shown: str, wanted: str
+) -> Table:
+    """One sheet of a workbook, as a table of text (plan P4-D77).
+
+    THE SECOND READER IS NOT RUN HERE, and that is a real difference
+    from the delimited path rather than an oversight. A CSV file is read
+    twice -- once by this module and once by pandas -- and a single
+    disagreement anywhere is a refusal. A workbook has no second reader
+    inside the offline guarantee: the package's pandas is reduced to
+    `read_csv` alone, and admitting a workbook library would put a third
+    runtime dependency inside that guarantee. So a workbook is read
+    once, and what stands in for the second reading is the round-trip
+    gate, which builds a workbook with a seeded script, describes it,
+    and reads the description back with openpyxl and pandas as
+    DEVELOPMENT oracles that `src` never imports.
+    """
+    parts = opened_workbook(table_path, shown)
+    reading = workbook.read_parts(parts, shown, wanted)
+    sheet = workbook.table_of(reading)
+    if not sheet.names:
+        raise errors.ProfileError(
+            errors.workbook_sheet_is_empty(shown, reading.chosen)
+        )
+    if not sheet.n_rows:
+        raise errors.shape_refusal(
+            errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+        )
+    return Table(
+        column_names=list(sheet.names),
+        columns=sheet.columns,
+        n_rows=sheet.n_rows,
+        # A workbook's text is the markup's own, which is UTF-8 whatever
+        # the file's bytes were packed as, so the encoding question a
+        # delimited file asks does not arise and no fallback was taken.
+        encoding=dialect.ENCODING_UTF8,
+        used_fallback_encoding=False,
+        header_source=HEADER_FROM_FILE,
+        header_evidence=_TAKEN_BY_CONVENTION,
+        # WHICH ROW HOLDS THE NAMES IS AN ASSUMPTION HERE TOO. The
+        # widest row of content is taken as the header, which is what a
+        # person means by a header and what the probe workbooks show,
+        # but nothing about a row of cells makes it names rather than a
+        # record -- so it is published as the assumption it is, exactly
+        # as the first row of a CSV file is.
+        header_by_convention=True,
+        survey=None,
+        book=reading,
+        sheet=sheet,
+    )
+
+
 def read_table(
     raw_path: str,
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
     encoding: str = "",
+    sheet: str = "",
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -1115,9 +1251,38 @@ def read_table(
         raise errors.ProfileError(errors.file_missing(shown))
     if table_path.is_dir():
         raise errors.ProfileError(errors.path_is_a_folder(shown))
+    # WHICH KIND OF FILE THIS IS, DECIDED BY ITS OPENING BYTES AND NEVER
+    # BY ITS NAME (plan P4-D77). The study measured why: many exports
+    # named `.xls` hold HTML or 2003 markup, an encrypted workbook is a
+    # compound file whatever it is called, and a `.xlsm` is an ordinary
+    # package. A reader that trusted the ending would tell all three of
+    # those people the wrong thing about their file.
+    # THE FILE IS READ ONCE. The kind is decided from the same bytes the
+    # delimited reading then uses, so a table is not opened twice to ask
+    # what it is, and the bytes reach `Path.read_bytes` -- the one
+    # accepted way to read a file in this package -- rather than a
+    # handle this audit cannot trace.
+    try:
+        data = table_path.read_bytes()
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.out_of_memory(shown, _file_size(table_path))
+        ) from error
+    except PermissionError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.file_unreadable(shown, f"{error}")
+        ) from error
+    kind = workbook.kind_of(data[:_OPENING_BYTES])
+    workbook.refuse_by_kind(kind, shown)
+    if kind == workbook.KIND_PACKAGE:
+        return _read_workbook_table(f"{table_path}", shown, sheet)
     try:
         found = _read_authoritatively(
-            table_path, shown, first_row, refusals, encoding
+            table_path, shown, first_row, refusals, encoding, data
         )
     except PermissionError as error:
         raise errors.ProfileError(

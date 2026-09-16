@@ -336,8 +336,20 @@ def test_nothing_that_varies_between_runs_is_written(
 # this file's own procedure: this document written out again with
 # `source.dialect` deleted hashes to the digest the base commit 367e1d7
 # froze, so 2b.9's single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 for plan P4-D77 (reading a spreadsheet
+# workbook). `source` gained ONE key, `workbook`, which carries how a
+# workbook holds the table -- the sheet's place, its date system, the
+# rows above the header, the records holding nothing inside it, the
+# formatted blanks beyond it, and a census per column of what its cells
+# WERE and what kind of thing their formats made of them. The
+# demonstration table is a DELIMITED file, so the key's value here is
+# `null` and nothing else about this document moves. HOW IT WAS CHECKED,
+# by this file's own procedure: the new document written out again with
+# that one key deleted hashes to the digest this one replaces --
+# 4b5dc01def67ea46f9432b5d7c1b50d7b933ae38a3a0c1c5d2598abb07727a1d --
+# so the single added key is the whole of the difference.
 GOLDEN_SHA256 = (
-    "4b5dc01def67ea46f9432b5d7c1b50d7b933ae38a3a0c1c5d2598abb07727a1d"
+    "2d167220a5fb2c6538f58e687723b6ccf85286af595c80a25bf2a001843e2bb3"
 )
 
 

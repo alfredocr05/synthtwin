@@ -483,6 +483,9 @@ class _Options:
     missing_values: list[str]
     first_row: str
     day_first: bool
+    # Which sheet of a workbook holds the table, or empty to settle it
+    # by the first visible one (plan P4-D77).
+    sheet: str
     seed: str
     replace: bool
 
@@ -787,6 +790,24 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--sheet",
+        default="",
+        metavar="NAME",
+        help=(
+            "which sheet of a spreadsheet workbook holds your table, by "
+            "its name. Without this, synthtwin reads the first sheet "
+            "that is not hidden and says on screen which one it chose. "
+            "That is not what a spreadsheet's own readers do -- they "
+            "take the first sheet whatever its state, which on a "
+            "workbook whose first sheet is a hidden notes page means "
+            "they read the notes -- so if your table is on a different "
+            "sheet, name it here. The name has to match the tab exactly, "
+            "and if it has a space in it put quotation marks around it. "
+            "This option does nothing for a delimited text file, which "
+            "has only one table in it"
+        ),
+    )
+    parser.add_argument(
         "--first-row",
         default=_FIRST_ROW_AUTOMATIC,
         choices=[
@@ -878,6 +899,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
         day_first=bool(args.day_first),
+        sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
     )
@@ -1526,6 +1548,7 @@ def _run_profile(
     missing_values: list[str],
     first_row: str,
     day_first: bool,
+    sheet: str = "",
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1658,7 +1681,7 @@ def _run_profile(
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
     )
-    read = reading.read_table(table, first_row)
+    read = reading.read_table(table, first_row, sheet=sheet)
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -2404,6 +2427,19 @@ def _run_generate(
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
+    # A WORKBOOK'S TWIN IS A WORKBOOK, AND THIS VERSION CANNOT WRITE ONE
+    # (plan P4-D78). Refused HERE, before any path is worked out and
+    # before anything is written, because the alternative is not "no
+    # twin" but a WRONG one: the generator would write delimited text
+    # and call it the twin of a spreadsheet, dropping the sheet, the
+    # cell types and the number formats the description publishes, and
+    # handing back a file that does not open in the program the table
+    # came from. The owner's ruling is that the twin is written the way
+    # its source file was; writing it another way quietly is the one
+    # outcome that ruling forbids.
+    if loaded.source.workbook is not None:
+        _warn(errors.no_workbook_twin_yet(_shown(description)))
+        return 2
     twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
@@ -2925,6 +2961,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.missing_values,
             options.first_row,
             options.day_first,
+            options.sheet,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

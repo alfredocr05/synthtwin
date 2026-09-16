@@ -2116,3 +2116,221 @@ def answers_answer_is_not_offered(
         f"{_listed(offered)}. Leave it blank to keep the reading "
         f"synthtwin made. {_ANSWER_IT_AGAIN}"
     )
+
+
+# -- reading a workbook: what a spreadsheet file refuses --------------
+#
+# Plan P4-D77. Every one of these is a refusal about a file the person
+# pointed at, and each says which limit was passed and what to do about
+# it. None of them quotes a cell: a workbook synthtwin refuses may not
+# be the reader's own table, and a refusal travels as freely as a
+# report does.
+
+
+def no_workbook_twin_yet(path: str) -> str:
+    """Message for `generate` on a description of a workbook.
+
+    THE REFUSAL EXISTS SO THAT NOTHING WORSE HAPPENS QUIETLY. The twin
+    is written the way its source file was (owner ruling 2026-09-15),
+    and the writer that produces a workbook is the next landing's. A
+    generator that met this description today would write a delimited
+    text file and call it the twin of a spreadsheet: every published
+    fact about the sheet, the cell types and the number formats would be
+    silently dropped, and the twin would not open in the program the
+    table came from. Refusing says so instead.
+    """
+    return (
+        f"The description at {path} describes a table that was read "
+        f"from a spreadsheet workbook, and this version of synthtwin "
+        f"can describe a workbook but cannot yet write one. Writing the "
+        f"twin as a text file instead would lose the sheet, the cell "
+        f"types and the number formats the description records. Please "
+        f"open the workbook, save the sheet as CSV, and run 'synthtwin "
+        f"profile' on that file to get a description this command can "
+        f"build a twin from."
+    )
+
+
+def workbook_unreadable(path: str) -> str:
+    """Message for a file that begins as a package but is not one."""
+    return (
+        f"The file {path} begins like a spreadsheet workbook but the "
+        f"rest of it could not be opened: the package is damaged or "
+        f"incomplete. Please open it in your spreadsheet program, save "
+        f"it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_part_unreadable(path: str) -> str:
+    """Message for a workbook part that is not well-formed markup."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose inside is "
+        f"damaged: one of its parts is not readable as the markup a "
+        f"workbook is made of. Please open it in your spreadsheet "
+        f"program, save it again as .xlsx, and run the command again."
+    )
+
+
+def workbook_declares_a_document_type(path: str) -> str:
+    """Message for a workbook part carrying a document type declaration."""
+    return (
+        f"The file {path} contains a document type declaration, which "
+        f"no spreadsheet program writes and which is how a file is "
+        f"built to make a reader fetch something or expand without "
+        f"limit. synthtwin will not read it. Please open the workbook "
+        f"in your spreadsheet program, save it again as .xlsx, and use "
+        f"that path."
+    )
+
+
+def workbook_is_a_compound_file(path: str) -> str:
+    """Message for a legacy .xls file or an encrypted workbook."""
+    return (
+        f"The file {path} is an older Excel workbook, or one protected "
+        f"with a password. synthtwin reads the .xlsx and .xlsm formats "
+        f"only. Please open it in your spreadsheet program, remove any "
+        f"password, choose 'Save As' and pick 'Excel Workbook (.xlsx)', "
+        f"then run the command again on the saved file."
+    )
+
+
+def workbook_is_markup(path: str) -> str:
+    """Message for an HTML or XML export wearing a spreadsheet name."""
+    return (
+        f"The file {path} is named like a spreadsheet workbook but it "
+        f"holds a web page or markup rather than a workbook: many "
+        f"systems export a table this way and call it .xls. Please open "
+        f"it in your spreadsheet program, choose 'Save As' and pick "
+        f"'Excel Workbook (.xlsx)', then run the command again on the "
+        f"saved file."
+    )
+
+
+def workbook_expands_too_far(path: str, limit: int) -> str:
+    """Message for a package whose parts expand past the total cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose contents "
+        f"expand to more than {limit // 1_000_000} megabytes, which is "
+        f"more than synthtwin will open at once. A workbook this large "
+        f"is usually one built to exhaust a reader. Please check that "
+        f"the file is the table you meant to describe."
+    )
+
+
+def workbook_part_expands_too_far(path: str, limit: int) -> str:
+    """Message for one member whose expansion ratio passes the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part that "
+        f"expands to more than {limit} times its packed size, which no "
+        f"ordinary workbook does and which is how a file is built to "
+        f"exhaust a reader. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_too_many_parts(path: str, limit: int) -> str:
+    """Message for a package holding more members than the cap allows."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding more than "
+        f"{limit} parts, which is far more than a workbook of a table "
+        f"has. Please check that the file is the table you meant to "
+        f"describe."
+    )
+
+
+def workbook_part_named_away(path: str) -> str:
+    """Message for a member named outside the package."""
+    return (
+        f"The file {path} is a spreadsheet workbook holding a part "
+        f"named as though it belonged outside the file. No spreadsheet "
+        f"program writes one, and synthtwin will not read it. Please "
+        f"check that the file is the table you meant to describe."
+    )
+
+
+def workbook_cell_too_long(path: str, limit: int) -> str:
+    """Message for one cell's text past the cap."""
+    return (
+        f"The file {path} holds a cell with more than {limit} "
+        f"characters of text in it, which is more than a spreadsheet "
+        f"cell can hold. Please check that the file is the table you "
+        f"meant to describe."
+    )
+
+
+def workbook_holds_too_many_cells(path: str, limit: int) -> str:
+    """Message for a sheet holding more cells than the walk will read.
+
+    THE CAP THAT ANSWERS THE MEASURED ATTACK. A workbook may sit well
+    inside every other limit and still cost a reader minutes: the
+    study's own package packs 5.2 megabytes into 46, which is an
+    ordinary ratio, and spends it all on one sheet of a million styled
+    rows. Capping the cells read is what bounds the work whatever the
+    ratio, so this refusal exists beside the size ones rather than
+    instead of them.
+    """
+    return (
+        f"The sheet in {path} holds more than {limit} cells, which is "
+        f"more than synthtwin will read at once. Please open the "
+        f"workbook, keep the rows and columns your table needs, save it "
+        f"again, and run the command again."
+    )
+
+
+def workbook_too_many_shared_strings(path: str, limit: int) -> str:
+    """Message for a shared-string table past the cap."""
+    return (
+        f"The file {path} is a spreadsheet workbook whose table of "
+        f"stored text runs to more than {limit} entries, which is more "
+        f"than synthtwin will read at once. Please check that the file "
+        f"is the table you meant to describe."
+    )
+
+
+def workbook_too_many_rows(path: str, limit: int) -> str:
+    """Message for a sheet claiming more rows than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past row {limit}, which "
+        f"is further than a spreadsheet goes. Please open the workbook, "
+        f"delete the rows below your table, save it again, and run the "
+        f"command again."
+    )
+
+
+def workbook_too_many_columns(path: str, limit: int) -> str:
+    """Message for a sheet claiming more columns than a spreadsheet holds."""
+    return (
+        f"The file {path} has a sheet reaching past column {limit}, "
+        f"which is further than a spreadsheet goes. Please open the "
+        f"workbook, delete the columns to the right of your table, save "
+        f"it again, and run the command again."
+    )
+
+
+def workbook_has_no_sheet(path: str) -> str:
+    """Message for a workbook whose sheets are all hidden, or absent."""
+    return (
+        f"The file {path} is a spreadsheet workbook with no sheet "
+        f"synthtwin can read: it has none at all, or every one of them "
+        f"is hidden. Please open it, unhide the sheet holding your "
+        f"table, save it again, and run the command again."
+    )
+
+
+def workbook_sheet_not_found(path: str, named: str, known: list[str]) -> str:
+    """Message for --sheet naming a sheet the workbook does not have."""
+    return (
+        f"The file {path} has no sheet called '{_shown(named)}'. Its "
+        f"sheets are: {_listed(known)}. Please check the spelling and "
+        f"run the command again with one of those names after --sheet."
+    )
+
+
+def workbook_sheet_is_empty(path: str, named: str) -> str:
+    """Message for a chosen sheet holding no cell at all."""
+    return (
+        f"The sheet '{_shown(named)}' of {path} holds no cells at all, "
+        f"so there is nothing to describe. Please run the command again "
+        f"naming a sheet that holds your table, with --sheet followed "
+        f"by its name."
+    )

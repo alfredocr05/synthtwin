@@ -447,6 +447,12 @@ def _profile_document(case: dict, name: str) -> dict:
             "header_by_convention": False,
             "header_evidence": "the file carried no names of its own, so the "
             "columns were named for it.",
+            # Every frozen case is a DELIMITED file -- one column of
+            # cells written as text -- so it carries no workbook block
+            # (plan P4-D77, contract 4.3b). The key is required of every
+            # description, and `null` is what a description of delimited
+            # text says there.
+            "workbook": None,
         },
     }
 

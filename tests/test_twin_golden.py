@@ -885,8 +885,18 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # digests above did not move, and every order digest here is once more
 # the one commit 367e1d7 froze -- the twin's rows have returned to the
 # arrangement they had before the identifier was sorted on.
+# RE-RECORDED 2026-09-15 for plan P4-D77 (reading a spreadsheet
+# workbook), and NO CELL OF THE TWIN MOVED. `source` gained ONE key,
+# `workbook`, and the demonstration table is a DELIMITED file, so its
+# value here is `null`. MEASURED by this file's own procedure: this
+# description written out again with that one key deleted hashes to
+# a32bf775c2373134793c7b67f58cc8a5515ecfd4f149919ce339f23d89d8a7bd,
+# the digest this one replaces, so the single added key is the whole of
+# the difference. The twin, report and quality digests below did not
+# move, which is the other half of the same statement: the generator is
+# handed one more key and writes exactly what it wrote before.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "a32bf775c2373134793c7b67f58cc8a5515ecfd4f149919ce339f23d89d8a7bd"
+    "b0537b40dc8141a5099a763e3cca88e925c4339e18277ee13e6e7f7e01426ee0"
 )
 
 

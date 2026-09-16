@@ -155,6 +155,7 @@ SOURCE_KEYS = (
     "header_evidence",
     "header_source",
     "used_fallback_encoding",
+    "workbook",
 )
 
 SETTINGS_KEYS = (
@@ -966,6 +967,39 @@ INVARIANTS = {
         "it, as its stand-in, and recorded as withheld exactly when one "
         "held text"
     ),
+    # How the table's file is a WORKBOOK (plan P4-D77, contract 4.3b).
+    "WB1": (
+        "a description of a workbook describes one column for every "
+        "column the table has"
+    ),
+    "WB2": (
+        "the sheet the table was read from is one of the sheets the "
+        "workbook has, counted from one"
+    ),
+    "WB3": (
+        "every published count of cells is nought, or all of them, or "
+        "clears the smallest group at both ends, so that neither the "
+        "count nor its complement names one row"
+    ),
+    "WB4": (
+        "the rows standing above the header, the records holding "
+        "nothing inside the table and the rows and columns of "
+        "formatted blanks beyond it are each no more than the table "
+        "itself holds"
+    ),
+    # WB5 AND WB6 WERE WRITTEN HERE AND TAKEN OUT AGAIN, and the reason
+    # is worth keeping. One said that a column's cell classes are the
+    # closed set and its format kinds the named kinds; the other that a
+    # workbook publishes no name of its own. Both are TRUE and neither
+    # is an invariant: the first is already the block loader's own key
+    # and range check, which refuses an unknown class by name before any
+    # rule runs, and the second is a property of what the producer never
+    # writes -- there is no field it could put a sheet name in. A rule
+    # in this table has to be one a description can BREAK, because every
+    # one of them owes a mutation that must be refused (the loader's own
+    # completeness guard). A rule that cannot fail is a defect here, so
+    # these two are stated where they are enforced and not counted as
+    # invariants.
     "S6": (
         "the first row can only have been taken as names by convention "
         "when the names came from the file at all"
@@ -1463,6 +1497,9 @@ class SourceBlock:
     header_evidence: str
     # How the table's FILE is written (contract 4.3a, plan P4-D75).
     dialect: "dialect.Dialect"
+    # What the table's file said about itself as a WORKBOOK (contract
+    # 4.3b, plan P4-D77), or None where the file was delimited text.
+    workbook: "WorkbookForm | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3687,7 +3724,181 @@ def _source(value: object) -> SourceBlock:
         header_by_convention=by_convention,
         header_evidence=evidence,
         dialect=_dialect_block(mapping["dialect"]),
+        workbook=_workbook_block(mapping["workbook"]),
     )
+
+
+_WORKBOOK = "in the block saying how the table's workbook holds it"
+
+
+@dataclasses.dataclass(frozen=True)
+class WorkbookColumn:
+    """One column's census, as the description publishes it."""
+
+    cell_classes: "dict[str, int | None]"
+    format_kinds: "dict[str, int | None]"
+    formulas: "int | None"
+
+
+@dataclasses.dataclass(frozen=True)
+class WorkbookForm:
+    """How a workbook holds the table (contract 4.3b)."""
+
+    autofilter: bool
+    columns: "tuple[WorkbookColumn, ...]"
+    date_system: str
+    defined_names: int
+    defined_table: bool
+    empty_rows_inside: int
+    frozen_rows: int
+    macro_project: bool
+    rows_above_header: int
+    sheet_count: int
+    sheet_hidden: bool
+    sheet_position: int
+    trailing_blank_columns: int
+    trailing_blank_rows: int
+
+
+def _held_count(value: object, key: str, where: str) -> "int | None":
+    """A count the floor may have held back: a whole number, or nothing."""
+    if value is None:
+        return None
+    return _whole(value, key, where, 0)
+
+
+def _workbook_block(value: object) -> "WorkbookForm | None":
+    """The workbook block, typed, or None where the file was not one.
+
+    Guarantees: accepts the value under `source.workbook`; returns it as
+    a typed object or None. Raises ProfileError for an unknown or
+    missing key, a wrong type, and a value outside its list. The rules
+    that tie it to the columns and the row count are `_workbook_rules`.
+    """
+    if value is None:
+        return None
+    where = _WORKBOOK
+    mapping = _mapping(value, "workbook", where)
+    _keys(mapping, where, dialect.SHEET_KEYS, "that block")
+    columns: "list[WorkbookColumn]" = []
+    for item in _listing(mapping["columns"], "columns", where):
+        entry = _mapping(item, "columns", where)
+        _keys(entry, where, dialect.SHEET_COLUMN_KEYS, "a column's census")
+        classes = _mapping(entry["cell_classes"], "cell_classes", where)
+        _keys(classes, where, dialect.SHEET_CELL_CLASSES, "a column's cell classes")
+        counted: "dict[str, int | None]" = {}
+        for kind in dialect.SHEET_CELL_CLASSES:
+            counted[kind] = _held_count(classes[kind], kind, where)
+        formats = _mapping(entry["format_kinds"], "format_kinds", where)
+        _keys(formats, where, dialect.SHEET_FORMAT_KINDS, "a column's format kinds")
+        wearing: "dict[str, int | None]" = {}
+        for kind in dialect.SHEET_FORMAT_KINDS:
+            wearing[kind] = _held_count(formats[kind], kind, where)
+        columns += [
+            WorkbookColumn(
+                cell_classes=counted,
+                format_kinds=wearing,
+                formulas=_held_count(entry["formulas"], "formulas", where),
+            )
+        ]
+    return WorkbookForm(
+        autofilter=_truth(mapping["autofilter"], "autofilter", where),
+        columns=tuple(columns),
+        date_system=_one_of(
+            mapping["date_system"], "date_system", where,
+            dialect.SHEET_DATE_SYSTEMS,
+        ),
+        defined_names=_whole(mapping["defined_names"], "defined_names", where, 0),
+        defined_table=_truth(mapping["defined_table"], "defined_table", where),
+        empty_rows_inside=_whole(
+            mapping["empty_rows_inside"], "empty_rows_inside", where, 0
+        ),
+        frozen_rows=_whole(mapping["frozen_rows"], "frozen_rows", where, 0),
+        macro_project=_truth(mapping["macro_project"], "macro_project", where),
+        rows_above_header=_whole(
+            mapping["rows_above_header"], "rows_above_header", where, 0
+        ),
+        sheet_count=_whole(mapping["sheet_count"], "sheet_count", where, 1),
+        sheet_hidden=_truth(mapping["sheet_hidden"], "sheet_hidden", where),
+        sheet_position=_whole(
+            mapping["sheet_position"], "sheet_position", where, 1
+        ),
+        trailing_blank_columns=_whole(
+            mapping["trailing_blank_columns"], "trailing_blank_columns", where, 0
+        ),
+        trailing_blank_rows=_whole(
+            mapping["trailing_blank_rows"], "trailing_blank_rows", where, 0
+        ),
+    )
+
+
+def _workbook_rules(
+    source: SourceBlock,
+    columns: "tuple[ColumnBlock, ...]",
+    n_rows: int,
+    floor: int,
+) -> None:
+    """The invariants that tie a workbook block to the table (WB1-WB6)."""
+    form = source.workbook
+    if form is None:
+        return
+    where = _WORKBOOK
+    width = len(columns)
+    if len(form.columns) != width:
+        raise _broken(
+            "WB1", where,
+            f"the workbook describes {len(form.columns)} columns",
+            f"the table has {width}",
+        )
+    if form.sheet_position > form.sheet_count:
+        raise _broken(
+            "WB2", where,
+            f"the table was read from sheet {form.sheet_position}",
+            f"the workbook has {form.sheet_count}",
+        )
+    for column in form.columns:
+        for kind in dialect.SHEET_CELL_CLASSES:
+            counted = column.cell_classes[kind]
+            if counted is None:
+                continue
+            if counted and counted != n_rows and (
+                counted < floor or n_rows - counted < floor
+            ):
+                raise _broken(
+                    "WB3", where,
+                    f"a census publishes {counted} of {n_rows} cells",
+                    f"the smallest group is {floor}",
+                )
+        for code in sorted(column.format_kinds):
+            wearing = column.format_kinds[code]
+            if wearing is None:
+                continue
+            if wearing and wearing != n_rows and (
+                wearing < floor or n_rows - wearing < floor
+            ):
+                raise _broken(
+                    "WB3", where,
+                    f"a census publishes {wearing} of {n_rows} cells",
+                    f"the smallest group is {floor}",
+                )
+        if column.formulas is not None and column.formulas > n_rows:
+            raise _broken(
+                "WB3", where,
+                f"a column publishes {column.formulas} cells holding a formula",
+                f"the table has {n_rows} rows",
+            )
+    if form.empty_rows_inside > n_rows:
+        raise _broken(
+            "WB4", where,
+            f"{form.empty_rows_inside} records hold nothing inside the table",
+            f"the table has {n_rows} rows",
+        )
+    if form.frozen_rows > n_rows + form.rows_above_header + 1:
+        raise _broken(
+            "WB4", where,
+            f"{form.frozen_rows} rows are frozen at the top",
+            "no more rows than the sheet holds",
+        )
 
 
 _WRITTEN = "in the block saying how the table's file is written"
@@ -9995,6 +10206,13 @@ def _validated(document: "dict[str, object]") -> Profile:
     _dialect_rules(
         source, columns, n_rows, settings.small_cell_floor,
         settings.forced_identifiers,
+    )
+    # ...and the same for a workbook, where the file was one (plan
+    # P4-D77). Run beside the written form's rules and for the same
+    # reason: every one of them needs the columns, the row count or the
+    # floor, so none of them can be checked while the block is read.
+    _workbook_rules(
+        source, columns, n_rows, settings.small_cell_floor
     )
     return Profile(
         profile_version=PROFILE_VERSION,

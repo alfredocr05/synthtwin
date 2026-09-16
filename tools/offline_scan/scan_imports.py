@@ -80,6 +80,37 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
   is reachable, by import or by attribute step. Imports of the
   synthtwin package's own modules are allowed because those files are
   scanned too. Every other import is a violation.
+* THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
+  workbook needs a zip reader and an XML parser, and admitting a
+  workbook LIBRARY would put a third runtime dependency inside the
+  offline guarantee. So `zipfile` and `xml.parsers.expat` are admitted
+  for the standard library's own, reduced to the names the workbook
+  reader needs and no others:
+
+    zipfile.ZipFile      opens a package for READING and hands back
+                         members as bytes. It writes nothing here: the
+                         reader never extracts to a path, so a member
+                         named `..` reaches no filesystem, and the
+                         `extract`/`extractall` names -- the ones that
+                         would -- are NOT admitted and stay violations.
+    zipfile.BadZipFile   the two exceptions a damaged or oversized
+    zipfile.LargeZipFile package raises, caught so the person gets a
+                         sentence rather than a traceback.
+    expat.ParserCreate   builds a parser. Its handler slots are the
+                         whole reason an XML module is needed, and the
+                         reader refuses a DOCTYPE in one of them, which
+                         is what closes the entity-expansion and
+                         external-entity families: no entity is ever
+                         defined, so none can be external. expat
+                         resolves no namespace and fetches nothing of
+                         its own accord.
+    expat.ExpatError     the exception malformed markup raises.
+
+  Nothing else of either module is reachable. In particular
+  `zipfile.Path` and `expat.ErrorString` are NOT admitted, and the
+  mutation tests in `tests/test_offline_scan.py` prove that a
+  neighbouring attribute of each module is still refused -- the check
+  that keeps this admission an enumeration rather than a doorway.
 * NO MODULE-LEVEL TRUST. Membership in an allowed module proves
   nothing about what an attribute can do, so every allowed module's
   usable attribute names are enumerated one by one in
@@ -567,6 +598,8 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # _policy_for because their messages are more specific.)
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
+    "zipfile": frozenset({"BadZipFile", "LargeZipFile", "ZipFile"}),
+    "xml.parsers.expat": frozenset({"ExpatError", "ParserCreate"}),
     "csv": frozenset({"Error", "field_size_limit", "reader", "writer"}),
     "dataclasses": frozenset(
         {
@@ -3416,10 +3449,12 @@ class _Checker(ast.NodeVisitor):
                 self._bind(bound_name, ("module", origin))
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
-                        "pandas", "pathlib", "typing", "sys", "os"}:
+                        "pandas", "pathlib", "typing", "sys", "os",
+                        "zipfile"}:
                 self._bind(bound_name, ("module", name))
                 continue
-            if name in {"os.path", "importlib.metadata", "numpy.random"}:
+            if name in {"os.path", "importlib.metadata", "numpy.random",
+                        "xml.parsers.expat"}:
                 # The same two-component shape os.path has: the import
                 # statement names the submodule, and the one-step rule
                 # then counts from it. `import numpy` on its own is NOT

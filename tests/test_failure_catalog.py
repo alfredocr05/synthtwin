@@ -46,6 +46,26 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # path the file may not be the reader's own table, and a refusal
     # travels as freely as a report does. The test below walks their
     # arguments and asserts no spelling from a file can be among them.
+    # Reading a workbook (plan P4-D77). Every argument is a path, a
+    # limit or a sheet name: no cell of a workbook reaches a refusal.
+    "no_workbook_twin_yet": ("/data/table-profile.json",),
+    "workbook_unreadable": ("/data/table.xlsx",),
+    "workbook_part_unreadable": ("/data/table.xlsx",),
+    "workbook_declares_a_document_type": ("/data/table.xlsx",),
+    "workbook_is_a_compound_file": ("/data/table.xls",),
+    "workbook_is_markup": ("/data/table.xls",),
+    "workbook_expands_too_far": ("/data/table.xlsx", 256_000_000),
+    "workbook_part_expands_too_far": ("/data/table.xlsx", 200),
+    "workbook_too_many_parts": ("/data/table.xlsx", 4_096),
+    "workbook_part_named_away": ("/data/table.xlsx",),
+    "workbook_cell_too_long": ("/data/table.xlsx", 32_767),
+    "workbook_holds_too_many_cells": ("/data/table.xlsx", 8_000_000),
+    "workbook_too_many_shared_strings": ("/data/table.xlsx", 4_000_000),
+    "workbook_too_many_rows": ("/data/table.xlsx", 1_048_576),
+    "workbook_too_many_columns": ("/data/table.xlsx", 16_384),
+    "workbook_has_no_sheet": ("/data/table.xlsx",),
+    "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
+    "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",

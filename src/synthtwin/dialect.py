@@ -186,6 +186,73 @@ READING_CODECS = {
 # (`blank_lines_spread`), and the twin spreads them evenly between those
 # two places -- which is exact for a double-spaced file. A longer preamble
 # than its cap is not a preamble: those lines are read as the table's.
+# -- what a SPREADSHEET WORKBOOK's cells are, as closed sets ----------
+#
+# THESE LIVE HERE AND NOT IN `workbook` FOR ONE REASON: the loader reads
+# them, and the loader is in the GENERATOR's import graph. `workbook`
+# carries an XML parser, and the generator must reach no parser and no
+# reader of the user's table at any instant (plan P2-D1, P4-D77). So the
+# vocabulary a DESCRIPTION is checked against sits in this module, which
+# holds no capability at all, and `workbook` imports it back for its own
+# use. The names are prefixed because this module already has cell
+# classes of its own, for delimited text, and they are a different set.
+
+SHEET_CELL_ABSENT = "absent"
+SHEET_CELL_BLANK = "blank"
+SHEET_CELL_EMPTY = "empty"
+SHEET_CELL_TEXT = "text"
+SHEET_CELL_NUMBER = "number"
+SHEET_CELL_BOOLEAN = "boolean"
+SHEET_CELL_ERROR = "error"
+SHEET_CELL_CLASSES = (
+    SHEET_CELL_ABSENT,
+    SHEET_CELL_BLANK,
+    SHEET_CELL_EMPTY,
+    SHEET_CELL_TEXT,
+    SHEET_CELL_NUMBER,
+    SHEET_CELL_BOOLEAN,
+    SHEET_CELL_ERROR,
+)
+
+SHEET_FORMAT_PLAIN = "plain"
+SHEET_FORMAT_DATE = "date"
+SHEET_FORMAT_DATETIME = "datetime"
+SHEET_FORMAT_TIME = "time"
+SHEET_FORMAT_ELAPSED = "elapsed"
+SHEET_FORMAT_TEXT = "text"
+SHEET_FORMAT_KINDS = (
+    SHEET_FORMAT_PLAIN,
+    SHEET_FORMAT_DATE,
+    SHEET_FORMAT_DATETIME,
+    SHEET_FORMAT_TIME,
+    SHEET_FORMAT_ELAPSED,
+    SHEET_FORMAT_TEXT,
+)
+
+SHEET_DATE_SYSTEM_1900 = "1900"
+SHEET_DATE_SYSTEM_1904 = "1904"
+SHEET_DATE_SYSTEMS = (SHEET_DATE_SYSTEM_1900, SHEET_DATE_SYSTEM_1904)
+
+SHEET_KEYS = (
+    "autofilter",
+    "columns",
+    "date_system",
+    "defined_names",
+    "defined_table",
+    "empty_rows_inside",
+    "frozen_rows",
+    "macro_project",
+    "rows_above_header",
+    "sheet_count",
+    "sheet_hidden",
+    "sheet_position",
+    "trailing_blank_columns",
+    "trailing_blank_rows",
+)
+
+SHEET_COLUMN_KEYS = ("cell_classes", "format_kinds", "formulas")
+
+
 MAXIMUM_ENDING_RUNS = 64
 MAXIMUM_BLANK_PLACES = 64
 MAXIMUM_PREAMBLE_LINES = 16

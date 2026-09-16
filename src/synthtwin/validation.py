@@ -872,6 +872,22 @@ _GATE_REFUSED = (
     "so neither the measurement nor its outcome is shown"
 )
 
+# THE THIRD WAY THE GATE CLOSES (plan P4-D77, validation method
+# V6.2-A2). The rules above describe how a DELIMITED file is written --
+# its delimiter, the space after it, its escaping, its line endings, its
+# quoting per column. A table read from a spreadsheet workbook has none
+# of them: the file is a package of markup, and the description says so
+# by carrying a workbook block. Measured against such a file these rules
+# are not failed, they are unanswerable, and calling them MISSED would
+# accuse the file of breaking a promise its description never made about
+# it.
+_GATE_WORKBOOK = (
+    "the description records that this table was read from a "
+    "spreadsheet workbook, and these rules describe how a delimited "
+    "text file is written, so neither the measurement nor its outcome "
+    "is shown"
+)
+
 # The fact whose whole evidence is the header line, named once because
 # two places have to agree about which check that is.
 _POSITION_FACT = "universal.position"
@@ -5156,6 +5172,12 @@ def _byte_checks(
     form = description.source.dialect
     encoding = description.source.encoding
     headed = description.source.header_source == reading.HEADER_FROM_FILE
+    # A WORKBOOK ANSWERS NONE OF THESE (plan P4-D77, V6.2-A2). The rules
+    # below are about a delimited file's bytes, and this description
+    # says the table came out of a package of markup instead.
+    packaged = description.source.workbook is not None
+    closed = refused or packaged
+    gate = _GATE_REFUSED if refused else _GATE_WORKBOOK
     measured = surveyed.form if surveyed is not None else _bare_form(form, data)
     if refused:
         measured = form
@@ -5400,7 +5422,7 @@ def _byte_checks(
             )
         ]
     if description.n_rows == 0:
-        return _withheld_if(checks, refused)
+        return _withheld_if(checks, closed, gate)
     # EVERY DESCRIBED COLUMN FILES ITS OWN, whatever the file holds: the
     # set of obligations is a function of the description (V3.1), so a
     # file whose columns do not line up with the description's misses
@@ -5469,17 +5491,24 @@ def _byte_checks(
                 asked if held else "rows not in that order",
             )
         ]
-    return _withheld_if(checks, refused)
+    return _withheld_if(checks, closed, gate)
 
 
-def _withheld_if(checks: "list[Check]", refused: bool) -> "list[Check]":
-    """Every check WITHHELD where the producer refuses the file, else as is.
+def _withheld_if(
+    checks: "list[Check]", closed: bool, why: str = _GATE_REFUSED
+) -> "list[Check]":
+    """Every check WITHHELD where the gate is closed, else as is.
 
     The per-column and row-order rules are filed on a refused file too,
     so the obligations a report states stay a function of the
     description (V3.1); none of them is stated there (V5.1).
+
+    ``why`` says WHICH gate closed, because there are two and they are
+    not the same statement: the producer would refuse this file, or the
+    description is of a workbook and these rules describe delimited text
+    (V6.2-A2). A reader of the report is told which.
     """
-    if not refused:
+    if not closed:
         return checks
     return [
         Check(
@@ -5489,7 +5518,7 @@ def _withheld_if(checks: "list[Check]", refused: bool) -> "list[Check]":
             WITHHELD,
             check.published,
             "",
-            _GATE_REFUSED,
+            why,
         )
         for check in checks
     ]

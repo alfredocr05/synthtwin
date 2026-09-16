@@ -44,7 +44,16 @@ import dataclasses
 import importlib.metadata
 import pathlib
 
-from synthtwin import canonical, dialect, errors, parsing, reading, taxonomy, writing
+from synthtwin import (
+    canonical,
+    dialect,
+    errors,
+    parsing,
+    reading,
+    taxonomy,
+    workbook,
+    writing,
+)
 from synthtwin.paths import validate_local_path
 from synthtwin.reading import Table
 
@@ -791,6 +800,51 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # P4-D75): every fact the twin needs to be written the way the table
     # was. None of them is a value of the table except the preamble lines
     # and the metadata rows, and each has a kind of its own here.
+    # The workbook block (plan P4-D77, contract 4.3b). Every key is a
+    # fact about the FILE: a count held to the floor, a flag, or one of
+    # synthtwin's own words. None of them is text out of the workbook.
+    ("source", "workbook"): _MAYBE_OBJECT,
+    ("source", "workbook", "autofilter"): _FLAG,
+    ("source", "workbook", "columns"): _ARRAY,
+    ("source", "workbook", "columns", _EACH): _OBJECT,
+    ("source", "workbook", "columns", _EACH, "cell_classes"): _OBJECT,
+    # THE KEYS OF BOTH CENSUSES ARE SYNTHTWIN'S OWN WORDS, which is why
+    # they are `_WORD` here and not the `_SPELLING` that `missing_by_
+    # source` uses. That map's keys are spellings out of the person's
+    # file; these are the closed sets `workbook.CELL_CLASSES` and
+    # `workbook.FORMAT_KINDS`, and no text of a workbook reaches either.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _KEY_OF): _WORD,
+    # A COUNT, NOTHING AT ALL, OR WITHHELD -- which is `_MAYBE_NUMBER`,
+    # the kind `sequence_start` already uses, and NOT `_FLOORED_ENTRY`.
+    # A census over a closed set of classes publishes `0` for a class no
+    # cell of the column has, and `null` where the floor held the count
+    # back; `_FLOORED_ENTRY` admits neither, because it describes a
+    # count standing under a key the DATA chose, where the key's own
+    # existence is the disclosure. Here the keys are fixed and carry no
+    # news, so what the floor governs is the number, and it is governed
+    # twice already: `workbook.floored` decides it and contract WB3
+    # refuses a document that breaks it.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _ANY_KEY): (
+        _MAYBE_NUMBER
+    ),
+    ("source", "workbook", "columns", _EACH, "format_kinds"): _OBJECT,
+    ("source", "workbook", "columns", _EACH, "format_kinds", _KEY_OF): _WORD,
+    ("source", "workbook", "columns", _EACH, "format_kinds", _ANY_KEY): (
+        _MAYBE_NUMBER
+    ),
+    ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
+    ("source", "workbook", "date_system"): _WORD,
+    ("source", "workbook", "defined_names"): _COUNT,
+    ("source", "workbook", "defined_table"): _FLAG,
+    ("source", "workbook", "empty_rows_inside"): _COUNT,
+    ("source", "workbook", "frozen_rows"): _COUNT,
+    ("source", "workbook", "macro_project"): _FLAG,
+    ("source", "workbook", "rows_above_header"): _COUNT,
+    ("source", "workbook", "sheet_count"): _COUNT,
+    ("source", "workbook", "sheet_hidden"): _FLAG,
+    ("source", "workbook", "sheet_position"): _COUNT,
+    ("source", "workbook", "trailing_blank_columns"): _COUNT,
+    ("source", "workbook", "trailing_blank_rows"): _COUNT,
     ("source", "dialect"): _OBJECT,
     ("source", "dialect", "blank_lines"): _ARRAY,
     ("source", "dialect", "blank_lines", _EACH): _OBJECT,
@@ -1414,6 +1468,19 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
 
 
 PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
+    # The workbook block's three word-valued places (plan P4-D77). Each
+    # names a CLOSED set of synthtwin's own words -- the classes a
+    # workbook cell can have, the kinds of thing a number format makes
+    # of a number, and the two date systems a workbook can use. None of
+    # them is text out of anybody's file, which is exactly why they may
+    # stand as published words at all.
+    ("source", "workbook", "columns", _EACH, "cell_classes", _KEY_OF): (
+        workbook.CELL_CLASSES
+    ),
+    ("source", "workbook", "columns", _EACH, "format_kinds", _KEY_OF): (
+        workbook.FORMAT_KINDS
+    ),
+    ("source", "workbook", "date_system"): workbook.DATE_SYSTEMS,
     **_STATED_WORDS,
     # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
     # P4-D37), read off a joined position's for the reason the rules
@@ -2278,6 +2345,15 @@ def _published_form(
     )
 
 
+def _published_workbook(
+    table: Table, floor: int
+) -> "dict[str, object] | None":
+    """The workbook block, or None where the table was not in one."""
+    if table.book is None or table.sheet is None:
+        return None
+    return workbook.document_of(table.book, table.sheet, floor)
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -2419,6 +2495,15 @@ def build_document(
                     forced_identifiers,
                 )
             ),
+            # What the table's file said about itself as a WORKBOOK, or
+            # nothing where it was delimited text (plan P4-D77). Every
+            # count is held to the smallest group, and the facts the
+            # disclosure rule names -- the sheet's own name, a column
+            # width, a comment, a hidden row, a hyperlink's target, the
+            # document's author -- are not in it at all.
+            "workbook": _published_workbook(
+                table, settings.small_cell_floor
+            ),
         },
         "n_rows": table.n_rows,
         "n_columns": len(table.column_names),
@@ -2453,6 +2538,14 @@ def _without_table_suffix(name: str) -> str:
         return name[: len(name) - 4]
     if lowered.endswith(".txt"):
         return name[: len(name) - 4]
+    # A WORKBOOK'S ENDING COMES OFF TOO (plan P4-D77). Without this a
+    # table read from `clinic.xlsx` is described into
+    # `clinic.xlsx-profile.json`, which reads as a mistake and which the
+    # commands this run prints would then have to quote back.
+    if lowered.endswith(".xlsx"):
+        return name[: len(name) - 5]
+    if lowered.endswith(".xlsm"):
+        return name[: len(name) - 5]
     return name
 
 

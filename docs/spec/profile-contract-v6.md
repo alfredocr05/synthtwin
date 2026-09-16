@@ -659,18 +659,19 @@ written. A loader refuses an empty name and refuses a repeated one.
 
 ### 4.3 STRUCTURAL rules for `source`
 
-`source` is an object with exactly these six keys and no others.
+`source` is an object with exactly these seven keys and no others.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
 | `dialect` | object | section 4.3a | how the table's file is written: its delimiter, quoting, line endings and the lines that are not records | EXACT-CONTROL |
 | `encoding` | string | `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`, `utf-16-be` | the encoding that read the table, which the twin is written in | REPORT-ONLY |
 | `used_fallback_encoding` | boolean | — | true when the fallback rather than the primary encoding read the file | REPORT-ONLY |
+| `workbook` | `null` or object | section 4.3b | how a spreadsheet workbook holds the table, or `null` where the file was delimited text | EXACT-CONTROL |
 | `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: no names were in the file and synthtwin named the columns `column_1`, `column_2`, … | EXACT-CONTROL |
 | `header_by_convention` | boolean | — | true when the first row was taken as names because nothing in the file said otherwise, rather than because the file showed it | REPORT-ONLY, with a required sentence |
 | `header_evidence` | string | any non-empty text | the header verdict in one plain sentence | REPORT-ONLY, with a required sentence |
 
-**Membership rule.** All six keys are REQUIRED. No other key may
+**Membership rule.** All seven keys are REQUIRED. No other key may
 appear under `source`.
 
 **Invariant S5.** `used_fallback_encoding` is true exactly when
@@ -756,6 +757,72 @@ and the words `withheld line`.
 name: the column is named by the rule in `written_names` above, which
 yields names that are non-empty and pairwise distinct, and the cell as
 written stands in `written_names` to be written back.
+
+### 4.3b EXACT-CONTROL: `source.workbook`, how a workbook holds the table
+
+Plan P4-D77. `null` where the table was read from delimited text.
+Otherwise an object with exactly these fourteen keys, all REQUIRED; the
+loader is the executable statement of every rule below
+(`contract._workbook_block`, `contract._workbook_rules`).
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `autofilter` | boolean | — | the sheet or its defined table carries a filter |
+| `columns` | array of objects `{cell_classes, format_kinds, formulas}` | one per column | the census of what each column's cells WERE, below |
+| `date_system` | string | `1900`, `1904` | which epoch the workbook counts its dates from; the 1904 system shifts every date by 1,462 days |
+| `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
+| `defined_table` | boolean | — | the sheet carries a defined table |
+| `empty_rows_inside` | integer | ≥ 0 | records holding nothing in every cell, standing inside the table |
+| `frozen_rows` | integer | ≥ 0 | how many rows are frozen at the top of the sheet |
+| `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
+| `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
+| `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
+| `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
+| `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order. The sheet's NAME is never published (below) |
+| `trailing_blank_columns` | integer | ≥ 0 | columns of formatted blanks standing beyond the table |
+| `trailing_blank_rows` | integer | ≥ 0 | rows of formatted blanks standing below the table |
+
+**A column's census — exactly three keys.** `cell_classes` counts the
+class of every cell of that column, over the closed set `absent`,
+`blank`, `empty`, `text`, `number`, `boolean`, `error`
+(`workbook.CELL_CLASSES`); `format_kinds` counts what kind of thing
+each cell's number format makes of it, over `plain`, `date`,
+`datetime`, `time`, `elapsed`, `text` (`workbook.FORMAT_KINDS`);
+`formulas` counts the cells carrying a formula. Every count is a whole
+number, or `null` where the smallest group held it back.
+
+**Why the classes are the cell's own and not a reader's.** A workbook
+cell is typed, and what a reader shows a person is derived from the
+type, the stored number and a format code kept elsewhere. The readers
+disagree about nearly every one of those answers: a text cell of
+digits comes back as an integer from pandas and as its characters from
+openpyxl, and an empty-string cell, an absent cell and a styled blank
+are three things in the file and one missing value to pandas. A
+description that recorded what a reader made of a cell could not be
+written back, so what is recorded is what the file holds.
+
+**Invariants WB1-WB4** (`contract.INVARIANTS`): WB1 one column census
+per column; WB2 the sheet the table was read from is one the workbook
+has, counted from one; WB3 every published count of cells is nought, or
+all of them, or clears the smallest group at both ends, so that neither
+the count nor its complement names one row; WB4 the rows above the
+header, the records holding nothing inside the table and the formatted
+blanks beyond it are each no more than the table itself holds.
+
+**What it discloses, and what it refuses to.** Every key above
+describes the FILE. The facts of a workbook that name or measure one
+person are not published at all: not the sheet's own NAME (a sheet or a
+title can be somebody's name), not a column width (an autofit width
+measures the longest value in that column, so it is a measurement of
+one cell), not a comment or its author, not a hidden row, not per-row
+styling, not a hyperlink's target, not the document's author or
+company, and not any cache of real values. The sheet is published by
+its position and the person is told on their own screen which sheet was
+read. A number format CODE is read — it is what decides the kind — but
+it is not published either: a custom code is text out of the file, and
+a census keyed by codes would publish that text as a key. The twin
+therefore cannot reproduce a custom format code, and that is a stated
+limit of this landing.
 
 ### 4.4 `settings`
 
@@ -8116,9 +8183,12 @@ a document, so no document can violate it.
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
-can cite them: the nine top-level keys (4.1), the five `source` keys
+can cite them: the nine top-level keys (4.1), the seven `source` keys
 (4.3), a level entry's four (6.3.1), a `publication_notes` entry's two
-(4.5).
+(4.5). THE `source` COUNT READ FIVE while the block held six, and is
+corrected here with the seventh (`workbook`, 4.3b): a synopsis that
+counts wrong is how a loader written from it comes to accept a
+document this contract does not describe.
 
 **AND S13's OWN LIST IS THE EIGHT MAP POSITIONS IT NAMES, NOT FOUR.**
 An earlier synopsis here counted four pooled-entry maps and omitted
@@ -8556,6 +8626,7 @@ find one".
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
 | `source.encoding` | REPORT-ONLY | how the table was read; the twin is written back in it, which the byte rule `bytes.encoding` checks (plan P4-D75, which closes residual R-P2-5) |
 | `source.dialect` | EXACT-CONTROL | decides how the twin's bytes are written: section 4.3a |
+| `source.workbook` | EXACT-CONTROL | how a workbook holds the table, and what the twin has to be written as: section 4.3b |
 | `source.used_fallback_encoding` | REPORT-ONLY | |
 | `source.header_source` | EXACT-CONTROL | decides whether a header row is written at all |
 | `source.header_by_convention` | REPORT-ONLY, required sentence | section 4.3 |
@@ -10410,9 +10481,9 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 `settings`, `source`.
 **`profile_version` — 1 permitted value:** the integer `6`.
 
-**`source` keys — 6** (4.3): `dialect`, `encoding`,
+**`source` keys — 7** (4.3): `dialect`, `encoding`,
 `header_by_convention`, `header_evidence`, `header_source`,
-`used_fallback_encoding`.
+`used_fallback_encoding`, `workbook`.
 **`source.encoding` — 5:** `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`,
 `utf-16-be`.
 **`source.dialect` keys — 22** (4.3a).

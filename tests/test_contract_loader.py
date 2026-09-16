@@ -49,7 +49,15 @@ import typing
 import pytest
 
 import fixtures
-from synthtwin import canonical, contract, errors, profile, reading, taxonomy
+from synthtwin import (
+    canonical,
+    contract,
+    errors,
+    profile,
+    reading,
+    taxonomy,
+    workbook,
+)
 
 Document = dict[str, typing.Any]
 Change = typing.Callable[[Document], None]
@@ -1326,6 +1334,25 @@ def battery() -> list[Mutation]:
             "FD12", "a row sequence in a column declared to hold record numbers",
             _form_sequence_on_a_declared_identifier,
         ),
+        # The workbook block (plan P4-D77). The base is a delimited
+        # file's description, so each of these installs a conforming
+        # block first and then breaks one rule of it.
+        Mutation(
+            "WB1", "a workbook block describing the wrong number of columns",
+            _form_workbook_of_the_wrong_width,
+        ),
+        Mutation(
+            "WB2", "a sheet numbered past the last the workbook has",
+            _form_workbook_sheet_past_the_last,
+        ),
+        Mutation(
+            "WB3", "a cell census naming a single row",
+            _form_workbook_census_names_one_row,
+        ),
+        Mutation(
+            "WB4", "more records holding nothing than the table has rows",
+            _form_workbook_more_empty_rows_than_rows,
+        ),
     ]
 
 
@@ -1412,6 +1439,75 @@ def _form_withheld_nothing(document: Document) -> None:
 def _form_sequence_on_a_declared_identifier(document: Document) -> None:
     place = _position_of(document, "record_code") - 1
     _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _workbook_block(document: Document, columns: int, rows: int) -> Document:
+    """Install a conforming workbook block on the base description.
+
+    The base is a description of a DELIMITED file, so it carries no
+    workbook block at all and no mutation of one could be built from it.
+    This writes the block the producer writes for a workbook of the same
+    shape -- every census holding to the base's floor of eleven -- so
+    that each entry below damages exactly one rule and nothing else.
+    """
+    classes: "dict[str, object]" = {}
+    for kind in workbook.CELL_CLASSES:
+        classes[kind] = 0
+    classes["number"] = rows
+    kinds: "dict[str, object]" = {}
+    for kind in workbook.FORMAT_KINDS:
+        kinds[kind] = 0
+    kinds["plain"] = rows
+    every: "list[object]" = []
+    for _place in range(columns):
+        every += [
+            {
+                "cell_classes": dict(classes),
+                "format_kinds": dict(kinds),
+                "formulas": 0,
+            }
+        ]
+    block: Document = {
+        "autofilter": False,
+        "columns": every,
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": False,
+        "empty_rows_inside": 0,
+        "frozen_rows": 0,
+        "macro_project": False,
+        "rows_above_header": 0,
+        "sheet_count": 2,
+        "sheet_hidden": False,
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0,
+    }
+    document["source"]["workbook"] = block
+    return block
+
+
+def _form_workbook_of_the_wrong_width(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    del block["columns"][-1]
+
+
+def _form_workbook_sheet_past_the_last(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    block["sheet_position"] = 3
+
+
+def _form_workbook_census_names_one_row(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # One cell of one class, at a floor of eleven: the row holding that
+    # cell is named by the count, and so is every other row by its
+    # complement.
+    block["columns"][0]["cell_classes"]["error"] = 1
+
+
+def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    block["empty_rows_inside"] = 1000
 
 
 BATTERY = battery()
