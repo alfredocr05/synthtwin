@@ -50,7 +50,12 @@ def test_a2_twin_report_counts_labels_as_labels(tmp_path):
     twin, _path = _twin_file(loaded, folder)
     assert [(d.fact, d.published, d.achieved) for d in twin.deviations] == []
     mean = [a for a in twin.approximations if a.fact == "mean"]
-    assert mean and abs(float(mean[0].achieved) - 3101.313) < 1e-6
+    # Re-pinned at landing 2b.1's stratum cap, which holds no value in
+    # more cells than the published mode_count and so moves this mean
+    # from 3101.313 to 3046.82675. What the test is about is unchanged:
+    # the labels beside these numbers are not counted as numbers.
+    assert mean and abs(float(mean[0].achieved) - 3046.82675) < 1e-6
+    assert mean[0].inside
 
 
 def test_a2_source_and_twin_miss_nothing(tmp_path):

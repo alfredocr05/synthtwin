@@ -4320,7 +4320,7 @@ consumer off the role name.
 | `empty_bins` | array | C6-122 to C6-123 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-123a to C6-123b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
 
-Twenty-six keys. Every one is present in every block of these two
+Twenty-eight keys. Every one is present in every block of these two
 roles — this format has no optional keys — and every key not listed
 here or in section 5.1 is FORBIDDEN on them (section 6.11).
 
@@ -5064,10 +5064,10 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Eighty-seven rows, one hundred and sixty-six marked cells**,
+**Ninety rows, one hundred and seventy-three marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 15,
-`time_of_day` 5, `count` 26, `continuous` 26, `affixed_number` 36,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 16,
+`time_of_day` 5, `count` 28, `continuous` 28, `affixed_number` 38,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
@@ -5481,12 +5481,12 @@ refused rather than read.
 | `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
-| `affix_variants[].numbers` | object | AF13 | the twenty-six keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
+| `affix_variants[].numbers` | object | AF13 | the twenty-eight keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
-**The block is fifty-eight keys**: the twenty-two universal keys of
-section 5.1 and the thirty-six above — a `count` block's twenty-six
+**The block is sixty keys**: the twenty-two universal keys of
+section 5.1 and the thirty-eight above — a `count` block's twenty-eight
 additions plus this role's own ten. The matrix of section 6.11 marks
-exactly those thirty-six cells in its `afx` column. There is no
+exactly those thirty-eight cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -9521,6 +9521,7 @@ a marked row.
    `n_negative_unrepresentable`, `n_used_in_statistics`,
    `n_left_out_of_statistics`, `numeric_share`, `integer_valued`,
    `n_rows`, `numeric_styles` with its siblings `group_separator`,
+   `negative_form`, `decimal_plus`,
    `fraction_widths`, `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
    `n_core_not_numeric`, `affix_variants`, `n_core_distinct`,
@@ -9529,7 +9530,7 @@ a marked row.
    keys `value_histogram`, `empty_bins` and `empty_edges` — each under
    the treatment the same fact has on a plain numeric column, all of
    it reaching columns that were free text. With row 2 this prices all
-   thirty-six keys the role adds; rows 4, 7, 20 and 21 restate four of
+   thirty-eight keys the role adds; rows 4, 7, 20 and 21 restate four of
    them at their own floor or disclosure treatment and add nothing to
    the set.
 

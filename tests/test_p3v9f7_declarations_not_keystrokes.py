@@ -239,7 +239,9 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     # ...and one more since the count of different NUMBERS became an
     # obligation on 2026-09-04 (amendment A-P4-55): it was listed whole
     # and is a subcheck now.
-    assert len(outcome.checks) == 57
+    # 57 became 60 when landing 2b.2 made the thousands mark, the
+    # negative notation and the decimal plus checked obligations.
+    assert len(outcome.checks) == 60
 
 
 def test_the_witness_really_is_reconstructible(
@@ -300,7 +302,8 @@ def test_the_other_over_fire_stays_and_is_a_different_shape(
     # obligation with R-P4-60.
     # ...and one more since amendment A-P4-55 made the count of
     # different numbers an obligation rather than a report line.
-    assert len(_unsupported(outcome)) == 47
+    # 47 became 50 with the same three obligations of landing 2b.2.
+    assert len(_unsupported(outcome)) == 50
 
 
 def test_two_words_of_your_own_spelled_two_ways_each_still_come_back(
