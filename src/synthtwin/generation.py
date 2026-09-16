@@ -15532,6 +15532,7 @@ def _wanted_form(
     covering: int = 1,
     reads: "str | None" = None,
     stands: "str | None" = None,
+    rewords: "tuple[int, int] | None" = None,
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -15592,8 +15593,29 @@ def _wanted_form(
     there is no slack the form is not offered and `_form_notes` says
     which counts went unmet.
 
-    A space survives into a form unchanged, so the form's own word
-    count must equal the group's either way.
+    A SPACE SURVIVES INTO A FORM UNCHANGED, so a form's word count is
+    fixed by the form and a group can only wear one by being written
+    with that many words. ``rewords``, where given, is the CLASS AND
+    BAND cell the packing put this group in, and it says that the
+    group's own word count is still open -- that this is the settling
+    ask of `_form_lengths` and not the walk's -- so a form of another
+    word count may be offered, but ONLY where the group can still stand
+    in that cell holding the form's own words. Absent, the packed count
+    must equal the form's, which is what the walk's own ask means.
+
+    WHY THE COUNT IS OPEN EXACTLY WHERE THE LENGTH IS (landing 2b.8
+    repair, review finding 1). The order this rule turns round was
+    holding TWO packed numbers against the census, not one: the length,
+    which `_UNSPENDABLE` frees, and the word count, which it did not.
+    A notes column of one-word codes beside multi-word prose is packed
+    with its code groups at TWO words -- the packing spends the
+    published `words.mean` the same way it spends the average length --
+    and every published form of it holds ONE. Measured on 800 such
+    rows: 626 settling asks, 1 won, every refusal this clause; the twin
+    missed ALL THREE published forms, 320 of 800 cells short, and
+    `synthtwin validate` exited 3 while the table passed. A group whose
+    words are exchanged is held to the form's count by ``worded``, so
+    the walk's later ask agrees with this one.
 
     The debt is over CELLS and a group covers its own number of them,
     so the walk chooses only WHERE to settle: the form owing the most
@@ -15606,7 +15628,15 @@ def _wanted_form(
         if owing[form] < 1:
             continue
         if _form_words(form) != max(words, 1):
-            continue
+            if rewords is None:
+                continue
+            # The exchange is permitted only while the group can still
+            # answer for the class and alphabet counts it was packed
+            # for, which are EXACT and may not be spent on the census.
+            if not _stands_in(
+                len(form), _form_words(form), rewords[0], rewords[1]
+            ):
+                continue
         if reads is not None and (
             parsing.classify_number(_filled_form(form, 0)) != reads
         ):
@@ -15646,6 +15676,7 @@ def _form_asks(
     budget: "list[int]",
     kinds: "list[int] | None" = None,
     bands: "list[int] | None" = None,
+    rewording: bool = False,
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
 
@@ -15653,6 +15684,14 @@ def _form_asks(
     only forms whose spellings read as that class (`_wanted_form`).
     ``bands`` is each group's alphabet band, and a group is offered only
     forms whose spellings recount into it, on the same ground.
+
+    ``rewording`` says this is the SETTLING ask of `_form_lengths`,
+    where neither the group's length nor its word count is fixed yet,
+    so a form of another word count may be offered to a group that can
+    stand in its own class and band holding that many words. A GROUP
+    CARRYING A PUBLISHED END IS NEVER REWORDED: `words.min` and
+    `words.max` are EXACT-OBSERVABLE and the two carriers are what make
+    them facts a recount can confirm.
 
     WHY THE ORDER IS THE WHOLE RULE, and it is the lesson `_shared_out`
     already carries for a label column's stand-ins (review round 1
@@ -15690,6 +15729,10 @@ def _form_asks(
         stands: "str | None" = None
         if bands is not None:
             stands = _BANDS[bands[place]]
+        rewords: "tuple[int, int] | None" = None
+        if rewording and kinds is not None and bands is not None:
+            if place not in carriers:
+                rewords = (kinds[place], bands[place])
         if reads == parsing.NUMBER:
             # A NUMBER'S FORM IS SETTLED EXACTLY by `_number_forms`, and
             # the caller writes that answer in; offering it here as well
@@ -15706,6 +15749,7 @@ def _form_asks(
             groups[place],
             reads,
             stands,
+            rewords,
         )
         asks[place] = form
         if form:
@@ -19851,6 +19895,7 @@ def _form_lengths(
         [_UNSPENDABLE, _UNSPENDABLE],
         kinds,
         bands,
+        True,
     )
     held: "dict[int, int]" = {}
     worded: "dict[int, int]" = {}

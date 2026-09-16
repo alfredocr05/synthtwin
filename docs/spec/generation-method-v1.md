@@ -5802,7 +5802,36 @@ for.
    identifiers, which missed its largest form before.
 
    A space survives into a form unchanged, so the form's own word count
-   must equal the group's either way. The debt is over cells and a
+   is fixed by the form, and a group can only wear one by being written
+   with that many words. **THE SETTLING ASK EXCHANGES THE PACKED WORD
+   COUNT THE SAME WAY IT EXCHANGES THE PACKED LENGTH** (landing 2b.8
+   repair), and the walk's own ask does not. At the settling ask a
+   group's word count is no more fixed than its length, so a form of
+   another word count is offered -- but ONLY where the group can still
+   stand in the class and alphabet cell the packing gave it while
+   holding that many words, because those two counts are EXACT and the
+   census may not be paid with them. A GROUP CARRYING A PUBLISHED END
+   IS NEVER REWORDED: `words.min` and `words.max` are EXACT-OBSERVABLE
+   and those two groups are what make them facts a recount confirms.
+   The group is then held to the form's word count through step 5, so
+   the walk's later ask agrees with the settling one.
+
+   **Why the order alone was not enough** (review of landing 2b.8,
+   finding 1). Holding the form's LENGTH freed one of the two packed
+   numbers the census was being refused for, and the packed WORD COUNT
+   was still holding the other. Measured on 800 rows of one-word codes
+   mixed with multi-word prose, whose census publishes `@%%`, `@%%%`
+   and `@%%%%`: the packing gives those code groups TWO words, because
+   it spends `words.mean` exactly as it spends the average length, and
+   every published form of the column holds ONE. The settling ask made
+   626 asks and won 1; the twin missed ALL THREE published forms, 320
+   of 800 cells short, and `synthtwin validate` exited 3 while the
+   table passed. With the count exchanged as well, that column meets
+   every published form at four draws of the shape, and a column of
+   sentences beside one-word tags stops missing its census, its word
+   clamp and `words.mean` together.
+
+   The debt is over cells and a
    group covers its own number of them, so the walk settles the form
    owing the most cells, ties broken by the form's own spelling.
 
@@ -7477,7 +7506,17 @@ count at the walk's own lengths, G9.5's packing rule reaches its wider
 reading and lengthens a free group so that an exact count can be met —
 an exact count outranks an approximated average, and that precedence is
 stated there. A lengthened group can put the achieved middle length, or
-the achieved average, outside the ends computed above. **The bound is
+the achieved average, outside the ends computed above. **SO CAN A GROUP
+WHOSE LENGTH AND WORD COUNT ARE HELD FOR A PUBLISHED FORM** by G9.5
+step 7, which is the same case reaching here by the other road: the
+census is EXACT and these three averages are APPROXIMATED, so the
+census is paid first and the walk carries what is left with the groups
+no form spoke for (landing 2b.8 repair). Measured on 1,000 rows of
+telephone numbers written in two conventions, whose census names one
+form on 532 cells: the twin wears that form on exactly 532 cells, and
+its achieved average length is 12.934 against a published 12.936 where
+this window is 0.002 wide -- so the census is met to the cell and
+`length.mean` is reported MISSED. **The bound is
 not widened to swallow that.** The measurement is made against these
 ends every run, the miss is reported as an approximated fact the twin
 did not hold, and G12.1's rule that a measurement outside its own bound

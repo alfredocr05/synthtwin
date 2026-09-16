@@ -754,10 +754,12 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # taken out altogether.
     offer = generation._wanted_form
     # The stub takes `reads` as well: landing 2b.4 made the offer
-    # class-aware (method G9.5 step 7), which adds that argument.
+    # class-aware (method G9.5 step 7), which adds that argument, and
+    # `stands` and `rewords` for the band and the settling word
+    # exchange landing 2b.8 added on the same ground.
     generation._wanted_form = (
         lambda owing, length, words, carrier, shortest, longest, budget,
-        covering=1, reads=None, stands=None: ""
+        covering=1, reads=None, stands=None, rewords=None: ""
     )
     try:
         without = generation.generate(described, 7)

@@ -666,3 +666,140 @@ def test_arm_record_identifiers_come_back_in_their_own_forms(
             shaped = shaped + 1
     assert shaped >= accounted, (shaped, accounted, len(written))
     assert (twin_exit, real_exit) == (0, 0)
+
+
+# == part 2, repair: the word count is settled with the length ========
+#
+# The review of this landing found LTM-8 NARROWED and not fixed, with a
+# reproduction the landing had not built: a notes column mixing one-word
+# codes with multi-word prose missed its WHOLE census, identically on
+# the base commit and on the landing's own commit. Holding the form's
+# LENGTH freed one of the two packed numbers the census was refused
+# for; the packed WORD COUNT was still holding the other.
+
+
+def _notes_with_codes(seed: int, rows: int, share: float) -> "list[str]":
+    """Prose that sometimes carries a code -- the reviewer's own shape.
+
+    The commonest real free-text field there is: a person either types a
+    sentence into it or drops an identifier into it. Its census names
+    the CODE forms, which hold one word, while the packing spends the
+    published `words.mean` by giving those same groups two -- so the
+    packed word count and the published forms disagree by construction,
+    which is the whole of the defect.
+    """
+    draw = random.Random(seed)
+    words = ("review", "pending", "checked", "repeat", "sample", "result")
+    made: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < share:
+            made += [f"{draw.choice('ABCD')}{draw.randrange(10, 9999)}"]
+        else:
+            made += [
+                " ".join(
+                    draw.choice(words)
+                    for _word in range(draw.randrange(2, 5))
+                )
+            ]
+    return made
+
+
+# Four draws of the shape. A draw whose codes crowd out the prose falls
+# to `long_tail_labels`, a different role with a different rule, so the
+# combinations that carry the free-text role are named rather than left
+# to the seed -- and the role is asserted, so a move would fail loudly.
+@pytest.mark.parametrize(
+    "seed,rows,share,generating",
+    (
+        (201, 800, 0.40, "4"),
+        (201, 600, 0.55, "13"),
+        (301, 600, 0.55, "13"),
+        (302, 800, 0.40, "4"),
+    ),
+)
+def test_a_notes_column_of_codes_and_prose_wears_its_whole_census(
+    tmp_path: pathlib.Path, seed: int, rows: int, share: float,
+    generating: str,
+) -> None:
+    """All three published forms missed, 320 of 800 cells short.
+
+    The settling ask asked 626 times and won once, because
+    `_wanted_form` compared each form's word count against the count the
+    PACKING gave the group -- two, for the code groups -- while every
+    published form holds one, and refused every candidate on that clause
+    before the class and band filters were reached. The count is now
+    exchanged exactly as the length already was.
+    """
+    cells = _notes_with_codes(seed, rows, share)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "notes", cells, (), True, generating
+    )
+    assert first["role"] == "free_text"
+    assert second["role"] == first["role"]
+    published = {
+        form: count
+        for form, count in first["shape_forms"].items()
+        if form != "(withheld)"
+    }
+    # The shape is evidence only while it publishes a census at all.
+    assert len(published) >= 2, published
+    # THE CENSUS ITSELF, form by form, recounted off the written twin.
+    counted = _counted([parsing.shape_form(cell) for cell in written])
+    for form in sorted(published):
+        assert counted.get(form, 0) == published[form], (
+            form, published[form], counted.get(form, 0)
+        )
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", (201, 202, 203))
+def test_a_telephone_column_of_two_conventions_wears_its_form(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """One cell short of a 532-cell form, at every seed, loudly.
+
+    Telephone numbers written in two conventions are one of the
+    commonest real shapes this landing's area has. The census names the
+    plain form and the twin wore it on 531 of its 532 cells.
+
+    AND THE COST OF MEETING IT IS PINNED HERE TOO. A group held for a
+    form is a group the walk toward `length.mean` cannot move, so the
+    achieved average can land outside the reach G12.6 computes -- here
+    12.934 against a published 12.936, in a window two thousandths
+    wide. Method G12.6 rules that the bound is NOT widened to swallow
+    that: the census is exact, the average is approximated, the census
+    is paid first and the miss is reported. So the twin's exit is 3 by
+    the method's own design, and it is asserted rather than tidied
+    away -- were it to become 0, either the window had been widened,
+    which G12.6 forbids in those words, or the census had been dropped.
+    """
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(1000):
+        area = draw.randrange(200, 999)
+        middle = draw.randrange(200, 999)
+        last = draw.randrange(0, 9999)
+        if draw.random() < 0.45:
+            cells += [f"({area}) {middle}-{last:04d}"]
+        else:
+            cells += [f"{area}-{middle}-{last:04d}"]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "phone", cells, (), True, "13"
+    )
+    assert first["role"] == "free_text"
+    assert second["role"] == first["role"]
+    published = {
+        form: count
+        for form, count in first["shape_forms"].items()
+        if form != "(withheld)"
+    }
+    assert published, first["shape_forms"]
+    counted = _counted([parsing.shape_form(cell) for cell in written])
+    for form in sorted(published):
+        assert counted.get(form, 0) == published[form], (
+            form, published[form], counted.get(form, 0)
+        )
+    # The real table passes its own description; the twin names the one
+    # approximated average the exact census cost it (G12.6).
+    assert real_exit == 0
+    assert twin_exit == 3
