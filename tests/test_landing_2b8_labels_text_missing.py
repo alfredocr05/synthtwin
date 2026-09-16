@@ -263,3 +263,280 @@ def test_a_fixed_width_label_column_is_refused_not_escalated(
         str(folder), "--seed", "1", "--replace",
     ]) == 1
     assert not (folder / "real-twin.csv").exists()
+
+
+# == part 1: a cell of nothing but space wore a spelling (P4-D74) ======
+#
+# LTM-1 of the spelling audit, with its skeptic's corrections. Every
+# shape here is one the audit measured, and each is a ROUND TRIP whose
+# assertion is the fact itself: the spelling, at its count, in the twin.
+#
+# TWO COLUMNS, DELIBERATELY. A table of ONE column holding whitespace-
+# only rows is refused today with a message about the file changing
+# while it was read -- the streaming pass keeps such a line and
+# `pandas.read_csv(skip_blank_lines=True)` drops it. That false refusal
+# is named in P4-D74 as carried, not fixed, so these tables carry a
+# second column, which is also the shape a real table has.
+
+
+def _absent_spellings_round_trip(
+    folder: pathlib.Path,
+    cells: "list[str]",
+    flags: "tuple[str, ...]" = (),
+    seed: str = "4",
+) -> "tuple[dict, dict, list[str], int, int]":
+    """Describe, build, describe again, validate the twin and the table."""
+    import csv
+    import io
+    import json
+
+    from tests import fixtures
+    from tests.test_stage2_round_trip import _exit_of
+
+    folder.mkdir(parents=True, exist_ok=True)
+    filler = [f"row{index}" for index in range(len(cells))]
+    rows = [[cells[index], filler[index]] for index in range(len(cells))]
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["value", "other"], rows),
+        encoding="utf-8",
+        newline="",
+    )
+    described = ["profile", str(table), "--out-dir", str(folder), "--replace"]
+    assert _exit_of(described + list(flags)) == 0
+    profile_path = folder / "real-profile.json"
+    assert _exit_of([
+        "generate", str(profile_path), "--out-dir", str(folder),
+        "--seed", seed, "--replace",
+    ]) == 0
+    twin = folder / "real-twin.csv"
+    again = folder / "again"
+    again.mkdir()
+    copied = again / "twin.csv"
+    copied.write_bytes(twin.read_bytes())
+    assert _exit_of(
+        ["profile", str(copied), "--out-dir", str(again), "--replace"]
+        + list(flags)
+    ) == 0
+    first = json.loads(profile_path.read_text(encoding="utf-8"))["columns"][0]
+    second = json.loads(
+        (again / "twin-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]
+    written = [
+        row[0]
+        for row in csv.reader(
+            io.StringIO(twin.read_text(encoding="utf-8")), strict=False
+        )
+    ][1:]
+    checked = folder / "check-twin"
+    checked.mkdir()
+    twin_exit = _exit_of([
+        "validate", str(profile_path), "--twin", str(twin),
+        "--out-dir", str(checked), "--replace",
+    ])
+    real_checked = folder / "check-real"
+    real_checked.mkdir()
+    real_exit = _exit_of([
+        "validate", str(profile_path), "--twin", str(table),
+        "--out-dir", str(real_checked), "--replace",
+    ])
+    return first, second, written, twin_exit, real_exit
+
+
+def _readings_with_spaces(seed: int) -> "list[str]":
+    """The audit's own shape: SPSS and fixed-width SAS write space."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(500):
+        pick = draw.random()
+        if pick < 0.18:
+            cells += [" "]
+        elif pick < 0.36:
+            cells += ["  "]
+        elif pick < 0.50:
+            cells += ["\xa0"]
+        elif pick < 0.62:
+            cells += [""]
+        else:
+            cells += [f"{draw.randrange(90, 180)}"]
+    return cells
+
+
+@pytest.mark.parametrize("seed", ("4", "7", "13"))
+def test_a_column_of_readings_keeps_the_space_its_writer_put_there(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """A space is a mark the file holds, not an empty cell.
+
+    The commonest real-world shape of this defect: SPSS and fixed-width
+    SAS exports write system-missing as a single space. The audit
+    measured 315 absent cells of a 500-row column of readings, 177 of
+    them holding a space, two spaces or a no-break space -- all
+    published as `n_missing_blank: 315`, all written empty by the twin,
+    and no published fact able to tell the two files apart. Meanwhile
+    `pandas.to_numeric` runs on the twin and raises on the table.
+    """
+    cells = _readings_with_spaces(11)
+    first, second, written, twin_exit, real_exit = (
+        _absent_spellings_round_trip(tmp_path / "readings", cells, (), seed)
+    )
+    held = _counted(cells)
+    # THE SPELLING, AT ITS COUNT, published rather than merged.
+    assert first["missing_by_source"] == {
+        " ": held[" "], "  ": held["  "], "\xa0": held["\xa0"]
+    }
+    # ...and blank now means the EMPTY spelling and nothing else.
+    assert first["n_missing_blank"] == held[""]
+    assert first["n_missing_withheld"] == 0
+    # The twin WRITES each one, at exactly its published count.
+    twin_cells = _counted(written)
+    for spelling in (" ", "  ", "\xa0"):
+        assert twin_cells[spelling] == held[spelling], (spelling, twin_cells)
+    assert twin_cells[""] == held[""]
+    # The twin's own description says the same thing back.
+    assert second["missing_by_source"] == first["missing_by_source"]
+    assert second["n_missing_blank"] == first["n_missing_blank"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("seed", ("4", "9"))
+def test_a_column_of_labels_keeps_a_tab_and_a_no_break_space(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The same rule on a label column, with a tab and U+00A0.
+
+    The skeptic's correction to the finder: the merge is not confined to
+    numeric columns. A 600-row categorical column published
+    `n_missing_blank: 324` where 249 of those cells held a tab, a space
+    or a no-break space, and every one came back as an empty cell.
+    """
+    draw = random.Random(12)
+    cells: "list[str]" = []
+    for _row in range(600):
+        pick = draw.random()
+        if pick < 0.15:
+            cells += [" "]
+        elif pick < 0.28:
+            cells += ["\t"]
+        elif pick < 0.40:
+            cells += ["\xa0"]
+        elif pick < 0.52:
+            cells += [""]
+        else:
+            cells += [draw.choice(["mild", "moderate", "severe"])]
+    first, second, written, twin_exit, real_exit = (
+        _absent_spellings_round_trip(tmp_path / "labels", cells, (), seed)
+    )
+    held = _counted(cells)
+    assert first["role"] == "categorical"
+    assert first["missing_by_source"] == {
+        "\t": held["\t"], " ": held[" "], "\xa0": held["\xa0"]
+    }
+    assert first["n_missing_blank"] == held[""]
+    twin_cells = _counted(written)
+    for spelling in ("\t", " ", "\xa0"):
+        assert twin_cells[spelling] == held[spelling], (spelling, twin_cells)
+    assert second["missing_by_source"] == first["missing_by_source"]
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_a_whitespace_spelling_below_the_floor_is_pooled_and_not_named(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The floor governs a space exactly as it governs `NA`.
+
+    The disclosure half of P4-D74: admitting these spellings must not
+    admit a group too small to name. At a floor of eleven a tab worn by
+    three cells is pooled into `n_missing_withheld`, named nowhere, and
+    the twin writes those three cells empty rather than tabbed.
+    """
+    draw = random.Random(21)
+    cells = (
+        [" "] * 20 + ["\t"] * 3 + [""] * 15
+        + [f"{draw.randrange(40, 90)}" for _row in range(400)]
+    )
+    first, _second, written, twin_exit, real_exit = (
+        _absent_spellings_round_trip(
+            tmp_path / "floored", cells, ("--smallest-group", "11"), "4"
+        )
+    )
+    assert first["missing_by_source"] == {" ": 20}
+    assert first["n_missing_blank"] == 15
+    assert first["n_missing_withheld"] == 3
+    twin_cells = _counted(written)
+    assert twin_cells[" "] == 20
+    assert "\t" not in twin_cells, twin_cells
+    assert twin_cells[""] == 18
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_a_description_naming_an_empty_spelling_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """C5-N3: the empty spelling has a field, and is never a key.
+
+    A document naming it both ways counts one blank cell twice. The
+    mutation keeps the accounting closed -- one cell moved out of
+    `n_missing_blank` and into a key of no characters -- so the only
+    thing wrong with it is the key itself.
+    """
+    import json
+
+    from tests import fixtures
+    from synthtwin import contract, errors
+
+    folder = tmp_path / "emptykey"
+    cells = [" "] * 20 + [""] * 15 + [f"{index % 40}" for index in range(300)]
+    _first, _second, _written, _twin, _real = _absent_spellings_round_trip(
+        folder, cells, (), "4"
+    )
+    path = folder / "real-profile.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    column = document["columns"][0]
+    assert column["n_missing_blank"] == 15
+    column["missing_by_source"][""] = 1
+    column["n_missing_blank"] = 14
+    # THE BYTES COME FROM THE PRODUCT'S OWN SERIALIZER. A description
+    # written any other way is refused one step earlier for not being in
+    # the exact form synthtwin writes, and a gate that accepted that
+    # refusal would be filing this mutation under the canonicity rule
+    # rather than under the rule it is about.
+    broken = fixtures.write_profile(folder, "broken-profile.json", document)
+    with pytest.raises(errors.ProfileError) as raised:
+        contract.load_profile(str(broken))
+    said = f"{raised.value}"
+    assert "no characters" in said, said
+    assert "n_missing_blank" in said, said
+
+
+def test_the_summary_tells_a_reader_which_cells_held_nothing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The sentence was false of 195 cells, and the spelling was invisible.
+
+    The plain-language summary said "324 cell(s) with nothing written in
+    them" of a column where 249 of them held a tab, a space or a
+    no-break space. It counts the EMPTY cells now -- and the whitespace
+    spellings stand beside it written out character by character,
+    because a report that prints a space shows a count beside nothing
+    and a reader cannot tell one space from two.
+    """
+    cells = [" "] * 30 + ["  "] * 25 + ["\xa0"] * 22 + [""] * 18 + (
+        [f"{index % 50 + 10}" for index in range(300)]
+    )
+    folder = tmp_path / "summary"
+    _first, _second, _written, _twin, _real = _absent_spellings_round_trip(
+        folder, cells, (), "4"
+    )
+    printed = (folder / "real-profile.txt").read_text(encoding="utf-8")
+    assert "18 cell(s) with nothing written in them" in printed, printed
+    assert "\\x20 (30)" in printed, printed
+    assert "\\x20\\x20 (25)" in printed, printed
+    assert "\\xa0 (22)" in printed, printed
+    # ...and the raw no-break space is not what the reader is shown.
+    lines = [
+        line for line in printed.split("\n")
+        if "nothing written in them" in line
+    ]
+    assert len(lines) == 1, lines
+    assert "\xa0" not in lines[0], repr(lines[0])

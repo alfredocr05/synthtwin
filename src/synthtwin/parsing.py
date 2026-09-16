@@ -508,6 +508,35 @@ def visible_lines(text: str) -> str:
     return _made_visible(text, True)
 
 
+def spelled_out(text: str) -> str:
+    """Return ``text`` with EVERY character written out as itself.
+
+    The display boundary above shows the characters that command a
+    display and leaves every other one alone, which is right for a value
+    a person reads. It is not enough for a value whose whole content is
+    space: a description may publish `" "`, `"  "` or a no-break space
+    among the spellings a column's absent cells wore (5.4.3), and a
+    report printing those keys as they stand shows a count beside
+    nothing at all -- so a reader cannot tell one space from two, or a
+    space from a no-break space, in the one place the report exists to
+    tell them.
+
+    The spelling is the boundary's own, read back from the same
+    function, so the two cannot drift: two hex digits for a byte, four
+    for a character inside the first plane, eight beyond it.
+
+    Guarantees: accepts text; returns text made only of printable ASCII;
+    raises TypeError if handed anything that is not a string instance.
+    Determinism: a fixed function of the text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    shown = ""
+    for character in text:
+        shown = shown + _written_out(ord(character))
+    return shown
+
+
 def trimmed(text: str) -> str:
     """Return ``text`` without surrounding whitespace.
 

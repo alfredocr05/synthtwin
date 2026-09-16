@@ -4236,6 +4236,20 @@ def _missing_by_source(
     counted = _counts(
         value, "missing_by_source", where, 1, _THE_SOURCE_KEYS
     )
+    # THE EMPTY SPELLING IS NEVER A KEY (C5-N3, plan P4-D74). It has a
+    # field of its own, `n_missing_blank`, and a document naming it here
+    # as well would count one cell twice in the accounting below. A key
+    # that is only SPACE is a different matter and is admitted: a space
+    # is a mark the file holds, the twin reproduces it, and the floor
+    # governs it exactly as it governs every other spelling.
+    for name in sorted(counted):
+        if name == "":
+            raise _broken(
+                "C5-N3",
+                where,
+                "a spelling of an empty cell is named with no characters",
+                "cells that held nothing are counted in `n_missing_blank`",
+            )
     if publishes_nothing:
         if counted:
             raise _broken(

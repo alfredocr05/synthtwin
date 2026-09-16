@@ -2657,7 +2657,7 @@ guess is what fails silently.
 | `n_missing` | integer ≥ 0 | ≤ `n_rows` | how many cells hold no value | EXACT-OBSERVABLE |
 | `missing_by_class` | object | exactly six keys, section 5.4 | absent cells by the reason each was counted absent | REPORT-ONLY |
 | `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, except a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder), which the twin writes empty |
-| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held nothing, or nothing but space — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
+| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
 | `n_missing_withheld` | integer ≥ 0 | — | how many absent cells of this column wore a spelling — or a blankness — that fewer than `small_cell_floor` cells of the column shared, pooled together and unnamed | REPORT-ONLY, bound by the same sum identity |
 | `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds | set per role group, section 9 |
 | `n_distinct_folded` | integer ≥ 0 | ≤ `n_distinct` | how many different FOLDED identities it holds | set per role group, section 9 |
@@ -2996,6 +2996,24 @@ form that shows itself (2.4).
 `n_missing_blank` and `n_missing_withheld`, fields of their own beside
 it, and 5.4.4 says why the split matters.
 
+**C6-125 (a spelling of nothing but space is a spelling).** A cell
+holding one space, two spaces, a tab or a no-break space held
+something: a mark the file carries, which the reader of that file
+meets. Such a cell is therefore keyed here under its exact characters,
+held to the floor like every other spelling, and the twin writes it
+back (C6-115). Only the EMPTY spelling — no characters at all — is
+counted in `n_missing_blank`, and it is never a key of this map, since
+a document naming it both ways would count one cell twice in N3.
+
+Until this clause, `n_missing_blank` held both, and the spelling was
+lost: a 500-row column of readings whose 315 absent cells included 177
+holding a space, two spaces or a no-break space published
+`n_missing_blank: 315`, and its twin wrote 315 empty cells. Nothing the
+description published could tell the two files apart, while
+`pandas.to_numeric` runs on the twin and raises on the table, and a
+reader handed `na.strings=c("","NA")` finds levels on the table that
+the twin does not have — which is the first goal failing silently.
+
 **Invariant N3 (the source accounting closes).** On a column that is
 not a nothing-publishing column (6.10):
 
@@ -3008,6 +3026,10 @@ On a nothing-publishing column, `missing_by_source` is `{}`,
 `n_missing_blank` is 0 and `n_missing_withheld` is 0, whatever
 `n_missing` is. Naming a spelling there would publish a value out of a
 column that publishes none.
+
+**And no key of the map is the empty spelling** (C6-125). Cells that
+held nothing at all are `n_missing_blank`; a key of no characters would
+count them a second time and the sum above would no longer close.
 
 **Invariant N4.** Every value of `missing_by_source` is at least
 `small_cell_floor`, with no exemption, and `n_missing_blank` is 0 or at
@@ -3040,7 +3062,18 @@ is the spelling a cell wore.
 `n_missing_blank` is not the same number as
 `missing_by_class["(blank)"]`, and neither replaces the other. The
 class count is pooled when the CLASS falls below the floor; the field
-is pooled when the SPELLING — here, blankness — falls below it. A
+is pooled when the SPELLING — here, blankness — falls below it.
+
+**They also answer two different questions about space, and C6-125 is
+where that shows.** The CLASS asks why a cell is absent, and a cell of
+nothing but space is absent for the blank reason, so it reads
+`(blank)`. The FIELD asks what was written, and a space was written, so
+that cell is keyed in `missing_by_source` and is not in
+`n_missing_blank`. A column of forty absent cells, twenty-five of them
+empty and fifteen holding one space, publishes
+`missing_by_class["(blank)"]: 40`, `n_missing_blank: 25` and
+`missing_by_source: {" ": 15}` — three numbers that disagree only if a
+reader takes the first two to be answers to one question. A
 column can therefore publish a class count of zero and a blank count of
 forty, or the reverse, and both readings are correct about different
 questions. Both are published, in two fields, because a field that
@@ -8074,7 +8107,7 @@ and it names eight: `missing_by_class`, `utc_offsets`,
 |---|---|---|
 | N1 | `missing_by_class` carries exactly SIX keys — `(blank)`, `(date-sentinel)`, `(declared-missing)`, `(numeric-sentinel)`, `(text-code)`, `(withheld)` — always all six, on every column block of every role, and their six values sum to `n_missing` | yes |
 | N2 | each `missing_by_class` value other than `(withheld)` is 0 or at least `small_cell_floor`: a class counting between 1 and the floor is pooled into `(withheld)` and reads 0 here. `(withheld)` is exempt — the remainder the named counts were pooled out of, and one remainder pools several classes | yes |
-| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`; on a nothing-publishing column `missing_by_source == {}` and both counts are 0, whatever `n_missing` is | yes |
+| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`, and no key of the map is the empty spelling (C6-125), which would count a blank cell twice; on a nothing-publishing column `missing_by_source == {}` and both counts are 0, whatever `n_missing` is | yes |
 | N4 | every value of `missing_by_source` is at least `small_cell_floor`, with no exemption, and `n_missing_blank` is 0 or at least the floor. `n_missing_withheld` is bounded in neither direction, for N2's reason | yes |
 | N5 | no key of `missing_by_source` carries a first-party meaning — not the six class words nor any other name this format uses (`n_missing_withheld`, `n_sentinel_candidates_unpublished` among them), because a cell can say those too: such a key means cells of the table held that text. `levels[].variants` is the other map the TABLE keys | reading |
 | N6 | `n_missing_blank` and `n_missing_withheld` are 0 on exactly the nothing-publishing columns; that class is a function of `role` and `structural_role`, which every block publishes | yes |

@@ -4364,6 +4364,28 @@ def _missing_maps(
     than the floor is pooled rather than named, so `n_missing_blank` is
     either zero or at least the floor (C5-N4).
 
+    AND BLANK MEANS THE EMPTY SPELLING, NOTHING ELSE (plan P4-D74,
+    contract C6-125). A cell holding one space, two spaces, a tab or a
+    no-break space is not a cell that holds nothing: it holds a mark
+    somebody's writer put there, which the reader of the real table
+    meets. This function counted every such cell in `n_missing_blank`
+    and lost its characters, so the twin wrote an empty cell where the
+    table wrote a space and no published fact could tell the two files
+    apart. Measured on a 500-row column of readings: 315 absent cells,
+    177 of them holding a space, two spaces or a no-break space, all
+    published as `n_missing_blank: 315` and all written empty -- while
+    `pandas.to_numeric` runs on the twin and raises on the table, and a
+    reader handed `na.strings=c("","NA")` finds levels on the table the
+    twin does not have.
+
+    A whitespace-only spelling is therefore an ordinary key from here
+    on, stored character for character and held to the floor like every
+    other spelling, and `n_missing_blank` counts the cells that held the
+    EMPTY spelling alone. The class map is unchanged and still reads
+    such a cell as `(blank)`, because the REASON it is absent is that
+    nothing meaningful was written there; contract 5.4.4 is where the
+    two questions are stated apart.
+
     THE ROLE IS NOT CONSULTED HERE. This function used to hold half of
     the publication rule as well -- an early return that emptied
     `missing_by_source` for a role that publishes nothing, which is why
@@ -4397,7 +4419,10 @@ def _missing_maps(
     exact: dict[str, int] = {}
     blank = 0
     for spelling, _name in missing:
-        if not parsing.trimmed(spelling):
+        # THE EMPTY SPELLING AND NO OTHER (P4-D74). A cell of spaces
+        # wears a spelling; the docstring above says what counting it
+        # as blank cost.
+        if spelling == "":
             blank = blank + 1
             continue
         if spelling in exact:

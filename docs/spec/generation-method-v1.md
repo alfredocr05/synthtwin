@@ -5997,11 +5997,28 @@ with the join and de-duplication consequence in the person's own words.
 
 ### G10.1 Absent cells
 
-Exactly `n_missing` cells per column, each written as the EMPTY text —
-no space, no marker, no spelling of any kind — and placed by the
-arrangement of G4.2. `missing_by_class` and `missing_by_source` are
-REPORT-ONLY: the real table's absent-value spellings and classes are
-named in the report and are not reproduced (R-P2-2). An empty cell
+Exactly `n_missing` cells per column, placed by the arrangement of
+G4.2. Each published `missing_by_source` spelling is written at exactly
+its published count, character for character, and every other absent
+cell — the blank count, the withheld remainder and the cells a judged
+pass put there — is written as the EMPTY text (contract C6-115 and
+C6-116, plan P4-D6.1). `missing_by_class` is REPORT-ONLY.
+
+**THIS PARAGRAPH SAID THE OPPOSITE UNTIL LANDING 2b.8, AND THE CODE
+HAD BEEN RIGHT FOR A VERSION.** It read "each written as the EMPTY
+text — no space, no marker, no spelling of any kind", citing residual
+R-P2-2, which plan P4-D6.1 closed when version 6 began reproducing the
+spellings. A method sentence that describes a rule the product retired
+is a defect of this document, so it is corrected here rather than
+footnoted.
+
+**A SPELLING OF NOTHING BUT SPACE IS WRITTEN LIKE ANY OTHER** (plan
+P4-D74, contract C6-125). One space, two spaces, a tab and a no-break
+space are keys of that map since C6-125, and the twin writes each at
+its count. No construction can collide with one: every walk that
+INVENTS a spelling refuses anything the reader's own vocabulary calls
+absent, and the empty spelling is a member of it, so a whitespace-only
+candidate is refused before it is claimed (G9.4, G10.4). An empty cell
 re-profiles as `(blank)`, which is what makes `n_present` and
 `n_missing` EXACT-OBSERVABLE.
 

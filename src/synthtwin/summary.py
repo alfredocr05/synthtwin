@@ -325,6 +325,23 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     return lines
 
 
+def _shown_spelling(spelling: str) -> str:
+    """One absent-value spelling, shown so a reader can tell it apart.
+
+    A SPELLING MADE ONLY OF SPACE IS WRITTEN OUT CHARACTER BY CHARACTER
+    (plan P4-D74). Since contract C6-125 a whitespace-only spelling is
+    an ordinary key of `missing_by_source`, and the display boundary
+    leaves a space alone -- rightly, for a value inside a sentence. Here
+    it would print `  (30)`, where a reader cannot tell one space from
+    two, or a space from a no-break space, in the one line the report
+    has to tell them apart in. Every other spelling crosses the ordinary
+    boundary, exactly as before.
+    """
+    if spelling and not parsing.trimmed(spelling):
+        return parsing.spelled_out(spelling)
+    return _text_of(spelling)
+
+
 def _missing_spelling_words(
     column: dict[str, object], floor: int
 ) -> list[str]:
@@ -358,7 +375,7 @@ def _missing_spelling_words(
         ]
     for spelling in sorted(sources):
         counted = _count_of(sources[spelling])
-        spellings += [f"{_text_of(spelling)} ({counted})"]
+        spellings += [f"{_shown_spelling(spelling)} ({counted})"]
     pooled = _count_of(column["n_missing_withheld"])
     if pooled:
         spellings += [
