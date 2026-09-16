@@ -4521,18 +4521,11 @@ def _datetime_content(column):
     # the census of marks is spent over the ranks that write a clock.
     whole = form_allocation(column, parsed)
     words = iter(column["_content_words"])
-    # Every rank's instant first, the words spent in rank order exactly as
-    # before (landing 2b.3); the two ends' ordinals are never written.
-    ordinals = []
-    for rank in range(parsed):
-        if rank == 0:
-            ordinals.append(ordinal_of(column["earliest"], space))
-        elif rank == parsed - 1 and parsed >= 2:
-            ordinals.append(ordinal_of(column["latest"], space))
-        else:
-            ordinals.append(
-                interpolated_ordinal(rank * TWO64 + next(words), parsed * TWO64, rungs)
-            )
+    # Every rank's instant first, one word per interior rank exactly as
+    # before (landing 2b.3); the tail's ranks take their PUBLISHED values
+    # and every other rank is drawn inside its own gap (landing 2b.6).
+    ordinals = spread_ordinals(rungs, parsed, words)
+    gap_lows, gap_highs = pin_bounds(rungs, parsed)
     snapping = snaps_to_midnight(column)
     offset_pins = {}
     if snapping:
@@ -4655,10 +4648,9 @@ def _datetime_content(column):
             # own window and then inside the published range.
             first = ordinal_of(column["earliest"], space)
             last = ordinal_of(column["latest"], space)
-            window = (
-                max(first, interpolated_ordinal(rank * TWO64, parsed * TWO64, rungs) - 1),
-                min(last, interpolated_ordinal((rank + 1) * TWO64, parsed * TWO64, rungs)),
-            )
+            # The window is the rank's own GAP (landing 2b.6): the rank
+            # was drawn between the two pinned ranks either side of it.
+            window = (max(first, gap_lows[rank]), min(last, gap_highs[rank]))
             for low, high in (window, (first, last)):
                 chosen = None
                 for away in range(1, len(holes) + 2):
@@ -4712,6 +4704,94 @@ def snaps_to_midnight(column):
 def rung_rank(percent, parsed):
     """The rank a published rung is read off: floor((P - 1) * c / 100)."""
     return min(parsed - 1, ((parsed - 1) * percent) // 100)
+
+
+def ordinal_pins(rungs, parsed):
+    """Every rank the published tail PINS, with its published ordinal
+    (method G7.3, landing 2b.6).
+
+    The two ends, which the contract's D11 makes the ladder's own ends,
+    and each of the nine interior rungs at the rank it is selected from.
+    Two rungs selecting off one rank keep the LOWER rung's value, so the
+    pins stay in rank order whatever ladder a description carries.
+    """
+    pins = {}
+    if parsed <= 0:
+        return pins
+    pins[0] = rungs[0]
+    if parsed >= 2:
+        pins[parsed - 1] = rungs[len(PCT) - 1]
+    for place in range(1, len(PCT) - 1):
+        rank = rung_rank(PCT[place], parsed)
+        if 0 < rank < parsed - 1 and rank not in pins:
+            pins[rank] = rungs[place]
+    return pins
+
+
+def pin_bounds(rungs, parsed):
+    """The pinned value below and above every rank -- the rank's GAP.
+
+    Read by the construction below and by the step off a unit whose
+    every spelling is absent, so the two cannot disagree about the room
+    a rank has.  A pinned rank's two bounds are its own value.
+    """
+    lows = [0] * parsed
+    highs = [0] * parsed
+    if parsed <= 0:
+        return lows, highs
+    pins = ordinal_pins(rungs, parsed)
+    below = pins[0]
+    for rank in range(parsed):
+        if rank in pins:
+            below = pins[rank]
+        lows[rank] = below
+    above = pins[max(pins)]
+    for rank in reversed(range(parsed)):
+        if rank in pins:
+            above = pins[rank]
+        highs[rank] = above
+    return lows, highs
+
+
+def spread_ordinals(rungs, parsed, words):
+    """Every rank's instant -- method G7.3 as landing 2b.6 rewrites it.
+
+    The published tail pins the two ends and the nine interior rungs to
+    their published values.  Every OTHER rank takes an INDEPENDENT draw
+    inside the gap between the two pinned ranks either side of it, in
+    the column's own ordinal space, and the draws inside one gap are
+    sorted, so the ranks stay ascending.
+
+    ONE WORD PER INTERIOR RANK, PINNED RANKS INCLUDED: a pinned rank
+    draws its word and discards it, because the word stream is shared
+    across columns and a column of dates must consume exactly what it
+    always consumed or every column after it moves.
+
+    What it replaces: one cell per rank inside its own `1 / P` stratum,
+    which gave each day almost exactly its expected count -- a
+    below-Poisson spread, where a real table's per-day counts vary at
+    least Poisson.
+    """
+    ordinals = [0] * parsed
+    if parsed <= 0:
+        return ordinals
+    pins = ordinal_pins(rungs, parsed)
+    for rank, value in pins.items():
+        ordinals[rank] = value
+    places = sorted(pins)
+    for step in range(len(places) - 1):
+        below = places[step]
+        above = places[step + 1]
+        low = ordinals[below]
+        high = ordinals[above]
+        drawn = []
+        for _rank in range(below + 1, above):
+            word = next(words)
+            drawn.append(min(low + (word * (high - low + 1)) // TWO64, high))
+        drawn.sort()
+        for place, value in enumerate(drawn):
+            ordinals[below + 1 + place] = value
+    return ordinals
 
 
 def ranks_the_tail_pins(parsed):

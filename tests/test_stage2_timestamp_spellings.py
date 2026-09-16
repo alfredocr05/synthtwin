@@ -218,7 +218,16 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
     )
     assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == ("datetime", 3, 3)
     assert second["role"] == "datetime"
-    assert (second["n_distinct"], second["n_distinct_folded"]) == (5, 4)
+    # SIX SINCE LANDING 2b.6, WHERE IT WAS FIVE, and the shape is still
+    # designed not to return. The pooled spellings are still given to
+    # ranks without regard to value, so they still land on both days;
+    # what changed is that the ranks themselves are drawn across the gap
+    # between the pinned values rather than each sitting in its own
+    # slice, so one more of the pooled marks falls on a day that did not
+    # already carry it. The column keeps its kind and the named count
+    # still moves -- by three spellings now rather than two -- and
+    # nothing says it moves except the distinct-count window.
+    assert (second["n_distinct"], second["n_distinct_folded"]) == (6, 4)
     assert twin_exit == 0
 
 

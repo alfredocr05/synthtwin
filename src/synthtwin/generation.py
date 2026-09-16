@@ -12761,25 +12761,10 @@ def _datetime_content(
     # move to midnight, then the cells (landing 2b.3). The words are
     # spent in exactly the order they always were, so a column this
     # landing does not touch writes the same bytes.
-    ordinals: list[int] = []
-    taken = 0
-    for rank in range(parsed):
-        if rank == 0:
-            ordinal = first
-        elif rank == parsed - 1 and parsed >= 2:
-            ordinal = last
-        else:
-            word = words[taken]
-            taken = taken + 1
-            numerator = rank * _WORD_SCALE + word
-            denominator = parsed * _WORD_SCALE
-            step = _segment(numerator, denominator)
-            above = 100 * numerator - _PCT[step] * denominator
-            span = (_PCT[step + 1] - _PCT[step]) * denominator
-            ordinal = ladder[step] + (
-                above * (ladder[step + 1] - ladder[step])
-            ) // span
-        ordinals += [ordinal]
+    ordinals = _spread_ordinals(ladder, parsed, words)
+    # The room each rank was drawn in, stated once (`_pin_bounds`) and
+    # read here by the step off a day whose every spelling is absent.
+    gap_lows, gap_highs = _pin_bounds(ladder, parsed)
     snapping = _snaps_to_midnight(facts)
     pins: "dict[int, tuple[str, ...]]" = {}
     if snapping:
@@ -12854,9 +12839,15 @@ def _datetime_content(
             spellings[rank],
         )
         if space != "datetime" and _is_a_hole_spelling(kept, holes):
+            # THE WINDOW IS THE RANK'S OWN GAP (landing 2b.6). The rank
+            # was drawn anywhere between the two pinned ranks either
+            # side of it, so that is the room this step may use; it used
+            # to be the rank's own `1 / P` stratum, which no longer
+            # describes where the rank came from. A step inside the gap
+            # cannot pass a pinned rank, so every rung stays exact.
             window = (
-                max(first, _ordinal_at(ladder, rank, parsed) - 1),
-                min(last, _ordinal_at(ladder, rank + 1, parsed)),
+                max(first, gap_lows[rank]),
+                min(last, gap_highs[rank]),
             )
             for low, high in (window, (first, last)):
                 found = ""
@@ -13540,6 +13531,65 @@ def _worn_hole_notes(
     ]
 
 
+_SPREAD_SUBJECT = "how these dates are spread across the calendar"
+
+_SPREAD_HELD = (
+    "the published ladder is met rung for rung, and between the rungs "
+    "the days are drawn independently"
+)
+
+_SPREAD_NOTE = (
+    "Four things a real column of dates often has are not reproduced, "
+    "because the description publishes nothing that carries them: which "
+    "days of the week the values fall on, the time of day, days that "
+    "hold far more values than their neighbours, and a column whose "
+    "values sit on a few scheduled dates. Counts per weekday, per hour "
+    "or per single day computed on this twin are not the real column's."
+)
+
+
+def _spread_remarks(
+    column: contract.ColumnBlock,
+) -> "list[Remark]":
+    """Say what a column of dates is NOT spread by (landing 2b.6).
+
+    A REMARK, NOT A DEVIATION, on the precedent of the absence remark
+    below: every published fact of the column can be met exactly while
+    all four of these are true, so filing it as a deviation would tell a
+    reader an exact fact failed when it succeeded.
+
+    WHY IT IS SAID AT ALL. Method G7.3 draws the ranks between two
+    published rungs independently inside that gap, which restores the
+    day-to-day variation that stratifying removed -- measured over 54
+    runs of uniform, seasonal and admissions-style columns, a per-day
+    count variance of 0.057 to 0.514 of the real column's became 0.52 to
+    1.41. What it cannot restore is structure the description does not
+    publish: the gap is filled EVENLY, so a column that admits nobody at
+    a weekend, one whose visits cluster at five in the afternoon, one
+    that heaps a fifth of its birthdays on the first of January, and one
+    whose 600 visits sit on twelve scheduled dates all come back spread
+    smoothly across their range. Each needs a fact no datetime block
+    carries -- a weekday census, a time-of-day ladder, a value-count map
+    over days -- and each of those publishes counts over small groups,
+    so what may be published is a question for the stage that sets the
+    disclosure floor.
+
+    Before this sentence existed the report said only that the two
+    distinctness counts were inside their window, which is true and
+    tells a reader nothing about any of the four.
+
+    Guarantees: accepts one column; returns one remark on a column of
+    dates and none on any other. Determinism: a function of the column.
+    Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return []
+    return [
+        _remark(column.name, _SPREAD_SUBJECT, _SPREAD_HELD, _SPREAD_NOTE)
+    ]
+
+
 def _held_back_absence_remarks(
     column: contract.ColumnBlock, profile: contract.Profile
 ) -> "list[Remark]":
@@ -13922,6 +13972,152 @@ def _ranks_the_tail_pins(parsed: int) -> "list[bool]":
     for step in range(1, len(_PCT) - 1):
         flags[_rung_rank(_PCT[step], parsed)] = True
     return flags
+
+
+def _ordinal_pins(ladder: "list[int]", parsed: int) -> "dict[int, int]":
+    """Every rank the published tail PINS, with the value it is pinned to.
+
+    THE SAME RANKS `_ranks_the_tail_pins` NAMES, CARRYING THE PUBLISHED
+    VALUE (landing 2b.6, method G7.3). The two ends take `earliest` and
+    `latest`, which are the ladder's own two ends by the contract's D11,
+    and each of the nine interior rungs takes the rung's own published
+    ordinal at the rank the profiler selects it from (`_rung_rank`).
+
+    WHY THE VALUE AND NOT THE INTERPOLATION. Rank `k` used to be placed
+    by reading the ladder at `k / P`, which lands inside the rung's
+    stratum rather than ON the rung, and it lands EARLY every time,
+    because the interpolation floors: measured over 54 runs of uniform,
+    seasonal and admissions-style columns at 400, 1,500 and 3,000 rows,
+    every one of the nine interior rungs came back below its published
+    value in every run -- one day early on a 400-row admissions column,
+    so a published Monday rung was written as a Sunday. Pinning the rank
+    to the value the description publishes makes each rung exact instead
+    of merely inside its window, and it is what lets the window of G12.4
+    below be a point rather than a band.
+
+    Two rungs that select off one rank keep the LOWER rung's value, as
+    `_rung_pins` does, so the pins stay in rank order whatever ladder a
+    description carries. A rung whose rank is an end is left to the end.
+
+    Guarantees: accepts the published ladder in the column's own ordinal
+    space and the number of parsed cells; returns rank to ordinal.
+    Determinism: a function of the two; draws no word. Raises nothing.
+    No I/O of any kind.
+    """
+    pinned: "dict[int, int]" = {}
+    if parsed <= 0:
+        return pinned
+    pinned[0] = ladder[0]
+    if parsed >= 2:
+        pinned[parsed - 1] = ladder[10]
+    for step in range(1, len(_PCT) - 1):
+        rank = _rung_rank(_PCT[step], parsed)
+        if 0 < rank < parsed - 1 and rank not in pinned:
+            pinned[rank] = ladder[step]
+    return pinned
+
+
+def _pin_bounds(
+    ladder: "list[int]", parsed: int
+) -> "tuple[list[int], list[int]]":
+    """The pinned value below and above every rank -- the rank's GAP.
+
+    THE ONE STATEMENT OF THE GAP (landing 2b.6). Three rules read it and
+    none of them may disagree: the construction draws an interior rank
+    inside it (`_spread_ordinals`), method G12.4's window is built from
+    it (`_datetime_window`), and the step off a day whose every spelling
+    is absent searches it. A pinned rank's two bounds are its own pinned
+    value, so it has no room at all.
+
+    Guarantees: accepts the published ladder in the column's own ordinal
+    space and the number of parsed cells; returns one lower and one
+    upper bound per rank, both non-decreasing. Linear. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    lows = [0 for _rank in range(parsed)]
+    highs = [0 for _rank in range(parsed)]
+    if parsed <= 0:
+        return (lows, highs)
+    pinned = _ordinal_pins(ladder, parsed)
+    below = pinned[0]
+    for rank in range(parsed):
+        if rank in pinned:
+            below = pinned[rank]
+        lows[rank] = below
+    above = pinned[max(pinned)]
+    for rank in range(parsed - 1, -1, -1):
+        if rank in pinned:
+            above = pinned[rank]
+        highs[rank] = above
+    return (lows, highs)
+
+
+def _spread_ordinals(
+    ladder: "list[int]", parsed: int, words: "list[int]"
+) -> "list[int]":
+    """Every rank's instant, spread across the range as a real column is.
+
+    METHOD G7.3, AS LANDING 2b.6 REWRITES IT. The published tail pins
+    the two ends and the nine interior rungs (`_ordinal_pins`). Every
+    OTHER rank takes an INDEPENDENT draw inside the gap between the two
+    pinned ranks either side of it, in the column's own ordinal space --
+    days for a column of dates, of months, of quarters and for one whose
+    every moment stands at midnight, seconds otherwise -- and the draws
+    inside one gap are sorted, so the ranks stay in ascending order.
+
+    WHAT IT REPLACES AND WHY. Each rank used to be its own stratum,
+    placed inside the band from `k / P` to `(k + 1) / P`, so each day
+    received almost exactly its expected count: a below-Poisson spread,
+    where a real table's per-day counts vary at least Poisson. Measured
+    over 54 runs -- uniform, seasonal and admissions-style columns,
+    date-only and at midnight, at 400, 1,500 and 3,000 rows -- the
+    twin's per-day count variance was 0.057 to 0.514 of the real
+    column's, and it got WORSE as the column grew, because stratifying
+    ever more finely is ever further from sampling. Independent draws
+    inside the gap restore the variation that stratifying removed.
+
+    ONE WORD PER INTERIOR RANK, PINNED RANKS INCLUDED. A pinned rank
+    draws its word and discards it. That is deliberate: the word stream
+    is shared across columns, so a column of dates must consume exactly
+    what it always consumed or every column generated after it moves.
+    The budget is `P - 2` either way (`_plan_column`).
+
+    WHAT THIS DOES NOT REPRODUCE, and the report says so in its own
+    words (`_spread_remark`): the weekday composition, the time of day,
+    days the real column heaps values on, and a column of a few
+    scheduled dates. Each needs a fact the description does not publish,
+    and they belong to the stage that decides what a date column may
+    publish under the disclosure floor.
+
+    Guarantees: accepts the published ladder in the column's own ordinal
+    space, the number of parsed cells and that column's words; returns
+    one ordinal per rank, ascending, every one inside `[Lo[0], Lo[10]]`.
+    Linear in the ranks, times the sort inside each gap. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    ordinals = [0 for _rank in range(parsed)]
+    if parsed <= 0:
+        return ordinals
+    pinned = _ordinal_pins(ladder, parsed)
+    for rank in sorted(pinned):
+        ordinals[rank] = pinned[rank]
+    places = sorted(pinned)
+    taken = 0
+    for step in range(len(places) - 1):
+        below = places[step]
+        above = places[step + 1]
+        low = ordinals[below]
+        high = ordinals[above]
+        drawn: "list[int]" = []
+        for _rank in range(below + 1, above):
+            word = words[taken]
+            taken = taken + 1
+            found = low + (word * (high - low + 1)) // _WORD_SCALE
+            drawn += [min(found, high)]
+        drawn = sorted(drawn)
+        for place in range(len(drawn)):
+            ordinals[below + 1 + place] = drawn[place]
+    return ordinals
 
 
 def _midnight_offsets(
@@ -22853,7 +23049,14 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # Carried beside the deviations rather than among them: these
         # are properties of the finished cells, and every published
         # fact of the column can be met exactly while one is true.
+        # ...AND THE COLUMN'S OWN BLOCK CARRIES IT TOO (landing 2b.6).
+        # The twin-level list below is what the report COUNTS, and the
+        # sentence it prints says each one is named in its own column's
+        # block further down -- so a remark added to that list alone
+        # makes the report promise a block it never writes.
+        spread = _spread_remarks(column)
         remarked = remarked + list(each.remarks)
+        remarked = remarked + spread
         remarked = remarked + _held_back_absence_remarks(column, profile)
         outcomes += [
             ColumnOutcome(
@@ -22871,7 +23074,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
                 approximations=tuple(approximated_here),
-                remarks=each.remarks,
+                remarks=each.remarks + tuple(spread),
             )
         ]
     rows = [
@@ -25917,22 +26120,6 @@ def _written_ordinal(
     return _ordinal_of(found, _ordinal_space(facts))
 
 
-def _ordinal_at(
-    ladder: "list[int]", numerator: int, denominator: int
-) -> int:
-    """The published date ladder read at one share (method G7.3).
-
-    The same whole-number interpolation `_datetime_content` builds cells
-    with, so the window below is the construction's own arithmetic.
-    """
-    step = _segment(numerator, denominator)
-    above = 100 * numerator - _PCT[step] * denominator
-    span = (_PCT[step + 1] - _PCT[step]) * denominator
-    return ladder[step] + (
-        above * (ladder[step + 1] - ladder[step])
-    ) // span
-
-
 def _precision_slack(facts: contract.DatetimeFacts) -> int:
     """How far writing at the published precision can move an instant.
 
@@ -25958,15 +26145,30 @@ def _datetime_window(
 ) -> "tuple[list[int], list[int]]":
     """The window every rank of a column of dates sits in (method G12.4).
 
-    Rank `k` of method G7.3 is its own stratum: its share of the
-    distribution is the band from `k / held` to `(k + 1) / held`, and no
-    word can take it outside that band. The two ends of the ladder are
-    PINNED, so the first and last ranks have no room at all. Reading the
-    written cell back can lose part of a minute where the published
-    precision is minutes, and the interpolation itself rounds downward,
-    so the lower end carries both.
+    THE WINDOW IS THE RANK'S GAP (landing 2b.6). Method G7.3 pins the
+    two ends and the nine interior rungs to their published values and
+    draws every other rank inside the gap between the two pinned ranks
+    either side of it, so a rank sits between those two pinned values
+    and nowhere else. `_pin_bounds` is that gap, stated once and read by
+    the construction and by this window alike.
+
+    A PINNED RANK'S WINDOW IS A POINT, which is the gain this landing
+    buys at the nine rungs. Rank `k` used to be its own `1 / P` stratum
+    and a rung was held only to that band; it is now held to the value
+    the description publishes. The two ENDS are exact on both sides,
+    because G7.5 writes them from the endpoint's own fields rather than
+    from an ordinal, so nothing is lost writing them. Every other rank
+    carries the reading allowance on its lower end: writing at the
+    published precision can lose part of a minute, and the draw itself
+    rounds downward.
+
+    Guarantees: accepts the published ladder in the column's own ordinal
+    space, the facts and how many cells read back as a date; returns one
+    window per rank. Linear. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
     """
     slack = _precision_slack(facts) + 1
+    bounds_low, bounds_high = _pin_bounds(ladder, held)
     lows: list[int] = []
     highs: list[int] = []
     for rank in range(held):
@@ -25978,54 +26180,9 @@ def _datetime_window(
             lows += [ladder[10]]
             highs += [ladder[10]]
             continue
-        lows += [_ordinal_at(ladder, rank, held) - slack]
-        highs += [_ordinal_at(ladder, rank + 1, held)]
+        lows += [bounds_low[rank] - slack]
+        highs += [bounds_high[rank]]
     return (lows, highs)
-
-
-def _widened_for_midnight(
-    ladder: "list[int]", lows: "list[int]", highs: "list[int]", held: int
-) -> "tuple[list[int], list[int]]":
-    """The rank windows a column moved onto a midnight can actually reach.
-
-    G12.5's lower end counts ranks whose windows cannot share an instant.
-    A column `_snapped_to_midnight` moves may carry a rank anywhere between
-    the pinned ranks either side of it (landing 2b.3), so a window of G12.4
-    no longer bounds it: a CET column of 2,000 values at midnight over sixty days,
-    faithfully written, held 61 different values against a lower end of
-    981. So a pinned rank's window is its own published value -- an end, or
-    the rung its rank is read off -- and every other rank's runs from the
-    pinned value below it to the pinned value above.
-
-    Guarantees: accepts the published ladder in the column's own units,
-    G12.4's windows and the number of dated cells; returns the widened
-    windows. Linear. Determinism: a function of the four. Raises nothing.
-    """
-    if held == 0:
-        return (lows, highs)
-    pinned = _ranks_the_tail_pins(held)
-    values = [0 for _rank in range(held)]
-    values[0] = ladder[0]
-    values[held - 1] = ladder[10]
-    seen: dict[int, int] = {0: 1, held - 1: 1}
-    for step in range(1, len(_PCT) - 1):
-        rank = _rung_rank(_PCT[step], held)
-        if rank not in seen:
-            seen[rank] = 1
-            values[rank] = ladder[step]
-    widened_lows = [0 for _rank in range(held)]
-    widened_highs = [0 for _rank in range(held)]
-    below = values[0]
-    for rank in range(held):
-        if pinned[rank]:
-            below = values[rank]
-        widened_lows[rank] = below
-    above = values[held - 1]
-    for rank in range(held - 1, -1, -1):
-        if pinned[rank]:
-            above = values[rank]
-        widened_highs[rank] = above
-    return (widened_lows, widened_highs)
 
 
 def _apart_at_least(
@@ -26037,31 +26194,32 @@ def _apart_at_least(
 ) -> int:
     """G12.5's lower end: how many different instants the twin must hold.
 
-    The ranks whose G12.4 windows are pairwise separate (`_forced_apart`).
-    ON A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3) some
-    ranks leave their windows, and exactly these: at most `n_at_midnight`
-    moved onto a midnight, at most one pinned at each of the nine interior
-    rungs and at most one brought back to each of those pins -- every other
-    rank keeps its window, widened by one step of the precision for a rank
-    moved off a midnight it was not owed. Taking k windows out of a
-    separate set leaves at least its size less k, so the lower end is the
-    widened count less those ranks; and never less than the count over the
-    windows `_widened_for_midnight` gives every rank, which no move leaves.
+    The ranks whose G12.4 windows are pairwise separate (`_forced_apart`),
+    and since landing 2b.6 that is the whole of the rule, on a column
+    moved onto a midnight as much as on any other.
+
+    WHY THE MIDNIGHT ARITHMETIC IS WITHDRAWN. It existed because a
+    window of G12.4 used to be the rank's own `1 / P` stratum, which the
+    move onto a midnight could carry a rank straight out of -- a CET
+    column of 2,000 values at midnight over sixty days, faithfully
+    written, held 61 different values against a lower end of 981 -- so
+    the count had to be widened by a precision step, reduced by the ranks
+    the move may carry out, and floored at a second set of windows
+    computed from the pinned values. G12.4's window IS the span between
+    the pinned values now (`_pin_bounds`), and `_snapped_to_midnight`
+    moves a rank only inside exactly that span: it clamps each rank
+    between the pinned ranks either side of it, takes its nearest
+    midnight inside those same bounds, and steps an unchosen rank one
+    precision unit only where that also stays inside them. So no rank
+    leaves its window any more, the three corrections all compute a
+    weaker form of the same bound, and stating them twice could only let
+    the two drift apart.
 
     Guarantees: accepts the ladder in the column's own units, the facts,
     G12.4's windows and the dated count; returns a count. Linear.
     Determinism: a function of the five. Raises nothing. No I/O.
     """
-    if not _snaps_to_midnight(facts):
-        return _forced_apart(lows, highs)
-    step = 60 if facts.time_precision == "minute" else 1
-    stepped = _forced_apart(
-        [low - step for low in lows], [high + step for high in highs]
-    )
-    counted = facts.n_at_midnight
-    moved = (0 if counted is None else counted) + 2 * (len(_PCT) - 2)
-    pinned_lows, pinned_highs = _widened_for_midnight(ladder, lows, highs, held)
-    return max(stepped - moved, _forced_apart(pinned_lows, pinned_highs))
+    return _forced_apart(lows, highs)
 
 
 def _forced_apart(lows: "list[int]", highs: "list[int]") -> int:

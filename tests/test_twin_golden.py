@@ -274,7 +274,15 @@ NARROW_COLUMN_DIGESTS = {
     # ranks: 235 of its 240 cells moved, every one of them still a
     # two-figure number, and the quality report still misses nothing.
     "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
-    "recorded_on": "275356366d05346ada86307a49d4467c",
+    # RE-RECORDED at landing 2b.6 (2026-09-15). `recorded_on` is the
+    # demonstration's one column of dates, and its interior cells move
+    # because the placement rule of G7.3 moved: the nine interior rungs
+    # are pinned to their PUBLISHED values and every other rank is drawn
+    # inside the gap between the pinned ranks either side of it, where
+    # each rank used to be interpolated inside its own slice. The two
+    # ends, the member, the marks and every published count are
+    # unchanged; what moved is where the ranks between the rungs land.
+    "recorded_on": "0ae8c7fa2ee77b4522dff2af7403baaf",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -949,8 +957,21 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # RE-RECORDED at landing 2b.1 (2026-09-15): the `amount` and `dose`
 # columns moved for the causes recorded beside their column digests
 # above, and no other column's cells moved.
+# RE-RECORDED at landing 2b.6 (2026-09-15), and this time the twin's
+# bytes DID move, where the reversal of owner decision 5 left them
+# alone. The demonstration's `recorded_on` column is read as `iso-date`,
+# so writing it in its source's own form changed nothing; the PLACEMENT
+# of its ranks is what changed. Method G7.3 pins the nine interior rungs
+# to their published values and draws every other rank inside the gap
+# between the pinned ranks either side of it, because one cell per rank
+# inside its own slice gave every day almost exactly its expected count
+# -- measured across 54 runs, a per-day count variance of 0.057 to 0.514
+# of the real column's -- and put every published rung a day or more
+# early. Only `recorded_on`'s cells move: no other column of the
+# demonstration is a column of dates, and the word budget per column is
+# unchanged, so nothing downstream of it shifts either.
 GOLDEN_TWIN_SHA256 = (
-    "494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f"
+    "2d9175d73f6c0b819cba38e8df4cdd9348f8589028ccff0d52d9d9d156c1fff3"
 )
 
 
@@ -1351,8 +1372,16 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # (G5.6) and computes each end in the one operation order G12.2, G12.3
 # and G12.3a state, which is what the quality report prints; the twin,
 # every achieved figure and every inside-the-range verdict are unchanged.
+# RE-RECORDED at landing 2b.6 (2026-09-15). It follows the twin digest
+# above: `recorded_on`'s cells moved, so the approximated date rungs the
+# report prints beside their windows moved with them -- and the rungs
+# now sit ON their published values rather than a day or so below, which
+# is what the report says. The report also carries one sentence it did
+# not carry before, naming what a twin of a column of dates still does
+# not reproduce: the weekday composition, the time of day, days the real
+# column heaps values on, and a column of a few scheduled dates.
 GOLDEN_REPORT_SHA256 = (
-    "2915f4c52c20798eefdd87492548ecfda26fa96d66afd7e891b4c527664957db"
+    "7bd1b707006793e9e6c7c74d1cb85f0d387d286f32c935244ac9587e89469843"
 )
 
 
@@ -1873,8 +1902,14 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # show no such convention. The census carries no fewer obligations than
 # it did: one moved from the listings to the checks and four arrived as
 # listings, which the frozen baselines below show arriving by name.
+# RE-RECORDED at landing 2b.6 (2026-09-15). The census carries no fewer
+# obligations than it did -- which is the thing this digest exists to
+# catch -- and the numbers beside the date rungs moved because the twin's
+# own cells moved: each of the nine interior rungs is now measured AT its
+# published value rather than a day or more below it, and the window it
+# is measured against is that value rather than a band around its slice.
 GOLDEN_QUALITY_SHA256 = (
-    "064e008e758489b32ce0aea79f6e6bc7c1f3d1593a87d7f238fb6091ed493396"
+    "1414601dad33d4c223f2d0c00ece84bd13bdced0d7f6b6e437a44dcb2bdceace"
 )
 
 

@@ -1235,11 +1235,21 @@ rather than in ISO:
   `format` and `n_unparsed`, both checked, and a check that cannot fail
   on its own is what this method exists to refuse.
 
-On a column whose ranks the generator moves onto a midnight, G12.5's
-lower end is the one the generation method states for that column:
-the separate windows widened by one precision step less the ranks the
-move may carry out of theirs, and never less than the pinned values
-allow.
+**Amended 2026-09-15 (landing 2b.6 part 2): one walk, for every
+column.** G12.5's lower end used to need a correction on a column whose
+ranks the generator moves onto a midnight — the separate windows widened
+by one precision step, less the ranks the move may carry out of theirs,
+and never less than the pinned values allow — because a rank's window
+was then its own slice of the distribution, which the move could carry
+it out of. It is not. Method G7.3 pins the two ends and the rank each of
+the nine interior rungs is selected from, each to its published value,
+and draws every other rank inside the gap between the two pinned ranks
+either side of it; the move onto a midnight keeps every rank inside
+exactly that gap. So this document counts the ranks whose windows do not
+overlap and applies no correction, and the rung checks are drawn from
+the same gaps: a rank a rung is selected from has a window of ONE VALUE,
+its published one, so each of the nine is checked at the value rather
+than inside a band around it.
 
 **Amended 2026-09-15 (landing 2b.3): a judged spelling is not a
 declaration.** A `missing_by_source` key a column's own calendar

@@ -12344,8 +12344,11 @@ def _date_ladder_checks(
     `((P - 1) * share * 100) // 100` over a floating-point share and
     then read the ladder through the float reader the numeric ladder
     uses, neither of which is the arithmetic G12.4 fixes. `_rung_rank`
-    and `_ladder_ordinal_at` are that arithmetic, and the suite compares
-    them with the generator's own writing of it at every resolution.
+    is that arithmetic, and the suite compares it with the generator's
+    own writing of it at every resolution. Since landing 2b.6 the rung's
+    own window needs no ladder reading at all: the rank a rung is
+    selected from is PINNED to that rung's published value, so the
+    window is the value itself (`_pin_bounds_of`).
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
@@ -12608,29 +12611,14 @@ def _datetime_distinct_window(
     """
     dated = max(1, column.n_present - facts.n_unparsed)
     lows, highs = _rank_windows(facts, dated)
+    # THE SEPARATENESS WALK NEEDS NO CORRECTION OF ITS OWN (landing
+    # 2b.6). A rank's window IS the gap between the pinned ranks either
+    # side of it now (`_pin_bounds_of`), and the move onto a midnight
+    # keeps every rank inside exactly that gap, so the widening, the
+    # deduction of the ranks the move may carry out, and the second set
+    # of pinned windows all computed a weaker form of this same count.
     separate = _ranks_forced_apart(lows, highs)
     step = _precision_step(facts)
-    at_midnight = facts.n_at_midnight
-    if (
-        facts.resolution == taxonomy.RESOLUTION_DATETIME
-        and not _counts_in_days(facts)
-        and at_midnight is not None
-        and at_midnight > 0
-    ):
-        # A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3):
-        # at most `n_at_midnight` moved, one pinned at each interior rung
-        # and one brought back to each pin leave their windows; every
-        # other rank keeps its window widened by one step. So the separate
-        # count over those widened windows, less the ranks that may leave,
-        # and never less than the count over `_widened_for_midnight`.
-        stepped = _ranks_forced_apart(
-            [low - step for low in lows], [high + step for high in highs]
-        )
-        moved = at_midnight + 2 * (len(_LADDER_KEYS) - 2)
-        pinned_lows, pinned_highs = _widened_for_midnight(facts, dated)
-        separate = max(
-            stepped - moved, _ranks_forced_apart(pinned_lows, pinned_highs)
-        )
     earliest = _ordinal_of(facts.earliest, facts.resolution)
     latest = _ordinal_of(facts.latest, facts.resolution)
     room = (latest - earliest) // step + 1
@@ -12642,23 +12630,31 @@ def _datetime_distinct_window(
     return (float(lower), float(upper))
 
 
-def _widened_for_midnight(
+def _pin_bounds_of(
     facts: contract.DatetimeFacts, dated: int
 ) -> "tuple[list[int], list[int]]":
-    """The rank windows of a column whose ranks are moved onto a midnight.
+    """The pinned value below and above every rank -- the rank's GAP.
 
     THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4;
-    landing 2b.3, method G12.5). A column publishing values at midnight
-    and counted in seconds has its ranks moved onto a midnight between the
-    ranks the published tail pins -- the two ends and the rank each of the
-    nine interior rungs is read off, each held at its published value -- so
-    a rank can stand anywhere from the pinned value below it to the pinned
-    value above. Those are its windows for the count of ranks forced
-    apart; the rung checks keep G12.4's own windows.
+    method G7.3 and G12.4, landing 2b.6), never imported. The published
+    tail pins the two ends and the rank each of the nine interior rungs
+    is read off, each at its published value, and every other rank is
+    drawn inside the gap between the two pinned ranks either side of it.
+    So a rank stands between those two pinned values and nowhere else,
+    and a pinned rank has no room at all.
 
-    Guarantees: accepts the facts and the dated count; returns one window
-    per rank in this reading's own units. Linear. Determinism: a function
-    of the two. Raises nothing. No I/O of any kind.
+    IT IS NOW THE WHOLE OF THE WINDOW, not a second set beside it. Under
+    the construction this replaces, a rank was its own `1 / P` stratum
+    and these wider bounds were needed only for a column moved onto a
+    midnight, whose move carried ranks out of their strata; the gap is
+    where every rank of every column comes from now, so `_rank_windows`
+    below is built from this and the separateness walk of G12.5 needs no
+    correction of its own.
+
+    Guarantees: accepts the facts and the dated count; returns one lower
+    and one upper bound per rank in this reading's own units, both
+    non-decreasing. Linear. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
     """
     ladder = _ladder_ordinals(facts)
     step = _space_unit(facts)
@@ -12776,19 +12772,32 @@ def _rank_windows(
     """The window every rank of a column of dates sits in (method G12.4).
 
     THE CONSTRUCTION, WRITTEN FROM THE METHOD AND NOT IMPORTED (V1.4,
-    V4.2; review items P3-V4-F4 and P3-V4-F5). Rank `k` of G7.3 is its
-    own stratum: its share of the distribution is the band from `k / P`
-    to `(k + 1) / P` and no word can take it outside that band, so
+    V4.2; review items P3-V4-F4 and P3-V4-F5). Since landing 2b.6 rank
+    `k` of G7.3 is NOT its own stratum. The published tail PINS the two
+    ends and the rank each of the nine interior rungs is read off, each
+    at its published value, and every other rank is drawn inside the gap
+    between the two pinned ranks either side of it (`_pin_bounds_of`),
+    so with `P[k]` and `Q[k]` the pinned values below and above rank `k`
 
-        Ladder(k / P) - u   <=   O[k]   <=   Ladder((k + 1) / P)
+        P[k] - u   <=   O[k]   <=   Q[k]
 
-    with `Ladder` read by the SAME whole-number interpolation G7.3
-    builds cells with (`_ladder_ordinal_at`) and `u` the reading unit
-    below. **The two ends are PINNED**: G7.3 writes rank `0` at the
-    published `earliest` and rank `P - 1` at the published `latest`,
-    exactly as published, so those two ranks have no room at all. The
-    profile contract's D11 makes those two instants the ladder's own two
-    ends, which is why they are read off the ladder here.
+    and `u` the reading unit below. **A pinned rank's window is a
+    POINT**: it holds the value the description publishes and nothing
+    else, which is what makes each of the nine rungs an exact placement
+    rather than a band. **The two ends are pinned on both sides with no
+    allowance at all**, because G7.5 writes them from the endpoint's own
+    fields rather than from an ordinal, so writing them loses nothing;
+    the profile contract's D11 makes those two instants the ladder's own
+    two ends, which is why they are read off the ladder here.
+
+    WHAT THE BAND USED TO BE, and why widening it here is not a
+    loosening. Rank `k` used to be confined to `[k / P, (k + 1) / P)` of
+    the distribution, which is a tighter window for the ranks BETWEEN
+    rungs and a WRONGER one for the rungs themselves: the interpolation
+    floors, so every interior rung landed below its published value in
+    all 54 runs it was measured over, and the band was what let that
+    pass. The rungs are the only ranks this document checks a value at,
+    so the check those ranks get is strictly stronger now.
 
     Leaving the pinning out was review item P3-V4-F4: the first and last
     ranks got the interior band, the separateness walk of G12.5 then let
@@ -12814,6 +12823,7 @@ def _rank_windows(
     ladder = _ladder_ordinals(facts)
     unit = _reading_unit(facts)
     last = len(_LADDER_KEYS) - 1
+    bounds_low, bounds_high = _pin_bounds_of(facts, dated)
     lows: list[int] = []
     highs: list[int] = []
     for rank in range(dated):
@@ -12825,10 +12835,8 @@ def _rank_windows(
             lows += [step * ladder[last]]
             highs += [step * ladder[last]]
             continue
-        lows += [
-            step * _ladder_ordinal_at(ladder, rank, dated) - unit
-        ]
-        highs += [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
+        lows += [bounds_low[rank] - unit]
+        highs += [bounds_high[rank]]
     return (lows, highs)
 
 

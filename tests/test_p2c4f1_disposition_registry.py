@@ -1854,10 +1854,31 @@ def test_the_producer_battery_really_exercises_the_report(
         f"{sorted(set(dispositions.ROLE_GROUPS) - owed)}"
     )
     lines = _reported(battery)
-    assert len(lines) >= 8, lines
+    # RE-CALIBRATED AT LANDING 2b.6 PART 2, and this is a floor that was
+    # LOWERED, which is the kind of change that has to carry its reason.
+    #
+    # These two numbers are a vacuity floor: a battery whose twins met
+    # every fact would pass the check above while proving nothing. They
+    # were eight lines over four distinct reasons, and the extra lines
+    # were the DATE role's -- interior rungs landing outside their
+    # bounds, and the two distinctness counts outside their envelope.
+    # Landing 2b.6 part 2 repaired exactly that: the nine interior rungs
+    # are pinned to their published values, measured exact in 54 of 54
+    # runs where they had been missed in 54 of 54, so those lines no
+    # longer exist to be counted. What is left is six lines over two
+    # reasons, both on the one continuous column whose numbers are past
+    # the reach of a fraction.
+    #
+    # The teeth of this check are NOT the two counts. They are the two
+    # assertions below them: every line the battery produces must be one
+    # the registry accounts for (`None not in reasons`), and the check
+    # above holds the battery to reaching every role in the taxonomy. A
+    # floor calibrated against a defect measures the defect, so it moves
+    # when the defect is repaired; the accounting does not move.
+    assert len(lines) >= 6, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}
     assert None not in reasons
-    assert len(reasons) >= 4, reasons
+    assert len(reasons) >= 2, reasons
 
 
 def test_an_invented_miss_of_an_exact_fact_is_refused() -> None:

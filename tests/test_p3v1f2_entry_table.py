@@ -1316,11 +1316,37 @@ def _ladder_lifted(
     return _ladder_piled(described, text, index, at_the_top=True)
 
 
+def _ladder_flattened(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Both ends kept, and every cell between them on ONE value.
+
+    THE EDIT THE TWO DISTINCTNESS COUNTS ANSWER FOR SINCE LANDING 2b.6.
+    `crushed` used to catch them: under the stratified placement each
+    rank sat in its own slice of the distribution, so G12.5's lower end
+    counted almost every rank as forced apart from its neighbours, and a
+    file that piled its middle into half the range held fewer different
+    values than that. Method G7.3 pins the rungs and draws every other
+    rank inside the gap between two pinned ranks now, so ranks in one
+    gap are NOT forced apart at all and the lower end is the number of
+    different PINNED values -- eleven at most. A pile into half the
+    range clears that easily, and `crushed` stopped reaching these two
+    sites while still reaching the rungs.
+
+    So this edit puts every interior cell on one value, which is what a
+    file has to do to fall below the bound the construction now
+    guarantees. The two ends are kept, so both end checks and both
+    ladder ends still hold and these two counts answer for themselves.
+    """
+    return _ladder_piled(described, text, index, at_the_top=False, spread=1)
+
+
 def _ladder_piled(
     described: contract.Profile,
     text: str,
     index: int,
     at_the_top: bool,
+    spread: int = 0,
 ) -> str:
     """A datetime column with its two ends kept and its middle piled to one side.
 
@@ -1375,7 +1401,7 @@ def _ladder_piled(
         if row in keep:
             continue
         rows[row][index] = generation._cell_of_ordinal(
-            corner + (place % half),
+            corner + (place % (spread if spread else half)),
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
@@ -2449,6 +2475,16 @@ def _column_perturbations(
                 CLASS_DATE,
                 _ladder_lifted(described, twin, index),
             ),
+            # ...AND THE SAME EDIT WITH NO SPREAD AT ALL (landing 2b.6).
+            # The two distinctness counts are bounded below by the
+            # number of different PINNED values now, not by a rank per
+            # slice, so only a file that puts its whole middle on one
+            # value falls under it.
+            (
+                f"flattened-{name}",
+                CLASS_DATE,
+                _ladder_flattened(described, twin, index),
+            ),
         ]
         moved = (
             _quartered(described, twin, index)
@@ -3067,16 +3103,23 @@ NAMED_RED_CASES = (
         "datetime.date_percentiles",
         "date-ladder.p99",
     ),
+    # MOVED FROM `crushed` TO `flattened` AT LANDING 2b.6, because the
+    # bound these two answer to changed. G12.5's lower end used to count
+    # a rank per slice of the distribution and a pile into half the
+    # range fell under it; it counts the different PINNED values now, so
+    # only a file whose whole middle sits on ONE value does. The sites
+    # are unchanged and still covered -- what moved is the edit that can
+    # actually make them miss.
     RedCase(
         "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct",
         "distinct.n_distinct",
     ),
     RedCase(
         "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct_folded",
         "distinct.n_distinct_folded",

@@ -3623,22 +3623,69 @@ ranks `r = 0 .. P - 1` (one cell per rank; datetime columns are not
 stratified by value, because no datetime multiplicity map is
 published). Then:
 
+**The published tail PINS a rank to a published value** (landing 2b.6).
+The pinned ranks are `0`, `P - 1`, and the rank each of the nine
+interior rungs is selected from, `k_j = floor((P - 1) * PCT[j] / 100)`
+for `j = 1 .. 9` — the profiler's own rung rank. Two rungs selecting off
+one rank keep the LOWER rung's value, and a rung whose rank is an end is
+left to that end, so the pins are non-decreasing for any ladder a
+description can carry.
+
 - `r == 0`: the cell's instant is `earliest`, used exactly as published.
-  No word. "Exactly as published" means the endpoint's OWN fields, not
-  its ordinal: these two cells are built by G7.5's endpoint rule and do
-  not pass through the space of G7.1 at all.
+  "Exactly as published" means the endpoint's OWN fields, not its
+  ordinal: these two cells are built by G7.5's endpoint rule and do not
+  pass through the space of G7.1 at all.
 - `r == P - 1` and `P >= 2`: the instant is `latest`, exactly, by the
-  same rule. No word.
-- otherwise: one word `w`, and
+  same rule.
+- `r == k_j` for some interior rung: the instant is `Lo[j]`, the rung's
+  own published ordinal.
+- otherwise: `r` lies strictly between two pinned ranks `a < r < b`. Let
+  `Lo_a` and `Lo_b` be their pinned ordinals. The rank takes one word
+  `w` and
 
   ```
-  N_r = r * 2**64 + w
-  D   = P * 2**64
-  find j with PCT[j] * D <= 100 * N_r < PCT[j+1] * D
-  A   = 100 * N_r - PCT[j] * D
-  B   = (PCT[j+1] - PCT[j]) * D
-  ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B
+  ordinal = Lo_a + (w * (Lo_b - Lo_a + 1)) // 2**64,  capped at Lo_b
   ```
+
+  and the ordinals drawn for the ranks strictly between `a` and `b` are
+  SORTED among themselves before they are written back, so `O` is still
+  ascending. The draw is in the ordinal space of G7.1 — whole days for a
+  column of dates, of months, of quarters and for one whose every moment
+  stands at midnight; seconds otherwise.
+
+**Every rank between the ends spends exactly one word, a pinned rank
+included: a pinned rank draws its word and discards it.** The word
+stream is shared across columns, so a column of dates must consume what
+it always consumed — `P - 2` content words — or every column generated
+after it moves. This is what keeps a table's other columns byte-identical
+when only its dates change.
+
+WHY THE STRATIFIED PLACEMENT WAS WITHDRAWN. Each rank used to be its own
+stratum, interpolated inside the band from `r / P` to `(r + 1) / P`, so
+each day received almost exactly its expected count — a below-Poisson
+spread, where a real table's per-day counts vary at least Poisson.
+Measured over 54 runs of uniform, seasonal and admissions-style columns,
+date-only and at midnight, at 400, 1,500 and 3,000 rows: the twin's
+per-day count variance was **0.057 to 0.514 of the real column's**, and
+it got worse as the column grew, because stratifying ever more finely is
+ever further from sampling. The same floor also put **every one of the
+nine interior rungs below its published value in all 54 runs** — one day
+early on a 400-row admissions column, so a rung published as a Monday was
+written as a Sunday. After this rule: every rung exact in 54 of 54, and
+the ratio 0.52 to 1.41.
+
+WHAT IT DOES NOT CARRY, and G12.4's window is drawn to match. A gap is
+filled EVENLY, so structure the description does not publish does not
+come back: the weekday composition, the time of day, days the real
+column heaps values on, and a column whose values sit on a few scheduled
+dates. On a seasonal or admissions-style column at 3,000 rows that
+structure is most of the day-to-day variance and the ratio stays near
+0.55. Each would need a fact no datetime block carries — a weekday
+census, a time-of-day ladder, a value-count map over days — and each of
+those publishes counts over small groups, so what may be published waits
+on the stage that sets the disclosure floor. The twin's report says so
+in its own enumerated sentence rather than printing "inside the range"
+alone.
 
   The floor division is the stated rounding direction: **toward the
   earlier instant**, always, including for ordinals before the epoch
@@ -7255,16 +7302,27 @@ above its high end excludes the very statistic it was drawn for.
 Let `P = n_present - n_unparsed` be the number of twin cells that read
 back as a date, and `Ladder_d` the published `date_percentiles` read in
 the ordinal space of G7.1 by the same whole-number interpolation G7.3
-builds cells with. Rank `k` of G7.3 draws its share inside
-`[k / P, (k + 1) / P)` and no word can take it outside that band, and
-ranks `0` and `P - 1` are pinned to the published `earliest` and
-`latest`, which the profile contract's D11 also makes the ladder's own
-two ends. So for the twin's own ordinals `O`, sorted:
+builds cells with. Since landing 2b.6 rank `k` of G7.3 is NOT its own
+stratum: the published tail pins the two ends and the rank each of the
+nine interior rungs is selected from, each to its published value, and
+every other rank is drawn inside the gap between the two pinned ranks
+either side of it. Writing `P[k]` and `Q[k]` for the pinned values below
+and above rank `k`, the twin's own ordinals `O`, sorted, obey
 
 ```
-O[0] == earliest,   O[P-1] == latest,   and for every rank between them
-Ladder_d(k / P) - u   <=   O[k]   <=   Ladder_d((k + 1) / P)
+O[0] == earliest,   O[P-1] == latest,   O[k_j] == Ladder_d rung j,
+and for every other rank:   P[k] - u   <=   O[k]   <=   Q[k]
 ```
+
+**A pinned rank's window is a POINT.** Each of the nine interior rungs
+is held to the value the description publishes rather than to a band
+around its slice, which is what makes the rung check of this section
+strictly stronger than the one it replaces: under the stratified
+placement every interior rung landed BELOW its published value in all 54
+runs it was measured over, because the interpolation floors, and the
+band was wide enough to admit that. The two ENDS carry no allowance on
+either side, because G7.5 writes them from the endpoint's own fields
+rather than from an ordinal, so writing them loses nothing.
 
 where `u` is what reading a written cell back can lose: one unit for
 the downward rounding of the whole-number interpolation itself, plus
@@ -7317,15 +7375,22 @@ n_distinct(twin)   <=   min(n_present, W * (M * S + B) + n_unparsed)
 ```
 
 (`S` counting the pooled marks and `B` were added at landing 2b.3.)
-**On a column G7.5 moves onto a midnight**, some ranks leave their
-windows: at most `n_at_midnight` moved onto a midnight, at most one
-pinned at each of the nine interior rungs, and at most one brought back
-to each pin. Every other rank keeps its window, widened by one step of
-the precision for a rank moved off a midnight it was not owed, so the
-lower end is `F` over those widened windows less `n_at_midnight + 18`,
-and never less than `F` over the windows that give every pinned rank
-its own value and every other rank the span between the pinned values
-either side (landing 2b.3).
+
+**The midnight correction to the lower end is WITHDRAWN** (landing
+2b.6). A column G7.5 moves onto a midnight used to need one, because a
+window of G12.4 was then the rank's own `1 / P` stratum and the move
+could carry a rank straight out of it — a CET column of 2,000 values at
+midnight over sixty days, faithfully written, held 61 different values
+against a lower end of 981 — so `F` was taken over windows widened by a
+precision step, reduced by `n_at_midnight + 18`, and floored at a second
+set of windows computed from the pinned values. G12.4's window IS the
+span between the pinned values now, and the move keeps every rank inside
+exactly that span: it clamps each rank between the pinned ranks either
+side of it, takes its nearest midnight inside those same bounds, and
+steps an unchosen rank one precision unit only where that too stays
+inside them. So no rank leaves its window, all three corrections compute
+a weaker form of the same `F`, and stating them twice could only let the
+two drift apart. `F` is the one walk, for every column.
 
 Folding can only put two of those spellings onto one — `T` and `t`
 fold together — so both ends bound `n_distinct_folded` as well. The
@@ -7859,6 +7924,30 @@ three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
 and five for the marks and notations of a negative those three left
 unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
 2b.5).
+**Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
+mutant, which is recorded here rather than left to be noticed.** Part 2
+rewrote the placement rule of G7.3 — the nine interior rungs pinned to
+their published values, every other rank drawn inside its own gap — so
+the interior cells of every date case in all three committed files
+moved, and `date_only`'s mutant was retargeted from the floor rounding
+of the withdrawn interpolation to the placement rule itself. **The
+mutant of `midnight_days` could not be kept.** It withdrew P4-D39's
+day-unit rule by counting a column wholly at midnight in seconds, and
+its interior ranks still land part-way through a day under it —
+measured, rank 3 moves from day 19846 to that day plus 25,374 seconds —
+but the CELLS no longer move, because counting in seconds also turns the
+midnight snap of landing 2b.3 on, and that snap pulls every rank back to
+the nearest midnight INSIDE ITS OWN GAP. With the rungs pinned and every
+draw confined to a gap, the snap reproduces the day-unit rule exactly,
+so withdrawing either rule alone leaves the same twin. A mutant whose
+branch has become redundant cannot move a byte, and dressing it up as
+one would be the "guard that passes" this section exists to refuse. So
+`midnight_days` now holds up the placement rule, which is load-bearing
+for it, and **the day-unit rule of P4-D39 no longer has a frozen mutant
+of its own** — a gap in this section's own terms, named as one, and the
+rule stays pinned by the round trips of
+`tests/test_stage2_timestamp_spellings.py`.
+
 **Landing 2b.6 added NO case, and that is recorded here rather than
 left to be noticed.** The reversal of owner decision 5 changed the
 writing rule of G7.5 for every member, and the case that pins it

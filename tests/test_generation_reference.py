@@ -1103,6 +1103,37 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
+def _stratified_ranks(rungs, parsed, words):
+    """G7.3's WITHDRAWN placement: one cell per rank in its own stratum.
+
+    THE RULE LANDING 2b.6 REPLACED, restored here so the case that pins
+    the date form still fails when the placement rule is withdrawn. The
+    two ends are pinned and no interior rung is: each interior rank is
+    interpolated inside the band from `k / P` to `(k + 1) / P`, which is
+    what gave every day almost exactly its expected count and put every
+    published rung a day or more early.
+
+    It spends one word per interior rank, exactly as the real rule does,
+    so the mutant differs from it in WHERE the ranks land and in nothing
+    else -- not in how many words the column draws, which would move
+    every column generated after it and make the case fail for a second
+    reason.
+    """
+    ordinals = []
+    for rank in range(parsed):
+        if rank == 0:
+            ordinals.append(rungs[0])
+        elif rank == parsed - 1 and parsed >= 2:
+            ordinals.append(rungs[len(gen.PCT) - 1])
+        else:
+            ordinals.append(
+                gen.interpolated_ordinal(
+                    rank * gen.TWO64 + next(words), parsed * gen.TWO64, rungs
+                )
+            )
+    return ordinals
+
+
 _precision_form = gen.precision_form
 
 
@@ -1176,11 +1207,6 @@ def _through_the_ordinal_space(
         mark,
         **written,
     )
-
-
-def _seconds_even_at_midnight(column):
-    """P4-D39's day-unit rule withdrawn: every column counted in its resolution."""
-    return column["resolution"]
 
 
 def _marks_from_the_first_rank(column, parsed):
@@ -1614,11 +1640,13 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(
-        branch="G7.3's floor rounding, which rounds toward the EARLIER "
-        "instant always; the mutant rounds toward the later one, and ten "
-        "interior ranks move",
-        attribute="interpolated_ordinal",
-        replacement=_toward_the_later_instant,
+        branch="G7.3's placement as landing 2b.6 rewrites it: the nine "
+        "interior rungs pinned to their PUBLISHED values and every other "
+        "rank drawn inside the gap between the pinned ranks either side "
+        "of it; the mutant restores the withdrawn stratified placement, "
+        "and the interior ranks move",
+        attribute="spread_ordinals",
+        replacement=_stratified_ranks,
         outcome=CHANGES_THE_CELLS,
     ),
     "free_text_joint": Mutant(
@@ -1732,12 +1760,30 @@ CASE_MUTANTS = {
         replacement=_spaces_before_flips,
         outcome=CHANGES_THE_CELLS,
     ),
+    # RETARGETED AT LANDING 2b.6 PART 2, and the reason is a coverage
+    # loss named rather than hidden. This case used to withdraw P4-D39's
+    # day-unit rule by counting a column wholly at midnight in seconds,
+    # and its interior ranks then landed part-way through a day. They
+    # still do -- measured: rank 3 moves from day 19846 to 19846 days
+    # plus 25,374 seconds -- but the CELLS no longer move, because
+    # counting in seconds also turns `snaps_to_midnight` on, and landing
+    # 2b.3's snap pulls every rank back to the nearest midnight INSIDE
+    # ITS OWN GAP. Since G7.3 now pins the rungs and confines each draw
+    # to a gap, the snap reproduces the day-unit rule exactly, so
+    # withdrawing either rule alone leaves the same twin. A mutant whose
+    # branch is genuinely redundant cannot move a byte, and pretending
+    # otherwise would be the "guard that passes" this file exists to
+    # refuse. So this case now holds up the PLACEMENT rule, which is
+    # load-bearing for it, and the day-unit rule's own frozen mutant is
+    # recorded as withdrawn in G14.3.
     "midnight_days": Mutant(
-        branch="P4-D39's day-unit rule, which counts a column whose every "
-        "moment stands at midnight in whole days; the mutant counts it in "
-        "seconds, and the interior ranks land part-way through a day",
-        attribute="ordinal_space",
-        replacement=_seconds_even_at_midnight,
+        branch="G7.3's placement as landing 2b.6 rewrites it, on a column "
+        "counted in whole days: the nine interior rungs pinned to their "
+        "PUBLISHED values and every other rank drawn inside the gap "
+        "between the pinned ranks either side of it; the mutant restores "
+        "the withdrawn stratified placement and the interior days move",
+        attribute="spread_ordinals",
+        replacement=_stratified_ranks,
         outcome=CHANGES_THE_CELLS,
     ),
     "mixed_marks": Mutant(
