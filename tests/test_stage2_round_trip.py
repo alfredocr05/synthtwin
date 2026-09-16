@@ -521,6 +521,54 @@ def test_a_column_of_dates_that_collapses_to_two_days_is_named(
         assert "n_distinct_folded" in report
 
 
+def test_a_sparse_signed_column_meets_every_published_rung(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Landing 2b.2's carried seed-19 rung, closed and pinned here.
+
+    Landing 2b.2 reported one seed of this shape still missing
+    `ladder.p95` and carried it as the percentile-rung defect; the two
+    landings after it repeated the sentence without measuring it again,
+    the last of them recording that it could not find the shape.
+
+    MEASURED AGAINST THE COMMIT THE CARRY ITSELF NAMES. At 53bb012 this
+    column's twin exits 3 reading `ladder.p95 [numeric.percentiles]:
+    MISSED`, on seed 19 alone of the six seeds the carry was taken
+    over; on this tree all six exit 0. So the carry is closed rather
+    than waiting on stage 3's tail shape, and this is what keeps it
+    closed.
+
+    IT ASSERTS IT IS THE SHAPE THE RUNG TURNS ON BEFORE IT ASSERTS THE
+    ANSWER. A column of plain whole numbers passes this test with the
+    defect still in place, so the fixture is held to the mixture that
+    reproduced it: 900 cells, every one carrying a sign, about half
+    written as whole numbers and half at two decimal places.
+    """
+    draw = _numbers(19)
+    cells: "list[str]" = []
+    for _step in range(900):
+        if draw.random() < 0.5:
+            cells += [f"{round(draw.gauss(0, 300)):+d}"]
+        else:
+            cells += [f"{round(draw.gauss(0, 300), 2):+.2f}"]
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "rungs", cells, (), True, seed="19", header="change"
+    )
+    # The shape the rung turns on, asserted first.
+    assert first["n_present"] == 900, first["n_present"]
+    styles = first["numeric_styles"]
+    assert styles["leading_plus"] > 200, styles
+    assert styles["decimal"] > 200, styles
+    assert first["percentiles"]["p95"] is not None
+    # ...and then the answer.
+    assert "numeric.percentiles" not in _only_the_marks_missed(
+        tmp_path / "rungs"
+    )
+    assert twin_exit == 0
+    assert real_exit == 0
+    assert second["percentiles"]["p95"] is not None
+
+
 def test_no_stage_2_test_throws_away_what_the_command_returned() -> None:
     """`cli.main()` RETURNS its exit code, and a call that drops it tests nothing.
 
