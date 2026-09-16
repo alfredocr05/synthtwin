@@ -692,9 +692,10 @@ _NOT_CHECKABLE_STYLE_CEILING = (
 # columns where it settles nothing it is a LISTING and never a silence:
 # a fact that is neither checked nor listed is a fact the report lost.
 _NOT_CHECKABLE_NO_WIDE_RUNS = (
-    "the description says this column wrote no run of figures past what "
-    "a double keeps every figure of, so there is no such cell for this "
-    "ceiling to govern"
+    "the description says this column wrote fewer runs of figures past "
+    "what a double keeps every figure of than the smallest group size "
+    "it was described at, so this ceiling has no published cell to "
+    "govern"
 )
 _NOT_CHECKABLE_WIDE_RUNS_RESPELLED = (
     "the description says this column's runs of figures past what a "
@@ -10984,24 +10985,43 @@ def _wide_cells_respelled(cells: "list[str]") -> int:
     NUMBER the cell read back as, so nothing the file spells decides
     anything here.
 
-    Counted over the `plain` form alone, which is the form the ceiling
-    beside it is filed on: a padded or plus-signed wide run wears a
-    spelling its own census answers for, and counting it here as well
-    would report one fault twice.
+    COUNTED OVER THE SAME CELLS THE WORD IS PUBLISHED ABOUT, and the
+    repair pass of landing 2b.13 (plan P4-D91) is what made that true.
+    This side read the trimmed, minus-first cell while the producer read
+    the RAW one, so the two disagreed about the accounting bracket, the
+    minus sign of the character tables and a leading space: the producer
+    left such a cell out of its word and this counted it, and ONE of
+    them in eight hundred made a REAL table fail its own description at
+    exit 3 -- the false accusation plan P4-D66.2 exists to end. The two
+    now ask the same question of the same text: the two point-free
+    forms, `plain` and `leading_plus`, and the cell's figures with its
+    thousands marks taken out, which is what `number_core` takes out
+    before the form is decided over there.
+
+    `leading_zero` is left out on both sides, and for a reason that
+    holds: a padded cell's figures are not its value's figures by
+    construction, so the question cannot be asked of it without first
+    deciding which zeros are the pad -- which is the width census's job.
+
+    THE MARKS ARE TAKEN OUT HERE, NOT BORROWED (V1.4), exactly as the
+    minus notation above is: a column of 800 grouped wide runs, every
+    one respelled, published `none` and was counted by nothing before
+    this read them.
     """
     odd = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body:
             continue
-        if parsing.numeric_style(body) != parsing.STYLE_PLAIN:
+        style = parsing.numeric_style(body)
+        if style != parsing.STYLE_PLAIN and style != parsing.STYLE_LEADING_PLUS:
             continue
         if parsing.classify_number(body) != parsing.NUMBER:
             continue
         value = parsing.parse_number(body)
         if value is None:
             continue
-        signed = _written_with_a_leading_minus(body)
+        signed = _without_group_marks(_written_with_a_leading_minus(body))
         if not _wears_a_whole_number_text(signed, value):
             continue
         digits = signed
@@ -11372,6 +11392,28 @@ def _written_with_a_leading_minus(body: str) -> str:
             if character == ".":
                 return "-" + body[: len(body) - 1]
     return body
+
+
+def _without_group_marks(body: str) -> str:
+    """A cell's text with every mark between its thousands taken out.
+
+    WRITTEN HERE, NOT BORROWED (V1.4), for the reason
+    `_written_with_a_leading_minus` above is, and it is the same KIND of
+    rule: a spelling this method's own generator may write, normalised
+    to the bare figures before the cell is compared with the text its
+    value writes. `12,345,678,901,234,567` and `12 345 678 901 234 567`
+    both become `12345678901234567`.
+
+    ADDED BY THE REPAIR PASS OF LANDING 2b.13 (plan P4-D91), where a
+    column of 800 grouped wide runs -- every one of them respelled into
+    the value-preserving neighbour a double cannot tell apart --
+    published `none` and was counted by nothing.
+    """
+    core = ""
+    for character in body:
+        if character not in parsing.GROUP_MARKS:
+            core = core + character
+    return core
 
 
 def _written_with_a_leading_zero(body: str) -> str:

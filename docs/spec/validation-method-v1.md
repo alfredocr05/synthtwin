@@ -1440,14 +1440,18 @@ way, and the plan amendment states each as a lowering:
 states its own published word empties** (2026-09-16, landing 2b.13;
 the plan's decision P4-D90 is the ruling and this follows it).
 `styles.canonical.wide` asks whether every point-free cell past 2**53 is
-the figures its own value writes — the question `styles.spelled` cannot
+the figures its own value writes — asked of the cell's CORE and of the
+two point-free forms, `plain` and `leading_plus`, so that the checker's
+class and the producer's are one class (plan P4-D91) — the question `styles.spelled` cannot
 ask, because past that bound more than one run of figures reads back as
 one double and admitting them all is what P4-D66.2 decided. The column
 publishes `wide_runs`, and the subcheck is EXECUTABLE on `"canonical"`
 alone:
 
-- on `"none"` the description says the column wrote no such cell, so
-  there is no cell for the ceiling to govern;
+- on `"none"` the description says fewer such cells than the smallest
+  group size were written, so there is no published cell for the ceiling
+  to govern — the floor is WR1's, and it is there because the word names
+  the FORM of the cells it is about (plan P4-D91);
 - on `"respelled"` the description says its own writer does not write
   them all canonically, so a file writing one another way writes what
   the description licenses — and holding it to a ceiling of nought is

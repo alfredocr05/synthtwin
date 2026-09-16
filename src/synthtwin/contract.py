@@ -1161,9 +1161,10 @@ INVARIANTS = {
     ),
     "WR1": (
         "a column says something about its wide runs of figures only "
-        "where the forms map leaves room for a cell written plain to be "
-        "one, and says one of the three words this format fixes and "
-        "nothing else"
+        "where the forms map leaves room for at least the smallest "
+        "group size of them -- the cells written plain or with a "
+        "leading plus, and the remainder it withheld -- and says one of "
+        "the three words this format fixes and nothing else"
     ),
     "DP1": (
         "the count of numbers written with a point and a plus names at "
@@ -6799,23 +6800,32 @@ def _numeric_facts(
     mark = _group_separator(mapping, where)
     negative = _negative_form(mapping, where)
     wide = _wide_runs(mapping, where)
-    # INVARIANT WR1 (landing 2b.13, plan P4-D90), the room the forms map
-    # leaves. A wide run is a cell written `plain`, so a column saying
-    # anything but `none` about its wide runs claims at least one such
-    # cell -- and where that form was pooled, the pool is where it would
-    # be. Read the same way DP1 reads the room for a signed decimal.
+    # INVARIANT WR1 (landing 2b.13, plan P4-D90; the floor and the
+    # second form added by its repair pass, plan P4-D91), the room the
+    # forms map leaves. A wide run is a cell written point-free -- plain
+    # or with a leading plus -- so a column saying anything but `none`
+    # about its wide runs claims at least the smallest group size of
+    # them, and where such a form was pooled the pool is where they
+    # would be. Read the same way DP1 reads the room for a signed
+    # decimal, and floored the way NS1 floors the notation beside it:
+    # the word names the FORM of the cells it is about, so a description
+    # naming it for fewer cells than the floor would say what the forms
+    # map pooled them to avoid saying.
     if wide != parsing.WIDE_NONE:
         plain_room = 0
         if parsing.STYLE_PLAIN in styles:
             plain_room = plain_room + styles[parsing.STYLE_PLAIN]
+        if parsing.STYLE_LEADING_PLUS in styles:
+            plain_room = plain_room + styles[parsing.STYLE_LEADING_PLUS]
         if WITHHELD in styles:
             plain_room = plain_room + styles[WITHHELD]
-        if plain_room < 1:
+        if plain_room < 1 or plain_room < frame.floor:
             raise _broken(
                 "WR1",
                 where,
                 f"the wide runs of figures are said to be '{wide}'",
-                "the forms map leaves room for no cell written plain",
+                f"the forms map leaves room for {plain_room} point-free "
+                f"cell(s) and the smallest group size is {frame.floor}",
             )
     # INVARIANT NS1 (landing 2b.2). A notation is a majority of the
     # negative cells that reached the floor, so a column naming one holds
@@ -7229,8 +7239,12 @@ def _wide_runs(mapping: "dict[str, object]", where: str) -> str:
 
     A WORD, like the notation and the mark beside it (landing 2b.13):
     `none`, `canonical` or `respelled`, and nothing else. It carries no
-    count, so there is no floor to hold it to and no pool to refuse --
-    which is the whole reason the fact was published as a word.
+    count and never pools, which is the whole reason the fact was
+    published as a word -- but a floor DOES hold it, as one holds the
+    notation beside it (NS1). The word names the form of the cells it is
+    about, and below the floor the forms map has pooled that form away
+    on purpose; WR1 above reads the room and the floor together (the
+    repair pass of landing 2b.13, plan P4-D91).
 
     Guarantees: accepts the numeric mapping and where it sits; returns
     one word of `parsing.WIDE_RUNS`. Determinism: a fixed function of

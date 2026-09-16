@@ -790,11 +790,36 @@ def is_a_wide_run(text: str, value: float) -> bool:
     base-ten figures, with or without a leading sign, whose value is at
     or past `WIDE_RUN_FLOOR` in either direction.
 
+    ASKED OF THE CORE, for the reason `fraction_width` and `pad_width`
+    are (landing 2b.13's repair pass, plan P4-D91). This rule read the
+    RAW text when it arrived, while the form it is filed beside came off
+    `number_core` and the checker's own class test came off the trimmed,
+    minus-first cell -- so a cell wearing accounting brackets, the minus
+    sign of the character tables, a surrounding space or a thousands
+    mark was one class to the producer and another to the checker. Two
+    defects came out of that one split, both measured through the real
+    command line at 800 rows and floor eleven, on two seeds each:
+
+    * ONE cell of eight hundred given a leading space and respelled made
+      a REAL table fail its own description at exit 3 on
+      `styles.canonical.wide`, while its twin passed -- the very false
+      accusation plan P4-D66.2 exists to end. A column of bracketed
+      negatives respelled on the bracketed half did the same, 388 and
+      392 cells moved;
+    * a column of 800 wide runs written with thousands marks, or with a
+      leading space on every cell, published `none` -- a false statement
+      about the file -- and the respelling this fact exists to catch
+      went unseen on all 800.
+
+    One core for every reader of a cell's form is the rule those two
+    broke, and it is the rule `number_core`'s own docstring states.
+
     Guarantees: accepts a written cell and the value it read back as;
     returns whether it is one of that class. Determinism: a fixed
-    function of the two. Raises nothing. No I/O of any kind.
+    function of the two. Raises TypeError if handed anything that is not
+    a string instance, through `number_core`. No I/O of any kind.
     """
-    digits = text
+    digits = number_core(text)
     if digits[:1] == "-" or digits[:1] == "+":
         digits = digits[1:]
     if not digits:

@@ -373,6 +373,108 @@ def test_the_wide_run_rule_answers_only_where_binary64_loses_a_figure() -> None:
     assert validation._cells_outside_the_styles([f"-{wide}"], True, ()) == 0
 
 
+def test_the_wide_run_class_is_one_class_on_both_sides() -> None:
+    """The producer and the checker admit the SAME cells (plan P4-D91).
+
+    Landing 2b.13 published `wide_runs` from the RAW cell text while the
+    ceiling recounted the NORMALISED text, and the two disagreed about
+    every spelling `number_core` takes off. Two defects came out of that
+    one split, both measured through the real command line at 800 rows:
+    a REAL table wearing an accounting bracket, the minus sign of the
+    character tables or ONE leading space was accused at exit 3 on
+    `styles.canonical.wide` while its twin passed -- the false
+    accusation plan P4-D66.2 exists to end -- and a column of 800
+    grouped or space-padded wide runs published `none`, a false
+    statement about its own file, with the respelling this fact exists
+    to catch going unseen on all 800 of them.
+
+    THE ROUND TRIPS BESIDE THIS ONE CANNOT SEE HALF OF IT, which is why
+    this is written at the unit. The producer normalises before it asks,
+    so a cell of either class reaches the same answer through the
+    pipeline; what this pins is that the shared class test ITSELF reads
+    the cell as the file spells it, so the next caller cannot reopen the
+    split by handing it raw text.
+    """
+    from synthtwin import parsing, validation
+
+    # The fixture first: a run of figures that is NOT its own value's
+    # canonical text, and the canonical run beside it. A cell that
+    # happened to be canonical would pin nothing below.
+    odd = "88618223144562695"
+    canonical = f"{int(float(odd))}"
+    assert canonical != odd
+    assert float(canonical) == float(odd)
+
+    def bare(text: str) -> str:
+        return text
+
+    def bracketed(text: str) -> str:
+        return f"({text})"
+
+    def minus_signed(text: str) -> str:
+        return "\u2212" + text
+
+    def space_before(text: str) -> str:
+        return " " + text
+
+    def space_after(text: str) -> str:
+        return text + " "
+
+    def comma_grouped(text: str) -> str:
+        out = ""
+        place = 0
+        for character in reversed(text):
+            if place > 0 and place % 3 == 0:
+                out = "," + out
+            out = character + out
+            place += 1
+        return out
+
+    def plus_signed(text: str) -> str:
+        return "+" + text
+
+    dresses = (
+        bare, bracketed, minus_signed, space_before, space_after,
+        comma_grouped, plus_signed,
+    )
+    for dress in dresses:
+        spelled = dress(odd)
+        value = parsing.parse_number(spelled)
+        assert value is not None, spelled
+        # The producer's class test, asked of the cell AS THE FILE
+        # SPELLS IT...
+        assert parsing.is_a_wide_run(spelled, value) is True, spelled
+        # ...and the checker's own recount, which admits the cell and
+        # counts this one as respelled, because it is.
+        assert validation._wide_cells_respelled([spelled]) == 1, spelled
+        # ...while the canonical run in the same dress is counted by
+        # neither, so the ceiling does not accuse a file that wrote it.
+        tidy = dress(canonical)
+        assert validation._wide_cells_respelled([tidy]) == 0, tidy
+
+    # AND THE BOUNDS, which is what keeps the class from being every
+    # cell in every file.
+    #
+    # A PADDED CELL IS EXCLUDED BY THE FORM, NOT BY THE CLASS, and the
+    # two are different questions: `0088...` IS a run of figures past
+    # the bound, so the class test admits it, and both callers then
+    # decline it because its form is `leading_zero` -- its figures are
+    # not its value's figures by construction and which of them are the
+    # pad is the width census's question (plan P4-D91). Asserted this
+    # way round so that the bound is pinned where it actually lives.
+    padded = "0" + odd
+    assert parsing.numeric_style(padded) == parsing.STYLE_LEADING_ZERO
+    assert validation._wide_cells_respelled([padded]) == 0, padded
+    # A trailing minus with no point is text this reader refuses, and a
+    # narrow run is held exactly, so its own figures are the only run
+    # there is: neither is of the class at all.
+    for text in (odd + "-", "12345"):
+        value = parsing.parse_number(text)
+        if value is not None:
+            assert parsing.is_a_wide_run(text, value) is False, text
+        assert validation._wide_cells_respelled([text]) == 0, text
+
+
 def test_a_spelling_of_no_permitted_form_is_still_missed(
     tmp_path: pathlib.Path,
 ) -> None:

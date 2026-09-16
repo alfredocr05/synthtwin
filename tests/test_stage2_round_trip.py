@@ -709,6 +709,252 @@ def test_a_real_export_that_respells_its_wide_keys_is_not_accused(
     assert second["wide_runs"] == "canonical", second["wide_runs"]
 
 
+def _wide_lines_of_the_real_report(folder: pathlib.Path) -> "list[str]":
+    """Every line of the REAL table's quality report naming the wide ceiling.
+
+    `_only_the_marks_missed` above reads the TWIN's report. These tests
+    need the other one: the repair pass of landing 2b.13 (plan P4-D91)
+    is about a REAL table being accused, and an exit code alone would
+    not say which obligation accused it.
+    """
+    lines: "list[str]" = []
+    for report in sorted((folder / "check-real").glob("*.txt")):
+        for line in report.read_text(encoding="utf-8").splitlines():
+            if "styles.canonical.wide" in line:
+                lines += [line.strip()]
+    return lines
+
+
+def _grouped_figures(text: str) -> str:
+    """A run of figures with a comma between its thousands."""
+    out = ""
+    place = 0
+    for character in reversed(text):
+        if place > 0 and place % 3 == 0:
+            out = "," + out
+        out = character + out
+        place += 1
+    return out
+
+
+WIDE_DRESSES = (
+    ("grouped", _grouped_figures, "plain"),
+    ("space_padded", lambda text: " " + text, "plain"),
+    ("leading_plus", lambda text: "+" + text, "leading_plus"),
+)
+
+
+@pytest.mark.parametrize("notation", ["brackets", "minus_sign", "one_space"])
+def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
+    notation: str, tmp_path: pathlib.Path
+) -> None:
+    """The false accusation P4-D66.2 ended, restored and ended again (P4-D91).
+
+    Landing 2b.13 published `wide_runs` from the RAW cell text while the
+    ceiling recounted the NORMALISED text, so the two disagreed about
+    every spelling `number_core` takes off. A cell the producer left out
+    of its word was a cell the checker counted, and the file was held to
+    a ceiling of nought its own description never claimed.
+
+    MEASURED ON THAT TREE, through the real command line at 800 rows:
+    ONE cell of eight hundred given a leading space and respelled made
+    the REAL table exit 3 on `styles.canonical.wide` while its twin
+    exited 0; the bracketed and minus-signed columns below did the same
+    with 388 and 392 cells moved. Each is a perfectly good export.
+    """
+    draw = _numbers(311)
+    cells: "list[str]" = []
+    moved = 0
+    for step in range(800):
+        figures = f"{int(float(draw.randrange(10 ** 16, 10 ** 17)))}"
+        if notation == "one_space":
+            cells += [figures]
+            continue
+        if step % 2 == 0:
+            cells += [figures]
+            continue
+        neighbour = _a_value_preserving_neighbour(figures)
+        if neighbour != figures:
+            moved += 1
+        cells += [f"({neighbour})" if notation == "brackets" else "\u2212" + neighbour]
+    if notation == "one_space":
+        # The minimal case: ONE sloppy cell in eight hundred.
+        neighbour = _a_value_preserving_neighbour(cells[417])
+        assert neighbour != cells[417]
+        cells[417] = " " + neighbour
+        moved = 1
+    # The shape, asserted before the answer: these really are wide runs
+    # written in a notation the raw-text test refused.
+    assert moved > 0, moved
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "worn", cells, (), True, seed="1", header="ledger_key"
+    )
+    assert first["n_present"] == 800, first["n_present"]
+    assert first["numeric_styles"] == {"plain": 800}, first["numeric_styles"]
+    if notation != "one_space":
+        assert first["negative_form"] == notation, first["negative_form"]
+    # ...and the answer: the column says what it is, and NEITHER file is
+    # accused. The word is `respelled` because these cells are, which is
+    # the true statement about this export.
+    assert first["wide_runs"] == "respelled", first["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    held = [line for line in _wide_lines_of_the_real_report(tmp_path / "worn")
+            if line.endswith(": MISSED")]
+    assert held == [], held
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+
+
+@pytest.mark.parametrize("dress", WIDE_DRESSES, ids=[d[0] for d in WIDE_DRESSES])
+def test_a_wide_column_that_groups_or_pads_its_keys_still_says_so(
+    dress: "tuple[str, object, str]", tmp_path: pathlib.Path
+) -> None:
+    """A word that was false about its own file, and a check that slept (P4-D91).
+
+    Where the raw-text class test refused a spelling, the column
+    published `none` -- "fewer such cells than the floor" -- while
+    holding eight hundred of them, and the ceiling was listed as having
+    nothing to govern. MEASURED on that tree: 800 grouped wide keys with
+    every one respelled (780 cells moved) published `none` and nothing
+    saw it; 800 space-padded keys published `none` while the TWIN of the
+    same column published `canonical`; 800 plus-signed keys, every one
+    respelled, published `none`.
+
+    So this asserts the word, and then asserts the ceiling CAN STILL
+    FAIL on the same shape -- a word that is merely truthful would be
+    worth nothing if the check beside it never fired.
+    """
+    _name, wear, form = dress
+    figures = _wide_keys(313)
+    cells = [wear(figure) for figure in figures]
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "dressed", cells, (), True, seed="1", header="record_id"
+    )
+    # The shape: the cells wear the spelling, and the form is the one
+    # the class admits.
+    assert first["n_present"] == 800, first["n_present"]
+    assert first["numeric_styles"] == {form: 800}, first["numeric_styles"]
+    # ...and the answer.
+    assert first["wide_runs"] == "canonical", first["wide_runs"]
+    assert second["wide_runs"] == "canonical", second["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    for cell in written:
+        if not cell:
+            continue
+        # The figures this twin cell carries, with the dress taken off:
+        # the marks, the surrounding space and the sign, which is what
+        # `number_core` takes off before the form is read.
+        bare = cell.strip()
+        for mark in (",", " ", "+"):
+            bare = bare.replace(mark, "")
+        assert bare == f"{int(float(bare))}", cell
+    # ...AND THE CHECK CAN FAIL. The same description, the same
+    # spelling, every run respelled into its value-preserving neighbour.
+    respelled = [wear(_a_value_preserving_neighbour(figure)) for figure in figures]
+    moved = 0
+    for before, after in zip(cells, respelled):
+        if before != after:
+            moved += 1
+    assert moved > 700, moved
+    folder = tmp_path / "dressed"
+    bad = folder / "respelled.csv"
+    bad.write_text(
+        fixtures.rows_to_csv(["record_id"], [[cell] for cell in respelled]),
+        encoding="utf-8",
+        newline="",
+    )
+    checked = folder / "check-respelled"
+    checked.mkdir()
+    code = _exit_of(
+        [
+            "validate",
+            str(folder / "real-profile.json"),
+            "--twin",
+            str(bad),
+            "--out-dir",
+            str(checked),
+            "--replace",
+        ]
+    )
+    assert code == 3, code
+    missed: "list[str]" = []
+    for report in checked.glob("*.txt"):
+        for line in report.read_text(encoding="utf-8").splitlines():
+            if "MISSED" in line:
+                missed += [line.strip()]
+    assert any("styles.canonical.wide" in line for line in missed), missed
+
+
+@pytest.mark.parametrize("floor,word", [("11", "none"), ("1", "canonical")])
+def test_the_wide_run_word_is_held_to_the_smallest_group_size(
+    floor: str, word: str, tmp_path: pathlib.Path
+) -> None:
+    """The word names a FORM, so the floor holds it as NS1 holds its sibling.
+
+    Five wide keys among 795 narrow ones: the forms map leaves the whole
+    column as room, so nothing but the FLOOR can decide this, and the
+    same column answers differently at eleven and at one. Landing
+    2b.13's first version read no floor at all and published `canonical`
+    at both.
+    """
+    draw = _numbers(317)
+    cells: "list[str]" = []
+    for _step in range(795):
+        cells += [f"{draw.randrange(100, 9999)}"]
+    for _step in range(5):
+        cells += [f"{int(float(draw.randrange(10 ** 16, 10 ** 17)))}"]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "floored",
+        cells,
+        ("--smallest-group", floor),
+        True,
+        seed="1",
+        header="record_id",
+    )
+    # The shape: the room is the whole column, so only the floor can bite.
+    assert first["numeric_styles"] == {"plain": 800}, first["numeric_styles"]
+    assert first["wide_runs"] == word, first["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The word must not say what the forms map pooled to avoid saying (P4-D91).
+
+    One wide key beside 799 charge amounts at a floor of eleven: the
+    publication floor pools the lone `plain` cell into `(withheld)`
+    precisely so that no reader can tell what form it wore. Landing
+    2b.13's first version then published `wide_runs: canonical` beside
+    it and filed the ceiling as HELD, which tells the reader exactly
+    what the pool was hiding.
+    """
+    draw = _numbers(319)
+    cells: "list[str]" = []
+    for _step in range(799):
+        cells += [f"{draw.uniform(10, 9000):.2f}"]
+    cells += [f"{int(float(draw.randrange(10 ** 16, 10 ** 17)))}"]
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "pooled",
+        cells,
+        ("--smallest-group", "11"),
+        True,
+        seed="1",
+        header="amount",
+    )
+    # The shape: the styles floor really did pool that one cell.
+    assert first["numeric_styles"]["(withheld)"] == 1, first["numeric_styles"]
+    # ...and the answer: the word says nothing about it, and the ceiling
+    # is listed rather than held.
+    assert first["wide_runs"] == "none", first["wide_runs"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    for line in _wide_lines_of_the_real_report(tmp_path / "pooled"):
+        assert not line.endswith(": HELD"), line
+
+
 def test_no_stage_2_test_throws_away_what_the_command_returned() -> None:
     """`cli.main()` RETURNS its exit code, and a call that drops it tests nothing.
 

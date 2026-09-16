@@ -1877,8 +1877,24 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # is unchanged at 416 and `spelling.decimal_plus` is still executable
 # on all four of the columns that carried it, which the red battery of
 # tests/test_p3v1f2_entry_table.py asserts independently.
+# RE-RECORDED at landing 2b.13's repair pass (2026-09-16, plan P4-D91),
+# and the whole of what moved is ONE SENTENCE, printed six times. The
+# wide-run word is now held to the smallest group size, as its sibling
+# `negative_form` is by NS1, so the listing beside `none` no longer says
+# "wrote no run of figures past what a double keeps" but "wrote fewer of
+# them than the smallest group size it was described at" -- which is
+# what the word now means and what the file it describes now is.
+#
+# MEASURED RATHER THAN ASSUMED, because "only a sentence moved" is the
+# claim this digest exists to stop anyone making loosely: the report was
+# rendered from this same fixture on the commit before the repair and on
+# the repaired tree, and the two files differ in exactly 12 lines -- the
+# six listings of that sentence, each one line out and one line in. No
+# verdict, no count, no obligation and no order moved, the census still
+# carries the same obligations, and `GOLDEN_TWIN_SHA256` and
+# `GOLDEN_DESCRIPTION_SHA256` below did not move at all.
 GOLDEN_QUALITY_SHA256 = (
-    "3aa30208ce6079bb85d8c014bb7cfa038ca0360a61ca74e0aea1b37778c8790b"
+    "da8748afbb18ffb2ef584592594b2ec08c2b05a607473b2b08e6f847e201946b"
 )
 
 

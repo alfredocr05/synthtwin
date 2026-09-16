@@ -6771,10 +6771,47 @@ def _wide_runs(cells: _Cells) -> str:
     needed the census floor and would have said how many; this says
     whether, which is all the ceiling has to read.
 
-    ASKED OF THE `plain` FORM ALONE, and the bound is deliberate. A
-    padded or plus-signed wide run wears a spelling whose own census
-    already answers for it, and asking this of those cells as well
-    would report one fault twice.
+    ASKED OF THE TWO POINT-FREE FORMS, and of the CORE of each cell
+    (landing 2b.13's repair pass, plan P4-D91). The first version asked
+    it of the `plain` form alone, and of the raw text, on the stated
+    ground that "a padded or plus-signed wide run wears a spelling whose
+    own census already answers for it". MEASURED, that ground was false
+    for one of the two and the raw text was wrong for both: a column of
+    800 plus-signed wide keys, every one respelled, published `none` and
+    was checked by nothing -- the styles map counts FORMS, and a
+    respelled neighbour wears the same form and the same width as the
+    run it replaced, so no census beside this one can see it. So
+    `leading_plus` is asked too.
+
+    `leading_zero` is NOT, and that bound has a reason this one can
+    keep: a padded cell's figures are not its value's figures BY
+    CONSTRUCTION -- `0090071992547409931` is the padding the width
+    census governs -- so the canonical question cannot be asked of it
+    without first deciding which zeros are the pad, which is that
+    census's job and not this word's. A padded column's wide runs are
+    therefore outside what this word answers for, and the limit is
+    named in plan P4-D91 rather than left to be found.
+
+    AND OF THE CORE, because the form beside it is read off the core:
+    brackets, the minus sign of the character tables, a surrounding
+    space and a thousands mark are all taken off by `number_core`
+    before a cell's form is decided, and this asked the raw text. A
+    single cell of eight hundred given a leading space and respelled
+    made a REAL table fail its own description at exit 3, while a
+    column of 800 grouped or space-padded wide runs published `none`
+    and hid the respelling of every one of them. `parsing.is_a_wide_run`
+    carries both measurements.
+
+    AND HELD TO THE SMALLEST GROUP SIZE, as its sibling `negative_form`
+    is by invariant NS1. A word that carries no count still names the
+    FORM of the cells it is about, and where fewer cells than the floor
+    are such runs the styles map has pooled that form into `(withheld)`
+    precisely so that no reader can tell what form they wore: measured,
+    one wide key beside 799 charge amounts at a floor of eleven
+    published `numeric_styles {(withheld): 1, decimal: 799}` and
+    `wide_runs: canonical` beside it, which tells a reader exactly what
+    the pool was hiding. Below the floor the word is `none`, and the
+    contract sentence for `none` says so.
 
     Guarantees: accepts the column's tally; returns one word of
     `parsing.WIDE_RUNS`. Determinism: a fixed function of the tally.
@@ -6786,20 +6823,23 @@ def _wide_runs(cells: _Cells) -> str:
         if cell.kind != parsing.NUMBER:
             continue
         text = cell.numeric_text
-        if numeric_style(text) != parsing.STYLE_PLAIN:
+        style = numeric_style(text)
+        if style != parsing.STYLE_PLAIN and style != parsing.STYLE_LEADING_PLUS:
             continue
         value = parsing.parse_number(text)
         if value is None:
             continue
-        if not parsing.is_a_wide_run(text, value):
+        core = parsing.number_core(text)
+        if not parsing.is_a_wide_run(core, value):
             continue
         counted = counted + 1
-        digits = text
+        digits = core
         if digits[:1] == "-" or digits[:1] == "+":
             digits = digits[1:]
         if digits != parsing.wide_run_figures(value):
             odd = odd + 1
-    if counted < 1:
+    floor = cells.settings.small_cell_floor
+    if counted < 1 or counted < floor:
         return parsing.WIDE_NONE
     if odd > 0:
         return parsing.WIDE_RESPELLED

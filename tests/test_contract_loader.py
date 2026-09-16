@@ -193,6 +193,24 @@ def whole_dates_carrying_offsets(_column: str) -> Change:
     return change
 
 
+def wide_runs_on_a_pooled_form(_column: str) -> Change:
+    """Claim wide runs where the forms map pools a single point-free cell.
+
+    The column is written `decimal` on every cell, so one of them is
+    moved into the withheld remainder: the room for a point-free cell is
+    then exactly one, which passes WR1's room clause and is far below
+    the floor of eleven this base is written at (plan P4-D91).
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        styles = dict(block["numeric_styles"])
+        styles["decimal"] = int(styles["decimal"]) - 1
+        styles["(withheld)"] = 1
+        block["numeric_styles"] = styles
+        block["wide_runs"] = "canonical"
+    return change
+
+
 def counted_past_the_values(_column: str) -> Change:
     """Count more values at midnight than a column has (D15)."""
     def change(document: Document) -> None:
@@ -917,6 +935,18 @@ def battery() -> list[Mutation]:
         Mutation(
             "WR1", "wide runs claimed on a column with no cell written plain",
             edit("amount", wide_runs="canonical"),
+        ),
+        # ...AND AT THE FLOOR, so only the floor clause can refuse it,
+        # which is the shape DP1's second entry above has for the same
+        # reason (landing 2b.13's repair pass, plan P4-D91). The word
+        # names the FORM of the cells it is about, and a description
+        # naming it where the forms map pooled that form into a
+        # remainder of ONE says exactly what the pool was written to
+        # avoid saying. Room of one passes the clause above and is a
+        # tenth of the floor this base is written at.
+        Mutation(
+            "WR1", "wide runs claimed where one pooled cell is all the room there is",
+            wide_runs_on_a_pooled_form("amount"),
         ),
         # The two mixture censuses landing 2b.7 added beside them. Each
         # is refused by the clause the other cannot reach: the notations
