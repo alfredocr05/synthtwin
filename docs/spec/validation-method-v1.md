@@ -1421,6 +1421,19 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   `n_distinct_folded` and `n_distinct_by_occurrences` are REPORT-ONLY
   for that column, and nothing else is.
 
+  **`layout_forms` IS NOT LOWERED HERE, AND THE CHECK STANDS BEFORE
+  THE CORNER AS WELL AS INSIDE IT** (contract 7.12, landing 2b.18,
+  plan P4-D120). This corner is about DISTINCTNESS — a published
+  length range that cannot supply as many different values as the
+  column has rows — and it lowers exactly the three facts named above.
+  What a cell LOOKS like is untouched by it: a twin whose record
+  numbers repeat still writes every one of them to a published layout.
+  So the census is recounted on the measured file wherever the column
+  publishes one, on the same terms 7.9's form census is recounted —
+  each named layout numbering at least its published count and at most
+  that count plus the pooled remainder — and filing that check after
+  the corner's early return would have quietly excused it.
+
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells
   divide between the three alphabet bands by the column's own two

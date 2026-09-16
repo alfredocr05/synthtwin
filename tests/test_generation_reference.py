@@ -172,6 +172,13 @@ BRANCH_CASES = (
     "clock_ladder",
     "free_text_joint",
     "identifier_edge_spacing",
+    # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). The
+    # three identifier cases beside it publish an EMPTY census, so the
+    # whole layout rule -- the seventh published key of the role, and
+    # the generator walk that writes each cell to it -- could have been
+    # withdrawn with every committed byte unchanged. This is the case
+    # that holds it up.
+    "identifier_layout",
     # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
     # R-P4-17). It pins the pairing walk of G6B.4, the only search in
     # the method and the only place synthtwin reproduces structure
@@ -286,6 +293,7 @@ SEEDS = {
     "unrepresentable_exponent": 121,
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
+    "identifier_layout": 136,
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
     "month_span": 116,
@@ -329,6 +337,7 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_fold_collisions",
         "identifier_whole_numbers",
         "identifier_edge_spacing",
+        "identifier_layout",
     }
 )
 
@@ -1408,6 +1417,26 @@ def _every_band_from_the_figures(band, whole_numbers, length):
     return _identifier_family(gen.FIGURES, whole_numbers, length)
 
 
+def _no_layout_offered(column):
+    """G9.6's layout offer withdrawn: the census is published and unread.
+
+    This is the state landing 2b.18 found and closed -- a column that
+    publishes what its record numbers look like and a generator that
+    writes them from the band enumeration anyway.
+    """
+    return []
+
+
+def _no_layout_preferred(column, groups, families, bands, windows, pinned):
+    """G9.6's smooth rotation withdrawn: every group takes the first layout.
+
+    The layouts are then offered in sorted order alone, so the identities
+    written once -- which the walk reaches first -- take the first layout
+    and the identities written twice take the second.
+    """
+    return [""] * len(groups)
+
+
 def _case_flips_only(parent, longest):
     """G9.3's partner family before edge spacing: case flips and nothing else."""
     for counter in range(1, 1 << sum(1 for c in parent if c.isalpha())):
@@ -1603,6 +1632,15 @@ CASE_MUTANTS = {
         "published mark as a comma",
         attribute="grouping_mark_of",
         replacement=_every_mark_a_comma,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout": Mutant(
+        branch="G9.6's smooth weighted rotation of a layout census over the "
+        "identities (contract 7.12); the mutant withdraws it, so every "
+        "identity written once takes `@%%%%%` and every identity written "
+        "twice takes `@@%%%%`, binding a layout to how often it recurs",
+        attribute="layout_preferences",
+        replacement=_no_layout_preferred,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(
@@ -1894,6 +1932,23 @@ CASE_MUTANTS = {
         outcome="recount min_length as 310",
     ),
 }
+
+
+def test_withdrawing_the_layout_offer_stops_the_oracle(monkeypatch) -> None:
+    """The layout census is EXACT-OBSERVABLE, and the oracle holds itself to it.
+
+    The registered mutant of `identifier_layout` withdraws the ROTATION,
+    which moves cells. Withdrawing the OFFER altogether is a different
+    reversal and is held up here: the twenty-four cells then come from
+    the band enumeration, wear no published layout, and the recount of
+    contract 7.12 stops the oracle before any byte could be written.
+    """
+    before, _claims = gen.build_case("identifier_layout")
+    assert before["cells"]
+    monkeypatch.setattr(gen, "layout_offer", _no_layout_offered)
+    with pytest.raises(AssertionError) as refusal:
+        gen.build_case("identifier_layout")
+    assert "wear the layout '@%%%%%' 0 times" in str(refusal.value)
 
 
 def test_the_mutant_table_names_every_case_and_nothing_else() -> None:

@@ -508,6 +508,25 @@ NUMERIC_STYLES = (
 KEYS_THAT_CARRY_NO_VALUE = (
     "all_whole_numbers",
     "length",
+    # THE LAYOUT CENSUS IS ADMITTED ON THE SAME CHECKED PROPERTY THE
+    # FORM CENSUS IS, and not on a judgement (landing 2b.18, plan
+    # P4-D120). A layout is TEXT, which is what this list exists to
+    # keep out, so it is admitted only because every figure and every
+    # letter of a cell is replaced before the key is built -- by one of
+    # six placeholders, `%` `!` `@` `&` `~` `^`, none of which a cell
+    # that HAS a layout may contain -- and because
+    # `profile._is_layout_form` refuses any key holding anything but
+    # those six and fifteen named marks, whatever built it. What is
+    # published is what KIND of character stood at each position and
+    # where the marks between them fell; what is not published is which
+    # character it was.
+    #
+    # WITHOUT THIS ENTRY the census is silently replaced by
+    # `(withheld)` before the publication guard ever sees it, which is
+    # what this list does to every key it does not name. That is the
+    # right default and it is why the entry is written here with its
+    # reason rather than added quietly.
+    "layout_forms",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -5584,6 +5603,81 @@ def pad_width(text: str) -> int:
     census reads it under, exactly as `fraction_width` is.
     """
     return parsing.pad_width(text)
+
+
+def _layout_forms(cells: _Cells) -> dict[str, int]:
+    """How many present cells wore each LAYOUT, under the floor (7.12).
+
+    THE FACT THAT LETS A RECORD NUMBER KEEP ITS SHAPE. A declared
+    identifier publishes no value, so before this census its twin had
+    only two lengths and two alphabet counts to work from -- and it
+    wrote `A----------------------------------J` for a UUID, `A------J`
+    for `NYC-2033`, and `10000020` for `02254257`. Measured on eight
+    hundred rows at two source seeds: the column's own pattern matched
+    800 real cells and 0 twin cells, and both files passed their own
+    description at exit 0, so nothing named it.
+
+    A layout says what KIND of character stood at each position -- a
+    figure, a letter of one case, a hexadecimal character -- and never
+    which one. `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` says a UUID and
+    says nothing whatever about WHICH UUID.
+
+    THE LENGTH CENSUS RIDES IN THE SAME KEY, because a layout is one
+    mark per character and is therefore exactly as long as its cell.
+    That is how NC-9's lost length mix comes back without a second
+    published fact that could drift out of step with this one.
+
+    THE FLOOR GOVERNS A LAYOUT AS IT GOVERNS A LEVEL, and the
+    SMALL-SUPPLY rule governs it as well -- the rule `_shape_forms`
+    reached after five adversarial reads, and it is needed here for the
+    same reason and not by analogy. A layout with few possible
+    spellings NAMES the values it describes: `%-` has exactly ten, so a
+    column holding nine of them often enough to publish would hand a
+    reader the tenth. `layout_room` is a property of the KEY and
+    `n_distinct` and the floor are already on the page, so a reader can
+    work out which layouts this rule refuses, and an absence they can
+    predict tells them nothing.
+
+    A SMALL-SUPPLY LAYOUT IS DROPPED AND NOT POOLED, exactly as a
+    small-supply form is. Pooling it would write a `(withheld)` key
+    into a description made at a floor of one, where there is no group
+    below the floor for anything to be held back into, and C5-S13
+    refuses such a document.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    layouts, plus possibly `(withheld)`, to counts summing to at most
+    the column's present cells. Determinism: the answer depends only on
+    the tally, and the keys are built in sorted order. Raises nothing.
+    No I/O of any kind.
+    """
+    convention = parsing.layout_convention(cells.present)
+    counts: dict[str, int] = {}
+    for value in cells.present:
+        layout = parsing.layout_form(value, convention)
+        if not layout:
+            # A CELL WITH NO LAYOUT IS COUNTED NOWHERE, and it is not
+            # pooled either: `(withheld)` means a group too small to
+            # name, and a cell this census does not describe is not a
+            # small group.
+            continue
+        if layout in counts:
+            counts[layout] = counts[layout] + 1
+            continue
+        counts[layout] = 1
+    floor = cells.settings.small_cell_floor
+    room_needed = cells.raw_distinct + floor
+    withheld = 0
+    published: dict[str, int] = {}
+    for layout in sorted(counts):
+        if parsing.layout_room(layout) < room_needed:
+            continue
+        if counts[layout] >= floor:
+            published[layout] = counts[layout]
+            continue
+        withheld = withheld + counts[layout]
+    if withheld:
+        published[SUPPRESSED_LABEL] = withheld
+    return published
 
 
 def _shape_forms(cells: _Cells) -> dict[str, int]:
@@ -10854,6 +10948,13 @@ def _identifier_verdict(
             ),
             "n_all_digits": cells.all_digits,
             "n_code_alphabet": cells.code_alphabet,
+            # WHAT A RECORD NUMBER LOOKS LIKE, with no value attached
+            # to it (7.12, plan P4-D120). The five facts above say how
+            # long the values are and which alphabet they came from,
+            # and between them they said nothing about their SHAPE --
+            # which is why a column of UUIDs published every fact it
+            # had and its twin matched none of its own rows.
+            "layout_forms": _layout_forms(cells),
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review

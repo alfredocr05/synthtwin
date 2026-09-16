@@ -4650,10 +4650,11 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — six, beyond the universal keys of section 5.1:
+**Added keys** — seven, beyond the universal keys of section 5.1:
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
+| `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -4661,7 +4662,21 @@ exists to reproduce.
 | `n_code_alphabet` | integer ≥ 0 | ≤ `n_present` | present cells drawn from the code alphabet, after trimming |
 | `n_distinct_by_occurrences` | multiplicity map | section 5.3 | how many different RAW present values covered one row, two rows, … |
 
-None of the six is this role's alone except `all_whole_numbers`. A
+**`layout_forms` IS THIS ROLE'S ALONE, AND IT IS THE KEY THAT SAYS
+WHAT A RECORD NUMBER LOOKS LIKE** (section 7.12). The six beside it
+give the two length ends and the two alphabet counts, and between them
+they say nothing about the SHAPE of a value — which is why a column of
+UUIDs published every fact this role had and its twin still wrote
+`A----------------------------------J`. Measured at two source seeds
+and two generate seeds: the column's pattern matched 800 real cells
+and 0 twin cells, and `synthtwin validate` exited 0 on the twin and 0
+on the table, so no line of either report named it. It is NOT
+`shape_forms`
+under another name: that census belongs to the five label roles, is
+forbidden here by C6-31b, stops at twenty-four characters and marks a
+letter without its case, and each of those three would lose a UUID.
+
+None of the other six is this role's alone except `all_whole_numbers`. A
 `numeric_unrepresentable` block carries `min_length` and `max_length`
 over a DIFFERENT population, under the rule stated at that role;
 `n_all_digits` and `n_code_alphabet` stand on this role and on
@@ -4695,8 +4710,31 @@ no spelling of one and no fragment of one stands anywhere in it — and a
 vocabulary member is none of those three, being this package's own word
 and the same in every installation. What is published is the role,
 the counts, the shortest and longest length, whether every value is a
-whole number, how many cells are all digits or all code alphabet, and
-the shape of repetition — lengths and counts, never values.
+whole number, how many cells are all digits or all code alphabet, the
+shape of repetition, and the census of LAYOUTS (7.12) — lengths and
+counts, never values.
+
+**THE LAYOUT CENSUS STANDS INSIDE I3, AND IT IS THE ONE KEY OF THIS
+BLOCK A READER COULD MISTAKE FOR A FRAGMENT**, so the ground is
+written here rather than left to 7.12. A layout carries one mark per
+character saying what KIND of character stood at each position —
+`~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` says a record number was
+written as a UUID and says nothing whatever about WHICH UUID. Every
+figure and every letter of the cell is replaced before the key is
+built, and the marks that remain are this contract's own closed list,
+the same in every installation. So no value of the column, no spelling
+of one and no fragment of one stands in a key, which is exactly what
+this invariant requires of the whole block.
+
+**AND A LITERAL RUN IS A FRAGMENT AND IS NOT PUBLISHED** (landing
+2b.15, landing 2b.18). A constant run of letters shared by a whole
+column — a hospital's own record prefix, or `ABC-` in front of a study
+number — is a character-for-character fragment of every value in that
+column, which this invariant and F3 forbid. It is a POPULATION-wide
+fragment rather than any one person's, which is what makes it a
+question for the owner rather than a settled refusal; until that ruling
+it is not published and this version's twin writes the layout's own
+alphabet in its place.
 
 **Invariant I4.** `min_length >= 1`. A present cell of length zero is
 a blank, and a blank is absent.
@@ -5156,6 +5194,7 @@ rather than a list of its own, so the two cannot part again.
 | `min_length` | | ● | | | | | | | | | | ● | | | |
 | `max_length` | | ● | | | | | | | | | | ● | | | |
 | `all_whole_numbers` | | | | | | | | | | | | ● | | | |
+| `layout_forms` | | | | | | | | | | | | ● | | | |
 | `length` | | | | | | | | | | | | | ● | | |
 | `words` | | | | | | | | | | | | | ● | | |
 | `n_all_digits` | | | | | | | | | | | | ● | ● | | |
@@ -5178,14 +5217,25 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Eighty-seven rows, one hundred and sixty-six marked cells**,
+**Ninety-one rows, one hundred and seventy-four marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 15,
-`time_of_day` 5, `count` 26, `continuous` 26, `affixed_number` 36,
-`identifier` 6, `free_text` 6, `joined_numbers` 8,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 16,
+`time_of_day` 5, `count` 28, `continuous` 28, `affixed_number` 38,
+`identifier` 7, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**THE COUNTS WERE STALE AGAIN AND ARE CORRECTED AGAIN** (landing
+2b.18). They were `Eighty-seven rows, one hundred and sixty-six marked
+cells` while the matrix held ninety and one hundred and seventy-three
+BEFORE this landing's own row was added, and the per-role breakdown was
+short on four roles at once — `datetime` 15 against 16, `count` and
+`continuous` 26 against 28, `affixed_number` 36 against 38. This
+landing added `layout_forms` to the `idn` column, which made the
+sentence wrong in a new way as well as an old one, so both are repaired
+here and the numbers above are taken from the matrix by
+`tests/test_p4d18_role_topology.py` rather than counted by hand.
 
 **THE PER-ROLE COUNTS WERE STALE AND ARE CORRECTED HERE**, which is
 recorded rather than quietly repaired. The total has been right at
@@ -8036,6 +8086,171 @@ spellings to do it.
 
 ---
 
+<!-- a7h: the layout of a record number -->
+
+### 7.12 `layout_forms`
+
+**C6-127 (what a layout is).** The **layout** of a cell is that cell
+with every FIGURE and every LETTER replaced by ONE MARK SAYING WHAT
+KIND OF CHARACTER STOOD THERE, and every other character required to
+be one of FIFTEEN MARKS this contract names, standing as itself. A
+UUID `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-hexadecimal
+column has the layout `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site
+code `NYC-7480` has `@@@-%%%%`; a record number `REC4972605` has
+`@@@%%%%%%%`; and `00282669`, being figures alone and led by a nought,
+has `!%%%%%%%`.
+
+**THE SIX PLACEHOLDERS**: `%` a figure, `@` an upper-case letter, `&`
+a lower-case letter, `~` a lower-hexadecimal character, `^` an
+upper-hexadecimal character, and `!` A LEADING NOUGHT IN A CELL
+WRITTEN IN FIGURES ALONE.
+
+**THE FIFTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
+`#` `*` `(` `)` `[` `]` `+` `,` `{` `}`. They are the thirteen of
+C6-31a and the two BRACES, which are here because a braced GUID —
+`{B8B6D8FE-442E-3D43-7204-E52DB2221A58}`, which is how common database
+and runtime exports write one — wears them, and a closed list that
+omitted them would give that column no layout at all while appearing
+to describe it.
+
+**A CELL HOLDING ANYTHING ELSE HAS NO LAYOUT AT ALL** — a space among
+them, a letter of another alphabet, a mark this list leaves out, a
+placeholder, a cell longer than SIXTY-FOUR characters, and a cell made
+of marks alone. The limit is sixty-four because the widest identifier
+scheme in ordinary use is a braced GUID at thirty-eight. The last two
+exclusions are each a PROPERTY and not a preference: between them they
+are what makes "no cell that HAS a layout can be spelled the same as
+any layout" true, in any column and in any table, which is the same
+guarantee C6-31a's two placeholders buy the form census.
+
+**C6-128 (the alphabet convention is the COLUMN's, and never one
+cell's).** A column is hexadecimal exactly where every letter of every
+cell this census describes is one of `abcdef`, or every one is one of
+`ABCDEF`, the two cases do not both appear, and at least one letter
+appears anywhere; its figures and letters then take `~` or `^`
+according to that case. Every other column is PLAIN, and its letters
+take `@` or `&` according to their own case.
+
+**THE RULE IS ALL-OR-NOTHING OVER THE COLUMN, AND THAT WAS MEASURED
+RATHER THAN ASSUMED.** A hexadecimal mark decided character by
+character gives eight hundred braced GUIDs eight hundred different
+layouts, not one of which reaches two cells, because a figure is
+ambiguous between the two cases — so a floored census publishes
+nothing at all for the very column the mark was introduced for. On a
+column of site codes `BOS-1234` it gives three layouts, because `B` is
+a hexadecimal letter and `O` is not. Decided once for the column, each
+of those two publishes exactly one layout covering 800 of 800.
+
+**C6-129 (where it lives, and what it holds).** An `identifier` block
+carries `layout_forms` as a key of the BLOCK. It is REQUIRED on that
+ONE role, written even when empty, and FORBIDDEN on the other
+FOURTEEN; section 6.11's matrix is the authority and this clause
+restates it. It maps a layout to the number of present cells written
+in it, with the pooled key `(withheld)` for the layouts fewer than
+`small_cell_floor` cells share.
+
+**IT IS NOT `shape_forms` UNDER ANOTHER NAME.** That census belongs to
+the five label roles, is forbidden on this one by C6-31b, stops at
+twenty-four characters where a UUID is thirty-six, and marks a letter
+without its case — and each of those three alone would lose a UUID.
+C6-31a's limit is a judgement about where a fact stops being about a
+code and starts being about a sentence; it is right for those roles,
+it does not reach this one, where no run of prose arrives because the
+column is a record number by its owner's declaration, and it is left
+exactly where it was.
+
+**THE LENGTH CENSUS RIDES IN THIS KEY.** A layout is one mark per
+character and is therefore exactly as long as its cell, so the census
+of layouts IS the census of lengths. A column mixing a ten-character
+and a seven-character system publishes `{"@@@%%%%%%%": 573,
+"@%%%%%%": 227}`, which carries the length mix `{10: 573, 7: 227}`
+that `min_length` and `max_length` cannot: those two give only the
+ends. Nothing separate is published for it and nothing separate can
+drift out of step with it.
+
+**A KEY OF ONE KIND IS A KEY HERE, and that is a difference from
+C6-31a rather than an oversight.** `@@@@@` is refused there because
+`length` and the two alphabet counts already say five letters. On this
+role they do not, and `%%%%%%%` beside `%%%%%%%%%%` is exactly the
+fact the two length ends lose.
+
+**C6-130 (the floor, and the small supply).** A layout shared by fewer
+than `small_cell_floor` cells is not named; its cells are counted into
+the `(withheld)` remainder. **AND A LAYOUT WHOSE POSSIBLE SPELLINGS
+NUMBER FEWER THAN `n_distinct` PLUS THE FLOOR IS NOT NAMED EITHER**,
+because a layout with a small supply NAMES the values it describes:
+`%-` has exactly ten cells that could have worn it, so a column
+holding nine of them often enough to publish would hand a reader the
+tenth. The test is over PUBLISHED facts only — the supply is a
+property of the KEY, and `n_distinct` and the floor are already on the
+page — so a reader can work out which layouts this rule refuses, and
+an absence they can predict tells them nothing.
+
+**A SMALL-SUPPLY LAYOUT IS DROPPED AND NOT POOLED.** Pooling it would
+write a `(withheld)` key into a description made at a smallest group
+size of one, where there is no group below the floor for anything to
+be held back into, and C5-S13 refuses such a document. A cell with NO
+LAYOUT AT ALL is likewise counted NOWHERE — not named and not pooled —
+because `(withheld)` means one thing in this format, a group too small
+to name, and a cell this census does not describe is not a small
+group.
+
+**What that costs, stated plainly.** A column of very short codes
+publishes little or nothing. Measured: a column holding `007` beside
+`7` publishes `%%%` and nothing else, because `%` has ten spellings
+and `!%%` a hundred. That is this contract's disclosure rule working
+as written, and a reader must not read the absence as a defect.
+
+**C6-131 (invariants).** **LF1.** Every NAMED layout's count is at
+least `small_cell_floor`. **LF3.** Every count is at least 1, and the
+sum of all counts, `(withheld)` included, is at most `n_present` — at
+most, because a cell this census does not describe has no layout and
+is counted nowhere.
+
+**C6-132 (the binding generation rule).** Where the column publishes a
+layout, the twin writes its cells to it. The census counts CELLS and
+the generator spends GROUPS, and every cell of a group carries the
+same spelling, so a group wears one layout or none. The census is
+SPREAD over the identities by a smooth weighted rotation, largest
+group first, so that no layout is bound to how often its values recur;
+each group is then offered the layout the rotation gave it and every
+other published layout after it, each only where the remaining count
+covers the group and the length fits the group's own slot. A group the
+offer cannot serve is written by the enumeration that always wrote it,
+so a column publishing no layout keeps its cells byte for byte. The disposition is EXACT-OBSERVABLE against the recount identity
+below, and method section G9.6 states the construction.
+
+**A CELL IS WRITTEN TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT
+LAYOUT.** A layout is filled from a counter, and a counter does not
+know what this census's own reader will make of what it wrote: `%%%%`
+filled at a step whose leading figure is nought spells `0123`, whose
+layout is `!%%%`. Measured, before that requirement was written: a
+column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33 of its 320
+four-character cells with a leading nought — a zero-filled four-figure
+spelling its source never wrote.
+
+**THE RECOUNT IDENTITY.** A person who opens the twin and reads the
+layout off each cell finds, for every NAMED layout, at least its
+published count and at most that count plus the pooled remainder. The
+pooled key names no layout, so it bounds rather than binds, exactly as
+it does at 7.9.
+
+**`!` IS THE ONE PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A
+NOUGHT**, and the mark is confined to cells written in figures alone,
+so it can carry no text anybody chose: it is a writer's field width,
+the zero fill a reader loses when a spreadsheet or a statistics
+package reads `01586982` as 1586982.
+
+**AND A LITERAL RUN IS NOT PUBLISHED.** A constant run of letters
+shared by a whole column is a character-for-character fragment of
+every value in that column, which invariants I3 and F3 forbid. It is a
+population-wide fragment rather than any one person's, which is what
+makes it a question for the owner rather than a settled refusal; until
+that ruling this census names no literal and the twin writes the
+layout's own alphabet in its place.
+
+---
+
 <!-- a7d: the twin reproduces the recorded hole spellings -->
 
 ### 7.7 The twin reproduces the recorded hole spellings
@@ -8466,6 +8681,8 @@ stated in full at section 7.9.
 |---|---|
 | SF1 | every NAMED form's count is at least `small_cell_floor` |
 | SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere |
+| LF1 | every NAMED layout's count is at least `small_cell_floor` |
+| LF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell this census does not describe has no layout and is counted nowhere |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
 C6-31d is a refusal and not an invariant: the loader checks the key
@@ -8529,6 +8746,7 @@ document, never the table it describes.
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
+| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 
@@ -8970,6 +9188,7 @@ not modeled, exactly as a two-humped numeric column's valley is not.
 | `min_length`, `max_length`, `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
+| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout |
 
 Two shapes a real table produces used to cost `all_whole_numbers`, and
 neither does now (Phase 3 plan P3-D8.1, owner decision 1). A length

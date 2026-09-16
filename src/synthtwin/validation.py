@@ -7681,7 +7681,7 @@ def _role_checks(
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
-        return _identifier_checks(column, facts, block, mine)
+        return _identifier_checks(column, facts, block, floor, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
         return _unrepresentable_checks(column, facts, block)
     return []
@@ -12950,6 +12950,7 @@ def _form_checks(
     census: "dict[str, int]",
     block: "dict[str, object]",
     floor: int,
+    census_key: str = "shape_forms",
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -12961,7 +12962,7 @@ def _form_checks(
     nothing, and the fact that lets a held-back value have a stand-in
     shaped like one would be published and never checked.
     """
-    measured = _map_at(block, "shape_forms")
+    measured = _map_at(block, census_key)
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
@@ -13203,6 +13204,7 @@ def _identifier_checks(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
     block: "dict[str, object]",
+    floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
     """A column the person declared to hold record numbers."""
@@ -13234,6 +13236,19 @@ def _identifier_checks(
             None if found_truth is None else _shown_truth(found_truth),
         )
     ]
+    # THE LAYOUT CENSUS IS CHECKED BEFORE THE CORNER AND INSIDE IT
+    # (7.12, plan P4-D120). Owner decision 6's corner is about
+    # DISTINCTNESS -- a published length range that cannot supply as
+    # many different values as the column has rows -- and it lowers
+    # exactly the three distinctness facts. What a cell LOOKS like is
+    # untouched by it: a twin whose identifiers repeat still writes
+    # every one of them to a published layout, so the census is owed
+    # there exactly as it is owed anywhere, and putting this check
+    # after the early return would have quietly excused it.
+    checks = checks + _form_checks(
+        name, "identifier.layout_forms", facts.layout_forms, block, floor,
+        "layout_forms",
+    )
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).

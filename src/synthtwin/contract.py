@@ -631,6 +631,13 @@ UNREPRESENTABLE_KEYS = (
 
 IDENTIFIER_KEYS = (
     "all_whole_numbers",
+    # THE SEVENTH KEY, AND THE ONE THAT CARRIES THE SHAPE (landing
+    # 2b.18, plan P4-D120). The six beside it say how LONG the shortest
+    # and the longest value are and which alphabet the cells came from,
+    # and between them they said nothing about what a record number
+    # LOOKS like -- so a column of UUIDs published every fact it had and
+    # its twin still wrote `A----------------------------------J`.
+    "layout_forms",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -1362,6 +1369,14 @@ INVARIANTS = {
         "the census counts no more cells than the column has present, "
         "a cell too long to have a form being counted nowhere"
     ),
+    "LF1": (
+        "every layout the census names was written by at least the "
+        "smallest group size"
+    ),
+    "LF3": (
+        "the census counts no more cells than the column has present, "
+        "a cell this census does not describe being counted nowhere"
+    ),
 }
 
 
@@ -1905,6 +1920,14 @@ class IdentifierFacts:
     n_all_digits: int
     n_code_alphabet: int
     n_distinct_by_occurrences: "dict[str, int]"
+    # THE CENSUS OF LAYOUTS (7.12, plan P4-D120). Where at least
+    # `small_cell_floor` cells were written to one layout, that layout
+    # is named with its count; the rest are pooled under `(withheld)`.
+    # The key says what KIND of character stood at each position and
+    # never which one, so it carries no value of the table, no spelling
+    # of one and no fragment of one -- which is what lets it stand in a
+    # block invariant I3 governs.
+    layout_forms: "dict[str, int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4908,7 +4931,7 @@ def _facts(
         return _affixed_facts(mapping, where, frame, n_present, remarks)
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
-            mapping, where, n_present, n_distinct
+            mapping, where, n_present, n_distinct, frame.floor
         )
     return _text_facts(mapping, where, n_present, n_distinct, frame.floor)
 
@@ -7907,6 +7930,83 @@ def _shape_forms(
     return forms
 
 
+def _layout_forms(
+    mapping: "dict[str, object]", where: str, floor: int
+) -> "dict[str, int]":
+    """The census of LAYOUTS, checked key by key (7.12, plan P4-D120).
+
+    A KEY CARRIES NO FIGURE AND NO LETTER OF THE TABLE, and it is
+    checked here rather than assumed, for the reason `_shape_forms`
+    gives: the producer builds a layout by replacing every figure and
+    every letter, and a key where one survived is a key carrying a
+    fragment of somebody's record number. A loader that accepted one
+    would let a producer -- or a hand-edited file -- put a real
+    identifier into the one field this role has for saying what its
+    values look like.
+
+    The floor governs a named layout as it governs a level, and the
+    `(withheld)` pool takes what it holds back.
+
+    Raises ProfileError for a wrong type, a key that is not a layout, a
+    key longer than the limit, and a named layout below the floor.
+    """
+    layouts = _counts(mapping["layout_forms"], "layout_forms", where, 1)
+    counted = 0
+    for name in sorted(layouts):
+        counted = counted + layouts[name]
+    present = _whole(mapping["n_present"], "n_present", where, 0)
+    if counted > present:
+        # LF3. AT MOST, AND NOT EXACTLY, on SF3's own reasoning: a cell
+        # this census does not describe -- one too long, one holding a
+        # space, one of marks alone -- is counted nowhere at all, so
+        # the sum falls short on any column holding one and only an
+        # upper bound is checkable here.
+        raise _broken(
+            "LF3",
+            where,
+            f"the census counts {counted} cells",
+            f"the column holds {present} present cells",
+        )
+    for name in sorted(layouts):
+        if name == WITHHELD:
+            # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
+            # IS NONE. That rule is C5-S13's and is checked before any
+            # column block is read; `layout_forms` is in its list, so a
+            # rule of this function's own would be unreachable.
+            continue
+        if not _is_layout_form(name):
+            raise _out_of_range(
+                f"layout_forms -> {name}",
+                where,
+                "a key of that shape",
+                "a layout: a figure written '%', a leading nought "
+                "written '!', an upper-case letter '@', a lower-case "
+                "letter '&', a hexadecimal character '~' or '^', and "
+                "between them only the marks - . / _ : # * ( ) [ ] "
+                "+ , { } -- carrying at least one placeholder",
+            )
+        if layouts[name] < floor:
+            raise _broken(
+                "LF1",
+                where,
+                f"the layout '{name}' was written by {layouts[name]} cells",
+                f"the smallest group size is {floor}",
+            )
+    return layouts
+
+
+def _is_layout_form(name: str) -> bool:
+    """Whether one census key is a layout -- asked of the ONE definition.
+
+    `parsing.is_a_layout_form` is that definition, and this loader must
+    not hold a second reading of it: the form census learned at cost
+    what happens when the producer, the loader and the publication
+    guard each read the same rule for themselves (review round 2
+    finding 2).
+    """
+    return parsing.is_a_layout_form(name)
+
+
 def _is_shape_form(name: str) -> bool:
     """Whether one census key is a form -- asked of the ONE definition.
 
@@ -8126,6 +8226,7 @@ def _identifier_facts(
     where: str,
     n_present: int,
     n_distinct: int,
+    floor: int,
 ) -> IdentifierFacts:
     """A column the person declared to hold record numbers (6.8).
 
@@ -8166,6 +8267,7 @@ def _identifier_facts(
             "the number of values the column holds",
         ),
         n_distinct_by_occurrences=pattern,
+        layout_forms=_layout_forms(mapping, where, floor),
     )
 
 

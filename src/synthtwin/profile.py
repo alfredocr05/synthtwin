@@ -677,6 +677,7 @@ _BIN = "histogram-bin-number"
 # document the floor does not reach.
 _EMPTY_BIN = "histogram-bin-number-holding-nothing"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
+_LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -1131,6 +1132,14 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "all_whole_numbers"): _FLAG,
     ("columns", _EACH, "n_all_digits"): _COUNT,
     ("columns", _EACH, "n_code_alphabet"): _COUNT,
+    # The census of layouts a declared identifier wore (7.12, plan
+    # P4-D120). Its key space is its own and is NOT `_SHAPE_FORM`: a
+    # layout carries six placeholders and fifteen marks where a written
+    # form carries two and thirteen, and it may run to sixty-four
+    # characters because a braced GUID is thirty-eight.
+    ("columns", _EACH, "layout_forms"): _OBJECT,
+    ("columns", _EACH, "layout_forms", _KEY_OF): _LAYOUT_FORM,
+    ("columns", _EACH, "layout_forms", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "n_distinct_by_occurrences"): _OBJECT,
     ("columns", _EACH, "n_distinct_by_occurrences", _KEY_OF): _DIGITS,
     ("columns", _EACH, "n_distinct_by_occurrences", _ANY_KEY): _COUNT,
@@ -1757,6 +1766,8 @@ def _leaf_is_published(
         return 0 <= value < parsing.HISTOGRAM_BINS
     if kind == _SHAPE_FORM:
         return _is_shape_form(value)
+    if kind == _LAYOUT_FORM:
+        return _is_layout_form(value)
     if kind == _MOMENT_TEXT:
         return _is_moment(value)
     if kind == _OFFSET:
@@ -1790,6 +1801,25 @@ def _is_shape_form(value: object) -> bool:
     if not isinstance(value, str):
         return False
     return parsing.is_a_written_form(value)
+
+
+def _is_layout_form(value: object) -> bool:
+    """Whether one key of the layout census carries no record number.
+
+    THE SAME GUARD THE FORM CENSUS HAS, asking the ONE definition
+    rather than restating it. What `parsing.is_a_layout_form`
+    guarantees is what this needs: a key is spelled from six
+    placeholders and a closed list of marks, and a cell carrying any
+    placeholder -- or made of marks alone -- has no layout at all. So
+    no cell that HAS a layout can be spelled the same as any key, in
+    any column, in any table, and admitting a key can never admit a
+    value.
+    """
+    if value == taxonomy.SUPPRESSED_LABEL:
+        return True
+    if not isinstance(value, str):
+        return False
+    return parsing.is_a_layout_form(value)
 
 
 def _check_word(

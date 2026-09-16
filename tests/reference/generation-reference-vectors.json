@@ -144,6 +144,7 @@
       "column": {
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {},
         "max_length": 4,
         "min_length": 2,
         "missing_by_class": {
@@ -237,6 +238,7 @@
       "column": {
         "all_whole_numbers": true,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {},
         "max_length": 5,
         "min_length": 3,
         "missing_by_class": {

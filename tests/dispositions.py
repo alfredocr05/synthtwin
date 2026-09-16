@@ -1497,6 +1497,15 @@ REGISTRY += _facts(
     "all_whole_numbers",
     "n_all_digits",
     "n_code_alphabet",
+    # THE CENSUS OF LAYOUTS (contract 7.12, landing 2b.18, plan
+    # P4-D120). EXACT-OBSERVABLE on exactly the terms the form census
+    # is: a person opens the twin, reads the layout off each cell and
+    # gets the published census back, with the pooled remainder
+    # widening the bar. It is owed INSIDE owner decision 6's infeasible
+    # corner as well as outside it -- that corner lowers three
+    # DISTINCTNESS facts and says nothing about what a cell LOOKS
+    # like -- so it carries no `authorized` entry.
+    "layout_forms",
 )
 REGISTRY += [
     Fact(

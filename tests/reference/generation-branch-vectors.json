@@ -1,5 +1,5 @@
 {
-  "case_set": "The 14 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason.",
+  "case_set": "The 15 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -978,6 +978,7 @@
       "column": {
         "all_whole_numbers": true,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {},
         "max_length": 3,
         "min_length": 1,
         "missing_by_class": {
@@ -1031,6 +1032,136 @@
         "1301936263764534004",
         "2783040907285617897",
         "2670401546021029124"
+      ]
+    },
+    "identifier_layout": {
+      "cells": [
+        "D90458",
+        "C60632",
+        "G81807",
+        "WU1807",
+        "A00000",
+        "H12623",
+        "BN1090",
+        "E21274",
+        "H12623",
+        "F51090",
+        "QP0632",
+        "G81807",
+        "I42449",
+        "MK2449",
+        "WU1807",
+        "MK2449",
+        "I42449",
+        "RC2623",
+        "GF1274",
+        "RC2623",
+        "LX0458",
+        "B30816",
+        "AA0000",
+        "VH0816"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {
+          "@%%%%%": 12,
+          "@@%%%%": 12
+        },
+        "max_length": 6,
+        "min_length": 6,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 18,
+        "n_distinct_by_occurrences": {
+          "1": 12,
+          "2": 6
+        },
+        "n_distinct_folded": 18,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "A00000",
+        "AA0000",
+        "B30816",
+        "VH0816",
+        "C60632",
+        "QP0632",
+        "D90458",
+        "LX0458",
+        "E21274",
+        "GF1274",
+        "F51090",
+        "BN1090",
+        "WU1807",
+        "WU1807",
+        "G81807",
+        "G81807",
+        "RC2623",
+        "RC2623",
+        "H12623",
+        "H12623",
+        "MK2449",
+        "MK2449",
+        "I42449",
+        "I42449"
+      ],
+      "csv_bytes": "D90458\nC60632\nG81807\nWU1807\nA00000\nH12623\nBN1090\nE21274\nH12623\nF51090\nQP0632\nG81807\nI42449\nMK2449\nWU1807\nMK2449\nI42449\nRC2623\nGF1274\nRC2623\nLX0458\nB30816\nAA0000\nVH0816\n",
+      "float64": [],
+      "why": "a declared identifier that publishes a census of LAYOUTS (contract section 7.12, landing 2b.18), which every case frozen before it publishes empty. The census says what KIND of character stood at each position and never which one, and G9.6 writes each cell to it: the twenty-four cells here wear `@%%%%%` twelve times and `@@%%%%` twelve times instead of the band enumeration's own spellings. Without this case the whole layout rule could be withdrawn with every committed byte unchanged, because the three identifier cases beside it publish no layout at all. TWO RULES ARE FROZEN HERE. The fill is a COUNTER taken apart LEFTMOST FIRST, so consecutive cells of one layout differ in their leading characters rather than their trailing ones, which is what stops a column of record numbers coming out as a near-consecutive walk. And the census is SPREAD over the identities by the smooth weighted rotation, largest group first, rather than poured into them in walk order: twelve values are written once and six twice, and a walk taking the first layout with room left gives every singleton `@%%%%%` and every repeated value `@@%%%%`, binding a layout to how often its record numbers recur. This case's mutant withdraws the preference, and the cells move. Every other published fact survives the offer and is recounted from the finished cells: the two alphabet counts and the four class counts, because a candidate the readers do not recount into its slot's band is stepped over, and both length ends, because a layout is one mark per character. Withdrawing the offer altogether stops this oracle before any byte is written, because the recount of 7.12 then finds each layout worn nought times.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "2350890344146344126",
+        "1295412325827091444",
+        "2148692853705598588",
+        "6856365061159066252",
+        "15421135529079413842",
+        "9337190313697136114",
+        "17443182240601902554",
+        "3945372972456016603",
+        "3231109804060922937",
+        "14928184306589085733",
+        "9623648095902836919",
+        "2833255648229499529",
+        "2484211853885415346",
+        "9206020379377428048",
+        "10880630985268877757",
+        "11539897411331388552",
+        "13221390389229023683",
+        "5089869681841105310",
+        "12063417803171021458",
+        "3253571153139736265",
+        "17680378324194345923",
+        "17516376728897238031",
+        "2135463789325316001"
       ]
     },
     "joined_readings": {

@@ -201,6 +201,21 @@ SPELLING_SUBCHECKS = (
     "spelling.negative_form",
     "spelling.decimal_plus",
 )
+# ...and the ONE check landing 2b.18 added (contract 7.12, plan
+# P4-D120), set aside on the same doctrine. The demonstration's
+# `record_code` column is a DECLARED identifier, so it now publishes a
+# census of layouts and the run files one check it did not file before:
+# `record_code|identifier.layout_forms|forms.published.@%%%%%`.
+# MEASURED before this entry was written: with the new check left IN,
+# the wide list read 417 and the frozen 407 read 408; with it set
+# aside, BOTH digests come back character for character, which is what
+# says the landing added an obligation and moved nothing else.
+LAYOUT_SUBCHECKS = ("forms.published.@%%%%%",)
+# ...and it is SET ASIDE rather than folded into either baseline, which
+# is this file's doctrine for an obligation that arrived: re-recording
+# 416 as 417 would retire the only thing the baseline buys. Both frozen
+# digests must come back character for character with this one check
+# taken out, and the assertion below names the column it lands on.
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -223,7 +238,18 @@ NARROW_LISTING_DIGEST = (
     "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
 )
 NARROW_COLUMN_DIGESTS = {
-    "record_code": "f6d74ac3a099e5713338c9baff476924",
+    # RE-RECORDED AT LANDING 2b.18, and this is the ONE column of the
+    # demonstration that may have moved: `record_code` is the table's
+    # declared identifier, and the identifier role now publishes the
+    # census of layouts and is written to it (contract 7.12, method
+    # G9.6, plan P4-D120). MEASURED before re-recording: every cell of
+    # the new column wears the published layout `@%%%%%`, the column's
+    # own pattern matches every twin row where it matched none before,
+    # both the twin and the real table pass the description at exit 0,
+    # and the two columns beside it below did NOT move -- which is what
+    # says the landing reached the declared identifier and nothing
+    # else.
+    "record_code": "f056c8416de03a2ffe6478b5c0df3034",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
@@ -296,7 +322,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS:
+        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS + LAYOUT_SUBCHECKS:
             if one in entry:
                 return True
         return False
@@ -315,6 +341,18 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose", "dose", "dose",
     ], wrapped
     assert len(counted) == WIDE_CHECK_COUNT, len(counted)
+    # ...and the ONE check landing 2b.18 added is on the ONE column that
+    # can carry it, named rather than counted: `record_code` is the only
+    # DECLARED identifier in this table, and the census of layouts is
+    # that role's alone (contract 7.12, C6-129).
+    laid = sorted(
+        entry
+        for entry in checks
+        if any(one in entry for one in LAYOUT_SUBCHECKS)
+    )
+    assert laid == [
+        "record_code|identifier.layout_forms|forms.published.@%%%%%",
+    ], laid
     # ...and the three spelling checks, on the four numeric-family
     # columns and nowhere else (landing 2b.2).
     spelled = sorted(
@@ -804,8 +842,27 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # cells, so this report names none either" -- became one: "160 cell(s)
 # with nothing written in them". The sentence it replaces was true only
 # because the class had emptied the count the report wanted to print.
+# THE THREE DIGESTS MOVED AT LANDING 2b.18, and what moved is recorded
+# here rather than left to the diff. The demonstration's `record_code`
+# column is declared an identifier, and the identifier role gained a
+# seventh published key: `layout_forms`, the census of positional
+# layouts (contract 7.12, plan P4-D120). So the DESCRIPTION moved
+# first, and the twin and the quality report follow it:
+#
+#   * the description gained one key on one column -- the census
+#     `{"@%%%%%": 12}` -- and nothing else moved in it;
+#   * the TWIN moved because the generator now reads that census and
+#     writes each record number to its published layout, which is the
+#     whole of what the landing does. MEASURED on the new run before
+#     re-recording: every `record_code` cell wears the published
+#     layout, the column's own pattern matches every twin row where it
+#     matched none before, and both the twin and the real table pass
+#     the description at exit 0;
+#   * the QUALITY REPORT says MORE and not less: it carries one
+#     obligation it did not carry, `identifier.layout_forms`, and drops
+#     none -- which the wide baseline above asserts by identity.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "c9e9ba51ad0c292156b4930217db0561c073ccea9b280e24de472ba6481d9855"
+    "0293dea00bc36ff8061c490240c22f4208d6ea5ad26461cecc5baa3a8e700dec"
 )
 
 
@@ -910,7 +967,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # columns moved for the causes recorded beside their column digests
 # above, and no other column's cells moved.
 GOLDEN_TWIN_SHA256 = (
-    "494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f"
+    "2baeceb8baab22de72b24ba333f6a4b63063473e87444a33903d26e3a72bbd5c"
 )
 
 
@@ -1825,7 +1882,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # demonstration is the number it was already. The census is unchanged:
 # 420 held, 75 within a window, none missed.
 GOLDEN_QUALITY_SHA256 = (
-    "33b8fc1f5d7b0c42acca316a7d614bbaad389fcfda297753d52839ddda35142a"
+    "c5f8e013b98f5de8f9cd1dda549c31e15246e3221bd9a67cbaca9a6bb365d89e"
 )
 
 

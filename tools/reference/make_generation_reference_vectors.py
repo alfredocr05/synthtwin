@@ -5410,6 +5410,390 @@ def _identifier_pair(name, band, whole_numbers, length):
     return family is not None and family[1] >= 1
 
 
+# ---------------------------------------- the LAYOUT of a record number
+#
+# Contract section 7.12, written from that section alone.  A layout is
+# one mark per character saying what KIND of character stood there and
+# never which one, so the census of layouts is also the census of
+# LENGTHS -- a fact `min_length` and `max_length` cannot carry, since
+# they give only the two ends.
+
+LAYOUT_MARKS = "-./_:#*()[]+,{}"
+LAYOUT_DIGIT = "%"
+LAYOUT_UPPER = "@"
+LAYOUT_LOWER = "&"
+LAYOUT_LOWER_HEX = "~"
+LAYOUT_UPPER_HEX = "^"
+LAYOUT_LEADING_ZERO = "!"
+LAYOUT_PLACEHOLDERS = "%@&~^!"
+LAYOUT_FORM_LIMIT = 64
+LAYOUT_PLAIN = "plain"
+LAYOUT_HEX_LOWER = "lower-hexadecimal"
+LAYOUT_HEX_UPPER = "upper-hexadecimal"
+
+
+def _ascii_digit(character):
+    return "0" <= character <= "9"
+
+
+def _ascii_letter(character):
+    return ("a" <= character <= "z") or ("A" <= character <= "Z")
+
+
+def _described_by_a_layout(text):
+    """Whether this census describes one cell at all (C6-127).
+
+    A cell carrying a PLACEHOLDER is refused and a cell of marks ALONE
+    is refused, and between them they are what makes "no cell that has
+    a layout can be spelled the same as any layout" true.
+    """
+    if not text or len(text) > LAYOUT_FORM_LIMIT:
+        return False
+    content = 0
+    for character in text:
+        if character in LAYOUT_PLACEHOLDERS:
+            return False
+        if _ascii_digit(character) or _ascii_letter(character):
+            content += 1
+            continue
+        if character in LAYOUT_MARKS:
+            continue
+        return False
+    return content >= 1
+
+
+def layout_convention(values):
+    """Which alphabet convention a whole COLUMN is written in (C6-128).
+
+    All-or-nothing over the column, which is that clause's whole point:
+    decided per character a figure is ambiguous between the two cases,
+    and a column of braced GUIDs shatters into one layout per cell.
+    """
+    letters = lower = upper = 0
+    for value in values:
+        if not _described_by_a_layout(value):
+            continue
+        for character in value:
+            if not _ascii_letter(character):
+                continue
+            letters += 1
+            if character in "abcdef":
+                lower += 1
+                continue
+            if character in "ABCDEF":
+                upper += 1
+                continue
+            return LAYOUT_PLAIN
+    if letters < 1 or (lower > 0 and upper > 0):
+        return LAYOUT_PLAIN
+    return LAYOUT_HEX_UPPER if upper > 0 else LAYOUT_HEX_LOWER
+
+
+def _layout_mark(character, convention, leading):
+    if _ascii_digit(character):
+        if leading and character == "0":
+            return LAYOUT_LEADING_ZERO
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_DIGIT
+    if _ascii_letter(character):
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_LOWER if "a" <= character <= "z" else LAYOUT_UPPER
+    return character
+
+
+def layout_of(text, convention):
+    """The layout of one cell (C6-127), or "" where there is none."""
+    if not _described_by_a_layout(text):
+        return ""
+    figures = sum(1 for character in text if _ascii_digit(character))
+    whole = figures == len(text)
+    built = ""
+    for place, character in enumerate(text):
+        built += _layout_mark(character, convention, whole and place < 1)
+    return built
+
+
+def layout_room(name):
+    """How many different cells could have worn one layout (C6-130)."""
+    room = 1
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            room *= 10
+        elif character in (LAYOUT_UPPER, LAYOUT_LOWER):
+            room *= 26
+        elif character in (LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX):
+            room *= 16
+    return room
+
+
+def _shares_a_factor(one, other):
+    left, right = one, other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def _stepped_around(step, room):
+    """``step`` moved around ``room`` so that every position varies.
+
+    Method G9.6 fills a layout by the arithmetic G8.3 fills a written
+    form by: a stride coprime to the room is a bijection on it, taken
+    near the golden section of the room and walked up to the first
+    value sharing no factor with it.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while _shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
+def filled_layout(layout, step):
+    """One spelling of one layout, stepped (method G9.6).
+
+    LEFTMOST FIRST, so consecutive steps differ in the leading
+    characters rather than the trailing ones -- which is what stops a
+    column of record numbers coming out as a near-consecutive walk.
+    `!` takes the figure nought and spends no step, because that is
+    exactly what the mark says.
+    """
+    figures = "0123456789"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    lower_hex = "0123456789abcdef"
+    upper_hex = "0123456789ABCDEF"
+    place = _stepped_around(step, layout_room(layout))
+    spelling = ""
+    for character in layout:
+        if character == LAYOUT_DIGIT:
+            spelling += figures[place % 10]
+            place //= 10
+        elif character == LAYOUT_UPPER:
+            spelling += upper[place % 26]
+            place //= 26
+        elif character == LAYOUT_LOWER:
+            spelling += lower[place % 26]
+            place //= 26
+        elif character == LAYOUT_LOWER_HEX:
+            spelling += lower_hex[place % 16]
+            place //= 16
+        elif character == LAYOUT_UPPER_HEX:
+            spelling += upper_hex[place % 16]
+            place //= 16
+        elif character == LAYOUT_LEADING_ZERO:
+            spelling += "0"
+        else:
+            spelling += character
+    return spelling
+
+
+def layout_offer(column):
+    """The layouts a column publishes, in the order they are offered.
+
+    Sorted, and without the pooled key, which names no layout. It is a
+    function of its own so that the frozen case's registered mutant can
+    take it away: with nothing offered every cell falls back to the
+    band enumeration and the committed cells move.
+    """
+    census = column.get("layout_forms") or {}
+    return [name for name in sorted(census) if name != WITHHELD]
+
+
+def _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+    """Whether one filling of a layout may stand in a slot, freeness aside.
+
+    Every guard method G9.6 states but the one about what the column has
+    already written: the cell recounts into the band it was made for,
+    reads as a number exactly where that band says it must, and RECOUNTS
+    INTO THE LAYOUT IT WAS WRITTEN TO -- `%%%%` filled at a step whose
+    leading figure is nought spells `0123`, whose layout is `!%%%`.
+    """
+    if layout_of(candidate, convention) != layout:
+        return False
+    bare = candidate.strip()
+    digits = bool(bare) and set(bare) <= DIGIT_CHARACTERS
+    coded = bool(bare) and set(bare) <= CODE_CHARACTERS
+    if band == FIGURES and not digits:
+        return False
+    if band == CODE_BAND and (digits or not coded):
+        return False
+    if band not in (FIGURES, CODE_BAND) and (digits or coded):
+        return False
+    if whole_numbers and not _is_a_whole_number(candidate):
+        return False
+    if not whole_numbers and _is_a_number(candidate) != (band == FIGURES):
+        return False
+    return True
+
+
+FORMULA_OPENINGS = ("=", "+", "-", "@", " ")
+LAYOUT_STEPS = 4096
+LAYOUT_ADMISSION_STEPS = 64
+
+
+def _layout_spelling(layout, convention, steps, used, band, whole_numbers):
+    """The next free spelling of one layout that keeps its slot's band.
+
+    At most 4,096 fillings are read, counted on from wherever this
+    layout's own walk stopped last; the opening character is never one
+    a spreadsheet reads as the start of a formula, and every other guard
+    is `_fits_its_slot`.
+    """
+    room = layout_room(layout)
+    ceiling = min(room, LAYOUT_STEPS)
+    tried = 0
+    while tried < ceiling:
+        candidate = filled_layout(layout, steps[layout])
+        steps[layout] += 1
+        tried += 1
+        if candidate[:1] in FORMULA_OPENINGS:
+            return None
+        if candidate in used:
+            continue
+        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+            return candidate
+    return None
+
+
+def _layout_admits(layout, convention, band, whole_numbers):
+    """Whether a slot of one band can wear one layout at all (G9.6).
+
+    Read off the layout's own first 64 fillings (or all of them, where
+    it has fewer), with every guard of `_fits_its_slot` and nothing
+    about what the column has written.
+    """
+    for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
+        candidate = filled_layout(layout, step)
+        if candidate[:1] in FORMULA_OPENINGS:
+            return False
+        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+            return True
+    return False
+
+
+def _convention_of_the_keys(offered):
+    """Which alphabet convention a column's PUBLISHED KEYS were built in.
+
+    Read off the keys and off nothing else, because that is all a
+    generator has: a hexadecimal mark appears in a column's layouts
+    exactly when the producer decided the whole column was hexadecimal
+    (C6-128), so one such mark anywhere settles it.
+    """
+    for layout in sorted(offered):
+        for character in layout:
+            if character == LAYOUT_LOWER_HEX:
+                return LAYOUT_HEX_LOWER
+            if character == LAYOUT_UPPER_HEX:
+                return LAYOUT_HEX_UPPER
+    return LAYOUT_PLAIN
+
+
+def layout_preferences(column, groups, families, bands, windows, pinned):
+    """Which published layout each identity is offered FIRST (method G9.6).
+
+    Written from the rule statement.  The identities are visited with
+    the ones carrying a published length END first, then by the number
+    of cells they cover, largest first, then in position order.  Each
+    visit takes, among the published layouts with at least that many
+    cells left, a length the slot's window holds, and a filling the
+    slot's band can wear (`_layout_admits`), the one the SMOOTH
+    WEIGHTED ROTATION names: every layout that family can wear has its
+    published count times the group's size added to its credit, the
+    candidate with the most credit is taken -- the earliest in sorted
+    order on a tie -- and the family's total times the group's size is
+    taken back from it.  Credit is kept per family.  ``""`` is no
+    preference.
+
+    A function of its own so the frozen case's registered mutant can
+    take it away: with no preference every group is offered the layouts
+    in sorted order, the singletons that come first take the first
+    layout, and the committed cells move.
+    """
+    offered = layout_offer(column)
+    census = column.get("layout_forms") or {}
+    convention = _convention_of_the_keys(offered)
+    remaining = {name: census[name] for name in offered}
+    whole_numbers = column["all_whole_numbers"]
+    preferred = [""] * len(groups)
+    wearable = {}
+    credits = {}
+    visits = sorted(
+        (0 if position in pinned else 1, -groups[position], position)
+        for position in range(len(groups))
+    )
+    for _pinned, _size, position in visits:
+        family = families[position]
+        if family not in wearable:
+            wearable[family] = [
+                name for name in offered
+                if _layout_admits(name, convention, bands[position], whole_numbers)
+            ]
+            credits[family] = {name: 0 for name in wearable[family]}
+        covering = groups[position]
+        weight = sum(census[name] for name in wearable[family])
+        best = ""
+        best_credit = 0
+        for name in wearable[family]:
+            if remaining[name] < covering or len(name) not in windows[position]:
+                continue
+            credit = credits[family][name] + census[name] * covering
+            if best == "" or credit > best_credit:
+                best, best_credit = name, credit
+        if best == "":
+            continue
+        for name in wearable[family]:
+            credits[family][name] += census[name] * covering
+        credits[family][best] -= weight * covering
+        remaining[best] -= covering
+        preferred[position] = best
+    return preferred
+
+
+def _offer_a_layout(
+    quotas, steps, lengths, convention, used, band, whole_numbers,
+    covering, letters_needed, preferred,
+):
+    """The layout this slot takes, spelled (G9.6), or None.
+
+    The preferred layout is offered first and then every other published
+    layout in sorted order, each only where it has at least ``covering``
+    cells left and a length the slot may hold.  ``letters_needed`` is
+    the fold-collision ask of G9.3 step 1 and stays an ASK: a layout
+    guaranteeing a character with a case is offered first, and where
+    none fits the ordinary offer is taken rather than the slot being
+    spent.
+    """
+    offered = ([preferred] if preferred else []) + [
+        name for name in sorted(quotas) if name != preferred
+    ]
+    for asking in ((True, False) if letters_needed else (False,)):
+        for layout in offered:
+            if quotas[layout] < covering:
+                continue
+            if len(layout) not in lengths:
+                continue
+            if asking and not any(
+                character in (LAYOUT_UPPER, LAYOUT_LOWER)
+                for character in layout
+            ):
+                continue
+            found = _layout_spelling(
+                layout, convention, steps, used, band, whole_numbers
+            )
+            if found is None:
+                continue
+            quotas[layout] -= covering
+            return found
+    return None
+
+
 def _identifier_recount(column, content):
     """The published identifier facts, recounted from the finished cells.
 
@@ -5469,6 +5853,32 @@ def _identifier_recount(column, content):
                 "published value, so the construction above is wrong; do not "
                 "move the published fact to meet it."
             )
+    # THE CENSUS OF LAYOUTS, RECOUNTED (contract section 7.12).  That
+    # section makes it EXACT-OBSERVABLE, so a vector publishing cells
+    # that miss it would be an oracle certifying the very thing the
+    # contract forbids.  The POOLED key bounds rather than binds and is
+    # not recounted; a NAMED layout is.
+    census = column.get("layout_forms") or {}
+    named = {
+        name: count for name, count in census.items() if name != WITHHELD
+    }
+    if named:
+        convention = layout_convention(list(content))
+        worn = {}
+        for cell in content:
+            layout = layout_of(cell, convention)
+            if layout:
+                worn[layout] = worn.get(layout, 0) + 1
+        for layout in sorted(named):
+            if worn.get(layout, 0) != named[layout]:
+                raise AssertionError(
+                    f"the cells this oracle built wear the layout "
+                    f"{layout!r} {worn.get(layout, 0)} times and the case "
+                    f"publishes {named[layout]}. Contract section 7.12 "
+                    "makes the census EXACT-OBSERVABLE, so the construction "
+                    "above is wrong; do not move the published fact to meet "
+                    "it."
+                )
 
 
 def _is_a_number(text):
@@ -5613,9 +6023,53 @@ def _identifier_content(column):
             "states no expected cells for it"
         )
 
+    # THE PUBLISHED LAYOUT IS OFFERED FIRST (contract 7.12, method
+    # G9.6).  The census counts CELLS and this walk spends GROUPS, and
+    # every cell of a group carries the same spelling, so a group takes
+    # the first published layout, in sorted order, whose remaining count
+    # is at least the number of cells that group covers and whose length
+    # its own slot may hold.  Where nothing is offered -- which is every
+    # case frozen before landing 2b.18, each publishing the empty census
+    # a floored census gives a column whose layouts are all held back --
+    # the band enumeration below is reached unchanged, which is why
+    # those cases keep their committed cells.
+    offered = layout_offer(column)
+    census = column.get("layout_forms") or {}
+    quotas = {name: census[name] for name in offered}
+    steps = {name: 0 for name in offered}
+    convention = _convention_of_the_keys(offered)
+    preferred = [""] * identities_wanted
+    if offered:
+        preferred = layout_preferences(
+            column,
+            groups[:identities_wanted],
+            [f"{_classes[p]}/{bands[p]}" for p in range(identities_wanted)],
+            bands,
+            [slot_lengths(p, low, high) for p in range(identities_wanted)],
+            {0, 1} if high > low else {0},
+        )
+
     identities = []
     for position in range(identities_wanted):
         letters_needed = position < partners_wanted
+        laid = None
+        if offered:
+            laid = _offer_a_layout(
+                quotas,
+                steps,
+                slot_lengths(position, low, high),
+                convention,
+                used,
+                bands[position],
+                whole_numbers,
+                groups[position],
+                letters_needed,
+                preferred[position],
+            )
+        if laid is not None:
+            used.add(laid)
+            identities.append(laid)
+            continue
         identities.append(
             take(
                 bands[position],
@@ -7551,6 +8005,14 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
+    # The census of LAYOUTS (contract 7.12), REQUIRED on the identifier
+    # role and forbidden everywhere else, so a case that states none
+    # publishes the empty census a floored census gives a column whose
+    # layouts are all held back -- and the walk below is then the walk
+    # this oracle always had, which is why the three identifier cases
+    # frozen before landing 2b.18 keep their committed cells.
+    if role == "identifier" and "layout_forms" not in block:
+        block["layout_forms"] = {}
     # ...and the mark between thousands (contract numeric block, stage 2),
     # EMPTY for every case here: no source column these cases describe
     # was written with a grouped convention, so a case publishes no mark
@@ -9450,6 +9912,50 @@ def _identifier_edge_spacing():
     }
 
 
+def _identifier_layout():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=6, max_length=6, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"@%%%%%": 12, "@@%%%%": 12},
+    )
+    return {
+        "why": "a declared identifier that publishes a census of LAYOUTS "
+        "(contract section 7.12, landing 2b.18), which every case frozen "
+        "before it publishes empty. The census says what KIND of character "
+        "stood at each position and never which one, and G9.6 writes each "
+        "cell to it: the twenty-four cells here wear `@%%%%%` twelve times "
+        "and `@@%%%%` twelve times instead of the band enumeration's own "
+        "spellings. Without this case the whole layout rule could be "
+        "withdrawn with every committed byte unchanged, because the three "
+        "identifier cases beside it publish no layout at all. TWO RULES ARE "
+        "FROZEN HERE. The fill is a COUNTER taken apart LEFTMOST FIRST, so "
+        "consecutive cells of one layout differ in their leading characters "
+        "rather than their trailing ones, which is what stops a column of "
+        "record numbers coming out as a near-consecutive walk. And the "
+        "census is SPREAD over the identities by the smooth weighted "
+        "rotation, largest group first, rather than poured into them in "
+        "walk order: twelve values are written once and six twice, and a "
+        "walk taking the first layout with room left gives every singleton "
+        "`@%%%%%` and every repeated value `@@%%%%`, binding a layout to how "
+        "often its record numbers recur. This case's mutant withdraws the "
+        "preference, and the cells move. Every other published fact "
+        "survives the offer and is recounted from the finished cells: the "
+        "two alphabet counts and the four class counts, because a candidate "
+        "the readers do not recount into its slot's band is stepped over, "
+        "and both length ends, because a layout is one mark per character. "
+        "Withdrawing the offer altogether stops this oracle before any byte "
+        "is written, because the recount of 7.12 then finds each layout "
+        "worn nought times.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
 # The nine cases method section G14.3 names, which are the first
 # committed file, and the five it adds for the branches those nine leave
 # unexercised (review items P2-C3-F3 and P2-C4-C3), which are the
@@ -10361,6 +10867,9 @@ BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
+    # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). It
+    # goes in THIS file and not the third, which stands at the cap.
+    "identifier_layout": _identifier_layout,
     "leap_second_endpoint": _leap_second_endpoint,
     "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
@@ -10704,6 +11213,20 @@ GIVEN_WORDS = {
     ),
     "identifier_edge_spacing": (
         1301936263764534004, 2783040907285617897, 2670401546021029124,
+    ),
+    # Twenty-three words, which is a twenty-four-row identifier column's
+    # placement budget and its whole budget: the role consumes no content word, so
+    # every cell is fixed by the published facts and these decide only
+    # the ORDER the rows come out in.
+    "identifier_layout": (
+        2350890344146344126, 1295412325827091444, 2148692853705598588,
+        6856365061159066252, 15421135529079413842, 9337190313697136114,
+        17443182240601902554, 3945372972456016603, 3231109804060922937,
+        14928184306589085733, 9623648095902836919, 2833255648229499529,
+        2484211853885415346, 9206020379377428048, 10880630985268877757,
+        11539897411331388552, 13221390389229023683, 5089869681841105310,
+        12063417803171021458, 3253571153139736265, 17680378324194345923,
+        17516376728897238031, 2135463789325316001,
     ),
     "leap_second_endpoint": (
         13427168714134208824, 2622372851408911490, 7994527897440520627,
@@ -11084,6 +11607,9 @@ INTEGER_COLUMN_MAPS = frozenset({
     # The census of signed decimals (landing 2b.2), a map of counts.
     "decimal_plus",
     "shape_forms",
+    # The census of LAYOUTS on a declared identifier (contract 7.12,
+    # landing 2b.18), a map of counts like the form census beside it.
+    "layout_forms",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry
 # (contract 6.7 read at that depth).  It is deliberately narrower than

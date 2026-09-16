@@ -1122,6 +1122,11 @@ def _families_of(band: str, length: int, whole: bool) -> "dict[str, int]":
         n_all_digits=0,
         n_code_alphabet=0,
         n_distinct_by_occurrences={"1": 1},
+        # This walk asks the family map how many spellings each band
+        # writes at one length, which is a question about the ALPHABET
+        # and not about any published layout, so the census is empty
+        # here and the walk is unchanged by landing 2b.18.
+        layout_forms={},
     )
     found: dict[str, int] = {}
     for kind in generation._CLASSES:

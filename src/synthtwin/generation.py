@@ -17703,6 +17703,25 @@ def _laid_identifiers(
     states: dict[str, list[int]] = {
         name: [facts.min_length, 0, 0] for name in families
     }
+    # THE PUBLISHED LAYOUTS, AND WHAT IS LEFT OF EACH (7.12, plan
+    # P4-D120). Empty on every column that publishes no layout, which
+    # is what makes this landing move no byte on a column it does not
+    # describe: `_layout_identifier` answers None at once and the walk
+    # below is the walk this module always had.
+    quotas: dict[str, int] = {}
+    steps: dict[str, int] = {}
+    convention = _layout_convention(facts)
+    for layout in _named_layouts(facts):
+        quotas[layout] = facts.layout_forms[layout]
+        steps[layout] = 0
+    # WHICH LAYOUT EACH GROUP IS OFFERED FIRST, settled before any cell
+    # is spelled (7.12, plan P4-D120). See `_layout_preferences`: the
+    # census is spread over the groups by the smooth weighted rotation,
+    # so no layout is bound to how often its record numbers repeat.
+    preferred = _layout_preferences(
+        facts, families, kinds, bands, groups, windows, carriers, folded,
+        convention,
+    )
     short = [0 for _cell in range(len(_CLASSES) * width)]
     supply = [0 for _cell in range(len(_CLASSES) * width)]
     spellings: list[str] = []
@@ -17735,6 +17754,20 @@ def _laid_identifiers(
             continue
         letter = asks[index] and band != _BAND_DIGITS
         spelling: str | None = None
+        # THE CELL IS WRITTEN TO ITS PUBLISHED LAYOUT WHERE THERE IS
+        # ONE (7.12, plan P4-D120), and to the walk below where there
+        # is not. The layout is offered BEFORE the length pins because
+        # a layout IS a length: a slot pinned to an end is offered only
+        # layouts of exactly that length, so the pin is kept by the
+        # offer rather than in spite of it.
+        laid = _layout_identifier(
+            kind, band, windows[index], convention, quotas, steps,
+            groups[index], used, letter, preferred[index],
+        )
+        if laid is not None:
+            _claim(laid, used)
+            spellings += [laid]
+            continue
         if index == carriers[0]:
             spelling = _pinned_identifier(
                 kind, band, facts, facts.min_length, used, letter,
@@ -17762,6 +17795,465 @@ def _laid_identifiers(
     if repeated or len(set(spellings)) < total:
         notes = notes + _repeat_notes(column)
     return _grouped(groups, spellings), notes, short, supply
+
+
+# -- writing a record number to its PUBLISHED LAYOUT (7.12, G9.6) -----
+#
+# THE HALF THAT MAKES THE CENSUS WORTH PUBLISHING. `layout_forms` says
+# what KIND of character stood at each position of a record number, and
+# until this walk existed the generator did not read it: a column of
+# UUIDs published its layout and its twin still wrote
+# `A----------------------------------J`, matching 0 of its own 800
+# rows. The census is written BACK here, and the twin's cells are held
+# to it by the same recount the form census is held to.
+#
+# WHAT IS DELIBERATELY NOT HERE. A literal run -- a hospital's own
+# record prefix, `ABC-` in front of a study number -- is a fragment of
+# every value in its column, which contract invariants I3 and F3
+# forbid, and it waits for the owner's ruling on clause 3 (landing
+# 2b.15). Every OTHER degree of freedom a record number has is fixed by
+# the census this walk reads: the length, the position of every figure
+# and letter, the case, the alphabet and the leading nought.
+
+
+# How many spellings of one layout this walk will try before it gives
+# the layout up. A UUID layout holds 16**32 of them, and a walk that
+# insisted on finding a usable one could spend an unbounded time on a
+# description the loader accepted. It is the bound `_STAND_IN_STEPS`
+# puts on the form census's own walk, for the same reason.
+_LAYOUT_STEPS = 4096
+
+
+def _named_layouts(facts: contract.IdentifierFacts) -> "list[str]":
+    """The layouts this column published, in the order they are offered.
+
+    Sorted, so which layout a group is offered first is a function of
+    the description and of nothing else. The pooled key is not one of
+    them: `(withheld)` names no layout, so there is nothing to write a
+    cell to, and a walk that treated it as one would write the string
+    `(withheld)` into a twin.
+    """
+    named: list[str] = []
+    for layout in sorted(facts.layout_forms):
+        if layout == contract.WITHHELD:
+            continue
+        named += [layout]
+    return named
+
+
+def _layout_convention(facts: contract.IdentifierFacts) -> str:
+    """Which alphabet convention this column's layouts were built under.
+
+    READ OFF THE PUBLISHED KEYS AND OFF NOTHING ELSE, because that is
+    all a generator has: a hexadecimal mark appears in a column's
+    layouts exactly when the producer decided the whole column was
+    written in hexadecimal, so one such mark anywhere in the census
+    settles it, and a census with none is a plain one. The producer's
+    own rule is all-or-nothing over the column (7.12), so the two
+    cannot disagree.
+
+    It is needed because the census's own reader has to be asked
+    whether a finished cell wears the layout it was written to, and
+    that reader takes the convention as its second argument.
+    """
+    for layout in sorted(facts.layout_forms):
+        if layout == contract.WITHHELD:
+            continue
+        for character in layout:
+            if character == parsing.LAYOUT_LOWER_HEX:
+                return parsing.LAYOUT_HEX_LOWER
+            if character == parsing.LAYOUT_UPPER_HEX:
+                return parsing.LAYOUT_HEX_UPPER
+    return parsing.LAYOUT_PLAIN
+
+
+def _layout_holds_a_letter(layout: str) -> bool:
+    """Whether EVERY spelling of one layout holds a character with a case.
+
+    Only the two case placeholders guarantee it. A hexadecimal mark does
+    not: `~` stands for one of sixteen characters, ten of which are
+    figures, so a layout of hexadecimal marks alone can be filled
+    without a letter and the fold-collision ask cannot rely on it.
+    """
+    for character in layout:
+        if character == parsing.LAYOUT_UPPER:
+            return True
+        if character == parsing.LAYOUT_LOWER:
+            return True
+    return False
+
+
+def _filled_layout(layout: str, step: int) -> str:
+    """One spelling of one published layout, stepped by ``step``.
+
+    THE LAYOUT SAYS THE SHAPE AND THE STEP SAYS WHICH ONE, exactly as
+    `_filled_form` does for the form census. Every `%` takes a figure,
+    every `@` an upper-case letter, every `&` a lower-case one, every
+    `~` or `^` a hexadecimal character of the case its mark names, and
+    every mark stands as itself. The step is taken apart into those
+    positions by plain mixed-radix arithmetic, LEFTMOST FIRST, so
+    consecutive steps differ in the leading characters rather than in
+    the trailing ones -- which is what keeps a column of record numbers
+    from coming out as a near-consecutive walk, the shape LTM-5
+    measured (`10000020`, `10000021`, ...).
+
+    `!` TAKES THE FIGURE NOUGHT AND SPENDS NO STEP, because that is
+    what the mark says: the leftmost character of a cell written in
+    figures alone WAS a nought. It is the zero fill of NC-9 -- the
+    `%08d` a reader loses when pandas or R reads `01586982` as
+    1586982 -- and it is the one place in this module where a made-up
+    whole number may open with a nought. It can name no text anybody
+    chose, because the census only ever writes it where the whole cell
+    is figures.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE. The layout was built by
+    replacing every figure and every letter of a cell before it was
+    published, and the characters put back here come off the step,
+    which is a count of made-up values and not a reading of anything.
+    """
+    figures = "0123456789"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    lower_hex = "0123456789abcdef"
+    upper_hex = "0123456789ABCDEF"
+    spelling = ""
+    place = _stepped_around(step, parsing.layout_room(layout))
+    for character in layout:
+        if character == parsing.LAYOUT_DIGIT:
+            spelling = spelling + figures[place % 10]
+            place = place // 10
+            continue
+        if character == parsing.LAYOUT_UPPER:
+            spelling = spelling + upper[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.LAYOUT_LOWER:
+            spelling = spelling + lower[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.LAYOUT_LOWER_HEX:
+            spelling = spelling + lower_hex[place % 16]
+            place = place // 16
+            continue
+        if character == parsing.LAYOUT_UPPER_HEX:
+            spelling = spelling + upper_hex[place % 16]
+            place = place // 16
+            continue
+        if character == parsing.LAYOUT_LEADING_ZERO:
+            spelling = spelling + "0"
+            continue
+        spelling = spelling + character
+    return spelling
+
+
+def _layout_spelling(
+    kind: str,
+    band: str,
+    layout: str,
+    convention: str,
+    steps: "dict[str, int]",
+    used: "dict[str, int]",
+) -> "str | None":
+    """The next free spelling of one layout that keeps its slot's family.
+
+    EVERY GUARD THE ORDINARY WALK APPLIES IS APPLIED HERE. A layout
+    fixes what a cell LOOKS like and settles nothing about what the
+    contract's own readers make of it, so a candidate is taken only
+    where the shipped classifier reads it back as this slot's class and
+    the shipped alphabet readers recount it into this slot's band. That
+    is what keeps the four class counts and the two alphabet counts
+    EXACT-OBSERVABLE across this walk rather than trading them for the
+    census: a hexadecimal layout can be filled to twelve figures, which
+    is a different band from the one the packing gave the slot, and such
+    a filling is stepped over rather than written.
+
+    None says this layout has nothing left to offer this slot, and the
+    caller then offers the next layout, and finally falls back to the
+    walk this module always had.
+
+    ``steps`` is per layout and is carried between calls, so a column's
+    walk over one layout is ONE walk rather than one per value.
+    """
+    room = parsing.layout_room(layout)
+    ceiling = min(room, _LAYOUT_STEPS)
+    tried = 0
+    while tried < ceiling:
+        candidate = _filled_layout(layout, steps[layout])
+        steps[layout] = steps[layout] + 1
+        tried = tried + 1
+        opening = candidate[:1]
+        if opening == _SPACE or opening in _FORMULA_LEADERS:
+            # A LAYOUT WHOSE LEADING MARK IS ONE A SPREADSHEET READS AS
+            # THE START OF A FORMULA IS GIVEN UP AT ONCE, not stepped
+            # through. The opening character of a layout's spelling is
+            # the layout's own leading mark wherever that mark is not a
+            # placeholder, so every one of its spellings opens the same
+            # way and no step can rescue it. G9.1's bar stands here as
+            # it stands everywhere else in this module.
+            return None
+        if not _free(candidate, used):
+            continue
+        if _fits_its_slot(kind, band, layout, convention, candidate):
+            return candidate
+    return None
+
+
+def _fits_its_slot(
+    kind: str, band: str, layout: str, convention: str, candidate: str
+) -> bool:
+    """Whether one filling of a layout may stand in a slot, freeness aside.
+
+    Every guard of `_layout_spelling` but the one about what the column
+    has already written, and it is a function of its own so that the
+    walk and the admission test of `_layout_admits` ask ONE predicate
+    and cannot drift apart.
+    """
+    if parsing.classify_number(candidate) != _reads_as(kind):
+        return False
+    if not _reads_in_band(candidate, band):
+        return False
+    if parsing.is_missing_text(candidate):
+        return False
+    if _reads_as_a_date(candidate):
+        return False
+    if parsing.layout_form(candidate, convention) != layout:
+        # THE CELL MUST RECOUNT INTO THE LAYOUT IT WAS WRITTEN TO,
+        # and this is the guard that makes the census a census
+        # rather than a decoration. A layout is filled from a
+        # counter, and a counter has no idea what the census's own
+        # reader will make of what it wrote: `%%%%` filled at a step
+        # whose leading figure is nought spells `0123`, which is a
+        # cell written in figures alone and led by a nought -- so
+        # its layout is `!%%%`, a layout this column may never have
+        # published at all. MEASURED, before this guard existed: a
+        # column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33
+        # of its 320 four-character cells with a leading nought, so
+        # the twin held a zero-filled four-figure spelling the
+        # source never wrote and the census went MISSED at exit 3.
+        #
+        # Asked of the census's OWN reader rather than restated, for the
+        # reason the loader and the publication guard ask it: three
+        # readings of one rule is how a producer, a loader and a guard
+        # come to disagree.
+        return False
+    return True
+
+
+# How many fillings of one layout, counted from its first, the admission
+# test reads before it says a family cannot take that layout at all. It
+# is a PREFERENCE that reads it, never a refusal: a layout the test turns
+# down is still offered by the walk once the preferred one has failed,
+# so a short test can cost the spread of a census and never a cell.
+_LAYOUT_ADMISSION_STEPS = 64
+
+
+def _layout_admits(
+    kind: str, band: str, layout: str, convention: str
+) -> bool:
+    """Whether a slot of one class and one band can wear one layout at all.
+
+    Read off the layout's own opening fillings, with every guard of
+    `_fits_its_slot` and nothing about what the column has written. A
+    layout of figures alone can never stand in a slot the packing gave
+    a letter, and one holding a letter mark can never stand in the
+    figures band; the preference pass below spreads a census only over
+    the layouts a slot could take, because spreading it over the others
+    would hand the slot a layout it must then give back.
+    """
+    ceiling = min(parsing.layout_room(layout), _LAYOUT_ADMISSION_STEPS)
+    for step in range(ceiling):
+        candidate = _filled_layout(layout, step)
+        opening = candidate[:1]
+        if opening == _SPACE or opening in _FORMULA_LEADERS:
+            return False
+        if _fits_its_slot(kind, band, layout, convention, candidate):
+            return True
+    return False
+
+
+def _layout_preferences(
+    facts: contract.IdentifierFacts,
+    families: "list[str]",
+    kinds: "list[str]",
+    bands: "list[str]",
+    groups: "tuple[int, ...]",
+    windows: "list[tuple[int, int | None]]",
+    carriers: "tuple[int, int]",
+    folded: int,
+    convention: str,
+) -> "list[str]":
+    """Which published layout each group is offered FIRST (7.12, G9.6).
+
+    THE CENSUS IS SPREAD OVER THE GROUPS, NOT POURED INTO THEM. The walk
+    lays groups out in the order the multiplicity map and the packing
+    fix, and that order runs from the values written once to the values
+    written most often; a walk taking the first layout with room left
+    gave one layout every singleton and the other every repeat.
+    MEASURED on a two-system key written `REC` and seven figures beside
+    `E` and six, 800 rows, identities repeating one to three times: the
+    real column's one-letter layout held 71 singletons, 34 doubles and
+    26 triples, and the twin's held 217 singletons and nothing else --
+    so code counting visits per record system met a system where nobody
+    ever came back.
+
+    THE RULE. The groups are visited with the two carrying a published
+    length END first, then by the number of cells they cover, largest
+    first, then in walk order. Each visit takes, among the layouts that
+    still have at least as many cells left as the group covers, whose
+    length the group's own window holds and which `_layout_admits` says
+    the group's class and band can wear, the one the SMOOTH WEIGHTED
+    ROTATION names: every layout the family can wear has its published
+    count times the group's size added to its running credit, the
+    candidate with the most credit is taken -- the earliest in sorted
+    order on a tie -- and the family's total times the group's size is
+    taken back from it. The credit is kept per FAMILY, because two
+    families wear different layouts and one family's credit growing on
+    a layout it cannot wear would later pour that layout into the other.
+    Largest first is what keeps the census PAYABLE: a group covering
+    three cells needs a layout with three left, and the singletons that
+    come last can pay any remainder a larger group left behind.
+
+    Only IDENTITIES are visited; a slot the fold-collision partners take
+    wears no layout (G9.3). '' says a group has no preference, and the
+    walk then offers the layouts in sorted order as it always did. The
+    rotation draws no random word.
+    """
+    total = len(groups)
+    reach = total
+    if 1 <= folded < total:
+        reach = folded
+    named = _named_layouts(facts)
+    remaining: dict[str, int] = {}
+    for layout in named:
+        remaining[layout] = facts.layout_forms[layout]
+    preferred = ["" for _group in range(total)]
+    if not named:
+        return preferred
+    visits: list[tuple[int, int, int]] = []
+    for index in range(reach):
+        pinned = index == carriers[0] or (
+            index == carriers[1] and facts.max_length > facts.min_length
+        )
+        visits += [(0 if pinned else 1, -groups[index], index)]
+    credits: dict[str, dict[str, int]] = {}
+    wearable: dict[str, list[str]] = {}
+    for _pinned, _size, index in sorted(visits):
+        family = families[index]
+        if family not in wearable:
+            worn: list[str] = []
+            for layout in named:
+                if _layout_admits(
+                    kinds[index], bands[index], layout, convention
+                ):
+                    worn += [layout]
+            wearable[family] = worn
+            credits[family] = {layout: 0 for layout in worn}
+        covering = groups[index]
+        weight = 0
+        for layout in wearable[family]:
+            weight = weight + facts.layout_forms[layout]
+        best = ""
+        best_credit = 0
+        for layout in wearable[family]:
+            if remaining[layout] < covering:
+                continue
+            if len(layout) < windows[index][0]:
+                continue
+            ceiling = windows[index][1]
+            if ceiling is not None and len(layout) > ceiling:
+                continue
+            credit = (
+                credits[family][layout]
+                + facts.layout_forms[layout] * covering
+            )
+            if best == "" or credit > best_credit:
+                best = layout
+                best_credit = credit
+        if best == "":
+            continue
+        for layout in wearable[family]:
+            credits[family][layout] = (
+                credits[family][layout]
+                + facts.layout_forms[layout] * covering
+            )
+        credits[family][best] = credits[family][best] - weight * covering
+        remaining[best] = remaining[best] - covering
+        preferred[index] = best
+    return preferred
+
+
+def _layout_identifier(
+    kind: str,
+    band: str,
+    window: "tuple[int, int | None]",
+    convention: str,
+    quotas: "dict[str, int]",
+    steps: "dict[str, int]",
+    covering: int,
+    used: "dict[str, int]",
+    letter: bool,
+    preferred: str,
+) -> "str | None":
+    """One record number written to a published layout, or None (7.12).
+
+    THE CENSUS COUNTS CELLS AND THIS WALK SPENDS GROUPS, and the rule
+    that settles them is stated rather than left to the arithmetic:
+    a group covers a fixed number of cells -- its own size, which the
+    multiplicity map fixes before any spelling exists -- and taking a
+    layout lowers that layout's remaining count by the whole group. A
+    group is offered FIRST the layout `_layout_preferences` spread to
+    it, and then every other published layout IN SORTED ORDER; each
+    offer is made only where the layout's remaining count is at least
+    as large as the group covers and its length is one the group's own
+    slot may hold.
+
+    WHERE GROUPS REPEAT IT CAN STILL FALL SHORT, which the preference
+    pass makes rare rather than impossible: a layout owing two cells
+    cannot be paid by a group covering three. What is NOT done is
+    splitting a group across two layouts -- every cell of a group
+    carries the same spelling, so the group wears one layout or none --
+    and what is not done either is trading a class or an alphabet count
+    for a layout. A shortfall is left to be MEASURED off the finished
+    cells by the recount, which is what names it in the twin's own
+    report.
+
+    THE LENGTH ENDS ARE MET BY THE CENSUS ITSELF wherever every cell
+    has a layout, and that is a property rather than a hope: a layout is
+    one mark per character, so the shortest cell's layout is
+    `min_length` marks long and the longest cell's is `max_length`. The
+    slot pinned to an end therefore has a layout of exactly its length
+    to take, and where the floor held that layout back the slot falls
+    through to `_pinned_identifier` and keeps the end as it always did.
+
+    ``letter`` is the fold-collision ask of G9.3 step 1, and it stays an
+    ASK here as it is everywhere else: a layout guaranteeing a character
+    with a case is offered first, and where none fits, the ordinary
+    offer is taken rather than the slot being spent.
+    """
+    offered: list[str] = []
+    if preferred != "":
+        offered += [preferred]
+    for layout in sorted(quotas):
+        if layout != preferred:
+            offered += [layout]
+    for asking in ((True, False) if letter else (False,)):
+        for layout in offered:
+            if quotas[layout] < covering:
+                continue
+            if len(layout) < window[0]:
+                continue
+            if window[1] is not None and len(layout) > window[1]:
+                continue
+            if asking and not _layout_holds_a_letter(layout):
+                continue
+            found = _layout_spelling(
+                kind, band, layout, convention, steps, used
+            )
+            if found is None:
+                continue
+            quotas[layout] = quotas[layout] - covering
+            return found
+    return None
 
 
 def _moved_to(order: "list[int]", place: int) -> int:

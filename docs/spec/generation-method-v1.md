@@ -4912,6 +4912,19 @@ When a positional constraint rejects a character, the enumeration puts
 the first character of the same alphabet that meets that constraint in
 its place, in the alphabet's own order.
 
+**THE LEADING NOUGHT OF A PUBLISHED LAYOUT, and why it is not a
+constraint this list has to bend** (contract 7.12, landing 2b.18, plan
+P4-D120). A record number written to a published layout may open with
+the figure nought where that layout's leading mark says the source's
+own cell did — the zero fill of a `%08d` record number. The
+constraints above are about the space and the four characters a
+spreadsheet reads as the start of a formula, and the nought is neither,
+so nothing here is lowered: what changes is that G9.6's figures band no
+longer forbids a leading nought where the census published one. A
+layout whose own leading mark IS one of those four characters is given
+up rather than written, since every one of its spellings would open
+with it.
+
 **The ONE construction outside the first constraint, and why it is
 outside it** (P2-C2-F6). A fold-collision partner built by G9.3 may
 carry a space at one or both ends. The first constraint exists so that
@@ -6137,6 +6150,87 @@ packing rule applying here IN FULL — both margins and the shape search
   at ANY length — one character cannot be both a whole number and
   outside the figures — the facts cannot all hold and G12 refuses
   generation before any cell is built** (review item P2-C5-F4);
+- **each cell is written to its PUBLISHED LAYOUT where the column
+  publishes one** (contract 7.12, landing 2b.18, plan P4-D120). The
+  census of layouts says what KIND of character stood at each position
+  of a record number, and until this rule existed the construction
+  above did not read it: a column of UUIDs published its layout and its
+  twin still wrote `A----------------------------------J`, matching 0
+  of its own 800 rows while both files passed their own description at
+  exit 0. The rule is this. The census counts CELLS and this walk
+  spends GROUPS, and every cell of a group carries the same spelling,
+  so taking a layout lowers that layout's remaining count by the whole
+  group. **Before any cell is spelled, the census is SPREAD over the
+  identities by the smooth weighted rotation** that spends a datetime
+  column's separator census (plan P4-D39). The identities are visited
+  with the ones carrying a published length END first, then by the
+  number of cells they cover, LARGEST FIRST, then in walk order. Each
+  visit considers the layouts that still have at least as many cells
+  left as the group covers, whose length the group's own window holds,
+  and which the group's class and band can wear at all -- read off the
+  layout's own first 64 fillings (or all of them where it has fewer)
+  with every guard below but freeness. Every layout the group's family
+  can wear has its published count times the group's size added to
+  that family's running credit, the candidate with the most credit is
+  preferred -- the earliest in sorted order on a tie -- and the
+  family's total times the group's size is taken back from it. Credit
+  is kept per family (class and band), so a layout one family cannot
+  wear is never poured into another. LARGEST FIRST is what keeps the
+  census payable: a group covering three cells needs a layout with
+  three left, and the singletons visited last can pay whatever a
+  larger group left behind. The walk then offers each group its
+  preferred layout first and every other published layout in sorted
+  order after it, each only where its remaining count covers the group
+  and its length fits the slot, and at most 4,096 fillings of one
+  layout are read for one offer. A group the offer cannot serve keeps
+  the walk above, unchanged, so a column publishing no layout is written
+  exactly as it was, byte for byte. **Why the spread, measured:** the
+  walk reaches the values written once before the values written more
+  often, and taking the first layout with room left gave a two-system
+  key -- `REC` and seven figures beside `E` and six, 800 rows,
+  identities recurring one to three times -- a one-letter layout of
+  217 singletons and nothing else against the real column's 71
+  singletons, 34 doubles and 26 triples; with the rotation it is 67,
+  27 and 32, so code counting visits per record system meets both
+  systems recurring.
+  **A layout is filled from a COUNTER and never from a reading**, by
+  the mixed-radix arithmetic of G8.3's own form fill, leftmost first,
+  so consecutive spellings differ in their leading characters rather
+  than their trailing ones — which is what stops a column of record
+  numbers coming out as the near-consecutive walk `10000020`,
+  `10000021`, … that landing 2b.18 measured. **AND A CELL IS WRITTEN
+  TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT LAYOUT**, asked of the
+  census's own reader: `%%%%` filled at a step whose leading figure is
+  nought spells `0123`, whose layout is `!%%%` and not `%%%%`, so such
+  a filling is stepped over rather than written. Without that guard a
+  column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33 four-figure
+  cells with a leading nought — a zero-filled spelling its source never
+  wrote. The length ends need no separate rule: a layout is one mark
+  per character, so the shortest cell's layout is `min_length` marks
+  long and the longest cell's is `max_length`, and the slot pinned to
+  an end has a layout of exactly its length to take. **The four class
+  counts and the two alphabet counts are kept across this rule and not
+  traded for it**: a candidate the shipped classifier does not read
+  back as its slot's class, or the shipped alphabet readers do not
+  recount into its slot's band, is stepped over. **`!` IS THE ONE
+  PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A NOUGHT**, and it is the
+  zero fill of NC-9 — the `%08d` a reader loses when a spreadsheet or
+  a statistics package reads `01586982` as 1586982. The mark stands
+  only where the whole cell is figures, so it can name no text anybody
+  chose. **WHAT IS NOT WRITTEN BACK IS A LITERAL RUN** — a record
+  prefix, or `ABC-` in front of a study number — because a literal run
+  is a fragment of every value in its column, which contract invariants
+  I3 and F3 forbid; it waits for the owner's ruling on clause 3, and
+  until then the twin writes the layout's own alphabet in its place;
+- **a fold-collision partner wears no layout**, and that is a named
+  limit rather than an oversight. A partner is its parent's spelling
+  with a case flipped or an edge space added (G9.3), and an edge space
+  is a character no layout carries, so a column publishing fewer folded
+  identities than raw spellings meets its census from its identities
+  alone and the recount names whatever is left. The census is not
+  traded for the folded count, nor the folded count for the census:
+  both are attempted and the shortfall is MEASURED off the finished
+  cells;
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
@@ -8081,9 +8175,12 @@ the move off an accidental value at midnight (landing 2b.3's repair), and
 three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
 and five for the marks and notations of a negative those three left
 unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
-2b.5).
-**All forty are required.** The
-first nine are the first committed file, the next fourteen the second,
+2b.5), and one for the LAYOUT of a record number (contract section
+7.12, landing 2b.18), whose three identifier cases all publish an empty
+census, so the whole layout rule could have been withdrawn with every
+committed byte unchanged.
+**All forty-one are required.** The
+first nine are the first committed file, the next fifteen the second,
 and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
@@ -8107,6 +8204,7 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST — `A00000`, `B30816`, `C60632` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |

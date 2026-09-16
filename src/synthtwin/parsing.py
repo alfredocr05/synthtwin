@@ -1353,6 +1353,304 @@ def is_a_written_form(name: str) -> bool:
     return figures + letters + marks >= 2
 
 
+# -- the LAYOUT of a record number (contract 7.12) --------------------
+#
+# WHY THIS IS NOT `shape_form` WITH A LARGER LIMIT, stated here because
+# reusing that census was the obvious move and it is the wrong one.
+# `SHAPE_FORM_LIMIT` is 24 and a UUID is 36, so every UUID has no form
+# at all; but raising that limit would change the census the five label
+# roles publish, on columns this landing does not touch, and the limit
+# is not a performance bound -- it is C6-31a's judgement about where a
+# fact stops being about a code and starts being about a sentence. That
+# judgement is right for those roles and does not reach this one: a
+# DECLARED record number is a record number because its owner said so,
+# and no run of prose arrives here. So the identifier role gets a
+# census of its own, and the form census is left exactly as it was.
+#
+# The limit is sixty-four because the widest identifier scheme in
+# ordinary use is a braced GUID at thirty-eight characters, and the
+# space is excluded here as it is there, which is what actually kept
+# sentences out.
+LAYOUT_FORM_LIMIT = 64
+
+# The one refusal this census raises on its own account: a convention
+# no member of `LAYOUT_CONVENTIONS` names. It is a mistake in a CALLER
+# and never in a document, so it is a plain ValueError and carries no
+# spelling of anybody's table.
+_NOT_A_LAYOUT_CONVENTION = (
+    "a layout convention must be one of the three this module names: "
+    "plain, lower-hexadecimal or upper-hexadecimal"
+)
+
+# THE MARKS A LAYOUT MAY CARRY: the thirteen C6-31a names, and the two
+# BRACES. A braced GUID -- `{B8B6D8FE-...-E52DB2221A58}`, which is how
+# SQL Server and many .NET exports write one -- wears braces, and a
+# closed list that omitted them would give that column no layout at
+# all while appearing to describe it.
+LAYOUT_MARKS = "-./_:#*()[]+,{}"
+
+# THE SIX PLACEHOLDERS, and each one says a KIND of character and never
+# which character it was.
+LAYOUT_DIGIT = "%"
+LAYOUT_UPPER = "@"
+LAYOUT_LOWER = "&"
+LAYOUT_LOWER_HEX = "~"
+LAYOUT_UPPER_HEX = "^"
+# ...with ONE exception, which is stated rather than hidden: this mark
+# says the leftmost character of a cell written in FIGURES ALONE was
+# the figure nought. That is a zero FILL -- a writer's field width, the
+# `%08d` of NC-9 -- and it is the fact a reader loses when pandas or R
+# reads `01586982` as 1586982 and silently drops the zero. It can name
+# no text anybody chose, because it stands only where the whole cell is
+# figures. A literal RUN of letters -- a hospital's own record prefix,
+# or `ABC-` in front of a study number -- is a different thing, is a
+# fragment of every value in its column, and is NOT built here: it
+# waits for the owner's ruling on clause 3 (landing 2b.15).
+LAYOUT_LEADING_ZERO = "!"
+
+_LAYOUT_PLACEHOLDERS = "%@&~^!"
+
+# The three conventions a COLUMN of record numbers is written in. The
+# choice is the COLUMN's and never one cell's, and that is the whole of
+# why this census works where a per-character rule does not: measured
+# on eight hundred braced GUIDs, a hex mark decided character by
+# character gives 800 different layouts and not one of them reaches two
+# cells, because a figure is ambiguous between the two cases; and on a
+# column of site codes `BOS-1234` it gives three, because `B` is a
+# hexadecimal letter and `O` is not. Decided once for the column, the
+# same two columns give exactly one layout each.
+LAYOUT_PLAIN = "plain"
+LAYOUT_HEX_LOWER = "lower-hexadecimal"
+LAYOUT_HEX_UPPER = "upper-hexadecimal"
+LAYOUT_CONVENTIONS = (LAYOUT_PLAIN, LAYOUT_HEX_LOWER, LAYOUT_HEX_UPPER)
+
+_HEX_LOWER_LETTERS = "abcdef"
+_HEX_UPPER_LETTERS = "ABCDEF"
+
+
+def _could_carry_a_layout(text: str) -> bool:
+    """Whether one cell is one this census describes at all.
+
+    A cell is described where it is not empty, is no longer than
+    `LAYOUT_FORM_LIMIT`, holds at least one figure or letter, and holds
+    nothing but figures, ASCII letters and `LAYOUT_MARKS` -- a space
+    among the characters that disqualify it, for C6-31a's own reason.
+
+    THE TWO EDGES ARE EACH A PROPERTY AND NOT A PREFERENCE. A cell
+    carrying a PLACEHOLDER is refused, and a cell of marks ALONE is
+    refused: between them they are what makes "no cell that has a
+    layout can be spelled the same as any layout" true. Without the
+    second, a cell spelled `----` would have the layout `----` and be
+    its own key again, which is the collision `SHAPE_DIGIT` and
+    `SHAPE_LETTER` were chosen to rule out for the form census.
+    """
+    if not text or len(text) > LAYOUT_FORM_LIMIT:
+        return False
+    content = 0
+    for character in text:
+        if character in _LAYOUT_PLACEHOLDERS:
+            return False
+        if _is_a_digit(character) or _is_a_letter(character):
+            content = content + 1
+            continue
+        if character in LAYOUT_MARKS:
+            continue
+        return False
+    return content >= 1
+
+
+def layout_convention(values: "list[str]") -> str:
+    """Which alphabet convention a whole column of record numbers uses.
+
+    HEXADECIMAL exactly where every letter of every described cell is
+    one of `abcdef` or one of `ABCDEF`, the two cases do not both
+    appear, and at least one letter appears anywhere. Everything else
+    is `LAYOUT_PLAIN`, where a letter is marked by its CASE instead.
+
+    The rule is deliberately all-or-nothing. A column one of whose
+    letters is not a hexadecimal one is not a hexadecimal column, so a
+    site code `BOS-1234` keeps `@@@-%%%%` and does not shatter into one
+    layout per site; and a column whose letters are all hexadecimal but
+    in both cases falls back to the case marks, where the floor pools
+    whatever it must.
+
+    Guarantees: accepts a list of strings; reads only them; returns one
+    member of `LAYOUT_CONVENTIONS`. Determinism: the answer depends
+    only on the values. Raises TypeError if handed anything that is not
+    a list of string instances. No I/O of any kind.
+    """
+    if not isinstance(values, list):
+        raise TypeError(_NOT_TEXT)
+    letters = 0
+    lower = 0
+    upper = 0
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError(_NOT_TEXT)
+        if not _could_carry_a_layout(value):
+            continue
+        for character in value:
+            if not _is_a_letter(character):
+                continue
+            letters = letters + 1
+            if character in _HEX_LOWER_LETTERS:
+                lower = lower + 1
+                continue
+            if character in _HEX_UPPER_LETTERS:
+                upper = upper + 1
+                continue
+            return LAYOUT_PLAIN
+    if letters < 1 or (lower > 0 and upper > 0):
+        return LAYOUT_PLAIN
+    if upper > 0:
+        return LAYOUT_HEX_UPPER
+    return LAYOUT_HEX_LOWER
+
+
+def _layout_mark(character: str, convention: str, leading: bool) -> str:
+    """The one mark that stands for one character of a cell."""
+    if _is_a_digit(character):
+        if leading and character == "0":
+            return LAYOUT_LEADING_ZERO
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_DIGIT
+    if _is_a_letter(character):
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        if "a" <= character <= "z":
+            return LAYOUT_LOWER
+        return LAYOUT_UPPER
+    return character
+
+
+def layout_form(text: str, convention: str) -> str:
+    """The LAYOUT of one record number: its kinds, position by position.
+
+    Every character becomes one mark saying what KIND of character stood
+    there -- a figure, an upper-case letter, a lower-case letter, a
+    hexadecimal character -- and every mark of `LAYOUT_MARKS` stands as
+    itself. A UUID `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-
+    hexadecimal column has the layout
+    `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site code `NYC-7480` has
+    `@@@-%%%%`; a record number `REC4972605` has `@@@%%%%%%%`; and
+    `00282669`, being figures alone and led by a nought, has
+    `!%%%%%%%`.
+
+    ONE MARK PER CHARACTER, WHICH IS WHY THE LENGTH RIDES IN THE KEY.
+    A layout is exactly as long as the cell it came from, so the census
+    of layouts IS the census of lengths, and the length mix NC-9 found
+    collapsing -- `{10: 573, 7: 227}` written back as `{7: 799, 10: 1}`
+    -- is carried by the same key that carries the shape. Nothing
+    separate has to be published for it, and nothing separate can drift
+    out of step with it.
+
+    A CELL `_could_carry_a_layout` REFUSES HAS NO LAYOUT AT ALL and
+    answers the empty string, exactly as a formless cell does in the
+    form census, and it is counted nowhere rather than pooled.
+
+    Guarantees: accepts any string; returns a layout built only from
+    the six placeholders and `LAYOUT_MARKS`, or "" for a cell this
+    census does not describe. Determinism: the answer depends only on
+    the text and the convention. Raises TypeError if handed anything
+    that is not a string instance, and ValueError for a convention this
+    module does not name. Boundary: no figure and no letter of the cell
+    survives into the answer -- only what KIND stood at each position,
+    and where the marks between them fell. No I/O of any kind.
+    """
+    if not isinstance(text, str) or not isinstance(convention, str):
+        raise TypeError(_NOT_TEXT)
+    if convention not in LAYOUT_CONVENTIONS:
+        raise ValueError(_NOT_A_LAYOUT_CONVENTION)
+    if not _could_carry_a_layout(text):
+        return ""
+    figures = 0
+    for character in text:
+        if _is_a_digit(character):
+            figures = figures + 1
+    whole = figures == len(text)
+    built = ""
+    place = 0
+    for character in text:
+        built = built + _layout_mark(character, convention, whole and place < 1)
+        place = place + 1
+    return built
+
+
+def is_a_layout_form(name: str) -> bool:
+    """Whether one census key is a layout: THE one definition of it.
+
+    The producer builds a layout, the loader admits a key and the
+    publication guard refuses one, and the form census learned at cost
+    what happens when those are three readings of one rule rather than
+    three callers of one predicate (review round 2 finding 2). There is
+    one definition here and the others call it.
+
+    A layout is one to `LAYOUT_FORM_LIMIT` characters, every one of them
+    a placeholder or a mark from the closed list, carrying AT LEAST ONE
+    placeholder. The last clause is what keeps a key of marks alone out,
+    and with it the property that no cell wearing a layout is spelled
+    like any layout.
+
+    THERE IS NO TWO-KINDS RULE HERE, and that is a difference from the
+    form census rather than an oversight. `@@@@@` is refused there
+    because `length` and the two alphabet counts already say five
+    letters. On this role they do not: `min_length` and `max_length`
+    give only the two ends, so `%%%%%%%` and `%%%%%%%%%%` on one column
+    say how many cells are seven characters and how many are ten --
+    the very fact NC-9 found lost -- and `!%%%%%%%` says the zero fill
+    besides. A key of one kind carries information here.
+
+    Guarantees: accepts any string; answers only from the characters.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not name or len(name) > LAYOUT_FORM_LIMIT:
+        return False
+    placeholders = 0
+    for character in name:
+        if character in _LAYOUT_PLACEHOLDERS:
+            placeholders = placeholders + 1
+            continue
+        if character in LAYOUT_MARKS:
+            continue
+        return False
+    return placeholders >= 1
+
+
+def layout_room(name: str) -> int:
+    """How many different cells could have worn this layout.
+
+    Each placeholder stands for its own alphabet -- ten figures,
+    twenty-six letters of one case, sixteen hexadecimal characters --
+    and `LAYOUT_LEADING_ZERO` stands for exactly one character, the
+    nought, which is what it says. The marks stand for themselves. So a
+    layout is a COUNT of the cells it could have come from, and that
+    count is what tells a generator whether it can spell as many
+    different values as the layout is asked for.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = 1
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            room = room * 10
+        elif character == LAYOUT_UPPER or character == LAYOUT_LOWER:
+            room = room * 26
+        elif character == LAYOUT_LOWER_HEX or character == LAYOUT_UPPER_HEX:
+            room = room * 16
+    return room
+
+
 # What one cell says about the comma inside it.
 COMMA_NONE = "no-comma"
 COMMA_GROUPED = "proves-a-thousands-separator"

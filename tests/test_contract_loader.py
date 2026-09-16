@@ -1068,6 +1068,25 @@ def battery() -> list[Mutation]:
             "a census counting more cells than the column has present",
             edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 9999}),
         ),
+        # THE LAYOUT CENSUS, on the one role that carries it (contract
+        # 7.12, landing 2b.18, plan P4-D120). `record_code` is the base
+        # description's declared identifier, so it is the only block
+        # these two rules can be broken on.
+        #
+        # THE KEY HERE MUST BE A LAYOUT THE PRODUCER COULD WRITE, for
+        # the reason the form census's own entries carry: a key the
+        # grammar refuses is refused BEFORE LF1 is reached, and the
+        # entry would then name a rule it does not exercise.
+        Mutation(
+            "LF1",
+            "a layout named by fewer cells than the floor admits",
+            edit("record_code", layout_forms={"@%%%%%": 3}),
+        ),
+        Mutation(
+            "LF3",
+            "a layout census counting more cells than the column holds",
+            edit("record_code", layout_forms={"@%%%%%": 9999}),
+        ),
         Mutation(
             "P8",
             "two width censuses that are each possible and not both",
