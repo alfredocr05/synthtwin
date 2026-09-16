@@ -1214,11 +1214,22 @@ def decoded_as(data: bytes, shown: str, encoding: str) -> "tuple[str, str, bool]
     stood in cells written as stand-ins -- and which is therefore valid
     UTF-8 -- as UTF-8, and find every accented label changed. Every other
     case is `decoded`'s.
+
+    A MARK-SHAPED PREFIX IS DATA HERE, NOT A MARK (review item CODEX-8).
+    Contract FD3 gives a description published as Latin-1 or
+    Windows-1252 no byte-order mark at all, so those three bytes at the
+    start of such a file are three characters of its first cell -- which
+    is exactly what they were in the table it describes. This used to
+    hand the file to detection instead: a table whose bytes were UTF-8
+    behind a mark with one stray Latin-1 byte was described as Latin-1,
+    without a mark, its first column named `\u00ef\u00bb\u00bfrecord`; the twin
+    dropped the stray byte, became valid UTF-8, and was then re-read AS
+    UTF-8 with the prefix consumed as a mark -- so the twin failed its
+    own description on twelve counts, names and label counts among them.
     """
     if not isinstance(data, bytes):
         raise TypeError("internal check: a file's bytes were not bytes")
-    marked = data[:3] == b"\xef\xbb\xbf" or data[:2] == b"\xff\xfe" or data[:2] == b"\xfe\xff"
-    if encoding in FALLBACK_ENCODINGS and not marked:
+    if encoding in FALLBACK_ENCODINGS:
         try:
             return (str(data, WRITING_CODECS[encoding]), encoding, False)
         except UnicodeDecodeError:
@@ -2421,14 +2432,23 @@ def survey(
             _add_ending(walk, found.ending, shown)
             _blank(blanks, n_rows, "", shown)
             continue
+        # A WHITESPACE-ONLY LINE IS READ FROM THE RAW TEXT (review item
+        # CODEX-15). Under the comma-space reading the leading spaces of
+        # a field are skipped before this test ever sees them, so a line
+        # holding three spaces arrived here as one EMPTY field, failed
+        # this test, and was refused as a short record -- a file of
+        # `a, b` rows with blank lines between them could not be read at
+        # all. The record's own text is what it held before anything was
+        # skipped, so the blank line is recognised, and the spelling
+        # published for it is the one the file actually carries.
         if (
             len(fields) == 1
             and width >= 2
             and not found.quoted[0]
-            and _only_spaces_and_tabs(fields[0])
+            and _only_spaces_and_tabs(found.raw)
         ):
             _add_ending(walk, found.ending, shown)
-            _blank(blanks, n_rows, fields[0], shown)
+            _blank(blanks, n_rows, found.raw, shown)
             continue
         spaces_broken = spaces_broken or _spaces_broken(found, spaced)
         _add_ending(walk, found.ending, shown)
@@ -2821,10 +2841,31 @@ def settle(
     a closing quote is walked again with backslash escapes, and that
     reading is kept only when it leaves none.
     """
-    found = survey(
-        text, encoding, byte_order_mark, first_row_is_data, shown,
-        metadata_rows=metadata_rows,
-    )
+    try:
+        found = survey(
+            text, encoding, byte_order_mark, first_row_is_data, shown,
+            metadata_rows=metadata_rows,
+        )
+    except errors.ProfileError as refusal:
+        # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
+        # IS PROPAGATED (review item CODEX-6). The doubled-quote reading
+        # of a backslash-escaped file splits one field into several --
+        # `"hello \"quoted, text\""` reads as three fields where the
+        # header names two -- so the walk raised a ragged-rows refusal
+        # and execution never reached the backslash retry below. The
+        # file was readable all along, and removing the embedded comma
+        # made the very same escaping work, which is what said the
+        # refusal was about the reading and not about the file.
+        try:
+            other = survey(
+                text, encoding, byte_order_mark, first_row_is_data, shown,
+                None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
+            )
+        except errors.ProfileError:
+            raise refusal from None
+        if other.malformed == 0:
+            return other
+        raise refusal from None
     if found.initial_space_broken:
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown, False,

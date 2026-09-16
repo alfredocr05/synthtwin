@@ -719,12 +719,30 @@ def _agrees_with_the_standard_reader(
                     )
                 )
             continue
+        # WHAT THE STANDARD READER YIELDS FOR A LINE OF SPACES (review
+        # item CODEX-15). The survey publishes that line's OWN spelling,
+        # because that is what the twin has to write back. This reader
+        # is configured with `skipinitialspace` wherever the file is
+        # written comma-space, and that setting skips the leading
+        # spaces of the FIRST field as well as the others -- so the very
+        # same line reaches here as one EMPTY field. The two readings
+        # agree about the line and present it differently, so the
+        # comparison says which presentation it is asking for rather
+        # than refusing the file for the difference.
+        standing = ""
+        if place_at < len(places):
+            standing = places[place_at].text
+            if form.initial_space:
+                cut = 0
+                while cut < len(standing) and standing[cut] == " ":
+                    cut = cut + 1
+                standing = standing[cut:]
         if (
             len(cells) == 1
             and width >= 2
             and place_at < len(places)
             and places[place_at].after == row
-            and places[place_at].text == cells[0]
+            and standing == cells[0]
         ):
             place_left = place_left - 1
             if not place_left:

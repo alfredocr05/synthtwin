@@ -603,6 +603,70 @@ def test_comma_space_and_an_unquoted_inner_quote(tmp_path: pathlib.Path) -> None
     _held(second)
 
 
+def test_backslash_escapes_around_an_embedded_delimiter(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A backslash-escaped quote with a delimiter inside the field is read
+    as one field, not refused as a ragged row (review item CODEX-6).
+
+    THE REPRODUCTION THIS IS BUILT FROM. Under the doubled-quote reading
+    -- the one every file is walked with first -- `"hello \\"quoted,
+    text\\""` splits at the comma inside it, so each record read as
+    THREE fields where the header named two and the walk raised a
+    ragged-rows refusal. The refusal was raised before execution ever
+    reached the backslash retry, so the retry could not run: the file
+    was readable all along, and removing the embedded comma made the
+    very same escaping work, which is what said the refusal was about
+    the reading rather than about the file.
+    """
+    draw = random.Random(61)
+    body = ["record_id,note"]
+    for index in range(ROWS):
+        site = SITES[index % 4]
+        body += [
+            f'S{draw.randint(1, 99999):05d},'
+            f'"seen \\"{site}, main\\" today"'
+        ]
+    result = _round_trip(tmp_path, ("\n".join(body) + "\n").encode())
+    assert result["form"]["escape"] == "backslash"
+    assert result["names"] == ["record_id", "note"]
+    # The comma inside the escaped quotes stayed inside its field: two
+    # columns, and every twin record carries the same shape.
+    lines = result["twin"].split(b"\n")[1:-1]
+    assert len(lines) == ROWS
+    assert all(line.count(b'\\"') == 2 for line in lines), lines[:2]
+    _held(result)
+
+
+def test_space_only_blank_lines_in_a_comma_space_file(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A line of spaces is a blank line even where the file is written
+    comma-space (review item CODEX-15).
+
+    THE REPRODUCTION THIS IS BUILT FROM. `b"a, b\\r\\n   \\nBlue, Pine..."`
+    was REFUSED: reading a comma-space file skips the spaces after each
+    delimiter, and that stripping had already turned the line of three
+    spaces into one EMPTY field before the blank-line test ran -- so the
+    line was judged a record with too few values. The test now asks the
+    record's own text, which is what it held before anything was
+    skipped, so the line is a blank line and the spelling published for
+    it is the one the file carries.
+    """
+    body = "site, arm\r\n"
+    for index in range(ROWS):
+        body += f"{SITES[index % 4]}, {'A' if index % 2 else 'B'}\r\n"
+        if index in (10, 40, 70):
+            body += "   \n"
+    result = _round_trip(tmp_path, body.encode())
+    assert result["form"]["initial_space"] is True
+    places = result["form"]["blank_lines"]
+    assert [place["text"] for place in places] == ["   ", "   ", "   "], places
+    assert [place["after"] for place in places] == [11, 41, 71], places
+    assert result["twin"].count(b"   \n") == 3
+    _held(result)
+
+
 def test_a_hand_edited_file(tmp_path: pathlib.Path) -> None:
     """A title line, a comment, blank lines between and after the rows, a
     line of spaces, and no newline at the end."""
