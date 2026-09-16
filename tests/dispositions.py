@@ -367,6 +367,12 @@ PLAN4_REGIONS = {
         "### P4-D41 How a number's grouping and sign are written "
         "(landing 2b.2, 2026-09-15)"
     ),
+    # ...and the landing that stopped those majority keys throwing the
+    # minority away, publishing a count per convention instead.
+    "mixed-spellings": (
+        "### P4-D65.2 A mixture of conventions is published per "
+        "convention and generated (landing 2b.7, 2026-09-15)"
+    ),
     "moment-spellings": (
         "### P4-D39 The mark inside a moment, and a date held at midnight "
         "(stage 2, 2026-09-14)"
@@ -466,6 +472,8 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "group_separator"),
     ("numeric", "negative_form"),
     ("numeric", "decimal_plus"),
+    ("numeric", "negative_notations"),
+    ("numeric", "thousands_marks"),
     ("datetime", "datetime_separators"),
     ("datetime", "all_at_midnight"),
     ("datetime", "n_at_midnight"),
@@ -823,6 +831,26 @@ REGISTRY += (
         EXACT_OBSERVABLE,
         plan_words="how many cells written with a point carried a plus",
         plan_region="number-spellings",
+        aliases=(),
+    ),
+    # THE TWO MIXED CONVENTIONS (landing 2b.7). EXACT-OBSERVABLE for the reason
+    # the three above are: the first goal says code developed on the
+    # twin meets the spelling the real table writes, and a twin that
+    # collapsed a mixture to its majority broke that silently.
+    Fact(
+        "numeric",
+        "negative_notations",
+        EXACT_OBSERVABLE,
+        plan_words="how many negative numbers wore each notation",
+        plan_region="mixed-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "thousands_marks",
+        EXACT_OBSERVABLE,
+        plan_words="how many grouped numbers wore each mark",
+        plan_region="mixed-spellings",
         aliases=(),
     ),
     # EXACT-OBSERVABLE SINCE LANDING 2b.3. Both were REPORT-ONLY on the

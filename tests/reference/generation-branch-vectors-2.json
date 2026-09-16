@@ -237,6 +237,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus_sign",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -872,6 +873,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -1007,6 +1009,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -1644,6 +1647,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -1966,6 +1970,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -2601,6 +2606,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -3727,6 +3733,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -4362,6 +4369,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -4807,6 +4815,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "trailing_minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -5442,6 +5451,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -5668,6 +5678,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "brackets",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -6303,6 +6314,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -6425,6 +6437,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -7060,6 +7073,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [
@@ -7160,6 +7174,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -7795,6 +7810,7 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
+        "thousands_marks": {},
         "value_histogram": {}
       },
       "content": [

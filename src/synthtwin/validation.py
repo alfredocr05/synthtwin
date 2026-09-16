@@ -523,6 +523,12 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
 # code developed on the twin runs unchanged on the real table -- is what
 # makes them obligations: `_mark_checks` and `_midnight_checks`. What is
 # still LISTED is where the description sets no obligation at all.
+_NOT_CHECKABLE_NO_MIXTURE = (
+    "the description counts the notations and the marks a column's "
+    "numbers wore only where it wore more than one of them, and this "
+    "column wore one or none, so the single convention it did wear is "
+    "the one already published beside this count and checked there"
+)
 _NOT_CHECKABLE_NO_CLOCK = (
     "the description records the marks and the values at midnight of a column's "
     "moments only where they write a time of day, and this column's "
@@ -1027,6 +1033,12 @@ _MEASURED_FROM_THE_CELLS = (
     "spelling.group_separator",
     "spelling.negative_form",
     "spelling.decimal_plus",
+    # ...and the two MIXED CONVENTIONS landing 2b.7 holds, clauses over
+    # the written cells of exactly the same kind: a notation or a mark
+    # counted for fewer cells than the census floor names is one no
+    # description of the file publishes.
+    "spelling.negative_notations",
+    "spelling.thousands_marks",
 )
 
 # THE SPELLINGS THE MEASUREMENT SIDE KEEPS AS DATA (V2.4).
@@ -9207,6 +9219,116 @@ def _mark_in_words(mark: str) -> str:
     return "a mark this version does not name"
 
 
+def _mixture_check(
+    name: str,
+    fact: str,
+    census: "dict[str, int]",
+    measured: "dict[str, int] | None",
+    order: "tuple[str, ...]",
+    population: int,
+) -> Check:
+    """One census of mixed conventions, held as a whole (landing 2b.7).
+
+    THE FACT THIS CHECKS IS THE MIXTURE ITSELF, so it is one check and
+    not one per convention. A column writing 480 negatives with a minus
+    and 120 in brackets owes both counts together: a twin meeting the
+    first and not the second has not reproduced the column's
+    convention, and two checks would let a reader think the half that
+    passed was the whole obligation.
+
+    WHERE THE DESCRIPTION NAMES NO CONVENTION -- the empty census, and
+    the unavailable state a census reaches when it cannot speak without
+    naming somebody -- there is nothing to check and the verdict is
+    WITHHELD under the closed gate, exactly as it is for a fact the
+    file's own description would not publish. That is the ordinary case
+    for every column that mixes nothing, and it is why this check is
+    silent on almost every column.
+
+    Each named convention is then compared EXACTLY with what describing
+    the file on its own publishes for it. The pooled remainder is not a
+    window here, as it is for a form count: a cell the census pooled
+    wears the column's published majority, which is a convention this
+    census also names, so widening the bar by the pool would excuse a
+    twin that wrote the pool's cells in the wrong convention.
+
+    Guarantees: accepts the column name, the fact, the published census,
+    the file's own and the enumeration fixing the order; returns one
+    check. Determinism: a function of those inputs. Raises nothing. No
+    I/O of any kind. No text of the file is printed: a count is a count,
+    and a convention is named from a closed list.
+    """
+    named: "list[str]" = []
+    for convention in order:
+        if convention in census and census[convention] > 0:
+            named += [convention]
+    owed = 0
+    for convention in named:
+        owed = owed + census[convention]
+    if not named:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(0),
+            "",
+            _GATE_CLOSED,
+        )
+    if measured is None:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_CLOSED,
+        )
+    if population != owed:
+        # THE CELLS THAT COULD WEAR A CONVENTION ARE NOT THEMSELVES AN
+        # OBLIGATION, and this gate is where that shows. How many of a
+        # twin's cells reach four whole figures, or fall below zero,
+        # follows from its ladder and its forms; neither is pinned cell
+        # for cell. So a twin with fewer such cells than the description
+        # counts cannot place every named convention however faithfully
+        # it writes the ones it can, and holding it to the exact counts
+        # would report a miss for a shortfall that belongs to the
+        # ladder -- measured on the spelling shapes of landing 2b.2,
+        # where twenty-five columns mixing nothing at all were told they
+        # had missed their own single convention.
+        #
+        # The comparison is made where the two populations agree, which
+        # is every real table against its own description and every twin
+        # whose ladder reached the same cells. Where they do not, the
+        # verdict is WITHHELD and the generator's report names the
+        # shortfall as a deviation of this very fact, so nothing goes
+        # unsaid: the page a person reads still carries the number.
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_POOLED,
+        )
+    found = 0
+    agreed = True
+    for convention in named:
+        mine = measured[convention] if convention in measured else 0
+        found = found + mine
+        if mine != census[convention]:
+            agreed = False
+    return Check(
+        name,
+        f"numeric.{fact}",
+        f"spelling.{fact}",
+        HELD if agreed else MISSED,
+        _shown_count(owed),
+        _shown_count(found),
+    )
+
+
 def _spelling_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -9251,6 +9373,14 @@ def _spelling_checks(
     name = column.name
     four_figures = 0
     negatives = 0
+    # HOW MANY OF THIS FILE'S OWN CELLS ARE SIGNED DECIMALS (landing
+    # 2b.7). Counted from the cells rather than read back off the
+    # re-description, because the re-description of a file whose count
+    # falls below the census floor carries the unavailable state and no
+    # number at all -- which is the point of that state. The bar below
+    # is the FLOOR and never the count, so nothing here prints it.
+    signed = 0
+    decimals = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body or parsing.classify_number(body) != parsing.NUMBER:
@@ -9258,6 +9388,13 @@ def _spelling_checks(
         core = parsing.number_core(body)
         if core[:1] == "-":
             negatives += 1
+        if parsing.numeric_style(body) == parsing.STYLE_DECIMAL:
+            # BOTH HALVES OF THE CENSUS'S POPULATION, because the rule
+            # it publishes is about both: the cells written with a point
+            # that carry a plus, and the ones that do not.
+            decimals += 1
+            if core[:1] == "+":
+                signed += 1
         if parsing.numeric_style(body) not in (
             parsing.STYLE_PLAIN,
             parsing.STYLE_LEADING_PLUS,
@@ -9358,6 +9495,63 @@ def _spelling_checks(
                 pool,
             )
         ]
+    elif taxonomy.UNAVAILABLE_LABEL in facts.decimal_plus:
+        # THE UNAVAILABLE STATE PUBLISHES THE BAR AND NOT THE COUNT
+        # (landing 2b.7, plan P4-D65.1), and that is an obligation
+        # rather than a silence.
+        #
+        # The state exists because nought and every count below the
+        # census floor have to be ONE published state: `+` is this
+        # census's only category, so a pooled count beside it named the
+        # category it held back. What every one of those counts has in
+        # common is the thing worth saying -- FEWER SIGNED DECIMALS THAN
+        # THE FLOOR NAMES -- and a file meets that or misses it. So the
+        # bar is the floor, the exact count is published nowhere, and a
+        # file rewritten to carry the floor's worth of signed decimals
+        # is MISSED here as it always was.
+        #
+        # Filing this as WITHHELD instead was tried and is what this
+        # comment exists to stop coming back: it withdrew a real
+        # obligation from every ordinary decimal column, and the red
+        # battery caught it -- four fixtures whose `spelling.decimal_plus`
+        # had been an executable check became unfalsifiable in one
+        # commit.
+        # WHAT THE UNAVAILABLE STATE CLAIMS IS THAT THE COUNT IS NOT
+        # NAMEABLE, and the bar is that claim and nothing more.
+        #
+        # The state is reached TWO ways and an earlier version of this
+        # check knew only one of them. A count below the census floor
+        # reaches it -- and so does a count well ABOVE the floor whose
+        # COMPLEMENT falls below, because naming "1,195 of these 1,200
+        # carry a plus" names the five that do not. Holding every such
+        # census to "fewer signed decimals than the floor" therefore
+        # failed a real table against its own description: 1,195 signed
+        # cells beside 5 unsigned ones, MISSED on the file the
+        # description was computed from. A gate test of this landing
+        # caught it.
+        #
+        # So the file is held to being in the same position: its own
+        # count is nameable, or it is not, and only an unnameable one
+        # meets a census that says the count could not be named. That
+        # is falsifiable -- a file with 40 signed cells of 1,200, both
+        # sides clear of the floor, would have been NAMED and so is
+        # MISSED here -- and it discloses nothing the published state
+        # does not already say.
+        least = taxonomy.census_floor_of(floor)
+        rest = decimals - signed
+        nameable = (
+            decimals >= 1 and signed >= least and (rest == 0 or rest >= least)
+        )
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                MISSED if nameable else HELD,
+                _below_the_floor(least),
+                _shown_count(signed) if nameable else _below_the_floor(least),
+            )
+        ]
     else:
         signed = census["+"] if "+" in census else 0
         checks += [
@@ -9370,6 +9564,44 @@ def _spelling_checks(
                 if pool == 0
                 else f"{_shown_count(0)} ({_shown_window(0.0, float(pool))})",
                 _shown_count(signed),
+            )
+        ]
+    # THE TWO MIXED CONVENTIONS, EACH HELD AS ONE FACT (landing 2b.7, plan
+    # P4-D65.2). Recounted from the re-description like every other
+    # fact of this block, so each named convention is compared with what
+    # describing the file on its own publishes for it.
+    # A CENSUS THAT NAMES NO CONVENTION FILES NO CHECK AT ALL, and that
+    # is the difference between a fact with nothing to say and a fact
+    # this file cannot be held to. Almost every column mixes nothing:
+    # its census is empty, the majority key above already carries its
+    # one convention, and a WITHHELD line here would say "no obligation"
+    # twice on every numeric block of every report -- ten of them on the
+    # demonstration twin, which had withheld nothing at all before.
+    # Where the census DOES name a convention the check is filed, and
+    # its own gate decides whether the comparison can be made.
+    for fact, census, order, population in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+            negatives,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+            four_figures,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        if worn < 2:
+            continue
+        checks += [
+            _mixture_check(
+                name, fact, census, _map_at(block, fact), order, population
             )
         ]
     return checks
@@ -13944,6 +14176,44 @@ def _numeric_listings(
             _NOT_CHECKABLE_FINER_LADDER,
         ),
     ]
+    # THE TWO MIXED CONVENTIONS, LISTED WHERE A COLUMN MIXED NOTHING (landing
+    # 2b.7) and CHECKED where it mixed two, which is exactly how the
+    # marks inside a moment are carried since landing 2b.3: measured off
+    # the file's own description wherever the description sets an
+    # obligation, and NAMED, never silent, wherever it sets none.
+    #
+    # A column wearing one convention or none is the ordinary case, and
+    # its one convention is `negative_form` or `group_separator`, which
+    # is published beside this census and checked in its own right. A
+    # check here would say "no obligation" twice on every numeric block
+    # of every report; saying nothing at all would leave a published
+    # fact off the census that calls itself every obligation.
+    for fact, census, order in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        if worn >= 2:
+            continue
+        listings += [
+            Listing(
+                column.name,
+                f"numeric.{fact}",
+                "",
+                _NOT_CHECKABLE_NO_MIXTURE,
+            )
+        ]
     # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
     # published on every column of this role that has one, so its
     # listing does not hang off the histogram beside it; a column with

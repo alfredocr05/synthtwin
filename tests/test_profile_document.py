@@ -315,8 +315,16 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2):
+# every numeric block gained the two mixture censuses `negative_notations`
+# and `thousands_marks`, and `decimal_plus` moved from `{}` to
+# `{"(unavailable)": 0}` wherever the column wrote a cell with a point --
+# the state nought now shares with every below-floor count, so that a
+# reader cannot tell "no cell carried a plus" from "one did". Read as a
+# diff of the two documents: those are the only keys that moved, and no
+# count, statistic, label, role or spelling of any column changed.
 GOLDEN_SHA256 = (
-    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
+    "2a561f5d0dc9b571a673c729364694dcc3699bdff79c8d9d5e631d1ad345b336"
 )
 
 

@@ -907,6 +907,19 @@ def battery() -> list[Mutation]:
             "DP1", "signed decimals counted past the cells the forms map can put in the decimal form",
             edit("visits", decimal_plus={"+": 11}),
         ),
+        # The two mixture censuses landing 2b.7 added beside them. Each
+        # is refused by the clause the other cannot reach: the notations
+        # by their POPULATION, which the column's own `n_negative`
+        # bounds, and the marks by the CENSUS FLOOR, which is never one
+        # however low the smallest group size is set.
+        Mutation(
+            "NS2", "notations counted on a column that holds no negative number",
+            edit("visits", negative_notations={"brackets": 11}),
+        ),
+        Mutation(
+            "TM1", "a mark counted for a single grouped number",
+            edit("visits", thousands_marks={",": 1}),
+        ),
         Mutation(
             "D14", "a column of whole dates said to stand at midnight",
             edit("recorded_on", all_at_midnight=True),

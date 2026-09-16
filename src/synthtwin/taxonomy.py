@@ -442,6 +442,28 @@ ROLE_AXES: "dict[str, tuple[str, str]]" = {
 SUPPRESSED_LABEL = "(withheld)"
 BLANK_SPELLING = parsing.MISSING_BLANK
 
+# THE STATE A CENSUS PUBLISHES WHERE IT CANNOT SPEAK WITHOUT NAMING
+# SOMEBODY (the Codex review of landing 2b.2; owner twin definition,
+# clause 3).
+#
+# `(withheld)` is not enough, and the difference is the whole of this
+# key. That label says "these cells, and fewer of them than the floor" --
+# a sentence that still NAMES the category wherever the census has only
+# one category to name. Measured on the review's own column: 1,200
+# measurements at a floor of eleven, all written `1000.5` upward,
+# against the same column with one cell rewritten `+1600.5`. The two
+# descriptions differed in exactly one place, `decimal_plus` moving from
+# `{}` to `{"(withheld)": 1}`, and both loaded. Since `+` is that
+# census's only possible key, a reader holding the other 1,199
+# spellings can read off the remaining individual's.
+#
+# This key says nothing at all: not the count, and not whether the count
+# is nought. That is what makes nought and a below-floor count the SAME
+# published state, which is the property the rule asks for and the
+# property `(withheld)` cannot have. Its count is always nought, because
+# a number beside it would be the disclosure over again.
+UNAVAILABLE_LABEL = "(unavailable)"
+
 # HOW A NUMBER WAS WRITTEN, and nothing about what it is (owner
 # decision 10). Six forms, and no seventh may be added by an
 # implementation: a consumer reads this enumeration as closed.
@@ -6438,6 +6460,214 @@ def _negative_form(cells: _Cells) -> str:
     return best
 
 
+def _census_floor(settings: Settings) -> int:
+    """The smallest count the spelling censuses of landing 2b.7 publish.
+
+    NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
+    clause 3, as the Codex review of landing 2b.2 applied it; plan
+    P4-D65.1). A published count of one names an individual outright:
+    the reader who knows how every other cell was written can tell how
+    that cell was. `small_cell_floor` defaults to one, so a census
+    governed by it alone publishes exactly that count, and the review
+    measured the disclosure at a floor of eleven as well -- the pooled
+    remainder carried it there.
+
+    Two is the smallest count that names a group rather than a person,
+    so these censuses read the larger of two and the settings floor.
+    Where the owner raises the floor for stage 3 this rises with it and
+    nothing here has to move.
+
+    Guarantees: accepts the settings; returns a whole number of two or
+    more. Determinism: a fixed function of the floor. Raises nothing. No
+    I/O of any kind.
+    """
+    return census_floor_of(settings.small_cell_floor)
+
+
+def census_floor_of(floor: int) -> int:
+    """`_census_floor`'s rule, read from a floor rather than settings.
+
+    The publication guard checks a FINISHED document, where the floor is
+    a number it read out of the settings block and no `Settings` object
+    survives. It has to answer the same question this module answers
+    when it writes the census, and a second copy of "two, or the floor
+    where that is larger" is a second thing to keep in step -- which is
+    the drift the guard exists to catch, landing in the guard itself.
+
+    Guarantees: accepts a floor; returns two or the floor, whichever is
+    larger. Determinism: a fixed function of the floor. Raises nothing.
+    No I/O of any kind.
+    """
+    if floor > 2:
+        return floor
+    return 2
+
+
+def _mixture_census(
+    counts: "dict[str, int]", order: "tuple[str, ...]", settings: Settings
+) -> "dict[str, int]":
+    """One census of a column's MIXED conventions, floored per convention.
+
+    THE MAJORITY RULE THREW THE MINORITY AWAY, AND EVERY CHECK PASSED
+    (the Codex review of landing 2b.2, closed 2026-09-15; plan
+    P4-D65.2). A column of 600 charges wrote 480 with a minus in front
+    and 120 in accounting brackets; the description published the
+    majority notation alone, the twin wrote 600 minuses and no bracket,
+    and neither the twin's report nor the real table's named a thing.
+    The same held for marks: 200 cells grouped with a space beside 100
+    grouped with a narrow no-break space came back as 300 ordinary
+    spaces, so code that strips an ordinary space succeeded on the twin
+    and failed on the real table -- which is goal 1 of the owner's
+    two mandatory goals, broken silently.
+
+    So a mixture is REPRODUCED as a count per convention rather than
+    collapsed to its majority (owner ruling 2026-09-15: the twin writes
+    anything as the original source, without changes).
+
+    WHAT IT PUBLISHES, and the floor is read per convention:
+
+    * a convention used by at least `_census_floor` cells is named with
+      its count;
+    * what is left is pooled under `(withheld)` -- these censuses have
+      FOUR and SEVEN possible keys, so a pool here names no convention,
+      which is exactly the property `decimal_plus` lacks and the reason
+      that key may not pool at all;
+    * but a pool that is itself below the floor would name the cells it
+      holds as surely as publishing them would, so a census that cannot
+      pool safely publishes `(unavailable)` and no number whatever.
+
+    THE COMPLEMENT CLAUSE IS MET BY CONSTRUCTION rather than by a check
+    of its own: every count this census prints is at least the floor, so
+    the cells outside any one of them are the other printed counts added
+    -- nought, or at least the floor again.
+
+    Guarantees: accepts the counts per convention, the enumeration
+    fixing the key order and the settings; returns `{}` where the
+    population is empty, a mapping of named conventions with possibly a
+    `(withheld)` remainder, or `{"(unavailable)": 0}`. Determinism: the
+    answer depends only on those three, and the keys are built in the
+    enumeration's order. Raises nothing. No I/O of any kind.
+    """
+    total = 0
+    for name in order:
+        if name in counts:
+            total = total + counts[name]
+    if total < 1:
+        return {}
+    floor = _census_floor(settings)
+    published: "dict[str, int]" = {}
+    pooled = 0
+    for name in order:
+        if name not in counts:
+            continue
+        if counts[name] >= floor:
+            published[name] = counts[name]
+        else:
+            pooled = pooled + counts[name]
+    if pooled < 1:
+        return published
+    # A POOL IS A THING HELD BACK, AND AT A FLOOR OF ONE NOTHING IS
+    # (invariant C5-S13). This census reads `_census_floor`, which is
+    # two even where the person asked for one, so it has a range below
+    # its own floor exactly where the document says there is none: two
+    # cells, one in brackets and one wearing the minus sign, would pool
+    # a remainder of two into a description whose floor is one, and the
+    # loader's S13 walk refuses that document -- rightly, because
+    # `(withheld)` is the format's one word for a group the floor holds
+    # back. So at a floor of one this census does not pool at all: it
+    # publishes the unavailable state, which holds back no COUNT and
+    # takes no key S13 reads.
+    if pooled < floor or settings.small_cell_floor < 2:
+        return {UNAVAILABLE_LABEL: 0}
+    published[SUPPRESSED_LABEL] = pooled
+    return published
+
+
+def _negative_notations(cells: _Cells) -> "dict[str, int]":
+    """How many negative cells wore each notation, floored per notation.
+
+    `negative_form` publishes the column's MAJORITY notation and the
+    generator writes every negative that way, so a column mixing two
+    came back written wholly as one. This census is what says the
+    column mixed them, and the generator spends it cell by cell.
+
+    COUNTED OVER THE SAME CELLS `negative_form` IS COUNTED OVER: every
+    cell reading as a negative number this format holds, under the
+    notation `parsing.negative_notation` reads from it. The two keys
+    therefore never disagree about the population, and the majority key
+    stays exactly what it was -- this census is a sibling, not a
+    replacement, and a reader with no use for the mixture reads
+    `negative_form` as before.
+
+    Guarantees: accepts the column's tally; returns `_mixture_census`'s
+    answer over `parsing.NEGATIVE_FORMS`. Determinism: a fixed function
+    of the tally. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[str, int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER or cell.sign != parsing.SIGN_NEGATIVE:
+            continue
+        form = parsing.negative_notation(cell.numeric_text)
+        if form in counts:
+            counts[form] = counts[form] + 1
+        else:
+            counts[form] = 1
+    return _mixture_census(counts, parsing.NEGATIVE_FORMS, cells.settings)
+
+
+def _thousands_marks(cells: _Cells) -> "dict[str, int]":
+    """How many grouped cells wore each mark, floored per mark.
+
+    THE SIBLING OF `_negative_notations`, ASKED OF THE OTHER MIXTURE.
+    `group_separator` publishes one mark and the twin groups every
+    groupable cell with it, so 200 cells grouped with a space beside 100
+    grouped with a narrow no-break space were written as 300 ordinary
+    spaces. This census carries the mixture and the generator spends it.
+
+    COUNTED OVER THE CELLS THAT PROVE A MARK, which is
+    `_group_separator`'s own evidence rule and not a second one: a cell
+    in a groupable form whose whole part reads as groups of three around
+    one mark. A BARE groupable cell proves no mark and is counted
+    nowhere here -- it is not a small group, it is a cell with no
+    convention to reproduce -- and the cells it stands for are the ones
+    the generator gives the published `group_separator` once this census
+    is spent.
+
+    READ IN THE COLUMN'S OWN GRAMMAR. A declared decimal comma has the
+    cell's points and commas exchanged before the mark is read, exactly
+    as `_group_separator` does it, so the two keys agree on every cell;
+    a proven comma is published as the point that column writes.
+
+    Guarantees: accepts the column's tally; returns `_mixture_census`'s
+    answer over the marks, keyed by the mark itself. Determinism: a
+    fixed function of the tally. Raises nothing. No I/O of any kind.
+    """
+    decimal = cells.decimal_comma
+    counts: "dict[str, int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        written = cell.text
+        if decimal:
+            written = _marks_exchanged(cell.text)
+        if numeric_style(cell.numeric_text) not in _GROUPABLE_STYLES:
+            continue
+        if _whole_figures(written) < 4:
+            continue
+        mark = parsing.thousands_mark(written)
+        if not mark:
+            continue
+        if decimal and mark == ",":
+            mark = "."
+        if mark in counts:
+            counts[mark] = counts[mark] + 1
+        else:
+            counts[mark] = 1
+    return _mixture_census(
+        counts, parsing.PUBLISHED_GROUP_MARKS, cells.settings
+    )
+
+
 def _decimal_plus(cells: _Cells) -> "dict[str, int]":
     """How many cells written with a point carried a leading plus.
 
@@ -6450,32 +6680,65 @@ def _decimal_plus(cells: _Cells) -> "dict[str, int]":
     column with a plus on three cells in ten keeps three in ten on both
     kinds of number.
 
-    A CENSUS UNDER THE FLOOR, the shape the width censuses have: `+`
-    named with its count where the count reaches the smallest group size,
-    and the count pooled under `(withheld)` where it does not, so a
-    single signed cell is never named -- and a floor of one, which holds
-    nothing back, never pools, so a description that held the count
-    back is one its loader refuses (C5-S13's rule, read for this key by
-    DP1). `{}` where no decimal cell carried a plus.
+    A CENSUS WITH ONE CATEGORY, AND THAT IS WHY IT CANNOT POOL (the
+    Codex review of landing 2b.2, closed 2026-09-15; plan P4-D65.1).
+    `+` is the only key this census can ever carry, so a `(withheld)`
+    remainder beside it names the category it is holding back and
+    differs from `{}` for exactly one reason: somebody signed a cell.
+    The review measured it -- 1,200 cells at a floor of eleven, one of
+    them rewritten with a plus, two descriptions differing in that key
+    alone and both loading -- and a reader holding the other 1,199
+    spellings can read off the remaining individual's. So the pool is gone
+    from this key and `(unavailable)` stands in its place, which is the
+    same published state a count of nought reaches.
+
+    THE THREE STATES, and each is a statement a reader can act on:
+
+    1. `{}` -- this column wrote NO cell with a point at all, so the
+       census has no population. `numeric_styles` already says that
+       publicly, so the empty census adds nothing a reader did not
+       have.
+    2. `{"+": n}` -- exactly n of them carried a plus, published only
+       where n names a group AND the cells that did not also name one:
+       n reaches `_census_floor`, and the remainder is either nought
+       (every one of them signed, which is a fact about the column
+       rather than about anybody in it) or reaches that floor too. The
+       second half is the complement clause, and without it a column of
+       1,199 signed cells and one unsigned one published the unsigned
+       cell as plainly as the first version published the signed one.
+    3. `{"(unavailable)": 0}` -- anything else. Nought is in here
+       BESIDE the below-floor counts, deliberately and at a cost named
+       in the plan: a column with a point and no plus at all used to
+       publish `{}`, and now says nothing, because a state only a
+       zero-plus column reaches is a state that tells a reader every
+       other column had one.
+
+    NEVER ONE, WHATEVER THE SETTINGS FLOOR, which is `_census_floor`'s
+    own rule and the reason this key stopped reading `small_cell_floor`
+    directly.
 
     Guarantees: accepts the column's tally; returns `{}`, `{"+": n}` with
-    n at least the floor, or `{"(withheld)": n}` with n below it.
-    Determinism: a fixed function of the tally. Raises nothing. No I/O of
-    any kind.
+    n at least `_census_floor` and a complement of nought or at least
+    that, or `{"(unavailable)": 0}`. Determinism: a fixed function of the
+    tally. Raises nothing. No I/O of any kind.
     """
     counted = 0
+    decimals = 0
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
         if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
             continue
+        decimals += 1
         if parsing.number_core(cell.numeric_text)[:1] == "+":
             counted += 1
-    if counted < 1:
+    if decimals < 1:
         return {}
-    if counted < cells.settings.small_cell_floor:
-        return {SUPPRESSED_LABEL: counted}
-    return {"+": counted}
+    floor = _census_floor(cells.settings)
+    rest = decimals - counted
+    if counted >= floor and (rest == 0 or rest >= floor):
+        return {"+": counted}
+    return {UNAVAILABLE_LABEL: 0}
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
@@ -6581,6 +6844,15 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # cells written with a point carried a plus. Siblings for the
         # reason the mark is one.
         "negative_form": _negative_form(cells),
+        # ...and the MIXTURE each of those two majority keys collapses
+        # (landing 2b.7, plan P4-D65.2). A column writing 480 negatives
+        # with a minus and 120 in brackets, or 200 cells grouped with a
+        # space and 100 with a narrow no-break space, published one
+        # convention and its twin wrote one convention, with every check
+        # passing. These two censuses carry the mixture, floored per
+        # convention, and the generator spends them cell by cell.
+        "negative_notations": _negative_notations(cells),
+        "thousands_marks": _thousands_marks(cells),
         "decimal_plus": _decimal_plus(cells),
         "fraction_widths": _fraction_widths(cells),
         # ...and how wide the ones written with a redundant zero wrote

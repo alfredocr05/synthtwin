@@ -4312,7 +4312,9 @@ consumer off the role name.
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
 | `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
-| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ `small_cell_floor`, or `{"(withheld)": n}` with 1 ≤ n < `small_cell_floor` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`: named where the count reaches `small_cell_floor` and pooled below it, so a floor of one never pools; the total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
+| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
+| `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is pooled, and a pool that is itself below the floor makes the whole census unavailable. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell proves no mark and is counted nowhere here. Floored, pooled and made unavailable exactly as `negative_notations` is; where the column publishes a mark of its own, this census names that mark. `{}` where no cell proves one, and on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
@@ -4532,12 +4534,34 @@ block carries `""` and no other mark.
 `negative_form` other than `"minus"` only where `n_negative` is at least
 `small_cell_floor` and at least one.
 
-**Invariant DP1 (signed decimals under the floor and in the room)**
-(landing 2b.2). `decimal_plus` names `+` only with a count of at least
-`small_cell_floor`, holds a count below it only under `(withheld)`, never
-both, and its total is no larger than the `decimal` count of
-`numeric_styles` plus its `(withheld)` remainder; it is `{}` on a
-position of a `joined_numbers` column, whose parts carry no sign.
+**Invariant DP1 (signed decimals at the census floor, in the room, and
+never pooled)** (landing 2b.2, amended by landing 2b.7). `decimal_plus`
+names `+` only with a count of at least the CENSUS FLOOR — max(2,
+`small_cell_floor`) — and never pools: `+` is this census's only
+category, so a `(withheld)` remainder beside it would name the category
+it held back, and `{}` beside `{"(withheld)": 1}` told a reader which
+single cell of 1,200 carried a plus. Where it cannot name a count it
+carries `{"(unavailable)": 0}`, which is the one state nought and every
+below-floor count share; the unavailable key carries no other number.
+Its total is no larger than the `decimal` count of `numeric_styles` plus
+that map's `(withheld)` remainder; it is `{}` on a position of a
+`joined_numbers` column, whose parts carry no sign.
+
+**Invariant NS2 (the notations a negative wore)** (landing 2b.7).
+`negative_notations` names a notation of `negative_form`'s own four only
+with a count of at least the census floor, pools what is left under
+`(withheld)` only at that floor and only where `small_cell_floor` is
+above one — below which C5-S13 leaves nothing to hold back — and carries
+`{"(unavailable)": 0}` where it can do neither. The counts together are
+no more than `n_negative`. It is `{}` on a position of a
+`joined_numbers` column.
+
+**Invariant TM1 (the marks a grouped number wore)** (landing 2b.7).
+`thousands_marks` names a mark `group_separator` may publish, other than
+`""`, on the same three terms as NS2. Where `group_separator` publishes
+a mark, this census names that mark: a majority the mixture does not
+carry is a majority no cell proved. It is `{}` on a position of a
+`joined_numbers` column.
 
 ---
 
@@ -5018,6 +5042,8 @@ rather than a list of its own, so the two cannot part again.
 | `group_separator` | | | | | | | | | ● | ● | ● | | | | |
 | `negative_form` | | | | | | | | | ● | ● | ● | | | | |
 | `decimal_plus` | | | | | | | | | ● | ● | ● | | | | |
+| `negative_notations` | | | | | | | | | ● | ● | ● | | | | |
+| `thousands_marks` | | | | | | | | | ● | ● | ● | | | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `field_widths` | | | | | | | | | ● | ● | ● | | | | |
@@ -5462,7 +5488,9 @@ refused rather than read.
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
 | `group_separator` | string | as on `count` and `continuous`, never `"."` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous` (GS1) | EXACT-OBSERVABLE (plan P4-D41) |
 | `negative_form` | string | as on `count` and `continuous` | how the CORES write their negative numbers, under the same rule; brackets inside the wrapper, `$(1,234.56)`, are the core's own. Brackets around the wrapper too, `($1,234.56)`, are part of the wrapper and carry NF56 | EXACT-OBSERVABLE (plan P4-D41) |
-| `decimal_plus` | object | as on `count` and `continuous` | how many CORES written with a point carried a plus | EXACT-OBSERVABLE (plan P4-D41) |
+| `decimal_plus` | object | as on `count` and `continuous` | how many CORES written with a point carried a plus | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
+| `negative_notations` | object | as on `count` and `continuous` | how many negative CORES wore each notation, under the same census floor (NS2) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | as on `count` and `continuous` | how many grouped CORES wore each mark, under the same census floor (TM1) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
@@ -7046,6 +7074,52 @@ all-canonical whole-number column publishes `{"plain": n}` and stays
 byte-plain. The report names the remainder, the cells it covered and
 how many lacked a point-free spelling.
 
+### 7.5a `negative_notations` and `thousands_marks`
+
+**C6-86 (where they live).** A `count`, `continuous` or `affixed_number`
+block carries both as keys of the BLOCK, siblings of `numeric_styles`
+rather than keys inside it, for the reason `fraction_widths` is one: the
+forms map is a partition whose counts close on the numeric count, and a
+grouped cell is also a decimal one. A position of a `joined_numbers`
+column carries `{}` for each (NS2, TM1).
+
+**C6-87 (what they count).** `negative_notations` counts the cells
+`negative_form` is counted over — every cell reading as a negative
+number this format holds — under the notation it wrote.
+`thousands_marks` counts the cells that PROVE a mark under
+`group_separator`'s evidence rule of 7.5: four or more whole figures, a
+groupable form, and a whole part reading as groups of three around one
+mark, read with points and commas exchanged on a declared decimal-comma
+column. A BARE groupable cell proves no mark and is counted in neither
+census: it is not a small group, it is a cell with no convention to
+reproduce.
+
+**C6-88 (the census floor).** Both are floored PER CONVENTION at max(2,
+`small_cell_floor`), never at one. A published count of one names an
+individual outright — the reader who knows how every other cell was
+written can tell how that cell was — and `small_cell_floor` defaults to
+one. What falls below is pooled under `(withheld)`, which names no
+convention here because these censuses have four and eight possible
+keys; a pool that is itself below the floor would name its own cells, so
+such a census publishes `{"(unavailable)": 0}` and no number at all. At
+`small_cell_floor` of one nothing may be pooled (C5-S13) and the
+unavailable state stands instead. The complement clause of the owner's
+twin definition is met by construction: every count printed is at least
+the floor, so the cells outside any one of them are the other printed
+counts added — nought, or at least the floor again.
+
+**C6-89 (disposition).** Both EXACT-OBSERVABLE (plan P4-D65.2). **The
+twin writes each named convention on that many cells**, spending the
+census cell by cell as generation method G6.1 states, and a cell no
+named count covers wears the column's published majority. The quality
+report compares each named convention with what describing the twin on
+its own publishes for it, and WITHHOLDS the comparison where the twin's
+population of cells that could wear a convention differs from the
+published total: how many of a twin's cells reach four whole figures, or
+fall below zero, follows from its ladder and is not itself pinned cell
+for cell, and the generator's report names that shortfall as a deviation
+of the census.
+
 ### 7.6 `fraction_widths`
 
 **C6-27 (where it lives).** A `count`, `continuous` or `affixed_number`
@@ -8206,7 +8280,9 @@ supplied a different test would refuse different files.
 | id | statement | loader? |
 |---|---|---|
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(1, `small_cell_floor`) | yes |
-| DP1 | `decimal_plus` names `+` only at ≥ `small_cell_floor`, pools under `(withheld)` only below it, never both; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder; `{}` on a position of a `joined_numbers` column | yes |
+| DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder; `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), pools under `(withheld)` only at that floor and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`; `{}` on a position of a `joined_numbers` column | yes |
+| TM1 | `thousands_marks` names a mark other than `""` on NS2's terms, and names whatever mark `group_separator` publishes; `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
 

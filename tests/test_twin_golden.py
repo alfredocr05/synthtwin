@@ -158,6 +158,16 @@ ALL_AT_MIDNIGHT_FACT = "datetime.all_at_midnight"
 # listed where the description publishes none, which on `recorded_on` --
 # a column of dates that writes no clock -- is always.
 N_AT_MIDNIGHT_FACT = "datetime.n_at_midnight"
+# ...and the EIGHTH and NINTH (landing 2b.7): the two mixed-convention
+# censuses. Each is CHECKED on a column that wore more than one notation
+# or more than one mark and LISTED where it wore one or none, which on
+# this demonstration -- whose every column wears a single convention --
+# is every numeric-family column. They are set aside from the frozen
+# census the way the seven above are, so the 2026-09-04 baseline has to
+# come back character for character rather than be re-recorded against a
+# larger number.
+NEGATIVE_NOTATIONS_FACT = "numeric.negative_notations"
+THOUSANDS_MARKS_FACT = "numeric.thousands_marks"
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     EMPTY_BIN_FACT,
@@ -166,6 +176,8 @@ LISTINGS_ADDED_SINCE = (
     DATETIME_SEPARATORS_FACT,
     ALL_AT_MIDNIGHT_FACT,
     N_AT_MIDNIGHT_FACT,
+    NEGATIVE_NOTATIONS_FACT,
+    THOUSANDS_MARKS_FACT,
 )
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
@@ -421,6 +433,28 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose|numeric.field_widths|",
         "reading|numeric.field_widths|",
         "visits|numeric.field_widths|",
+    ]
+    # ...and the two mixed-convention censuses are listed on those SAME
+    # four columns and nowhere else (landing 2b.7), named rather than
+    # counted. Every column of this demonstration wears one notation and
+    # one mark, so each census names fewer than two conventions and is
+    # listed rather than checked; a run that CHECKED either here would
+    # be holding a column to a mixture it does not have, and a run that
+    # listed them on a fifth column would be publishing a census on a
+    # column that carries no numeric block at all.
+    assert sorted(
+        entry
+        for entry in listings
+        if NEGATIVE_NOTATIONS_FACT in entry or THOUSANDS_MARKS_FACT in entry
+    ) == [
+        "amount|numeric.negative_notations|",
+        "amount|numeric.thousands_marks|",
+        "dose|numeric.negative_notations|",
+        "dose|numeric.thousands_marks|",
+        "reading|numeric.negative_notations|",
+        "reading|numeric.thousands_marks|",
+        "visits|numeric.negative_notations|",
+        "visits|numeric.thousands_marks|",
     ]
     # ...and the mark between thousands is listed NOWHERE now: it was
     # listed on the same four columns until landing 2b.2 made it a check,
@@ -784,8 +818,18 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
 # when the two documents were diffed against 53bb012. The twin digest below
 # HELD: the twin's bytes are identical.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2):
+# every numeric block gained the two mixed-convention censuses
+# `negative_notations` and `thousands_marks`, both EMPTY because no
+# column of this demonstration wears two notations or two marks, and
+# `decimal_plus` moved from `{}` to `{"(unavailable)": 0}` wherever the
+# column writes a cell with a point. The profile golden in
+# tests/test_profile_document.py diagnoses the same change, and the
+# twin's own digest below did NOT move: an empty census names no
+# convention, so the generator writes the published majority for every
+# cell exactly as it did before these keys existed.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "f08c4e89993cab504c451630282ac90ef37fe6095747bf400db04ddd19a3b6c2"
+    "7f5686d4f7c62776d43c57bd2003706cf879a85a9c98e2afc3d2cdfcd56cca6e"
 )
 
 
@@ -1804,8 +1848,22 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # widest stratum is read off the description alone, which on this
 # demonstration is the number it was already. The census is unchanged:
 # 420 held, 75 within a window, none missed.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2).
+# The description above moved, so this report is built from different
+# bytes; what it SAYS moved too, in exactly two ways. Every numeric
+# block now LISTS the two mixed-convention censuses, because no column
+# of this demonstration wears two notations or two marks and a census
+# naming fewer than two is listed rather than checked. And
+# `spelling.decimal_plus`, whose census is now the unavailable state on
+# every column that writes a cell with a point, publishes the BAR
+# instead of the count: the line reads "below the floor" on both sides
+# and is HELD. READ BEFORE RE-RECORDING, as the message below asks: the
+# census carries no FEWER obligations than it did -- the checked count
+# is unchanged at 416 and `spelling.decimal_plus` is still executable
+# on all four of the columns that carried it, which the red battery of
+# tests/test_p3v1f2_entry_table.py asserts independently.
 GOLDEN_QUALITY_SHA256 = (
-    "33b8fc1f5d7b0c42acca316a7d614bbaad389fcfda297753d52839ddda35142a"
+    "37d0772af2b3041ab4cc9ae2eaf6d80627b5a05f6173a9d22ec5f3e6425714f0"
 )
 
 

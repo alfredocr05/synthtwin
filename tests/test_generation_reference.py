@@ -189,6 +189,15 @@ BRANCH_CASES = (
     # midnight; the other pins the evenly spread rotation of marks, its
     # tie rule and the withheld pool.
     "midnight_days",
+    # THE ONE CASE IN ANY OF THE THREE FILES THAT NAMES MORE THAN ONE
+    # CONVENTION (landing 2b.7, plan P4-D65.2). A census naming ONE
+    # notation or ONE mark cannot pin the allocators that spend it: the
+    # census path and the majority path write the same cell, so a
+    # mutant that withdraws the census leaves every frozen byte where it
+    # was, and both oracle mutants were GREEN against the nine spelling
+    # cases already here. This one names two of each at eleven cells
+    # apiece, so the cells divide and a mutant moves them.
+    "mixed_conventions",
     "mixed_marks",
     # The month, added with the second SPAN resolution (plan P4-D4.3
     # item 2). A new transform reaching the twin without an independent
@@ -295,6 +304,9 @@ SEEDS = {
     "joined_readings": 120,
     "midnight_days": 122,
     "mixed_marks": 123,
+    # Landing 2b.7's own case takes the next seed after the carried
+    # landings' block, which ran to 135.
+    "mixed_conventions": 136,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
     # case is given, and each case's committed cells were chosen from
@@ -1545,6 +1557,18 @@ def _the_sorted_start_and_no_walk(drawn, column, wanted, words):
 
 # Each row: the case, the branch it exists for, and the rule the method
 # rules out put back in its place.
+def _notations_from_the_majority(census, default, styles, values):
+    """Landing 2b.7's notation census withdrawn from the oracle.
+
+    The rule this puts back is the one the twin followed before plan
+    P4-D65.2: `negative_form` publishes the column's MAJORITY and every
+    negative cell is written that way, whatever mixture the column
+    really held. On `mixed_conventions` that turns eleven cells written
+    with a minus into eleven more written in brackets.
+    """
+    return [default] * len(values)
+
+
 CASE_MUTANTS = {
     "grouped_charges": Mutant(
         branch="landing 2b.2's spread of signed decimals; the mutant takes "
@@ -1730,6 +1754,15 @@ CASE_MUTANTS = {
         "seconds, and the interior ranks land part-way through a day",
         attribute="ordinal_space",
         replacement=_seconds_even_at_midnight,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "mixed_conventions": Mutant(
+        branch="P4-D65.2's census of notations, spent cell by cell over the "
+        "negative cells; the mutant writes every negative in the column's "
+        "majority, brackets, which is what the twin wrote before that "
+        "decision and is the defect it repairs",
+        attribute="notation_places",
+        replacement=_notations_from_the_majority,
         outcome=CHANGES_THE_CELLS,
     ),
     "mixed_marks": Mutant(

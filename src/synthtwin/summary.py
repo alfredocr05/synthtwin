@@ -513,7 +513,84 @@ def _sign_lines(column: "dict[str, object]") -> "list[str]":
                     f"    {named}{count} numbers written with a point carry "
                     f"a plus in front, and the twin writes that many too"
                 ]
+        # THE TWO MIXED CONVENTIONS, SAID OUT LOUD (landing 2b.7). A column that
+        # mixes two conventions publishes a count for each, and until
+        # this line the only place a person could learn that their
+        # brackets or their narrow spaces survive into the twin was the
+        # JSON. Only a census naming MORE THAN ONE convention is worth a
+        # line: where a column writes its negatives one way, the
+        # majority key above has already said so.
+        if "negative_notations" in block:
+            for line in _mixture_lines(
+                block["negative_notations"],
+                named,
+                "negative numbers",
+                _NEGATIVE_NOTATION_WORDS,
+            ):
+                said += [line]
+        if "thousands_marks" in block:
+            for line in _mixture_lines(
+                block["thousands_marks"],
+                named,
+                "numbers grouped between their thousands",
+                parsing.GROUP_MARK_WORDS,
+            ):
+                said += [line]
     return said
+
+
+# The four notations a negative may wear, in the words this page uses
+# for them. `_NEGATIVE_WORDS` above names three, because the fourth is
+# the default a column publishes when it mixes nothing; a census that
+# counts the default needs a word for it like any other.
+_NEGATIVE_NOTATION_WORDS = (
+    (parsing.NEGATIVE_MINUS, "with a minus in front"),
+) + _NEGATIVE_WORDS
+
+
+def _mixture_lines(
+    census: object,
+    named: str,
+    population: str,
+    words: "tuple[tuple[str, str], ...]",
+) -> "list[str]":
+    """One line per convention, where a column mixed more than one.
+
+    A MIXTURE IS WHAT THIS SAYS, and a single convention is what it
+    stays silent about: the majority key has its own line already, and
+    repeating it here would say the same fact twice on one page.
+
+    THE CONVENTION IS NAMED IN WORDS, never as itself, for the reason
+    `_group_separator_lines` names a mark in words: four of the marks a
+    column may publish cannot be seen on a page, and a line reading
+    "100 numbers grouped with ' '" names nothing at all.
+
+    A count is a count and no value of the table reaches this line.
+
+    Guarantees: accepts one census, how the block is named, what the
+    cells are called and the words for each convention; returns one line
+    per named convention where the census names two or more, and none
+    otherwise. Determinism: a function of those, in the words' own
+    order. Raises nothing. No I/O of any kind.
+    """
+    if not isinstance(census, dict):
+        return []
+    counted: "list[tuple[str, int]]" = []
+    for known, said_as in words:
+        if known not in census:
+            continue
+        count = census[known]
+        if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+            counted += [(said_as, count)]
+    if len(counted) < 2:
+        return []
+    lines: "list[str]" = []
+    for said_as, count in counted:
+        lines += [
+            f"    {named}{count} of this column's {population} are "
+            f"written {said_as}, and the twin writes that many too"
+        ]
+    return lines
 
 
 # The marks a moment can wear between its day and its time of day, in

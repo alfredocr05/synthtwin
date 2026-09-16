@@ -11871,6 +11871,47 @@ def _number_cells(
     )
     plussed, plus_notes = _plus_places(column, facts, styles, holds)
     base: list[str] = []
+    # THE TWO MIXED CONVENTIONS, SPENT CELL BY CELL (landing 2b.7, plan
+    # P4-D65.2). The notation each negative wears and the mark each
+    # grouped cell wears come from the censuses where those name a
+    # convention, and from the column's published majority everywhere
+    # else -- which is exactly what every cell wore before this landing,
+    # so a column publishing no mixture is written unchanged.
+    #
+    # WHICH CELLS CAN BE GROUPED IS ASKED OF THE WRITER. A cell is
+    # groupable exactly where writing it with the published mark puts
+    # a mark in it, which `_styled_base` decides from the style, the
+    # leading-zero order and the figures before the point. Asking it
+    # here rather than restating those rules is what stops the two
+    # drifting apart.
+    notations, notation_notes = _notation_places(column, facts, styles, holds)
+    groupable: list[bool] = []
+    for index in range(len(holds)):
+        order = 1 if styles[index] == "leading_zero" else 0
+        with_mark = _styled_number(
+            holds[index],
+            styles[index],
+            order,
+            facts.integer_valued,
+            widths[index],
+            pads[index],
+            _grouping_mark(facts),
+            notations[index],
+            plussed[index],
+        )
+        without = _styled_number(
+            holds[index],
+            styles[index],
+            order,
+            facts.integer_valued,
+            widths[index],
+            pads[index],
+            "",
+            notations[index],
+            plussed[index],
+        )
+        groupable += [with_mark != without]
+    marks, mark_notes = _mark_places(column, facts, groupable)
     for index in range(len(holds)):
         base += [
             _styled_number(
@@ -11880,8 +11921,8 @@ def _number_cells(
                 facts.integer_valued,
                 widths[index],
                 pads[index],
-                _grouping_mark(facts),
-                facts.negative_form,
+                marks[index],
+                notations[index],
                 plussed[index],
             )
         ]
@@ -11951,8 +11992,8 @@ def _number_cells(
                     facts.integer_valued,
                     widths[index],
                     pads[index],
-                    _grouping_mark(facts),
-                    facts.negative_form,
+                    marks[index],
+                    notations[index],
                     plussed[index],
                 )
             owed = owed - 1
@@ -11971,7 +12012,7 @@ def _number_cells(
     # which catches that case and this one, and reporting both would
     # name the same fact twice. The plus allocation's own shortfall is
     # not a form count and is named where it is decided.
-    return cells, plus_notes
+    return cells, notation_notes + mark_notes + plus_notes
 
 
 def _plus_style_swaps(
@@ -12152,6 +12193,187 @@ def _plus_cells_by_value(
             if ((step + 1) * count) // sizes[run] > (step * count) // sizes[run]:
                 chosen += [eligible[starts[run] + step]]
     return chosen
+
+
+def _mark_written(published: str) -> str:
+    """The mark a cell is grouped with before any exchange (G6.1).
+
+    `_grouping_mark` asks this of the column's one published mark; a
+    census of marks asks it of each mark it names, and the answer is the
+    same rule: a comma, and the point a declared decimal-comma column
+    publishes, are both written as a comma first -- the point arrives
+    with the exchange -- and every other mark is carried as published.
+
+    Guarantees: accepts one published mark; returns the mark a cell is
+    written with. Determinism: a fixed function of the mark. Raises
+    nothing. No I/O of any kind.
+    """
+    if published == "," or published == ".":
+        return ","
+    return published
+
+
+def _named_conventions(
+    census: "dict[str, int]", order: "tuple[str, ...]"
+) -> "list[tuple[str, int]]":
+    """The conventions a mixture census NAMES, in the enumeration's order.
+
+    The pooled remainder and the unavailable state name no convention,
+    so neither reaches the cells: what they cover is written in the
+    column's published majority, exactly as a pooled style count is
+    written plainly. That is the same rule `_plus_places` follows for a
+    pooled `decimal_plus`, and it is why a census that says nothing
+    leaves the generator writing precisely what it wrote before this
+    landing existed.
+
+    Guarantees: accepts the census and the enumeration fixing the order;
+    returns each named convention with its count. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    named: "list[tuple[str, int]]" = []
+    for name in order:
+        if name in census and census[name] > 0:
+            named += [(name, census[name])]
+    return named
+
+
+def _notation_places(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Which notation each negative cell wears (landing 2b.7, G6.1).
+
+    THE MAJORITY WROTE THE WHOLE COLUMN, AND THE MINORITY WAS LOST. A
+    column of 600 charges writing 480 with a minus in front and 120 in
+    accounting brackets published the majority alone, and its twin wrote
+    600 minuses and no bracket with every check passing -- so code that
+    parses brackets met none on the twin and failed on the real table.
+    `negative_notations` carries the mixture and this spends it.
+
+    THE CELLS THAT MAY WEAR ONE are the cells holding a negative value.
+    They are walked in cell order and each named notation takes its
+    count in turn; what no named count covers wears the column's
+    published `negative_form`, which is what the pooled remainder and
+    the unavailable state both leave behind.
+
+    A TRAILING MINUS NEEDS A POINT, and that is why this function reads
+    the styles as well as the values. `parsing.with_negative_notation`
+    writes a trailing minus only where the figures carry a decimal
+    point, because neither `12-` nor `1,234-` reads back as a number --
+    so a cell allocated that notation without a point would keep its
+    minus in front, quietly, and the census would be missed with no
+    deviation named. Only `decimal` cells are offered it; where the
+    count cannot be met the report names the shortfall.
+
+    Guarantees: accepts the column, its numeric block, one style per
+    cell and one value per cell; returns one notation per cell and at
+    most one deviation per named notation. Determinism: a function of
+    those inputs, over a fixed index order. Raises nothing. No I/O.
+    """
+    worn = [facts.negative_form] * len(holds)
+    named = _named_conventions(
+        facts.negative_notations, parsing.NEGATIVE_FORMS
+    )
+    if not named:
+        return worn, []
+    taken: "dict[int, int]" = {}
+    notes: list[Deviation] = []
+    for notation, wanted in named:
+        placed = 0
+        for index in range(len(holds)):
+            if placed >= wanted:
+                break
+            if index in taken or not holds[index] < 0.0:
+                continue
+            if (
+                notation == parsing.NEGATIVE_TRAILING
+                and styles[index] != "decimal"
+            ):
+                continue
+            taken[index] = 1
+            worn[index] = notation
+            placed = placed + 1
+        if placed < wanted:
+            notes += [
+                _deviation(
+                    column.name,
+                    "negative_notations",
+                    f"{wanted}",
+                    f"{placed}",
+                    "The twin writes its negative numbers in the "
+                    "notations the description counts, but its published "
+                    "ladder and forms left fewer cells able to wear this "
+                    "one than the description counts, so fewer of them "
+                    "do.",
+                )
+            ]
+    return worn, notes
+
+
+def _mark_places(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    groupable: "list[bool]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Which mark each grouped cell wears (landing 2b.7, G6.1).
+
+    THE SIBLING OF `_notation_places`, SPENDING THE OTHER MIXTURE. 200
+    cells grouped with a space beside 100 grouped with a narrow no-break
+    space came back as 300 ordinary spaces, so code stripping an
+    ordinary space succeeded on the twin and failed on the real table.
+
+    WHICH CELLS MAY WEAR A MARK IS NOT DECIDED HERE. ``groupable`` says,
+    per cell, whether writing it with the published mark actually put a
+    mark in it -- asked of the writer rather than restated from the
+    rules about forms, orders and four whole figures, because a second
+    statement of those rules is a second thing to keep in step with
+    `_styled_base`, and the cell that falls between two statements of a
+    rule is exactly the cell this landing exists to stop losing.
+
+    Each named mark takes its count of those cells in cell order; what
+    no named count covers wears the column's published mark.
+
+    Guarantees: accepts the column, its numeric block and one flag per
+    cell; returns one mark per cell, as written before any exchange, and
+    at most one deviation per named mark. Determinism: a function of
+    those inputs, over a fixed index order. Raises nothing. No I/O.
+    """
+    published = _grouping_mark(facts)
+    worn = [published] * len(groupable)
+    named = _named_conventions(
+        facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
+    )
+    if not named:
+        return worn, []
+    taken: "dict[int, int]" = {}
+    notes: list[Deviation] = []
+    for mark, wanted in named:
+        placed = 0
+        for index in range(len(groupable)):
+            if placed >= wanted:
+                break
+            if index in taken or not groupable[index]:
+                continue
+            taken[index] = 1
+            worn[index] = _mark_written(mark)
+            placed = placed + 1
+        if placed < wanted:
+            notes += [
+                _deviation(
+                    column.name,
+                    "thousands_marks",
+                    f"{wanted}",
+                    f"{placed}",
+                    "The twin groups its thousands with the marks the "
+                    "description counts, but its published ladder and "
+                    "forms left fewer cells large enough to be grouped "
+                    "than the description counts, so fewer of them "
+                    "carry this mark.",
+                )
+            ]
+    return worn, notes
 
 
 def _plus_places(

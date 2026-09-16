@@ -1505,6 +1505,58 @@ def _floor_cells(
     return _rebuilt(rows)
 
 
+def _floor_signed_cells(
+    described: contract.Profile, text: str, index: int, value: str
+) -> str:
+    """The floor's worth of cells signed, leaving the complement behind.
+
+    LANDING 2b.7, AND THE REASON THIS EDIT NEEDED A CHOICE. Since plan
+    P4-D65.1 the signed-decimal census is published only where the count
+    NAMES a group and the cells written with a point that carry no plus
+    name one too -- the complement clause, without which "1,195 of these
+    1,200 are signed" names the five that are not. So an edit meant to
+    make `spelling.decimal_plus` miss has to leave a file whose own
+    count is NAMEABLE, and `_floor_cells` cannot promise that: it
+    overwrites whichever cells come first, and on the pooled fixture it
+    consumed two of that column's twelve decimal cells, leaving eleven
+    signed against a complement of ten. Ten is below the floor, so the
+    census was unnameable, the verdict HELD, and the red case proved
+    nothing -- measured, not argued.
+
+    Writing into cells that carry NO POINT fixes it, and makes the edit
+    better aimed besides: the column keeps every unsigned decimal cell
+    it had, so the complement is whatever it was before. On the pooled
+    fixture that is twelve, which clears the floor. Where a column has
+    too few point-free cells -- a column of decimals almost throughout
+    -- the walk takes decimal cells for the rest rather than give up,
+    and such a column has decimals to spare for the complement anyway.
+
+    A cell is judged by whether it holds a point, which takes the
+    exponent forms with it. That is a deliberate over-approximation: the
+    question here is only which cells are the cheapest to spend, and
+    spending an exponent cell would be as sound as spending a decimal
+    one, merely less useful.
+    """
+    rows = _rows_of(text)
+    wanted = described.settings.small_cell_floor
+    first = _first_record(described)
+    written = 0
+    for pointed in (False, True):
+        for row in range(first, len(rows)):
+            if written >= wanted:
+                break
+            cell = rows[row][index]
+            if not cell or cell == value:
+                continue
+            if ("." in cell) != pointed:
+                continue
+            rows[row][index] = value
+            written = written + 1
+    if written < wanted:
+        return ""
+    return _rebuilt(rows)
+
+
 def _restyled(
     described: contract.Profile, text: str, index: int, style: str
 ) -> str:
@@ -2262,12 +2314,20 @@ def _column_perturbations(
         built = built + _pair_perturbations(described, twin, index, name, pair)
     if column.role in ROLES_WITH_NUMBERS:
         for tag, value in FLOOR_STYLE_VALUES:
+            # THE SIGNED-DECIMAL EDIT CHOOSES ITS CELLS (landing 2b.7).
+            # Its site is published only where the count and its
+            # complement both name a group, so an edit that spends the
+            # column's unsigned decimal cells can leave the census
+            # unnameable and the check HELD. `_floor_signed_cells`
+            # spends point-free cells first and leaves the complement
+            # where it was; every other tag keeps the plain walk.
+            made = (
+                _floor_signed_cells(described, source, index, value)
+                if tag == "signed"
+                else _floor_cells(described, source, index, value)
+            )
             shaped = shaped + [
-                (
-                    f"floor-{tag}-{name}",
-                    CLASS_SPELLING,
-                    _floor_cells(described, source, index, value),
-                )
+                (f"floor-{tag}-{name}", CLASS_SPELLING, made)
             ]
     if column.role in ROLES_WITH_NUMBERS:
         shaped = shaped + [
@@ -5369,6 +5429,15 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # stretch, and neither position of this column leaves one. A
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
+        # THE TWO MIXED CONVENTIONS, ONE LEVEL DOWN (landing 2b.7). A
+        # position is read from figures and one point alone, so it can
+        # wear no notation and no mark at all: invariants NS2 and TM1
+        # hold both censuses EMPTY there, and an empty census is listed
+        # rather than checked.
+        "joined.parts[0].negative_notations",
+        "joined.parts[0].thousands_marks",
+        "joined.parts[1].negative_notations",
+        "joined.parts[1].thousands_marks",
         "joined.parts[0].field_widths",
         # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
         # 2026-09-04: amendment A-P4-55 makes the count of different
@@ -5401,6 +5470,15 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # `SUBCHECK_FACTS` beside the checks, which is what tells a reader
     # they are the same obligations under another answer.
     "compound": (
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2), which
+        # are CHECKED where a column wore more than one notation or more
+        # than one mark and LISTED where it wore one or none. This half
+        # wears one of each, as every fixture column here does, so both
+        # are listed: the single convention each column did wear is
+        # `negative_form` or `group_separator`, published beside these
+        # censuses and checked in its own right.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
         # amendment A-P4-55 makes the count of different numbers an
@@ -5523,6 +5601,16 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # keys, listed together: the bins say WHICH stretches there
         # are and the edges say where each really begins and ends.
         "numeric.empty_edges",
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2). Not
+        # REPORT-ONLY: both are EXACT-OBSERVABLE and are CHECKED on any
+        # column that wore more than one notation or more than one mark.
+        # They are listed HERE because no column of these fixtures wears
+        # two of either, which is the ordinary case -- a column wearing
+        # one convention has it published in `negative_form` or
+        # `group_separator` and checked there, so a check of the census
+        # beside it would hold one obligation twice.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).

@@ -1243,7 +1243,54 @@ every numeric block: `spelling.group_separator` and
 describing the file on its own publishes, and `spelling.decimal_plus`
 holds the census's named count the way a named form count is held, with
 its pooled remainder widening the bar, and a census naming none to a
-file naming none. Because the
+file naming none.
+
+**Amended 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2).**
+`spelling.decimal_plus` no longer reads a pooled remainder, because that
+census no longer has one: `+` is its only category, so a `(withheld)`
+count beside it named the category it held back. Where it carries
+`{"(unavailable)": 0}` the check PUBLISHES THE BAR AND NOT THE COUNT:
+that state says neither the count nor whether the count is nought,
+which is what makes nought and a below-floor count one published state.
+What every count it covers has in common is that the count is NOT
+NAMEABLE — it does not reach the census floor, or it reaches it while
+the cells written with a point that carry NO plus fall below the floor,
+which is the complement clause. So the file's own signed decimals and
+its own cells written with a point are counted from its cells — the
+re-description carries no number there, which is the point of the state
+— and the verdict is HELD where that pair is unnameable by the same
+rule and MISSED where it is nameable. Both halves are needed: an
+earlier version of this check read the state as "fewer than the floor"
+alone and failed a REAL TABLE against its own description, 1,195 signed
+cells beside 5 unsigned ones. The exact count is printed only in the
+MISSED case, where it is the file's own and the bar has already been
+passed. Only `{}`, which a column
+writing no cell with a point publishes, still holds a file to naming
+none. Filing the state as WITHHELD instead withdraws a real obligation
+from every ordinary decimal column and was caught by the red battery:
+four fixtures whose `spelling.decimal_plus` had been executable became
+unfalsifiable in one commit.
+
+Two further checks stand beside the three, on every numeric block whose
+census names TWO OR MORE conventions: `spelling.negative_notations` and
+`spelling.thousands_marks` hold the MIXTURE the majority keys collapse.
+Each is one check and not one per convention, because the fact is the
+mixture itself: a twin meeting one count and not the other has not
+reproduced the column's convention. Where the census names one
+convention or none, the fact is LISTED rather than checked — the
+majority key already carries that column's single convention, and a
+check there would say "no obligation" twice on every numeric block of
+every report. Where it names two, each is compared exactly with what
+describing the file on its own publishes for it; the pooled remainder
+does not widen the bar, because a pooled cell wears the column's
+published majority, which this census also names. The comparison is
+WITHHELD where the file's population of cells that could wear a
+convention — its negative cells, or its cells reaching four whole
+figures in a groupable form — differs from the published total: neither
+population is pinned cell for cell, so a twin with fewer such cells
+cannot place every named convention however faithfully it writes the
+ones it can, and the generator's report names that shortfall as a
+deviation of the census. Because the
 comparison is made against the file's own description, every edge of the
 producer's rule comes with it: a padded or exponent cell holding a mark,
 the cores each wrapper wears, the numeric half of a column with labels,
