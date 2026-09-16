@@ -671,6 +671,18 @@ def test_a_column_beside_the_dates_is_untouched_by_this_rule(
         [day.isoformat(), numbers[place]]
         for place, day in enumerate(sorted(_seasonal(random.Random(7), 600)))
     ]
+    # THE ROWS ARE NOT LEFT SORTED BY DATE (the integration of landings
+    # 2b.6 to 2b.10, 2026-09-16). Landing 2b.10 publishes the order a
+    # file's rows stand in and the twin keeps it, so two tables sorted by
+    # their dates put the numbers beside them in two different row
+    # orders, and the columns compared below differed row by row while
+    # holding the same cells. One fixed shuffle, the same for both
+    # tables, leaves no order to publish, so what is compared is again
+    # only whether the words the numbers draw moved.
+    shuffle = list(range(600))
+    random.Random(8).shuffle(shuffle)
+    rows_early = [rows_early[place] for place in shuffle]
+    rows_late = [rows_late[place] for place in shuffle]
     written: "list[list[str]]" = []
     for name, rows in (("early", rows_early), ("late", rows_late)):
         folder = tmp_path / name
@@ -699,6 +711,10 @@ def test_a_column_beside_the_dates_is_untouched_by_this_rule(
             )
             == 0
         )
+        described = json.loads(
+            (folder / "real-profile.json").read_text(encoding="utf-8")
+        )
+        assert described["source"]["dialect"]["row_order"] is None
         twin = (folder / "real-twin.csv").read_text(encoding="utf-8")
         written += [
             [row[1] for row in csv.reader(io.StringIO(twin))][1:]

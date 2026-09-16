@@ -2632,7 +2632,20 @@ def _published_form(
         block = columns[order - 1]
         blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
         pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
-        if not isinstance(blank, int) or not isinstance(pooled, int) or blank + pooled != empties:
+        # ...AND THE CELLS A JUDGED PASS TOOK (the integration of landings
+        # 2b.6 to 2b.10, 2026-09-16). The generator keeps those blank
+        # (contract C6-116), and since landing 2b.6 every such verdict
+        # names the published spellings its cells wore, so they are
+        # counted here as the empty cells they become. Measured before:
+        # a sorted column of dates whose twenty placeholder cells a
+        # judged pass took published its order, the twin wrote those
+        # twenty cells empty, and the twin missed `rows.order` at exit 3.
+        judged = _judged_cells(block)
+        if (
+            not isinstance(blank, int)
+            or not isinstance(pooled, int)
+            or blank + pooled + judged != empties
+        ):
             form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
     # AND THE LINES BEFORE THE TABLE ARE ALREADY SHAPES. The survey
     # publishes their kind, their count and their mark, so there is
@@ -2642,6 +2655,38 @@ def _published_form(
     # title line naming a person reached the description whole (review
     # item CODEX-3).
     return form
+
+
+def _judged_cells(block: "dict[str, object]") -> int:
+    """How many absent cells of a column block a judged pass took.
+
+    The cells of every `missing_by_source` spelling a `read_as_missing`
+    verdict names, which are the cells the generator writes empty
+    (contract C6-116). Read off the block as published, so the rule that
+    drops a row order and the loader's FD7 count the same cells.
+    """
+    spellings = block["missing_by_source"] if "missing_by_source" in block else {}
+    verdicts = block["sentinel_verdicts"] if "sentinel_verdicts" in block else []
+    if not isinstance(spellings, dict) or not isinstance(verdicts, list):
+        return 0
+    named: list[str] = []
+    for verdict in verdicts:
+        if not isinstance(verdict, dict) or "verdict" not in verdict:
+            continue
+        if verdict["verdict"] != taxonomy.VERDICT_MISSING:
+            continue
+        found = verdict["spellings"] if "spellings" in verdict else []
+        if not isinstance(found, list):
+            continue
+        for spelling in found:
+            if isinstance(spelling, str) and spelling not in named:
+                named += [spelling]
+    total = 0
+    for spelling in named:
+        count = spellings[spelling] if spelling in spellings else 0
+        if isinstance(count, int):
+            total = total + count
+    return total
 
 
 def _published_workbook(

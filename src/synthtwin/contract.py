@@ -440,6 +440,27 @@ SENTINEL_KEYS = (
 
 VERDICT_MISSING = "read_as_missing"
 
+
+def _judged_cells(column: "ColumnBlock") -> int:
+    """How many absent cells a judged pass took, which the twin writes empty.
+
+    FD7's count of a sort column's empty cells (the integration of
+    landings 2b.6 to 2b.10, 2026-09-16): the cells of every published
+    hole spelling a `read_as_missing` verdict names (C6-116, V5).
+    """
+    named: list[str] = []
+    for verdict in column.sentinel_verdicts:
+        if verdict.verdict != VERDICT_MISSING:
+            continue
+        for spelling in verdict.spellings:
+            if spelling not in named:
+                named += [spelling]
+    total = 0
+    for spelling in named:
+        if spelling in column.missing_by_source:
+            total = total + column.missing_by_source[spelling]
+    return total
+
 VERDICTS = (VERDICT_MISSING, "kept_as_a_number")
 
 REASON_OUTLIER_AND_FREQUENT = "outlier_and_frequent"
@@ -4703,7 +4724,10 @@ def _dialect_rules(
             at > width
             or n_rows < 3
             or sequences[at - 1]
-            or columns[at - 1].n_missing_blank + columns[at - 1].n_missing_withheld != empties
+            or columns[at - 1].n_missing_blank
+            + columns[at - 1].n_missing_withheld
+            + _judged_cells(columns[at - 1])
+            != empties
         ):
             raise _broken(
                 "FD7", where,
