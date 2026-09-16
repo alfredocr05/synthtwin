@@ -784,8 +784,28 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
 # when the two documents were diffed against 53bb012. The twin digest below
 # HELD: the twin's bytes are identical.
+# RE-RECORDED 2026-09-16 (landing 2b.12, plan P4-D85). The description
+# moved by ONE LINE -- `comment` publishes `n_missing_blank: 160` where
+# it published 0 -- diffed against the base commit, with nothing else
+# changed.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and on this landing that is the
+# load-bearing observation. The demonstration's free-text column holds
+# 160 absent cells and every one of them held NOTHING, so the twin wrote
+# them empty before this landing and writes them empty after it; the
+# rule that changed reaches a column's absent cells only where they wore
+# one of synthtwin's own words, and this column's wore none. Measured,
+# not argued: the twin of the demonstration is byte-identical to the
+# base commit's (6a88f23f629b53e506371f7f632709977e26d7155e8ee1cd357146c2e51a5c1c).
+#
+# THE REPORT DIGEST MOVED, AND IT NOW SAYS MORE RATHER THAN LESS, which
+# is the condition this file sets before a report digest may be
+# re-recorded. Two lines -- "the description names no spelling for these
+# cells, so this report names none either" -- became one: "160 cell(s)
+# with nothing written in them". The sentence it replaces was true only
+# because the class had emptied the count the report wanted to print.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "f08c4e89993cab504c451630282ac90ef37fe6095747bf400db04ddd19a3b6c2"
+    "c9e9ba51ad0c292156b4930217db0561c073ccea9b280e24de472ba6481d9855"
 )
 
 
@@ -1292,7 +1312,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # and G12.3a state, which is what the quality report prints; the twin,
 # every achieved figure and every inside-the-range verdict are unchanged.
 GOLDEN_REPORT_SHA256 = (
-    "2915f4c52c20798eefdd87492548ecfda26fa96d66afd7e891b4c527664957db"
+    "33c9a36affd7b7deb9a4bcfdf2719ffaf5bc338406e8fa5dcfeae1556cd6b9d9"
 )
 
 

@@ -439,20 +439,28 @@ def test_a_column_publishing_no_spellings_keeps_its_presence_teeth(
     """A-P3-5 clause 1: the two counts ask the WEAKER question.
 
     Three roles publish no value of the table anywhere in their block --
-    free text, declared identifier, unrepresentable -- so their
-    `missing_by_source` is empty by policy and the SPELLINGS of their
-    holes are never derivable from their description. But
+    free text, declared identifier, unrepresentable. Since plan P4-D85
+    such a column still names the members of synthtwin's OWN vocabulary
+    its holes wore, so the spelling here IS derivable; what stays
+    underivable is a spelling of the person's own. And
     `missing_by_class` uses only synthtwin's own five words, so it is
     published for every role, and where its pooled remainder is empty it
     says exactly how many holes are non-blank.
 
-    So the two counts the blank split owns still verdict here, and the
-    round-2 witness is still caught on such a column: thirty holes all
-    spelled one way clear the floor, the class map names them, and
-    `presence.n_present` misses. Distinctness, which would need the
-    spellings, falls back to the description. A gate that asked both the
-    same way would have thrown the first half away, and this is what
-    would go red.
+    WHAT THIS TEST ASSERTED UNTIL P4-D85 WAS A FALSE ACCUSATION, and it
+    is worth saying plainly because the assertion looked like teeth.
+    The same thirty holes made the file the description was written from
+    MISS both presence counts -- the description named no spelling, so
+    the check re-read `n/a` as data and counted sixty present against
+    the published thirty. A file cannot fail its own description; that
+    was the defect LTM-2 named, not a check working.
+
+    So the two counts the blank split owns still verdict here, and this
+    now asserts BOTH halves: the file the description was written from
+    meets it, and a file whose presence genuinely differs still misses
+    both counts. Distinctness, which would need every spelling, falls
+    back to the description. A gate that asked both the same way would
+    have thrown the first half away, and this is what would go red.
     """
     folder = tmp_path / "textual"
     folder.mkdir()
@@ -469,11 +477,35 @@ def test_a_column_publishing_no_spellings_keeps_its_presence_teeth(
     own = json.loads(_own_description(folder, described, text, "own"))
     block = own["columns"][0]
     assert block["role"] in taxonomy.ROLES_PUBLISHING_NOTHING
-    assert block["missing_by_source"] == {}
+    # SINCE PLAN P4-D85 the spelling here is one of synthtwin's own
+    # words, so such a column names it -- and the presence teeth below
+    # still bite, which is what this test is for. A spelling of the
+    # PERSON'S own would still be named nowhere on this column.
+    assert block["missing_by_source"] == {"n/a": 30}
     checks, _census = _report(folder, described, text, "again.csv")
     named = {(check[0], check[2]): check[3] for check in checks}
-    assert named[("note", "presence.n_present")] == validation.MISSED, named
-    assert named[("note", "presence.n_missing")] == validation.MISSED, named
+    # THE FILE THE DESCRIPTION WAS WRITTEN FROM MEETS IT, which it did
+    # not before plan P4-D85.
+    assert named[("note", "presence.n_present")] == validation.HELD, named
+    assert named[("note", "presence.n_missing")] == validation.HELD, named
+
+    # ...AND THE TEETH ARE STILL THERE, which is what this test is for.
+    # Five of the thirty holes written as prose instead moves presence by
+    # five, and both counts miss on that file.
+    differs = _table(
+        [
+            [
+                "n/a" if index < 25 else _PROSE[index % len(_PROSE)],
+                f"t{index % 7}",
+            ]
+            for index in range(60)
+        ],
+        names,
+    )
+    moved, _again = _report(folder, described, differs, "differs.csv")
+    bitten = {(check[0], check[2]): check[3] for check in moved}
+    assert bitten[("note", "presence.n_present")] == validation.MISSED, bitten
+    assert bitten[("note", "presence.n_missing")] == validation.MISSED, bitten
 
 
 def test_the_named_source_threshold_is_the_publication_floor(

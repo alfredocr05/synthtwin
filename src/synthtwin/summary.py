@@ -1129,9 +1129,17 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
       can be one of the labels of a column of categories only when at
       least `small_cell_floor` rows share it;
     * a column that publishes nothing at all -- record numbers, free
-      text, numbers no format can hold -- still publishes nothing, in
-      either direction, and now in every field of its block rather than
-      in the fields somebody remembered. A value named with
+      text, numbers no format can hold -- publishes no VALUE of the
+      table, in either direction, and now in every field of its block
+      rather than in the fields somebody remembered. What it does
+      publish, since plan P4-D85, is which of SYNTHTWIN'S OWN words its
+      absent cells were spelled with: `NA`, `N/A`, `NULL` and the rest
+      of the closed vocabulary are this package's words and no table's,
+      so naming them discloses nothing of the column and lets the twin
+      write the holes the table wrote. A column that publishes no value of
+      the table publishes none of the person's own spellings either
+      way, declared or not, because no loader holding one document
+      could tell one from a value of the column. A value named with
       `--keep-value` used to travel out of a declared identifier column
       as the `candidate` of a sentinel verdict, which is the one
       remaining way a spelling could leave a column declared precisely
@@ -1238,7 +1246,11 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
         ]
     lines += [
         "    A column that publishes nothing -- record numbers, free",
-        "    text -- still publishes nothing either way.",
+        "    text -- names no value of yours either way. Where its empty",
+        "    cells were spelled with one of synthtwin's own words, such",
+        "    as NA, it says which word and how many, because that word",
+        "    is synthtwin's and not your table's; a spelling of your own",
+        "    it never names.",
     ]
     return (
         lines

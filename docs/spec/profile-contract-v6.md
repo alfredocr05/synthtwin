@@ -281,7 +281,7 @@ named clause gives the rule.
 | **the published vocabulary** | the closed list of TWENTY-THREE members C6-31 fixes: eighteen text spellings synthtwin reads as "no value", three stand-in numbers it judges, and two calendar placeholders it judges. It is synthtwin's own, it is the same in every installation, and it contains no text from any table | C6-31 |
 | **the exact-spelling member** | the one member of the published vocabulary matched by raw byte equality with the cell, rather than after trimming and case folding | C6-31, C6-32 |
 | **a calendar placeholder** | one of the two built-in dates a description may judge as meaning "no value", by the same rule that judges the three stand-in numbers | C6-31, C6-33 through C6-35 |
-| **a nothing-publishing column** | a column whose publication class permits no value of the table anywhere in its block: `role` in `numeric_unrepresentable`, `identifier` or `free_text`, or `structural_role` `identifier` whatever the role. The term is BINARY — a column either is one or is not — and the role `empty` does not by itself make a column one | C6-50, C6-51, C6-52 |
+| **a nothing-publishing column** | a column whose publication class permits no value of the table anywhere in its block: `role` in `numeric_unrepresentable`, `identifier` or `free_text`, or `structural_role` `identifier` whatever the role. The term is BINARY — a column either is one or is not — and the role `empty` does not by itself make a column one. It bars the TABLE's text and not this format's own: such a column still names which members of the published vocabulary its absent cells were spelled with (C6-126) | C6-50, C6-51, C6-52, C6-126 |
 | **the affix pair** | the exact prefix text and suffix text that every counted cell of an `affixed_number` column wears around its number | C6-4, C6-5 |
 | **the core** | the substring of an affixed cell that the number classifier reads as a number, chosen longest-then-leftmost | C6-4 |
 
@@ -3022,10 +3022,26 @@ sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld
     == n_missing
 ```
 
-On a nothing-publishing column, `missing_by_source` is `{}`,
-`n_missing_blank` is 0 and `n_missing_withheld` is 0, whatever
-`n_missing` is. Naming a spelling there would publish a value out of a
-column that publishes none.
+**On a nothing-publishing column the same three numbers are an UPPER
+BOUND rather than a total** (C6-126):
+
+```
+sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld
+    <= n_missing
+```
+
+Such a column used to publish `{}` with both counts at 0 whatever
+`n_missing` was, on the reasoning that naming a spelling there would
+publish a value out of a column that publishes none. That reasoning is
+right about the TABLE's text and wrong about this format's own: `NA`,
+`N/A` and `NULL` are members of the published vocabulary, which C6-31
+fixes as containing no text from any table, so naming one discloses
+nothing of the column. The bound is an inequality rather than a total
+because the cells whose spelling is NONE of synthtwin's own words are
+withheld by the class and counted by nothing — they are not added to
+`n_missing_withheld`, since that remainder is what the FLOOR held back
+and a description written at a floor of one holds nothing back (S13).
+What the old rule cost is measured at C6-126.
 
 **And no key of the map is the empty spelling** (C6-125). Cells that
 held nothing at all are `n_missing_blank`; a key of no characters would
@@ -3047,10 +3063,17 @@ is the other map the table keys, and a rule that finds this format's
 fields by searching a document for names must stop reading a key as a
 name inside both.
 
-**Invariant N6.** `n_missing_blank` and `n_missing_withheld` are 0 on
-exactly the nothing-publishing columns. That class is a function of
-`role` and `structural_role`, both of which every block publishes, so a
-consumer can decide it from the document alone.
+**Invariant N6.** A consumer decides whether a column is
+nothing-publishing from `role` and `structural_role`, both of which
+every block publishes, and NEVER from a count reading zero.
+
+**The two absence counts stopped signalling the class** (C6-126). They
+were 0 on exactly the nothing-publishing columns, which let a consumer
+infer the class from the zeros; since such a column accounts for its
+absent cells like any other, both counts now mean on it exactly what
+they mean everywhere else. The inference path is withdrawn rather than
+narrowed, and the sentence above is what replaces it: the class is
+published outright, so nothing needs to be inferred from a nought.
 
 **Invariant N7 (producer).** A `missing_by_source` key is the source
 spelling character for character. A loader holds one document and never
@@ -3360,10 +3383,11 @@ method's own construction table states
 to `n_distinct`. M2: its keys weighted by its values sum to
 `n_present`.
 
-**Invariant U4.** This role is a nothing-publishing column, so
-`missing_by_source` is `{}`, `n_missing_blank` and `n_missing_withheld`
-are `0`, and every `sentinel_verdicts` entry has
-`candidate == "(withheld)"` (N3, V2).
+**Invariant U4.** This role is a nothing-publishing column, so every
+key of `missing_by_source` names a member of the published vocabulary
+and no spelling of the table stands there, the two absence counts stand
+inside N3's upper bound, and every `sentinel_verdicts` entry has
+`candidate == "(withheld)"` (N3, V2, C6-126).
 
 **Invariant U5.** `min_length <= max_length`.
 
@@ -4662,12 +4686,14 @@ string.
 values sum to `n_distinct`, and its keys read as numbers and weighted
 by its values sum to `n_present`.
 
-**Invariant I3 (this block publishes nothing of the table).**
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both `0`, and every `sentinel_verdicts` entry
-has `candidate == "(withheld)"` (N3, V2). It is a property of the
-whole BLOCK: no value of the column, no spelling of one and no
-fragment of one stands anywhere in it. What is published is the role,
+**Invariant I3 (this block publishes nothing of the table).** Every
+key of `missing_by_source` names a member of the published vocabulary
+(C6-126), the two absence counts stand inside N3's upper bound, and
+every `sentinel_verdicts` entry has `candidate == "(withheld)"`
+(N3, V2). It is a property of the whole BLOCK: no value of the column,
+no spelling of one and no fragment of one stands anywhere in it — and a
+vocabulary member is none of those three, being this package's own word
+and the same in every installation. What is published is the role,
 the counts, the shortest and longest length, whether every value is a
 whole number, how many cells are all digits or all code alphabet, and
 the shape of repetition — lengths and counts, never values.
@@ -4764,12 +4790,13 @@ is a number. Likewise `words.min <= words.mean <= words.max`.
 **Invariant F2.** M1 and M2 bind `n_distinct_by_occurrences`, exactly
 as I2 states them.
 
-**Invariant F3 (this block publishes nothing of the table).**
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both `0`, and every `sentinel_verdicts` entry
-has `candidate == "(withheld)"` (N3, V2). As at I3 this binds the
-whole BLOCK, not any one field: no value, no spelling of one and no
-fragment of one stands anywhere in it.
+**Invariant F3 (this block publishes nothing of the table).** Every
+key of `missing_by_source` names a member of the published vocabulary
+(C6-126), the two absence counts stand inside N3's upper bound, and
+every `sentinel_verdicts` entry has `candidate == "(withheld)"`
+(N3, V2). As at I3 this binds the whole BLOCK, not any one field: no
+value, no spelling of one and no fragment of one stands anywhere in
+it.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
@@ -4822,12 +4849,66 @@ is ordered so that the two cannot be run together.
 **C6-49.** Three roles publish no value of the table anywhere in
 their block — `numeric_unrepresentable`, `identifier` and `free_text`
 — and so does any column whose `structural_role` is `identifier`,
-whatever its role. On those columns, and only those,
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both zero, and every sentinel candidate
-reads `(withheld)`. **This is a property of the whole BLOCK, not of
-any one field: it is what stops the next field somebody adds from
-being the one that leaks.**
+whatever its role. On those columns, and only those, every sentinel
+candidate reads `(withheld)` and `missing_by_source` is confined to the
+published vocabulary by C6-126. **This is a property of the whole
+BLOCK, not of any one field: it is what stops the next field somebody
+adds from being the one that leaks.**
+
+**C6-126 (such a column still says which of SYNTHTWIN'S OWN words its
+holes wore).** Every key of `missing_by_source` on a nothing-publishing
+column names a member of the published vocabulary — the comparison
+being C6-32's one operation, so a folded member is named after trimming
+and case folding and the exact-spelling member byte for byte — and a
+key naming no member is refused. Both absence counts are written as on
+any other column and N3's sum closes. A spelling of NOTHING BUT SPACE
+names the empty member and is admitted on that ground, which is the
+same key every other column may carry (C6-125).
+
+**Why a member of the vocabulary is not a value of the table.** It is
+this package's own word, fixed in the closed list C6-31 states,
+identical in every installation, and C6-31 says in terms that the
+vocabulary "contains no text from any table". A column publishing
+`{"NA": 174}` says that 174 of its cells were spelled with a word
+synthtwin ships. It does not say what any value of that column is, and
+no reader can rebuild a row from it.
+
+**What the empty map cost, measured.** A 500-row free-text column whose
+absent cells were 101 blanks and 174 `NA`/`N/A` published `n_missing:
+275`, named no spelling, and put both absence counts at 0. Three things
+followed. The twin wrote 275 EMPTY cells where the table wrote 101, so
+`df[df.note != "NA"]` dropped 174 rows of the table and none of the
+twin. The description could not be read back: re-describing the very
+table it was written from found 399 present cells against the published
+225 and reported BOTH presence counts MISSED at exit 3 — the real table
+failing its own description, on a run with no options typed at all.
+And a reader could infer the publication class from the two zeros,
+which is the inference N6 now withdraws. With the vocabulary named,
+that column publishes `{"N/A": 95, "NA": 79}` with `n_missing_blank:
+101`, its twin writes each spelling at its published count, and both
+validations return 0.
+
+**A COLUMN THAT PUBLISHES NO VALUE OF THE TABLE PUBLISHES NONE OF THE
+PERSON'S OWN SPELLINGS EITHER WAY, declared or not, and the reason is
+what a LOADER can check.** A
+declaration is recorded as a count and never as text (C5-17), so no
+document distinguishes `Not documented` declared from `Not documented`
+written in a cell. A rule admitting declared spellings here could be
+obeyed by a producer and not checked by any consumer, and this format
+does not write rules of that kind.
+
+**Those cells are counted by NOTHING, and that is why N3 is an
+inequality here.** They are not added to `n_missing_withheld`: that
+remainder is what the FLOOR held back, and a description written at a
+floor of one holds nothing back (S13), so a class withholding recorded
+there would make a floor-one document claim what S13 forbids. This is
+exactly where such cells stood before this clause, so nothing regresses;
+what changes is that the format now SAYS they are unaccounted instead of
+implying by a closed sum that there are none. The cost is stated rather
+than discovered: a person who declares a word of their own on a
+free-text or declared identifier column gets a twin whose holes for
+that word are blank, and a reader of that description can tell how many
+such cells there were by subtraction but never what they said.
 
 **The term is BINARY.** A column either is a nothing-publishing
 column or it is not. There is no third state and no partial one, and
@@ -8107,10 +8188,10 @@ and it names eight: `missing_by_class`, `utc_offsets`,
 |---|---|---|
 | N1 | `missing_by_class` carries exactly SIX keys — `(blank)`, `(date-sentinel)`, `(declared-missing)`, `(numeric-sentinel)`, `(text-code)`, `(withheld)` — always all six, on every column block of every role, and their six values sum to `n_missing` | yes |
 | N2 | each `missing_by_class` value other than `(withheld)` is 0 or at least `small_cell_floor`: a class counting between 1 and the floor is pooled into `(withheld)` and reads 0 here. `(withheld)` is exempt — the remainder the named counts were pooled out of, and one remainder pools several classes | yes |
-| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`, and no key of the map is the empty spelling (C6-125), which would count a blank cell twice; on a nothing-publishing column `missing_by_source == {}` and both counts are 0, whatever `n_missing` is | yes |
+| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`; on a nothing-publishing column the same three are an upper bound, `<= n_missing`, and every key additionally names a member of the published vocabulary (C6-126). No key of the map is the empty spelling (C6-125), which would count a blank cell twice | yes |
 | N4 | every value of `missing_by_source` is at least `small_cell_floor`, with no exemption, and `n_missing_blank` is 0 or at least the floor. `n_missing_withheld` is bounded in neither direction, for N2's reason | yes |
 | N5 | no key of `missing_by_source` carries a first-party meaning — not the six class words nor any other name this format uses (`n_missing_withheld`, `n_sentinel_candidates_unpublished` among them), because a cell can say those too: such a key means cells of the table held that text. `levels[].variants` is the other map the TABLE keys | reading |
-| N6 | `n_missing_blank` and `n_missing_withheld` are 0 on exactly the nothing-publishing columns; that class is a function of `role` and `structural_role`, which every block publishes | yes |
+| N6 | the nothing-publishing class is decided from `role` and `structural_role`, which every block publishes, and never from a count reading zero: since C6-126 both absence counts mean the same thing on every column | reading |
 | N7 | a `missing_by_source` key is the source spelling character for character | producer |
 
 ### 8.4 The declaration records — K
@@ -8248,7 +8329,7 @@ supplied a different test would refuse different files.
 | U1 | `n_whole + n_fraction + n_whole_unknown == n_present` | yes |
 | U2 | `n_positive + n_negative + n_sign_unknown == n_present` | yes |
 | U3 | M1 and M2 hold of `n_distinct_by_occurrences`: its values sum to `n_distinct`, and its keys weighted by its values sum to `n_present` | yes |
-| U4 | the role is a nothing-publishing column, so `missing_by_source` is `{}`, `n_missing_blank` and `n_missing_withheld` are `0`, and every `sentinel_verdicts` entry has `candidate == "(withheld)"` (N3, V2) | yes |
+| U4 | the role is a nothing-publishing column, so every key of `missing_by_source` names a member of the published vocabulary, both absence counts stand inside N3's upper bound, and every `sentinel_verdicts` entry has `candidate == "(withheld)"` (N3, V2, C6-126) | yes |
 | U5 | `min_length <= max_length` | yes |
 | U-P | `min_length` and `max_length` are measured over the NUMERIC-LOOKING cells only, each a count of characters of the cell's text as the file spells it; U5 bounds the two against each other and reaches no further | producer |
 
@@ -9523,7 +9604,7 @@ this document, and the battery the plan requires turns red on it.
 | `columns[].name`, `columns[].position` | the column's own name exactly as written — the file's own text wherever `header_source` is `file` — and its one-based place in the schema | floor-free |
 | the universal counts (5.1) | `n_present`, `n_missing`, `n_distinct`, `n_distinct_folded`, `n_numeric`, `n_not_numeric`, `n_out_of_range`, `n_contradictory`, `n_sentinel_candidates_unpublished`, `n_missing_blank`, `n_missing_withheld` — counts, never a value | floor-free EXCEPT the two absence counts: `n_missing_blank` is `0` or at least the floor, and the blank cells below it are counted in `n_missing_withheld`, which is itself a pooled residue |
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
-| `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; empty on a nothing-publishing column |
+| `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; on a nothing-publishing column confined to members of the published vocabulary (C6-126), which are synthtwin's own words and no table's |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |

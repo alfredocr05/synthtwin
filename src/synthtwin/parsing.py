@@ -618,6 +618,45 @@ def built_in_missing_texts() -> "tuple[str, ...]":
     return tuple(sorted(MISSING_TEXTS + MISSING_TEXTS_EXACT))
 
 
+def names_a_published_word(spelling: str) -> bool:
+    """Whether one absent-cell spelling names a member of the vocabulary.
+
+    THE QUESTION A COLUMN THAT PUBLISHES NO VALUE HAS TO ASK (plan
+    P4-D85). Such a column may say that some of its absent cells were
+    spelled `NA` -- because `NA` is not a value of anybody's table, it
+    is a word this package ships, the same in every installation, and
+    the published vocabulary "contains no text from any table". What it
+    may not say is anything else. Both sides of that rule ask HERE: the
+    producer, deciding which keys survive its publication class, and the
+    loader, refusing a document whose key names no member. A second
+    reading of it in either module is how the two would come apart.
+
+    THE COMPARISON IS `missing_text_matches` AND NOT A LOOKUP, so the
+    folded members match after trimming and case folding while the
+    exact-spelling member matches byte for byte -- the same operation
+    the producer read the cell by in the first place.
+
+    A SPELLING OF NOTHING BUT SPACE NAMES THE EMPTY MEMBER, stated
+    rather than left to fall out of the folding: the empty spelling is a
+    member and folding trims, so ` `, two spaces and a tab each name it.
+    That is what admits a whitespace key on a column publishing no
+    value -- the same key landing 2b.8 admitted on every column that
+    publishes one -- so the two rules cannot part.
+
+    Guarantees: accepts one spelling; returns a truth value.
+    Determinism: a function of the spelling and of this package's own
+    constants; no table, no clock and no random source is consulted.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError(_NOT_TEXT)
+    for member in built_in_missing_texts():
+        if missing_text_matches(spelling, member):
+            return True
+    return False
+
+
 def _all_ascii_digits(text: str) -> bool:
     """True when ``text`` is one or more ASCII digits and nothing else."""
     if not isinstance(text, str):

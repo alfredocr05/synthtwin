@@ -2258,15 +2258,34 @@ def _core_rescue_not_recorded(kept: int) -> str:
 
 
 def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:
-    """Whether this column's publication class empties its accounting.
+    """Whether this column's publication class narrows its accounting.
 
-    Contract 5 section 6.10 as carried, and its C5-N6: on a column whose
-    role publishes no value of the table -- free text, declared
-    identifiers, record numbers, numbers this format cannot represent --
-    `missing_by_source` is empty and both new counts are zero, whatever
-    made the cells absent. The class is derivable from two fields every
-    block publishes, so "this column publishes no source accounting" is
-    always tellable from "this column had nothing to account for".
+    Contract 6.10: a column whose role publishes no value of the table
+    -- free text, declared identifiers, record numbers, numbers this
+    format cannot represent -- is decided from two fields every block
+    publishes, so "this column publishes no value" is always tellable
+    from "this column had nothing to account for".
+
+    WHAT SUCH A COLUMN EMPTIED IS NARROWER SINCE PLAN P4-D85, and this
+    docstring said the old rule. It said `missing_by_source` is empty
+    and both absence counts are zero whatever made the cells absent.
+    That is no longer true and was the defect LTM-2 named: such a column
+    now names the members of synthtwin's OWN published vocabulary its
+    holes wore -- `NA`, `N/A`, `NULL` -- and counts its blanks like any
+    other column. What it still publishes none of is a spelling of the
+    PERSON'S own, declared or not, because no loader holding one
+    document could tell one from a value of the column, and those cells
+    are counted by nothing (C6-126).
+
+    The answer this returns is unchanged, because the question it is
+    asked is about the CLASS and not about the cells: the one caller
+    uses it to decide whether the count-against-count test can be relied
+    on for a column, and on such a column it still cannot be relied on
+    in general -- a person's own declared word leaves holes no key
+    accounts for. Where the word is one of synthtwin's own the test
+    would now pass on its own, so skipping it is conservative rather
+    than necessary, which is the honest description of what this
+    decides.
     """
     if column.structural_role == "identifier":
         return True

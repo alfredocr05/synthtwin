@@ -10209,6 +10209,18 @@ With both rules the forty-form column wears every form at its published count an
 
 **What is NOT decided here.** The twin of a free-text column still holds no letter of its own alphabet, no line break, no tab, no non-ASCII character and no edge whitespace, and an all-upper-case note column comes back with no letters at all; the interior length rungs still collapse onto the published middle. Those are LTM-3, LTM-4 and the two free-text MISSED items, and they are carried by name rather than repaired here.
 
+### P4-D85 A column that publishes no value still names synthtwin's own words (landing 2b.12, 2026-09-16)
+
+LTM-2 of the spelling audit, whose skeptic reproduced it and added the design gap this decision takes. A column whose publication class publishes no value of the table — free text, a declared identifier, numbers no format can hold — had `missing_by_source` emptied WHOLE on the way out, together with both absence counts. The reasoning was sound about the table's text and wrong about this format's own: `NA`, `N/A` and `NULL` are members of the published vocabulary, which C6-31 fixes as containing no text from any table.
+
+**Measured, on 500 rows of free text with 101 blank and 174 `NA`/`N/A` cells, at two source seeds and two generate seeds.** Before: `missing_by_source {}`, both absence counts 0, the twin writing 275 empty cells where the table wrote 101, and — the part that makes this more than a fidelity miss — the REAL TABLE failing its own description at exit 3, with `presence.n_present` asking 225 and the file found to hold 399, because a description naming no spelling cannot be read back. After: `{"N/A": 95, "NA": 79}` with `n_missing_blank: 101`, the twin writing each spelling at its published count, and both validations returning 0. A declared identifier with 59 `NA` cells behaves the same way: 111 empty cells become 52, its `NA` comes back, and its real-table validate goes 3 to 0.
+
+**The rule is enforceable, which is why it is drawn here and not wider.** Every key of such a column names a member of the published vocabulary under C6-32's one operation, and the loader refuses a key that names none. A spelling of the PERSON'S own words is NOT admitted, declared or not: a declaration is recorded as a count and never as text (C5-17), so no document tells `Not documented` declared from `Not documented` written in a cell, and a rule no consumer can check is not a rule this format writes. Those cells stay in `n_missing_withheld`, and the cost is named rather than discovered — a person declaring a word of their own on such a column gets blank holes in the twin.
+
+**Two invariants move with it.** N3's sum now closes on every column rather than on all but these. N6 stops saying the two absence counts are zero on exactly the nothing-publishing columns — they are not, since such a column accounts for its cells like any other — and says instead that the class is read from `role` and `structural_role`, which every block publishes. The inference from a nought is withdrawn rather than narrowed, which is also what the disclosure rule asks: what is not published is ABSENT, never a nought a reader can tell from a real nought.
+
+**What is NOT decided here.** A whitespace-only key names the empty member and is admitted on that ground, which is landing 2b.8's own rule (C6-125) and not new. The sentinel candidate is untouched and still reads `(withheld)`.
+
 ## Phase 4 closure — 2026-09-11
 
 **Phase 4 is closed by owner decision, on the one-week close of

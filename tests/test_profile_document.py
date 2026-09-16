@@ -315,8 +315,19 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
+# RE-RECORDED 2026-09-16 (landing 2b.12, plan P4-D85), and ONE LINE of
+# the document moved: `comment`, the free-text column, publishes
+# `n_missing_blank: 160` where it published 0. Read as a diff of the two
+# documents against the base commit, that line is the WHOLE of the
+# difference -- no count, statistic, label, role or spelling of any
+# column changed, and `missing_by_source` on that column is still `{}`,
+# because every one of its 160 absent cells held nothing at all and a
+# blank is not a spelling. What moved is the rule, not the cells: a
+# column that publishes no value of the table now accounts for its
+# absent cells like any other, so the count that was zeroed by its CLASS
+# reads what the column holds.
 GOLDEN_SHA256 = (
-    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
+    "4bb0a003a927dd82e6ff3ae4a285d4e4241e537dd1e96a4ae2063515bd5b686e"
 )
 
 

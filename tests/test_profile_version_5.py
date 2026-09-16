@@ -523,10 +523,23 @@ def test_the_source_accounting_closes_on_every_column(
             column.role, column.structural_role == "identifier"
         )
         if publishes_nothing:
+            # SINCE PLAN P4-D85 SUCH A COLUMN ACCOUNTS FOR ITS ABSENT
+            # CELLS LIKE ANY OTHER, with one narrowing a loader can
+            # check: every key it names is a member of synthtwin's own
+            # published vocabulary, never a spelling of the table. The
+            # three numbers are then an UPPER BOUND rather than a total,
+            # because the cells whose spelling is none of those words
+            # are withheld by the class and counted by nothing.
             seen_silent = seen_silent + 1
-            assert column.missing_by_source == {}, column.name
-            assert column.n_missing_blank == 0, column.name
-            assert column.n_missing_withheld == 0, column.name
+            for spelling in sorted(column.missing_by_source):
+                assert parsing.names_a_published_word(spelling), (
+                    column.name,
+                    spelling,
+                )
+            assert (
+                named + column.n_missing_blank + column.n_missing_withheld
+                <= column.n_missing
+            ), column.name
             continue
         seen_publishing = seen_publishing + 1
         total = named + column.n_missing_blank + column.n_missing_withheld

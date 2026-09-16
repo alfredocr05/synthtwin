@@ -4251,22 +4251,68 @@ def _missing_by_source(
                 "cells that held nothing are counted in `n_missing_blank`",
             )
     if publishes_nothing:
-        if counted:
+        # THE KEYS OF SUCH A COLUMN ARE THIS PACKAGE'S OWN WORDS, AND
+        # THAT IS CHECKED HERE RATHER THAN TRUSTED (plan P4-D85). A
+        # column publishing no value of the table may still say that
+        # some of its absent cells were spelled `NA` -- because `NA` is
+        # not a value of anybody's table, it is a member of the
+        # published vocabulary C6-31 fixes, identical in every
+        # installation. What it may not say is anything else, and the
+        # rule is enforceable exactly because the vocabulary is closed:
+        # a key that names no member is a spelling out of the column,
+        # and it is refused by name.
+        #
+        # A DECLARED SPELLING OF THE PERSON'S OWN WORDS IS NOT ADMITTED
+        # HERE, and the reason is this loader's own reach. A declaration
+        # is recorded as a COUNT and never as text (C5-17), so no
+        # document tells `Not documented` declared apart from
+        # `Not documented` written in a cell, and a rule admitting it
+        # could not be checked by anything holding one document. Those
+        # cells stay in the pooled remainder.
+        for name in sorted(counted):
+            if not parsing.names_a_published_word(name):
+                raise _broken(
+                    "C5-N3",
+                    where,
+                    "this column publishes no value of the table",
+                    (
+                        "it names a spelling of an empty cell that is no "
+                        "word of synthtwin's own published vocabulary"
+                    ),
+                )
+        # ...AND THE SUM IS AN UPPER BOUND HERE, NOT AN EQUALITY. A
+        # spelling that is none of synthtwin's own words is withheld by
+        # the CLASS, at every floor, and it is not added to the pooled
+        # remainder, because that remainder is what the FLOOR held back
+        # and a floor-one description holds nothing back (C5-S13). So
+        # such cells are counted in `n_missing` and accounted for by
+        # nothing, and what a loader can check is that the accounting
+        # never claims MORE cells than the column has.
+        accounted = _added(counted) + n_blank + n_withheld
+        if accounted > n_missing:
             raise _broken(
                 "C5-N3",
                 where,
-                "this column publishes no value of the table",
-                f"it names {len(counted)} spelling(s) of an empty cell",
+                f"the empty cells accounted for come to {accounted}",
+                f"the column counts {n_missing} empty cells",
             )
-        if n_blank or n_withheld:
+        for name in sorted(counted):
+            if counted[name] < floor:
+                raise _broken(
+                    "C5-N4",
+                    where,
+                    (
+                        f"the spelling named there was written by "
+                        f"{counted[name]} rows"
+                    ),
+                    f"the smallest group size is {floor}",
+                )
+        if n_blank and n_blank < floor:
             raise _broken(
-                "C5-N3",
+                "C5-N4",
                 where,
-                "this column publishes no value of the table",
-                (
-                    f"it accounts for {n_blank + n_withheld} of its empty "
-                    f"cells anyway"
-                ),
+                f"{n_blank} cell(s) of the column held nothing but space",
+                f"the smallest group size is {floor}",
             )
         return counted
     total = _added(counted) + n_blank + n_withheld

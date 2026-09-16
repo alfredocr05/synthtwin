@@ -790,10 +790,16 @@ places:
   from 2026-08-17, and V2.4-A9 below is the correction. The walk
   returns keys, which is V2.4-A7's correction.)*
 - **The per-column structural test is not asked where the publication
-  class empties the source accounting.** On a nothing-publishing column
+  class empties the source accounting.** ~~On a nothing-publishing column
   `missing_by_source` is empty, `n_missing_blank` is zero and
   `n_missing_withheld` is zero because of the CLASS and not because of
-  the cells, and contract 5's C5-N6 makes the two cases tellable apart
+  the cells~~ *(amended by contract C6-126, plan P4-D85: such a column
+  names the members of the published vocabulary its holes wore and
+  closes N3's sum like any other, so the class empties nothing and the
+  structural test is asked of it as of every column. What the class
+  still empties is a spelling of the PERSON'S own words, which stays in
+  the pooled remainder and is what the head count answers for)*, and
+  contract 5's C5-N6 makes the two cases tellable apart
   from `role` and `structural_role`. A count-against-count test has
   nothing to read there; asking it anyway called every declared hole of
   such a column unattributable even where the word is in the settings

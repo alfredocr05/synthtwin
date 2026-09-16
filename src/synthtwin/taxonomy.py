@@ -11204,8 +11204,48 @@ def _publication_class_applied(
     withheld: list[dict[str, object]] = []
     for _occurrences, _verdict, _reason, place in sorted(ranked):
         withheld += [_counts_only(entries[place])]
-    no_spellings: dict[str, int] = {}
-    return _counts_only(details), no_spellings, withheld, 0, 0
+    # ...AND THE SPELLINGS OF ABSENCE ARE NOT VALUES OF THE TABLE, so
+    # the ones drawn from synthtwin's OWN vocabulary stay (plan P4-D85).
+    # The map was emptied whole, which threw away the one thing here
+    # that was never anybody's data: `NA`, `N/A` and `NULL` are words
+    # this package ships, identical in every installation, and C6-31
+    # says in terms that the published vocabulary "contains no text
+    # from any table". Emptying them cost the twin its holes and cost
+    # the description its own readability -- a 500-row free-text column
+    # with 174 `NA`/`N/A` cells published `n_missing: 275` and named no
+    # spelling, so the table it was written from was re-described as
+    # holding 399 present cells against the published 225 and MISSED
+    # both presence counts: the real table failing its own description,
+    # loudly, on the plainest run there is.
+    #
+    # WHAT DOES NOT COME BACK IS A PERSON'S OWN WORD, and the reason is
+    # that a LOADER CANNOT CHECK IT. A declaration is recorded as a
+    # count and never as text (C5-17), so a document naming
+    # `Not documented` here could not be told from one naming a value of
+    # the column, and the rule this format can enforce is the one it
+    # states: a key of a nothing-publishing column names a member of the
+    # published vocabulary. A declared spelling of the person's own
+    # words stays in the pooled remainder, which is the narrowing this
+    # decision takes deliberately rather than a gap it missed.
+    # THE CELLS THE CLASS WITHHOLDS ARE NOT ADDED TO THE POOLED
+    # REMAINDER, and that is a rule rather than an oversight. The
+    # remainder is what the FLOOR held back, and a description written
+    # at a floor of one holds nothing back because there is no group
+    # below one (C5-S13, enforced by the publication guard and by the
+    # loader). A spelling this class withholds is withheld for another
+    # reason entirely, at every floor, so counting it there would make a
+    # floor-one description claim a floor-one description cannot make
+    # and would be refused by synthtwin's own guard before it was
+    # written. Those cells stay exactly where they were before this
+    # decision: counted in `n_missing`, and accounted for by nothing.
+    # C6-126 states the consequence at its true size -- on such a column
+    # the three accounted numbers do not exceed `n_missing` rather than
+    # coming to it.
+    vocabulary: dict[str, int] = {}
+    for spelling in sorted(by_source):
+        if parsing.names_a_published_word(spelling):
+            vocabulary[spelling] = by_source[spelling]
+    return _counts_only(details), vocabulary, withheld, n_blank, n_withheld
 
 
 def profile_column(
