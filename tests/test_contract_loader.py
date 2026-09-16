@@ -201,6 +201,37 @@ def counted_past_the_values(_column: str) -> Change:
     return change
 
 
+def one_value_at_midnight(_column: str) -> Change:
+    """Publish a count of values at midnight of exactly one (D15, landing 2b.6).
+
+    The reviewer's own shape said as a document: a count of one names the
+    one person who holds the value, so the loader refuses it however low
+    the run's smallest group size is.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 1
+    return change
+
+
+def all_but_one_at_midnight(_column: str) -> Change:
+    """Publish a count leaving exactly one value off midnight (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block["n_at_midnight"] = parsed - 1
+        block["all_at_midnight"] = False
+    return change
+
+
+def nought_at_midnight(_column: str) -> Change:
+    """Publish a nought, which stopped being a value of this field (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 0
+    return change
+
+
 def lower_a_finer_rung(_column: str, _rung: str) -> Change:
     """Push one rung of the finer ladder below the one before it.
 
@@ -613,10 +644,55 @@ def battery() -> list[Mutation]:
                             "verdict": "kept_as_a_number",
                             "reason": "not_an_outlier",
                             "n_occurrences": 13,
+                            "spellings": [],
                         },
                     ]
                 }
             ),
+        ),
+        # THE SPELLINGS A DECISION TOOK OUT (V5, repair pass of landing
+        # 2b.6). Both directions of the rule are damaged: a decision
+        # naming a spelling this column does not publish among its
+        # absent cells, and a decision that KEPT its candidate as a
+        # number naming one anyway. Neither is a document the producer
+        # can write, and each would tell the generator and the
+        # validator that a word the person declared was one column's
+        # own judgement -- the mistake this key exists to end.
+        Mutation(
+            "V5", "a decision naming a spelling the column never published",
+            edit_verdict("reading", 0, spellings=["zz"]),
+        ),
+        Mutation(
+            "V5", "a kept candidate naming the spellings it did not take",
+            edit_verdict(
+                "reading", 0, verdict="kept_as_a_number", reason="too_rare"
+            ),
+        ),
+        # ...and the two parts landing 2b.14 added, which are what make
+        # the key CHECKABLE rather than merely published (P4-D95). Each
+        # is a document the producer cannot write and the loader used to
+        # accept, and each tells both consumers that a word the PERSON
+        # DECLARED was one column's own judgement.
+        Mutation(
+            "V5", "two decisions of one column claiming one spelling's cells",
+            lambda document: at(document, "reading").update(
+                {
+                    "sentinel_verdicts": [
+                        at(document, "reading")["sentinel_verdicts"][0],
+                        {
+                            "candidate": "9999",
+                            "verdict": "read_as_missing",
+                            "reason": "outlier_and_frequent",
+                            "n_occurrences": 13,
+                            "spellings": ["-999"],
+                        },
+                    ]
+                }
+            ),
+        ),
+        Mutation(
+            "V5", "spellings covering more cells than rows held the candidate",
+            edit_verdict("reading", 0, n_occurrences=11),
         ),
         # -- the repetition patterns ----------------------------------
         Mutation(
@@ -923,9 +999,51 @@ def battery() -> list[Mutation]:
             "D15", "a count of values at midnight on a column that writes no clock",
             edit("recorded_on", n_at_midnight=12),
         ),
+        # THE DISCLOSURE FLOOR, landing 2b.6. One is not a group: a count
+        # of one names the person holding the value, and a count one short
+        # of every value names the person who does not. Nought is refused
+        # with them, because a nought a reader can tell from a suppressed
+        # singleton IS that singleton.
+        Mutation(
+            "D15", "a count of values at midnight that names one person",
+            one_value_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a count leaving exactly one value off midnight",
+            all_but_one_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a nought where the count is simply not published",
+            nought_at_midnight("logged_at"),
+        ),
         Mutation(
             "D16", "whole dates counted beside offsets only moments carry",
             whole_dates_carrying_offsets("logged_at"),
+        ),
+        # HOW THE DATES WERE WRITTEN, landing 2b.6. `recorded_on` is read
+        # as `iso-date`: its fields are of fixed width, it writes no
+        # month NAME, it is no column of quarters and it names no zulu
+        # offset -- so each of the four censuses is a census that column
+        # can carry nothing in, and a document that fills one describes a
+        # column no producer wrote.
+        Mutation(
+            "D17", "a width census on a member of fixed field width",
+            edit("recorded_on", date_field_widths={"padded": 12}),
+        ),
+        Mutation(
+            "D18", "a month-name census on a column writing no month name",
+            edit(
+                "recorded_on",
+                month_name_styles={"title-abbreviated-space-no-comma": 12},
+            ),
+        ),
+        Mutation(
+            "D19", "a quarter-marker census on a column of whole dates",
+            edit("recorded_on", quarter_marker_case={"upper": 12}),
+        ),
+        Mutation(
+            "D20", "a zulu-case census where no zulu offset is named",
+            edit("recorded_on", zulu_case={"upper": 12}),
         ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
@@ -1241,6 +1359,7 @@ def battery() -> list[Mutation]:
                         "verdict": "kept_as_a_number",
                         "reason": "too_rare",
                         "n_occurrences": 20,
+                        "spellings": [],
                     }
                 ],
             ),
@@ -1768,3 +1887,95 @@ def test_the_loader_reaches_neither_the_reader_nor_pandas() -> None:
                         waiting.append(module)
     assert "reading" not in seen
     assert "profile" not in seen
+
+
+# -- the raised floor of the midnight count, which the battery above
+# cannot witness (landing 2b.14) --------------------------------------
+
+
+def _stamps_partly_at_midnight() -> str:
+    """Four hundred moments, five of them standing at midnight."""
+    rows: "list[str]" = []
+    for index in range(400):
+        if index < 5:
+            rows += [f"2024-03-{index + 1:02d} 00:00:00"]
+        else:
+            rows += [
+                f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d} "
+                f"{(index % 23) + 1:02d}:{index % 60:02d}:"
+                f"{(index * 7) % 59:02d}"
+            ]
+    return fixtures.single_column_table("when", rows)
+
+
+@pytest.fixture(scope="module")
+def at_a_floor_of_one(tmp_path_factory: pytest.TempPathFactory) -> Document:
+    """An honest description of that column, asked for at a floor of ONE.
+
+    THE BATTERY ABOVE CANNOT BE THIS DOCUMENT, and that is the point.
+    Its base declares a floor of eleven, because a whole family of rules
+    there can only be broken by damaging something held back, and at a
+    floor of one nothing is. But D15 carries a floor OF ITS OWN -- never
+    below two, whatever the run asked for -- and at a floor of eleven
+    that raise decides nothing: the ordinary floor refuses a count of one
+    long before the raise is consulted. So the raise sits underneath
+    every one of the battery's five D15 entries without being exercised
+    by any of them. Measured, not assumed: with the raise withdrawn from
+    the loader, `tests/test_contract_loader.py` passes entire.
+
+    This column is where the raise is the only rule standing. A floor of
+    one holds nothing back, so S13 is silent and the description loads;
+    five of the four hundred moments stand at midnight, which a floor of
+    one publishes as an ordinary count.
+    """
+    folder = tmp_path_factory.mktemp("midnight-floor-one")
+    path = fixtures.write(folder, "stamps.csv", _stamps_partly_at_midnight())
+    table = reading.read_table(str(path))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    return json.loads(json.dumps(document))
+
+
+def test_the_witness_starts_from_a_description_that_loads(
+    tmp_path: pathlib.Path, at_a_floor_of_one: Document
+) -> None:
+    """A witness refused for some other reason would witness nothing."""
+    contract.load_profile(written(tmp_path, at_a_floor_of_one))
+    settings = typing.cast(Document, at_a_floor_of_one["settings"])
+    assert settings["small_cell_floor"] == 1, settings["small_cell_floor"]
+    block = at_a_floor_of_one["columns"][0]
+    assert block["n_at_midnight"] == 5, block["n_at_midnight"]
+    assert block["all_at_midnight"] is False, block["all_at_midnight"]
+
+
+@pytest.mark.parametrize(
+    "counted,names",
+    [
+        (1, "the one person who holds the value"),
+        (399, "the one person who does not hold it"),
+    ],
+)
+def test_the_count_at_midnight_names_nobody_even_at_a_floor_of_one(
+    tmp_path: pathlib.Path,
+    at_a_floor_of_one: Document,
+    counted: int,
+    names: str,
+) -> None:
+    """D15's own floor of two, at the one floor where it is the rule deciding.
+
+    Both directions, because the disclosure rule has two halves and the
+    raise is what enforces each: a count of one names the person holding
+    the value, and a count one short of every value names the person who
+    does not. At a floor of one the run's own floor admits both, so a
+    refusal here is the raise and nothing else -- which is exactly what
+    the battery above, written at a floor of eleven, cannot show.
+    """
+    document = copy.deepcopy(at_a_floor_of_one)
+    block = at_a_floor_of_one["columns"][0]
+    parsed = int(block["n_present"]) - int(block["n_unparsed"])
+    assert counted < parsed, "the count must leave the column short"
+    document["columns"][0]["n_at_midnight"] = counted
+    document["columns"][0]["all_at_midnight"] = False
+    message = refusal(tmp_path, document)
+    assert contract.INVARIANTS["D15"] in message, (names, message)

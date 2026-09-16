@@ -658,6 +658,22 @@ _LISTING_WORDS = {
     "datetime.n_at_midnight": (
         "how many moments your column recorded stood at midnight"
     ),
+    "datetime.date_field_widths": (
+        "how wide your column wrote the month and day of a date, where "
+        "the date was one that could show it"
+    ),
+    "datetime.month_name_styles": (
+        "how your column wrote a month NAME -- its case, its length, the "
+        "mark around it and whether a comma followed the day"
+    ),
+    "datetime.quarter_marker_case": (
+        "whether your column wrote the marker of a quarter as a capital "
+        "letter or a small one"
+    ),
+    "datetime.zulu_case": (
+        "whether your column wrote the zulu time marker as a capital "
+        "letter or a small one"
+    ),
     "numeric.n_distinct_values": (
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"

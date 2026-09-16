@@ -2707,28 +2707,154 @@ def ordinal_of(text, resolution):
     return 86400 * days + 3600 * hours + 60 * minutes + seconds
 
 
-def precision_form(ordinal, resolution, time_precision, subsecond_digits, mark="T"):
+# -- how a date is WRITTEN (method G7.5, landing 2b.6) ----------------
+#
+# The owner reversed decision 5 on 2026-09-15: a twin datetime cell is
+# written in the MEMBER that read the real column rather than in ISO.
+# What follows is that rule, written from the method's own per-member
+# table and from nothing else -- this file imports none of the code it
+# checks, so the writing rule exists here twice on purpose.
+
+MONTH_NAMES = (
+    ("jan", "january"), ("feb", "february"), ("mar", "march"),
+    ("apr", "april"), ("may", "may"), ("jun", "june"),
+    ("jul", "july"), ("aug", "august"), ("sep", "september"),
+    ("oct", "october"), ("nov", "november"), ("dec", "december"),
+)
+
+TEXTUAL_MEMBERS = ("textual-day-first-date", "textual-month-first-date")
+VARIABLE_WIDTH_MEMBERS = (
+    "month-first-date", "day-first-date",
+    "two-digit-month-first-date", "two-digit-day-first-date",
+    "month-first-datetime", "day-first-datetime",
+)
+TWO_FIGURE_MEMBERS = (
+    "two-digit-month-first-date", "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date", "dotted-two-digit-day-first-date",
+)
+DOTTED_MEMBERS = (
+    "dotted-month-first-date", "dotted-day-first-date",
+    "dotted-two-digit-month-first-date", "dotted-two-digit-day-first-date",
+)
+MONTH_FIRST_MEMBERS = (
+    "month-first-date", "dotted-month-first-date",
+    "two-digit-month-first-date", "dotted-two-digit-month-first-date",
+    "month-first-datetime", "textual-month-first-date",
+)
+DAY_FIRST_MEMBERS = (
+    "day-first-date", "dotted-day-first-date",
+    "two-digit-day-first-date", "dotted-two-digit-day-first-date",
+    "day-first-datetime", "textual-day-first-date",
+)
+DEFAULT_WIDTH = "padded"
+DEFAULT_NAME_STYLE = "title-abbreviated-space-no-comma"
+
+
+def month_spelling(month, length, case):
+    """One month written as a NAME: the inverse of the reader's own."""
+    short, whole = MONTH_NAMES[month - 1]
+    name = whole if length == "full" else short
+    if case == "upper":
+        return name.upper()
+    if case == "lower":
+        return name.lower()
+    return name[:1].upper() + name[1:].lower()
+
+
+def field_text(value, padded):
+    """One numeric field at the width its style asks for."""
+    if padded or value >= 10:
+        return f"{value:02d}"
+    return f"{value}"
+
+
+def pair_widths(width):
+    """One joint width word as a padding decision per field."""
+    if width == "unpadded":
+        return False, False
+    if width == "first-padded":
+        return True, False
+    if width == "second-padded":
+        return False, True
+    return True, True
+
+
+def name_parts(style):
+    """One joint month-name style word, taken back apart."""
+    parts = style.split("-")
+    comma = "no-comma" if parts[3] == "no" else "comma"
+    return parts[0], parts[1], parts[2], comma
+
+
+def written_date(year, month, day, member, width=DEFAULT_WIDTH,
+                 name_style=DEFAULT_NAME_STYLE):
+    """One day written the way its member's own source wrote it (G7.5)."""
+    if member == "compact-date":
+        return f"{year:04d}{month:02d}{day:02d}"
+    if member in ("slashed-iso-date", "slashed-iso-datetime"):
+        return f"{year:04d}/{month:02d}/{day:02d}"
+    if member in TEXTUAL_MEMBERS:
+        case, length, mark, comma = name_parts(name_style)
+        name = month_spelling(month, length, case)
+        between = " " if mark == "space" else "-"
+        day_text = field_text(day, width != "unpadded")
+        if member == "textual-day-first-date":
+            return f"{day_text}{between}{name}{between}{year:04d}"
+        tail = "," if comma == "comma" else ""
+        return f"{name}{between}{day_text}{tail}{between}{year:04d}"
+    if member not in MONTH_FIRST_MEMBERS and member not in DAY_FIRST_MEMBERS:
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    dotted = member in DOTTED_MEMBERS
+    between = "." if dotted else "/"
+    first_padded, second_padded = pair_widths(width)
+    if dotted:
+        # Contract C6-22: the dotted families are read padded and only
+        # padded, because `1.2.2024` is a version identifier.
+        first_padded = True
+        second_padded = True
+    first_value, second_value = (month, day)
+    if member in DAY_FIRST_MEMBERS:
+        first_value, second_value = (day, month)
+    year_text = f"{year:04d}"
+    if member in TWO_FIGURE_MEMBERS:
+        year_text = f"{year % 100:02d}"
+    return (
+        f"{field_text(first_value, first_padded)}{between}"
+        f"{field_text(second_value, second_padded)}{between}{year_text}"
+    )
+
+
+def precision_form(ordinal, resolution, time_precision, subsecond_digits,
+                   mark="T", member="iso-datetime", width=DEFAULT_WIDTH,
+                   name_style=DEFAULT_NAME_STYLE, marker="upper"):
     """The cell text of method section G7.5, before the offset suffix.
 
     ``mark`` is the character between the day and the clock that the
     column's separator census gives this rank (plan P4-D39); ``T`` where
     the census names none, which is every case frozen before it existed.
+    ``member``, ``width``, ``name_style`` and ``marker`` are the
+    reversal of owner decision 5 (landing 2b.6): the date half is
+    written in the member that read the real column, at the conventions
+    that rank was allocated. Their defaults are the ISO member's own
+    spelling, which is what every case frozen before the reversal used.
     """
     if resolution == "quarter":
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
-        return f"{year:04d}-Q{quarter}"
+        letter = "q" if marker == "lower" else "Q"
+        return f"{year:04d}-{letter}{quarter}"
     if resolution == "month":
         year = 1970 + ordinal // 12
         return f"{year:04d}-{ordinal % 12 + 1:02d}"
     if resolution == "date":
         year, month, day = civil_from_days(ordinal)
-        return f"{year:04d}-{month:02d}-{day:02d}"
+        return written_date(year, month, day, member, width, name_style)
     days, rest = divmod(ordinal, 86400)
     year, month, day = civil_from_days(days)
     hours, rest = divmod(rest, 3600)
     minutes, seconds = divmod(rest, 60)
-    stem = f"{year:04d}-{month:02d}-{day:02d}{mark}{hours:02d}:{minutes:02d}"
+    half = written_date(year, month, day, member, width, name_style)
+    stem = f"{half}{mark}{hours:02d}:{minutes:02d}"
     if time_precision == "minute":
         return stem
     stem = f"{stem}:{seconds:02d}"
@@ -2807,7 +2933,191 @@ def interpolated_ordinal(position, denominator, rungs):
     ) // width
 
 
-def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mark="T"):
+def census_weights(census, permitted):
+    """How many ranks each written form is owed (method G7.5, 2b.6).
+
+    Every named count as published, and a withheld pool split EVENLY
+    over the forms the census leaves unnamed, a remainder going one each
+    in the vocabulary's own order -- the rule the marks already follow.
+    """
+    weights = {
+        name: count for name, count in census.items() if name != "(withheld)"
+    }
+    if "(withheld)" not in census:
+        return weights
+    unnamed = [name for name in permitted if name not in census]
+    if not unnamed:
+        return weights
+    pool = census["(withheld)"]
+    share, rest = divmod(pool, len(unnamed))
+    for place, name in enumerate(unnamed):
+        given = share + (1 if place < rest else 0)
+        if given > 0:
+            weights[name] = given
+    return weights
+
+
+def rotated(weights, count):
+    """One form per place, spent by the smooth weighted rotation (G7.5).
+
+    At each place every name's weight is added to its running credit,
+    the name with the most credit is taken -- the earliest in sorted
+    order on a tie -- and the total is taken back from it.  No word is
+    drawn.
+    """
+    names = sorted(weights)
+    if not names or count <= 0:
+        return []
+    owed = dict(weights)
+    total = sum(owed.values())
+    if total < count:
+        top = max(names, key=lambda name: (owed[name], [-ord(c) for c in name]))
+        owed[top] = owed[top] + (count - total)
+        total = count
+    credit = {name: 0 for name in names}
+    spread = []
+    for _place in range(count):
+        for name in names:
+            credit[name] = credit[name] + owed[name]
+        best = names[0]
+        for name in names:
+            if credit[name] > credit[best]:
+                best = name
+        credit[best] = credit[best] - total
+        spread.append(best)
+    return spread
+
+
+def commonest_of(census, default):
+    """The form most of a column's cells wrote, or a default (G7.5)."""
+    best = ""
+    for name in sorted(census):
+        if name == "(withheld)":
+            continue
+        if not best or census[name] > census[best]:
+            best = name
+    return best or default
+
+
+FIELD_WIDTH_STYLES = ("padded", "unpadded", "first-padded", "second-padded")
+FIELD_WIDTH_STYLES_ONE_FIELD = ("padded", "unpadded")
+QUARTER_MARKER_CASES = ("upper", "lower")
+ZULU_CASES = ("upper", "lower")
+
+
+def month_name_styles_of(member):
+    """Which joint month-name styles one member's cells can show."""
+    built = []
+    for case in ("upper", "title", "lower"):
+        for length in ("abbreviated", "full"):
+            for mark in ("space", "hyphen"):
+                for comma in ("comma", "no-comma"):
+                    if member == "textual-day-first-date" and comma == "comma":
+                        continue
+                    built.append(f"{case}-{length}-{mark}-{comma}")
+    return tuple(built)
+
+
+def written_fields(column, ordinals, offsets, parsed, space, resolution):
+    """The month and day every rank will WRITE (method G7.5, 2b.6).
+
+    Asked of the cell about to be written and not of the ordinal alone:
+    the two ends are written from their own published fields, and a rank
+    of a column on the shared clock is written on its own offset's wall
+    clock, which can carry it into another day.
+    """
+    fields = []
+    for rank in range(parsed):
+        if resolution in ("quarter", "month"):
+            fields.append((1, 1))
+            continue
+        end = None
+        if rank == 0:
+            end = column["earliest"]
+        elif rank == parsed - 1 and parsed >= 2:
+            end = column["latest"]
+        if end is not None and len(end) >= 10:
+            fields.append((int(end[5:7]), int(end[8:10])))
+            continue
+        local = ordinals[rank]
+        if (
+            column["datetimes_read_at"] == "utc"
+            and resolution == "datetime"
+            and space != "date"
+        ):
+            local = local + offset_form(offsets[rank])[1]
+        day_number = local if space == "date" or resolution != "datetime" else local // 86400
+        _year, month, day = civil_from_days(day_number)
+        fields.append((month, day))
+    return fields
+
+
+def written_styles(column, fields, parsed, resolution, offsets):
+    """The four written forms every rank takes (method G7.5, 2b.6).
+
+    Each census is spent over the ranks that CAN show it -- a field
+    below ten, a month that is not May, a cell carrying a zulu marker --
+    and a rank outside that set takes the column's commonest form.  The
+    two joint width words say something about BOTH fields, so they are
+    spent only on the ranks whose two fields are both below ten.
+    """
+    member = column["format"]
+    widths_census = column.get("date_field_widths", {})
+    names_census = column.get("month_name_styles", {})
+    marker_census = column.get("quarter_marker_case", {})
+    zulu_census = column.get("zulu_case", {})
+    width_fallback = commonest_of(widths_census, DEFAULT_WIDTH)
+    name_fallback = commonest_of(names_census, DEFAULT_NAME_STYLE)
+    widths = [width_fallback] * parsed
+    if widths_census:
+        permitted = FIELD_WIDTH_STYLES
+        if member in TEXTUAL_MEMBERS:
+            permitted = FIELD_WIDTH_STYLES_ONE_FIELD
+        weights = census_weights(widths_census, permitted)
+        plain = {
+            name: weight
+            for name, weight in weights.items()
+            if name in ("padded", "unpadded")
+        }
+        both, single = [], []
+        for rank, (month, day) in enumerate(fields):
+            if member in TEXTUAL_MEMBERS:
+                if day < 10:
+                    single.append(rank)
+                continue
+            low = (1 if month < 10 else 0) + (1 if day < 10 else 0)
+            if low == 2:
+                both.append(rank)
+            elif low == 1:
+                single.append(rank)
+        for rank, form in zip(both, rotated(weights, len(both))):
+            widths[rank] = form
+        over = plain or {width_fallback: 1}
+        for rank, form in zip(single, rotated(over, len(single))):
+            widths[rank] = form
+    names = [name_fallback] * parsed
+    if names_census:
+        places = [rank for rank, (month, _day) in enumerate(fields) if month != 5]
+        spread = rotated(census_weights(names_census, month_name_styles_of(member)), len(places))
+        for rank, form in zip(places, spread):
+            names[rank] = form
+    markers = [commonest_of(marker_census, "upper")] * parsed
+    if marker_census and resolution == "quarter":
+        spread = rotated(census_weights(marker_census, QUARTER_MARKER_CASES), parsed)
+        for rank, form in enumerate(spread):
+            markers[rank] = form
+    zulus = [commonest_of(zulu_census, "upper")] * parsed
+    if zulu_census:
+        places = [rank for rank in range(parsed) if offsets[rank] == "Z"]
+        spread = rotated(census_weights(zulu_census, ZULU_CASES), len(places))
+        for rank, form in zip(places, spread):
+            zulus[rank] = form
+    return list(zip(widths, names, markers, zulus))
+
+
+def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mark="T",
+                  member="iso-datetime", width=DEFAULT_WIDTH,
+                  name_style=DEFAULT_NAME_STYLE, marker="upper"):
     """An endpoint cell, from the endpoint's OWN fields -- method section G7.5.
 
     The two endpoint cells do not travel through the ordinal space of
@@ -2827,17 +3137,29 @@ def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mar
     produces exactly the bytes the ordinal route produces, which is why
     it moves no other frozen case.
     """
-    if resolution != "datetime":
-        # A whole date and a quarter are already the cell text G7.5's
-        # table asks for, and neither has a time of day to move.
+    if resolution == "quarter":
+        # Since landing 2b.6 the marker's case is the column's own.
+        letter = "q" if marker == "lower" else "Q"
+        return f"{text[:4]}-{letter}{text[6]}"
+    if resolution == "month":
         return text
+    if resolution == "date":
+        # THE END IS STILL BUILT FROM ITS OWN PUBLISHED FIELDS (G7.5,
+        # review item P2-C2-F5); since landing 2b.6 those fields are
+        # written through the member that read the real column, so a
+        # month-first column's end is `03/17/2024` and not `2024-03-17`.
+        return written_date(
+            int(text[:4]), int(text[5:7]), int(text[8:10]),
+            member, width, name_style,
+        )
     year, month, day = (int(part) for part in text[:10].split("-"))
     hours, minutes, seconds = (int(part) for part in text[11:].split(":"))
     minute = (
         86400 * days_from_civil(year, month, day) + 3600 * hours + 60 * minutes
     )
     written = precision_form(
-        minute + shift, resolution, time_precision, subsecond_digits, mark
+        minute + shift, resolution, time_precision, subsecond_digits, mark,
+        member=member, width=width, name_style=name_style, marker=marker,
     )
     if time_precision == "minute":
         # The one precision with no seconds field at all, which contract
@@ -4199,18 +4521,11 @@ def _datetime_content(column):
     # the census of marks is spent over the ranks that write a clock.
     whole = form_allocation(column, parsed)
     words = iter(column["_content_words"])
-    # Every rank's instant first, the words spent in rank order exactly as
-    # before (landing 2b.3); the two ends' ordinals are never written.
-    ordinals = []
-    for rank in range(parsed):
-        if rank == 0:
-            ordinals.append(ordinal_of(column["earliest"], space))
-        elif rank == parsed - 1 and parsed >= 2:
-            ordinals.append(ordinal_of(column["latest"], space))
-        else:
-            ordinals.append(
-                interpolated_ordinal(rank * TWO64 + next(words), parsed * TWO64, rungs)
-            )
+    # Every rank's instant first, one word per interior rank exactly as
+    # before (landing 2b.3); the tail's ranks take their PUBLISHED values
+    # and every other rank is drawn inside its own gap (landing 2b.6).
+    ordinals = spread_ordinals(rungs, parsed, words)
+    gap_lows, gap_highs = pin_bounds(rungs, parsed)
     snapping = snaps_to_midnight(column)
     offset_pins = {}
     if snapping:
@@ -4230,13 +4545,18 @@ def _datetime_content(column):
             for rank in range(parsed)
         ]
         ordinals = snapped_to_midnight(column, ordinals, shifts)
-    elif moves_off_midnight(column):
-        shifts = [
-            offset_form(offsets[rank])[1] if column["datetimes_read_at"] == "utc" else 0
-            for rank in range(parsed)
-        ]
-        ordinals = nudged_off_midnight(column, ordinals, shifts)
     holes = set(column.get("missing_by_source", {}))
+    # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
+    # after the instants and the offsets, because which conventions a
+    # cell can show depends on the day it writes and the clock it writes
+    # it on.
+    spellings = written_styles(
+        column,
+        written_fields(column, ordinals, offsets, parsed, space, resolution),
+        parsed,
+        resolution,
+        offsets,
+    )
     content = []
     for rank in range(parsed):
         # Ranks 0 and P-1 are the two published ends, and they are built
@@ -4255,6 +4575,12 @@ def _datetime_content(column):
             and not midnight
         ) else 0
         named = sorted(mark_weights(column))
+        width, name_style, marker, zulu = spellings[rank]
+        member = column["format"]
+        if suffix == "Z" and zulu == "lower":
+            # The offset spelled as the source spelled it (landing 2b.6):
+            # the reading folds `z` onto `Z`, and the census says which.
+            suffix = "z"
         if endpoint is not None:
             if whole[rank]:
                 text = endpoint[:10]
@@ -4266,26 +4592,39 @@ def _datetime_content(column):
                     column["subsecond_digits"],
                     moved,
                     mark=marks[rank],
+                    member=member,
+                    width=width,
+                    name_style=name_style,
+                    marker=marker,
                 )
-            content.append(kept_cell(text + suffix, holes, named))
+            content.append(kept_cell(text + suffix, holes, named, member))
             continue
 
-        def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank]):
+        def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank],
+                  member=member, width=width, name_style=name_style, marker=marker):
             if bare:
                 # A bare date: the day alone, with no mark, clock or offset.
                 # Counted in seconds, the rank already stands at a midnight
                 # of its own wall clock (landing 2b.3).
                 day = unit if space == "date" else (unit + moved) // 86400
-                body = precision_form(day, "date", "date", 0, mark=mark)
+                body = precision_form(
+                    day, "date", "date", 0, mark=mark, member=member,
+                    width=width, name_style=name_style, marker=marker,
+                )
             elif midnight:
                 # A whole day, written with a midnight clock at the
-                # published precision (plan P4-D39).
+                # published precision (plan P4-D39), and since landing
+                # 2b.6 with its date half in the column's own member.
                 body = precision_form(
                     unit * 86400,
                     "datetime",
                     column["time_precision"],
                     column["subsecond_digits"],
                     mark=mark,
+                    member=member,
+                    width=width,
+                    name_style=name_style,
+                    marker=marker,
                 )
             else:
                 body = precision_form(
@@ -4294,8 +4633,12 @@ def _datetime_content(column):
                     column["time_precision"],
                     column["subsecond_digits"],
                     mark=mark,
+                    member=member,
+                    width=width,
+                    name_style=name_style,
+                    marker=marker,
                 )
-            return kept_cell(body + suffix, holes, named)
+            return kept_cell(body + suffix, holes, named, member)
 
         written = spell(ordinal)
         folded = {hole.strip().lower() for hole in holes}
@@ -4305,10 +4648,9 @@ def _datetime_content(column):
             # own window and then inside the published range.
             first = ordinal_of(column["earliest"], space)
             last = ordinal_of(column["latest"], space)
-            window = (
-                max(first, interpolated_ordinal(rank * TWO64, parsed * TWO64, rungs) - 1),
-                min(last, interpolated_ordinal((rank + 1) * TWO64, parsed * TWO64, rungs)),
-            )
+            # The window is the rank's own GAP (landing 2b.6): the rank
+            # was drawn between the two pinned ranks either side of it.
+            window = (max(first, gap_lows[rank]), min(last, gap_highs[rank]))
             for low, high in (window, (first, last)):
                 chosen = None
                 for away in range(1, len(holes) + 2):
@@ -4324,7 +4666,7 @@ def _datetime_content(column):
                     written = chosen
                     break
         content.append(written)
-    content = rebalance_marks(marks, content, holes)
+    content = rebalance_marks(marks, content, holes, column["format"])
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
@@ -4355,64 +4697,105 @@ def snaps_to_midnight(column):
     return (
         column["resolution"] == "datetime"
         and ordinal_space(column) == "datetime"
-        and column.get("n_at_midnight", 0) > 0
+        and (column.get("n_at_midnight") or 0) > 0
     )
-
-
-def moves_off_midnight(column):
-    """Whether accidental values at midnight are moved off (repair pass of landing
-    2b.3): a column of moments counted in seconds publishing n_at_midnight 0."""
-    return (
-        column["resolution"] == "datetime"
-        and ordinal_space(column) == "datetime"
-        and column.get("n_at_midnight", 0) == 0
-        and not column.get("all_at_midnight", False)
-    )
-
-
-def nudged_off_midnight(column, ordinals, shifts):
-    """Written from the statement: in rank order, each rank the tail does not
-    pin whose written cell is at midnight moves one precision step later
-    where that stays below the next rank's instant, else one step earlier
-    where that stays above the previous rank's, else stays."""
-    parsed = len(ordinals)
-    moved = list(ordinals)
-    step = 60 if column["time_precision"] == "minute" else 1
-    pinned = ranks_the_tail_pins(parsed)
-    for rank in range(parsed):
-        if pinned[rank] or not written_at_midnight(moved[rank], shifts[rank], step):
-            continue
-        if rank + 1 < parsed and moved[rank] + step < moved[rank + 1]:
-            moved[rank] += step
-        elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
-            moved[rank] -= step
-    # INTEGRATION REPAIR: each run of consecutive ranks still written at
-    # midnight moves as one -- to the first instant of the next written
-    # step where the rank after the run stands at or after all of it, else
-    # to the last second before its midnight where the rank before stands
-    # at or before all of it, else stays. Pinned ranks move with the run.
-    rank = 0
-    while rank < parsed:
-        if not written_at_midnight(moved[rank], shifts[rank], step):
-            rank += 1
-            continue
-        end = rank
-        while end + 1 < parsed and written_at_midnight(moved[end + 1], shifts[end + 1], step):
-            end += 1
-        run = range(rank, end + 1)
-        later = [moved[k] - (moved[k] + shifts[k]) % step + step for k in run]
-        earlier = [moved[k] - (moved[k] + shifts[k]) % step - 1 for k in run]
-        if end + 1 >= parsed or max(later) <= moved[end + 1]:
-            moved[rank:end + 1] = later
-        elif rank == 0 or min(earlier) >= moved[rank - 1]:
-            moved[rank:end + 1] = earlier
-        rank = end + 1
-    return moved
 
 
 def rung_rank(percent, parsed):
     """The rank a published rung is read off: floor((P - 1) * c / 100)."""
     return min(parsed - 1, ((parsed - 1) * percent) // 100)
+
+
+def ordinal_pins(rungs, parsed):
+    """Every rank the published tail PINS, with its published ordinal
+    (method G7.3, landing 2b.6).
+
+    The two ends, which the contract's D11 makes the ladder's own ends,
+    and each of the nine interior rungs at the rank it is selected from.
+    Two rungs selecting off one rank keep the LOWER rung's value, so the
+    pins stay in rank order whatever ladder a description carries.
+    """
+    pins = {}
+    if parsed <= 0:
+        return pins
+    pins[0] = rungs[0]
+    if parsed >= 2:
+        pins[parsed - 1] = rungs[len(PCT) - 1]
+    for place in range(1, len(PCT) - 1):
+        rank = rung_rank(PCT[place], parsed)
+        if 0 < rank < parsed - 1 and rank not in pins:
+            pins[rank] = rungs[place]
+    return pins
+
+
+def pin_bounds(rungs, parsed):
+    """The pinned value below and above every rank -- the rank's GAP.
+
+    Read by the construction below and by the step off a unit whose
+    every spelling is absent, so the two cannot disagree about the room
+    a rank has.  A pinned rank's two bounds are its own value.
+    """
+    lows = [0] * parsed
+    highs = [0] * parsed
+    if parsed <= 0:
+        return lows, highs
+    pins = ordinal_pins(rungs, parsed)
+    below = pins[0]
+    for rank in range(parsed):
+        if rank in pins:
+            below = pins[rank]
+        lows[rank] = below
+    above = pins[max(pins)]
+    for rank in reversed(range(parsed)):
+        if rank in pins:
+            above = pins[rank]
+        highs[rank] = above
+    return lows, highs
+
+
+def spread_ordinals(rungs, parsed, words):
+    """Every rank's instant -- method G7.3 as landing 2b.6 rewrites it.
+
+    The published tail pins the two ends and the nine interior rungs to
+    their published values.  Every OTHER rank takes an INDEPENDENT draw
+    inside the gap between the two pinned ranks either side of it, in
+    the column's own ordinal space, and the draws inside one gap are
+    sorted, so the ranks stay ascending.
+
+    ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE, taken in
+    rank order.  The budget is unchanged -- the column is handed `P - 2`
+    content words and the pins leave up to nine of them unread -- so
+    the shared stream stays in step and no column after a column of
+    dates moves.  (The repair pass of landing 2b.6 amended this
+    paragraph, which had said that a pinned rank draws its word and
+    discards it; the shipped construction reads 389 words of a 400-row
+    column's 398, and this mirror follows the method's amended rule.)
+
+    What it replaces: one cell per rank inside its own `1 / P` stratum,
+    which gave each day almost exactly its expected count -- a
+    below-Poisson spread, where a real table's per-day counts vary at
+    least Poisson.
+    """
+    ordinals = [0] * parsed
+    if parsed <= 0:
+        return ordinals
+    pins = ordinal_pins(rungs, parsed)
+    for rank, value in pins.items():
+        ordinals[rank] = value
+    places = sorted(pins)
+    for step in range(len(places) - 1):
+        below = places[step]
+        above = places[step + 1]
+        low = ordinals[below]
+        high = ordinals[above]
+        drawn = []
+        for _rank in range(below + 1, above):
+            word = next(words)
+            drawn.append(min(low + (word * (high - low + 1)) // TWO64, high))
+        drawn.sort()
+        for place, value in enumerate(drawn):
+            ordinals[below + 1 + place] = value
+    return ordinals
 
 
 def ranks_the_tail_pins(parsed):
@@ -4539,7 +4922,7 @@ def snapped_to_midnight(column, ordinals, shifts):
     for rank in range(parsed):
         if not pinned[rank]:
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
-    owed = column["n_at_midnight"]
+    owed = column["n_at_midnight"] or 0
     free = []
     for rank in range(parsed):
         if pinned[rank] or lows[rank] == highs[rank]:
@@ -4663,7 +5046,7 @@ def _separator_allocation(column, parsed):
 ALTERNATE_MARK = {"T": " ", "t": " ", " ": "T"}
 
 
-def kept_cell(text, holes, named=()):
+def kept_cell(text, holes, named=(), member="iso-datetime"):
     """G7.5's absent-spelling exception, written from its statement.
 
     A cell whose text is a declared absent spelling is offered, in turn,
@@ -4677,6 +5060,13 @@ def kept_cell(text, holes, named=()):
     folded = {hole.strip().lower() for hole in holes}
     if text.strip().lower() not in folded or len(text) < 11:
         return text
+    if member not in ("iso-datetime", "iso-mixed"):
+        # NO OTHER MEMBER PUTS ITS MARK AT CHARACTER ELEVEN (landing
+        # 2b.6): `3/17/2024 14:05` has a `4` there and `17-MAR-2024` a
+        # `2`, so the splice below would rewrite a digit of the date.
+        # These members also have exactly one permitted mark, a space,
+        # so there is no other mark to offer and nothing is lost.
+        return text
     if text[10] not in ALTERNATE_MARK:
         return text
     offers = [MARK_OF[name] for name in sorted(named) if MARK_OF[name] != text[10]]
@@ -4689,7 +5079,7 @@ def kept_cell(text, holes, named=()):
     return text
 
 
-def rebalance_marks(wanted, cells, holes):
+def rebalance_marks(wanted, cells, holes, member="iso-datetime"):
     """G7.5's repair of the census after that exception (plan P4-D39).
 
     Each cell whose mark the exception changed hands the mark it owed to
@@ -4699,6 +5089,13 @@ def rebalance_marks(wanted, cells, holes):
     is touched twice.
     """
     cells = list(cells)
+    if member not in ("iso-datetime", "iso-mixed"):
+        # The swap this repairs never happens on these members (landing
+        # 2b.6): `kept_cell` declines to respell them, because character
+        # eleven of their cells is a digit of the date rather than the
+        # mark, and reading it as a mark here counted a `4` as a
+        # spelling on every unpadded slashed stamp.
+        return cells
     touched = set()
     folded = {hole.strip().lower() for hole in holes}
     for rank, cell in enumerate(cells):
@@ -7273,6 +7670,22 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # naming no padded cells takes a census of none.
     if "numeric_styles" in block and "pad_widths" not in block:
         block["pad_widths"] = {}
+    # ...and the four censuses of HOW a column's dates were written
+    # (landing 2b.6, contract C6-25d to C6-25g), on the datetime block
+    # and no other.  EMPTY for every case that does not state its own:
+    # each of these cases describes a source column read under a member
+    # whose fields are of fixed width, which writes no month NAME, and
+    # which names no zulu offset, so each census is empty and the cells
+    # they froze before the censuses existed do not move.
+    if "format" in block:
+        for census in (
+            "date_field_widths",
+            "month_name_styles",
+            "quarter_marker_case",
+            "zulu_case",
+        ):
+            if census not in block:
+                block[census] = {}
     # ...and the census of WHOLE-NUMBER field widths (P4-D30) is NOT
     # defaulted, which is deliberate.  The two above are empty for
     # almost every case here because almost no case has a decimal or a
@@ -7366,7 +7779,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         # ...and the count of values at midnight (landing 2b.3), which a
         # case states only where its column is partly at midnight.
         if "n_at_midnight" not in block:
-            block["n_at_midnight"] = parsed if block["all_at_midnight"] else 0
+            block["n_at_midnight"] = parsed if block["all_at_midnight"] else None
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -9545,7 +9958,7 @@ def _pooled_marks():
         n_unparsed=0, utc_offsets={"(none)": 24},
         resolution_mix={"iso-datetime": 24},
         datetime_separators={"upper_t": 14, "(withheld)": 10},
-        all_at_midnight=False, n_at_midnight=0,
+        all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
@@ -9588,7 +10001,7 @@ def _slashed_pool():
         n_unparsed=0, utc_offsets={"(withheld)": 10},
         resolution_mix={"slashed-iso-datetime": 10},
         datetime_separators={"(withheld)": 10},
-        all_at_midnight=False, n_at_midnight=0,
+        all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
@@ -9773,48 +10186,6 @@ def _midnight_bare_offsets():
             "offset that instant stands at midnight under before the rotation spends "
             "the rest. Settling only the two ends, which wrote rung ranks as the day "
             "before and moments at T02:00:00+02:00, is this case's mutant."
-        ),
-        "column": column,
-        "rows": 24,
-        "identifier_declared": False,
-    }
-
-
-def _accidental_midnight():
-    column = _universal(
-        "column_1", "datetime", "datetime", "data", "ok",
-        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
-        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
-        format="iso-datetime", resolution="datetime", time_precision="minute",
-        subsecond_digits=0, datetimes_read_at="local",
-        earliest="2024-05-08 05:08:00", latest="2024-05-11 17:38:00",
-        earliest_utc_offset="(none)", latest_utc_offset="(none)",
-        date_percentiles={
-            "min": "2024-05-08 05:08:00",
-            "p01": "2024-05-08 05:08:00",
-            "p05": "2024-05-08 07:58:00",
-            "p10": "2024-05-08 11:48:00",
-            "p25": "2024-05-08 22:18:00",
-            "p50": "2024-05-09 20:48:00",
-            "p75": "2024-05-10 18:58:00",
-            "p90": "2024-05-11 06:28:00",
-            "p95": "2024-05-11 10:18:00",
-            "p99": "2024-05-11 13:58:00",
-            "max": "2024-05-11 17:38:00",
-        },
-        n_unparsed=0, utc_offsets={"(none)": 24},
-        resolution_mix={"iso-datetime": 24},
-        datetime_separators={"space": 24},
-        all_at_midnight=False, n_at_midnight=0,
-    )
-    return {
-        "why": (
-            "the repair pass of landing 2b.3. Twenty-four moments to the minute, none "
-            "at midnight, published with n_at_midnight 0 at a floor of one: the "
-            "interpolation lands one rank within the first minute of a day, and that "
-            "rank moves one step later, below the next rank's instant, so the twin "
-            "holds no value at midnight either. Keeping the accidental midnight, which "
-            "read back as a count of one, is this case's mutant."
         ),
         "column": column,
         "rows": 24,
@@ -10092,12 +10463,13 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "midnight_mixed_forms": _midnight_mixed_forms,
     "partial_midnight": _partial_midnight,
     "midnight_two_offsets": _midnight_two_offsets,
-    # The two cases of landing 2b.3's repair pass: bare dates beside moments at
-    # local midnight on a real offset, whose published instants settle their form
-    # and offset first, and an accidental midnight moved off a column that
-    # publishes none.
+    # The case of landing 2b.3's repair pass that survives: bare dates beside
+    # moments at local midnight on a real offset, whose published instants settle
+    # their form and offset first. Its neighbour, an accidental midnight moved off
+    # a column publishing a nought, went with the nought at landing 2b.6: no
+    # column publishes a count of values at midnight of nought any more, so there
+    # is no rule left for a case to pin.
     "midnight_bare_offsets": _midnight_bare_offsets,
-    "accidental_midnight": _accidental_midnight,
     # The spellings of a number landing 2b.2 publishes and freezes.
     "grouped_charges": _grouped_charges,
     "grouped_decimal_comma": _grouped_decimal_comma,
@@ -10584,23 +10956,6 @@ GIVEN_WORDS = {
         15170548298862574888, 18078340560188216414, 17961755548169570166,
         1709256287998433444, 2601830613986780518, 16802502615291089435,
         5371919591216636188, 10726450709361837683, 10163254344864448410,
-    ),
-    "accidental_midnight": (
-        8361547462881463300, 1439470239444836477, 5643624778869385107,
-        7508891442020028448, 13896387288569281756, 8419329016146831055,
-        174944720312643723, 9347709944107655906, 13190512531707830664,
-        8329392936970135, 7677624977632361876, 14028837922008868156,
-        12881720920323991545, 3217557313667879248, 17647314000776884646,
-        8849343174259228008, 8835445705277311622, 6284314475291354904,
-        14462896666750929133, 14736108205338084834, 801973022718808252,
-        8073300596020938055, 11246973995395875921, 15416282733469397854,
-        7010410552110536197, 3087890539577173792, 2597332005715184120,
-        947460919357300690, 10949984764149715151, 6322083284058942417,
-        3489198260462900218, 17113399566349669660, 4529163520384161002,
-        4645199681965722341, 8559493826951877565, 12565258668630052830,
-        15684492838078002813, 10158249447416264913, 8778210800349277997,
-        2350165068184227762, 17009699058798045745, 14049494365643690194,
-        1297445315951002519, 5661899464629933938, 15148421627120523707,
     ),
     "grouped_charges": (
         14485363227759379260, 14496546446215838655, 17877404087858154871,

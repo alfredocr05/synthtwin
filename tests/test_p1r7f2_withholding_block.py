@@ -147,6 +147,11 @@ def test_the_decision_survives_without_the_spelling(
             "verdict": taxonomy.VERDICT_KEPT,
             "reason": taxonomy.REASON_KEPT_BY_USER,
             "n_occurrences": 20,
+            # A column that publishes no value of the table publishes
+            # no spelling of one here either (repair pass of landing
+            # 2b.6, contract V5) -- and a kept candidate took no cell
+            # out, so this list is empty twice over.
+            "spellings": [],
         }
     ]
     assert column["n_missing"] == 0, "a kept value is not a missing value"
@@ -223,6 +228,9 @@ def test_a_publishing_role_still_names_the_candidate(
             "verdict": taxonomy.VERDICT_KEPT,
             "reason": taxonomy.REASON_KEPT_BY_USER,
             "n_occurrences": 20,
+            # A kept candidate took no cell out, so it names no
+            # spelling (contract V5).
+            "spellings": [],
         }
     ]
     assert column["percentiles"]["min"] == -999.0, (
@@ -252,6 +260,7 @@ def test_a_numeric_unrepresentable_column_withholds_it_too(
             "verdict": taxonomy.VERDICT_KEPT,
             "reason": taxonomy.REASON_TOO_FEW_OTHERS,
             "n_occurrences": 11,
+            "spellings": [],
         }
     ]
 
@@ -319,6 +328,17 @@ def test_every_published_item_is_a_named_count_or_withheld(role: str) -> None:
             assert (
                 key in taxonomy.KEYS_THAT_CARRY_NO_VALUE
                 or entry[key] == taxonomy.SUPPRESSED_LABEL
+                # ...OR IT IS AN EMPTY CONTAINER, which is the third
+                # form withholding takes and the form the line below
+                # has always accepted for `missing_by_source` (repair
+                # pass of landing 2b.6). A key whose value is a LIST
+                # cannot say "(withheld)": the word is a piece of text,
+                # and writing it into a list of spellings would publish
+                # a one-item list on a column that publishes nothing.
+                # Emptiness is the withholding, and the guard keeps its
+                # teeth -- a NON-empty list here still fails, which is
+                # the case this file exists for.
+                or entry[key] == []
             ), f"{key} of a {role} verdict is neither a count nor withheld"
     assert described.missing_by_source == {}
 

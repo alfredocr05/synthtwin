@@ -477,6 +477,21 @@ LANDING_2B2_SPELLING_KEYS = (
     "decimal_plus",
 )
 
+# Landing 2b.6 (2026-09-15), plan P4-D61. The owner reversed decision 5,
+# so a twin datetime cell is written in the member that read the real
+# column rather than in ISO, and four censuses carry what the member
+# alone does not fix: how wide the month and day fields were, how a
+# month NAME was written, and the case of a quarter's and a zulu marker.
+# All four are EXACT-OBSERVABLE in their KEY SET -- every convention the
+# description names must come back, on at least a floor's worth of the
+# file's cells -- and the quality report holds a file to them.
+LANDING_2B6_DATE_KEYS = (
+    "date_field_widths",
+    "month_name_styles",
+    "quarter_marker_case",
+    "zulu_case",
+)
+
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
     "count": NUMERIC_SECTION,
@@ -1457,6 +1472,8 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
             for own in LANDING_2B2_SPELLING_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
+            for own in LANDING_2B6_DATE_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1490,6 +1507,8 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
         for own in LANDING_2B2_SPELLING_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
+        for own in LANDING_2B6_DATE_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

@@ -315,8 +315,38 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
+# RE-RECORDED 2026-09-15 (landing 2b.6), and the cause is ONE KEY of one
+# column block: `n_at_midnight` on the demonstration table's column of
+# dates went from `0` to `null`. A published nought could not be told
+# from a count suppressed for naming one person, and being able to tell
+# them apart IS being told that count -- measured on 400 moments a day
+# apart at noon against the same 400 with a single row moved to
+# midnight, whose two descriptions differed in that key and nowhere
+# else. Nothing else about the document moved, and the twin's own bytes
+# did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6, the reversal of owner
+# decision 5), and the cause is FOUR KEYS ADDED to one column block:
+# `recorded_on` gains `date_field_widths`, `month_name_styles`,
+# `quarter_marker_case` and `zulu_case`, each EMPTY, because that column
+# is read as `iso-date` -- a member whose fields are of fixed width,
+# which writes no month name, which is no column of quarters and which
+# names no zulu offset. No count, statistic, label, role, spelling or
+# value of any column moved, and the demonstration's twin bytes did not
+# move either: its dates were already written in their source's form,
+# which is what an ISO column's source form is.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), and the
+# cause is ONE KEY of one decision: the demonstration's `reading` column
+# publishes a stand-in verdict, and that decision now names the
+# published spelling its own pass took out -- `"spellings": ["-999"]`.
+# It is the provenance of a hole spelling, which nothing else in the
+# document carries and which both readers were guessing at by counting
+# (contract V5, plan P4-D63). Three lines were added to one block and
+# NOTHING else about the document moved: no count, statistic, label,
+# role, spelling or value of any column, and the demonstration's twin
+# bytes did not move either, because the demonstration has no column
+# where a declaration and a judgement share a candidate.
 GOLDEN_SHA256 = (
-    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
+    "020e296babb0fcdd0991c8fa23152f48d5cba59eb8c6acc468b0a39309e3d72a"
 )
 
 

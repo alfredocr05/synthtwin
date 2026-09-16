@@ -1186,42 +1186,94 @@ floor, so the real table meets its description by construction:
   pool included, are at most that same width (`marks.unnamed`), which is
   the only check that sees a mark nobody published;
 - `all_at_midnight` is compared where it is published `true`
-  (`midnight.all`), and `n_at_midnight` where it is published above
-  nought (`midnight.count`) -- and where it is published nought at a
-  smallest-group size of one on a column not wholly at midnight, where
-  the nought is exact (integration repair of landing 2b.3: unchecked, a
-  twin of dense minute stamps holding eight cells at midnight against a
-  table holding none passed);
+  (`midnight.all`), and `n_at_midnight` where it is published at all,
+  which is where it is above nought (`midnight.count`). The nought that
+  was checked at a smallest-group size of one is gone: it could not be
+  told from a suppressed count of one without telling a reader that
+  count, so no description publishes it (landing 2b.6) and no file is
+  asked for it;
 - each of the three is LISTED where the description sets it no
   obligation: all three on a column that writes no clock, the statement
-  where it is published `false`, and the count where it is nought above
-  a smallest-group size of one, where the nought also covers a count
-  below the floor.
+  where it is published `false`, and the count wherever it is absent —
+  which covers a column holding none at midnight, one holding a single
+  value there, and one holding all but a single value there, the three
+  being one state on purpose (landing 2b.6).
 
-On a column whose ranks the generator moves onto a midnight, G12.5's
-lower end is the one the generation method states for that column:
-the separate windows widened by one precision step less the ranks the
-move may carry out of theirs, and never less than the pinned values
-allow.
+**Amended 2026-09-15 (landing 2b.6): the MEMBER is an obligation, and
+how the dates were written is four more.** The owner reversed decision
+5, so the twin is written in the member that read the real column
+rather than in ISO:
 
-**Amended 2026-09-15 (landing 2b.3): a judged spelling is not a
-declaration.** A `missing_by_source` key a column's own calendar
-placeholder or stand-in pass put there is left out of the declared
-spellings, and so out of the settings the file is described under,
-wherever the table declared no missing value or that column counts no
-cell absent by declaration. A birth column holding 187 present cells of
-a discharge column's judged `1900-01-01 00:00:00` had them described as
-absent, and the real table missed 24 obligations of its own
-description. Where the judging column also counts declared cells, the
-key is left out too unless a declared cell can share the judged day: the
-keys denoting the judged candidate, with the column's pooled hole
-spellings added, hold more cells than the verdict's `n_occurrences`,
-which counts only the cells the pass took, since a declared cell is taken
-out before any pass judges. There every key sharing that day stays a
-declaration and a person's own word is never narrowed. A declared `NA`
-shares no day with a placeholder, so it no longer carries a judged
-spelling to the table (repair pass of landing 2b.3: the real table had
-missed 12 obligations).
+- `format` is compared exactly (`format.member`): describing the file
+  again must name the member the description names. It was NOT
+  CHECKABLE for as long as the twin's own spelling was another
+  member's, and it is the one check that turns red on a writer that
+  goes back to ISO. It is LISTED, not checked, on an `iso-mixed` column
+  NOT wholly at midnight, where the twin writes every value with a time
+  of day and so reads back as `iso-datetime` (residual R-P4-12).
+- each of `date_field_widths`, `month_name_styles`,
+  `quarter_marker_case` and `zulu_case` is compared as a KEY SET and
+  not as a count: every convention the description names must appear on
+  at least a floor's worth of the file's own cells
+  (`widths.<word>`, `names.<word>`, `markers.<word>`, `zulu.<word>`),
+  and the cells wearing a convention the description does NOT name,
+  the file's own pool included, are at most the published pool widened
+  by any cells the file holds beyond the published total
+  (`<family>.unnamed`). The counts themselves are NOT compared, and the
+  reason is the fact that makes them interesting: whether a cell can
+  show a convention depends on its own value — a day above the ninth
+  shows no field width, a month of May shows no name length — so how
+  many of a file's cells could carry one is a fact about that file's
+  values, and a faithful twin whose interior instants fall a day either
+  side of the real ones carries a different number of them. A count
+  check would accuse the tool's own twin.
+- each of the four is LISTED where the column's member cannot show that
+  convention at all: the widths on a member of fixed field width, the
+  name styles outside the two textual members, the marker outside
+  `year-quarter`, the zulu case where no `Z` is named. `resolution_mix`
+  stays listed on every column: on a single-member column it restates
+  `format` and `n_unparsed`, both checked, and a check that cannot fail
+  on its own is what this method exists to refuse.
+
+**Amended 2026-09-15 (landing 2b.6 part 2): one walk, for every
+column.** G12.5's lower end used to need a correction on a column whose
+ranks the generator moves onto a midnight — the separate windows widened
+by one precision step, less the ranks the move may carry out of theirs,
+and never less than the pinned values allow — because a rank's window
+was then its own slice of the distribution, which the move could carry
+it out of. It is not. Method G7.3 pins the two ends and the rank each of
+the nine interior rungs is selected from, each to its published value,
+and draws every other rank inside the gap between the two pinned ranks
+either side of it; the move onto a midnight keeps every rank inside
+exactly that gap. So this document counts the ranks whose windows do not
+overlap and applies no correction, and the rung checks are drawn from
+the same gaps: a rank a rung is selected from has a window of ONE VALUE,
+its published one, so each of the nine is checked at the value rather
+than inside a band around it.
+
+**Amended 2026-09-15 (landing 2b.3, rewritten by the repair pass of
+landing 2b.6): a judged spelling is not a declaration, and the
+description says which is which.** A `missing_by_source` key a column's
+own calendar placeholder or stand-in pass put there is left out of the
+declared spellings, and so out of the settings the file is described
+under. A birth column holding 187 present cells of a discharge column's
+judged `1900-01-01 00:00:00` had them described as absent, and the real
+table missed 24 obligations of its own description.
+
+WHICH KEYS THOSE ARE IS READ, NOT COUNTED. Each decision published in
+`sentinel_verdicts` names the spellings its own pass took out (contract
+V5), and this document asks that list and nothing else. The version
+this replaces compared the cells of every key DENOTING the judged
+candidate — with the column's pooled hole spellings added — against the
+verdict's `n_occurrences`, and no count can settle the case where two
+keys write one candidate day: twenty judged `1900-01-01 00:00:00`
+beside thirty `1900-01-01T00:00:00` a person declared put 50 cells
+against a verdict of 20, so the judged key was read as a declaration of
+the whole table, a second column's 80 ordinary values were re-read as
+absent, and the REAL table missed 13 obligations of its own description
+— both presence counts, three counts of cells, the marks census, the
+count at midnight and seven rungs of its date ladder. A declared word
+still reaches every column, because no decision names it.
 
 **Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
 grouped spelling of every value, whatever `group_separator` publishes.**

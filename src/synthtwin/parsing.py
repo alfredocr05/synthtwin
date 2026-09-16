@@ -2717,6 +2717,556 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
     return None
 
 
+# -- how a date was WRITTEN, beside what it was read as (landing 2b.6) --
+#
+# THE REVERSAL OF OWNER DECISION 5 (owner ruling of 2026-09-15: the twin
+# writes anything as the original source wrote it). Everything above this
+# line READS a cell and answers which instant it names, and a reading is
+# deliberately lossy about spelling: `03/17/2024`, `3/17/2024`,
+# `17.03.2024` and `17-MAR-2024` all answer `2024-03-17`. Decision 5 then
+# had the twin write that answer back in ISO, so a month-first table got
+# ISO twin dates and every parsing call a person had written against
+# their own export failed on every cell of the twin.
+#
+# What follows is the other direction: the vocabulary of the conventions
+# one member admits, a reader per convention so that the describing step
+# can COUNT them, and one writer that is the inverse of `parse_datetime`
+# under a member and a style. Every census here counts FORMS -- how cells
+# were written -- and never a value of anybody's table.
+
+# The members whose month and day fields may be written with one figure
+# or with two. Everything else fixes both widths, so nothing is left for
+# a census to say: the dotted families are padded by C6-22, and the ISO,
+# slashed-ISO and compact families are fixed width by their own readers.
+VARIABLE_WIDTH_MEMBERS = (
+    "month-first-date",
+    "day-first-date",
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
+)
+
+# The two members that write the month as an English NAME.
+TEXTUAL_MEMBERS = (
+    "textual-day-first-date",
+    "textual-month-first-date",
+)
+
+# The members whose year is written with TWO figures.
+TWO_FIGURE_MEMBERS = (
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+)
+
+# The members written with dots, which are padded on both fields.
+DOTTED_MEMBERS = (
+    "dotted-month-first-date",
+    "dotted-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+)
+
+# Which of the two numeric fields comes first, written out rather than
+# worked out from the member's name: `month-first-datetime` does not end
+# in `-date`, and a rule that read the name got that one member wrong.
+MONTH_FIRST_MEMBERS = (
+    "month-first-date",
+    "dotted-month-first-date",
+    "two-digit-month-first-date",
+    "dotted-two-digit-month-first-date",
+    "month-first-datetime",
+    "textual-month-first-date",
+)
+DAY_FIRST_MEMBERS = (
+    "day-first-date",
+    "dotted-day-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-day-first-date",
+    "day-first-datetime",
+    "textual-day-first-date",
+)
+
+# HOW WIDE A CELL WROTE THE FIELDS THAT COULD SHOW IT, as ONE word per
+# cell rather than one per field. The skeptic of the spelling audit
+# measured why: on a column half written `%m/%d/%Y` and half `m/d/yyyy`,
+# not one real cell mixed the two, and two independent rotations would
+# have written about half the cells that could show it in a style no row
+# used -- `03/5/2024`. So the census is JOINT, over the cell.
+#
+# A field SHOWS its width only where its value is below ten. `17` is two
+# figures under either convention, so a cell whose month and day are both
+# above nine is counted under no key at all, and this census's total is
+# the cells that could show something.
+WIDTH_PADDED = "padded"
+WIDTH_UNPADDED = "unpadded"
+WIDTH_FIRST_PADDED = "first-padded"
+WIDTH_SECOND_PADDED = "second-padded"
+FIELD_WIDTH_STYLES = (
+    WIDTH_PADDED,
+    WIDTH_UNPADDED,
+    WIDTH_FIRST_PADDED,
+    WIDTH_SECOND_PADDED,
+)
+
+# HOW A MONTH NAME WAS WRITTEN, again as one joint word: the case, the
+# length, the mark between the fields and whether a comma followed the
+# day. Joint for the reason the widths are: a hand-entered column mixing
+# `17-MAR-2024` with `17 Mar 2024` carries the case and the mark
+# together, and independent rotations would invent `17 MAR 2024`.
+NAME_CASES = ("upper", "title", "lower")
+NAME_LENGTHS = ("abbreviated", "full")
+NAME_MARKS = ("space", "hyphen")
+NAME_COMMAS = ("comma", "no-comma")
+
+
+def _name_styles() -> "tuple[str, ...]":
+    """Every joint month-name style, built from the four vocabularies."""
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for length in NAME_LENGTHS:
+            for mark in NAME_MARKS:
+                for comma in NAME_COMMAS:
+                    built += [f"{case}-{length}-{mark}-{comma}"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES = _name_styles()
+
+
+def _no_comma_styles() -> "tuple[str, ...]":
+    """The styles a DAY-FIRST textual column can wear.
+
+    `17 Mar, 2024` puts a comma after a month name, which no writer does
+    and which `_textual_fields` refuses, so half the joint vocabulary is
+    unreachable for that member and the contract says so rather than
+    leaving a loader to accept a count no producer can write.
+    """
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for length in NAME_LENGTHS:
+            for mark in NAME_MARKS:
+                built += [f"{case}-{length}-{mark}-no-comma"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES_NO_COMMA = _no_comma_styles()
+
+# The two width words a member with ONE numeric field can show: the
+# textual members write the month as a name, so there is no second field
+# for `first-padded` or `second-padded` to be about.
+FIELD_WIDTH_STYLES_ONE_FIELD = (WIDTH_PADDED, WIDTH_UNPADDED)
+
+# What a cell the census cannot reach is written in where the census
+# names nothing at all: the commonest export spelling, `17 Mar 2024`.
+DEFAULT_NAME_STYLE = "title-abbreviated-space-no-comma"
+DEFAULT_FIELD_WIDTH = WIDTH_PADDED
+
+# The case of the letter Q in a quarter, and of a zulu offset marker.
+# Each is its own census rather than a second key of the map beside it:
+# `z` as a second `utc_offsets` key would count as a second OFFSET and
+# trip D5 and the shared-clock reading, when it is one offset written
+# two ways.
+QUARTER_MARKER_CASES = ("upper", "lower")
+ZULU_CASES = ("upper", "lower")
+
+
+def _upper_text(text: str) -> str:
+    """Upper case, behind a gate, so the audit can follow the value."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return text.upper()
+
+
+def _lower_text(text: str) -> str:
+    """Lower case, behind a gate, for the reason above."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return text.lower()
+
+
+def _titled(text: str) -> str:
+    """One capital and the rest in lower case, built rather than called.
+
+    There is no `title` among the string methods this package's offline
+    audit admits, and there should not be: `title` capitalises after
+    every non-letter, which is not what a month name wants.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return f"{_upper_text(text[0:1])}{_lower_text(text[1:])}"
+
+
+def _name_case(name: str) -> "str | None":
+    """Which of the three cases one written month name wears, or None.
+
+    None for a spelling outside the three -- `mAr` -- which is counted
+    under no key rather than forced into one.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name == _upper_text(name):
+        return "upper"
+    if name == _lower_text(name):
+        return "lower"
+    if name == _titled(name):
+        return "title"
+    return None
+
+
+def _one_field_style(written: str) -> "str | None":
+    """Whether one written numeric field shows a width, and which.
+
+    `05` is padded, `5` is unpadded, and `17` shows nothing: it is two
+    figures under either convention.
+    """
+    if not isinstance(written, str):
+        raise TypeError(_NOT_TEXT)
+    if len(written) == 1:
+        return WIDTH_UNPADDED
+    if len(written) == 2 and written[0] == "0":
+        return WIDTH_PADDED
+    return None
+
+
+def _pair_widths(width: str) -> "tuple[bool, bool]":
+    """One joint width word as a padding decision per field."""
+    if width == WIDTH_UNPADDED:
+        return False, False
+    if width == WIDTH_FIRST_PADDED:
+        return True, False
+    if width == WIDTH_SECOND_PADDED:
+        return False, True
+    return True, True
+
+
+def _raw_pair(body: str, mark: str) -> "tuple[str, str] | None":
+    """The two fields before the year, exactly as they were written.
+
+    `_delimited_fields` pads what it returns, because what it answers is
+    the DATE; this answers the writing, so nothing is padded here.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    marks: "list[int]" = []
+    place = 0
+    for character in body:
+        if character == mark:
+            marks += [place]
+        place = place + 1
+    if len(marks) != 2:
+        return None
+    return body[0 : marks[0]], body[marks[0] + 1 : marks[1]]
+
+
+def _date_half(body: str, format_name: str) -> str:
+    """The date part of a slashed stamp, or the whole of a date cell."""
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name not in SLASHED_STAMPS:
+        return body
+    mark = 0
+    place = 0
+    for character in body:
+        if character == " ":
+            mark = place
+        place = place + 1
+    return body[0:mark]
+
+
+def _textual_written(
+    body: str, month_first: bool
+) -> "tuple[str, str, str, bool] | None":
+    """A textual date's day field, month name, mark and comma, as written.
+
+    `_textual_fields` answers what the cell MEANS and strips the comma
+    on the way; this answers how it was written, so the comma comes back
+    as a fact of its own. The grammar is the same one, character for
+    character, because two readings of one shape is how the families
+    come apart.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    for mark in (" ", "-"):
+        marks: "list[int]" = []
+        place = 0
+        for character in body:
+            if character == mark:
+                marks += [place]
+            place = place + 1
+        if len(marks) != 2:
+            continue
+        first = body[0 : marks[0]]
+        middle = body[marks[0] + 1 : marks[1]]
+        last = body[marks[1] + 1 :]
+        comma = False
+        if middle[len(middle) - 1 : len(middle)] == ",":
+            if not month_first:
+                continue
+            middle = middle[0 : len(middle) - 1]
+            comma = True
+        if not first or not middle or not last:
+            continue
+        if _carries_space(first):
+            continue
+        if _carries_space(middle):
+            continue
+        if _carries_space(last):
+            continue
+        name_mark = "space" if mark == " " else "hyphen"
+        if month_first:
+            return middle, first, name_mark, comma
+        return first, middle, name_mark, comma
+    return None
+
+
+def _name_parts(style: str) -> "tuple[str, str, str, str]":
+    """One joint month-name style word, taken back apart."""
+    if not isinstance(style, str):
+        raise TypeError(_NOT_TEXT)
+    parts = style.split("-")
+    if len(parts) < 4:
+        return "title", "abbreviated", "space", "no-comma"
+    comma = "comma"
+    if parts[3] == "no":
+        comma = "no-comma"
+    return parts[0], parts[1], parts[2], comma
+
+
+def date_field_style(text: str, format_name: str) -> "str | None":
+    """The joint width convention one written cell shows, or None.
+
+    None where the member fixes both widths, where the cell does not
+    read under the member, or where no field of it could show a width at
+    all -- which is what makes this census's total the cells that could
+    show something rather than every parsed cell.
+
+    Guarantees: accepts one cell and the member it parsed under; returns
+    a member of `FIELD_WIDTH_STYLES` or nothing. Determinism: a function
+    of the two. Raises TypeError if either is not a string instance. No
+    I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    numeric = format_name in VARIABLE_WIDTH_MEMBERS
+    if not numeric and format_name not in TEXTUAL_MEMBERS:
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    if not numeric:
+        found = _textual_written(
+            body, format_name == "textual-month-first-date"
+        )
+        if found is None:
+            return None
+        return _one_field_style(found[0])
+    pair = _raw_pair(_date_half(body, format_name), "/")
+    if pair is None:
+        return None
+    first = _one_field_style(pair[0])
+    second = _one_field_style(pair[1])
+    if first is None and second is None:
+        return None
+    if first is None:
+        return second
+    if second is None:
+        return first
+    if first == second:
+        return first
+    if first == WIDTH_PADDED:
+        return WIDTH_FIRST_PADDED
+    return WIDTH_SECOND_PADDED
+
+
+def month_name_style(text: str, format_name: str) -> "str | None":
+    """The joint month-name style one written cell shows, or None.
+
+    None for a cell whose month is MAY, whose two written forms are one
+    word: nothing in `May` says whether the column abbreviates, so such a
+    cell is counted under no key and written in the commonest style.
+
+    Guarantees: accepts one cell and the member it parsed under; returns
+    a member of `MONTH_NAME_STYLES` or nothing. Determinism: a function
+    of the two. Raises TypeError if either is not a string instance. No
+    I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name not in TEXTUAL_MEMBERS:
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    found = _textual_written(body, format_name == "textual-month-first-date")
+    if found is None:
+        return None
+    name = found[1]
+    if folded(name) == "may":
+        return None
+    case = _name_case(name)
+    if case is None:
+        return None
+    length = "abbreviated" if len(name) == 3 else "full"
+    comma = "comma" if found[3] else "no-comma"
+    return f"{case}-{length}-{found[2]}-{comma}"
+
+
+def quarter_marker_case(text: str, format_name: str) -> "str | None":
+    """Whether a quarter cell wrote its marker upper or lower case."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name != "year-quarter":
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    if body[5] == "Q":
+        return "upper"
+    if body[5] == "q":
+        return "lower"
+    return None
+
+
+def zulu_case(text: str, format_name: str) -> "str | None":
+    """Whether a cell carrying a zulu offset wrote it upper or lower case."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name != "iso-datetime" and format_name != "iso-mixed":
+        return None
+    found = parse_datetime(text, format_name)
+    if found is None or found[1] != "Z":
+        return None
+    body = text.strip()
+    last = body[len(body) - 1]
+    if last == "Z":
+        return "upper"
+    if last == "z":
+        return "lower"
+    return None
+
+
+def month_spelling(month: int, length: str, case: str) -> str:
+    """One month written as a name: the inverse of `month_of_name`.
+
+    The one place a month NAME is built, as `clock_spelling` is the one
+    place a clock is, so a producer counting names and a generator
+    writing them cannot spell the same month two ways.
+
+    Guarantees: accepts a month from 1 to 12, one of `NAME_LENGTHS` and
+    one of `NAME_CASES`; returns the name. Determinism: a function of the
+    three. Raises ValueError for a month outside the calendar. No I/O.
+    """
+    if isinstance(month, bool) or not isinstance(month, int):
+        raise ValueError(_NOT_TEXT)
+    if month < 1 or month > 12:
+        raise ValueError(_NOT_TEXT)
+    pair = _MONTH_NAMES[month - 1]
+    name = pair[1] if length == "full" else pair[0]
+    if case == "upper":
+        return _upper_text(name)
+    if case == "lower":
+        return _lower_text(name)
+    return _titled(name)
+
+
+def _field_text(value: int, padded: bool) -> str:
+    """One numeric field at the width its style asks for."""
+    if padded or value >= 10:
+        return f"{value:02d}"
+    return f"{value}"
+
+
+def written_date(
+    year: int,
+    month: int,
+    day: int,
+    format_name: str,
+    width: str = DEFAULT_FIELD_WIDTH,
+    name_style: str = DEFAULT_NAME_STYLE,
+) -> str:
+    """One day written the way this member's own source wrote it.
+
+    THE INVERSE OF `parse_datetime` for every member that names a day,
+    and the whole of what reversing owner decision 5 means for the date
+    half of a cell: field order, delimiter, the width of each field, the
+    two-figure year, the month name's case and length, the mark between
+    a textual date's fields and the comma after its day.
+
+    Guarantees: accepts a calendar date, one member of `DATE_FORMATS`
+    that names a day, one of `FIELD_WIDTH_STYLES` and one of
+    `MONTH_NAME_STYLES`; returns the cell's date half, which
+    `parse_datetime` reads back under the same member as the same day.
+    Determinism: a function of its arguments. Raises ValueError through
+    `month_spelling` for a month outside the calendar. No I/O of any kind.
+    """
+    if format_name == "compact-date":
+        return f"{year:04d}{month:02d}{day:02d}"
+    if format_name == "slashed-iso-date" or format_name == "slashed-iso-datetime":
+        return f"{year:04d}/{month:02d}/{day:02d}"
+    if format_name in TEXTUAL_MEMBERS:
+        case, length, mark, comma = _name_parts(name_style)
+        name = month_spelling(month, length, case)
+        between = " " if mark == "space" else "-"
+        day_text = _field_text(day, width != WIDTH_UNPADDED)
+        if format_name == "textual-day-first-date":
+            return f"{day_text}{between}{name}{between}{year:04d}"
+        tail = "," if comma == "comma" else ""
+        return f"{name}{between}{day_text}{tail}{between}{year:04d}"
+    if format_name not in MONTH_FIRST_MEMBERS and (
+        format_name not in DAY_FIRST_MEMBERS
+    ):
+        # Every ISO member, and anything a later landing adds without
+        # saying how it is written: the form that has always been safe.
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    dotted = format_name in DOTTED_MEMBERS
+    between = "." if dotted else "/"
+    first_padded, second_padded = _pair_widths(width)
+    if dotted:
+        # C6-22: the dotted families are read padded and only padded,
+        # because `1.2.2024` is how a version identifier is written.
+        first_padded = True
+        second_padded = True
+    first_value = month
+    second_value = day
+    if format_name in DAY_FIRST_MEMBERS:
+        first_value = day
+        second_value = month
+    year_text = f"{year:04d}"
+    if format_name in TWO_FIGURE_MEMBERS:
+        year_text = f"{year % 100:02d}"
+    first_text = _field_text(first_value, first_padded)
+    second_text = _field_text(second_value, second_padded)
+    return f"{first_text}{between}{second_text}{between}{year_text}"
+
+
+def written_quarter(year: int, quarter: int, marker: str) -> str:
+    """One quarter written with the marker case its source wrote."""
+    letter = "Q" if marker != "lower" else "q"
+    return f"{year:04d}-{letter}{quarter}"
+
+
+def written_offset(offset: str, case: str) -> str:
+    """One offset written as its source wrote it: `Z` or `z`."""
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    if offset == "Z" and case == "lower":
+        return "z"
+    return offset
+
+
 EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
 
 _ASCII_ZERO = ord("0")
@@ -2894,6 +3444,26 @@ MISSING_CLASSES = (
     MISSING_TEXT_CODE,
     MISSING_WITHHELD,
 )
+
+# THE SMALLEST GROUP A COUNT OF VALUES AT MIDNIGHT MAY NAME, on either
+# side of itself, whatever the run's own smallest group size is
+# (landing 2b.6; the owner's twin definition, clause 3).
+#
+# One is not a group. A count of one names the one person who holds the
+# value, and a count leaving exactly one off midnight names the one
+# person who does not -- and at the default smallest group size of one
+# both used to be published. Measured on 400 moments a day apart at
+# noon, described once as they stood and once with a single row moved to
+# midnight: the two descriptions differed in `n_at_midnight: 0 -> 1` and
+# in nothing else anywhere, so a reader holding the other 399 values
+# read that row's time of day off the difference.
+#
+# It lives here because the producer, the loader and the document guard
+# each hold the rule to the same number, and a floor written out three
+# times is a floor that disagrees with itself. The counts stage 3 raises
+# for the older facts raise past this one; this is the floor below which
+# no run may go.
+MIDNIGHT_DISCLOSURE_FLOOR = 2
 
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"

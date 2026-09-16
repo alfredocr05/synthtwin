@@ -158,6 +158,17 @@ ALL_AT_MIDNIGHT_FACT = "datetime.all_at_midnight"
 # listed where the description publishes none, which on `recorded_on` --
 # a column of dates that writes no clock -- is always.
 N_AT_MIDNIGHT_FACT = "datetime.n_at_midnight"
+# ...and the EIGHTH to ELEVENTH (landing 2b.6): the four censuses of
+# HOW a column's dates were written, listed on every column whose member
+# cannot show that convention. `recorded_on` is read as `iso-date` --
+# fixed field widths, no month NAME, no quarter, no zulu offset -- so it
+# lists all four.
+WRITTEN_FORM_FACTS = (
+    "datetime.date_field_widths",
+    "datetime.month_name_styles",
+    "datetime.quarter_marker_case",
+    "datetime.zulu_case",
+)
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     EMPTY_BIN_FACT,
@@ -166,7 +177,7 @@ LISTINGS_ADDED_SINCE = (
     DATETIME_SEPARATORS_FACT,
     ALL_AT_MIDNIGHT_FACT,
     N_AT_MIDNIGHT_FACT,
-)
+) + WRITTEN_FORM_FACTS
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -201,6 +212,16 @@ SPELLING_SUBCHECKS = (
     "spelling.negative_form",
     "spelling.decimal_plus",
 )
+# ...and the ONE check landing 2b.6 added (2026-09-15), set aside on the
+# same doctrine. `format` -- the member the real column's dates were
+# written in -- was REPORT-ONLY and listed whole, because owner decision
+# 5 had the twin write ISO whatever the source wrote, so no file could
+# evidence it. The owner reversed that decision: the twin is written in
+# the member that read the real column, so describing it again names
+# that member and the fact is a check. The demonstration has one column
+# of dates, so it is one check. Re-recording 416 as 417 would retire the
+# only thing this baseline buys.
+MEMBER_SUBCHECK = "format.member"
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -219,8 +240,20 @@ EMPTY_EDGE_LISTINGS = ["visits|numeric.empty_edges|"]
 # file that a landing may lower, and only this way: an obligation that
 # MOVED to the checks, with the check baseline showing it arrive.
 NARROW_LISTING_COUNT = 126
+# LOWERED AGAIN 2026-09-15 (landing 2b.6), the second time and the only
+# way this baseline may be lowered: an obligation MOVED to the checks.
+# `datetime.format` -- the member the real column's dates were written
+# in -- was listed whole on the demonstration's one column of dates,
+# because owner decision 5 had the twin write ISO whatever the source
+# wrote, so no file could evidence it. The owner reversed that decision:
+# the twin is written in the member that read the real column, so the
+# fact is a check now, and the check baseline above shows it arriving as
+# `MEMBER_SUBCHECK`. One listing left, so 122 becomes 121 and this
+# digest is re-recorded over the 121. A census that carries fewer
+# obligations than it did is a defect UNLESS they moved, and the two
+# baselines together are what show that they did.
 NARROW_LISTING_DIGEST = (
-    "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
+    "5978ec5be61bdfe2b0b4f21cad6c7b3ae2477c21c697fa20192f24f86656bf92"
 )
 NARROW_COLUMN_DIGESTS = {
     "record_code": "f6d74ac3a099e5713338c9baff476924",
@@ -241,7 +274,15 @@ NARROW_COLUMN_DIGESTS = {
     # ranks: 235 of its 240 cells moved, every one of them still a
     # two-figure number, and the quality report still misses nothing.
     "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
-    "recorded_on": "275356366d05346ada86307a49d4467c",
+    # RE-RECORDED at landing 2b.6 (2026-09-15). `recorded_on` is the
+    # demonstration's one column of dates, and its interior cells move
+    # because the placement rule of G7.3 moved: the nine interior rungs
+    # are pinned to their PUBLISHED values and every other rank is drawn
+    # inside the gap between the pinned ranks either side of it, where
+    # each rank used to be interpolated inside its own slice. The two
+    # ends, the member, the marks and every published count are
+    # unchanged; what moved is where the ranks between the rungs land.
+    "recorded_on": "0ae8c7fa2ee77b4522dff2af7403baaf",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -296,7 +337,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS:
+        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS + (MEMBER_SUBCHECK,):
             if one in entry:
                 return True
         return False
@@ -402,7 +443,16 @@ def test_widening_the_demonstration_lost_no_obligation(
     # obligations than it did is a defect -- unless the obligations
     # MOVED to the checks, which is what happened and which the check
     # baseline above shows arriving there.
-    assert len(kept) == NARROW_LISTING_COUNT - 4, len(kept)
+    # ...AND A FIFTH LEFT IT ON 2026-09-15 (landing 2b.6), named here on
+    # the same doctrine rather than absorbed: `datetime.format` was
+    # listed whole on every column of dates, because owner decision 5
+    # had the twin write ISO whatever the source wrote and no file could
+    # evidence the member that read the real column. The owner reversed
+    # that decision, so the member IS reproduced and the fact is a
+    # check -- which the check baseline above shows arriving there, as
+    # `MEMBER_SUBCHECK`. The demonstration has one column of dates, so
+    # one listing left.
+    assert len(kept) == NARROW_LISTING_COUNT - 5, len(kept)
     assert (
         hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
         == NARROW_LISTING_DIGEST
@@ -784,8 +834,34 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
 # when the two documents were diffed against 53bb012. The twin digest below
 # HELD: the twin's bytes are identical.
+# RE-RECORDED 2026-09-15 (landing 2b.6), and the cause is ONE KEY of one
+# column block: `n_at_midnight` on the demonstration table's column of
+# dates (this file describes the same fixed table) went from `0` to `null`. A published nought could not be told
+# from a count suppressed for naming one person, and being able to tell
+# them apart IS being told that count -- measured on 400 moments a day
+# apart at noon against the same 400 with a single row moved to
+# midnight, whose two descriptions differed in that key and nowhere
+# else. Nothing else about the document moved, and the twin's own bytes
+# did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6), for the cause recorded
+# beside the profile golden in tests/test_profile_document.py: the
+# column of dates gains the four written-form censuses, all four empty
+# on a column read as `iso-date`. THE TWIN'S OWN BYTES DID NOT MOVE --
+# GOLDEN_TWIN_SHA256 below is untouched -- and that is the load-bearing
+# half of this re-recording: the reversal of owner decision 5 changes
+# what a twin of a month-first, textual, compact, two-digit, dotted,
+# slashed-ISO, quarter or zulu column is written as, and this
+# demonstration holds none of those.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), for the
+# cause recorded beside the profile golden in
+# tests/test_profile_document.py: the `reading` column's stand-in
+# decision now names the published spelling its own pass took out
+# (`"spellings": ["-999"]`, contract V5, plan P4-D63). THE TWIN'S OWN
+# BYTES DID NOT MOVE -- GOLDEN_TWIN_SHA256 below is untouched -- because
+# no column of this demonstration has a declaration and a judgement
+# sharing one candidate, which is the case the key was published for.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "f08c4e89993cab504c451630282ac90ef37fe6095747bf400db04ddd19a3b6c2"
+    "a71bcfa5b7f636e9571b8f4007a852b4fca32683cb71d7628bcdeca0f5f68904"
 )
 
 
@@ -889,8 +965,21 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # RE-RECORDED at landing 2b.1 (2026-09-15): the `amount` and `dose`
 # columns moved for the causes recorded beside their column digests
 # above, and no other column's cells moved.
+# RE-RECORDED at landing 2b.6 (2026-09-15), and this time the twin's
+# bytes DID move, where the reversal of owner decision 5 left them
+# alone. The demonstration's `recorded_on` column is read as `iso-date`,
+# so writing it in its source's own form changed nothing; the PLACEMENT
+# of its ranks is what changed. Method G7.3 pins the nine interior rungs
+# to their published values and draws every other rank inside the gap
+# between the pinned ranks either side of it, because one cell per rank
+# inside its own slice gave every day almost exactly its expected count
+# -- measured across 54 runs, a per-day count variance of 0.057 to 0.514
+# of the real column's -- and put every published rung a day or more
+# early. Only `recorded_on`'s cells move: no other column of the
+# demonstration is a column of dates, and the word budget per column is
+# unchanged, so nothing downstream of it shifts either.
 GOLDEN_TWIN_SHA256 = (
-    "494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f"
+    "2d9175d73f6c0b819cba38e8df4cdd9348f8589028ccff0d52d9d9d156c1fff3"
 )
 
 
@@ -1291,8 +1380,28 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # (G5.6) and computes each end in the one operation order G12.2, G12.3
 # and G12.3a state, which is what the quality report prints; the twin,
 # every achieved figure and every inside-the-range verdict are unchanged.
+# RE-RECORDED at landing 2b.6 (2026-09-15). It follows the twin digest
+# above: `recorded_on`'s cells moved, so the approximated date rungs the
+# report prints beside their windows moved with them -- and the rungs
+# now sit ON their published values rather than a day or so below, which
+# is what the report says. The report also carries one sentence it did
+# not carry before, naming what a twin of a column of dates still does
+# not reproduce: the weekday composition, the time of day, days the real
+# column heaps values on, and a column of a few scheduled dates.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), and the
+# cause is the WINDOW the report prints beside each approximated date
+# rung, on nine lines and nowhere else. A rank a rung is pinned to has
+# no room to be drawn in, so it is now allowed no reading allowance
+# either: `allowed anywhere from 2023-12-31 to 2024-01-01` is now
+# `allowed anywhere from 2024-01-01 to 2024-01-01`, at each of the nine.
+# The band it replaces was wide enough to admit a twin with every
+# interior cell written one day EARLY -- the defect landing 2b.6 part 2
+# repaired -- and this landing's own text said in four places that the
+# window was a point while the code spent the allowance anyway. The twin
+# is untouched, every achieved figure is unchanged, and the report says
+# strictly more than it did.
 GOLDEN_REPORT_SHA256 = (
-    "2915f4c52c20798eefdd87492548ecfda26fa96d66afd7e891b4c527664957db"
+    "89bd7cc9538269732daaa81b96c77c52c618d4a9e11663c0876f3fa422d0762c"
 )
 
 
@@ -1804,8 +1913,23 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # widest stratum is read off the description alone, which on this
 # demonstration is the number it was already. The census is unchanged:
 # 420 held, 75 within a window, none missed.
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6). Both inputs above are
+# accounted for, so what moved here is WHAT THE CHECK SAYS: the column
+# of dates files one obligation MORE than it did -- `format.member`, the
+# member the dates were written in, which was NOT CHECKABLE while the
+# twin wrote ISO whatever the source wrote -- and four listings more,
+# one per written-form census, each saying that this column's member can
+# show no such convention. The census carries no fewer obligations than
+# it did: one moved from the listings to the checks and four arrived as
+# listings, which the frozen baselines below show arriving by name.
+# RE-RECORDED at landing 2b.6 (2026-09-15). The census carries no fewer
+# obligations than it did -- which is the thing this digest exists to
+# catch -- and the numbers beside the date rungs moved because the twin's
+# own cells moved: each of the nine interior rungs is now measured AT its
+# published value rather than a day or more below it, and the window it
+# is measured against is that value rather than a band around its slice.
 GOLDEN_QUALITY_SHA256 = (
-    "33b8fc1f5d7b0c42acca316a7d614bbaad389fcfda297753d52839ddda35142a"
+    "1414601dad33d4c223f2d0c00ece84bd13bdced0d7f6b6e437a44dcb2bdceace"
 )
 
 

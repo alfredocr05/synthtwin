@@ -505,6 +505,21 @@ _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
 )
+# THE MEMBER OF A COLUMN READ JOINTLY, which is the one column whose
+# member its own twin cannot show (landing 2b.6, residual R-P4-12). The
+# twin of a joint column that mixes whole dates with real times of day
+# writes every value with a time of day, because a date-form cell cannot
+# spell an interior value published at the second -- so describing that
+# twin again reads it as `iso-datetime`, not as the joint member, and
+# holding it to `format` would report a miss against the tool's own
+# output for a loss the description already names. A joint column wholly
+# at midnight writes its whole dates bare and IS held to its member.
+_NOT_CHECKABLE_JOINT_MEMBER = (
+    "the description records that the real column mixed whole dates "
+    "with values carrying a time of day, and the twin of such a column "
+    "writes every value with a time of day, so no file is asked to be "
+    "read back as that same mixture"
+)
 _NOT_CHECKABLE_RESOLUTION_MIX = (
     "the description records which written form each of the real "
     "table's dates wore, and how many wore each, and it asks no file "
@@ -523,6 +538,12 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
 # code developed on the twin runs unchanged on the real table -- is what
 # makes them obligations: `_mark_checks` and `_midnight_checks`. What is
 # still LISTED is where the description sets no obligation at all.
+_NOT_CHECKABLE_NO_WRITTEN_FORM = (
+    "the description records how the real column's dates were written "
+    "-- how wide their fields were, how their month names were cased, "
+    "how their markers were cased -- and this column's dates write "
+    "nothing of the kind, so there is none of it for a file to carry"
+)
 _NOT_CHECKABLE_NO_CLOCK = (
     "the description records the marks and the values at midnight of a column's "
     "moments only where they write a time of day, and this column's "
@@ -534,9 +555,28 @@ _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "moments name as a whole"
 )
 _NOT_CHECKABLE_NO_MIDNIGHT_COUNT = (
-    "the description counts no values at midnight, because none stood "
-    "there or because too few stood there, or too few did not, for the "
-    "count to be published, so it asks no file for a number of them"
+    "the description publishes no count of the values at midnight, "
+    "because too few stood there, or too few did not, for a count to be "
+    "published without naming a single person, so it asks no file for a "
+    "number of them"
+)
+# WHAT A FILE HOLDS WHEN ITS OWN COUNT IS NOT PUBLISHABLE (landing 2b.6).
+# The description publishes a count of at least two that leaves at least
+# two off midnight. A checked file whose OWN description withholds that
+# count holds none, one, or all but one -- and not one of those three can
+# be the published number, so this is a MISS and not a closed gate.
+#
+# Reading it as a closed gate is a defect this landing nearly shipped: a
+# file with every one of 480 published values at midnight moved to 12:00
+# re-described as withholding its count, and the check came back WITHHELD
+# while the file had plainly missed the obligation.
+#
+# It is said WITHOUT A NUMBER on purpose. Which of the three the file
+# holds is a fact about a single row of it, and this report is written to
+# be readable by somebody holding no copy of the file at all.
+_COUNT_OUTSIDE_THE_BAND = (
+    "a count too near nought, or too near every value, for a description "
+    "to publish"
 )
 # THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
 # the sentence it carried is kept here as the record of what changed:
@@ -1912,17 +1952,23 @@ def _judged_here_alone(
     """Whether a published hole spelling is ONE column's judgement only.
 
     THE GENERATOR'S RULE, WRITTEN OUT HERE (V1.4 forbids the import, and
-    a test walks both writings together). A judged pass put it there
-    (`_one_judged_candidate`), AND no declaration can have: the table
-    declared no missing value, or this column counts no cell absent by
-    declaration, or the keys denoting the judged candidate -- with the
-    column's pooled hole spellings added -- hold no more cells than the
-    verdict's `n_occurrences`. A declared cell is taken out before any
-    pass judges, so every declared cell spelled on the candidate's day
-    puts the keys above that count. A `NA` declared in the judging
-    column no longer carries a judged `1900-01-01 00:00:00` to the whole
-    table (repair pass of landing 2b.3), and a person's own
-    `1900-01-01T00:00:00` beside it still reaches every column.
+    a test walks both writings together). A decision of this column
+    names the published spellings its own pass took out (contract V5),
+    and a spelling one of them names is that column's judgement;
+    everything else a column publishes among its absent cells was made
+    absent by something that reaches the whole table.
+
+    IT USED TO BE A COUNT, AND A COUNT CANNOT ANSWER IT (repair pass of
+    landing 2b.6). The version landing 2b.3 wrote asked whether the keys
+    denoting the candidate -- with the column's pooled hole spellings
+    added -- held more cells than the verdict's `n_occurrences`. Two
+    keys writing one placeholder day are the case it cannot read: 20
+    judged `1900-01-01 00:00:00` beside 30 `1900-01-01T00:00:00` the
+    person declared put 50 cells against a verdict of 20, the judged
+    spelling was promoted to a declaration of the whole table, and a
+    second column's 80 ordinary values were re-read as absent -- so the
+    REAL table missed 13 obligations of its own description, including
+    both presence counts and seven rungs of its date ladder.
 
     Guarantees: accepts one column, a spelling it publishes and the
     description; returns a bool. Determinism: a function of the three.
@@ -1932,26 +1978,7 @@ def _judged_here_alone(
     for named in description.settings.forced_decimal_commas:
         if named == column.name:
             comma = True
-    if not _one_judged_candidate(column, spelling, comma):
-        return False
-    if description.settings.declared_missing_values.n_declared <= 0:
-        return True
-    if column.missing_by_class.declared_missing <= 0:
-        return True
-    judged = 0
-    held = column.n_missing_withheld
-    for verdict in column.sentinel_verdicts:
-        if verdict.verdict != contract.VERDICT_MISSING:
-            continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if not _denotes_the_candidate(spelling, verdict.candidate, comma):
-            continue
-        judged = judged + verdict.n_occurrences
-        for key in sorted(column.missing_by_source):
-            if _denotes_the_candidate(key, verdict.candidate, comma):
-                held = held + column.missing_by_source[key]
-    return held <= judged
+    return _one_judged_candidate(column, spelling, comma)
 
 
 def _own_declarations_recovered(description: contract.Profile) -> int:
@@ -6375,10 +6402,9 @@ def _one_judged_candidate(
     for verdict in column.sentinel_verdicts:
         if verdict.verdict != contract.VERDICT_MISSING:
             continue
-        if verdict.candidate == contract.WITHHELD:
-            continue
-        if _denotes_the_candidate(spelling, verdict.candidate, comma):
-            return True
+        for named in verdict.spellings:
+            if named == spelling:
+                return True
     return False
 
 
@@ -11821,11 +11847,218 @@ def _datetime_checks(
                 None if seen is None else _shown_count(seen),
             )
         ]
+    # THE MEMBER THE DATES WERE WRITTEN IN (landing 2b.6). This was NOT
+    # CHECKABLE for as long as owner decision 5 stood: the twin wrote ISO
+    # whatever the source wrote, so no file could evidence the member
+    # that read the real column, and `format` was REPORT-ONLY because of
+    # it. The twin is written in the source's own member now, so
+    # describing it again must name that member -- and this is the one
+    # check that turns red on a writer that quietly goes back to ISO.
+    if not _mixed_forms_unwritten(facts):
+        checks += [
+            _exact(
+                name,
+                "datetime.format",
+                "format.member",
+                facts.parser_family,
+                _text_at(block, "format"),
+            )
+        ]
+    # `resolution_mix` IS NOT CHECKED, AND THAT IS A REASONED NARROWING
+    # rather than an oversight (landing 2b.6). The spelling audit asked
+    # for it to become exact beside `format`. On every column read under
+    # ONE member its census is, by the contract's RM1 and RM2, exactly
+    # that member carrying every parsed cell -- so a check of it would
+    # restate `format.member` and `counts.n_unparsed`, both of which are
+    # checked above, and a check that cannot fail on its own is the
+    # thing this validator is least allowed to add. On a column read
+    # JOINTLY it is unreachable for the other reason: the twin writes
+    # every value with a time of day (residual R-P4-12). Listed in both
+    # cases, never silent.
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor)
-    checks = checks + _midnight_checks(column, facts, block, floor)
+    checks = checks + _written_form_checks(column, facts, block, floor)
+    checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(column, facts, block)
     return checks
+
+
+def _mixed_forms_unwritten(facts: contract.DatetimeFacts) -> bool:
+    """Whether this column's own member is one no twin of it can show.
+
+    A column read jointly that mixes whole dates with real times of day:
+    the twin writes every value with a time of day, because a date-form
+    cell cannot spell an interior value published at the second
+    (residual R-P4-12), so describing that twin again reads it as
+    `iso-datetime` rather than as the joint member. Every other column
+    -- including a joint column wholly at midnight, which writes its
+    whole dates bare -- is written in its own member and read back as it.
+    """
+    return (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and not facts.all_at_midnight
+    )
+
+
+# The four censuses of how a column's dates were WRITTEN, with the key
+# each is published under and the subcheck family it reports in.
+_WRITTEN_FORMS = (
+    ("date_field_widths", "widths"),
+    ("month_name_styles", "names"),
+    ("quarter_marker_case", "markers"),
+    ("zulu_case", "zulu"),
+)
+
+
+def _written_census_of(
+    facts: contract.DatetimeFacts, key: str
+) -> "dict[str, int]":
+    """One of the four written-form censuses, by its published key."""
+    if key == "date_field_widths":
+        return facts.date_field_widths
+    if key == "month_name_styles":
+        return facts.month_name_styles
+    if key == "quarter_marker_case":
+        return facts.quarter_marker_case
+    return facts.zulu_case
+
+
+def _written_form_listings(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[Listing]":
+    """Name the written-form censuses this column's dates cannot show.
+
+    A census is empty where the member fixes the convention -- an ISO
+    date's fields are always two figures, a compact date has no month
+    name -- and an empty census asks a file for nothing. Said out loud
+    rather than passed over in silence, which is the rule every other
+    unevidenceable obligation here is under.
+    """
+    listings: "list[Listing]" = []
+    for key, _family in _WRITTEN_FORMS:
+        if _written_census_of(facts, key):
+            continue
+        listings += [
+            Listing(
+                column.name,
+                f"datetime.{key}",
+                "",
+                _NOT_CHECKABLE_NO_WRITTEN_FORM,
+            )
+        ]
+    return listings
+
+
+def _written_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """The censuses of HOW the dates were written, held (landing 2b.6).
+
+    Measured off the file's own description, made by the profiler's own
+    producer under the same declarations and floor, exactly as the marks
+    beside them are.
+
+    WHAT IS CHECKED IS THE SET OF CONVENTIONS AND ITS FLOOR, NOT THE
+    COUNT, and the difference is the honest part of this landing rather
+    than a weaker copy of `_mark_checks`. Whether a cell can SHOW a
+    convention depends on its own value: a day above the ninth shows no
+    field width, a month of May shows no name length. So how many cells
+    of a file could carry one is a fact about that file's values, and a
+    twin whose interior values fall a day either side of the real ones
+    carries a different number of them -- a count check would accuse a
+    faithful twin. What a faithful twin DOES owe is every convention the
+    real column used, each on at least a floor's worth of its cells, and
+    no convention the real column did not use beyond what the withheld
+    pool covers. That is what turns red on a writer that collapses a
+    mixed column onto its majority, or that goes back to ISO.
+
+    Guarantees: accepts the column, its facts, the file's re-described
+    block and the floor; returns a check per named convention and one
+    per census for the conventions nobody published. No I/O of any kind.
+    """
+    name = column.name
+    checks: "list[Check]" = []
+    for key, family in _WRITTEN_FORMS:
+        census = _written_census_of(facts, key)
+        if not census:
+            continue
+        fact = f"datetime.{key}"
+        measured = _map_at(block, key)
+        pool = census[contract.WITHHELD] if contract.WITHHELD in census else 0
+        published_total = 0
+        for named in census:
+            published_total = published_total + census[named]
+        for named in sorted(census):
+            if named == contract.WITHHELD:
+                continue
+            if measured is None:
+                checks += [
+                    Check(
+                        name,
+                        fact,
+                        f"{family}.{named}",
+                        WITHHELD,
+                        _at_least(floor),
+                        "",
+                        _GATE_CLOSED,
+                    )
+                ]
+                continue
+            found = measured[named] if named in measured else 0
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.{named}",
+                    HELD if found >= floor else MISSED,
+                    _at_least(floor),
+                    _shown_count(found),
+                )
+            ]
+        if measured is None:
+            checks += [
+                Check(
+                    name,
+                    fact,
+                    f"{family}.unnamed",
+                    WITHHELD,
+                    f"at most {_shown_count(pool)}",
+                    "",
+                    _GATE_CLOSED,
+                )
+            ]
+            continue
+        measured_total = 0
+        for named in measured:
+            measured_total = measured_total + measured[named]
+        # A CELL BEYOND THE PUBLISHED TOTAL HAS NO PUBLISHED IDENTITY,
+        # which is the same widening `_mark_checks` gives a joint
+        # column's clock-writing cells: how many of a file's own cells
+        # could show the convention is a fact about its values.
+        bound = pool + max(0, measured_total - published_total)
+        unnamed = 0
+        for named in measured:
+            if named == contract.WITHHELD or named not in census:
+                unnamed = unnamed + measured[named]
+        checks += [
+            Check(
+                name,
+                fact,
+                f"{family}.unnamed",
+                HELD if unnamed <= bound else MISSED,
+                f"at most {_shown_count(bound)}",
+                _shown_count(unnamed),
+            )
+        ]
+    return checks
+
+
+def _at_least(floor: int) -> str:
+    """What a convention the description names asks of a file."""
+    return f"at least {floor}"
 
 
 def _mark_checks(
@@ -11936,7 +12169,6 @@ def _midnight_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
-    floor: int = 1,
 ) -> "list[Check]":
     """Midnight, held where the description publishes it (landing 2b.3).
 
@@ -11963,24 +12195,36 @@ def _midnight_checks(
         checks += [
             _exact(name, "datetime.all_at_midnight", "midnight.all", "true", shown)
         ]
-    # ...AND A PUBLISHED NOUGHT AT A FLOOR OF ONE, which is exact there
-    # (integration repair of landing 2b.3). Above that floor nought also
-    # covers a count below it and asks a file nothing. Unchecked, a twin of
-    # dense minute stamps holding eight cells at `00:00` against a table
-    # holding none passed, and described again it said eight.
-    if facts.n_at_midnight > 0 or (
-        floor <= 1 and not facts.all_at_midnight and column.n_present > 0
-    ):
+    # ...AND NOWHERE ELSE SINCE LANDING 2b.6. A published nought used to
+    # be checked at a floor of one, where it was exact; there is no
+    # published nought any more, because a reader able to tell a real
+    # nought from a suppressed count of one has been told that count
+    # (the owner's twin definition, clause 3). The field is absent on
+    # both, and `_datetime_listings` lists it instead of checking it.
+    counted = facts.n_at_midnight
+    if counted is not None and counted > 0:
         seen = _count_at(block, "n_at_midnight")
-        checks += [
-            _exact(
-                name,
-                "datetime.n_at_midnight",
-                "midnight.count",
-                _shown_count(facts.n_at_midnight),
-                None if seen is None else _shown_count(seen),
-            )
-        ]
+        if seen is None:
+            checks += [
+                Check(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    MISSED,
+                    _shown_count(counted),
+                    _COUNT_OUTSIDE_THE_BAND,
+                )
+            ]
+        else:
+            checks += [
+                _exact(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    _shown_count(counted),
+                    _shown_count(seen),
+                )
+            ]
     return checks
 
 
@@ -12086,8 +12330,11 @@ def _date_ladder_checks(
     `((P - 1) * share * 100) // 100` over a floating-point share and
     then read the ladder through the float reader the numeric ladder
     uses, neither of which is the arithmetic G12.4 fixes. `_rung_rank`
-    and `_ladder_ordinal_at` are that arithmetic, and the suite compares
-    them with the generator's own writing of it at every resolution.
+    is that arithmetic, and the suite compares it with the generator's
+    own writing of it at every resolution. Since landing 2b.6 the rung's
+    own window needs no ladder reading at all: the rank a rung is
+    selected from is PINNED to that rung's published value, so the
+    window is the value itself (`_pin_bounds_of`).
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
@@ -12350,27 +12597,14 @@ def _datetime_distinct_window(
     """
     dated = max(1, column.n_present - facts.n_unparsed)
     lows, highs = _rank_windows(facts, dated)
+    # THE SEPARATENESS WALK NEEDS NO CORRECTION OF ITS OWN (landing
+    # 2b.6). A rank's window IS the gap between the pinned ranks either
+    # side of it now (`_pin_bounds_of`), and the move onto a midnight
+    # keeps every rank inside exactly that gap, so the widening, the
+    # deduction of the ranks the move may carry out, and the second set
+    # of pinned windows all computed a weaker form of this same count.
     separate = _ranks_forced_apart(lows, highs)
     step = _precision_step(facts)
-    if (
-        facts.resolution == taxonomy.RESOLUTION_DATETIME
-        and not _counts_in_days(facts)
-        and facts.n_at_midnight > 0
-    ):
-        # A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3):
-        # at most `n_at_midnight` moved, one pinned at each interior rung
-        # and one brought back to each pin leave their windows; every
-        # other rank keeps its window widened by one step. So the separate
-        # count over those widened windows, less the ranks that may leave,
-        # and never less than the count over `_widened_for_midnight`.
-        stepped = _ranks_forced_apart(
-            [low - step for low in lows], [high + step for high in highs]
-        )
-        moved = facts.n_at_midnight + 2 * (len(_LADDER_KEYS) - 2)
-        pinned_lows, pinned_highs = _widened_for_midnight(facts, dated)
-        separate = max(
-            stepped - moved, _ranks_forced_apart(pinned_lows, pinned_highs)
-        )
     earliest = _ordinal_of(facts.earliest, facts.resolution)
     latest = _ordinal_of(facts.latest, facts.resolution)
     room = (latest - earliest) // step + 1
@@ -12382,23 +12616,31 @@ def _datetime_distinct_window(
     return (float(lower), float(upper))
 
 
-def _widened_for_midnight(
+def _pin_bounds_of(
     facts: contract.DatetimeFacts, dated: int
 ) -> "tuple[list[int], list[int]]":
-    """The rank windows of a column whose ranks are moved onto a midnight.
+    """The pinned value below and above every rank -- the rank's GAP.
 
     THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4;
-    landing 2b.3, method G12.5). A column publishing values at midnight
-    and counted in seconds has its ranks moved onto a midnight between the
-    ranks the published tail pins -- the two ends and the rank each of the
-    nine interior rungs is read off, each held at its published value -- so
-    a rank can stand anywhere from the pinned value below it to the pinned
-    value above. Those are its windows for the count of ranks forced
-    apart; the rung checks keep G12.4's own windows.
+    method G7.3 and G12.4, landing 2b.6), never imported. The published
+    tail pins the two ends and the rank each of the nine interior rungs
+    is read off, each at its published value, and every other rank is
+    drawn inside the gap between the two pinned ranks either side of it.
+    So a rank stands between those two pinned values and nowhere else,
+    and a pinned rank has no room at all.
 
-    Guarantees: accepts the facts and the dated count; returns one window
-    per rank in this reading's own units. Linear. Determinism: a function
-    of the two. Raises nothing. No I/O of any kind.
+    IT IS NOW THE WHOLE OF THE WINDOW, not a second set beside it. Under
+    the construction this replaces, a rank was its own `1 / P` stratum
+    and these wider bounds were needed only for a column moved onto a
+    midnight, whose move carried ranks out of their strata; the gap is
+    where every rank of every column comes from now, so `_rank_windows`
+    below is built from this and the separateness walk of G12.5 needs no
+    correction of its own.
+
+    Guarantees: accepts the facts and the dated count; returns one lower
+    and one upper bound per rank in this reading's own units, both
+    non-decreasing. Linear. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
     """
     ladder = _ladder_ordinals(facts)
     step = _space_unit(facts)
@@ -12516,19 +12758,32 @@ def _rank_windows(
     """The window every rank of a column of dates sits in (method G12.4).
 
     THE CONSTRUCTION, WRITTEN FROM THE METHOD AND NOT IMPORTED (V1.4,
-    V4.2; review items P3-V4-F4 and P3-V4-F5). Rank `k` of G7.3 is its
-    own stratum: its share of the distribution is the band from `k / P`
-    to `(k + 1) / P` and no word can take it outside that band, so
+    V4.2; review items P3-V4-F4 and P3-V4-F5). Since landing 2b.6 rank
+    `k` of G7.3 is NOT its own stratum. The published tail PINS the two
+    ends and the rank each of the nine interior rungs is read off, each
+    at its published value, and every other rank is drawn inside the gap
+    between the two pinned ranks either side of it (`_pin_bounds_of`),
+    so with `P[k]` and `Q[k]` the pinned values below and above rank `k`
 
-        Ladder(k / P) - u   <=   O[k]   <=   Ladder((k + 1) / P)
+        P[k] - u   <=   O[k]   <=   Q[k]
 
-    with `Ladder` read by the SAME whole-number interpolation G7.3
-    builds cells with (`_ladder_ordinal_at`) and `u` the reading unit
-    below. **The two ends are PINNED**: G7.3 writes rank `0` at the
-    published `earliest` and rank `P - 1` at the published `latest`,
-    exactly as published, so those two ranks have no room at all. The
-    profile contract's D11 makes those two instants the ladder's own two
-    ends, which is why they are read off the ladder here.
+    and `u` the reading unit below. **A pinned rank's window is a
+    POINT**: it holds the value the description publishes and nothing
+    else, which is what makes each of the nine rungs an exact placement
+    rather than a band. **The two ends are pinned on both sides with no
+    allowance at all**, because G7.5 writes them from the endpoint's own
+    fields rather than from an ordinal, so writing them loses nothing;
+    the profile contract's D11 makes those two instants the ladder's own
+    two ends, which is why they are read off the ladder here.
+
+    WHAT THE BAND USED TO BE, and why widening it here is not a
+    loosening. Rank `k` used to be confined to `[k / P, (k + 1) / P)` of
+    the distribution, which is a tighter window for the ranks BETWEEN
+    rungs and a WRONGER one for the rungs themselves: the interpolation
+    floors, so every interior rung landed below its published value in
+    all 54 runs it was measured over, and the band was what let that
+    pass. The rungs are the only ranks this document checks a value at,
+    so the check those ranks get is strictly stronger now.
 
     Leaving the pinning out was review item P3-V4-F4: the first and last
     ranks got the interior band, the separateness walk of G12.5 then let
@@ -12554,6 +12809,7 @@ def _rank_windows(
     ladder = _ladder_ordinals(facts)
     unit = _reading_unit(facts)
     last = len(_LADDER_KEYS) - 1
+    bounds_low, bounds_high = _pin_bounds_of(facts, dated)
     lows: list[int] = []
     highs: list[int] = []
     for rank in range(dated):
@@ -12565,10 +12821,21 @@ def _rank_windows(
             lows += [step * ladder[last]]
             highs += [step * ladder[last]]
             continue
-        lows += [
-            step * _ladder_ordinal_at(ladder, rank, dated) - unit
-        ]
-        highs += [step * _ladder_ordinal_at(ladder, rank + 1, dated)]
+        room = unit
+        if bounds_low[rank] == bounds_high[rank]:
+            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6), and
+            # this is what makes the sentence above true rather than
+            # merely written. `u` covers the downward rounding of the
+            # draw and for a cell written to the minute; a rank whose
+            # two bounds are one value draws nothing and is written at
+            # the published value itself. Spending `u` there put the
+            # rung's window at [published - 1 day, published] on a
+            # column of dates, and a twin with every interior cell moved
+            # one day EARLY -- the defect landing 2b.6 repaired -- came
+            # back WITHIN-BOUND at all nine rungs.
+            room = 0
+        lows += [bounds_low[rank] - room]
+        highs += [bounds_high[rank]]
     return (lows, highs)
 
 
@@ -13435,20 +13702,30 @@ def _listings(
             ]
         facts = column.facts
         if isinstance(facts, contract.DatetimeFacts):
+            # `format` AND THE FORM CENSUS ARE CHECKED since landing
+            # 2b.6, where they were listed before it. Both were
+            # unevidenceable only because the twin was written in ISO
+            # whatever the source wrote, so no file could show the member
+            # that read the real column; the twin is written in that
+            # member now, so describing it again names it.
             listings += [
-                Listing(
-                    column.name,
-                    "datetime.format",
-                    "",
-                    _NOT_CHECKABLE_REPORT_ONLY,
-                ),
                 Listing(
                     column.name,
                     "datetime.resolution_mix",
                     "",
                     _NOT_CHECKABLE_RESOLUTION_MIX,
-                ),
+                )
             ]
+            if _mixed_forms_unwritten(facts):
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.format",
+                        "",
+                        _NOT_CHECKABLE_JOINT_MEMBER,
+                    )
+                ]
+            listings += _written_form_listings(column, facts)
             # CHECKED since landing 2b.3 wherever the description sets an
             # obligation (`_mark_checks`, `_midnight_checks`), and LISTED,
             # never silent, wherever it sets none.
@@ -13483,15 +13760,13 @@ def _listings(
                             _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT,
                         )
                     ]
-                # ...and not where `_midnight_checks` checks the nought,
-                # at a floor of one on a column with present cells not
-                # wholly at midnight (integration repair of landing
-                # 2b.3): one obligation is checked or listed, never both.
-                if facts.n_at_midnight <= 0 and not (
-                    smallest <= 1
-                    and not facts.all_at_midnight
-                    and column.n_present > 0
-                ):
+                # ...and LISTED wherever the description publishes no
+                # count at all, which since landing 2b.6 covers a column
+                # no value of which stood at midnight as well as one
+                # whose count either side of the floor would have named a
+                # single person: one obligation is checked or listed,
+                # never both.
+                if facts.n_at_midnight is None or facts.n_at_midnight <= 0:
                     listings += [
                         Listing(
                             column.name,

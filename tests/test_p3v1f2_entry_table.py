@@ -1316,11 +1316,37 @@ def _ladder_lifted(
     return _ladder_piled(described, text, index, at_the_top=True)
 
 
+def _ladder_flattened(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Both ends kept, and every cell between them on ONE value.
+
+    THE EDIT THE TWO DISTINCTNESS COUNTS ANSWER FOR SINCE LANDING 2b.6.
+    `crushed` used to catch them: under the stratified placement each
+    rank sat in its own slice of the distribution, so G12.5's lower end
+    counted almost every rank as forced apart from its neighbours, and a
+    file that piled its middle into half the range held fewer different
+    values than that. Method G7.3 pins the rungs and draws every other
+    rank inside the gap between two pinned ranks now, so ranks in one
+    gap are NOT forced apart at all and the lower end is the number of
+    different PINNED values -- eleven at most. A pile into half the
+    range clears that easily, and `crushed` stopped reaching these two
+    sites while still reaching the rungs.
+
+    So this edit puts every interior cell on one value, which is what a
+    file has to do to fall below the bound the construction now
+    guarantees. The two ends are kept, so both end checks and both
+    ladder ends still hold and these two counts answer for themselves.
+    """
+    return _ladder_piled(described, text, index, at_the_top=False, spread=1)
+
+
 def _ladder_piled(
     described: contract.Profile,
     text: str,
     index: int,
     at_the_top: bool,
+    spread: int = 0,
 ) -> str:
     """A datetime column with its two ends kept and its middle piled to one side.
 
@@ -1375,7 +1401,7 @@ def _ladder_piled(
         if row in keep:
             continue
         rows[row][index] = generation._cell_of_ordinal(
-            corner + (place % half),
+            corner + (place % (spread if spread else half)),
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
@@ -2400,6 +2426,21 @@ def _column_perturbations(
                 _one_variant(described, twin, index),
             ),
         ]
+    if column.role == "datetime":
+        # HOW THE DATES WERE WRITTEN, landing 2b.6. Case-folding a column
+        # of dates leaves every member's own reading exactly where it
+        # was -- the readers take either case of a quarter's marker and
+        # of a zulu marker, and month names are matched folded -- and
+        # moves only the census of how those markers were WRITTEN. It is
+        # therefore the edit that reaches those censuses and disturbs as
+        # little else as an edit can, which is what a red case has to be.
+        built = built + [
+            (
+                f"lowered-{name}",
+                CLASS_CASING,
+                _mapped(described, twin, index, lambda cell: cell.lower()),
+            )
+        ]
     if column.role == "time_of_day":
         built = built + [
             (f"crushed-{name}", CLASS_DATE, _clock_crushed(described, twin, index)),
@@ -2433,6 +2474,16 @@ def _column_perturbations(
                 f"lifted-{name}",
                 CLASS_DATE,
                 _ladder_lifted(described, twin, index),
+            ),
+            # ...AND THE SAME EDIT WITH NO SPREAD AT ALL (landing 2b.6).
+            # The two distinctness counts are bounded below by the
+            # number of different PINNED values now, not by a rank per
+            # slice, so only a file that puts its whole middle on one
+            # value falls under it.
+            (
+                f"flattened-{name}",
+                CLASS_DATE,
+                _ladder_flattened(described, twin, index),
             ),
         ]
         moved = (
@@ -3052,16 +3103,23 @@ NAMED_RED_CASES = (
         "datetime.date_percentiles",
         "date-ladder.p99",
     ),
+    # MOVED FROM `crushed` TO `flattened` AT LANDING 2b.6, because the
+    # bound these two answer to changed. G12.5's lower end used to count
+    # a rank per slice of the distribution and a pile into half the
+    # range fell under it; it counts the different PINNED values now, so
+    # only a file whose whole middle sits on ONE value does. The sites
+    # are unchanged and still covered -- what moved is the edit that can
+    # actually make them miss.
     RedCase(
         "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct",
         "distinct.n_distinct",
     ),
     RedCase(
         "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct_folded",
         "distinct.n_distinct_folded",
@@ -3828,6 +3886,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-recorded_on", "precision.resolution"),
             ("blanked-recorded_on", "presence.n_missing"),
             ("blanked-recorded_on", "presence.n_present"),
+            # THE MEMBER, an obligation since landing 2b.6: writing the
+            # whole dates as moments has the file read under another
+            # member, so the member the description names is not the
+            # member the file is read under.
+            ("timed-recorded_on", "format.member"),
         ),
         "note": (
             # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
@@ -4469,6 +4532,17 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("timed-when", "precision.time_precision"),
             ("blanked-when", "presence.n_missing"),
             ("blanked-when", "presence.n_present"),
+            # THE MEMBER AND THE MARKER, obligations since landing 2b.6.
+            # `timed-when` writes the quarters as moments, so the file
+            # is read under another member and the member check misses;
+            # `lowered-when` writes `2024-q1` for `2024-Q1`, which is
+            # the SAME member -- the reader takes either case -- and
+            # moves only how the marker was written, so it is the edit
+            # that reaches the marker census and as little else as an
+            # edit can.
+            ("timed-when", "format.member"),
+            ("lowered-when", "markers.upper"),
+            ("lowered-when", "markers.unnamed"),
         ),
     },
     "headerless": {
@@ -5002,6 +5076,19 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # each shown able to fail on a real round trip.
     ("datetime", "marks.upper_t"): "datetime.datetime_separators",
     ("datetime", "marks.unnamed"): "datetime.datetime_separators",
+    # THE MEMBER AND THE WRITTEN FORMS, obligations since landing 2b.6,
+    # where the owner reversed decision 5 and the twin began to be
+    # written in the member that read the real column. Only the
+    # `quarters` fixture holds a column whose member can show a written
+    # form -- the case of its `Q` -- so those two subchecks are the
+    # sites the shipped table files for that family; a line for a site
+    # no fixture files asserts nothing and is refused below. The widths
+    # and the month-name styles are held by
+    # `tests/test_stage2_dates_as_written.py`, each shown able to fail
+    # on a real round trip.
+    ("datetime", "format.member"): "datetime.format",
+    ("datetime", "markers.upper"): "datetime.quarter_marker_case",
+    ("datetime", "markers.unnamed"): "datetime.quarter_marker_case",
     # -- document ----------------------------------------------------------
     ("document", "bytes.byte-order-mark"): "document.encoding",
     ("document", "bytes.line-endings"): "document.line-endings",
@@ -5433,8 +5520,28 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "datetime.all_at_midnight",
         "datetime.datetime_separators",
         "datetime.n_at_midnight",
-        "datetime.format",
+        # `datetime.format` LEFT THIS LIST at landing 2b.6. The owner
+        # reversed decision 5, so the twin is written in the member that
+        # read the real column and describing it again names that
+        # member: every date column of every fixture here now files
+        # `format.member` as a CHECK. It returns to a listing on one
+        # column only -- an `iso-mixed` column not wholly at midnight,
+        # whose twin writes every value with a time of day (R-P4-12) --
+        # and no fixture here holds one.
         "datetime.resolution_mix",
+        # ...and the four censuses of HOW the dates were written arrive
+        # as listings here for the same reason the three above are:
+        # every date column of these fixtures is read under a member
+        # whose fields are of fixed width, which writes no month NAME,
+        # which is no column of quarters and which names no zulu
+        # offset, so each census is empty and asks a file for nothing.
+        # The `quarters` fixture is the exception and files its marker
+        # census as two checks, which is why it is absent from three of
+        # these four on that column rather than from all four.
+        "datetime.date_field_widths",
+        "datetime.month_name_styles",
+        "datetime.quarter_marker_case",
+        "datetime.zulu_case",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",

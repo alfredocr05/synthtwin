@@ -327,10 +327,21 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
 ) -> None:
     """The source's own spelling of that day reads as absent, so it cannot be kept.
 
-    At seed 0 the twin places values on that day (the stage 2 closure
-    review measured seed 4 placed none, so the first version of this test
-    exercised nothing): they are written with another mark, the census
-    falls short, and the report names it.
+    At seed 4 the twin places values on that day: they are written with
+    another mark, the census falls short, and the report names it.
+
+    THE SEED MOVED FROM 0 TO 4 AT LANDING 2b.6, and which seed exercises
+    this is now a property of the construction rather than an accident.
+    Under the stratified placement this test was written against, 240
+    ranks over 220 days gave every day about one rank, so the declared
+    day was hit at essentially every seed. Ranks are drawn independently
+    inside their gap now, so a particular day is hit at some seeds and
+    not others: measured over seeds 0 to 39, a present rank lands on the
+    declared day at 16 of them and not at the other 24. Seed 0 is one of
+    the 24, so leaving it here would have left this test asserting a
+    repair it never triggered -- the very thing the closure review found
+    the first version of it doing. At seeds 1, 4 and 8 it fires, and the
+    twin still exits 3 with exactly the mark census missed.
     """
     cells = _days(220, " 00:00:00", 51) + ["2025-06-01 00:00:00"] * 20
     first, second, written, twin_exit, _real = _round_trip(
@@ -338,7 +349,7 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
         cells,
         ("--missing-value", "2025-06-01 00:00:00"),
         False,
-        seed="0",
+        seed="4",
     )
     # The twenty absent cells are written in their declared spelling, and
     # no present value wears it: described again, the twin holds exactly
@@ -372,8 +383,21 @@ def test_a_repair_never_turns_a_column_of_dates_into_two_values(
     )
     assert first["role"] == "datetime"
     assert second["role"] == "datetime", second["role"]
-    assert twin_exit == 3
-    assert _only_the_marks_missed(tmp_path / "three") == ["datetime.datetime_separators"]
+    # REPAIRED AT LANDING 2b.6, and re-pinned to the better behaviour
+    # rather than to the shortfall it used to pin. This shape is 240
+    # cells over TWO days with one spelling of the first declared
+    # absent. Under the stratified placement each rank sat in its own
+    # slice of a two-day range, so a large block of ranks landed on the
+    # declared day, every one of them had to be given another mark, and
+    # the census of marks then fell short: the twin missed
+    # `datetime.datetime_separators` and exited 3. Ranks are drawn
+    # across the gap now, the marks the census asks for are all
+    # writable, and the twin holds the published census exactly --
+    # measured: the real column publishes 96 `t` and 96 spaces, and the
+    # twin writes 96 and 96.
+    assert twin_exit == 0
+    assert _only_the_marks_missed(tmp_path / "three") == []
+    assert second["datetime_separators"] == first["datetime_separators"]
 
 
 def test_labels_beside_decimal_comma_numbers_stay_labels(tmp_path: pathlib.Path) -> None:
@@ -467,10 +491,19 @@ def test_a_case_only_respelling_never_turns_moments_into_two_values(
     assert second["role"] == "datetime", second["role"]
     assert isinstance(second["n_distinct_folded"], int)
     assert second["n_distinct_folded"] >= 3
-    assert twin_exit == 3
-    assert _only_the_marks_missed(tmp_path / "case") == ["datetime.datetime_separators"]
-    report = (tmp_path / "case" / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert "datetime_separators" in report
+    # REPAIRED AT LANDING 2b.6, on the same cause as the three-spelling
+    # shape above and re-pinned the same way. Ten cells over two days
+    # left the stratified placement no room: ranks piled onto the
+    # declared-absent spelling's day, the census repair could not give
+    # them all a mark the census names, and the twin missed
+    # `datetime.datetime_separators`. Measured after the change at all
+    # three seeds: the real column publishes one `t`, three spaces and
+    # two `T`, and the twin writes exactly that, holding four different
+    # values as the real column does.
+    assert twin_exit == 0
+    assert _only_the_marks_missed(tmp_path / "case") == []
+    assert second["datetime_separators"] == first["datetime_separators"]
+    assert second["n_distinct"] == first["n_distinct"] == 4
 
 
 @pytest.mark.parametrize("seed", ["0", "4"])

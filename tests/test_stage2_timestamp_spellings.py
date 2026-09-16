@@ -37,7 +37,7 @@ import typing
 
 import pytest
 
-from synthtwin import contract, generation, validation
+from synthtwin import contract, generation, parsing, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of, _round_trip
 
@@ -181,8 +181,20 @@ def test_a_slashed_stamp_whose_every_mark_is_held_back_keeps_its_space(
         tmp_path / "slashed-pool", cells, ("--smallest-group", "700"), True, seed
     )
     assert first["datetime_separators"] == {"(withheld)": 600}
-    assert _marks(written) == {" ": 600}
+    # ASKED THROUGH THE MEMBER'S OWN READER since landing 2b.6, not at
+    # character eleven. The twin is written in the source's member now,
+    # and an Excel-style column writes `3/17/2024 14:05` as well as
+    # `03/17/2024 14:05`, so character eleven is a digit of the date on
+    # every unpadded cell. What the census is about is the mark between
+    # the day and the clock, which is what this asks for.
+    marks: "dict[str, int]" = {}
+    for cell in written:
+        found = parsing.datetime_separator(cell, "month-first-datetime")
+        assert found is not None, cell
+        marks[found] = marks[found] + 1 if found in marks else 1
+    assert marks == {"space": 600}
     assert second["datetime_separators"] == first["datetime_separators"]
+    assert second["format"] == first["format"] == "month-first-datetime"
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -206,7 +218,16 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
     )
     assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == ("datetime", 3, 3)
     assert second["role"] == "datetime"
-    assert (second["n_distinct"], second["n_distinct_folded"]) == (5, 4)
+    # SIX SINCE LANDING 2b.6, WHERE IT WAS FIVE, and the shape is still
+    # designed not to return. The pooled spellings are still given to
+    # ranks without regard to value, so they still land on both days;
+    # what changed is that the ranks themselves are drawn across the gap
+    # between the pinned values rather than each sitting in its own
+    # slice, so one more of the pooled marks falls on a day that did not
+    # already carry it. The column keeps its kind and the named count
+    # still moves -- by three spellings now rather than two -- and
+    # nothing says it moves except the distinct-count window.
+    assert (second["n_distinct"], second["n_distinct_folded"]) == (6, 4)
     assert twin_exit == 0
 
 
@@ -280,9 +301,8 @@ def _partly(count: int, share: float, seed: int, days: int = 700, form: str = "%
         (lambda: _partly(2000, 0.7, 2), "4"),
         (lambda: _partly(2000, 0.7, 21, days=30), "3"),
         (lambda: _partly(600, 191 / 600, 22, days=900, form="%Y-%m-%d %H:%M"), "7"),
-        (lambda: _days(999, " 00:00:00", 3) + ["2024-05-05 14:30:00"], "5"),
     ],
-    ids=["400-at-90", "400-at-90-seed1", "2000-at-70", "2000-over-30-days", "minutes", "one-stray-time"],
+    ids=["400-at-90", "400-at-90-seed1", "2000-at-70", "2000-over-30-days", "minutes"],
 )
 def test_a_column_partly_at_midnight_keeps_its_count_of_values_at_midnight(
     tmp_path: pathlib.Path, cells_of: object, seed: str
@@ -372,35 +392,44 @@ def test_a_partly_midnight_column_moved_off_midnight_misses_the_count(tmp_path: 
     assert _misses(report, "datetime.n_at_midnight")
 
 
-def test_a_twin_holding_one_midnight_the_table_never_held_misses_the_count(
+def test_a_column_holding_no_midnight_publishes_no_count_and_asks_for_none(
     tmp_path: pathlib.Path,
 ) -> None:
-    """At a floor of one a published nought is exact, so it is checked (integration repair).
+    """The nought is withdrawn with the rule it bought (landing 2b.6).
 
-    Before, `n_at_midnight` was checked only where it was above nought, and a
-    twin of dense minute stamps holding eight cells at midnight passed.
+    A published nought was checked at a floor of one, which is what made a
+    count of ONE disclosive: a reader who can tell a real nought from a
+    suppressed singleton has been told the singleton. So no count is
+    published here at all, a file holding one midnight misses nothing, and
+    the field is LISTED with the reason rather than checked.
     """
     cells = _minutes(1200, " ", 11)
-    _first, _second, written, twin_exit, real_exit = _round_trip(
+    first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "none", cells, (), True, "4"
     )
+    assert first["n_at_midnight"] is None
     assert (twin_exit, real_exit) == (0, 0)
+    before = sum(1 for cell in written if _at_midnight(cell))
     moved = [cell[:11] + "00:00" + cell[16:] if place == 7 else cell for place, cell in enumerate(written)]
-    assert sum(1 for cell in moved if _at_midnight(cell)) == 1
+    assert sum(1 for cell in moved if _at_midnight(cell)) == before + 1
     code, report = _validate(tmp_path / "none" / "real-profile.json", moved, tmp_path / "moved")
-    assert code == 3
-    assert _misses(report, "datetime.n_at_midnight")
+    assert code == 0
+    assert not _misses(report, "datetime.n_at_midnight")
+    assert "without naming a single person" in report
 
 
 @pytest.mark.parametrize("seed", ["4", "11"])
 def test_dense_minute_stamps_around_midnight_get_a_twin_with_none(
     tmp_path: pathlib.Path, seed: str
 ) -> None:
-    """1,000 stamps between 23:00 and 00:59, none at 00:00 (integration repair).
+    """1,000 stamps between 23:00 and 00:59, none at 00:00.
 
-    Eight ranks stood seconds apart inside the written minute `00:00`, one
-    of them a rung's rank, so none could move alone, and the twin wrote
-    eight such cells; each run of such ranks now moves out as one.
+    The integration repair of landing 2b.3 moved each run of ranks written
+    inside the forbidden minute out together, to meet a published nought.
+    Landing 2b.6 withdrew that nought -- it could not be told from a
+    suppressed count of one -- so the description asks the twin for no
+    number of values at midnight, and what this shape pins now is that
+    nothing is published and nothing is missed.
     """
     draw = random.Random(4)
     start = datetime.datetime(2025, 3, 1, 23)
@@ -412,10 +441,18 @@ def test_dense_minute_stamps_around_midnight_get_a_twin_with_none(
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "dense", cells, (), True, seed
     )
-    assert first["n_at_midnight"] == 0
-    assert sum(1 for cell in written if cell.endswith("T00:00")) == 0
-    assert second["n_at_midnight"] == 0
-    assert second["n_distinct"] == first["n_distinct"]
+    assert first["n_at_midnight"] is None
+    # AND THE TWIN IS NOT HELD TO IT, which is the cost this landing
+    # accepts and names: the description withholds the count, so the construction
+    # owes nothing, and on these dense stamps the twin holds eight values
+    # at midnight where the real column held none. Nothing is missed,
+    # because nothing was promised.
+    #
+    # The count of different instants moves with it -- 120 against the
+    # source's 119 -- and that is a BOUNDED fact rather than an exact one,
+    # so the twin still meets its own published window. The exits below
+    # are what says so; pinning the two counts equal pinned a coincidence
+    # of the withdrawn rule.
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -598,7 +635,15 @@ def test_both_writings_of_the_judged_rule_answer_alike(
 def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     tmp_path: pathlib.Path, form: str, precision: str, seed: str
 ) -> None:
-    """Read as `slashed-iso-datetime`; the twin writes ISO by owner decision 5."""
+    """Read as `slashed-iso-datetime`, and WRITTEN BACK AS ONE (2b.6).
+
+    Until 2026-09-15 this test pinned the opposite and said so: the
+    twin's cells were ISO by owner decision 5, and the member was the
+    one fact designed not to return. The owner reversed that decision,
+    so the member now comes back and the assertion comes back with it --
+    `2024/06/13 07:55` rather than `2024-06-13 07:55`, which is what
+    `strptime('%Y/%m/%d %H:%M')` needs on the twin as on the table.
+    """
     draw = random.Random(2)
     cells = [
         (datetime.datetime(2022, 1, 1) + datetime.timedelta(seconds=draw.randrange(0, 800 * 86400))).strftime(form)
@@ -606,11 +651,15 @@ def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     ]
     first, second, written, twin_exit, real_exit = _round_trip(tmp_path / "slash", cells, (), True, seed)
     assert (first["role"], first["format"], first["time_precision"]) == ("datetime", "slashed-iso-datetime", precision)
-    # The one fact designed not to return: the twin's cells are ISO.
-    assert second["format"] == "iso-datetime"
-    for key in ("role", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
+    # THE FACT THAT NOW RETURNS, and the reason this test exists.
+    assert second["format"] == "slashed-iso-datetime"
+    for key in ("role", "format", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
         assert second[key] == first[key], (key, first[key], second[key])
-    assert all(cell[4] == "-" and cell[10] == " " for cell in written)
+    # The year leads, the fields are slashed and padded, and the clock
+    # stands after one space: the source's own shape, character for
+    # character, where every one of these cells used to be an ISO stamp.
+    assert all(cell[4] == "/" and cell[7] == "/" and cell[10] == " " for cell in written)
+    assert all(parsing.parse_datetime(cell, "slashed-iso-datetime") is not None for cell in written)
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -805,18 +854,153 @@ def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves
 def test_a_column_with_no_value_at_midnight_gets_a_twin_with_none(
     tmp_path: pathlib.Path, seed: str
 ) -> None:
-    """Minute stamps none of which stands at midnight: `n_at_midnight` 0 comes back as 0.
+    """Minute stamps none of which stands at midnight publish no count at all.
 
-    At a floor of one the nought says no value stood there, and a twin
-    interpolated to the minute put one there by chance on seed 4, which read
-    back as a count of 1.
+    The nought this shape used to publish was withdrawn at landing 2b.6:
+    nought and a suppressed count of one were tellable apart, and telling
+    them apart IS the singleton. Both sides say nothing now, and the twin
+    still meets every other fact of the column.
     """
     cells = _minutes(1200, " ", 11)
     assert sum(1 for cell in cells if _at_midnight(cell)) == 0
-    first, second, written, twin_exit, real_exit = _round_trip(
+    first, second, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "none", cells, (), True, seed
     )
-    assert first["n_at_midnight"] == 0
-    assert sum(1 for cell in written if _at_midnight(cell)) == 0
-    assert second["n_at_midnight"] == 0
+    assert first["n_at_midnight"] is None
+    # The twin may hold a value at midnight the real column did not, and
+    # whatever it holds its own description withholds or publishes on its
+    # own terms; what is pinned here is that the SOURCE says nothing.
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+# -- the disclosure floor: no count of values at midnight names one person
+#
+# CODEX'S OWN REPRODUCTION AGAINST LANDING 2b.3, run here as the gate.
+# 400 moments a day apart at noon, described twice -- the second time with
+# zero-based row 31 moved to midnight. Both descriptions loaded, and the
+# ONLY difference between them anywhere in either document was
+# `n_at_midnight: 0 -> 1`. Somebody holding the other 399 values read that
+# row's time of day off the difference, which is exactly what clause 3 of
+# the owner's twin definition forbids.
+
+
+def _noon_days(count: int) -> "list[str]":
+    """Moments a day apart, every one at noon, written as the source wrote them."""
+    start = datetime.datetime(2025, 1, 1, 12)
+    return [(start + datetime.timedelta(days=step)).isoformat() for step in range(count)]
+
+
+def _described(folder: pathlib.Path, cells: "list[str]") -> "dict[str, object]":
+    """Describe a one-column table and hand back the column block."""
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
+    loaded = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
+    block: "dict[str, object]" = loaded["columns"][0]
+    return block
+
+
+@pytest.mark.parametrize("place", [31, 0, 399, 200])
+def test_one_value_moved_to_midnight_changes_nothing_in_the_description(
+    tmp_path: pathlib.Path, place: int
+) -> None:
+    """The reviewer's reproduction: one row moved to midnight is invisible."""
+    plain = _noon_days(400)
+    one = list(plain)
+    one[place] = plain[place][:11] + "00:00:00"
+    first = _described(tmp_path / "plain", plain)
+    second = _described(tmp_path / "one", one)
+    assert first["n_at_midnight"] is None
+    assert second["n_at_midnight"] is None
+    moved = [key for key in sorted(set(first) | set(second)) if first.get(key) != second.get(key)]
+    # The ladder and the two ends move, because one value of the column
+    # moved; what may not move is the count, and it does not.
+    assert "n_at_midnight" not in moved
+    assert "all_at_midnight" not in moved
+
+
+@pytest.mark.parametrize("place", [31, 399])
+def test_one_value_moved_off_midnight_changes_no_count(
+    tmp_path: pathlib.Path, place: int
+) -> None:
+    """The complement: 399 of 400 at midnight names the one that is not."""
+    start = datetime.datetime(2025, 1, 1)
+    whole = [(start + datetime.timedelta(days=step)).isoformat() for step in range(400)]
+    one = list(whole)
+    one[place] = whole[place][:11] + "09:30:00"
+    second = _described(tmp_path / "one-off", one)
+    assert second["all_at_midnight"] is False
+    assert second["n_at_midnight"] is None
+
+
+@pytest.mark.parametrize("seed", ["4", "11", "0"])
+def test_a_partly_midnight_column_at_the_floor_still_comes_back(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The commonest real shape is untouched: both sides clear the floor.
+
+    The disclosure floor bites on a group of one, not on a real mixture, so
+    a column of 1,200 rows with 300 of them at midnight publishes its count
+    and its twin writes exactly that many.
+    """
+    cells = _partly(1200, 0.25, 17, days=500)
+    first, second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "mixed", cells, (), True, seed
+    )
+    real = sum(1 for cell in cells if _at_midnight(cell))
+    assert real >= 2 and len(cells) - real >= 2
+    assert first["n_at_midnight"] == real
+    assert sum(1 for cell in written if _at_midnight(cell)) == real
+    assert second["n_at_midnight"] == real
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_a_group_of_one_on_either_side_is_never_published(
+    tmp_path: pathlib.Path, count: int
+) -> None:
+    """A group of one at midnight, and a group of one off it, both stay unsaid."""
+    cells = _partly(600, 0.0, 23, days=400)
+    cells = [cell for cell in cells if not _at_midnight(cell)]
+    for place in range(count):
+        cells[place] = cells[place][:11] + "00:00:00"
+    block = _described(tmp_path / f"group-of-{count}", cells)
+    if count == 1:
+        assert block["n_at_midnight"] is None
+    else:
+        assert block["n_at_midnight"] == 2
+
+
+@pytest.mark.parametrize("seed", ["5", "4"])
+def test_one_stray_time_among_a_thousand_at_midnight_publishes_no_count(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """999 values at midnight beside ONE that is not: the count stays unsaid.
+
+    This shape used to be a witness that the count came back exactly, and
+    landing 2b.6 turned it into a witness of the opposite, because the
+    suite had been pinning a disclosure: with 999 published against 1,000
+    parsed, anybody holding the other 999 values reads the stray one's
+    time of day straight off the arithmetic. The complement is a group of
+    one, so no count is published -- and `all_at_midnight` is `false`
+    beside it, which is the older fact stage 3's floors reach.
+    """
+    cells = _days(999, " 00:00:00", 3) + ["2024-05-05 14:30:00"]
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "stray", cells, (), True, seed
+    )
+    assert sum(1 for cell in cells if _at_midnight(cell)) == 999
+    assert first["all_at_midnight"] is False
+    assert first["n_at_midnight"] is None
+    # THE COST, MEASURED AND NAMED. The real column stands 999 of 1,000 at
+    # midnight; the twin does not, because the only fact that would have
+    # carried that shape is the one that named the stray row's owner. A
+    # twin reproducing it would publish the same count through its own
+    # cells, so this loss is required rather than incidental.
+    assert second["n_at_midnight"] != 999
     assert (twin_exit, real_exit) == (0, 0)

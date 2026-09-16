@@ -216,11 +216,13 @@ BRANCH_CASES = (
 # 2b.2 added, split out when the second would have passed the provenance
 # guard's byte cap (G14.2). The order of this tuple is its sorted order too.
 SECOND_BRANCH_CASES = (
-    # THE TWO CASES OF LANDING 2b.3'S REPAIR PASS: an accidental value at
-    # midnight moved off a column that publishes none, and bare dates beside
-    # moments at local midnight on a real offset, whose ranks with a published
-    # instant settle their form and offset before the rotation.
-    "accidental_midnight",
+    # LANDING 2b.3'S REPAIR PASS left one case in this file, and landing 2b.6
+    # withdrew it: an accidental value at midnight was moved off a column
+    # publishing a count of nought, and no column publishes that nought any
+    # more, because a reader able to tell it from a suppressed count of one had
+    # been told that count. Its neighbour -- bare dates beside moments at local
+    # midnight on a real offset, whose ranks with a published instant settle
+    # their form and offset before the rotation -- is in the first file.
     # THE REST OF LANDING 2b.2'S MARKS AND NOTATIONS, frozen at the
     # integration of landings 2b.1 to 2b.5 once the branch cases had a file
     # with room: the apostrophe with the minus sign, U+2019 with the trailing
@@ -307,7 +309,6 @@ SEEDS = {
     "partial_midnight": 127,
     "midnight_two_offsets": 128,
     "midnight_bare_offsets": 129,
-    "accidental_midnight": 130,
     "grouped_charges": 124,
     "grouped_decimal_comma": 125,
     "spaced_brackets": 126,
@@ -1102,22 +1103,60 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
+def _stratified_ranks(rungs, parsed, words):
+    """G7.3's WITHDRAWN placement: one cell per rank in its own stratum.
+
+    THE RULE LANDING 2b.6 REPLACED, restored here so the case that pins
+    the date form still fails when the placement rule is withdrawn. The
+    two ends are pinned and no interior rung is: each interior rank is
+    interpolated inside the band from `k / P` to `(k + 1) / P`, which is
+    what gave every day almost exactly its expected count and put every
+    published rung a day or more early.
+
+    It spends one word per interior rank, exactly as the real rule does,
+    so the mutant differs from it in WHERE the ranks land and in nothing
+    else -- not in how many words the column draws, which would move
+    every column generated after it and make the case fail for a second
+    reason.
+    """
+    ordinals = []
+    for rank in range(parsed):
+        if rank == 0:
+            ordinals.append(rungs[0])
+        elif rank == parsed - 1 and parsed >= 2:
+            ordinals.append(rungs[len(gen.PCT) - 1])
+        else:
+            ordinals.append(
+                gen.interpolated_ordinal(
+                    rank * gen.TWO64 + next(words), parsed * gen.TWO64, rungs
+                )
+            )
+    return ordinals
+
+
 _precision_form = gen.precision_form
 
 
 def _zero_based_quarter(
-    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+    ordinal, resolution, time_precision, subsecond_digits, mark="T", **written
 ):
-    """G7.5's quarter form off by one: `2024-Q0` for the first quarter."""
+    """G7.5's quarter form off by one: `2024-Q0` for the first quarter.
+
+    The keyword arguments the reversal of owner decision 5 added --
+    which member the date half is written in, and at which conventions
+    (landing 2b.6) -- ride through untouched, so this mutant still
+    differs from the real rule in the quarter's own figure and in
+    nothing else.
+    """
     if resolution == "quarter":
         return f"{1970 + ordinal // 4:04d}-Q{ordinal % 4}"
     return _precision_form(
-        ordinal, resolution, time_precision, subsecond_digits, mark
+        ordinal, resolution, time_precision, subsecond_digits, mark, **written
     )
 
 
 def _month_as_a_day(
-    ordinal, resolution, time_precision, subsecond_digits, mark="T"
+    ordinal, resolution, time_precision, subsecond_digits, mark="T", **written
 ):
     """G7.1's month row withdrawn: the month read in the DAY space.
 
@@ -1130,7 +1169,7 @@ def _month_as_a_day(
     if resolution == "month":
         return f"{1970 + ordinal // 12:04d}-{ordinal % 12 + 1:02d}-01"
     return _precision_form(
-        ordinal, resolution, time_precision, subsecond_digits, mark
+        ordinal, resolution, time_precision, subsecond_digits, mark, **written
     )
 
 
@@ -1149,12 +1188,16 @@ def _reproduce_instead_of_standing_in(used, wanted):
 
 
 def _through_the_ordinal_space(
-    text, resolution, time_precision, subsecond_digits, shift, mark="T"
+    text, resolution, time_precision, subsecond_digits, shift, mark="T",
+    **written,
 ):
     """G7.5's endpoint route withdrawn: both ends back through G7.1.
 
-    The mark rides through unchanged, so the mutant differs from the
-    real rule only in the route and never in the separator.
+    The mark rides through unchanged, and so do the arguments the
+    reversal of owner decision 5 added -- which member the date half is
+    written in, and at which conventions (landing 2b.6) -- so the mutant
+    differs from the real rule only in the ROUTE and never in the
+    separator or the spelling.
     """
     return gen.precision_form(
         gen.ordinal_of(text, resolution) + shift,
@@ -1162,12 +1205,8 @@ def _through_the_ordinal_space(
         time_precision,
         subsecond_digits,
         mark,
+        **written,
     )
-
-
-def _seconds_even_at_midnight(column):
-    """P4-D39's day-unit rule withdrawn: every column counted in its resolution."""
-    return column["resolution"]
 
 
 def _marks_from_the_first_rank(column, parsed):
@@ -1220,11 +1259,6 @@ def _ends_alone(column, parsed):
     if parsed >= 2:
         fixed[parsed - 1] = (column["latest_utc_offset"],)
     return fixed
-
-
-def _accidental_midnight_kept(column):
-    """The repair pass withdrawn: an accidental value at midnight is never moved off."""
-    return False
 
 
 def _days_on_either_clock(column):
@@ -1606,11 +1640,13 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(
-        branch="G7.3's floor rounding, which rounds toward the EARLIER "
-        "instant always; the mutant rounds toward the later one, and ten "
-        "interior ranks move",
-        attribute="interpolated_ordinal",
-        replacement=_toward_the_later_instant,
+        branch="G7.3's placement as landing 2b.6 rewrites it: the nine "
+        "interior rungs pinned to their PUBLISHED values and every other "
+        "rank drawn inside the gap between the pinned ranks either side "
+        "of it; the mutant restores the withdrawn stratified placement, "
+        "and the interior ranks move",
+        attribute="spread_ordinals",
+        replacement=_stratified_ranks,
         outcome=CHANGES_THE_CELLS,
     ),
     "free_text_joint": Mutant(
@@ -1724,12 +1760,30 @@ CASE_MUTANTS = {
         replacement=_spaces_before_flips,
         outcome=CHANGES_THE_CELLS,
     ),
+    # RETARGETED AT LANDING 2b.6 PART 2, and the reason is a coverage
+    # loss named rather than hidden. This case used to withdraw P4-D39's
+    # day-unit rule by counting a column wholly at midnight in seconds,
+    # and its interior ranks then landed part-way through a day. They
+    # still do -- measured: rank 3 moves from day 19846 to 19846 days
+    # plus 25,374 seconds -- but the CELLS no longer move, because
+    # counting in seconds also turns `snaps_to_midnight` on, and landing
+    # 2b.3's snap pulls every rank back to the nearest midnight INSIDE
+    # ITS OWN GAP. Since G7.3 now pins the rungs and confines each draw
+    # to a gap, the snap reproduces the day-unit rule exactly, so
+    # withdrawing either rule alone leaves the same twin. A mutant whose
+    # branch is genuinely redundant cannot move a byte, and pretending
+    # otherwise would be the "guard that passes" this file exists to
+    # refuse. So this case now holds up the PLACEMENT rule, which is
+    # load-bearing for it, and the day-unit rule's own frozen mutant is
+    # recorded as withdrawn in G14.3.
     "midnight_days": Mutant(
-        branch="P4-D39's day-unit rule, which counts a column whose every "
-        "moment stands at midnight in whole days; the mutant counts it in "
-        "seconds, and the interior ranks land part-way through a day",
-        attribute="ordinal_space",
-        replacement=_seconds_even_at_midnight,
+        branch="G7.3's placement as landing 2b.6 rewrites it, on a column "
+        "counted in whole days: the nine interior rungs pinned to their "
+        "PUBLISHED values and every other rank drawn inside the gap "
+        "between the pinned ranks either side of it; the mutant restores "
+        "the withdrawn stratified placement and the interior days move",
+        attribute="spread_ordinals",
+        replacement=_stratified_ranks,
         outcome=CHANGES_THE_CELLS,
     ),
     "mixed_marks": Mutant(
@@ -1787,15 +1841,6 @@ CASE_MUTANTS = {
         "ranks are written as the day before and at T02:00:00+02:00",
         attribute="instant_offsets",
         replacement=_ends_alone,
-        outcome=CHANGES_THE_CELLS,
-    ),
-    "accidental_midnight": Mutant(
-        branch="the repair pass of landing 2b.3, which moves an accidental "
-        "value at midnight one precision step off a column publishing "
-        "n_at_midnight 0; the mutant keeps it, and the twin reads back with "
-        "a count of one",
-        attribute="moves_off_midnight",
-        replacement=_accidental_midnight_kept,
         outcome=CHANGES_THE_CELLS,
     ),
     "leap_second_endpoint": Mutant(

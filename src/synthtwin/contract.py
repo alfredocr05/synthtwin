@@ -397,7 +397,20 @@ MISSING_CLASS_KEYS = (
     WITHHELD,
 )
 
-SENTINEL_KEYS = ("candidate", "n_occurrences", "reason", "verdict")
+SENTINEL_KEYS = (
+    "candidate",
+    "n_occurrences",
+    "reason",
+    # THE PUBLISHED ABSENT SPELLINGS THIS DECISION TOOK OUT (repair
+    # pass of landing 2b.6, invariant V5). It is the one fact that says
+    # which of a column's published hole spellings a JUDGED pass put
+    # there and which the person's own declaration did, and no count in
+    # the document can supply it: two keys writing the same placeholder
+    # day are one judgement and one declaration, and every walk that
+    # tried to tell them apart by counting got one of the two wrong.
+    "spellings",
+    "verdict",
+)
 
 VERDICT_MISSING = "read_as_missing"
 
@@ -474,6 +487,14 @@ DATETIME_KEYS = (
     # How many parsed cells stood at midnight, floored on both sides
     # (landing 2b.3, invariant D15).
     "n_at_midnight",
+    # HOW THE COLUMN'S DATES WERE WRITTEN, four censuses of FORMS
+    # (landing 2b.6, invariants D17 to D20). They are what lets the twin
+    # be written in the source's own spelling rather than in ISO, which
+    # is the reversal of owner decision 5.
+    "date_field_widths",
+    "month_name_styles",
+    "quarter_marker_case",
+    "zulu_case",
 )
 
 NUMERIC_KEYS = (
@@ -999,6 +1020,14 @@ INVARIANTS = {
         "the decisions about stand-in numbers are in the order the "
         "description publishes them in"
     ),
+    "V5": (
+        "a decision names only spellings this column publishes among "
+        "its absent cells, each once and in order, no spelling is "
+        "named by two decisions of one column, the cells those "
+        "spellings cover never outnumber the rows the decision says "
+        "held its candidate, and a decision that kept its candidate "
+        "as a number names none"
+    ),
     "M3": (
         "every row count in a repetition pattern is written in the same "
         "width, that of the largest of them"
@@ -1135,14 +1164,38 @@ INVARIANTS = {
         "back no offset"
     ),
     "D15": (
-        "the count of values at midnight is nought, or at least the "
-        "smallest group size on both sides of it, or every value, and it "
-        "is every value exactly where the column is said to stand at "
-        "midnight"
+        "the count of values at midnight is not published at all, or it "
+        "is every value, or it is a group of at least the smallest group "
+        "size -- and never fewer than two -- leaving at least that many "
+        "off midnight; and it is every value exactly where the column is "
+        "said to stand at midnight"
     ),
     "D16": (
         "a column mixing whole dates with moments counts at least as many "
         "values with no offset as it holds whole dates"
+    ),
+    "D17": (
+        "the joint width a cell wrote its month and day fields at is "
+        "counted only for a member whose fields can show one, is named "
+        "only when at least the smallest group size of cells wrote it, "
+        "and comes to no more than the values that read as dates"
+    ),
+    "D18": (
+        "the case, length, mark and comma a cell wrote a month NAME with "
+        "are counted only for the two textual members, only in the "
+        "combinations that member can write, and only where at least the "
+        "smallest group size of cells wrote each"
+    ),
+    "D19": (
+        "the case of a quarter's marker is counted only for a column of "
+        "quarters, and named only when at least the smallest group size "
+        "of cells wrote it"
+    ),
+    "D20": (
+        "the case of a zulu offset marker is counted only where the "
+        "offset map names 'Z', comes to no more than the values carrying "
+        "it, and is named only when at least the smallest group size of "
+        "cells wrote it"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -1573,12 +1626,22 @@ class PublicationNote:
 
 @dataclasses.dataclass(frozen=True)
 class SentinelVerdict:
-    """What was decided about one stand-in number, and why."""
+    """What was decided about one stand-in number, and why.
+
+    `spellings` are the keys of this column's `missing_by_source` whose
+    cells THIS decision took out (repair pass of landing 2b.6). It is
+    empty on a decision that kept the candidate as a number, empty on a
+    column that publishes no value of the table, and empty where every
+    spelling the pass took fell below the floor. It carries the
+    provenance of a published hole spelling -- judged here, or declared
+    by the person -- which nothing else in the document carries.
+    """
 
     candidate: str
     verdict: str
     reason: str
     n_occurrences: int
+    spellings: "tuple[str, ...]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1803,9 +1866,30 @@ class DatetimeFacts:
     resolution_mix: "dict[str, int]"
     datetime_separators: "dict[str, int]"
     all_at_midnight: bool
-    # How many parsed cells stood at midnight, or 0 where either side of
-    # the count falls below the floor (landing 2b.3, invariant D15).
-    n_at_midnight: int = 0
+    # How many parsed cells stood at midnight, or `None` where the count
+    # is not published at all (landing 2b.3, invariant D15; the
+    # unavailable state is landing 2b.6's). Either side of the count
+    # below the floor -- and the floor here is never below two, because a
+    # count of one names one person -- leaves this absent rather than
+    # nought, so that a reader cannot tell a column holding no midnight
+    # from one holding a single one.
+    n_at_midnight: "int | None" = None
+    # HOW THE CELLS WERE WRITTEN (landing 2b.6, the reversal of owner
+    # decision 5). Each is a census of FORMS held to the smallest group
+    # size, and each is empty on a column whose member cannot show that
+    # convention: the widths on a member of fixed field width, the name
+    # styles outside the two textual members, the quarter marker outside
+    # `year-quarter`, and the zulu case where no `Z` is named.
+    date_field_widths: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    month_name_styles: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    quarter_marker_case: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
+    zulu_case: "dict[str, int]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2861,6 +2945,25 @@ def _whole(value: object, key: str, where: str, least: int) -> int:
             key, where, f"{value}", f"a whole number of {least} or more"
         )
     return value
+
+
+def _whole_or_nothing(value: object, key: str, where: str) -> "int | None":
+    """A whole number of nought or more, or nothing at all.
+
+    `null` is this format's spelling of "not published" for a count
+    whose group and whose complement are both held to a floor, and
+    `n_at_midnight` is the field of that kind (landing 2b.6). NOUGHT IS
+    NOT THAT SPELLING and this helper exists to keep the two apart: a
+    field that says "nothing here" with a nought has told every reader
+    who can tell that nought from a real one exactly what it withheld.
+
+    Guarantees: accepts the value, its key and where it stands; returns
+    the whole number, or `None` where the document writes `null`. Raises
+    ProfileError for anything else. No I/O of any kind.
+    """
+    if value is None:
+        return None
+    return _whole(value, key, where, 0)
 
 
 def _bounded(
@@ -4281,13 +4384,157 @@ def _missing_by_source(
     return counted
 
 
+def _judged_spellings(
+    value: object,
+    where: str,
+    verdict: str,
+    counts: "dict[str, int]",
+    occurrences: int,
+    claimed: "dict[str, int]",
+) -> "tuple[str, ...]":
+    """The published hole spellings one decision took out (5.5, V5).
+
+    THE PROVENANCE OF A HOLE SPELLING, WHICH NO COUNT CAN SUPPLY
+    (repair pass of landing 2b.6). A spelling standing here was made
+    absent by THIS column's judged pass; every other key of
+    `missing_by_source` was made absent by something that reaches the
+    whole table -- a word the person declared, or one of this package's
+    own. The walk that tried to tell the two apart by counting cells
+    could not: twenty judged `1900-01-01 00:00:00` beside thirty
+    declared `1900-01-01T00:00:00` are two keys writing one day, and
+    every count the document carries is the same under either reading.
+
+    Raises ProfileError for a value that is not a list of text and for
+    V5 in its five parts: a decision that kept its candidate names no
+    spelling, every spelling it names is one this column publishes
+    among its absent cells, the names are in order and distinct (which
+    is also what the canonical bytes require), no spelling is named by
+    two decisions of one column, and the cells those spellings cover
+    never outnumber the rows the decision says held its candidate.
+
+    THE LAST TWO ARE LANDING 2b.14'S, AND THEY CLOSE THE LOOP THE
+    REPAIR PASS OF LANDING 2b.6 LEFT OPEN (decision P4-D95). That pass
+    moved the question out of the two consumers and into the document,
+    which was right; what it did not do was CHECK the answer on the way
+    back in. Every count in the block reads the same under either
+    assignment -- that is the whole reason the key exists -- so a
+    description could say that a word the PERSON DECLARED was one
+    column's own judged pass, and this loader read it and passed it on.
+    Measured on the reviewer's own 500-row table, hand-edited: the
+    generator then stops reserving that word for the whole table and
+    writes it into a second column as a present value, and the
+    validator stops recovering it as a declaration, which is landing
+    2b.3's defect restored through a document rather than through a
+    count. Both new parts are arithmetic on the block itself, they need
+    no cell of any table, and together they refuse every such document
+    while accepting every one a producer can write.
+
+    THE BOUND IS `AT MOST` AND NOT `EXACTLY`, which is the floor's
+    doing and was measured before it was written. A pass takes every
+    cell of its candidate, but the description names only those
+    spellings the floor let it publish: a column holding twenty
+    `1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both
+    judged, publishes at a floor of eleven one spelling worth twenty
+    cells against an `n_occurrences` of twenty-five, and pools the
+    other five. Demanding equality would refuse that description, which
+    is one a producer writes.
+
+    NO REFUSAL HERE PRINTS A SPELLING. A key of `missing_by_source` is
+    a value out of somebody's table (C5-N5, R15), so what is wrong is
+    named by WHAT IT IS and counted, never quoted -- the rule
+    `_entry_named` follows one field over. The two new refusals are
+    written to the same rule: each counts, and neither quotes.
+
+    Guarantees: accepts the list, where it stands, the decision's own
+    verdict, this column's published hole spellings WITH THEIR COUNTS,
+    the rows the decision says held its candidate, and the spellings
+    every earlier decision of this column already named -- which this
+    function adds to. Determinism: a function of the six. No I/O.
+    """
+    listed = _listing(value, "spellings", where)
+    found: list[str] = []
+    place = 0
+    for entry in listed:
+        found += [_text(entry, f"spellings[{place}]", where)]
+        place = place + 1
+    if verdict != VERDICT_MISSING and found:
+        raise _broken(
+            "V5",
+            where,
+            "this decision kept the stand-in number as a number",
+            f"it names {len(found)} spelling(s) of an empty cell anyway",
+        )
+    unnamed = 0
+    for spelling in found:
+        if spelling not in counts:
+            unnamed = unnamed + 1
+    if unnamed:
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {unnamed} spelling(s) of an empty cell",
+            "this column publishes no such spelling among its absent cells",
+        )
+    if found != sorted(found) or len(found) != len(set(found)):
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {len(found)} spelling(s)",
+            "the spellings of one decision are in order and each named once",
+        )
+    # A CELL IS TAKEN OUT ONCE, so two decisions of one column cannot
+    # both have taken the cells of one spelling (P4-D95).
+    twice = 0
+    for spelling in found:
+        if spelling in claimed:
+            twice = twice + 1
+    if twice:
+        raise _broken(
+            "V5",
+            where,
+            f"this decision names {twice} spelling(s) of an empty cell",
+            "an earlier decision of this column already named them",
+        )
+    # ...and a decision cannot have taken out more cells than the rows
+    # it says held its candidate. This is what refuses a description
+    # claiming a DECLARED word was this column's own judgement: the
+    # declared spelling's cells push the total past `n_occurrences`,
+    # and no count in the block could say so before (P4-D95).
+    covered = 0
+    for spelling in found:
+        covered = covered + counts[spelling]
+    if covered > occurrences:
+        raise _broken(
+            "V5",
+            where,
+            f"the spellings this decision names cover {covered} absent cell(s)",
+            f"it says {occurrences} row(s) held its stand-in number",
+        )
+    for spelling in found:
+        claimed[spelling] = 1
+    return tuple(found)
+
+
 def _sentinel_verdicts(
-    value: object, where: str, floor: int, publishes_nothing: bool
+    value: object,
+    where: str,
+    floor: int,
+    publishes_nothing: bool,
+    counts: "dict[str, int]",
 ) -> "tuple[SentinelVerdict, ...]":
     """What was decided about each named stand-in number, and why (5.5).
 
     Raises ProfileError for an unknown or missing key, a wrong type, a
-    value outside its list, and for V1 to V4. V2 is the publication
+    value outside its list, and for V1 to V4. V5 is raised one field
+    over, in `_judged_spellings`; two of its five parts are questions
+    about the column's decisions TOGETHER rather than about one of
+    them, so this walk carries `claimed` down the list and each
+    decision adds the spellings it names to it (P4-D95).
+
+    IT TAKES THE COUNTS AND NOT THE KEYS, and that is the whole of the
+    change landing 2b.14 made here: the bound V5 now enforces is how
+    many CELLS a decision's named spellings cover, which the keys alone
+    cannot say. V2 is the publication
     class applied to this block: on a column that publishes no value of
     the table every candidate reads `(withheld)`, and on every other
     column none of them does, because naming a candidate there would
@@ -4295,6 +4542,9 @@ def _sentinel_verdicts(
     """
     listed = _listing(value, "sentinel_verdicts", where)
     entries: list[SentinelVerdict] = []
+    # The spellings every decision read so far has named, so that no two
+    # of them claim one spelling's cells (V5, P4-D95).
+    claimed: "dict[str, int]" = {}
     place = 0
     previous: tuple[int, str, str] | None = None
     previous_number: float | None = None
@@ -4309,6 +4559,16 @@ def _sentinel_verdicts(
         occurrences = _whole(
             mapping["n_occurrences"], "n_occurrences", seat, 1
         )
+        # THE FLOOR IS ASKED FIRST, and the order is part of the rule
+        # rather than an accident of writing (landing 2b.14). V5's count
+        # bound compares this decision's `n_occurrences` against the
+        # cells its spellings cover, so a decision naming FEWER rows
+        # than the floor breaks the bound as well -- and V1 is the
+        # narrower, truer diagnosis of that document. Asked the other
+        # way round, a description held by too few rows to be named at
+        # all was refused for its arithmetic instead of for being
+        # unpublishable, and the battery's V1 entry stopped exercising
+        # V1.
         if occurrences < floor:
             raise _broken(
                 "V1",
@@ -4316,6 +4576,9 @@ def _sentinel_verdicts(
                 f"the stand-in number was held by {occurrences} rows",
                 f"the smallest group size is {floor}",
             )
+        spellings = _judged_spellings(
+            mapping["spellings"], seat, verdict, counts, occurrences, claimed
+        )
         if publishes_nothing != (candidate == WITHHELD):
             raise _broken(
                 "V2",
@@ -4389,6 +4652,7 @@ def _sentinel_verdicts(
                 verdict=verdict,
                 reason=reason,
                 n_occurrences=occurrences,
+                spellings=spellings,
             )
         ]
         place = place + 1
@@ -4544,7 +4808,11 @@ def _column(
         n_withheld,
     )
     verdicts = _sentinel_verdicts(
-        mapping["sentinel_verdicts"], where, frame.floor, publishes_nothing
+        mapping["sentinel_verdicts"],
+        where,
+        frame.floor,
+        publishes_nothing,
+        by_source,
     )
     unpublished = _whole(
         mapping["n_sentinel_candidates_unpublished"],
@@ -5826,10 +6094,54 @@ def _datetime_facts(
             where, floor, resolution, clock, n_present - unparsed,
             earliest, latest, ladder, offsets, earliest_offset, latest_offset,
         )
-    at_midnight = _whole(mapping["n_at_midnight"], "n_at_midnight", where, 0)
+    at_midnight = _whole_or_nothing(
+        mapping["n_at_midnight"], "n_at_midnight", where
+    )
     _counted_at_midnight(
         where, floor, resolution, clock, n_present - unparsed, midnight,
         at_midnight, offsets,
+    )
+    # THE FOUR CENSUSES OF HOW THE DATES WERE WRITTEN (landing 2b.6).
+    widths = _written_census(
+        mapping,
+        "date_field_widths",
+        where,
+        floor,
+        _width_vocabulary(parser_family),
+        parser_family in parsing.VARIABLE_WIDTH_MEMBERS
+        or parser_family in parsing.TEXTUAL_MEMBERS,
+        n_present - unparsed,
+        "D17",
+    )
+    name_styles = _written_census(
+        mapping,
+        "month_name_styles",
+        where,
+        floor,
+        _name_vocabulary(parser_family),
+        parser_family in parsing.TEXTUAL_MEMBERS,
+        n_present - unparsed,
+        "D18",
+    )
+    markers = _written_census(
+        mapping,
+        "quarter_marker_case",
+        where,
+        floor,
+        parsing.QUARTER_MARKER_CASES,
+        parser_family == "year-quarter",
+        n_present - unparsed,
+        "D19",
+    )
+    zulu = _written_census(
+        mapping,
+        "zulu_case",
+        where,
+        floor,
+        parsing.ZULU_CASES,
+        "Z" in offsets,
+        offsets["Z"] if "Z" in offsets else 0,
+        "D20",
     )
     if parser_family == FORMAT_ISO_MIXED:
         # D16: A WHOLE DATE CARRIES NO OFFSET (landing 2b.3). Every
@@ -5865,6 +6177,10 @@ def _datetime_facts(
         datetime_separators=separators,
         all_at_midnight=midnight,
         n_at_midnight=at_midnight,
+        date_field_widths=widths,
+        month_name_styles=name_styles,
+        quarter_marker_case=markers,
+        zulu_case=zulu,
     )
 
 
@@ -5875,12 +6191,13 @@ def _counted_at_midnight(
     clock: str,
     parsed: int,
     midnight: bool,
-    counted: int,
+    counted: "int | None",
     offsets: "dict[str, int]",
 ) -> None:
     """D15: the count of values at midnight is one a producer can write.
 
-    Nought names nothing. Otherwise it is at most the parsed cells, at
+    ABSENT NAMES NOTHING, and nought is not a value this field takes at
+    all (landing 2b.6). Otherwise it is at most the parsed cells, at
     least the floor, and either every parsed cell or leaves at least the
     floor off midnight, so neither side of the count is a group smaller
     than the floor. It is every parsed cell EXACTLY where the column is
@@ -5890,15 +6207,30 @@ def _counted_at_midnight(
     on a column that writes no clock, or on the shared clock where an
     offset is held back.
 
+    THE FLOOR HERE IS NEVER BELOW TWO, whatever the run's own smallest
+    group size is (`parsing.MIDNIGHT_DISCLOSURE_FLOOR`), because one is
+    not a group: a count of one names the person who holds the value and
+    a count one short of every value names the person who does not.
+    Measured on 400 moments a day apart at noon, described once as they
+    stood and once with a single row moved to midnight -- the two
+    documents differed in `n_at_midnight: 0 -> 1` and in nothing else
+    anywhere, so the difference WAS that person's time of day. Both
+    publish no count now, which is why nought had to stop being this
+    field's word for silence: a silence a reader can tell from a real
+    nought is not silence.
+
     Guarantees: accepts the facts already read; returns nothing. Raises
     ProfileError for D15. No I/O of any kind.
     """
-    if counted == 0:
+    least = floor
+    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    if counted is None:
         if midnight:
             raise _broken(
                 "D15",
                 where,
-                "no value is counted at midnight",
+                "no count of the values at midnight is published",
                 "every value is said to stand at midnight",
             )
         return
@@ -5923,19 +6255,19 @@ def _counted_at_midnight(
             f"{counted} values are counted at midnight",
             f"{parsed} of the column's values were read as dates",
         )
-    if counted < floor:
+    if counted < least:
         raise _broken(
             "D15",
             where,
             f"{counted} values are counted at midnight",
-            f"the smallest group size is {floor}",
+            f"a published count names at least {least} of them",
         )
-    if counted < parsed and parsed - counted < floor:
+    if counted < parsed and parsed - counted < least:
         raise _broken(
             "D15",
             where,
             f"{parsed - counted} values are counted off midnight",
-            f"the smallest group size is {floor}",
+            f"a published count leaves at least {least} of them",
         )
     if (counted == parsed) != midnight:
         raise _broken(
@@ -5946,6 +6278,120 @@ def _counted_at_midnight(
             if midnight
             else "the column is said not to stand wholly at midnight",
         )
+
+
+def _width_vocabulary(parser_family: str) -> "tuple[str, ...]":
+    """Which width words this member's own cells can show (landing 2b.6).
+
+    A textual member writes the month as a NAME, so its one numeric
+    field is the day and there is no second field for `first-padded` or
+    `second-padded` to be about.
+    """
+    if parser_family in parsing.TEXTUAL_MEMBERS:
+        return parsing.FIELD_WIDTH_STYLES_ONE_FIELD
+    return parsing.FIELD_WIDTH_STYLES
+
+
+def _name_vocabulary(parser_family: str) -> "tuple[str, ...]":
+    """Which month-name styles this member's own cells can show (2b.6).
+
+    The day-first textual member writes no comma: a comma there would
+    follow a month name, which `_textual_fields` refuses, so half the
+    joint vocabulary is unreachable and a document naming one of those
+    styles describes a column no producer wrote.
+    """
+    if parser_family == "textual-day-first-date":
+        return parsing.MONTH_NAME_STYLES_NO_COMMA
+    return parsing.MONTH_NAME_STYLES
+
+
+def _written_census(
+    mapping: "dict[str, object]",
+    key: str,
+    where: str,
+    floor: int,
+    permitted: "tuple[str, ...]",
+    reachable: bool,
+    most: int,
+    rule: str,
+) -> "dict[str, int]":
+    """One census of HOW a column's dates were written (landing 2b.6).
+
+    The four censuses that reverse owner decision 5 are held by one rule
+    each, and this is the shape of all four -- written once, because four
+    copies of a floor rule are four things to keep in step. In order: a
+    key outside the member's own vocabulary is refused; every named count
+    reaches the floor, since a form held by one row describes how that
+    row was written; a withheld pool is at most the floor less one for
+    each form the census leaves unnamed, exactly as D12 bounds the marks;
+    a member that cannot show the convention at all carries an empty
+    census; and the total is at most the cells that could carry one.
+
+    THE TOTAL IS A CEILING AND NOT AN EQUALITY, and that is a real
+    difference from D13 rather than a looser copy of it. Whether a cell
+    can SHOW a convention depends on its own value -- a day above the
+    ninth shows no width, a month of May shows no name length -- so the
+    number of cells that could carry one is a fact about the values, and
+    a twin whose values differ by a day carries a different number of
+    them. What the twin is held to is the SET of conventions and each
+    one's floor, which is what `_written_form_checks` measures.
+
+    Guarantees: accepts the datetime block, the census's key, where it
+    stands, the floor, the member's vocabulary, whether the member can
+    show the convention, the ceiling on the total and the invariant's
+    name; returns the census. Raises ProfileError for a key outside the
+    vocabulary and for the named invariant. No I/O of any kind.
+    """
+    value: object = mapping[key] if key in mapping else {}
+    census = _counts(value, key, where, 1)
+    for name in sorted(census):
+        if name == WITHHELD:
+            continue
+        if name not in permitted:
+            raise _out_of_range(
+                f"{key} -> {name}",
+                where,
+                f"'{name}'",
+                _listed(permitted + (WITHHELD,)),
+            )
+        if census[name] < floor:
+            raise _broken(
+                rule,
+                where,
+                f"the written form '{name}' was used by {census[name]} rows",
+                f"the smallest group size is {floor}",
+            )
+    total = _added(census)
+    if not reachable:
+        if total != 0:
+            raise _broken(
+                rule,
+                where,
+                f"{total} values are counted by how they wrote this form",
+                "no cell of this column's dates can show it",
+            )
+        return census
+    if WITHHELD in census:
+        unnamed = 0
+        for name in permitted:
+            if name not in census:
+                unnamed = unnamed + 1
+        if census[WITHHELD] > (floor - 1) * unnamed:
+            raise _broken(
+                rule,
+                where,
+                f"{census[WITHHELD]} values' written forms are held back",
+                f"{unnamed} form(s) are left unnamed, and each of them was "
+                f"used by fewer than {floor} rows",
+            )
+    if total > most:
+        raise _broken(
+            rule,
+            where,
+            f"the counted written forms come to {total}",
+            f"at most {most} of the column's values could show one",
+        )
+    return census
 
 
 def _separator_census(
@@ -6077,12 +6523,19 @@ def _stands_at_midnight(
             f"the dates are published at '{resolution}' on the '{clock}' "
             f"clock",
         )
-    if parsed < floor:
+    least = floor
+    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+        # THE SAME FLOOR THE COUNT IS HELD TO (landing 2b.6). Saying
+        # "every value" of a column of one value is a count of one said
+        # in words, and D15 would refuse the count beside it, so the two
+        # are held to one number rather than left to contradict.
+        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    if parsed < least:
         raise _broken(
             "D14",
             where,
             f"all {parsed} values are said to stand at midnight",
-            f"the smallest group size is {floor}",
+            f"a column saying so holds at least {least} of them",
         )
     for moment, offset in ((earliest, earliest_offset), (latest, latest_offset)):
         keys: "tuple[str, ...]" = (offset,)

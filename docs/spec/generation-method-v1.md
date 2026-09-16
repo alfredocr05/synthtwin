@@ -3623,22 +3623,106 @@ ranks `r = 0 .. P - 1` (one cell per rank; datetime columns are not
 stratified by value, because no datetime multiplicity map is
 published). Then:
 
+**The published tail PINS a rank to a published value** (landing 2b.6).
+The pinned ranks are `0`, `P - 1`, and the rank each of the nine
+interior rungs is selected from, `k_j = floor((P - 1) * PCT[j] / 100)`
+for `j = 1 .. 9` — the profiler's own rung rank. Two rungs selecting off
+one rank keep the LOWER rung's value, and a rung whose rank is an end is
+left to that end, so the pins are non-decreasing for any ladder a
+description can carry.
+
 - `r == 0`: the cell's instant is `earliest`, used exactly as published.
-  No word. "Exactly as published" means the endpoint's OWN fields, not
-  its ordinal: these two cells are built by G7.5's endpoint rule and do
-  not pass through the space of G7.1 at all.
+  "Exactly as published" means the endpoint's OWN fields, not its
+  ordinal: these two cells are built by G7.5's endpoint rule and do not
+  pass through the space of G7.1 at all.
 - `r == P - 1` and `P >= 2`: the instant is `latest`, exactly, by the
-  same rule. No word.
-- otherwise: one word `w`, and
+  same rule.
+- `r == k_j` for some interior rung: the instant is `Lo[j]`, the rung's
+  own published ordinal.
+- otherwise: `r` lies strictly between two pinned ranks `a < r < b`. Let
+  `Lo_a` and `Lo_b` be their pinned ordinals. The rank takes one word
+  `w` and
 
   ```
-  N_r = r * 2**64 + w
-  D   = P * 2**64
-  find j with PCT[j] * D <= 100 * N_r < PCT[j+1] * D
-  A   = 100 * N_r - PCT[j] * D
-  B   = (PCT[j+1] - PCT[j]) * D
-  ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B
+  ordinal = Lo_a + (w * (Lo_b - Lo_a + 1)) // 2**64,  capped at Lo_b
   ```
+
+  and the ordinals drawn for the ranks strictly between `a` and `b` are
+  SORTED among themselves before they are written back, so `O` is still
+  ascending. The draw is in the ordinal space of G7.1 — whole days for a
+  column of dates, of months, of quarters and for one whose every moment
+  stands at midnight; seconds otherwise.
+
+**Each rank that is NOT pinned spends exactly one word; a pinned rank
+spends none.** The words are drawn in rank order, so the ranks inside
+one gap take consecutive words and the next gap continues where the
+last one stopped.
+
+**The budget is unchanged: `P - 2` content words** (`_plan_column`), of
+which the pins leave up to nine unread. That is what keeps the shared
+stream in step — a column is HANDED its budget before it is built, and a
+word it does not read is not a word another column takes — so a column
+of dates consumes exactly the allocation it always consumed and no
+column generated after it moves. Of 24 twins of unrelated shapes, 18 are
+byte-identical across this rewrite and the 6 that moved are the two date
+shapes; an independent set of 30 unrelated twins was byte-identical at
+30 of 30.
+
+*Amended by the repair pass of landing 2b.6.* This paragraph said that a
+pinned rank draws its word and discards it. It does not: the
+construction takes a word only for the ranks strictly between two pins,
+which a probe of the shipped code measured as 389 words read of the 398
+a 400-row column is handed. The rule above is what the code does, in the
+generator and in the oracle alike; writing the other rule here left an
+implementer who followed the document handing different words to
+different ranks, and every committed date vector would have moved for
+nothing.
+
+*Amended again by the repair pass of landing 2b.14, which measured the
+number this paragraph had just been corrected to carry.* It said the
+pins leave up to ELEVEN of the handed words unread. The ceiling is
+NINE. The tail pins at most eleven RANKS -- the two ends and the nine
+interior rungs -- and neither end is ever drawn for, so the surplus a
+column leaves unread is the number of DISTINCT pinned ranks less two.
+Measured over fourteen column sizes from two rows to ten thousand, the
+surplus runs 0, 1, 3, 5, 6, 6, 6, 8 and then 9 from a hundred and one
+rows upward, and reaches ten at no size. The ceiling is pinned as a
+number in `tests/test_date_spread.py`, together with the eleven it
+comes from, so a later ladder that grows a rung cannot leave the
+sentence standing.
+
+WHY THE STRATIFIED PLACEMENT WAS WITHDRAWN. Each rank used to be its own
+stratum, interpolated inside the band from `r / P` to `(r + 1) / P`, so
+each day received almost exactly its expected count — a below-Poisson
+spread, where a real table's per-day counts vary at least Poisson.
+Measured over 54 runs of uniform, seasonal and admissions-style columns,
+date-only and at midnight, at 400, 1,500 and 3,000 rows: the twin's
+per-day count variance was **0.057 to 0.514 of the real column's**, and
+it got worse as the column grew, because stratifying ever more finely is
+ever further from sampling. The same floor also put **every one of the
+nine interior rungs below its published value in all 54 runs** — one day
+early on a 400-row admissions column, so a rung published as a Monday was
+written as a Sunday. After this rule: every rung exact in 54 of 54, and
+the ratio 0.52 to 1.41 **on columns whose shape eleven rungs can
+carry**. That qualification is measured, not hedged (repair pass of
+landing 2b.6): on a column whose values burst around three onset dates,
+eleven pins over a year leave gaps weeks wide, the gap is filled evenly
+as everywhere else, and the ratio stays at 0.34 to 0.47 at 400 rows and
+0.15 to 0.18 at 1,500 — which is where the withdrawn construction
+already was, so this rule neither helps nor harms that shape.
+
+WHAT IT DOES NOT CARRY, and G12.4's window is drawn to match. A gap is
+filled EVENLY, so structure the description does not publish does not
+come back: the weekday composition, the time of day, days the real
+column heaps values on, and a column whose values sit on a few scheduled
+dates. On a seasonal or admissions-style column at 3,000 rows that
+structure is most of the day-to-day variance and the ratio stays near
+0.55. Each would need a fact no datetime block carries — a weekday
+census, a time-of-day ladder, a value-count map over days — and each of
+those publishes counts over small groups, so what may be published waits
+on the stage that sets the disclosure floor. The twin's report says so
+in its own enumerated sentence rather than printing "inside the range"
+alone.
 
   The floor division is the stated rounding direction: **toward the
   earlier instant**, always, including for ordinals before the epoch
@@ -3740,14 +3824,84 @@ writes one kind, re-profiles as `local`, and the report names it. That
 corner is bounded: it needs two or more distinct offsets each used by
 fewer rows than the small-cell floor.
 
-### G7.5 Writing the cell at the PUBLISHED precision (owner decision 5)
+### G7.5 Writing the cell IN ITS SOURCE'S OWN FORM, at the published precision
 
-D12 fixed ISO 8601 with an explicit offset; owner decision 5 amended it
-for twin CSV cells, because the producer legitimately publishes
-offsetless dates and quarters and no output could satisfy both D12 and
-the published facts. **A twin datetime cell is written in the ISO form
-matching the precision the profile records, and an offset is written
-only where the profile records a real one.** Exactly:
+**Owner decision 5 is REVERSED** (owner ruling 2026-09-15, plan P4-D61,
+landing 2b.6). The history is kept because it is the record of what this
+rule cost while it stood. D12 fixed ISO 8601 with an explicit offset;
+owner decision 5 amended it for twin CSV cells, because the producer
+legitimately publishes offsetless dates and quarters and no output could
+satisfy both D12 and the published facts, and it chose the ISO form at
+the recorded precision for EVERY member. Residual R-P2-7 disclosed the
+price: a month-first table yielded ISO twin dates, so a person's own
+parsing call needed a different format argument on the twin than on
+their table. Measured: `strptime('%m/%d/%Y')` parsed 400 of 400 real
+cells and none of the twin's; a compact `YYYYMMDD` column's ISO twin
+FAILED this tool's own validation, because the real cells are also
+numbers and the ISO cells are not.
+
+**So a twin datetime cell is written in the MEMBER that read the real
+column — the document's `format` — at the precision the profile records,
+and an offset is written only where the profile records a real one.**
+The date half is written by the member; the clock half, the mark before
+it and the offset after it are unchanged by the reversal. The member
+fixes the field order, the delimiter and the year's width; what it does
+not fix is carried by four censuses the description publishes, each
+allocated to the ranks that can show it by the same smooth weighted
+rotation the marks use, which draws no word:
+
+| written by | census | the words |
+|---|---|---|
+| how wide the month and day fields were | `date_field_widths` | `padded`, `unpadded`, `first-padded`, `second-padded` — ONE joint word per CELL, over the cells whose field is below ten |
+| how a month NAME was written | `month_name_styles` | one joint `<case>-<length>-<mark>-<comma>` word, over the cells whose month is not May |
+| the case of a quarter's marker | `quarter_marker_case` | `upper`, `lower` |
+| the case of a zulu offset marker | `zulu_case` | `upper`, `lower` |
+
+**The joint words are joint on purpose, and that is a rule and not a
+convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
+not one real cell mixes the two, so two independent censuses would have
+written about half the eligible cells `03/5/2024` — a style no row of
+that table uses. The same holds of a hand-entered column mixing
+`17-MAR-2024` with `17 Mar 2024`, which carries its case and its mark
+together. A rank that cannot show a convention — a day above the ninth,
+a month of May, a cell carrying no zulu marker — takes the column's
+commonest form and is counted against no census.
+
+**The date half, per member:**
+
+| `format` | the cell's date half | example |
+|---|---|---|
+| `iso-date`, `iso-datetime`, `iso-mixed` | `YYYY-MM-DD` | `2024-03-17` |
+| `slashed-iso-date`, `slashed-iso-datetime` | `YYYY/MM/DD`, both fields padded | `2024/03/17` |
+| `compact-date` | `YYYYMMDD` | `20240317` |
+| `month-first-date`, `month-first-datetime` | month, day, four-figure year, slashed, each field at its allocated width | `03/17/2024`, `3/17/2024` |
+| `day-first-date`, `day-first-datetime` | day, month, four-figure year, slashed, at its allocated width | `17/03/2024` |
+| `two-digit-month-first-date` | month, day, `YY`, slashed, at its allocated width | `03/17/24` |
+| `two-digit-day-first-date` | day, month, `YY`, slashed, at its allocated width | `17/03/24` |
+| `dotted-month-first-date`, `dotted-day-first-date` | dotted, both fields PADDED (contract C6-22) | `17.03.2024` |
+| `dotted-two-digit-month-first-date`, `dotted-two-digit-day-first-date` | dotted, both fields padded, `YY` | `17.03.24` |
+| `textual-day-first-date` | day at its allocated width, the month NAME in its allocated case and length, four-figure year, on the allocated mark | `17-MAR-2024`, `7 September 2024` |
+| `textual-month-first-date` | the month NAME, the day at its allocated width with the allocated comma, four-figure year, on the allocated mark | `Mar 17, 2024`, `Mar 17 2024` |
+| `iso-month` | `YYYY-MM` | `2024-03` |
+| `year-quarter` | `YYYY-` then `Q` or `q` as allocated, then the quarter | `2024-Q1`, `2024-q1` |
+
+A month NAME is built by `month_spelling`, the one inverse of the
+reader's own `month_of_name`, so a producer counting names and a
+generator writing them cannot spell one month two ways — as
+`clock_spelling` is the one inverse of `clock_ordinal`. The whole date
+half is `written_date`, the one inverse of `parse_datetime`, and the
+generator reaches it through `_cell_of_ordinal` and nowhere else.
+
+**What the reversal does NOT change.** The figures after a second are
+still zeros: the description says how MANY the finest cell carried and
+nothing about their values, so any other figure would be a made-up fact.
+The precision, the mark and the offset state are decision 5's own gains
+and are untouched. And the members the reader does not reach — a
+12-hour clock, `08APR2024`, Excel's unpadded hour — still fall to free
+text; the reversal is about writing what was read, not about reading
+more.
+
+Then the clock half, exactly:
 
 | `resolution` | `time_precision` | cell text |
 |---|---|---|
@@ -3955,28 +4109,19 @@ rather than passing it off as an outcome the description asked for.
   what the tail publishes changes that set and not the construction. A
   count the two passes cannot reach is a deviation of `n_at_midnight`.
 
-- **A column counted in seconds that publishes `n_at_midnight` of nought
-  has an accidental value at midnight moved off** (repair pass of
-  landing 2b.3). In rank order, a rank step 1 above does not pin whose
-  written cell stands at midnight moves one precision step later where
-  that stays below the next rank's instant, else one step earlier where
-  that stays above the previous rank's, else stays; no word is drawn and
-  no two ranks come to share an instant. At a floor of one the nought
-  says no value stood at midnight, and a twin interpolated to the minute
-  put one there by chance and read back with a count of one.
-
-  Then each maximal run of consecutive ranks still written at midnight
-  moves as one (integration repair of landing 2b.3), pinned ranks
-  included: every rank of the run to the first instant of the next
-  written step on its own clock, where the rank after the run stands at
-  or after all of them; else every rank to the last second before its
-  written midnight, where the rank before the run stands at or before
-  all of them; else the run stays. The ranks keep their order and the
-  run keeps one written value; a rung's rank inside it moves by less
-  than one step of the precision. 1,000 minute stamps between 23:00 and
-  00:59 put eight ranks seconds apart inside the written minute `00:00`,
-  one of them a rung's rank, so no rank could move alone, and the twin
-  wrote eight such cells against a table holding none.
+- **A column publishing no count of values at midnight is moved
+  nowhere** (landing 2b.6). The repair pass of landing 2b.3 moved an
+  accidental value at midnight off a column publishing `n_at_midnight`
+  of nought, and the integration repair moved each dense run of such
+  ranks out together; both are WITHDRAWN, because the nought they served
+  is withdrawn. A nought a reader can tell from a suppressed count of
+  one is that count: 400 moments a day apart at noon, and the same 400
+  with a single row moved to midnight, published `0` and `1` and were
+  otherwise identical documents. So the field is absent on both, the
+  construction owes such a column nothing, and its twin may hold a value
+  at midnight that the real column did not — a fidelity cost named here
+  rather than paid in silence, and the one clause 3 of the owner's twin
+  definition requires.
 
   The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
   any other rank.
@@ -3992,14 +4137,20 @@ rather than passing it off as an outcome the description asked for.
   the pooled ones included. The first whose spelling is not absent is
   written (the stage 2 audit, 2026-09-14). A spelling a column's own
   calendar placeholder or stand-in pass judged absent is not a
-  declaration and is not offered to other columns (landing 2b.3), unless
-  a declaration can share its day: the judging column counts cells
-  absent by declaration, and the keys denoting the judged candidate,
-  with the column's pooled hole spellings added, hold more cells than
-  the verdict's `n_occurrences`, which counts only the cells the pass
-  took because a declared cell is taken out before any pass judges
-  (repair pass of landing 2b.3: a declared `NA` in the judging column
-  had carried a judged `1900-01-01 00:00:00` to a birth column). Any two of them spell the same instant at the same
+  declaration and is not offered to other columns (landing 2b.3).
+  **WHICH SPELLINGS THOSE ARE IS READ OUT OF THE DESCRIPTION** (repair
+  pass of landing 2b.6): each decision published in `sentinel_verdicts`
+  names the spellings its own pass took out (contract V5), and a key no
+  decision names was made absent by something that reaches the whole
+  table. The version this replaces counted — the keys denoting the
+  judged candidate, with the column's pooled hole spellings added,
+  against the verdict's `n_occurrences` — and a count cannot separate
+  two keys writing ONE candidate day: twenty judged
+  `1900-01-01 00:00:00` beside thirty `1900-01-01T00:00:00` a person
+  declared put 50 cells against a verdict of 20, so the judged key was
+  offered to every column and a second column's ordinary values were
+  read as absent, which made the REAL table miss thirteen obligations
+  of its own description. Any two of them spell the same instant at the same
   precision on the same clock, so nothing published moves; what moves is whether
   the twin's OWN description still counts the cell. A real column can
   hold a present cell at midnight written `2024-01-01` and, beside it,
@@ -4064,10 +4215,18 @@ rather than passing it off as an outcome the description asked for.
   `00:00`, `00:00:00`, or `00:00:00.` and `subsecond_digits` zeros —
   carrying its allocated mark (stage 2, 2026-09-14), and the report
   recounts the midnight cells it wrote and names any that are not.
-- `format` is REPORT-ONLY and is NOT reproduced (P2-R4-F3, R-P2-7): a
-  month-first source column yields ISO twin dates and re-profiles as
-  `iso-date`. Code that parses dates with an explicit source format
-  needs that argument changed, and the report says so.
+- `format` is EXACT-OBSERVABLE and IS reproduced (landing 2b.6, plan
+  P4-D61): the cell is written through the member that read the real
+  column, so a month-first source column yields month-first twin dates
+  and re-profiles as `month-first-date`. It was not reproduced at all
+  under owner decision 5 (P2-R4-F3), when such a column yielded ISO
+  twin dates and
+  a person's own parsing call needed a different format argument on the
+  twin than on their table, so the field could not be reproduced at
+  all; the owner reversed that decision and residual R-P2-7 is retired
+  with it. The one column whose member its
+  own twin cannot show is an `iso-mixed` column not wholly at midnight,
+  which is written wholly as moments (R-P4-12).
 
 ## G7A. Clock columns (`time_of_day`)
 
@@ -7186,16 +7345,27 @@ above its high end excludes the very statistic it was drawn for.
 Let `P = n_present - n_unparsed` be the number of twin cells that read
 back as a date, and `Ladder_d` the published `date_percentiles` read in
 the ordinal space of G7.1 by the same whole-number interpolation G7.3
-builds cells with. Rank `k` of G7.3 draws its share inside
-`[k / P, (k + 1) / P)` and no word can take it outside that band, and
-ranks `0` and `P - 1` are pinned to the published `earliest` and
-`latest`, which the profile contract's D11 also makes the ladder's own
-two ends. So for the twin's own ordinals `O`, sorted:
+builds cells with. Since landing 2b.6 rank `k` of G7.3 is NOT its own
+stratum: the published tail pins the two ends and the rank each of the
+nine interior rungs is selected from, each to its published value, and
+every other rank is drawn inside the gap between the two pinned ranks
+either side of it. Writing `P[k]` and `Q[k]` for the pinned values below
+and above rank `k`, the twin's own ordinals `O`, sorted, obey
 
 ```
-O[0] == earliest,   O[P-1] == latest,   and for every rank between them
-Ladder_d(k / P) - u   <=   O[k]   <=   Ladder_d((k + 1) / P)
+O[0] == earliest,   O[P-1] == latest,   O[k_j] == Ladder_d rung j,
+and for every other rank:   P[k] - u   <=   O[k]   <=   Q[k]
 ```
+
+**A pinned rank's window is a POINT.** Each of the nine interior rungs
+is held to the value the description publishes rather than to a band
+around its slice, which is what makes the rung check of this section
+strictly stronger than the one it replaces: under the stratified
+placement every interior rung landed BELOW its published value in all 54
+runs it was measured over, because the interpolation floors, and the
+band was wide enough to admit that. The two ENDS carry no allowance on
+either side, because G7.5 writes them from the endpoint's own fields
+rather than from an ordinal, so writing them loses nothing.
 
 where `u` is what reading a written cell back can lose: one unit for
 the downward rounding of the whole-number interpolation itself, plus
@@ -7248,15 +7418,22 @@ n_distinct(twin)   <=   min(n_present, W * (M * S + B) + n_unparsed)
 ```
 
 (`S` counting the pooled marks and `B` were added at landing 2b.3.)
-**On a column G7.5 moves onto a midnight**, some ranks leave their
-windows: at most `n_at_midnight` moved onto a midnight, at most one
-pinned at each of the nine interior rungs, and at most one brought back
-to each pin. Every other rank keeps its window, widened by one step of
-the precision for a rank moved off a midnight it was not owed, so the
-lower end is `F` over those widened windows less `n_at_midnight + 18`,
-and never less than `F` over the windows that give every pinned rank
-its own value and every other rank the span between the pinned values
-either side (landing 2b.3).
+
+**The midnight correction to the lower end is WITHDRAWN** (landing
+2b.6). A column G7.5 moves onto a midnight used to need one, because a
+window of G12.4 was then the rank's own `1 / P` stratum and the move
+could carry a rank straight out of it — a CET column of 2,000 values at
+midnight over sixty days, faithfully written, held 61 different values
+against a lower end of 981 — so `F` was taken over windows widened by a
+precision step, reduced by `n_at_midnight + 18`, and floored at a second
+set of windows computed from the pinned values. G12.4's window IS the
+span between the pinned values now, and the move keeps every rank inside
+exactly that span: it clamps each rank between the pinned ranks either
+side of it, takes its nearest midnight inside those same bounds, and
+steps an unchosen rank one precision unit only where that too stays
+inside them. So no rank leaves its window, all three corrections compute
+a weaker form of the same `F`, and stating them twice could only let the
+two drift apart. `F` is the one walk, for every column.
 
 Folding can only put two of those spellings onto one — `T` and `t`
 fold together — so both ends bound `n_distinct_folded` as well. The
@@ -7591,9 +7768,15 @@ construction cannot keep.
   for a published width of four characters or fewer, which no
   out-of-range cell a real table holds can have.
 - **R-P2-2** — absent-value spellings and classes are not reproduced.
-- **R-P2-7** — the twin keeps a datetime column's precision and offset
-  state but not the source's lexical date family; a month-first table
-  yields ISO twin dates, and `format` is REPORT-ONLY for that reason.
+- **R-P2-7 — RETIRED 2026-09-15** (landing 2b.6). While it stood it
+  read: the twin keeps a datetime column's precision and offset state
+  but not the source's lexical date family, a month-first table yields
+  ISO twin dates, and `format` is not reproduced for that reason. The
+  owner reversed decision 5, the cell is written through the member
+  that read the real column, and `format` is EXACT-OBSERVABLE. What is
+  NOT retired with it is named in its place: the figures after a second
+  are still zeros, and a spelling no member of the reader reaches at
+  all still falls to free text.
 - **R-P2-9** — twin numeric cells may carry several spellings of one
   value from the leading-zero family, so a twin column can look less
   tidy than a table whose numbers were written one way. The inferred
@@ -7659,8 +7842,9 @@ pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
 R-P4-17, then the exponent case of G10.5 revision 5, and then the
 midnight-day and mixed-mark cases of plan P4-D39), and
-`tests/reference/generation-branch-vectors-2.json` carries the seventeen
-it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added. This sentence carried the
+`tests/reference/generation-branch-vectors-2.json` carries the sixteen
+it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added,
+less the one landing 2b.6 withdrew with the rule it pinned. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. All three are written by
@@ -7693,8 +7877,14 @@ they were, and the twelve are the third file, at 141003 bytes. Five more
 cases then froze the marks and notations of a negative landing 2b.2 had
 left to round trips for want of room, at eleven rows each, because at
 twenty-two rows the five carried the file 873 bytes past the cap. The
-third file now holds 245567 bytes, which leaves no room for another
-case of this size: the next one opens a fourth file.
+third file held 245567 bytes with seventeen cases, which left no room
+for another of that size. Landing 2b.6 withdrew `accidental_midnight`
+with the nought it pinned, so it holds sixteen cases and — once landing
+2b.6 rewrote the one slashed stamp among them in that member's own form
+and gave every block of dates its four written-form censuses — 240399
+bytes, still under the cap, which was not raised;
+that is room bought by a rule going away, not by shortening a proof, and
+the next case of the usual size still opens a fourth file.
 
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the
@@ -7777,6 +7967,43 @@ three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
 and five for the marks and notations of a negative those three left
 unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
 2b.5).
+**Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
+mutant, which is recorded here rather than left to be noticed.** Part 2
+rewrote the placement rule of G7.3 — the nine interior rungs pinned to
+their published values, every other rank drawn inside its own gap — so
+the interior cells of every date case in all three committed files
+moved, and `date_only`'s mutant was retargeted from the floor rounding
+of the withdrawn interpolation to the placement rule itself. **The
+mutant of `midnight_days` could not be kept.** It withdrew P4-D39's
+day-unit rule by counting a column wholly at midnight in seconds, and
+its interior ranks still land part-way through a day under it —
+measured, rank 3 moves from day 19846 to that day plus 25,374 seconds —
+but the CELLS no longer move, because counting in seconds also turns the
+midnight snap of landing 2b.3 on, and that snap pulls every rank back to
+the nearest midnight INSIDE ITS OWN GAP. With the rungs pinned and every
+draw confined to a gap, the snap reproduces the day-unit rule exactly,
+so withdrawing either rule alone leaves the same twin. A mutant whose
+branch has become redundant cannot move a byte, and dressing it up as
+one would be the "guard that passes" this section exists to refuse. So
+`midnight_days` now holds up the placement rule, which is load-bearing
+for it, and **the day-unit rule of P4-D39 no longer has a frozen mutant
+of its own** — a gap in this section's own terms, named as one, and the
+rule stays pinned by the round trips of
+`tests/test_stage2_timestamp_spellings.py`.
+
+**Landing 2b.6 added NO case, and that is recorded here rather than
+left to be noticed.** The reversal of owner decision 5 changed the
+writing rule of G7.5 for every member, and the case that pins it
+already existed: `slashed_pool` describes a column read as
+`slashed-iso-datetime`, and its ten cells moved from `2024-06-13 07:55`
+to `2024/06/13 07:55` when the rule changed — so a revision that put
+the ISO writer back moves committed bytes and is caught. What no
+committed case reaches is the ALLOCATION of the two joint censuses,
+the widths and the month-name styles, because no case here describes a
+column that mixes two conventions; those are pinned by round trips in
+`tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
+is a gap in this section's own terms and it is named as one.
+
 **All forty are required.** The
 first nine are the first committed file, the next fourteen the second,
 and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
@@ -7828,7 +8055,6 @@ case passed, which is the failure the count exists to prevent:
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
-| `accidental_midnight` | G7.5's move of an accidental value at midnight: twenty-four `local` moments to the minute published with `n_at_midnight: 0`, one of whose interpolated ranks lands in the first minute of a day and moves one step later |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -8188,14 +8414,20 @@ onto midnight: its mutant keeps the interpolated instants.
 counts the column in days, which reads a rung at 23:00 as the day
 before.
 
-**Why the thirty-first and the thirty-second exist** (the repair pass of
-landing 2b.3, 2026-09-15). Its skeptic found two rules no case reached:
-regenerated after the rules changed, both committed files were
-byte-identical. `midnight_bare_offsets` pins the settling of the ranks
-whose instant the published tail fixes: its mutant settles the two ends
-alone, and rung ranks are written as the day before and at
-`T02:00:00+02:00`. `accidental_midnight` pins the move off an accidental
-value at midnight: its mutant keeps it.
+**Why the thirty-first exists** (the repair pass of landing 2b.3,
+2026-09-15). Its skeptic found two rules no case reached: regenerated
+after the rules changed, both committed files were byte-identical.
+`midnight_bare_offsets` pins the settling of the ranks whose instant the
+published tail fixes: its mutant settles the two ends alone, and rung
+ranks are written as the day before and at `T02:00:00+02:00`.
+
+**And why the thirty-second was WITHDRAWN** (landing 2b.6).
+`accidental_midnight` pinned the move off an accidental value at
+midnight on a column publishing `n_at_midnight` of nought. No column
+publishes that nought any more, so there is no rule left for a case to
+pin and the case went with it rather than being left to freeze a branch
+nothing reaches. Withdrawing a case is recorded here because a case that
+quietly disappears is a branch that quietly stops being checked.
 
 ### G14.4 What the vectors do NOT freeze
 

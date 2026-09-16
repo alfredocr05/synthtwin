@@ -635,6 +635,18 @@ _BELOW_THE_FLOOR = "one-group-size-below-the-floor"
 # one every blank group reaches the floor, so this count is written
 # there rather than emptied (contract 5 C5-S13).
 _ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
+# A count whose GROUP AND ITS COMPLEMENT are both at the floor, or
+# nothing at all -- written `null`, never nought (landing 2b.6).
+# `n_at_midnight` is the one field of this kind. Nought cannot stand for
+# "not published" here the way it does above, because a reader who can
+# tell a real nought from a suppressed count has been told the
+# suppressed count: 400 moments at noon publish nought, the same 400
+# with ONE moved to midnight published one, and that single difference
+# was the whole of what separated the two documents. So the two states
+# are one, and the field is absent for both. The rule itself -- both
+# sides at the floor, and the floor never below two -- is invariant D15,
+# checked with the invariants where the floor is in hand.
+_BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
 # which carries members of this package's own published vocabulary and
@@ -826,6 +838,17 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "sentinel_verdicts", _EACH, "verdict"): _WORD,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "reason"): _WORD,
     ("columns", _EACH, "sentinel_verdicts", _EACH, "n_occurrences"): _COUNT,
+    # WHICH PUBLISHED ABSENT SPELLINGS THIS DECISION TOOK OUT (repair
+    # pass of landing 2b.6). Every member is already a key of this
+    # column's `missing_by_source`, so the floor has already governed
+    # it and nothing new about the table is published here: what is
+    # new is the LINK between a spelling and the pass that made it
+    # absent, which no count in the document can supply and which two
+    # readers were guessing at.
+    ("columns", _EACH, "sentinel_verdicts", _EACH, "spellings"): _ARRAY,
+    (
+        "columns", _EACH, "sentinel_verdicts", _EACH, "spellings", _EACH
+    ): _SPELLING,
     # The label roles.
     ("columns", _EACH, "levels"): _ARRAY,
     ("columns", _EACH, "levels", _EACH): _OBJECT,
@@ -1089,8 +1112,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # (plan P4-D39): a count standing in for it is refused.
     ("columns", _EACH, "all_at_midnight"): _FLAG,
     # ...and how many parsed cells stood at midnight, a group on both
-    # sides of the floor or nothing at all (landing 2b.3).
-    ("columns", _EACH, "n_at_midnight"): _ZERO_OR_AT_THE_FLOOR,
+    # sides of the floor or nothing at all (landing 2b.3). "Nothing at
+    # all" is written `null` since landing 2b.6, and it covers a real
+    # nought too: see `_BOTH_SIDES_OR_UNAVAILABLE`.
+    ("columns", _EACH, "n_at_midnight"): _BOTH_SIDES_OR_UNAVAILABLE,
     ("columns", _EACH, "earliest"): _MOMENT_TEXT,
     ("columns", _EACH, "latest"): _MOMENT_TEXT,
     ("columns", _EACH, "earliest_utc_offset"): _OFFSET,
@@ -1125,6 +1150,23 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "datetime_separators"): _OBJECT,
     ("columns", _EACH, "datetime_separators", _KEY_OF): _WORD,
     ("columns", _EACH, "datetime_separators", _ANY_KEY): _FLOORED_ENTRY,
+    # HOW THE DATES WERE WRITTEN (landing 2b.6): four censuses of this
+    # package's own form words, each floored with a withheld pool
+    # exactly as the mark census above is. None of them carries a
+    # spelling of anybody's table -- the keys are words this module
+    # wrote, and the counts are counts of conventions.
+    ("columns", _EACH, "date_field_widths"): _OBJECT,
+    ("columns", _EACH, "date_field_widths", _KEY_OF): _WORD,
+    ("columns", _EACH, "date_field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "month_name_styles"): _OBJECT,
+    ("columns", _EACH, "month_name_styles", _KEY_OF): _WORD,
+    ("columns", _EACH, "month_name_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "quarter_marker_case"): _OBJECT,
+    ("columns", _EACH, "quarter_marker_case", _KEY_OF): _WORD,
+    ("columns", _EACH, "quarter_marker_case", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "zulu_case"): _OBJECT,
+    ("columns", _EACH, "zulu_case", _KEY_OF): _WORD,
+    ("columns", _EACH, "zulu_case", _ANY_KEY): _FLOORED_ENTRY,
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -1304,6 +1346,21 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     ("columns", _EACH, "datetime_separators", _KEY_OF): (
         parsing.DATETIME_SEPARATORS + (parsing.MISSING_WITHHELD,)
+    ),
+    # The four written-form vocabularies, read from the one place each
+    # is defined (landing 2b.6), so that a word a producer writes and a
+    # word this guard admits cannot drift apart.
+    ("columns", _EACH, "date_field_widths", _KEY_OF): (
+        parsing.FIELD_WIDTH_STYLES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "month_name_styles", _KEY_OF): (
+        parsing.MONTH_NAME_STYLES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "quarter_marker_case", _KEY_OF): (
+        parsing.QUARTER_MARKER_CASES + (parsing.MISSING_WITHHELD,)
+    ),
+    ("columns", _EACH, "zulu_case", _KEY_OF): (
+        parsing.ZULU_CASES + (parsing.MISSING_WITHHELD,)
     ),
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
@@ -1671,6 +1728,19 @@ def _leaf_is_published(
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         return value == 0 or value >= context.floor
+    if kind == _BOTH_SIDES_OR_UNAVAILABLE:
+        # A count, or nothing at all written `null`. The SHAPE is all
+        # this guard can ask: whether the group and its complement both
+        # reach the floor needs the column's parsed count beside it, so
+        # the rule itself is invariant D15. What is refused here is the
+        # thing that made the count disclosive in the first place -- a
+        # nought standing for "not published" -- because nought is no
+        # longer a value this field takes at all.
+        if value is None:
+            return True
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value >= parsing.MIDNIGHT_DISCLOSURE_FLOOR
     if kind == _STAND_IN_NUMBER:
         # One of the three stand-in numbers this package publishes, and
         # no other number. A number of the table cannot stand here.
