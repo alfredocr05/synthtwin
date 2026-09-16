@@ -4583,10 +4583,41 @@ number when it is one under that reading.
    cannot spell has ladder supply nought and would be settled over no
    level at all. Its supply is therefore the LARGER of the ladder's and
    its own filling's, and a level owing such a form that step 3 cannot
-   spell takes the form's own walk instead — `9.6E6`, which wears the
-   form and reads as a number, so it meets the census and the class
-   count together. The number's LOCATION is still nothing the
-   description places, and the report says so in those words. A level given no form
+   spell takes the form's own walk instead, which wears the form and
+   reads as a number, so it meets the census and the class count
+   together. The number's LOCATION is still nothing the
+   description places, and the report says so in those words.
+
+   **AND THAT WALK IS HELD TO THE PUBLISHED NUMBERS' OWN ENDS**
+   (landing 2b.13 repair, plan P4-D92). Step 3's ladder is BUILT from
+   the published numbers and steps from them, so what it writes sits in
+   or beside the span the column is known to hold. The form's own walk
+   is no ladder: it fills the form's figure places by plain counting
+   and lands wherever the counting lands. Unbounded it wrote `9.6E6`
+   for every held-back cell of a column holding `1.1e6` to `1.3e6`, at
+   seven generate seeds — the census met exactly, twenty-six of
+   twenty-six, while the twin's numbers took mean 2,450,000 and
+   greatest 9,600,000 against the table's 1,173,077 and 1,300,000, a
+   spread 42.9 times the table's, and `synthtwin validate` fell from 3
+   to 0. That column publishes no ladder, least or greatest of its own,
+   so NO obligation could ever catch it.
+
+   So a spelling of the form's own walk is refused where its VALUE lies
+   outside the ends, and the supply is counted under the same bound it
+   is spent under — counted loosely, the form is settled over a level
+   the walk then cannot cover, and the shortfall is reported as a
+   missing spelling rather than as the bound really refusing it. Where
+   the column published no plain decimal there are no ends at all:
+   nothing places a made-up number, so every spelling is refused, the
+   debt stands, and the report line and the exit code announcing it
+   stand with it. A shortfall a reader can see is not exchanged for a
+   larger one nothing can check. Only NUMBER is bounded this way; the
+   other two classes are constructed outright by G10.3 and mean
+   magnitudes no envelope covers. The rule above is not withdrawn by
+   this — a column publishing the same census beside PLAIN spellings
+   has ends, and its form debt is met in full from inside them.
+
+   A level given no form
    wears none the census names, because a spelling of a named form counts
    toward that form and a level settled without it would overpay it. A form
    whose spellings read as a numeric class is then taken out of the

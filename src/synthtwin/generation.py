@@ -14473,7 +14473,7 @@ def _class_stand_ins_walked(
                     ),
                     _usable_room(
                         form, len(sub), used, owners, holes,
-                        parsing.NUMBER, decimal_comma,
+                        parsing.NUMBER, decimal_comma, ladder,
                     ),
                 )
             else:
@@ -14518,7 +14518,7 @@ def _class_stand_ins_walked(
                         # `_HELD_BACK_UNSPELLED_REASON` already says.
                         found = _class_form_stand_in(
                             form, parsing.NUMBER, walked, used, owners,
-                            holes, decimal_comma,
+                            holes, decimal_comma, ladder,
                         )
                 if not found:
                     found = _next_on_ladder(
@@ -15150,7 +15150,7 @@ def _settled_by_sums(
 
 
 def _subset_making(
-    spare: "list[int]", total: int, most: int, avoid: "tuple[int, ...]" = ()
+    spare: "list[int]", total: int, most: int
 ) -> "list[int] | None":
     """Which of ``spare`` sum to ``total`` in at most ``most`` parts.
 
@@ -15172,10 +15172,12 @@ def _subset_making(
     a slot cannot repeat -- which is the property the caller needs and
     the one it did not have.
 
-    ``avoid`` names slots this pass may not lay down, which is how a
-    caller reaches a DIFFERENT exact subset than the one it was given
-    (landing 2b.13, Codex item 5). The sums are the same arithmetic;
-    the avoided sizes are simply not offered.
+    THE PLACES A REFUSED ARRANGEMENT SPENT ARE FORBIDDEN BY THE CALLER
+    and not here (landing 2b.13 repair). `_settled_by_sums` drops them
+    from `spare` before this is asked, so the retry of G8.3a step 1
+    reaches a different subset by being handed different sizes. A
+    second, unreachable way of saying the same thing stood here until
+    a review mutated it and watched every test stay green.
     """
     if total < 1:
         return []
@@ -15184,8 +15186,6 @@ def _subset_making(
     made: "dict[int, tuple[int, int]]" = {}
     reached: "dict[int, int]" = {0: 0}
     for slot in range(len(spare)):
-        if slot in avoid:
-            continue
         size = spare[slot]
         before = [(sum_so_far, reached[sum_so_far]) for sum_so_far in reached]
         for pair in before:
@@ -15317,8 +15317,12 @@ def _usable_room(
     holes: "tuple[str, ...]",
     reads_as: str = parsing.NOT_A_NUMBER,
     decimal_comma: bool = False,
+    ladder: "_Ladder | None" = None,
 ) -> int:
     """How many spellings of one form this walk could still write.
+
+    ``ladder``, where given, holds the spellings to the published
+    numbers' own ends, exactly as the spending walk is held (P4-D92).
 
     ``reads_as`` is the class the spellings must read as, which is text
     everywhere but the class debt of method G8.3a.
@@ -15351,6 +15355,15 @@ def _usable_room(
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+            continue
+        # COUNTED UNDER THE SAME BOUND THE WALK SPENDS UNDER (landing
+        # 2b.13 repair, plan P4-D92). A supply counted without the
+        # envelope and spent with it settles the form over a group the
+        # walk then cannot pay, which is a shortfall reported as a
+        # missing spelling rather than as the bound it really is.
+        if ladder is not None and not _within_the_published_ends(
+            candidate, ladder, decimal_comma
+        ):
             continue
         usable = usable + 1
     return usable
@@ -16789,6 +16802,53 @@ def _ladder_room(
     return usable
 
 
+def _within_the_published_ends(
+    candidate: str, ladder: "_Ladder", decimal_comma: bool
+) -> bool:
+    """Whether a made-up number lies between the published numbers' ends.
+
+    THE BOUND THE FORM'S OWN WALK DID NOT HAVE (landing 2b.13 repair,
+    plan P4-D92). Step 3's ladder is built out of the published numbers
+    and steps from them -- the gaps between the two ends first, then
+    outward a step at a time -- so every number it writes sits in or
+    beside the span the column is known to hold. The form's own walk of
+    step 2 is not a ladder at all: it fills the form's figure places by
+    counting, so the first spelling it reaches that reads as a number is
+    whatever the counting arrives at, with nothing whatever to do with
+    the column's magnitudes.
+
+    MEASURED, on the reviewer's own column. Thirty `alpha` cells beside
+    `1.1e6` and `1.2e6` on eleven rows each and `1.3e6` on four: the
+    form's own walk wrote `9.6E6` for all four held-back cells at every
+    one of seven generate seeds. The census was then met exactly -- and
+    the twin's numbers had mean 2,450,000 and maximum 9,600,000 against
+    the table's 1,173,077 and 1,300,000, a spread 42.9 times the
+    table's against the 5.9 times it replaced. `synthtwin validate`
+    exited 0 on that twin where it had exited 3, so the one signal a
+    reader had was spent buying the census count.
+
+    A twin whose statistics are wrong is not a twin, and the ruling
+    that its statistics are reliable ranks with the ruling that code
+    runs unchanged. So the value is asked as well as the form: outside
+    the published ends the spelling is refused, the form goes unpaid,
+    and the report line and the exit code that announce the shortfall
+    STAND. A detectable miss is not traded for an undetectable one.
+
+    Asked of the number class alone. An out-of-range or contradictory
+    stand-in is built by G10.3 outright and means a magnitude no
+    envelope covers.
+    """
+    if not ladder.anchored:
+        return False
+    value = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
+    if value is None:
+        return False
+    scale = float(_ten_to(ladder.places))
+    if value < float(ladder.lowest) / scale:
+        return False
+    return value <= float(ladder.highest) / scale
+
+
 def _settles_its_forms(
     taken: "dict[int, str]",
     sizes: "tuple[int, ...]",
@@ -16991,12 +17051,20 @@ def _class_form_stand_in(
     owners: "dict[str, str]",
     holes: "tuple[str, ...]",
     decimal_comma: bool,
+    ladder: "_Ladder | None" = None,
 ) -> str:
     """A spelling of one published form that reads as one numeric class.
 
     The form walk of `_made_up_label`, asked for a class other than
     text, and answering "" rather than a neutral spelling where the form
     has none left -- the caller then settles the class without the form.
+
+    AND, FOR A NUMBER, HELD TO THE PUBLISHED NUMBERS' OWN ENDS (landing
+    2b.13 repair, plan P4-D92). ``ladder`` given, a spelling is refused
+    where its VALUE lies outside the span the published numbers cover,
+    so this walk can never buy a census count with a number the column
+    is not known to hold. The out-of-range and contradictory classes
+    pass no ladder and are unbounded, which is what those classes mean.
     """
     room = min(_form_room(form), _STAND_IN_STEPS)
     if form not in walked:
@@ -17007,6 +17075,10 @@ def _class_form_stand_in(
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+            continue
+        if ladder is not None and not _within_the_published_ends(
+            candidate, ladder, decimal_comma
+        ):
             continue
         return candidate
     return ""

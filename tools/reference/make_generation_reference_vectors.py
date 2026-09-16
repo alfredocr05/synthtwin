@@ -3211,13 +3211,36 @@ def neediest_form(owing):
     return ordered[0][1] if ordered else ""
 
 
-def usable_room(form, wanted, seen, folds, reads=None):
+def within_the_published_ends(candidate, ladder):
+    """Whether a made-up number lies between the published numbers' ends.
+
+    Method G8.3a step 2's bound on the form's OWN walk (P4-D92).  Step 3
+    steps from the published numbers, so what it writes sits in or beside
+    the span the column holds; the form's own walk fills figure places by
+    counting and lands wherever the counting lands.  Unbounded it wrote
+    `9.6E6` for a column holding 1.1e6 to 1.3e6 -- meeting the census and
+    taking the twin's mean to 2,450,000 against 1,173,077, with validate
+    falling from 3 to 0.  So the VALUE is asked too, and where the column
+    published no plain number at all there are no ends and nothing places
+    a made-up one, so every spelling is refused and the debt stands.
+    """
+    if not ladder["anchored"]:
+        return False
+    scale = float(10 ** ladder["places"])
+    return (
+        ladder["lowest"] / scale <= float(candidate) <= ladder["highest"] / scale
+    )
+
+
+def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     """How many spellings of one form a stand-in could still wear, up to
     ``wanted`` -- method section G8.3's supply rule.
 
     A spelling already written, raw or folded, is not supply, and nor is
     one the neutrality tests refuse.  ``reads`` is the numeric class the
-    spelling must read as (G8.3a); None is ordinary text.
+    spelling must read as (G8.3a); None is ordinary text.  ``ladder``,
+    where given, holds the count to the published ends (P4-D92), so the
+    supply is counted under the bound the walk spends under.
     """
     room = min(form_room(form), STAND_IN_STEPS)
     usable = 0
@@ -3231,6 +3254,8 @@ def usable_room(form, wanted, seen, folds, reads=None):
             if not usable_stand_in(candidate):
                 continue
         elif not usable_of_class(candidate, reads):
+            continue
+        if ladder is not None and not within_the_published_ends(candidate, ladder):
             continue
         usable += 1
     return usable
@@ -3249,16 +3274,17 @@ STAND_IN_STEPS = 4096
 CLASS_RETRIES = 8
 
 
-def subset_making(spare, total, most, avoid=()):
+def subset_making(spare, total, most):
     """Which slots of ``spare`` sum to ``total`` in at most ``most`` parts.
 
     Reachable sums, each size offered against the sums reached WITHOUT
     it, and a sum once reached never rewritten -- the two rules that make
     the chain read back strictly decreasing in slot.
 
-    ``avoid`` names slots this pass may not lay down, which is how a
-    caller reaches a DIFFERENT exact subset than the one it was given
-    (G8.3a step 1, landing 2b.13).
+    The places a refused arrangement spent are forbidden by the CALLER:
+    `settled_by_sums` drops them from ``spare`` before asking this, so
+    the retry of G8.3a step 1 reaches a different subset by being handed
+    different sizes.
     """
     if total < 1:
         return []
@@ -3267,8 +3293,6 @@ def subset_making(spare, total, most, avoid=()):
     made = {}
     reached = {0: 0}
     for slot, size in enumerate(spare):
-        if slot in avoid:
-            continue
         for sum_so_far, parts in list(reached.items()):
             step = sum_so_far + size
             if step > total or step in reached or parts + 1 > most:
@@ -4074,7 +4098,7 @@ def class_stand_ins_walked(
                 # the ladder has nothing.
                 room[form] = max(
                     ladder_room(ladder, form, len(sub), named, seen, folds),
-                    usable_room(form, len(sub), seen, folds, reads),
+                    usable_room(form, len(sub), seen, folds, reads, ladder),
                 )
             else:
                 room[form] = usable_room(form, len(sub), seen, folds, reads)
@@ -4099,8 +4123,13 @@ def class_stand_ins_walked(
                         # never `%.%@%`, so a number level owing an
                         # exponent form was stepped past every candidate
                         # and fell through to the unformed walk, which
-                        # wrote `1`.  The form's own walk writes `9.6E6`,
-                        # which wears the form AND reads as a number.
+                        # wrote `1`.  The form's own walk writes a spelling
+                        # that wears the form AND reads as a number -- and,
+                        # since P4-D92, one lying between the published
+                        # numbers' own ends, so a census count is never
+                        # bought with a magnitude the column is not known
+                        # to hold.  Where no plain number was published
+                        # there are no ends and the debt simply stands.
                         room_left = min(form_room(form), STAND_IN_STEPS)
                         walked.setdefault(form, 0)
                         while walked[form] < room_left:
@@ -4108,7 +4137,9 @@ def class_stand_ins_walked(
                             walked[form] += 1
                             if trial in seen or folded(trial) in folds:
                                 continue
-                            if usable_of_class(trial, reads):
+                            if usable_of_class(trial, reads) and (
+                                within_the_published_ends(trial, ladder)
+                            ):
                                 found = trial
                                 break
                 if not found:
