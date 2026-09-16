@@ -1537,6 +1537,19 @@ class SettingsBlock:
 # landed somewhere it cannot help. Its COMPLEMENT is what gets the
 # warning.
 DECIMAL_COMMA_HONOURED_ROLES = (
+    # THE AFFIXED ROLE, whose cores the declaration now reaches (landing
+    # 2b.16, plan P4-D106; the audit's item NC-11). A price written
+    # `795,64 EUR` and a percentage written `37,5 %` are the commonest
+    # European exports there are, and the splitter that finds the number
+    # inside the wrapper asked the ORDINARY reader whether a substring
+    # was a number -- so `795,64` was not one, every cell proposed a
+    # pair of its own, and the column fell to free text and came back as
+    # punctuation stand-ins. Which mark inside a larger spelling is the
+    # decimal point is the question residual R-P4-52 carries, and on a
+    # DECLARED column it is the declaration that answers it; the joined
+    # role stays outside, where the same mark may be the separator
+    # between two readings and no declaration settles which.
+    "affixed_number",
     "binary",
     "constant",
     "continuous",
@@ -1572,12 +1585,20 @@ def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
 
     It does NOT reach the label and text roles: those publish spellings
     the file itself held, and swapping a character inside one of them
-    would rewrite a value the description publishes exactly. It does
-    not reach the affixed or joined roles either, and that is residual
-    R-P4-52: their cells carry a number inside a larger spelling -- an
-    affix around it, or a separator between several -- and which mark
-    of that spelling is a decimal point is a question this declaration
-    does not answer.
+    would rewrite a value the description publishes exactly.
+
+    IT REACHES THE AFFIXED ROLE SINCE LANDING 2b.16 (plan P4-D106,
+    closing the affixed half of residual R-P4-52), and it reaches it
+    OVER THE CORE alone. Such a cell carries a number inside a larger
+    spelling, and R-P4-52 asked which mark of that spelling is the
+    decimal point; on a column the person DECLARED, the declaration is
+    the answer -- that is the one question it exists to answer -- and
+    the wrapper is not translated at all, because a wrapper is
+    published text and a mark inside `U.S.$` is no decimal point. What
+    stays outside is the JOINED role, where the same mark may be the
+    separator between two readings and nothing published chooses; that
+    half of R-P4-52 is open and is named in the plan rather than
+    quietly widened.
 
     IT LIVES HERE BECAUSE FOUR PLACES ASK IT (review item P4-G3-R2-F2).
     The profiler's censuses, the generator's writeback, the validator's
@@ -1602,7 +1623,8 @@ def a_decimal_comma_reaches(column: "ColumnBlock") -> bool:
     # the translation makes it a number, so a label spelled `E11.9`
     # keeps its dot.
     return isinstance(
-        column.facts, (NumericFacts, UnrepresentableFacts, CompoundFacts)
+        column.facts,
+        (NumericFacts, UnrepresentableFacts, CompoundFacts, AffixedFacts),
     )
 
 
@@ -9354,9 +9376,12 @@ def _group_marks_agree(
     marks -- a space, an apostrophe, a no-break space -- are neither
     decimal mark, so they stand under either (landing 2b.2). Whether the
     declaration reaches a column is `a_decimal_comma_reaches`' answer and
-    no other, so a labelled column's numbers may carry a `.` and an
-    affixed or joined column's never do (the first version refused the
-    profiler's own labelled column: stage 2 closure).
+    no other, so a labelled column's numbers may carry a `.` and so may
+    the CORES of a declared affixed column since landing 2b.16, while a
+    joined column's position never does (the first version refused the
+    profiler's own labelled column: stage 2 closure). Asking the one
+    predicate rather than listing roles here is what made that last
+    change a change in one place.
 
     Guarantees: accepts every column and the settings; returns nothing.
     Raises ProfileError for GS1. No I/O of any kind.

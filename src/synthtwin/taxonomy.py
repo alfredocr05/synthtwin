@@ -3705,12 +3705,55 @@ def _core_spans(text: str) -> "list[tuple[int, int]]":
     return spans
 
 
-def affixed_split(text: str) -> "tuple[str, str, str] | None":
+def _reads_as_a_number(text: str, decimal_comma: bool) -> bool:
+    """Whether this substring is a number IN THE COLUMN'S OWN GRAMMAR.
+
+    ONE GRAMMAR PER COLUMN, which is the whole of the rule (landing
+    2b.16, plan P4-D106; the audit's item NC-11). `_classify` reads a
+    declared column's cell by swapping its points and commas and then
+    asking the ordinary reader; this asks the same question of a
+    SUBSTRING, so that the splitter and the classifier cannot disagree
+    about what a number is on the same column.
+
+    The two readings are not tried in turn, and that is deliberate. A
+    declared column's grammar says the comma is its decimal point and
+    the point is its mark between thousands, so `12,345,678` is not a
+    number on such a column, and admitting it because the ORDINARY
+    reader accepts it would give one column two graders. What the
+    declaration answers is exactly this question, asked of the cells
+    the earlier reader could not read at all.
+
+    Guarantees: accepts a substring and whether the column was declared;
+    returns whether it reads as a number this format holds.
+    Determinism: a fixed function of the two. Raises nothing this
+    module's reader does not raise. No I/O of any kind.
+    """
+    read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
+    return parsing.classify_number(read) == parsing.NUMBER
+
+
+def affixed_split(
+    text: str, decimal_comma: bool = False
+) -> "tuple[str, str, str] | None":
     """Split a cell into prefix, core and suffix, or None if it is not one.
+
+    ``decimal_comma`` says this column was DECLARED as writing its
+    numbers with a comma where the decimal point goes, and it reaches
+    the search for the core (landing 2b.16, plan P4-D106). Without it
+    the commonest European export there is -- a price or a percentage
+    written `795,64 EUR` or `37,5 %` -- had no substring its reader
+    could hold: `795,64` is not a number to the ordinary grader, so
+    every cell proposed a pair of its own, no pair reached the line, and
+    the column fell to free text with punctuation stand-ins in its
+    twin. Measured on the base of this landing, 800 rows at floor
+    eleven, seeds 1 and 7: role `free_text`, 0 numeric cells, twin
+    cells `)!!!!! !!!!!`, and `synthtwin validate` exit 0 on both the
+    twin and the real table, so nothing said a word about it.
 
     Guarantees:
 
-    - Inputs: one cell's text, exactly as the file held it.
+    - Inputs: one cell's text, exactly as the file held it, and the
+      column's own declaration.
     - Determinism: the split is a function of the text alone. Where
       more than one substring parses as a number this format can hold,
       the core is the LONGEST, and of equal-length candidates the
@@ -3739,9 +3782,7 @@ def affixed_split(text: str) -> "tuple[str, str, str] | None":
                 # Nothing from here on can be longer than what is held.
                 break
             for end in range(span_stop, begin + best_length, -1):
-                if parsing.classify_number(trimmed[begin:end]) == (
-                    parsing.NUMBER
-                ):
+                if _reads_as_a_number(trimmed[begin:end], decimal_comma):
                     best_start, best_length = begin, end - begin
                     break
     if best_length <= 0:
@@ -8456,7 +8497,7 @@ def affixed_reach(cells: _Cells) -> int:
     """
     proposing: "dict[tuple[str, str], int]" = {}
     for text in cells.present:
-        split = affixed_split(text)
+        split = affixed_split(text, cells.decimal_comma)
         if split is None:
             continue
         prefix, _core, suffix = split
@@ -8735,7 +8776,7 @@ def _affixed_before_the_address_test(
     # number would describe none.
     proposing: "dict[tuple[str, str], int]" = {}
     for text in present:
-        split = affixed_split(text)
+        split = affixed_split(text, cells.decimal_comma)
         if split is None:
             # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
             # P4-D36), proposed by a cell that reads as a number
@@ -8748,9 +8789,9 @@ def _affixed_before_the_address_test(
             # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
             # is asked first: a column most of whose cells are bare
             # numbers is a column of numbers and never reaches here.
-            if parsing.classify_number(
-                parsing.trimmed(text)
-            ) == parsing.NUMBER:
+            if _reads_as_a_number(
+                parsing.trimmed(text), cells.decimal_comma
+            ):
                 key = ("", "")
                 proposing[key] = (
                     proposing[key] + 1 if key in proposing else 1
@@ -9493,7 +9534,9 @@ def _wrapper_tally(
     for place in range(len(affixed.cores)):
         if affixed.wrappers[place] == wrapper:
             worn += [affixed.cores[place]]
-    return _tally(_classify_all(worn), len(worn), cells.settings)
+    return _tally(
+        _classify_all(worn, cells.decimal_comma), len(worn), cells.settings
+    )
 
 
 def _affixed_verdict(
@@ -9518,7 +9561,9 @@ def _affixed_verdict(
     cores that hold, never over the cells.
     """
     core_cells = _tally(
-        _classify_all(affixed.cores), cells.n_rows, cells.settings
+        _classify_all(affixed.cores, cells.decimal_comma),
+        cells.n_rows,
+        cells.settings,
     )
     n_core_numeric = len(core_cells.numbers)
     # `whole_everywhere` over the CORES, on the same test the numeric
@@ -9757,7 +9802,11 @@ def _cores_judged(
     # nothing. What is compared is still a whole cell; what the pass
     # sees is the core of the cell that matched.
     settings = _cores_settings(cells, reading)
-    cores = _tally(_classify_all(reading.cores), cells.n_rows, settings)
+    cores = _tally(
+        _classify_all(reading.cores, cells.decimal_comma),
+        cells.n_rows,
+        settings,
+    )
     if _numeric_looking(cores) < _needed(
         settings.minimum_parse_rate, len(cores.present)
     ):

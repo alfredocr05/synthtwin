@@ -6320,8 +6320,27 @@ def _cells_read_as_declared(
     # back MISSING its own style obligation, with twenty numbers in a
     # recount of a column published as holding one hundred and eighty.
     compound = isinstance(column.facts, contract.CompoundFacts)
+    # AND ON THE AFFIXED ROLE THE READING RUNS OVER THE CORE ALONE
+    # (landing 2b.16, plan P4-D106), which is the rule the producer's
+    # writeback follows. Such a cell is a number wearing a WRAPPER the
+    # description publishes character for character, and a swap over
+    # the whole cell rewrites that wrapper: `U.S.$ 24,60` would be
+    # measured as `U,S,$ 24.60`, a pair the description does not
+    # publish, so the cell would be counted a straggler and every
+    # quantitative obligation of the column measured over the cells
+    # that remain.
+    speaking: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        speaking += [
+            (column.facts.affix_prefix, column.facts.affix_suffix)
+        ]
+        for one in column.facts.affix_variants:
+            speaking += [(one.prefix, one.suffix)]
     swapped: "list[str]" = []
     for place in range(len(cells)):
+        if speaking:
+            swapped += [_core_read_as_declared(cells[place], speaking)]
+            continue
         read = parsing.written_with_a_decimal_comma(cells[place])
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
         # the rule the writeback follows (review round 4 of landing L8,
@@ -6340,6 +6359,64 @@ def _cells_read_as_declared(
             continue
         swapped += [read]
     return swapped
+
+
+def _core_read_as_declared(
+    cell: str, speaking: "list[tuple[str, str]]"
+) -> str:
+    """One affixed cell with its CORE read in the column's own grammar.
+
+    THE WRAPPER IS THE FILE'S TEXT AND THE CORE IS THE NUMBER (landing
+    2b.16, plan P4-D106). The declaration says how this column's
+    NUMBERS are spelled, so it reaches the core and stops there: a
+    wrapper carrying either mark -- `U.S.$ `, a unit written `kg.` --
+    is published character for character, and swapping inside it makes
+    a pair the description does not publish. Measured on the base of
+    this landing, 800 cells of `U.S.$ 129,58` at floor eleven: the twin
+    wrote every cell correctly and BOTH it and the real table were
+    reported at exit 3 with `styles.at-least.decimal` MISSED, because
+    the reading turned each cell into `U,S,$ 129.58` and counted it a
+    straggler wearing no published pair.
+
+    THE LONGEST WRAPPER WINS, and the bare pair is worn by a number
+    only -- the same two rules `_affixed_checks` reads its cores by,
+    asked here so that the reading and the recount cannot disagree
+    about where a cell's number begins. A cell wearing no published
+    wrapper is a straggler and comes back exactly as it is, edge space
+    and all.
+
+    Guarantees: accepts one cell and the wrappers the description
+    publishes; returns a cell of the same wrapper with its core read as
+    declared. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    start = 0
+    while start < len(cell) and parsing.trimmed(cell[start : start + 1]) == "":
+        start = start + 1
+    stop = len(cell)
+    while stop > start and parsing.trimmed(cell[stop - 1 : stop]) == "":
+        stop = stop - 1
+    trimmed = cell[start:stop]
+    chosen: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(speaking):
+        ahead = key[0]
+        behind = key[1]
+        if not _wears_the_wrapper(cell, ahead, behind):
+            continue
+        if not ahead and not behind:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
+        if len(ahead) + len(behind) > reach:
+            chosen = key
+            reach = len(ahead) + len(behind)
+    if chosen is None:
+        return cell
+    core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+    if not core:
+        return cell
+    read = parsing.written_with_a_decimal_comma(core)
+    return f"{cell[:start]}{chosen[0]}{read}{chosen[1]}{cell[stop:]}"
 
 
 def _cells_of(

@@ -1663,10 +1663,42 @@ cells, a ceiling of one. Two rules follow and both are normative:
    the first cell, in ascending position, that is not wearing it, can
    wear it, and holds a value a published width CAN hold; the giver
    must be able to wear what it receives, as in the exchange above.
-   Where no such partner exists the cell keeps the style and G13's
-   recount names the field it missed — which is the case where the
-   twin has drawn fewer values narrow enough for the field than the
-   census counts cells, and no exchange can mend it.
+   **AND WHERE NO PARTNER EXISTS THE CELL GIVES THE STYLE UP ANYWAY**
+   (landing 2b.16, 2026-09-16; plan P4-D105). That is the case where
+   the twin drew fewer values narrow enough for the field than the
+   census counts cells, so no exchange can mend it and the census
+   cannot be met; a revision of this sentence left the cell wearing the
+   style, and the writer then put one zero in front of a value that
+   already filled the field. Measured: eight hundred five-figure postal
+   codes at floor eleven, seed 7, publish `pad_widths {5: 85}`; the
+   twin drew 84 values narrow enough, wrote `099613` — six characters
+   in a five-character field — and missed `pads.published.5` at 84 all
+   the same. **The census is missed in both writings; what differs is
+   the cell.** Reaching for the value instead is closed off by the
+   contract in as many words: a named field width is honoured by
+   padding and never by adjusting a value, because `000123` and `123`
+   read back as the same number and no rung, endpoint or statistic may
+   be spent to reach one.
+
+   So the cell takes, instead of the padded style, the point-free form
+   the published map carries MOST OF — `plain` before `leading_plus`
+   where both are worn the same number of times, which is the
+   enumeration order every other tie here is broken by — and a form no
+   cell of the column wears is never offered, because writing one would
+   invent a spelling the description does not publish. Where the map
+   carries no other point-free form at all, every cell of the column
+   being padded, there is nothing to give the style up to and the cell
+   keeps it.
+
+   **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
+   exchange above moves no count; this gives one cell from
+   `leading_zero` to `plain`, so the styles map — which is
+   EXACT-OBSERVABLE against the identity of contract 7.5.7 — is missed
+   in the clauses that identity states, beside the width census that
+   was already missed. Measured on the same column: one obligation
+   missed before this rule and five after it, every one of the five
+   naming the same single cell, and no cell of the twin wider than the
+   field its description publishes.
 
 Placing the counted cells into the published widths is a packing
 problem and this method fixes a WALK rather than an optimum. The walk
@@ -2945,6 +2977,23 @@ cell = affix_prefix + core + affix_suffix
 ```
 
 No trimming, no case change, no normalization of either side.
+
+**AND ON A DECLARED COLUMN THE EXCHANGE OF P4-D26 RUNS OVER THE CORE
+ALONE** (landing 2b.16, plan P4-D106). Where the column is named in
+`settings.forced_decimal_commas`, its cores are written by the rules
+above and then have every point and comma exchanged, exactly as a plain
+numeric column's cells are — and the WRAPPER is not touched, because it
+is published text rather than a number this method spelled. So a
+declared column publishing the suffix ` EUR` writes `624,60 EUR`, and
+one publishing the prefix `U.S.$ ` writes `U.S.$ 825,81` with the two
+points of its own wrapper still in it. Exchanging the whole cell
+instead rewrites the wrapper into a pair the description does not
+publish: measured, 800 cells of `U.S.$ 129,58` had every twin cell
+written correctly and both the twin and the real table reported at exit
+3, because the reading turned each into `U,S,$ 129.58` and counted it a
+straggler wearing no published pair. The order is the one the numeric
+roles use: the cell is finished first and exchanged last, so the rules
+above see the point form they were written in.
 
 ### G6A.3 The stragglers, and the overlap that must not be assumed away
 

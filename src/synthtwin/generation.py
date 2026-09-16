@@ -3223,9 +3223,41 @@ def _padded_style_swaps(
     # THE EXCHANGE IS THE ONE G6.3's RULE 2 ALREADY STATES, applied in
     # the direction the walks above leave open: the overflowing cell
     # and a cell whose value a published width CAN hold swap styles, so
-    # every published style count is exactly what it was. Where no
-    # partner exists the cell keeps the style and G13's recount names
-    # it, which is what happened silently before.
+    # every published style count is exactly what it was.
+    #
+    # AND WHERE NO PARTNER EXISTS THE CELL GIVES THE STYLE UP ANYWAY
+    # (landing 2b.16, plan P4-D105; the audit's missed item M4, which
+    # plan P4-D66.4 left half closed). That decision sent this case to
+    # the VALUE draw -- the twin had drawn fewer narrow values than the
+    # census counts padded cells -- and the contract forbids that road
+    # in as many words: a named field width "is honoured by PADDING and
+    # never by adjusting the value", because `000123` and `123` read
+    # back as the same number and no rung, endpoint or statistic may be
+    # spent to reach one (contract 9.4, `pad_widths`). So the census is
+    # unmeetable on the values in hand, something must be missed, and
+    # the only question is what.
+    #
+    # WHAT IS MISSED EITHER WAY IS THE CENSUS. Measured on eight
+    # hundred five-figure postal codes at floor eleven, seed 7: the
+    # description publishes `pad_widths {5: 85}`, the twin drew 84
+    # values narrow enough for the field, and before this repair it
+    # wrote `099613` -- six characters in a five-character field --
+    # leaving `pads.published.5` MISSED at 84 all the same. The repair
+    # cannot save that count; what it saves is the CELL. Every cell of
+    # the real column is five characters, so a fixed-width slice, a
+    # length check and a code lookup all run on the twin, which is the
+    # thing a spelling that no real cell wears takes away.
+    #
+    # THE FORM IT TAKES IS ONE THE COLUMN ALREADY WRITES, never a new
+    # one: a cell is handed the point-free form the published map
+    # carries most of, so nothing is invented (the recount of
+    # `_style_notes` reads the finished text, and `plain` may stand
+    # above its published count while `leading_zero` falls below it,
+    # which is exactly what the identity of contract 7.5.7 permits and
+    # refuses in turn). Where the map carries no other point-free form
+    # -- every cell of the column padded -- there is nothing to give
+    # the style up TO, and the cell keeps it; that column's census is
+    # unmeetable in both directions and G13's recount names it.
     widest = 0
     for width in quotas:
         if width > widest:
@@ -3235,6 +3267,7 @@ def _padded_style_swaps(
             continue
         if need_of(index) < widest:
             continue
+        swapped = False
         for other in range(len(moved)):
             if moved[other] == "leading_zero" or other in reserved:
                 continue
@@ -3248,8 +3281,53 @@ def _padded_style_swaps(
             moved[other] = "leading_zero"
             spent[other] = 1
             reserved[other] = widest
+            swapped = True
             break
+        if swapped:
+            continue
+        given = _point_free_form_worn(styles, holds[index], whole_column)
+        if given:
+            moved[index] = given
     return moved
+
+
+def _point_free_form_worn(
+    styles: "list[str]", value: float, whole_column: bool
+) -> str:
+    """The point-free form this column writes most of, or "" (G6.3 rule 2).
+
+    Asked by the give-up above, and asked of the styles the walk was
+    HANDED rather than of the working copy: those are the published
+    counts, so the answer is the same however many cells have given the
+    padded style up before this one, and a run of give-ups cannot walk a
+    column from one form to another.
+
+    `plain` is offered before `leading_plus` where both are worn the
+    same number of times, which is the enumeration order of
+    `_WHOLE_STYLES` and the order every other tie in G6.4 is broken by.
+    A form no cell of the column wears is never offered: writing one
+    would INVENT a spelling the description does not publish, which is
+    a worse fault than the count this repair is already short.
+
+    Guarantees: accepts the assigned styles, one value and whether the
+    column is whole; returns `"plain"`, `"leading_plus"` or `""`.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    best = ""
+    worn = 0
+    for name in _WHOLE_STYLES:
+        if name == "leading_zero":
+            continue
+        if not _can_wear(name, value, whole_column):
+            continue
+        count = 0
+        for index in range(len(styles)):
+            if styles[index] == name:
+                count = count + 1
+        if count > worn:
+            best = name
+            worn = count
+    return best
 
 
 def _pad_places(
@@ -8097,10 +8175,22 @@ def _spelled_with_a_decimal_comma(
     out of the twin (stage 2 closure review). An absent cell and a label
     are never exchanged; a number always is.
 
-    WHY ONLY THE PLAIN NUMERIC ROLES. The swap is applied where the
-    cells were written by the numeric machinery and are therefore
-    numbers this method spelled; `contract.a_decimal_comma_reaches`
-    decides which roles those are.
+    WHY ONLY THE ROLES WHOSE CELLS THIS METHOD SPELLED. The swap is
+    applied where the cells were written by the numeric machinery and
+    are therefore numbers this method spelled;
+    `contract.a_decimal_comma_reaches` decides which roles those are.
+
+    AND ON THE AFFIXED ROLE IT RUNS OVER THE CORE ALONE (landing 2b.16,
+    plan P4-D106). Such a cell is a number this method spelled with a
+    WRAPPER around it that the description publishes character for
+    character, and the two are not the same kind of text: the number is
+    this method's to respell and the wrapper is the file's own. A
+    wrapper carrying either mark -- `U.S.$`, a unit written `kg.` --
+    would be rewritten by a swap over the whole cell, so the cell is
+    split by the same longest-wrapper rule the recounts use, the core
+    is swapped, and the wrapper goes back on unchanged. A cell wearing
+    no published wrapper is a straggler, which this method did not
+    spell as a number, and it is left exactly as it is.
 
     Guarantees: accepts the column, the profile, the cells as arranged
     and one flag per cell; returns the cells as written out. Determinism:
@@ -8111,6 +8201,9 @@ def _spelled_with_a_decimal_comma(
         return content
     if not contract.a_decimal_comma_reaches(column):
         return content
+    wrappers: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        wrappers = _vocabulary_of(column.facts)
     spelled: "list[str]" = []
     for place in range(len(content)):
         cell = content[place]
@@ -8119,15 +8212,26 @@ def _spelled_with_a_decimal_comma(
         if not cell or place >= len(numeric) or not numeric[place]:
             spelled += [cell]
             continue
+        ahead = ""
+        behind = ""
+        body = cell
+        if wrappers:
+            worn = _worn_here(parsing.trimmed(cell), wrappers)
+            if worn is None:
+                spelled += [cell]
+                continue
+            ahead = worn[0]
+            behind = worn[1]
+            body = cell[len(ahead) : len(cell) - len(behind)]
         swapped = ""
-        for letter in cell:
+        for letter in body:
             if letter == ".":
                 swapped = swapped + ","
             elif letter == ",":
                 swapped = swapped + "."
             else:
                 swapped = swapped + letter
-        spelled += [swapped]
+        spelled += [f"{ahead}{swapped}{behind}"]
     return spelled
 
 
