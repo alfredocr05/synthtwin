@@ -922,6 +922,10 @@ def test_the_oracle_refuses_a_cell_outside_its_number_grammar() -> None:
     assert dialect.cell_class("1e") == dialect.CELL_TEXT
     assert sheetwriting.number_spelling("1e") == ""
     assert oracle.written_cell_class("North") == "text"
+    # ...and the absent class is read from contract 5.4.1's whole
+    # vocabulary, as the product reads it, not from a sample of it.
+    for cell in ("-", "?", "#N/A", "   ", "NaT", "nat", "NA"):
+        assert oracle.written_cell_class(cell) == dialect.cell_class(cell), cell
     assert oracle.written_cell_class("12.5") == "number"
 
 

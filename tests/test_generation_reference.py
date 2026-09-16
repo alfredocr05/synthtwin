@@ -2371,6 +2371,7 @@ DOCUMENT_CASES = (
     "withheld_line_marks",
     "workbook_classes_by_spelling",
     "workbook_sheet",
+    "written_form_classes",
     "written_form_lines",
 )
 
@@ -2431,6 +2432,39 @@ def test_the_written_form_is_the_file_the_method_requires() -> None:
     written = [line for line in lines[at:] if line != ""]
     for index in range(len(rows)):
         assert written[index] == dialect.data_line(rows[index], form)
+
+
+def test_each_cell_is_quoted_under_the_rule_of_its_own_class() -> None:
+    """Method G2's quoting per cell class, on the classes that disagree.
+
+    Files review MAJOR 19 (plan P4-D169): the case above holds no number
+    and no absent cell in its column of differing rules, so the oracle's
+    reading of those two classes was never held to the product's. This
+    case writes both beside text and empty cells at each class's edge --
+    `.5`, `2.5e3`, `0012`; `-`, `?`, `#N/A`, spaces, `NaT` beside `nat` --
+    and the shipped writer must write the bytes the oracle wrote alone.
+    """
+    case = _document_case("written_form_classes")
+    form = _form_of(case)
+    names = tuple(case["names"])
+    rows = tuple(tuple(row) for row in case["rows"])
+    assert dialect.twin_text(names, rows, case["write_header"], form) == (
+        case["text"]
+    ), (
+        "a cell is quoted under another class's rule than method section G2 "
+        "gives it. The oracle is the specification's answer; do not change "
+        "it to match the implementation."
+    )
+    for index in range(len(rows)):
+        for place in range(len(names)):
+            cell = rows[index][place]
+            assert dialect.cell_class(cell) == gen.written_cell_class(cell), cell
+
+
+def _absence_read_from_seven_spellings(text):
+    """The vocabulary this mirror held before plan P4-D169: seven spellings."""
+    body = text.strip().casefold()
+    return body in ("na", "n/a", "nan", "null", "none")
 
 
 def test_the_rows_stand_where_the_method_puts_them() -> None:
@@ -2602,6 +2636,25 @@ def _package_matches(case: dict, folder: pathlib.Path) -> None:
 
 
 DOCUMENT_MUTANTS = {
+    "written_form_classes": (
+        Mutant(
+            branch="G2's rule that a cell takes the quoting of its OWN "
+            "class; the mutant writes every cell under its column's text "
+            "rule, and the numbers and absent cells of both columns move",
+            attribute="quoting_rule_for",
+            replacement=lambda column, cell: column["quoting"]["text"],
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="contract 5.4.1's whole vocabulary of absence as G2's "
+            "absent class; the mutant reads absence from the seven "
+            "spellings this mirror used to hold, and `-`, `?`, `#N/A`, the "
+            "spaces and `NaT` are quoted as text",
+            attribute="doc_reads_as_nothing",
+            replacement=_absence_read_from_seven_spellings,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
     "written_form_lines": (
         Mutant(
             branch="G2's lines before the table; the mutant writes none "

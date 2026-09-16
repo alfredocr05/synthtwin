@@ -112,7 +112,7 @@ line ending — every row below reads as it did before P4-D86:
 | quote character | `"` (U+0022) |
 | doubling | an embedded `"` is written twice inside a quoted field, or after a backslash where `escape` is `backslash` (and a backslash is then written after one too) |
 | escape character | none, or the backslash where `escape` is `backslash` |
-| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
+| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`) — a cell holding no character is `empty`; one whose text is a spelling of absence in contract 5.4.1's vocabulary (seventeen matched after trimming and a case fold, `NaT` byte for byte) is `absent`; one the profiler's number grammar reads as a number is `number`; every other cell is `text` (plan P4-D169): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
 | lines that are not records | the `sep=` line, the `preamble` lines, the header, the `header_rows`, and `blank_lines` standing after `after` data records, in that order; where `blank_lines_spread` counts them instead, its `lines` blank lines stand evenly from after `first` records to after `last` (`dialect.spread_places`) |
 | a record's width | a trailing delimiter where `trailing_delimiter` says so; trailing empty cells left out where `short_rows`; a padded column's cells padded with spaces to its width where shorter |
 | header row | written when `source.header_source` is `file`; not written when it is `generated` |
@@ -9136,15 +9136,15 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All fifty-one are required.** Landing 2b.6 withdrew one of the
+**All fifty-two are required.** Landing 2b.6 withdrew one of the
 cases named above, `accidental_midnight`, with the rule it pinned, so
-fifty-two are named and fifty-one stand (counted at the integration of
-landings 2b.6 to 2b.10, 2026-09-16, and the one case the files review's
+fifty-three are named and fifty-two stand (counted at the integration of
+landings 2b.6 to 2b.10, 2026-09-16, and the two cases the files review's
 repair added). The
 first nine are the first committed file, the next twenty the second,
 the next sixteen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added, less the one landing 2b.6 withdrew -- the third, and the
-last six the fourth
+last seven the fourth
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -9200,6 +9200,7 @@ case passed, which is the failure the count exists to prevent:
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
 
 | `written_form_lines` | G2's written form end to end: an `sep=` hint, a byte-order mark, four lines before the table in three runs, an always-quoted header, a left-padded column, a second column taking three DIFFERENT quoting rules over its four cell classes, a trailing delimiter on the records and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it |
+| `written_form_classes` | G2's quoting per cell class on the two classes `written_form_lines` never reaches (files review MAJOR 19, plan P4-D169): two columns under opposite rules, numbers and absent cells always quoted in one and text bare, text and empty cells always quoted in the other, over `.5`, `2.5e3`, `0012` and `-3`; `-`, `?`, `#N/A`, a cell of spaces and `NaT` read as absent under contract 5.4.1's vocabulary, beside `nat` and `3 kg`, which are text. It carries TWO mutants: every cell under the text rule, and absence read from seven spellings |
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |

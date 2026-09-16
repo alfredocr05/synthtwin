@@ -1,5 +1,5 @@
 {
-  "case_set": "The 6 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size.",
+  "case_set": "The 7 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size.",
   "cases": {
     "delimiter_reading": {
       "delimiter": ";",
@@ -736,6 +736,143 @@
       },
       "write_header": true
     },
+    "written_form_classes": {
+      "dialect": {
+        "blank_lines": [],
+        "blank_lines_spread": null,
+        "byte_order_mark": false,
+        "columns": [
+          {
+            "pad": null,
+            "quoting": {
+              "absent": "always",
+              "empty": "bare",
+              "number": "always",
+              "text": "bare"
+            },
+            "sequence_start": null
+          },
+          {
+            "pad": null,
+            "quoting": {
+              "absent": "needed",
+              "empty": "always",
+              "number": "needed",
+              "text": "always"
+            },
+            "sequence_start": null
+          }
+        ],
+        "delimiter": ",",
+        "empty_rows": {
+          "interior": 0,
+          "leading": 0,
+          "trailing": 0
+        },
+        "end_of_file_mark": false,
+        "escape": "doubled",
+        "final_line_ending": true,
+        "header_quoting": "needed",
+        "header_rows": [],
+        "header_rows_quoting": "needed",
+        "initial_space": false,
+        "line_endings": [],
+        "line_endings_spread": [],
+        "preamble": [],
+        "preamble_withheld": false,
+        "row_order": null,
+        "separator_line": false,
+        "short_rows": false,
+        "trailing_delimiter": {
+          "header": false,
+          "rows": false
+        },
+        "written_names": []
+      },
+      "kind": "delimited",
+      "lines": [
+        "reading,note",
+        "\"12\",\"North\"",
+        "\".5\",12",
+        "\"2.5e3\",-",
+        "\"0012\",?",
+        "\"-3\",#N/A",
+        "\"-\",   ",
+        "\"?\",NaT",
+        "\"#N/A\",\"nat\"",
+        "\"   \",\"3 kg\"",
+        "\"NaT\",.5",
+        "nat,\"\"",
+        "3 kg,NA",
+        ",\"West\"",
+        "\"NA\",-3"
+      ],
+      "names": [
+        "reading",
+        "note"
+      ],
+      "rows": [
+        [
+          "12",
+          "North"
+        ],
+        [
+          ".5",
+          "12"
+        ],
+        [
+          "2.5e3",
+          "-"
+        ],
+        [
+          "0012",
+          "?"
+        ],
+        [
+          "-3",
+          "#N/A"
+        ],
+        [
+          "-",
+          "   "
+        ],
+        [
+          "?",
+          "NaT"
+        ],
+        [
+          "#N/A",
+          "nat"
+        ],
+        [
+          "   ",
+          "3 kg"
+        ],
+        [
+          "NaT",
+          ".5"
+        ],
+        [
+          "nat",
+          ""
+        ],
+        [
+          "3 kg",
+          "NA"
+        ],
+        [
+          "",
+          "West"
+        ],
+        [
+          "NA",
+          "-3"
+        ]
+      ],
+      "text": "reading,note\n\"12\",\"North\"\n\".5\",12\n\"2.5e3\",-\n\"0012\",?\n\"-3\",#N/A\n\"-\",   \n\"?\",NaT\n\"#N/A\",\"nat\"\n\"   \",\"3 kg\"\n\"NaT\",.5\nnat,\"\"\n3 kg,NA\n,\"West\"\n\"NA\",-3\n",
+      "why": "method section G2's quoting PER CELL CLASS on the two classes `written_form_lines` never reaches: that case's column of differing rules holds no number and no absent cell, so a writer that read `1,234` as text, or `-` and `#N/A` as text, wrote the same bytes there (files review MAJOR 19, plan P4-D169). Two columns take opposite rules -- numbers and absent cells always quoted in the first and text bare, text and empty cells always quoted in the second and the rest as needed -- over cells that sit at each class's edge: a point with no whole part, an exponent, leading zeros, a sign; `-`, `?`, `#N/A`, a cell of spaces, `NaT` byte for byte beside `nat`, which is text; and `3 kg`, a figure that does not make a number. Its mutants read every cell under the text rule, which moves the numbers and the absent cells, and read absence from the seven spellings this mirror used to hold, which moves `-`, `?`, `#N/A`, the spaces and `NaT`.",
+      "write_header": true
+    },
     "written_form_lines": {
       "dialect": {
         "blank_lines": [
@@ -898,7 +1035,7 @@
     "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5).",
     "workbook_sheet": "the parts of the twin's package, in the one fixed order, each carrying one fixed moment rather than the clock. Each cell's CLASS comes from the column's published census and never from the twin's own characters, the classes that hold nothing taking the cells holding no text, and each class holding a value going only to a cell it FITS -- an error to an error kind, a boolean to TRUE or FALSE, a date to ISO text, a number to a plain number -- before text takes its count; a cell no published count claims takes the column's published commonest class, or a withheld class, that fits it, and a group's remainder never goes to a class published as nought; each cell's format KIND likewise, a text format first to text and a date or time format first to numbers, an absent cell always plain, and a cell no count claims wearing its published code's kind where that kind was withheld; cells holding nothing are then moved onto shared rows so that the published records holding nothing exist; a column named for a blank header cell gets no header cell; a carriage return is written as its character reference; a withheld sheet's placeholder is a name no published name takes in any case; and every other sheet is written with as many cells as it held, each carrying one word of synthtwin's own (G2.2).",
     "writable_mark": "a line before the table is published as its SHAPE and never its text: blank with the whitespace it held, a comment with the punctuation it began with, or text with nothing at all. The mark is then narrowed to what the twin can write -- it ends before the first quote character or delimiter, and a line whose punctuation begins with one is a line of TEXT -- because the mark is written into the twin ahead of the stand-in and a mark carrying either leaves a twin that is not a file (contract FD11, plan P4-D83).",
-    "written_form": "the twin's lines in file order -- the separator hint, the lines before the table, the header, the rows of column descriptions, then the records with the blank lines where the form places them -- each cell written under its column's rule for its own class (`needed` quotes when and only when the field holds the delimiter, a quote character or a line break; `bare` only where it could not be read back; `always`; `mixed` is written `needed`), padded where its column is padded, joined by the delimiter and one space where the form has one, with a trailing delimiter where the form says so. A byte-order mark leads where the form has one, each line takes the next ending of the runs, the last takes none unless the form ends its last line, and the end-of-file mark follows (G2)."
+    "written_form": "the twin's lines in file order -- the separator hint, the lines before the table, the header, the rows of column descriptions, then the records with the blank lines where the form places them -- each cell written under its column's rule for its own class -- a cell holding nothing is empty, one spelled as contract 5.4.1's vocabulary of absence is absent, one the number grammar reads is a number, and every other is text -- (`needed` quotes when and only when the field holds the delimiter, a quote character or a line break; `bare` only where it could not be read back; `always`; `mixed` is written `needed`), padded where its column is padded, joined by the delimiter and one space where the form has one, with a trailing delimiter where the form says so. A byte-order mark leads where the form has one, each line takes the next ending of the runs, the last takes none unless the form ends its last line, and the end-of-file mark follows (G2)."
   },
   "generated_by": "tools/reference/make_generation_reference_vectors.py",
   "method": "docs/spec/generation-method-v1.md",

@@ -12064,13 +12064,27 @@ DOC_SAMPLE_RECORDS = 400
 # The marks a cell of these cases may hold beside letters, digits and
 # spaces.  The class of a cell decides which quoting rule it takes, and
 # a class read wrongly writes the wrong bytes -- so this mirror reads
-# only cells it can place with certainty and stops on any other.
-DOC_TEXT_MARKS = "-_.,;|/#()\"'+:%&*[]@"
+# only cells it can place with certainty and stops on any other.  The
+# question mark and the exclamation mark joined at plan P4-D169, because
+# five of contract 5.4.1's spellings of absence are written with them and
+# a mirror that stopped on `?` could not be shown reading it as text.
+DOC_TEXT_MARKS = "-_.,;|/#()\"'+:%&*[]@?!"
 
-# The spellings this method's own neutral vocabulary uses for a cell
-# holding no value.  A cell whose text is one of them is ABSENT and not
-# text, which is a different quoting rule.
-DOC_NOTHING_SPELLINGS = ("NA", "N/A", "NaN", "null", "NULL", "None", "nan")
+# The spellings read as holding no value, as contract section 5.4.1
+# lists them: seventeen compared after trimming and a case fold, and one
+# compared byte for byte.  A cell whose text is one of them is ABSENT and
+# not text, which is a different quoting rule (method G2's quoting row).
+#
+# THE WHOLE LIST AND NOT A SAMPLE OF IT (plan P4-D169).  This mirror held
+# seven spellings of its own vocabulary, so `-`, `?`, `#N/A` and a cell of
+# spaces were classed TEXT here and ABSENT by the product: a column whose
+# absent and text cells take different quoting rules was written two ways
+# with nothing stopping, the same silent misclassification as `1,234`.
+DOC_NOTHING_SPELLINGS_FOLDED = (
+    "", "-", "--", ".", "?", "n/a", "na", "nan", "none", "null",
+    "#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!",
+)
+DOC_NOTHING_SPELLINGS_EXACT = ("NaT",)
 
 # The marks a number may be written with beyond the narrow grammar's:
 # figures, signs, a point, a comma, an apostrophe, brackets, a percent
@@ -12129,10 +12143,17 @@ def doc_is_a_plain_number(text):
 
 
 def doc_reads_as_nothing(text):
-    """Whether the cell's text is one of the spellings meaning no value."""
-    body = text.strip()
-    for spelling in DOC_NOTHING_SPELLINGS:
-        if body.casefold() == spelling.casefold():
+    """Whether the cell's text is one of the spellings meaning no value.
+
+    Contract 5.4.1's two rules: the exact member matches the cell byte for
+    byte, and every other member matches after both are trimmed and
+    case-folded.
+    """
+    if text in DOC_NOTHING_SPELLINGS_EXACT:
+        return True
+    body = text.strip().casefold()
+    for spelling in DOC_NOTHING_SPELLINGS_FOLDED:
+        if body == spelling.strip().casefold():
             return True
     return False
 
@@ -14221,6 +14242,91 @@ def _written_form_lines():
     }
 
 
+def _written_form_classes():
+    """G2's quoting per cell class, where the four classes disagree."""
+    return {
+        "why": "method section G2's quoting PER CELL CLASS on the two "
+        "classes `written_form_lines` never reaches: that case's column of "
+        "differing rules holds no number and no absent cell, so a writer "
+        "that read `1,234` as text, or `-` and `#N/A` as text, wrote the "
+        "same bytes there (files review MAJOR 19, plan P4-D169). Two "
+        "columns take opposite rules -- numbers and absent cells always "
+        "quoted in the first and text bare, text and empty cells always "
+        "quoted in the second and the rest as needed -- over cells that sit "
+        "at each class's edge: a point with no whole part, an exponent, "
+        "leading zeros, a sign; `-`, `?`, `#N/A`, a cell of spaces, `NaT` "
+        "byte for byte beside `nat`, which is text; and `3 kg`, a figure "
+        "that does not make a number. Its mutants read every cell under the text rule, which "
+        "moves the numbers and the absent cells, and read absence from the "
+        "seven spellings this mirror used to hold, which moves `-`, `?`, "
+        "`#N/A`, the spaces and `NaT`.",
+        "kind": "delimited",
+        "names": ["reading", "note"],
+        "write_header": True,
+        "rows": [
+            ["12", "North"],
+            [".5", "12"],
+            ["2.5e3", "-"],
+            ["0012", "?"],
+            ["-3", "#N/A"],
+            ["-", "   "],
+            ["?", "NaT"],
+            ["#N/A", "nat"],
+            ["   ", "3 kg"],
+            ["NaT", ".5"],
+            ["nat", ""],
+            ["3 kg", "NA"],
+            ["", "West"],
+            ["NA", "-3"],
+        ],
+        "dialect": {
+            "blank_lines": [],
+            "blank_lines_spread": None,
+            "byte_order_mark": False,
+            "columns": [
+                {
+                    "pad": None,
+                    "quoting": {
+                        "absent": "always",
+                        "empty": "bare",
+                        "number": "always",
+                        "text": "bare",
+                    },
+                    "sequence_start": None,
+                },
+                {
+                    "pad": None,
+                    "quoting": {
+                        "absent": "needed",
+                        "empty": "always",
+                        "number": "needed",
+                        "text": "always",
+                    },
+                    "sequence_start": None,
+                },
+            ],
+            "delimiter": ",",
+            "empty_rows": {"interior": 0, "leading": 0, "trailing": 0},
+            "end_of_file_mark": False,
+            "escape": "doubled",
+            "final_line_ending": True,
+            "header_quoting": "needed",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": False,
+            "line_endings": [],
+            "line_endings_spread": [],
+            "preamble": [],
+            "preamble_withheld": False,
+            "row_order": None,
+            "separator_line": False,
+            "short_rows": False,
+            "trailing_delimiter": {"header": False, "rows": False},
+            "written_names": [],
+        },
+    }
+
+
 def _row_arrangement():
     """Both halves of G2.1: the sort, and the records holding nothing."""
     plain_quoting = {
@@ -14593,6 +14699,7 @@ DOCUMENT_CASE_BUILDERS = {
     "withheld_line_marks": _withheld_line_marks,
     "workbook_sheet": _workbook_sheet,
     "workbook_classes_by_spelling": _workbook_classes_by_spelling,
+    "written_form_classes": _written_form_classes,
     "written_form_lines": _written_form_lines,
 }
 
@@ -14627,7 +14734,10 @@ DOCUMENT_DEFINITIONS = {
     "hint, the lines before the table, the header, the rows of column "
     "descriptions, then the records with the blank lines where the form "
     "places them -- each cell written under its column's rule for its "
-    "own class (`needed` quotes when and only when the field holds the "
+    "own class -- a cell holding nothing is empty, one spelled as contract "
+    "5.4.1's vocabulary of absence is absent, one the number grammar reads "
+    "is a number, and every other is text -- (`needed` quotes when and "
+    "only when the field holds the "
     "delimiter, a quote character or a line break; `bare` only where it "
     "could not be read back; `always`; `mixed` is written `needed`), "
     "padded where its column is padded, joined by the delimiter and one "
