@@ -1325,6 +1325,18 @@ def battery() -> list[Mutation]:
             "FD11", "a preamble recorded as withheld that holds nothing",
             _form_withheld_nothing,
         ),
+        Mutation(
+            "FD9", "rows of column descriptions nobody declared",
+            _form_rows_nobody_declared,
+        ),
+        Mutation(
+            "FD11", "a run of blank lines marked as a comment is",
+            _form_blank_run_marked_as_a_comment,
+        ),
+        Mutation(
+            "FD11", "a mark the twin could not write",
+            _form_preamble_marked_with_a_quote,
+        ),
         # The rule that keeps a declared identifier out of the written
         # form (plan P4-D76). `record_code` is declared in the base
         # description above, so a row sequence published of it is the
@@ -1459,6 +1471,52 @@ def _form_trailing_and_short(document: Document) -> None:
 
 def _form_withheld_nothing(document: Document) -> None:
     _form(document)["preamble_withheld"] = True
+
+
+def _form_rows_nobody_declared(document: Document) -> None:
+    # TWO ROWS OF COLUMN DESCRIPTIONS AND NOBODY DECLARED THEM (FD9,
+    # plan P4-D81). `settings.forced_metadata_rows` is nought in the
+    # base, so this IS the description the producer wrote from a guess
+    # before landing 2b.11: two rows taken out of the table and
+    # published as schema text, held to no smallest group and written
+    # into the twin as they stand. That is how a person's own record
+    # became schema (review item CODEX-2), and the clause that refuses
+    # it -- the published rows are the DECLARED rows -- could be taken
+    # out with the whole required gate still green until this entry
+    # existed.
+    width = len(_form(document)["columns"])
+    _form(document)["header_rows"] = [
+        [f"what column {place + 1} holds" for place in range(width)],
+        [f"marker {place + 1}" for place in range(width)],
+    ]
+    # Two rows of column descriptions are two more LINES of the file, so
+    # the line endings account for them: FD2 is about the file's shape
+    # and would otherwise refuse this description before FD9 read it,
+    # leaving the clause under test unexercised.
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_blank_run_marked_as_a_comment(document: Document) -> None:
+    # A RUN PUBLISHED AS BLANK WHOSE MARK IS A COMMENT'S (FD11, plan
+    # P4-D80). The twin writes `# ` for such a run, the survey reads
+    # that line back as a COMMENT, and the description said blank: the
+    # twin's own form is then not the form published. FD11's shape
+    # clause is the only rule that refuses this, and nothing in the
+    # required tests noticed its removal until this entry.
+    _form(document)["preamble"] = [{"kind": "blank", "lines": 1, "mark": "# "}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_preamble_marked_with_a_quote(document: Document) -> None:
+    # A MARK THE TWIN CANNOT WRITE (FD11, plan P4-D83). The twin writes
+    # `"withheld line` for this run -- a quoted field nothing closes --
+    # and such a twin missed about 120 obligations of its own
+    # description while `synthtwin profile` refused to read it at all.
+    # The shape clause CANNOT catch it: `"withheld line` is read back
+    # as a comment marked `"`, which is exactly what is published here.
+    _form(document)["preamble"] = [{"kind": "comment", "lines": 1, "mark": '"'}]
+    _form(document)["preamble_withheld"] = True
+    _form(document)["line_endings"][0]["lines"] += 1
 
 
 def _form_sequence_on_a_declared_identifier(document: Document) -> None:

@@ -52,9 +52,12 @@ Two are text of the file -- the preamble lines and the metadata rows --
 and they are treated differently on purpose. Metadata rows are one cell
 per column saying what the column is, which is schema, and they are
 published like names. A preamble line is free text that may name
-anybody, so it is published only at a smallest group of one, where every
-label is already published at its own count; above that it is withheld
-and a stand-in of the same shape is written (`withheld_line`).
+anybody, so NO text of one is published at any smallest group: what
+reaches a description is the run's SHAPE -- blank, or the punctuation a
+comment began with -- and the twin writes a neutral stand-in of that
+shape (`preamble_line`, plan P4-D80). The mark stops at a quote
+character and at the delimiter, so the stand-in is still one record of
+the file (plan P4-D83).
 
 Imports here stay within the allowlist (plan D6.2): dataclasses, and this
 package's own `errors` and `parsing`, neither of which reaches a file.
@@ -647,6 +650,12 @@ class PreambleRun:
     outright (`profile._PREAMBLE_MARK`), which is what makes that a
     control rather than a habit of the producer.
 
+    NOR A CHARACTER THE TWIN COULD NOT WRITE (plan P4-D83). The mark
+    also stops at a quote character and at the table's delimiter, so
+    the line the twin writes for the run is one record of the file and
+    the twin stays readable; `mark_breaks_a_line` is that rule, and
+    contract FD11 is where a description is held to it.
+
     RUNS AND NOT LINES, which is review item CODEX-11: seventeen leading
     blank lines are seventeen lines of ONE shape. Published a line
     apiece they broke the cap of sixteen and the loader refused the
@@ -969,24 +978,6 @@ def _is_sequence_number(text: str) -> bool:
 # -- which characters are which ----------------------------------------
 
 
-def withheld_line(text: str) -> str:
-    """The stand-in written for a withheld preamble line.
-
-    The punctuation and spaces it began with are kept -- `# ` and `*** `
-    are how code skips such lines -- and everything from its first letter
-    or digit is replaced. A blank line stays blank.
-    """
-    found = _text(text)
-    if not found or _only_spaces_and_tabs(found):
-        return found
-    kept = ""
-    for character in found:
-        if _is_letter_or_digit(character):
-            break
-        kept = kept + character
-    return kept + WITHHELD_LINE
-
-
 def preamble_shape(line: str) -> "tuple[str, str]":
     """One line before the table as its kind and its mark, never its text.
 
@@ -997,6 +988,11 @@ def preamble_shape(line: str) -> "tuple[str, str]":
     is that opening punctuation, which is how a reader recognises such a
     line (`comment="#"`). Anything else is TEXT, and nothing whatever of
     it is published.
+
+    THIS READS A LINE AND NOTHING ELSE. What the twin can WRITE is
+    `writable_shape`, applied to the pair this returns; the two are
+    apart so that a description can be held to each separately (plan
+    P4-D83, contract FD11).
     """
     found = _text(line)
     if not found or _only_spaces_and_tabs(found):
@@ -1004,6 +1000,57 @@ def preamble_shape(line: str) -> "tuple[str, str]":
     kept = ""
     for character in found:
         if _is_letter_or_digit(character):
+            break
+        kept = kept + character
+    if kept:
+        return (PREAMBLE_COMMENT, kept)
+    return (PREAMBLE_TEXT, "")
+
+
+def mark_breaks_a_line(mark: str, delimiter: str) -> bool:
+    """Whether a published mark would stop its stand-in being one record.
+
+    A quote character opens a field nothing closes; the delimiter cuts
+    the stand-in into fields (plan P4-D83). Either leaves a twin whose
+    first line is not the line the description published, so neither
+    may stand in a mark. The delimiter is not consulted where it is not
+    known -- the producer's publication guard has no form in hand, and
+    the loader, which does, passes it.
+    """
+    found = _text(mark)
+    if _holds(found, _QUOTE):
+        return True
+    return bool(delimiter) and _holds(found, delimiter)
+
+
+def writable_shape(
+    kind: str, mark: str, delimiter: str
+) -> "tuple[str, str]":
+    """A line's shape narrowed to a mark the twin can write (plan P4-D83).
+
+    The mark is written into the twin ahead of the stand-in, so a mark
+    that cannot be written leaves a twin that is not a file. MEASURED,
+    which is what this function exists for: a title line written
+    `"Extract for unit 7"` gave the mark `"`, the twin's first line was
+    written `"withheld line`, and that is a quoted field nothing
+    closes -- the twin missed about 120 obligations of its own
+    description and `synthtwin profile` refused to read the twin at
+    all, where the very same bytes were twinned cleanly before lines
+    before a table were withheld at all. A mark carrying the file's own
+    delimiter breaks it the other way, cutting the stand-in into fields
+    a reader takes for the table's header.
+
+    So the mark ends before the first such character, and a line whose
+    punctuation begins with one is a line of TEXT: its stand-in is the
+    two neutral words, which every reader reads as one field. A blank
+    line is untouched -- its mark is spaces and tabs, which hold
+    neither character.
+    """
+    if kind == PREAMBLE_BLANK or not mark_breaks_a_line(mark, delimiter):
+        return (kind, mark)
+    kept = ""
+    for character in _text(mark):
+        if character == _QUOTE or (delimiter and character == delimiter):
             break
         kept = kept + character
     if kept:
@@ -1019,17 +1066,27 @@ def preamble_line(run: PreambleRun) -> str:
     keeps its spaces, a comment keeps its mark, and a line of text
     becomes two words holding a space -- which is a title line to the
     survey and never a one-column table's name.
+
+    AND IT IS ONE RECORD OF THE FILE, always (plan P4-D83). The mark a
+    run carries holds no quote character and no delimiter, so nothing
+    it can carry opens a field or cuts the line in two.
     """
     if run.kind == PREAMBLE_BLANK:
         return run.mark
     return run.mark + WITHHELD_LINE
 
 
-def preamble_runs(lines: "list[str]") -> "tuple[PreambleRun, ...]":
-    """The lines before the table, run-length encoded by their shape."""
+def preamble_runs(
+    lines: "list[str]", delimiter: str = ""
+) -> "tuple[PreambleRun, ...]":
+    """The lines before the table, run-length encoded by their shape.
+
+    ``delimiter`` is the table's own, so that no mark carries it (plan
+    P4-D83).
+    """
     runs: list[PreambleRun] = []
     for line in lines:
-        kind, mark = preamble_shape(line)
+        kind, mark = writable_shape(*preamble_shape(line), delimiter)
         last = len(runs) - 1
         if last >= 0 and runs[last].kind == kind and runs[last].mark == mark:
             runs[last] = PreambleRun(
@@ -1682,6 +1739,11 @@ def detected_delimiter(text: str, at: int) -> str:
     delimited in its first records is refused as ragged, never read
     wrongly.
 
+    EACH CANDIDATE IS READ AT ITS OWN BEST over the spacings and the
+    escapings (`_best_reading`, review item CODEX-5): the settings
+    decide what a delimiter reads as, so choosing the delimiter first
+    and the settings afterwards read a two-column file as one column.
+
     A TIE OF BOTH IS DECIDED BY THE CELLS FIRST (repair of landing 2b.9).
     A European export whose names hold a comma (`Gewicht, kg`) and whose
     every number carries one decimal comma reads as three fields a
@@ -1695,27 +1757,17 @@ def detected_delimiter(text: str, at: int) -> str:
     best_share = 0.0
     best_width = 0
     best_numbers = -1
+    best_sample: "list[Record]" = []
     for candidate in DELIMITERS:
-        sample = records(text, candidate, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS)
-        share, width = _width_share(sample)
-        if width < 2:
+        found = _best_reading(text, candidate, at)
+        if found is None:
             continue
-        # THE TABLE'S FIRST RECORD HAS THE TABLE'S WIDTH. A one-column
-        # table of `100|30` cells reads as two fields a row under the
-        # vertical bar, and only its first record -- the column's name,
-        # one field -- says the bar is not its delimiter.
-        opening = 0
-        while opening < len(sample) and _leads_the_table(sample[opening]):
-            opening = opening + 1
-        if opening < len(sample) and len(sample[opening].fields) != width:
-            continue
+        share, width, sample = found
         numbers = -1
         if share == best_share and width == best_width:
             numbers = _numbers_read(sample)
             if best_numbers < 0:
-                best_numbers = _numbers_read(
-                    records(text, chosen, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS)
-                )
+                best_numbers = _numbers_read(best_sample)
         if (
             share > best_share
             or (share == best_share and width > best_width)
@@ -1725,7 +1777,57 @@ def detected_delimiter(text: str, at: int) -> str:
             best_share = share
             best_width = width
             best_numbers = numbers
+            best_sample = sample
     return chosen
+
+
+def _best_reading(
+    text: str, candidate: str, at: int
+) -> "tuple[float, int, list[Record]] | None":
+    """The best the first records read under one candidate delimiter.
+
+    EVERY SETTING IS SCORED WITH THE DELIMITER (review item CODEX-5).
+    This walk read each candidate ONE way -- no space after the
+    delimiter, doubled quotes -- and left the spacing and the escaping
+    to be settled afterwards, from the delimiter it had already chosen.
+    That is the wrong order wherever the settings decide what the
+    delimiter reads as. MEASURED: a file written `"id"; "note"` with
+    `"1"; "alpha; beta"` under it reads, under the semicolon with no
+    space skipped, as a header of two fields and rows of three -- the
+    space before the quote makes that quote an ordinary character, so
+    the semicolon inside the note splits the field -- and this walk
+    rejects that as ragged. Nothing else read as two fields at all, so
+    the file was described as ONE column named `id; "note"`. Read with
+    the space skipped it is the two columns it is.
+
+    So each candidate is scored at its own best over the two spacings
+    and the two escapings, and WHICH of them the file is written with
+    is still settled by the walks that own that question
+    (`detected_initial_space`, and `settle` for the escaping), over the
+    whole file rather than its first records.
+
+    THE TABLE'S FIRST RECORD HAS THE TABLE'S WIDTH. A one-column table
+    of `100|30` cells reads as two fields a row under the vertical bar,
+    and only its first record -- the column's name, one field -- says
+    the bar is not its delimiter.
+    """
+    best: "tuple[float, int, list[Record]] | None" = None
+    for spaced in (False, True):
+        for escaping in ESCAPES:
+            sample = records(
+                text, candidate, escaping, spaced, at, _SAMPLE_RECORDS
+            )
+            share, width = _width_share(sample)
+            if width < 2:
+                continue
+            opening = 0
+            while opening < len(sample) and _leads_the_table(sample[opening]):
+                opening = opening + 1
+            if opening < len(sample) and len(sample[opening].fields) != width:
+                continue
+            if best is None or (share, width) > (best[0], best[1]):
+                best = (share, width, sample)
+    return best
 
 
 def _numbers_read(sample: "list[Record]") -> int:
@@ -2532,7 +2634,19 @@ def survey(
                 value = fields[place]
                 columns[place] += [value]
                 flags[place] += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
-                if value:
+                # A CELL OF NOTHING BUT SPACES HOLDS NOTHING (plan
+                # P4-D84, review item CODEX-7). This asked only whether
+                # the cell held any character at all, while the
+                # profiler counts a cell of spaces and tabs ABSENT and
+                # the generator writes such a cell empty. Measured: a
+                # file of thirty records and ninety ` , ` records
+                # published NO record holding nothing, its twin held
+                # ninety all the same, and the twin then missed
+                # `bytes.empty-rows` against its own description at
+                # exit 3 while the real file held it -- an obligation
+                # no twin of that file could meet. One reading of
+                # nothing, on both sides.
+                if value and not _only_spaces_and_tabs(value):
                     every_empty = False
             else:
                 columns[place] += [""]
@@ -2645,7 +2759,7 @@ def survey(
     # Their text is not published here, and there is no floor at which
     # it is: nothing downstream can publish what this never puts in the
     # document.
-    lines_before = preamble_runs(preamble)
+    lines_before = preamble_runs(preamble, delimiter)
     form = Dialect(
         delimiter=delimiter,
         initial_space=spaced,

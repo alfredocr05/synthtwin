@@ -1944,6 +1944,13 @@ def _leaf_is_published(
         # defence for a line of prose, so no floor is consulted here.
         if not isinstance(value, str) or "\r" in value or "\n" in value:
             return False
+        # AND NO CHARACTER THAT WOULD STOP THE TWIN BEING A FILE (plan
+        # P4-D83). A quote character in a mark makes the twin's first
+        # line an unterminated quoted field. The delimiter is the
+        # other such character and this guard has no form in hand, so
+        # the loader -- which does -- holds that half (FD11).
+        if dialect.mark_breaks_a_line(value, ""):
+            return False
         return dialect.holds_no_letter_or_digit(value)
     if kind == _TABLE_NAME:
         # A column's name IS text of the real table, and the matrix

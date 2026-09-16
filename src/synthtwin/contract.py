@@ -965,10 +965,11 @@ INVARIANTS = {
     ),
     "FD11": (
         "the lines before the table are published as runs of one shape, "
-        "within the cap, each carrying a mark holding no line break and "
-        "no text of the line, each the shape the line the twin writes "
-        "for it is read back as, and recorded as withheld exactly when "
-        "one of them held text"
+        "within the cap, each carrying a mark holding no line break, no "
+        "quote character, not the table's own delimiter and no text of "
+        "the line, each the shape the line the twin writes for it is "
+        "read back as, and recorded as withheld exactly when one of "
+        "them held text"
     ),
     # How the table's file is a WORKBOOK (plan P4-D77, contract 4.3b).
     "WB1": (
@@ -4488,6 +4489,22 @@ def _dialect_rules(
                 "FD11", where,
                 "a run of lines before the table is marked with a line break",
                 "one line each",
+            )
+        # A MARK THE TWIN COULD NOT WRITE IS REFUSED BY NAME (plan
+        # P4-D83). The shape check below catches it too, but only by
+        # accident of what the stand-in is read back as; this says the
+        # rule itself, and it is the clause a description carrying the
+        # mark `"` breaks. The twin's first line was then
+        # `"withheld line` -- a quoted field nothing closes -- and the
+        # twin missed about 120 obligations of the very description
+        # that asked for it.
+        if dialect.mark_breaks_a_line(run.mark, form.delimiter):
+            raise _broken(
+                "FD11", where,
+                "a run of lines before the table carries a quote "
+                "character or the table's own delimiter in its mark",
+                "a mark the line the twin writes for it survives, which "
+                "is one record of the file",
             )
         standing = dialect.preamble_line(run)
         kind, mark = dialect.preamble_shape(standing)

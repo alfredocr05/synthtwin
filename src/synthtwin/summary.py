@@ -1642,6 +1642,14 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
         "  as names and it is NOT counted among the rows above.",
         "  Run the command again with --first-row data if that is the case,",
         "  and synthtwin will name the columns itself and keep every record.",
+        "  AND WHAT THAT ROW HOLDS IS PUBLISHED AS WRITTEN. Column names",
+        "  are schema: they stand in the description as they are spelt and",
+        "  are written into the twin's own header line. So a title line",
+        "  above your table -- one holding your delimiter, which is what",
+        "  makes it read as a row of cells rather than as a line before",
+        "  the table -- becomes your column names and its words are",
+        "  carried, where a line synthtwin reads as standing BEFORE the",
+        "  table has no word of it published at any smallest group.",
     ]
 
 

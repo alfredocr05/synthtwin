@@ -448,6 +448,23 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
             "last stand, and the twin spreads as many evenly between those",
             "two places, not in every place your table has them.",
         ]
+    # WHERE THE RECORDS HOLDING NOTHING STAND IS AN APPROXIMATION, AND
+    # THE REPORT SAYS SO (review item CODEX-13). The description
+    # publishes how many such records lead the table, stand inside it
+    # and follow it, and never WHICH rows they are: a row of a real
+    # table holding nothing is a fact about that row. So the twin
+    # spreads the interior ones evenly, and until this sentence nothing
+    # said it had -- measured on a table whose one empty record stood
+    # at row 7 and whose twin held it at row 60.
+    if form.empty_rows_interior:
+        lines += [
+            f"Your table holds {form.empty_rows_interior} record(s) with "
+            f"nothing in them",
+            "between its records. The twin holds as many, spread evenly",
+            "through it, and not in the rows yours has them: which rows",
+            "those are is a fact about your own rows, so it is not",
+            "published and the twin cannot follow it.",
+        ]
     mixed = 0
     for column in form.columns:
         if dialect.QUOTE_MIXED in column.quoting:

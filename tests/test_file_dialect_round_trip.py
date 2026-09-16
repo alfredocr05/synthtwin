@@ -793,6 +793,322 @@ def test_a_preamble_is_withheld_at_every_floor(
         _held(result)
 
 
+def test_the_publication_guard_refuses_a_mark_the_twin_could_not_write() -> None:
+    """The producer's own half of FD11's mark rule, held from its side.
+
+    The profiler checks its finished document before it writes a byte,
+    and `_PREAMBLE_MARK` is the rule for the one part of a line before
+    the table that reaches a description. It refused a mark holding a
+    letter or a digit -- somebody's word -- and accepted `"`, which is
+    the mark that leaves the twin's first line an unterminated quoted
+    field (plan P4-D83). The loader refuses such a description too, and
+    that half was measured to be the only one held: this rule could be
+    taken out of the producer with the whole required gate still green,
+    which is what makes it worth a test of its own rather than a
+    comment.
+    """
+    from synthtwin import profile
+
+    at_one = profile._Publication(floor=1, names=("a",))
+    where = ("source", "dialect", "preamble", profile._EACH, "mark")
+    assert profile._leaf_is_published(
+        profile._PREAMBLE_MARK, "# ", "", where, at_one
+    )
+    assert profile._leaf_is_published(
+        profile._PREAMBLE_MARK, "*** ", "", where, at_one
+    )
+    for refused in ('"', '#"', 'a', "# 7", "#\n"):
+        assert not profile._leaf_is_published(
+            profile._PREAMBLE_MARK, refused, "", where, at_one
+        ), refused
+
+
+def test_a_quoted_export_written_with_a_space_after_its_delimiter(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A quoted semicolon export written `"a"; "b"` is read as its columns.
+
+    THE REPRODUCTION (review item CODEX-5). `"id"; "note"` over
+    `"1"; "alpha; beta"` was described as ONE column named
+    `id; "note"`, with `initial_space` False. Under the semicolon with
+    no space skipped the rows read as three fields against a header of
+    two -- the space before the quote makes that quote an ordinary
+    character, so the semicolon inside the note splits it -- and the
+    walk rejected that reading as ragged, leaving no candidate reading
+    as two fields at all. The spacing was settled after the delimiter
+    had already been chosen, and each candidate is now scored at its
+    own best over both (plan P4-D83's neighbour, `_best_reading`).
+    """
+    rows = _people(54)
+    lines = ['"record_id"; "age"; "arm"; "site"; "note"']
+    for row in rows:
+        cells = [row[0], row[1], row[2], row[3], f"{row[4]}; seen"]
+        lines += ["; ".join(f'"{cell}"' for cell in cells)]
+    result = _round_trip(tmp_path / "quoted-space", ("\n".join(lines) + "\n").encode())
+    assert result["form"]["delimiter"] == ";", result["form"]["delimiter"]
+    assert result["form"]["initial_space"] is True
+    assert result["names"] == ["record_id", "age", "arm", "site", "note"], result["names"]
+    _held(result)
+
+
+def test_a_line_before_the_table_that_begins_with_a_quote(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A title line written in quotes leaves a twin that is still a file.
+
+    THE REPRODUCTION (review of landing 2b.11, BLOCKER-1), which the
+    withholding repair itself introduced. `"Person-ZETA-739, unit 7"`
+    above the column names gave the mark `"`, so the twin's first line
+    was written `"withheld line` -- a quoted field nothing closes. The
+    twin then MISSED about 120 obligations of its own description
+    (`rows.n_rows`, `axes.role`, every `levels.*` entry of both
+    columns), `validate` exited 3 on it, and `synthtwin profile`
+    refused to read the twin at all. The same bytes were twinned
+    cleanly before the lines before a table were withheld at all, so
+    this was a file synthtwin had taken and stopped taking.
+
+    A mark may hold no quote character and not the delimiter (plan
+    P4-D83), so this line is a line of TEXT and its stand-in is the two
+    neutral words -- one field to every reader.
+    """
+    rows = _people(51)
+    header = "record_id,age,arm,site,reading"
+    text = '"Person-ZETA-739, unit 7"\n' + "\n".join([header] + _lines(rows)) + "\n"
+    result = _round_trip(tmp_path / "quoted-title", text.encode())
+    assert result["form"]["preamble"] == [
+        {"kind": "text", "lines": 1, "mark": ""}
+    ], result["form"]["preamble"]
+    assert result["form"]["preamble_withheld"] is True
+    assert result["twin"].split(b"\n")[0] == b"withheld line"
+    assert b"Person-ZETA-739" not in result["twin"]
+    # `_round_trip` describes the twin again and validates both files,
+    # which is the half the reproduction broke: exit 1 on the twin's own
+    # `profile`, and exit 3 on `validate`.
+    _held(result)
+
+    # THE MARK THAT SURVIVES IS STILL THE ONE A READER SKIPS BY, and a
+    # mark carrying the delimiter is narrowed the same way.
+    hashed = "#; exported\n" + "\n".join(
+        [header.replace(",", ";")] + _lines(rows, ";")
+    ) + "\n"
+    other = _round_trip(tmp_path / "semicolon-mark", hashed.encode())
+    assert other["form"]["preamble"] == [
+        {"kind": "comment", "lines": 1, "mark": "#"}
+    ], other["form"]["preamble"]
+    assert other["twin"].split(b"\n")[0] == b"#withheld line"
+    _held(other)
+
+
+def test_a_record_of_nothing_but_spaces_holds_nothing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A record whose every cell is spaces is a record holding nothing.
+
+    THE REPRODUCTION (review item CODEX-7). Thirty records followed by
+    ninety ` , ` records published `empty_rows` as nought in all three
+    places, because the survey asked only whether a cell held any
+    character. The column's own description counts a cell of spaces
+    ABSENT and the generator writes such a cell empty, so the twin held
+    ninety records of nothing that the description said were not there:
+    the real file validated at 0 and its own twin at 3, missing
+    `bytes.empty-rows` -- an obligation no twin of that file could have
+    met (plan P4-D84).
+    """
+    data = ("a,b\n" + "Red,Oak\n" * 30 + " , \n" * 90).encode()
+    result = _round_trip(tmp_path / "spaces", data)
+    assert result["form"]["empty_rows"] == {
+        "interior": 0, "leading": 0, "trailing": 90,
+    }, result["form"]["empty_rows"]
+    _held(result)
+
+    # THE CONTROL: a cell holding a letter is not nothing, so the same
+    # shape with one letter in each of those records publishes no
+    # record holding nothing at all, and the rule can still fail.
+    other = ("a,b\n" + "Red,Oak\n" * 30 + " ,x\n" * 90).encode()
+    second = _round_trip(tmp_path / "spaces-and-one", other)
+    assert second["form"]["empty_rows"] == {
+        "interior": 0, "leading": 0, "trailing": 0,
+    }, second["form"]["empty_rows"]
+    _held(second)
+
+
+def test_the_report_says_the_records_of_nothing_move(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The twin spreads interior empty records evenly, and says so.
+
+    THE REPRODUCTION (review item CODEX-13). A table of 120 records
+    whose record 7 held nothing produced a twin holding its empty
+    record at row 60, and nothing in the report, the summary or the
+    description disclosed the move -- while `validate` passed the twin,
+    correctly, because only the COUNT is published. Which rows hold
+    nothing is a fact about a real table's own rows and is not
+    published, so the approximation is disclosed instead.
+    """
+    rows = _people(52)
+    header = "record_id,age,arm,site,reading"
+    lines = _lines(rows)
+    lines[7] = ",,,,"
+    folder = tmp_path / "moved"
+    folder.mkdir()
+    real = folder / "real.csv"
+    real.write_bytes(("\n".join([header] + lines) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(real), "--out-dir", str(folder), "--replace"]
+    ) == 0
+    described = folder / "real-profile.json"
+    assert _exit_of(
+        ["generate", str(described), "--out-dir", str(folder), "--seed", "4",
+         "--replace"]
+    ) == 0
+    said = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert "record(s) with nothing in them" in said, said[:800]
+    assert "spread evenly" in said
+    twin = (folder / "real-twin.csv").read_bytes().split(b"\n")
+    empty = [index for index in range(len(twin)) if twin[index] == b",,,,"]
+    assert len(empty) == 1, empty
+
+
+def test_a_declaration_the_file_does_not_bear_out_is_questioned(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
+) -> None:
+    """`--metadata-rows` on a file not wearing the shape is questioned.
+
+    THE REPRODUCTION (review of landing 2b.11, MINOR-4). On an ordinary
+    table of 120 records `--metadata-rows 2 --smallest-group 11` took
+    two records out of the table and published them verbatim as the
+    columns' description -- exempt from the smallest group, written
+    back into the twin -- and nothing on the screen said a word. The
+    reading still obeys the person; what changes is that they are told
+    what was looked for and not seen, and how to run again without it.
+    """
+    people = ["person,result"] + [
+        f"Person-{index},result-{index}" for index in range(ROWS)
+    ]
+    folder = tmp_path / "declared"
+    folder.mkdir()
+    real = folder / "real.csv"
+    real.write_bytes(("\n".join(people) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(real), "--out-dir", str(folder), "--replace",
+         "--metadata-rows", "2", "--smallest-group", "11"]
+    ) == 0
+    said = capsys.readouterr().out
+    assert "YOUR FILE DOES NOT WEAR THE SHAPE" in said, said[-900:]
+    assert "run the command again without --metadata-rows" in said
+
+    # AND THE FILE THAT DOES WEAR IT IS NOT QUESTIONED. The notice is
+    # about a declaration the file does not bear out, so a survey
+    # export declared correctly hears nothing of it.
+    export = ["person,result", "Age of the person,The result",
+              '{"ImportId":"person"},{"ImportId":"result"}'] + [
+        f"Person-{index},result-{index}" for index in range(ROWS)
+    ]
+    other = tmp_path / "export"
+    other.mkdir()
+    second = other / "real.csv"
+    second.write_bytes(("\n".join(export) + "\n").encode())
+    assert _exit_of(
+        ["profile", str(second), "--out-dir", str(other), "--replace",
+         "--metadata-rows", "2"]
+    ) == 0
+    assert "YOUR FILE DOES NOT WEAR THE SHAPE" not in capsys.readouterr().out
+
+
+def test_the_summary_says_what_a_first_row_read_as_names_costs(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A first row taken for the names is published as written, and said.
+
+    THE REPRODUCTION (review of landing 2b.11, MAJOR-2). A title line
+    holding the delimiter -- `Extract for Dr Vance, unit 7` above a
+    two-column table -- reads as a row of the table's own width, so it
+    is taken for the header: the sentence became the column names
+    `Extract for Dr Vance` and ` unit 7`, stood in the description, was
+    written into the twin, and the row count was one too high, while
+    both files validated at 0 and nothing flagged it. Recognising such
+    a line as a title instead would take the first row out of every
+    table whose header cells hold spaces (`Gewicht, kg`), so this
+    version tells rather than guesses -- and what it has to tell is
+    that what that row holds is published as written.
+    """
+    rows = _people(53)
+    text = "Extract for Dr Vance, unit 7\n" + "\n".join(
+        ["site,arm"] + [f"{row[3]},{row[2]}" for row in rows]
+    ) + "\n"
+    folder = tmp_path / "titled"
+    folder.mkdir()
+    real = folder / "real.csv"
+    real.write_bytes(text.encode())
+    assert _exit_of(
+        ["profile", str(real), "--out-dir", str(folder), "--replace"]
+    ) == 0
+    document = json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )
+    # The measurement this is built from, kept as an assertion so that a
+    # later reading of the first row moves this test rather than
+    # passing quietly.
+    assert [one["name"] for one in document["columns"]] == [
+        "Extract for Dr Vance", " unit 7",
+    ]
+    said = (folder / "real-profile.txt").read_text(encoding="utf-8")
+    assert "AND WHAT THAT ROW HOLDS IS PUBLISHED AS WRITTEN." in said, said[:900]
+    assert "--first-row data" in said
+
+
+def test_a_mark_shaped_prefix_in_a_fallback_encoding_is_data(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A Latin-1 file opening with the mark's bytes keeps them as text.
+
+    THE REPRODUCTION (review item CODEX-8). A UTF-8 table behind a
+    byte-order mark with one stray Latin-1 byte is described as
+    Latin-1, which contract FD3 gives NO mark, so its first column is
+    named `\u00ef\u00bb\u00bfrecord` -- three characters of a cell. The twin
+    drops the stray byte, becomes valid UTF-8, and the validator used
+    to hand it to detection: read as UTF-8 with the prefix consumed as
+    a mark, it failed its own description on twelve obligations, the
+    names, the column order, a whole level block and the published
+    forms among them.
+
+    The repair reads a checked file in the description's own encoding
+    (`dialect.decoded_as`), and this is its measurement: ONE obligation
+    left, and it is not an encoding fact -- it is a shape form of the
+    cell holding the stray byte, which the twin cannot carry. The
+    controls below say so: the same table without the stray byte, with
+    and without the mark, misses nothing at all.
+    """
+    body = "record,site\n" + "".join(f"S{index:05d},Malm\u00f6\n" for index in range(ROWS))
+    plain = body.encode("utf-8")
+    stray = plain.replace(b"S00007,", b"S0000\xe9,")
+    described = _describe(tmp_path / "mixed", b"\xef\xbb\xbf" + stray)
+    document = json.loads(described.read_text(encoding="utf-8"))
+    assert document["source"]["encoding"] == "latin-1"
+    assert document["source"]["dialect"]["byte_order_mark"] is False
+    assert document["columns"][0]["name"] == "\u00ef\u00bb\u00bfrecord"
+    assert _exit_of(
+        ["generate", str(described), "--out-dir", str(tmp_path / "mixed"),
+         "--seed", "4", "--replace"]
+    ) == 0
+    twin = (tmp_path / "mixed" / "real-twin.csv").read_bytes()
+    assert twin[:3] == b"\xef\xbb\xbf"
+    missed = _missed(tmp_path / "mixed-twin", described, twin)
+    # The twelve the review measured, named one by one: none of them.
+    for rule in (
+        "bytes.byte-order-mark", "bytes.encoding", "header.presence",
+        "header.names", "columns.order", "levels.set",
+    ):
+        assert rule not in missed, missed
+    assert len(set(missed)) == 1, missed
+
+    for label, data in (
+        ("clean", plain), ("clean-marked", b"\xef\xbb\xbf" + plain)
+    ):
+        control = _round_trip(tmp_path / label, data)
+        assert control["exits"] == {"twin": 0, "real": 0}, control["exits"]
+
+
 def test_seventeen_leading_blank_lines_are_one_run(
     tmp_path: pathlib.Path,
 ) -> None:

@@ -136,6 +136,16 @@ cell, and an empty cell is what an absent value is. This exception
 cannot arise with two or more columns, because a row of absent cells is
 then written as one or more commas, which is not an empty line.
 
+**A line before the table is written as a stand-in, and the stand-in is
+one record** (plan P4-D80, P4-D83). For each `preamble` run the twin
+writes `dialect.preamble_line`: a blank line stays blank and keeps its
+spaces, a comment keeps its mark and reads `# withheld line`, a line of
+text reads `withheld line`. No word of the line itself is in the
+description to write. The mark a run carries holds no quote character
+and not the delimiter (contract FD11), so every line written here is
+one field or one comment to the file's own reader -- a twin whose first
+line was `"withheld line` was a file no reader could finish.
+
 **Every other cell is written as its exact text.** No trimming, no
 padding but a padded column's, no normalization, no locale, no
 alteration of a published label — including a label a spreadsheet would

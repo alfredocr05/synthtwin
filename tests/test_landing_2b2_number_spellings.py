@@ -482,7 +482,11 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     # ANSWERED IN THE FILE, the column is read with a point between thousands.
     entry["your_answer"] = "decimal_comma"
     answers_path = folder / "answered.json"
-    answers_path.write_text(json.dumps(document), encoding="utf-8")
+    # The line ending is fixed rather than left to the platform, so the
+    # bytes are the same on every one (tests/test_description_line_endings).
+    answers_path.write_text(
+        json.dumps(document), encoding="utf-8", newline="\n"
+    )
     again = tmp_path / "answered"
     again.mkdir()
     table = folder / "t.csv"
@@ -610,7 +614,11 @@ def test_counts_with_a_point_between_thousands_are_asked_about_beside_small_ones
     ]
     entry["your_answer"] = "decimal_comma"
     answers_path = folder / "answered.json"
-    answers_path.write_text(json.dumps(document), encoding="utf-8")
+    # The line ending is fixed rather than left to the platform, so the
+    # bytes are the same on every one (tests/test_description_line_endings).
+    answers_path.write_text(
+        json.dumps(document), encoding="utf-8", newline="\n"
+    )
     again = tmp_path / "answered"
     again.mkdir()
     assert _exit_of(

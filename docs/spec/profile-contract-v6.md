@@ -702,7 +702,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -712,7 +712,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
 | `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
-| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text. NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
+| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
 | `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
 | `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`; `ascending`, `descending` | the leftmost column the rows are sorted by |
 | `separator_line` | boolean | — | an Excel `sep=` line comes first |
@@ -742,7 +742,8 @@ more than two, each as wide as the table; FD10 only a header read from the file
 carries a trailing delimiter or a quoting rule, and rows do not both
 carry a trailing delimiter and leave out empty cells; FD11 the lines
 before the table are published as runs of one shape, within the cap,
-each with a mark holding no line break and no text of the line, each
+each with a mark holding no line break, no quote character, not the
+table's own delimiter and no text of the line, each
 the shape the line the twin writes for it is read back as, and recorded
 as withheld exactly when one of them held text; FD12 a column declared to hold record numbers
 publishes no row sequence and is not the column the rows are sorted
@@ -778,6 +779,39 @@ the twin would write is read back as the very shape published, which
 is what makes a mark carrying a word impossible rather than merely
 unusual; the producer's half is `profile._PREAMBLE_MARK`, which
 refuses a mark holding any letter or digit.
+
+**AND THE MARK HOLDS NOTHING THE TWIN COULD NOT WRITE** (plan P4-D83).
+The mark is written into the twin ahead of the stand-in, so a mark
+carrying a quote character or the table's own delimiter leaves a twin
+that is not a file. Measured on the repair itself: a title line written
+`"Extract for unit 7"` gave the mark `"`, the twin's first line was
+written `"withheld line` -- a quoted field nothing closes -- the twin
+missed about 120 obligations of the description that asked for it, and
+`synthtwin profile` refused to read the twin at all, where the same
+bytes were twinned cleanly before lines before a table were withheld at
+all. The delimiter breaks it the other way, cutting the stand-in into
+fields a reader takes for the table's header. So `dialect.preamble_shape`
+ends the mark before the first such character -- a line whose
+punctuation begins with one is a line of TEXT, whose stand-in is the two
+neutral words -- and FD11 refuses a description carrying one, against
+the form's own delimiter.
+
+**THE LIMIT OF THIS RULE, STATED** (review item MAJOR-2 of the 2b.11
+review). It reaches only the lines synthtwin READS as standing before
+the table: a blank line, a line beginning `#`, and a line of one field
+holding a space. A title line that holds the delimiter -- `Extract for
+Dr Vance, unit 7` above a two-column table -- reads as a row of cells
+of the table's own width, so it is taken for the header and its words
+are published as the column names and written into the twin, and the
+row count is one too high. Column names ARE published as written, by
+S4 and by 4.4: the twin's header line has to carry them. What synthtwin
+owes such a person is to say so, and the summary's paragraph about the
+first row says it -- that the names were assumed, that what that row
+holds is published as written, and that `--first-row data` is the way
+to say the row is a record. Recognising such a line as a title instead
+would take the first row of every table whose header cells hold spaces
+-- `Gewicht, kg` -- out of the description, so this version tells
+rather than guesses.
 
 **S4 still holds of the names.** A blank or repeated header cell is not a
 name: the column is named by the rule in `written_names` above, which

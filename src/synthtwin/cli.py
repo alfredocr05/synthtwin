@@ -1187,6 +1187,36 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
     )
 
 
+def _metadata_rows_unseen_notice(rows: int) -> str:
+    """What is said when such rows are declared on a file not wearing the shape.
+
+    The declaration exists for a survey export whose rows under the
+    column names describe those columns. Given on any other file it
+    still takes those rows out of the table and publishes them as
+    schema -- text held to no smallest group, written into the twin as
+    it stands. Measured on an ordinary table of 120 records:
+    `--metadata-rows 2` published two people's records verbatim at a
+    floor of eleven and nothing on the screen questioned it. So the
+    person is told what was seen, what it costs, and how to run again
+    without it.
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE DOES NOT WEAR THE SHAPE --metadata-rows IS FOR\n"
+        f"{'=' * 66}\n"
+        f"You said the {rows} row(s) under your column names describe "
+        f"those columns, and synthtwin has read them that way. What it "
+        f"looked for and did not see is the shape such a file usually "
+        f"has: rows as wide as your table whose second holds a marker "
+        f"in every cell. Those {rows} rows have left your table. They "
+        f"are not counted among your rows and not described as data, "
+        f"and what they hold is published as your columns' description "
+        f"and written into the twin exactly as it stands -- whatever it "
+        f"says, and whoever it names. If those rows are records of your "
+        f"table, run the command again without --metadata-rows."
+    )
+
+
 def _metadata_rows_notice() -> str:
     """What is said about a file wearing a survey export's shape.
 
@@ -1771,6 +1801,18 @@ def _run_profile(
     surveyed = read.survey
     if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
         _say(f"\n{_metadata_rows_notice()}\n")
+
+    # ...AND A DECLARATION THE FILE DOES NOT BEAR OUT IS QUESTIONED THE
+    # OTHER WAY ROUND. The notice above exists because acting on a
+    # resemblance published a person's record as schema; the
+    # declaration itself is checked against nothing at all, so
+    # `--metadata-rows 2` on an ordinary table takes two records out of
+    # it and publishes them verbatim, exempt from the smallest group,
+    # with nothing said. The reading still obeys the person -- it is
+    # their file and their declaration -- and they are told what was
+    # seen.
+    if metadata_rows and (surveyed is None or not surveyed.metadata_shape):
+        _say(f"\n{_metadata_rows_unseen_notice(metadata_rows)}\n")
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
