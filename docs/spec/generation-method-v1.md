@@ -4606,11 +4606,31 @@ number when it is one under that reading.
    outside the ends, and the supply is counted under the same bound it
    is spent under — counted loosely, the form is settled over a level
    the walk then cannot cover, and the shortfall is reported as a
-   missing spelling rather than as the bound really refusing it. Where
-   the column published no plain decimal there are no ends at all:
-   nothing places a made-up number, so every spelling is refused, the
-   debt stands, and the report line and the exit code announcing it
-   stand with it. A shortfall a reader can see is not exchanged for a
+   missing spelling rather than as the bound really refusing it.
+
+   **THE ENDS ARE THE PUBLISHED VALUES, NOT THE LADDER'S RUNGS**
+   (landing 2b.15, plan P4-D100). The ends are the smallest and the
+   largest VALUE the column published, read by the same grammar the
+   column is read with, whether or not step 3 can step from the
+   spelling that carries it. Asking the LADDER for them — which is
+   built from plain decimals alone — left a column whose every
+   published number wears an exponent, a grouping mark or a leading
+   plus with no ends at all, so every spelling of its form was refused
+   and four cells of a census of twenty-six went unpaid, at twin
+   validate 3 against the table's 0 and at seven generate seeds, on all
+   three of those spellings alike. Such a column DOES publish numbers —
+   1,100,000 to 1,300,000, stated in its own description — and what it
+   lacks is a rung to step FROM, which settles the walk of step 3 and
+   says nothing about how large a made-up number may be. Nothing here
+   places that number: the ladder still cannot step, and the report
+   still tells the reader the location is invented and that a statistic
+   computed over it means nothing about the table. The bound only holds
+   it inside the magnitudes the column is known to hold. Where the
+   column published NO number at all there are no ends of any kind, so
+   every spelling is refused, the debt stands, and the report line and
+   the exit code announcing it stand with it.
+
+   A shortfall a reader can see is not exchanged for a
    larger one nothing can check. Only NUMBER is bounded this way; the
    other two classes are constructed outright by G10.3 and mean
    magnitudes no envelope covers. The rule above is not withdrawn by

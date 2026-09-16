@@ -16355,11 +16355,22 @@ class _Ladder:
     number, and `published` every published number, all as whole numbers
     of the finest decimal place any published number was written with,
     which is `places`. `signs` holds the signs those numbers have, as
-    bits. `anchored` is False where no number was published at all.
+    bits. `anchored` is False where no number the walk can STEP FROM was
+    published at all.
     `tiers` are the counts of decimal places a number wearing no named
     form may be written at, finest first: every count a published number
     was written with, or -- where none was published -- the places of
     the forms still owed and then none at all.
+
+    `least` and `greatest` are the smallest and the largest VALUE the
+    column published, and `spanned` is False where it published no
+    number at all (landing 2b.15, plan P4-D100). They are not the
+    ladder's ends and they do not move its walk: a number spelled with
+    an exponent, a grouping mark or a leading plus has a value this
+    module can read and a spelling `_plain_units` cannot step from, so
+    it is absent from `lowest`, `highest` and `published` and present
+    here. What they are for is the BOUND of G8.3a step 2, which asks
+    only how large a made-up number may be.
     """
 
     lowest: int
@@ -16369,6 +16380,9 @@ class _Ladder:
     anchored: bool
     published: "dict[int, int]"
     tiers: "tuple[int, ...]"
+    least: float
+    greatest: float
+    spanned: bool
 
 
 def _number_ladder(
@@ -16394,6 +16408,13 @@ def _number_ladder(
     """
     seen: "dict[str, int]" = {}
     parsed: "list[tuple[int, int]]" = []
+    # EVERY PUBLISHED NUMBER'S VALUE, whether or not the walk can step
+    # from its spelling (landing 2b.15, plan P4-D100). `_plain_units`
+    # reads one shape and the column may have published another, so the
+    # two lists part company exactly where landing 2b.13 left the debt
+    # unpayable: an exponent, a grouped number or a leading plus is a
+    # magnitude the description states and a rung the ladder lacks.
+    span: "list[float]" = []
     for cell in written:
         if cell in seen:
             continue
@@ -16401,10 +16422,21 @@ def _number_ladder(
         read = _read_in_grammar(cell, decimal_comma)
         if parsing.classify_number(read) != parsing.NUMBER:
             continue
+        size = parsing.parse_number(read)
+        if size is not None:
+            span += [size]
         units = _plain_units(read)
         if units is None:
             continue
         parsed += [units]
+    least = 0.0
+    greatest = 0.0
+    for step in range(len(span)):
+        if step == 0 or span[step] < least:
+            least = span[step]
+        if step == 0 or span[step] > greatest:
+            greatest = span[step]
+    spanned = len(span) > 0
     if not parsed:
         places = 0
         for form in forms:
@@ -16412,7 +16444,10 @@ def _number_ladder(
         tiers: "tuple[int, ...]" = (0,)
         if places > 0:
             tiers = (places, 0)
-        return _Ladder(0, 0, places, _SIGN_POSITIVE_BIT, False, {}, tiers)
+        return _Ladder(
+            0, 0, places, _SIGN_POSITIVE_BIT, False, {}, tiers,
+            least, greatest, spanned,
+        )
     places = max([pair[1] for pair in parsed])
     counted: "dict[int, int]" = {}
     for pair in parsed:
@@ -16436,7 +16471,8 @@ def _number_ladder(
         else:
             signs = signs | _SIGN_POSITIVE_BIT
     return _Ladder(
-        lowest, highest, places, signs, True, published, finest_first
+        lowest, highest, places, signs, True, published, finest_first,
+        least, greatest, spanned,
     )
 
 
@@ -16837,12 +16873,36 @@ def _within_the_published_ends(
     Asked of the number class alone. An out-of-range or contradictory
     stand-in is built by G10.3 outright and means a magnitude no
     envelope covers.
+
+    AND THE ENDS ARE VALUES, NOT RUNGS (landing 2b.15, plan P4-D100).
+    P4-D92 asked the LADDER for the ends, and the ladder is built from
+    plain decimals alone, so a column whose every published number wears
+    an exponent, a grouping mark or a leading plus had no ends and every
+    spelling of its form was refused -- the debt standing at four cells
+    on a census of twenty-six, twin validate 3 against the table's 0, at
+    seven generate seeds. That column does publish numbers: 1,100,000 to
+    1,300,000, stated in the description and read by this module's own
+    parser. What it does not publish is a rung to STEP from, which is a
+    fact about the walk of step 3 and not about how large a made-up
+    number may be. So the bound asks `least` and `greatest`, which every
+    published number reaches. Nothing here places the number -- the
+    ladder still cannot step, `unplaced` still answers from `anchored`,
+    and `_HELD_BACK_UNSPELLED_REASON` still tells the reader the
+    location is invented. The bound only keeps it inside the magnitudes
+    the column is known to hold, which is all P4-D92 ever asked of it.
+
+    Where the column published NO number at all there are still no ends
+    of any kind, and every spelling is still refused.
     """
-    if not ladder.anchored:
-        return False
     value = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
     if value is None:
         return False
+    if not ladder.anchored:
+        if not ladder.spanned:
+            return False
+        if value < ladder.least:
+            return False
+        return value <= ladder.greatest
     scale = float(_ten_to(ladder.places))
     if value < float(ladder.lowest) / scale:
         return False

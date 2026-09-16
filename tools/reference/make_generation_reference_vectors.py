@@ -3220,12 +3220,21 @@ def within_the_published_ends(candidate, ladder):
     counting and lands wherever the counting lands.  Unbounded it wrote
     `9.6E6` for a column holding 1.1e6 to 1.3e6 -- meeting the census and
     taking the twin's mean to 2,450,000 against 1,173,077, with validate
-    falling from 3 to 0.  So the VALUE is asked too, and where the column
-    published no plain number at all there are no ends and nothing places
-    a made-up one, so every spelling is refused and the debt stands.
+    falling from 3 to 0.  So the VALUE is asked too.
+
+    THE ENDS ARE VALUES AND NOT RUNGS (P4-D100).  Asking the LADDER for
+    them left a column whose every published number wears an exponent or
+    a leading plus with no ends at all, so every spelling of its form was
+    refused and four cells of a twenty-six census went unpaid.  Such a
+    column does publish numbers; what it lacks is a rung to step from,
+    which bears on the walk of step 3 and not on how large a made-up
+    number may be.  So the span of the published VALUES bounds it, and
+    only a column publishing no number at all has no ends.
     """
     if not ladder["anchored"]:
-        return False
+        if not ladder["spanned"]:
+            return False
+        return ladder["least"] <= float(candidate) <= ladder["greatest"]
     scale = float(10 ** ladder["places"])
     return (
         ladder["lowest"] / scale <= float(candidate) <= ladder["highest"] / scale
@@ -3669,12 +3678,21 @@ def form_places(form):
 def number_ladder(written, forms):
     """The published numbers a label column steps its made-up ones from."""
     parsed = []
+    # EVERY PUBLISHED NUMBER'S VALUE, stepped from or not (P4-D100).  The
+    # exact reader above already settles each cell's class, and its value
+    # is the same reading; `plain_units` answers for the SPELLINGS the
+    # walk of step 3 can step from, which is the narrower question.
+    span = []
     for cell in dict.fromkeys(written):
         if notation_reading(cell)[0] != NOTATION_NUMBER:
             continue
+        span.append(float(decimal_to_fraction(cell.strip())))
         units = plain_units(cell)
         if units is not None:
             parsed.append(units)
+    ends = {"least": min(span) if span else 0.0,
+            "greatest": max(span) if span else 0.0,
+            "spanned": bool(span)}
     if not parsed:
         places = max([form_places(form) for form in forms] + [0])
         # A NUMBER WEARING NO NAMED FORM takes those places and then whole
@@ -3682,7 +3700,7 @@ def number_ladder(written, forms):
         tiers = (places, 0) if places > 0 else (0,)
         return {"lowest": 0, "highest": 0, "places": places,
                 "signs": {"positive"}, "anchored": False, "published": set(),
-                "tiers": tiers}
+                "tiers": tiers, **ends}
     places = max(pair[1] for pair in parsed)
     values = [value * 10 ** (places - own) for value, own in parsed]
     signs = set()
@@ -3693,7 +3711,7 @@ def number_ladder(written, forms):
     tiers = tuple(sorted({own for _value, own in parsed}, reverse=True))
     return {"lowest": min(values), "highest": max(values), "places": places,
             "signs": signs, "anchored": True, "published": set(values),
-            "tiers": tiers}
+            "tiers": tiers, **ends}
 
 
 def sign_held(value, signs):
