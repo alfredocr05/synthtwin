@@ -1,4 +1,4 @@
-"""Plan P4-D40's gate: the twin is written the way its source file was.
+"""Plan P4-D75's gate: the twin is written the way its source file was.
 
 The owner ruling of 2026-09-15 reads "Twin should always write anything
 as the original source, without changes", and the audit of commit
@@ -298,6 +298,70 @@ def test_repeated_and_blank_header_names(tmp_path: pathlib.Path) -> None:
 # -- SAS, REDCap, Qualtrics ---------------------------------------------
 
 
+def test_a_table_of_declared_identifier_pairs_shares_no_row_with_its_twin(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The gate under plan P4-D76: no file-level fact rebuilds a declared
+    identifier, and no twin row is a real row.
+
+    THE DEFECT THIS PINS. A sequence published of a column is written
+    back by the generator as the literal cells `0, 1, 2, ...`, so a
+    table whose two declared identifier columns each step by one had
+    BOTH republished -- and the twin then held all 120 of the real
+    table's rows, byte for byte, with every value the declaration
+    exists to withhold. The written form went around the withholding.
+
+    Two halves, because one of them cannot be checked by comparison:
+    the description publishes no sequence and no order for a declared
+    identifier, which is exact; and the twin of a realistic identifier
+    table shares no row with the source.
+
+    WHY THE SECOND HALF IS PINNED ON WIDE IDENTIFIERS. The generator
+    NEVER READS THE REAL TABLE, so it cannot exclude a real row by
+    looking: clause 2 of the twin's definition is held structurally, by
+    not carrying the values across, and never by comparison. On a table
+    of 120 rows whose identifiers are the integers 0..120 a stand-in
+    can therefore collide with a real pair by chance -- measured at 0
+    to 3 rows of 120 across twelve seeds, varying with the seed, where
+    the defect above gave 120 of 120 at every seed.
+    """
+    rows = [(f"S{index:05d}", f"T{index * 7 % 100000:05d}") for index in range(ROWS)]
+    data = ("first_id,second_id\n" + "".join(f"{a},{b}\n" for a, b in rows)).encode()
+    result = _round_trip(
+        tmp_path, data,
+        ("--identifier", "first_id", "--identifier", "second_id",
+         "--smallest-group", "10"),
+    )
+    form = result["form"]
+    assert [column["sequence_start"] for column in form["columns"]] == [None, None]
+    assert form["row_order"] is None
+    twin = _records(result["twin"], "utf-8")
+    assert set(tuple(row) for row in twin[1:]) & set(rows) == set()
+    _held(result)
+
+
+def test_a_stepping_identifier_pair_publishes_nothing_that_rebuilds_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The review's own table, pinned on the facts rather than on chance.
+
+    Its identifiers are the integers 0..120, where a stand-in may
+    collide with a real pair by chance, so what is asserted here is
+    what the description PUBLISHES -- which is what the defect was.
+    """
+    data = ("first_id,second_id\n" + "".join(f"{n},{n + 1}\n" for n in range(ROWS))).encode()
+    result = _round_trip(
+        tmp_path, data,
+        ("--identifier", "first_id", "--identifier", "second_id",
+         "--smallest-group", "10"),
+    )
+    form = result["form"]
+    assert [column["sequence_start"] for column in form["columns"]] == [None, None]
+    assert form["row_order"] is None
+    twin = _records(result["twin"], "utf-8")
+    assert [row[0] for row in twin[1:]] != [f"{n}" for n in range(ROWS)]
+    _held(result)
+
 def test_sas_padded_latin1_export(tmp_path: pathlib.Path) -> None:
     """A PUT-style export: ids right-padded, numbers left-padded, CRLF,
     Latin-1 labels."""
@@ -330,8 +394,15 @@ def test_redcap_export_sorted_by_record_id(tmp_path: pathlib.Path) -> None:
         ]
     data = b"\xef\xbb\xbf" + ("\r\n".join(body) + "\r\n").encode()
     result = _round_trip(tmp_path, data)
-    records = _records(result["twin"], "utf-8-sig")
-    assert [row[0] for row in records[1:]] == [f"{n}" for n in range(1, ROWS + 1)]
+    # `record_id` IS NOT A WRITTEN ROW INDEX (plan P4-D76). It is the
+    # table's own first column, named by whoever built the export, and
+    # until this landing its 1..n was published as the row sequence --
+    # which told the generator to write those very values back. A
+    # register's serial is exactly what a person declares with
+    # `--identifier`, so publishing it was a disclosure and not a form.
+    # Only the first column NAMED as pandas and R name theirs keeps a
+    # sequence; the two tests above pin that half.
+    assert result["form"]["columns"][0]["sequence_start"] is None
     _held(result)
 
 

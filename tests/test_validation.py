@@ -2398,7 +2398,7 @@ def test_a_blank_header_name_is_a_verdict_and_names_the_position(
 ) -> None:
     """A blank header cell, which the reader used to refuse.
 
-    Since plan P4-D40 the reader names such a column `Unnamed: N` and
+    Since plan P4-D75 the reader names such a column `Unnamed: N` and
     publishes the cell as written, so the file is read and reported on
     like any other: its names miss against the description's, and the
     header cell it writes blank misses the written-names rule. The

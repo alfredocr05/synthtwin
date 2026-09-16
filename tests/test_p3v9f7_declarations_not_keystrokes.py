@@ -239,7 +239,7 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     # ...and one more since the count of different NUMBERS became an
     # obligation on 2026-09-04 (amendment A-P4-55): it was listed whole
     # and is a subcheck now.
-    # ...and the rules of the written form (plan P4-D40) are the file's,
+    # ...and the rules of the written form (plan P4-D75) are the file's,
     # measured from its bytes, so they are counted apart from the column's.
     assert len(
         [

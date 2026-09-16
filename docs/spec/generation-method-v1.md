@@ -98,11 +98,11 @@ implementer is tempted to breach:
 ## G2. The output bytes
 
 The twin is one delimited text file, written the way the description
-records its source file was (owner ruling 2026-09-15, plan P4-D40;
+records its source file was (owner ruling 2026-09-15, plan P4-D75;
 `source.encoding` and `source.dialect`, contract 4.3 and 4.3a). The
 exact byte-level rules, because "CSV" is not one format. For an
 ordinary source — UTF-8, comma, line feeds, minimal quoting, a final
-line ending — every row below reads as it did before P4-D40:
+line ending — every row below reads as it did before P4-D75:
 
 | property | value |
 |---|---|
@@ -142,7 +142,7 @@ alteration of a published label — including a label a spreadsheet would
 treat as a formula (P2-D10 and R-P2-6: counted and warned, never
 altered).
 
-### G2.1 Where the rows stand (plan P4-D40)
+### G2.1 Where the rows stand (plan P4-D75)
 
 Three steps after every column is generated, drawing no word.
 

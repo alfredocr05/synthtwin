@@ -194,6 +194,17 @@ MAXIMUM_PREAMBLE_LINES = 16
 # ... (R, REDCap).
 SEQUENCE_STARTS = (0, 1)
 
+# The names a written row index carries, and the ONLY column that may be
+# published as the row sequence (plan P4-D76, invariant FD12). A pandas
+# frame written with its index leaves the first header cell blank and
+# the reader names it `Unnamed: 0`; R's `write.csv` writes `""` and is
+# named the same; a frame written, read and written again carries
+# `Unnamed: 0` in the file itself. A column of its OWN name holding
+# 1, 2, 3, ... -- a REDCap `record_id`, a register's serial -- is not one
+# of these: it is the table's own data, and a sequence published of it
+# is the generator's instruction to write those very values back.
+INDEX_NAMES = ("Unnamed: 0", "rownames")
+
 # What a withheld preamble line is written as, after the punctuation it
 # began with (`# ` stays, so `comment="#"` still finds it). Two words, so
 # the stand-in reads as a title line to the survey that reads the twin:
@@ -706,7 +717,7 @@ def decoded(data: bytes, shown: str) -> "tuple[str, str, bool]":
 def decoded_as(data: bytes, shown: str, encoding: str) -> "tuple[str, str, bool]":
     """The file's text read in a description's published encoding, where it can be.
 
-    The validator's reading of a checked file (plan P4-D40, repair of
+    The validator's reading of a checked file (plan P4-D75, repair of
     landing 2b.9). A description published as Latin-1 or Windows-1252
     publishes every label as that encoding reads it, so a checked file is
     read the same way whenever its bytes decode there and carry no UTF-8

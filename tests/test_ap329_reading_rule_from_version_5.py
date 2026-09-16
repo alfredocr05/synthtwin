@@ -993,7 +993,7 @@ def test_the_two_limits_contract_five_states_are_still_the_two(
         assert outcome.census.missed == 0, name
         assert "presence.n_present" in _unsupported(outcome), name
         # The column's quoting is a fact of the written form (plan
-        # P4-D40), measured from the file's bytes, not from its cells.
+        # P4-D75), measured from the file's bytes, not from its cells.
         mine = [
             check.subcheck
             for check in outcome.checks

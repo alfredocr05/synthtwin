@@ -57,7 +57,7 @@ def _the_hundred() -> "list[str]":
     """The residual's own column, so this closes what it opened.
 
     Written starting at two with the one at the end: in the order one
-    to a hundred the column IS the row sequence (plan P4-D40), which the
+    to a hundred the column IS the row sequence (plan P4-D75), which the
     twin writes exactly, and the shortfall this residual is about would
     never arise. The order of a column's cells is none of its facts.
     """

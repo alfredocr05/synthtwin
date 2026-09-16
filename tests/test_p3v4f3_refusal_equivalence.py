@@ -241,7 +241,7 @@ _BATTERY: "dict[str, str | bytes]" = {
     "no bytes at all": "",
     "blank lines alone": "\n\n",
     # -- files whose header repeats a name or leaves one blank --------
-    # Refused at that row until plan P4-D40; the reader now names such a
+    # Refused at that row until plan P4-D75; the reader now names such a
     # column the way pandas names it, so the producer DESCRIBES these,
     # and the properties below, which are about files it refuses, pass
     # them by.
@@ -260,7 +260,7 @@ _BATTERY: "dict[str, str | bytes]" = {
     "a NUL in a value": b"a,b,c\n1,\x00,3\n",
     # Ragged by a row one field TOO LONG. A row short by its trailing
     # empty cells is a way some writers write every row that ends empty,
-    # and since plan P4-D40 a file doing that consistently is read; a
+    # and since plan P4-D75 a file doing that consistently is read; a
     # row too long is still a file no rule of the written form reads.
     "ragged": "a,b,c\n1,2,3,4\n3,4,5\n",
     "ragged with a repeated name": "dup,dup,c\n1,2,3,4\n3,4,5\n",
@@ -339,7 +339,7 @@ def test_the_named_routes(
     so a reader of the failure knows which route reopened:
 
     * the positions of a repeated name was the first of them, and it
-      closed with plan P4-D40: the profiler no longer refuses a repeated
+      closed with plan P4-D75: the profiler no longer refuses a repeated
       name, so `dup,a,dup` and `a,dup,dup` are two files it describes and
       owe each other no report;
     * whether a NUL-bearing header is followed by a row -- the reader
@@ -366,7 +366,7 @@ def test_the_named_routes(
 def test_a_blank_or_repeated_name_is_read_and_its_header_misses(
     tmp_path: pathlib.Path, headed: contract.Profile
 ) -> None:
-    """What stands where the two header-refusal tests stood (plan P4-D40).
+    """What stands where the two header-refusal tests stood (plan P4-D75).
 
     Those tests held a report to the refusal's own reply: no position
     for a repeated name, the position for a blank one. The profiler

@@ -315,7 +315,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
-# RE-RECORDED 2026-09-15 for plan P4-D40 (owner ruling: the twin is
+# RE-RECORDED 2026-09-15 for plan P4-D75 (owner ruling: the twin is
 # written the way the source file was). `source` gained ONE key,
 # `dialect`, the written form of the demonstration file: a comma, UTF-8
 # with no mark, line feeds on every line, minimal quoting in every

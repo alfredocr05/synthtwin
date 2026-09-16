@@ -825,7 +825,7 @@ def test_the_position_obligation_is_the_one_that_stays_a_check(
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
     # How the column's cells are QUOTED is a fact of the file's written
-    # form (plan P4-D40), measured from the file's bytes and not from any
+    # form (plan P4-D75), measured from the file's bytes and not from any
     # cell this rule concerns, so it is not among what this counts.
     mine = [
         check.subcheck
@@ -856,7 +856,7 @@ def test_what_moves_on_the_free_text_witness_is_written_out(
     """
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
-    # The rules of the written form (plan P4-D40) are the file's, measured
+    # The rules of the written form (plan P4-D75) are the file's, measured
     # from its bytes, and none of them moves with this ruling.
     assert len(
         [

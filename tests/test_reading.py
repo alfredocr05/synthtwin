@@ -24,7 +24,7 @@ def test_a_short_row_is_refused_not_padded(tmp_path: pathlib.Path) -> None:
     # The defect this whole design exists to prevent: a row with too few
     # values must never arrive as a row with empty cells SILENTLY. A row
     # short by exactly its trailing empty cells is a way some writers
-    # write every row that ends empty (plan P4-D40), and it is read that
+    # write every row that ends empty (plan P4-D75), and it is read that
     # way only where the whole file agrees: no full row ends with an
     # empty cell and no short row does. Where the file does not agree, a
     # short row is refused exactly as it always was.
@@ -99,7 +99,7 @@ def test_empty_cells_stay_empty_text(tmp_path: pathlib.Path) -> None:
 def test_duplicate_column_names_are_named_and_written_back(
     tmp_path: pathlib.Path,
 ) -> None:
-    # Refused until plan P4-D40, which cost the person an edit to the
+    # Refused until plan P4-D75, which cost the person an edit to the
     # real table and code that no longer matched it. A repeated name is
     # named the way pandas names it, and the header cell as the file
     # writes it is published, so the twin's header is the table's.
@@ -187,7 +187,7 @@ def test_latin1_fallback_reads_a_file_utf8_cannot(
 
 def test_utf16_behind_its_mark_is_read(tmp_path: pathlib.Path) -> None:
     # Excel's 'Unicode Text' is UTF-16 behind a byte-order mark, and it is
-    # read as the text it is (plan P4-D40). Without the mark Latin-1
+    # read as the text it is (plan P4-D75). Without the mark Latin-1
     # would still decode anything, which is why the zero-byte refusal
     # below stays.
     target = tmp_path / "wide.csv"

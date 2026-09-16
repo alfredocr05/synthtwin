@@ -204,7 +204,7 @@ SPELLING_SUBCHECKS = (
 WIDE_CHECK_COUNT = 416
 
 # The one fact every rule of the file's written form is filed under (plan
-# P4-D40): thirteen on the document, one quoting rule per column and the
+# P4-D75): thirteen on the document, one quoting rule per column and the
 # row order on the column the table is sorted by.
 FORM_FACT = "document.source.dialect"
 WIDE_CHECK_DIGEST = (
@@ -227,7 +227,7 @@ NARROW_LISTING_COUNT = 126
 NARROW_LISTING_DIGEST = (
     "2f4929644fee38d290ab85841e8e0b3c8f16c96892679f667a7c996f0a7c5a33"
 )
-# RE-RECORDED 2026-09-15 for plan P4-D40, AS ORDER-FREE IDENTITIES. The
+# RE-RECORDED 2026-09-15 for plan P4-D75, AS ORDER-FREE IDENTITIES. The
 # demonstration table is sorted by `record_code`, the description now
 # publishes that row order, and the twin keeps it -- so every column's
 # cells moved to other rows while no cell changed. MEASURED before
@@ -282,19 +282,19 @@ NARROW_COLUMN_DIGESTS = {
 # and `batch`, whose cells cannot be told apart, hash as their sorted
 # digests do, which is the check that the two digests read the same twin.
 NARROW_COLUMN_ORDER_DIGESTS = {
-    "record_code": "bb878fb901ff9b21918c1aab62fc19ab",
-    "region": "c6aaaab5b456877e567d5277cca62e0c",
-    "visits": "db87a45be0f7b6221d45c8da95f2e419",
-    "reading": "b975be488ea135e180894623eaf7f4c2",
-    "amount": "2da7ddfb34e0de02e68b3812a4e0491e",
-    "recorded_on": "afefaae4e256c46a2aa83dc038540e65",
-    "answer": "ba5c9e8204fe2cb51dc35654032bd6e6",
-    "comment": "701f0af371c986b58839cac47d9a6ab8",
+    "record_code": "f6d74ac3a099e5713338c9baff476924",
+    "region": "48583e2c694ee365c884cd8b99719dd1",
+    "visits": "fac456b2607b807ffa636be2068ed181",
+    "reading": "01d11476294ade427eb6806b3155e7b6",
+    "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
+    "recorded_on": "275356366d05346ada86307a49d4467c",
+    "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
+    "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
-    "dose": "384cd44705d113813351842cac1b664a",
-    "seen_at": "036ae78d2167093ed33d41d3ca05e00d",
-    "note": "8127c9ed27f9fa91d8108663c12cd611",
+    "dose": "8c8b3c5b9f6513ccd30b32e02393ae8c",
+    "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
+    "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
 
 
@@ -323,7 +323,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         tmp_path, "narrow-twin.csv", rendering.twin_csv(twin)
     )
     outcome = validation.measure(described, str(twin_path))
-    # THE ENCODING RULE WAS RENAMED, not added or dropped (plan P4-D40):
+    # THE ENCODING RULE WAS RENAMED, not added or dropped (plan P4-D75):
     # `bytes.utf8` asks for `source.encoding` now and is called
     # `bytes.encoding`. The frozen baselines below hash the name they were
     # frozen with, so the rule is read back under that name.
@@ -344,7 +344,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        # ...and the rules of the file's written form (plan P4-D40), one
+        # ...and the rules of the file's written form (plan P4-D75), one
         # fact filed on the document and on every column, named rather
         # than counted.
         if f"|{FORM_FACT}|" in entry:
@@ -849,7 +849,7 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
 # when the two documents were diffed against 53bb012. The twin digest below
 # HELD: the twin's bytes are identical.
-# RE-RECORDED 2026-09-15 for plan P4-D40 (owner ruling: the twin is
+# RE-RECORDED 2026-09-15 for plan P4-D75 (owner ruling: the twin is
 # written the way its source file was). `source` gained ONE key,
 # `dialect`, the written form of the demonstration file -- a comma, UTF-8
 # with no mark, line feeds on every line, minimal quoting in every column,
@@ -874,8 +874,19 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # cells, and the twin's rows agree as a multiset while differing in order,
 # so whole rows moved and nothing was written differently. `unused` and
 # `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "b618bd4b110e0f073273dd50c970a98bf7d9a43742be424d287280b63c162623"
+    "a32bf775c2373134793c7b67f58cc8a5515ecfd4f149919ce339f23d89d8a7bd"
 )
 
 
@@ -979,7 +990,7 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # RE-RECORDED at landing 2b.1 (2026-09-15): the `amount` and `dose`
 # columns moved for the causes recorded beside their column digests
 # above, and no other column's cells moved.
-# RE-RECORDED 2026-09-15 for plan P4-D40, and ONLY THE ORDER OF THE ROWS
+# RE-RECORDED 2026-09-15 for plan P4-D75, and ONLY THE ORDER OF THE ROWS
 # MOVED. The demonstration table is sorted by `record_code`, so the
 # description now publishes that row order and the twin keeps it: its
 # rows are sorted by `record_code`, where the twin of commit 53bb012 was
@@ -995,8 +1006,22 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # cells, and the twin's rows agree as a multiset while differing in order,
 # so whole rows moved and nothing was written differently. `unused` and
 # `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
+# The twin is now BYTE-IDENTICAL to commit 367e1d7's, which is the
+# whole of the claim: the only thing landing 2b.9 changed about this
+# twin was the row order it took from a declared identifier.
 GOLDEN_TWIN_SHA256 = (
-    "572c491c60fd99d9befdb590d4b2a4ca010fea8b4e1b7809bb193448646a9a09"
+    "494ae9dd2eef2b3a703e456a506224b1d799c447851666e03d089aef706fe84f"
 )
 
 
@@ -1397,7 +1422,7 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # (G5.6) and computes each end in the one operation order G12.2, G12.3
 # and G12.3a state, which is what the quality report prints; the twin,
 # every achieved figure and every inside-the-range verdict are unchanged.
-# RE-RECORDED 2026-09-15 for plan P4-D40. The paragraph on how the twin
+# RE-RECORDED 2026-09-15 for plan P4-D75. The paragraph on how the twin
 # is written no longer says it is UTF-8 with newline line endings
 # whatever the table was: it states the written form the description
 # records -- here UTF-8 without a mark, fields separated by a comma, line
@@ -1926,7 +1951,7 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # widest stratum is read off the description alone, which on this
 # demonstration is the number it was already. The census is unchanged:
 # 420 held, 75 within a window, none missed.
-# RE-RECORDED 2026-09-15 for plan P4-D40, and the quality report says
+# RE-RECORDED 2026-09-15 for plan P4-D75, and the quality report says
 # MORE, not less. MEASURED on this run: 28 new checks under
 # `document.source.dialect`, all HELD -- thirteen on the document
 # (blank lines, delimiter, records of nothing, end-of-file mark, escaping,
@@ -1945,8 +1970,19 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # cells, and the twin's rows agree as a multiset while differing in order,
 # so whole rows moved and nothing was written differently. `unused` and
 # `batch`, whose cells cannot be told apart, are unchanged even in order.
+# RE-RECORDED 2026-09-15 for plan P4-D76, and ONLY WHERE CELLS STAND
+# MOVED. The demonstration's `record_code` is declared with
+# `--identifier`, and landing 2b.9 published a row order for it -- which
+# is a fact about a declared identifier's own values and is exactly what
+# P4-D76 withdraws. MEASURED rather than argued: the published written
+# form differs in ONE key of its twenty-two, `row_order`, which was
+# `{collation: text, column: 1, direction: ascending}` and is now null;
+# every column's cells are the same MULTISET as before, the sorted
+# digests above did not move, and every order digest here is once more
+# the one commit 367e1d7 froze -- the twin's rows have returned to the
+# arrangement they had before the identifier was sorted on.
 GOLDEN_QUALITY_SHA256 = (
-    "eb162b048a7ed770d1c4ad6a5e7d4ec7294b15a633a5f3ff87244846336ecc8b"
+    "82bb2bdd72e3c090f41e904f2af62aaa4694ebaa0c1227b842fb0d3b0072a98c"
 )
 
 

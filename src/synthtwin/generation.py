@@ -22393,7 +22393,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         order = _arrangement(places, profile.n_rows)
         written = [content[order[place]] for place in range(profile.n_rows)]
         # THE ROW SEQUENCE IS WRITTEN, NOT DRAWN (owner ruling 2026-09-15,
-        # plan P4-D40). A column the description names as the row
+        # plan P4-D75). A column the description names as the row
         # sequence -- pandas' 0, 1, 2 or R's 1, 2, 3 -- holds exactly
         # those cells in the real table, so the twin writes them, and
         # writes them HERE, before anything below measures the column:
@@ -22559,7 +22559,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 remarks=each.remarks,
             )
         ]
-    # WHERE THE ROWS STAND (plan P4-D40): the order the real table was
+    # WHERE THE ROWS STAND (plan P4-D75): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
     # one column for the empty records, so nothing measured above moves.

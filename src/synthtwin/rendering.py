@@ -275,7 +275,7 @@ def twin_csv(twin: generation.Twin) -> str:
     - Boundary: nothing is read and nothing is written; this hands back
       the text and the caller decides what becomes of it.
 
-    THE FORMAT IS THE SOURCE'S (owner ruling 2026-09-15, plan P4-D40).
+    THE FORMAT IS THE SOURCE'S (owner ruling 2026-09-15, plan P4-D75).
     The twin is written the way the description records the real table
     was: its delimiter, its quoting per column and per kind of cell, its
     escaping, its line endings line by line, its byte-order mark, its
@@ -392,7 +392,7 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
     """How the real file was read, and the form the twin is written in.
 
     THE TWIN IS WRITTEN THE WAY THE TABLE WAS (owner ruling 2026-09-15,
-    plan P4-D40), so this paragraph states that form rather than a fixed
+    plan P4-D75), so this paragraph states that form rather than a fixed
     one, and names the three places the twin cannot follow its table:
     preamble text the smallest group withholds, quoting the table did in
     no single way, and a line ending pattern it reproduces only where the

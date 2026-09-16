@@ -188,7 +188,7 @@ def test_a_static_file_can_reach_the_name_disagreement(
 ) -> None:
     # Found by differential fuzzing: nobody rewrites this file, and the
     # two readers still name its one column differently. Re-found for
-    # plan P4-D40, whose survey reads the file the fuzz found first as a
+    # plan P4-D75, whose survey reads the file the fuzz found first as a
     # header over no rows: this one is read as semicolon text, and pandas
     # still names a column differently from the survey and the standard
     # reader, which agree.

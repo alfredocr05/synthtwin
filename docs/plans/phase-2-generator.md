@@ -875,7 +875,7 @@ transaction. Its residuals are inherited and restated.
 
 **Bytes.** Both artifacts are UTF-8 with LF, no byte-order mark, with a
 terminal newline; report bytes are part of the golden contract.
-**AMENDED 2026-09-15 by Phase 4 plan decision P4-D40** for the twin
+**AMENDED 2026-09-15 by Phase 4 plan decision P4-D75** for the twin
 alone: the twin is written in its source's encoding and written form
 (`source.encoding`, `source.dialect`); the report stays UTF-8 with LF. Datetime
 cells follow owner decision 5; numeric cells follow owner decision 7.
@@ -1072,7 +1072,7 @@ made; P1-R8-**F7** by the contract gate.
 - **R-P2-3.** Independent columns and undescribed grain.
 - **R-P2-4.** Approximated fields are bounded, measured and reported.
 - **R-P2-5.** The twin is always UTF-8 with LF regardless of source
-  encoding. **CLOSED 2026-09-15 by Phase 4 plan decision P4-D40**: the
+  encoding. **CLOSED 2026-09-15 by Phase 4 plan decision P4-D75**: the
   twin is written in its source's encoding and written form.
 - **R-P2-6.** A published label a spreadsheet reads as a formula is
   written unchanged; counted and warned, not altered.

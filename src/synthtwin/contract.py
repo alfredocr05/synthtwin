@@ -892,7 +892,7 @@ INVARIANTS = {
         "exactly when the encoding it names is a fallback one, Latin-1 or "
         "Windows-1252"
     ),
-    # How the table's file is written (plan P4-D40, contract 4.3a).
+    # How the table's file is written (plan P4-D75, contract 4.3a).
     "FD1": (
         "the written form describes one column for every column the "
         "table has"
@@ -951,6 +951,14 @@ INVARIANTS = {
         "only a header read from the file carries a trailing delimiter or "
         "a quoting rule of its own, and rows do not both carry a trailing "
         "delimiter and leave out their empty cells"
+    ),
+    # The rule that keeps a declared identifier out of the written form
+    # (plan P4-D76). The producer's half is `profile._published_form`.
+    "FD12": (
+        "a column the person declared to hold record numbers publishes "
+        "no row sequence and is not the column the rows are sorted by, "
+        "and a row sequence is published only for the first column, "
+        "named as a written row index is"
     ),
     "FD11": (
         "every line before the table is one line, within the cap, and is "
@@ -1453,7 +1461,7 @@ class SourceBlock:
     header_source: str
     header_by_convention: bool
     header_evidence: str
-    # How the table's FILE is written (contract 4.3a, plan P4-D40).
+    # How the table's FILE is written (contract 4.3a, plan P4-D75).
     dialect: "dialect.Dialect"
 
 
@@ -3844,8 +3852,9 @@ def _dialect_rules(
     columns: "tuple[ColumnBlock, ...]",
     n_rows: int,
     floor: int,
+    declared: "tuple[str, ...]" = (),
 ) -> None:
-    """The invariants that tie the file's written form to the table (FD1-FD11).
+    """The invariants that tie the file's written form to the table (FD1-FD12).
 
     Run after the columns are read, because every one of them needs the
     columns, the row count or the floor. Each names what it compared.
@@ -4050,6 +4059,28 @@ def _dialect_rules(
                     "a line before the table is published as written",
                     f"the smallest group is {floor}, where only its stand-in may be",
                 )
+    # FD12 (plan P4-D76). A row sequence is written back by the generator
+    # as the cells themselves, so it is published only for a written row
+    # index nobody declared; on a declared identifier it would hand back
+    # the values the declaration withholds.
+    for index in range(min(width, len(form.columns))):
+        if form.columns[index].sequence_start < 0:
+            continue
+        name = columns[index].name
+        if name in declared or index != 0 or name not in dialect.INDEX_NAMES:
+            raise _broken(
+                "FD12", where,
+                f"column {index + 1}, {name!r}, is published as the row sequence",
+                "a first column named as a written row index is, and not one declared to hold record numbers",
+            )
+    if form.row_order.column and form.row_order.column <= width:
+        name = columns[form.row_order.column - 1].name
+        if name in declared:
+            raise _broken(
+                "FD12", where,
+                f"the rows are published as sorted by {name!r}",
+                "a column not declared to hold record numbers",
+            )
 
 
 def _declaration(value: object, key: str, where: str) -> DeclarationRecord:
@@ -9961,7 +9992,10 @@ def _validated(document: "dict[str, object]") -> Profile:
         ),
     )
     _cross_checks(columns, settings, notes)
-    _dialect_rules(source, columns, n_rows, settings.small_cell_floor)
+    _dialect_rules(
+        source, columns, n_rows, settings.small_cell_floor,
+        settings.forced_identifiers,
+    )
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,

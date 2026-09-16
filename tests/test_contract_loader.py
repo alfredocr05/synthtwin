@@ -1271,7 +1271,7 @@ def battery() -> list[Mutation]:
             edit_in("relationships", grain="one row per person"),
             names="update synthtwin",
         ),
-        # -- how the table's file is written (plan P4-D40) -------------
+        # -- how the table's file is written (plan P4-D75) -------------
         Mutation("FD1", "a written form one column short", _form_one_column_short),
         Mutation("FD2", "line endings for one line too many", _form_one_line_too_many),
         Mutation(
@@ -1316,6 +1316,15 @@ def battery() -> list[Mutation]:
         Mutation(
             "FD11", "a preamble recorded as withheld that holds nothing",
             _form_withheld_nothing,
+        ),
+        # The rule that keeps a declared identifier out of the written
+        # form (plan P4-D76). `record_code` is declared in the base
+        # description above, so a row sequence published of it is the
+        # generator's instruction to write the very values the
+        # declaration exists to withhold.
+        Mutation(
+            "FD12", "a row sequence in a column declared to hold record numbers",
+            _form_sequence_on_a_declared_identifier,
         ),
     ]
 
@@ -1398,6 +1407,11 @@ def _form_trailing_and_short(document: Document) -> None:
 
 def _form_withheld_nothing(document: Document) -> None:
     _form(document)["preamble_withheld"] = True
+
+
+def _form_sequence_on_a_declared_identifier(document: Document) -> None:
+    place = _position_of(document, "record_code") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
 
 
 BATTERY = battery()

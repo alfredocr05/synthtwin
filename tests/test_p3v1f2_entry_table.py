@@ -1898,7 +1898,7 @@ def _perturbations(
         # were a property of the check.
         ("not-utf8", CLASS_ENCODING, b"\xff" + twin.encode("utf-8")[1:]),
     ]
-    # THE WRITTEN FORM'S OWN EDITS (plan P4-D40). Each changes one fact
+    # THE WRITTEN FORM'S OWN EDITS (plan P4-D75). Each changes one fact
     # of how the file is written and nothing about its cells, so the
     # rule it is registered against is the one that must report it.
     built = built + _form_perturbations(described, twin, rows, first)
@@ -2181,7 +2181,7 @@ def _form_perturbations(
     rows: "list[list[str]]",
     first: int,
 ) -> "list[tuple[str, str, str | bytes]]":
-    """The edits of a twin's written form, one fact each (plan P4-D40).
+    """The edits of a twin's written form, one fact each (plan P4-D75).
 
     Where a fixture's file holds nothing an edit could change -- a
     one-column file has no delimiter to replace -- the edit adds what it
@@ -2907,7 +2907,7 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
     RedCase("joined", 'not-utf8', 'reading', 'universal.position', 'position.at'),
     RedCase("joined", 'emptied-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
-    # RE-MEASURED 2026-09-15 (plan P4-D40). `not-utf8` made these two
+    # RE-MEASURED 2026-09-15 (plan P4-D75). `not-utf8` made these two
     # miss only because the renamed header left the `--measurement`
     # declaration unreached and the column fell to free text; a slashed
     # pair of whole numbers is now read as joined numbers from its
@@ -4877,7 +4877,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('quoted-column_2', 'bytes.quoting'),
         ),
     },
-    # The written form's rules on the joined fixture (plan P4-D40).
+    # The written form's rules on the joined fixture (plan P4-D75).
     'joined': {
         '': (
             ('blank-line', 'bytes.blank-lines'),
@@ -5067,7 +5067,7 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
-    # -- the file's written form (plan P4-D40): every rule is filed under
+    # -- the file's written form (plan P4-D75): every rule is filed under
     # one fact, on the document and on every column family alike.
     ('numeric', 'rows.sequence'): 'document.source.dialect',
     ('clock', 'bytes.quoting'): 'document.source.dialect',
@@ -6486,7 +6486,7 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
         # accepts through its documented fallback, and that leaves
         # `bytes.encoding` a verdict to reach.
         ("zero-not-utf8", "bytes.encoding", b"\xff" + text.encode("utf-8")[1:]),
-        # THE WRITTEN FORM'S RULES ON THE DEGENERATE FORM (plan P4-D40):
+        # THE WRITTEN FORM'S RULES ON THE DEGENERATE FORM (plan P4-D75):
         # the delimiter, the space after it, the escaping, the separator
         # hint, the end-of-file mark and the lines before the table are
         # all shown by a file of no rows, with or without a header.
@@ -6525,7 +6525,7 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             ("zero-header-written", "header.presence", joined + "\n"),
             ("zero-record-of-nothing", "bytes.empty-rows", ",\n"),
             # ...and its line ending rules are missed by a line ending
-            # it does not have. Until plan P4-D40 the conforming file
+            # it does not have. Until plan P4-D75 the conforming file
             # itself missed its terminal newline: a description cut down
             # with `dataclasses.replace` kept the line-ending fact of the
             # twenty-row file it came from. `fixtures.zero_rows` now gives
@@ -6595,7 +6595,7 @@ def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
     holds `_conforming_text`'s construction to the shipped reader,
     since a header line written the wrong way would miss here.
 
-    THE HEADERLESS FORM IS ASSERTED TOO, since plan P4-D40. `synthtwin
+    THE HEADERLESS FORM IS ASSERTED TOO, since plan P4-D75. `synthtwin
     profile` refuses a zero-row table outright, in both header modes, so
     the only way to have a zero-row description is to cut an ordinary one
     down. Cut with `dataclasses.replace` alone it kept the written form

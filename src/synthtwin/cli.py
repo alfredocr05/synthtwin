@@ -2453,7 +2453,7 @@ def _run_generate(
     # same text and cannot differ.
     twin_text = rendering.twin_csv(twin)
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
-    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D40), and
+    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D75), and
     # that is checked before anything is shown or written: a cell holding
     # a character the encoding has no byte for would otherwise stop the
     # write half way. Every published label was read in that encoding and

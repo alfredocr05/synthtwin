@@ -11,7 +11,7 @@ The file is read TWICE, by two different readers, and the two results
 must agree ABOUT EVERY VALUE -- not, as until review round 1, about the
 number of rows and columns:
 
-1. **The reading pass** is AUTHORITATIVE, and since plan P4-D40 it is
+1. **The reading pass** is AUTHORITATIVE, and since plan P4-D75 it is
    the survey of `dialect`: the file's bytes are decoded once, and the
    text is walked by the standard library `csv` reader's own states,
    which also records what that reader drops -- which fields were
@@ -159,7 +159,7 @@ The question is put to the person AFTER the checking pass below, never
 before it. A file whose two readers disagree about a name or a value
 has no single right reading to choose between, so that disagreement is
 reported first. A blank or repeated name is no longer refused (plan
-P4-D40): the column is named the way pandas names it, `Unnamed: N` or
+P4-D75): the column is named the way pandas names it, `Unnamed: N` or
 with `.1`, `.2` after it (`dialect.named_columns`), the cell as the file
 writes it is published so the twin writes it back, and pandas is asked
 to read such a header as a row so its own renaming is not reported as a
@@ -207,7 +207,7 @@ Latin-1 (`dialect.decoded`). Latin-1 can decode any byte sequence, so a
 file that is really UTF-16 without its mark, UTF-32, or not text at all
 would come through as nonsense rather than as an error, which is what
 the zero-byte and mark checks below stop. The twin is written back in
-the encoding the table was read with (plan P4-D40), and Latin-1 and
+the encoding the table was read with (plan P4-D75), and Latin-1 and
 Windows-1252 map each byte they define to one character and back, so a
 guess between them costs no byte of any published label.
 
@@ -1048,11 +1048,11 @@ def read_table(
       and third beside the first.
     - Memory: NOT bounded, and this is the honest statement of it
       rather than the streaming claim P1-D3 used to make. Since plan
-      P4-D40 the authoritative pass holds the file's bytes, its text and
+      P4-D75 the authoritative pass holds the file's bytes, its text and
       its lines while it fills the whole table as text, and while the
       checking pass runs the second reader's copy is held beside it.
       That moment is the peak. The measurements below were taken before
-      P4-D40 added the file's text to it. Measured as peak resident growth over the
+      P4-D75 added the file's text to it. Measured as peak resident growth over the
       file's size, three shapes on one machine:
 
           200,000 rows x 4 columns, 9.2 MB    5.8x pass one, 13.0x peak

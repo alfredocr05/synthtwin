@@ -471,7 +471,7 @@ _SATURATION = 1 << 62
 # fact a check names is one the registry carries. A third name added to
 # this tuple is a fact somebody took out of the registry's reach, which
 # is a decision a reviewer reads in the diff.
-# SINCE PLAN P4-D40 THE DESCRIPTION DOES STATE THEM: `source.encoding`
+# SINCE PLAN P4-D75 THE DESCRIPTION DOES STATE THEM: `source.encoding`
 # and `source.dialect` record how the table's file is written, and the
 # method writes the twin that way. The two names are kept for the four
 # rules that stood here before -- the encoding, the byte-order mark, the
@@ -4829,7 +4829,7 @@ def _assembled(
 
 
 # The fact every rule about the file's written form is filed under, beside
-# the two byte-rule names the four oldest rules keep (plan P4-D40).
+# the two byte-rule names the four oldest rules keep (plan P4-D75).
 _DIALECT_FACT = "document.source.dialect"
 
 _RULE_WORDS = {
@@ -5127,7 +5127,7 @@ def _byte_checks(
     """Every rule about the file's written form, each one able to fail.
 
     THE FORM IS PUBLISHED, SO EVERY RULE HERE IS HELD TO THE DESCRIPTION
-    (owner ruling 2026-09-15, plan P4-D40). These rules used to be
+    (owner ruling 2026-09-15, plan P4-D75). These rules used to be
     constants -- UTF-8, line feeds, a newline at the end, no byte-order
     mark -- which the description recorded nowhere, and a twin written
     that way passed while code developed on it failed on the real table.

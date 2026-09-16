@@ -529,7 +529,7 @@ def test_a_repeated_name_is_reported_as_itself(
     # The other side of that order: pandas renames a repeated column to
     # "a.1", so comparing the two readings first would report a name
     # disagreement for a file whose real problem is the repeat.
-    # Since plan P4-D40 the repeat is not refused at all: it is named
+    # Since plan P4-D75 the repeat is not refused at all: it is named
     # the way pandas names it and written back as it was -- and the
     # order still matters, because pandas' own renaming is not reported
     # as the two readers disagreeing about a name.

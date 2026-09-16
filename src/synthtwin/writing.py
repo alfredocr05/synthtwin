@@ -1254,7 +1254,7 @@ def write_both_files(
     file this package writes; the generator passes the twin's source
     encoding and an empty newline, because a twin is written in its
     table's own form, its line endings already in its text (plan
-    P4-D40). The second file is always UTF-8 with line feeds.
+    P4-D75). The second file is always UTF-8 with line feeds.
 
     The two files are one thing: the machine-readable profile is what
     the twin gets built from, and the summary is the only place the
@@ -2108,7 +2108,7 @@ def write_text_file(
     ``encoding`` and ``newline`` change that for one file only, and one
     caller passes them: a twin is written in its source table's encoding
     with its line endings already in its text, so it is written with an
-    empty ``newline``, which translates nothing (plan P4-D40).
+    empty ``newline``, which translates nothing (plan P4-D75).
 
     Guarantees:
 

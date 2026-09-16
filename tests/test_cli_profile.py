@@ -505,7 +505,7 @@ def test_a_malformed_table_is_a_sentence_not_a_traceback(
 ) -> None:
     # Short by more than its empty cells: a full row that ends empty
     # beside a short one is a file no rule of the written form accounts
-    # for (plan P4-D40), so it is still refused.
+    # for (plan P4-D75), so it is still refused.
     table = _table(tmp_path, "a,b,c\n1,2,3\n4,5\n6,7,\n")
     assert main(["profile", str(table)]) == 1
     error = capsys.readouterr().err

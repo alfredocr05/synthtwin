@@ -724,7 +724,7 @@ E-F4, E-F5 and E-F6).
    facts about the file's form: no cell, no name, no count and no
    person is in either of them. Nothing changes in the code; what
    changes is that the conflict is settled in writing.
-   **SUPERSEDED 2026-09-15 by Phase 4 plan decision P4-D40**, by the
+   **SUPERSEDED 2026-09-15 by Phase 4 plan decision P4-D75**, by the
    test amendment A-P3-5 clause 3 wrote down: the producer now publishes
    both facts, and the byte-order mark, about every file, so the checks
    state published facts and are withheld on a file it refuses.

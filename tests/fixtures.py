@@ -655,7 +655,7 @@ def zero_rows(described: "object") -> "object":
     WRITTEN FORM of the file it was cut from: line endings for every
     row, a row order, per-column quoting. A zero-row file holds its
     header line or nothing (owner decision 7), so its form is the
-    ordinary one for no rows (plan P4-D40).
+    ordinary one for no rows (plan P4-D75).
     """
     import dataclasses
 

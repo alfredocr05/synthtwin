@@ -2039,7 +2039,7 @@ count and order; the header present exactly when
 including the quoted U+FEFF exception.
 
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
-P4-D40). The first four rules above are no longer constants: each asks
+P4-D75). The first four rules above are no longer constants: each asks
 what `source.encoding` and `source.dialect` record — the encoding
 (`bytes.encoding`, once `bytes.utf8`), the mark, the line endings in file
 order and the last line's ending — and every other fact of the written

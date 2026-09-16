@@ -119,7 +119,7 @@ _BATTERY: "tuple[tuple[str, list[str]], ...]" = (
     # Boundary 2 -- whole numbers in figures alone open with a figure
     # that is not zero (G9.6), so one character spells nine and not ten.
     # Interleaved: in order, a column of 0..9 or 1..9 is the row sequence
-    # (plan P4-D40) and is written exactly, whatever its corner. The
+    # (plan P4-D75) and is written exactly, whatever its corner. The
     # order of a column's cells is none of the facts a corner reads.
     ("figures-at-the-line", _interleaved(_figures(1, 9))),
     ("figures-over-the-line", _interleaved(_figures(0, 9))),
@@ -415,7 +415,7 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
     folder = tmp_path / "figures"
     folder.mkdir()
     # Interleaved, as the battery's own witnesses are: in order the ten
-    # figures are the row sequence (plan P4-D40) and are written exactly.
+    # figures are the row sequence (plan P4-D75) and are written exactly.
     described = _describe(
         folder, _interleaved(_figures(0, 9)), "figures-ten"
     )

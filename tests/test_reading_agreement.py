@@ -262,7 +262,7 @@ def test_the_authoritative_pass_does_not_hold_every_row(
     tmp_path: pathlib.Path,
 ) -> None:
     # The claim P1-D3 made and the code did not keep, RESTATED for plan
-    # P4-D40. The pass no longer streams: it holds the file's text and its
+    # P4-D75. The pass no longer streams: it holds the file's text and its
     # lines while it fills the columns, because what it publishes about
     # how the file is written is read off that text. What it must still
     # never do is hold a SECOND copy of every row -- a list of rows turned
@@ -379,7 +379,7 @@ def test_a_complete_byte_order_mark_is_refused(
 def test_a_complete_utf16_mark_is_read_as_utf16(
     tmp_path: pathlib.Path, name: str, body: bytes
 ) -> None:
-    # Refused until plan P4-D40: a UTF-16 file behind its whole mark is
+    # Refused until plan P4-D75: a UTF-16 file behind its whole mark is
     # delimited text, and Excel's 'Unicode Text' is written that way.
     target = _write(tmp_path, body)
     table = reading.read_table(str(target))

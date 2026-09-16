@@ -370,7 +370,7 @@ PLAN4_REGIONS = {
     # The table's written form (owner ruling 2026-09-15): every fact the
     # twin needs to be written the way its source file was.
     "written-form": (
-        "### P4-D40 The twin is written the way its source file was "
+        "### P4-D75 The twin is written the way its source file was "
         "(owner ruling 2026-09-15)"
     ),
     "moment-spellings": (

@@ -681,7 +681,7 @@ _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
 _VERSION = "the-version-that-wrote-this"
-# The kinds of `source.dialect` (plan P4-D40). An object that may be
+# The kinds of `source.dialect` (plan P4-D75). An object that may be
 # `null`; a header cell as the file writes it, which may be empty or a
 # repeat; a blank line's own text, nothing or only spaces and tabs; and a
 # preamble line, which is free text of the file and stands here only at a
@@ -788,7 +788,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "header_by_convention"): _FLAG,
     ("source", "header_evidence"): _SENTENCE,
     # How the table's FILE is written (owner ruling 2026-09-15, plan
-    # P4-D40): every fact the twin needs to be written the way the table
+    # P4-D75): every fact the twin needs to be written the way the table
     # was. None of them is a value of the table except the preamble lines
     # and the metadata rows, and each has a kind of its own here.
     ("source", "dialect"): _OBJECT,
@@ -1798,7 +1798,7 @@ def _leaf_is_published(
     if kind == _HEADER_TEXT:
         # A header cell or a metadata cell exactly as the file writes it:
         # the schema text the twin's header lines have to carry, which a
-        # blank or repeated name makes empty or a repeat (plan P4-D40). A
+        # blank or repeated name makes empty or a repeat (plan P4-D75). A
         # name may hold a line break, written quoted, like any other name.
         return isinstance(value, str)
     if kind == _BLANK_LINE:
@@ -2170,8 +2170,29 @@ def check_publication(document: dict[str, object]) -> None:
     _affix_notes_are_bound(document)
 
 
+def _is_mechanical_index(
+    position: int, names: "list[str]", declared: "list[str]"
+) -> bool:
+    """Whether this column is a written row index nobody declared.
+
+    A mechanical index is the FIRST column and is named as one of the two
+    writers that produce it name it. A column of its own name holding
+    1, 2, 3, ... -- a REDCap `record_id`, a register's serial -- is not
+    one: it is the table's own data, and publishing its sequence would
+    let the generator write the real column back (plan P4-D76).
+    """
+    if position != 0 or position >= len(names):
+        return False
+    if names[position] in declared:
+        return False
+    return names[position] in dialect.INDEX_NAMES
+
+
 def _published_form(
-    table: Table, floor: int, columns: "list[dict[str, object]]"
+    table: Table,
+    floor: int,
+    columns: "list[dict[str, object]]",
+    declared_identifiers: "list[str]",
 ) -> dialect.Dialect:
     """The table's written form, with its preamble held to the floor.
 
@@ -2189,6 +2210,36 @@ def _published_form(
             table.header_source == reading.HEADER_FROM_FILE,
         )
     form = surveyed.form
+    # NO FILE-LEVEL FACT MAY REBUILD A DECLARED IDENTIFIER, OR A REAL ROW
+    # (plan P4-D76). `sequence_start` is written back by the generator as
+    # the literal cells 0, 1, 2, ... or 1, 2, 3, ..., so a column
+    # published as the row sequence is a column the twin reproduces
+    # EXACTLY. On a declared identifier that publishes the very values
+    # the declaration exists to withhold, and on two such columns beside
+    # each other it reproduces whole real rows.
+    #
+    # So a sequence is published only for a MECHANICAL index -- a written
+    # row index nobody declared, which is the file's own numbering and
+    # not a value of anybody's -- and never for a column whose cells are
+    # absent anywhere, which the loader could not hold to FD6 either.
+    names = [f"{block['name']}" for block in columns]
+    kept: "list[dialect.ColumnForm]" = []
+    for index in range(len(form.columns)):
+        column = form.columns[index]
+        if column.sequence_start >= 0:
+            missing = 0
+            if index < len(columns) and "n_missing" in columns[index]:
+                counted = columns[index]["n_missing"]
+                missing = counted if isinstance(counted, int) else 0
+            if missing or not _is_mechanical_index(index, names, declared_identifiers):
+                column = dataclasses.replace(column, sequence_start=-1)
+        kept += [column]
+    form = dataclasses.replace(form, columns=tuple(kept))
+    # ...and the order the rows stand in is a fact about the declared
+    # column's own values, so it is not published of one either.
+    sorted_by = form.row_order.column
+    if sorted_by and sorted_by <= len(names) and names[sorted_by - 1] in declared_identifiers:
+        form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
     # A ROW ORDER THE TWIN COULD NOT KEEP IS NOT PUBLISHED. The survey
     # reads a sort column off cells that all hold something; the column's
     # own description may still count some of them absent -- cells of
@@ -2361,9 +2412,12 @@ def build_document(
             "header_evidence": table.header_evidence,
             # How the table's file is written -- its delimiter, quoting,
             # line endings and the lines that are not records -- so the
-            # twin is written the same way (plan P4-D40).
+            # twin is written the same way (plan P4-D75).
             "dialect": dialect.document_of(
-                _published_form(table, settings.small_cell_floor, columns)
+                _published_form(
+                    table, settings.small_cell_floor, columns,
+                    forced_identifiers,
+                )
             ),
         },
         "n_rows": table.n_rows,

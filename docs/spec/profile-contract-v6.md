@@ -689,7 +689,7 @@ written" hides a warning the profile is carrying (plan P2-D6).
 
 ### 4.3a EXACT-CONTROL: `source.dialect`, the table's written form
 
-Owner ruling 2026-09-15, plan P4-D40: the twin is written the way its
+Owner ruling 2026-09-15, plan P4-D75: the twin is written the way its
 source file was. `dialect` is an object with exactly these twenty-two keys,
 all REQUIRED; the loader is the executable statement of every rule
 below (`contract._dialect_block`, `contract._dialect_rules`).
@@ -699,7 +699,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null` |
 | `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
-| `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence |
+| `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
 | `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
@@ -719,7 +719,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `trailing_delimiter` | object `{header, rows}` | booleans | a delimiter ends the header line, each record |
 | `written_names` | array of objects `{position, text}` | — | header cells written other than their column's name: blank or repeated, named `Unnamed: N` (N counted from 0) or with `.1`, `.2` after them |
 
-**Invariants FD1-FD11** (`contract.INVARIANTS`): FD1 one column form per
+**Invariants FD1-FD12** (`contract.INVARIANTS`): FD1 one column form per
 column; FD2 the line endings account for every line the file holds, in
 runs that each end their lines one way, or past the cap on runs and in
 their place as counts of two or more endings in listed order; FD3 a mark only on UTF-8 or
@@ -740,7 +740,10 @@ two, each as wide as the table; FD10 only a header read from the file
 carries a trailing delimiter or a quoting rule, and rows do not both
 carry a trailing delimiter and leave out empty cells; FD11 a preamble
 line is one line, published as written only at a smallest group of one
-and otherwise as its stand-in.
+and otherwise as its stand-in; FD12 a column declared to hold record numbers
+publishes no row sequence and is not the column the rows are sorted
+by, and a row sequence is published only for a first column named as
+a written row index is.
 
 **What it discloses.** Every key describes the file's writer, not a
 person, except two. The metadata rows are column-level text and are
@@ -8551,7 +8554,7 @@ find one".
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
-| `source.encoding` | REPORT-ONLY | how the table was read; the twin is written back in it, which the byte rule `bytes.encoding` checks (plan P4-D40, which closes residual R-P2-5) |
+| `source.encoding` | REPORT-ONLY | how the table was read; the twin is written back in it, which the byte rule `bytes.encoding` checks (plan P4-D75, which closes residual R-P2-5) |
 | `source.dialect` | EXACT-CONTROL | decides how the twin's bytes are written: section 4.3a |
 | `source.used_fallback_encoding` | REPORT-ONLY | |
 | `source.header_source` | EXACT-CONTROL | decides whether a header row is written at all |

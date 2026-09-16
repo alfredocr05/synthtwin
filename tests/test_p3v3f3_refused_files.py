@@ -58,7 +58,7 @@ from synthtwin import (
 
 # The byte rules amendment A-P3-3 clause 6 ruled OUTSIDE V5.1's
 # envelope, on the test A-P3-5 clause 3 wrote down: the producer
-# published them about no file at any count. SINCE PLAN P4-D40 IT
+# published them about no file at any count. SINCE PLAN P4-D75 IT
 # PUBLISHES THEM ABOUT EVERY FILE -- `source.dialect` records the line
 # endings, the final newline and the byte-order mark -- so by that same
 # test they are inside the envelope now, and on a file the producer
@@ -313,7 +313,7 @@ def test_a_headerless_description_still_answers_what_no_records_show(
 
 
 # Files whose first row repeats a name or leaves one blank. Until plan
-# P4-D40 the profiler refused each of these at that row, and the report
+# P4-D75 the profiler refused each of these at that row, and the report
 # on them withheld the width and the record count. Since then the
 # reader NAMES such a column the way pandas names it and publishes the
 # cell as written, so these are files the producer DESCRIBES: their row
