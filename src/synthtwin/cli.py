@@ -1790,7 +1790,15 @@ def _run_profile(
         day_first=day_first,
     )
     read = reading.read_table(
-        table, first_row, sheet=sheet, metadata_rows=metadata_rows
+        table, first_row, sheet=sheet, metadata_rows=metadata_rows,
+        # AND UNDER THE DECLARED GRAMMAR (review item CODEX-9). The
+        # survey reads the row order off the cells as written, and a
+        # column declared to write `0,5` and `10,0` reads as no number
+        # at all under the ordinary grammar -- so it fell to the text
+        # collation, where `10,0` sorts before `9,9`, and a table
+        # genuinely sorted by it published no order. The declaration
+        # has to reach the survey for the order to be read correctly.
+        decimal_comma_columns=tuple(forced_decimal_commas),
     )
 
     # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan

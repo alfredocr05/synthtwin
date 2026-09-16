@@ -125,7 +125,20 @@ _CANONICAL_ORDER = (QUOTE_NEEDED, QUOTE_BARE, QUOTE_ALWAYS)
 
 COLLATION_NUMBER = "number"
 COLLATION_TEXT = "text"
-COLLATIONS = (COLLATION_NUMBER, COLLATION_TEXT)
+# THE THIRD COLLATION, AND WHY A THIRD WAS NEEDED (review item CODEX-9).
+# A column the person declared with `--decimal-comma` writes `0,5` and
+# `10,0`. The ordinary number grammar reads neither as a number, so such
+# a column fell through to the text collation, where `10,0` sorts before
+# `9,9` -- and a table genuinely sorted by that column published NO row
+# order, or published one the twin then wrote in the wrong order.
+# Measured on 129 ascending amounts: `row_order` came back null.
+#
+# The declared grammar is a published fact of the order rather than a
+# second argument threaded beside it, which is what keeps the generator
+# and the validator honest: both read the collation out of the
+# description and neither has to be told the declaration separately.
+COLLATION_DECIMAL_COMMA = "decimal_comma"
+COLLATIONS = (COLLATION_NUMBER, COLLATION_TEXT, COLLATION_DECIMAL_COMMA)
 ASCENDING = "ascending"
 DESCENDING = "descending"
 DIRECTIONS = (ASCENDING, DESCENDING)
@@ -2179,7 +2192,18 @@ def _order_keys(cells: "list[str]", collation: str) -> "list[object] | None":
         found = _text(cell)
         if not found:
             return None
-        if collation == COLLATION_NUMBER:
+        if collation == COLLATION_DECIMAL_COMMA:
+            # The cell as it would have been written the way this tool
+            # reads by default, which is exactly what the declaration
+            # says about it (`parsing.written_with_a_decimal_comma`).
+            swapped = parsing.written_with_a_decimal_comma(found)
+            if parsing.classify_number(swapped) != parsing.NUMBER:
+                return None
+            decimal = parsing.parse_number(swapped)
+            if decimal is None:
+                return None
+            keys += [decimal]
+        elif collation == COLLATION_NUMBER:
             if parsing.classify_number(found) != parsing.NUMBER:
                 return None
             number = parsing.parse_number(found)
@@ -2226,8 +2250,26 @@ def _less(first: object, second: object) -> bool:
     return False
 
 
+def _collations_for(declared: bool) -> "tuple[str, ...]":
+    """The collations a column is read under, in the order they are tried.
+
+    A column the person DECLARED to write its numbers with a comma is
+    read under that grammar first and under text second; it is never
+    read under the ordinary number grammar, which would call `1,5` text
+    and `1,234` one thousand two hundred and thirty-four -- the two
+    wrong readings `--decimal-comma` exists to prevent. Every other
+    column is read as it always was.
+    """
+    if declared:
+        return (COLLATION_DECIMAL_COMMA, COLLATION_TEXT)
+    return (COLLATION_NUMBER, COLLATION_TEXT)
+
+
 def row_order_of(
-    columns: "list[list[str]]", sequences: "list[int]", n_rows: int
+    columns: "list[list[str]]",
+    sequences: "list[int]",
+    n_rows: int,
+    declared_commas: "list[bool] | None" = None,
 ) -> RowOrder:
     """The leftmost column the rows are sorted by, if any.
 
@@ -2242,7 +2284,12 @@ def row_order_of(
     for index in range(len(columns)):
         if sequences[index] >= 0:
             continue
-        for collation in COLLATIONS:
+        declared = bool(
+            declared_commas is not None
+            and index < len(declared_commas)
+            and declared_commas[index]
+        )
+        for collation in _collations_for(declared):
             keys = _order_keys(columns[index], collation)
             if keys is None:
                 continue
@@ -2421,6 +2468,7 @@ def survey(
     escape: str = "",
     trailing_guess: bool = True,
     metadata_rows: int = 0,
+    decimal_comma_columns: "tuple[str, ...]" = (),
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -2681,6 +2729,7 @@ def survey(
                 escaping,
                 False,
                 metadata_rows,
+                decimal_comma_columns,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -2742,7 +2791,32 @@ def survey(
     # below it is sorted; its empty records hold no key, and reading the
     # order over them lost it. The twin puts its empty records in their
     # places first and sorts the rest around them (`arranged`).
-    order = row_order_of(_without_rows(columns, empty_rows), sequences, n_rows - len(empty_rows))
+    # WHICH COLUMNS THE PERSON DECLARED TO WRITE A DECIMAL COMMA
+    # (review item CODEX-9). The order is read off the cells AS
+    # WRITTEN, so a declared column has to be read under its own
+    # grammar here or it falls to the text collation, where `10,0`
+    # sorts before `9,9` -- and a table genuinely sorted by it
+    # published no order at all. The names are matched the way every
+    # other declaration is matched: against the names the header gives,
+    # after `named_columns` has settled the blank and repeated ones.
+    declared_commas: "list[bool]" = []
+    if decimal_comma_columns:
+        headed_names: "tuple[str, ...]" = ()
+        if header:
+            headed_names = named_columns(tuple(header))
+        for place in range(len(columns)):
+            spelled_name = ""
+            if place < len(headed_names):
+                spelled_name = headed_names[place]
+            declared_commas += [
+                bool(spelled_name) and spelled_name in decimal_comma_columns
+            ]
+    order = row_order_of(
+        _without_rows(columns, empty_rows),
+        sequences,
+        n_rows - len(empty_rows),
+        declared_commas if declared_commas else None,
+    )
     census = census_of(walk.runs)
     blank_census = blank_census_of(blanks)
     runs_published: "tuple[EndingRun, ...]" = tuple(walk.runs)
@@ -2962,6 +3036,7 @@ def settle(
     first_row_is_data: bool,
     shown: str,
     metadata_rows: int = 0,
+    decimal_comma_columns: "tuple[str, ...]" = (),
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -2977,6 +3052,7 @@ def settle(
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown,
             metadata_rows=metadata_rows,
+            decimal_comma_columns=decimal_comma_columns,
         )
     except errors.ProfileError as refusal:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
@@ -2992,6 +3068,7 @@ def settle(
             other = survey(
                 text, encoding, byte_order_mark, first_row_is_data, shown,
                 None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
+                decimal_comma_columns=decimal_comma_columns,
             )
         except errors.ProfileError:
             raise refusal from None
@@ -3002,6 +3079,7 @@ def settle(
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown, False,
             metadata_rows=metadata_rows,
+            decimal_comma_columns=decimal_comma_columns,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -3014,6 +3092,7 @@ def settle(
                 found.form.initial_space,
                 ESCAPE_BACKSLASH,
                 metadata_rows=metadata_rows,
+                decimal_comma_columns=decimal_comma_columns,
             )
         except errors.ProfileError:
             return found
@@ -3267,10 +3346,18 @@ def _permutation(keys: "list[str]", order: RowOrder, n_rows: int) -> "list[int]"
     sort is stable: rows the key cannot tell apart keep the order the
     generator gave them.
     """
-    if order.collation == COLLATION_NUMBER:
+    if order.collation in (COLLATION_NUMBER, COLLATION_DECIMAL_COMMA):
         numbered: list[tuple[int, float, int]] = []
         for index in range(n_rows):
-            number = parsing.parse_number(_text(keys[index]))
+            cell_text = _text(keys[index])
+            if order.collation == COLLATION_DECIMAL_COMMA:
+                # THE TWIN SORTS THE WAY THE DESCRIPTION SAYS THE COLUMN
+                # IS WRITTEN. The twin writes this column's numbers with
+                # a comma, so sorting its own cells under the ordinary
+                # grammar would put `10,0` before `9,9` and hand back a
+                # column the description calls ascending and is not.
+                cell_text = parsing.written_with_a_decimal_comma(cell_text)
+            number = parsing.parse_number(cell_text)
             if number is None:
                 numbered += [(1, 0.0, index)]
             elif order.direction == DESCENDING:

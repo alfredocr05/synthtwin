@@ -4358,6 +4358,15 @@ def measure(
             # descriptions would all be measured against a different
             # reading of the same bytes.
             metadata_rows=description.settings.forced_metadata_rows,
+            # AND UNDER THE SAME DECIMAL-COMMA DECLARATION (review item
+            # CODEX-9). The survey reads the row order off the cells as
+            # written. A checked file surveyed without the declaration
+            # reads a declared column under the text collation, where
+            # `10,0` sorts before `9,9`, so a file genuinely in the
+            # published order is reported as not in it.
+            decimal_comma_columns=tuple(
+                description.settings.forced_decimal_commas
+            ),
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE

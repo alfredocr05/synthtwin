@@ -167,7 +167,13 @@ Three steps after every column is generated, drawing no word.
    published number of rows hold nothing in every cell (below).
 3. **The sort.** Where `row_order` names a column, whole rows are
    permuted by that column's cells under the collation — a number read
-   by the method's number reader, a cell with none last, or the cell's
+   by the method's number reader, a cell with none last; or, under the
+   `decimal_comma` collation, that same reader applied to the cell with
+   its declared decimal comma and thousands point exchanged, because the
+   twin writes this column's numbers with a comma and reading its own
+   cells by the ordinary grammar would put `10,0` before `9,9` and hand
+   back a column the description calls ascending and is not (review item
+   CODEX-9); or the cell's
    code points — ascending or descending, stably, so rows the key cannot
    tell apart keep their generated order. The rows placed as holding
    nothing in step 2 stay where they stand, and the other rows are

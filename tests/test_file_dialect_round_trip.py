@@ -1720,3 +1720,71 @@ def test_the_summary_names_the_lines_before_the_names(
         assert "About the lines before your column names:" in said, said[:600]
         assert "--smallest-group above 1" not in said
         assert "Report: cohort extract 2026-09-01" not in said
+
+
+def test_a_declared_decimal_comma_column_keeps_its_numeric_row_order(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A table sorted by a declared decimal-comma column keeps that order.
+
+    REVIEW ITEM CODEX-9. The survey reads the row order off the cells AS
+    WRITTEN, and `0,5` is not a number to the ordinary grammar -- so a
+    declared column fell through to the text collation, where `10,0`
+    sorts before `9,9`, and this table published NO row order at all.
+    Measured on these ascending amounts before the repair: `row_order`
+    came back null, so the twin was free to write the rows in any order
+    and code that expected a sorted column met one that was not.
+
+    The declared grammar is published as the order's OWN collation
+    rather than threaded separately, which is what keeps the three
+    readers agreeing: the generator sorts the twin's cells under it and
+    the validator reads the checked file under it, and neither has to be
+    told the declaration a second time.
+    """
+    draw = random.Random(41)
+    amounts = [round(0.1 * (step + 1), 1) for step in range(ROWS)]
+    body = ["id;amount"]
+    for index in range(ROWS):
+        spelled = f"{amounts[index]:.1f}".replace(".", ",")
+        body += [f"{draw.randint(1000, 9999)};{spelled}"]
+    data = ("\n".join(body) + "\n").encode()
+    result = _round_trip(tmp_path, data, ("--decimal-comma", "amount"))
+
+    assert result["form"]["row_order"] == {
+        "collation": "decimal_comma", "column": 2, "direction": "ascending",
+    }, result["form"]["row_order"]
+    assert result["names"] == ["id", "amount"]
+    assert result["twin_form"] == result["form"]
+    assert result["twin_encoding"] == result["encoding"]
+    assert result["exits"]["real"] == 0, result["exits"]
+
+    # AND THE TWIN IS ACTUALLY IN THAT ORDER, read the way the column is
+    # written. Re-describing the twin cannot show this on its own: a
+    # generator that sorted the column under the wrong grammar would
+    # publish the same form back and still hand over unsorted rows.
+    written = [
+        float(row[1].replace(",", "."))
+        for row in _records(
+            result["twin"], result["twin_encoding"], delimiter=";"
+        )[1:]
+    ]
+    assert written == sorted(written), written[:8]
+
+    # ...AND THE VALIDATOR SAYS SO OF THE TWIN, which is the half that
+    # fails if the checked file is surveyed without the declaration: a
+    # twin genuinely in the published order would be read under the text
+    # collation, where `10,0` comes before `9,9`, and reported MISSED.
+    report = (tmp_path / "check-twin" / "real-twin-quality.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "rows.order [document.source.dialect]: HELD" in report
+
+    # WHAT THIS TWIN DOES MISS, AND WHY IT IS NOT THIS LANE'S. Both
+    # columns of this fixture hold 120 different values, and the twin
+    # reproduces neither distinct count exactly, so `validate` exits 3
+    # on the twin with `distinct.n_distinct_values` twice. MEASURED on
+    # the control: the identical table written with a decimal POINT and
+    # no declaration at all misses exactly the same two subchecks, with
+    # the order read under the ordinary `number` collation and HELD --
+    # so the miss is the all-different column's, not the declared
+    # grammar's, exactly as the semicolon export above records.
