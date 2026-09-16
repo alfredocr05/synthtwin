@@ -23,13 +23,20 @@ from synthtwin import generation, parsing
 from tests.test_landing_2b12_identifiers_codes_text import _counted, _round_trip
 
 
-def _worn(written: "list[str]") -> "dict[str, int]":
-    """The census the twin actually wears, recounted off its own cells."""
+def _worn(
+    written: "list[str]", census: "dict[str, int] | None" = None
+) -> "dict[str, int]":
+    """The census the twin actually wears, recounted off its own cells.
+
+    Counted under the key the published census counts each cell under,
+    which is a lower-case key for a lower-case cell where the census
+    names one (landing 2b.18 part 2, plan P4-D121).
+    """
     seen: "dict[str, int]" = {}
     for cell in written:
         if not cell:
             continue
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census if census is not None else {})
         seen[form] = (seen[form] if form in seen else 0) + 1
     return seen
 
@@ -75,7 +82,7 @@ def test_readings_beside_words_settle_their_whole_form_debt(
         seed=seed,
     )
     published = first["shape_forms"]
-    worn = _worn(written)
+    worn = _worn(written, published)
 
     # The form the split used to strand is met EXACTLY -- not merely
     # approached, and not overpaid, which is how it failed before.
@@ -239,10 +246,12 @@ def test_an_anchored_exponent_form_is_settled_inside_the_published_ends(
         seed=seed,
     )
     published = first["shape_forms"]
-    worn = _worn(written)
+    worn = _worn(written, published)
 
-    assert published["%.%@%"] == 26
-    assert worn["%.%@%"] == published["%.%@%"]
+    # `1.1e6` is written with a LOWER-CASE exponent, so since landing
+    # 2b.18's second part the census names it under its lower-case key.
+    assert published["%.%&%"] == 26
+    assert worn["%.%&%"] == published["%.%&%"]
 
     # Each made-up cell meets all three obligations at once: it wears
     # the published form, it reads as a number, and it is a number the
@@ -251,7 +260,7 @@ def test_an_anchored_exponent_form_is_settled_inside_the_published_ends(
     made = [cell for cell in written if cell not in _counted(cells)]
     for cell in made:
         assert parsing.classify_number(cell) == parsing.NUMBER, cell
-        assert parsing.shape_form(cell) == "%.%@%", cell
+        assert parsing.census_form(cell, published) == "%.%&%", cell
         value = parsing.parse_number(cell)
         assert value is not None
         assert min(numbers) <= value <= max(numbers), cell

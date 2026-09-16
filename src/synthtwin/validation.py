@@ -9120,6 +9120,21 @@ def _numeric_checks(
     """A column of counts or of continuous values."""
     name = column.name
     checks: list[Check] = []
+    # EVERY SPELLING A COUNT COLUMN PUBLISHES, recounted exactly (7.13,
+    # plan P4-D123). The census is all or nothing and pools nothing, so
+    # each spelling is a point and not a window: a file holding `07`
+    # where the table held `007` misses both lines, which is the defect
+    # the census was published to close.
+    if facts.number_spellings:
+        checks = checks + _form_checks(
+            name,
+            "numeric.number_spellings",
+            facts.number_spellings,
+            block,
+            floor,
+            "number_spellings",
+            "spellings",
+        )
     # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
     # Recounted from the re-description, like every other fact of this
     # block, and compared EXACTLY: the owner ruled the count an
@@ -12951,6 +12966,7 @@ def _form_checks(
     block: "dict[str, object]",
     floor: int,
     census_key: str = "shape_forms",
+    named: str = "forms",
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -12974,7 +12990,7 @@ def _form_checks(
             _floor_governed(
                 name,
                 fact,
-                f"forms.published.{form}",
+                f"{named}.published.{form}",
                 census[form],
                 measured,
                 form,

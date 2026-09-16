@@ -326,8 +326,16 @@ def test_nothing_that_varies_between_runs_is_written(
 # column that publishes no value of the table now accounts for its
 # absent cells like any other, so the count that was zeroed by its CLASS
 # reads what the column holds.
+# RE-RECORDED 2026-09-16 (landing 2b.18 part 2, plan P4-D123): the two
+# `count` blocks, `visits` and `reading`,
+# each gained the census `number_spellings: {}` the contract now requires
+# on that role (section 7.13). Read as a diff of the two documents against
+# 2e2ec8f, those two lines are the whole of the difference: neither
+# column writes one number more than one way, so both censuses are empty,
+# and no count, statistic, label, role, form or spelling of any column
+# moved.
 GOLDEN_SHA256 = (
-    "4bb0a003a927dd82e6ff3ae4a285d4e4241e537dd1e96a4ae2063515bd5b686e"
+    "3ae40b911900bfda55582632b14d2b4d80cf6b60fdc89f500d3fc70199cea657"
 )
 
 

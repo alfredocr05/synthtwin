@@ -5712,9 +5712,17 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     I/O of any kind.
     """
     counts: dict[str, int] = {}
+    # HOW MANY CELLS OF EACH FORM WROTE EVERY LETTER LOWER CASE (plan
+    # P4-D121, audit LTM-6). Counted beside the form rather than folded
+    # into it, because a case-split FORM would shatter a mixed column
+    # into keys the floor then pools: the decision below is taken per
+    # form, once the whole count is known.
+    lower: dict[str, int] = {}
     withheld = 0
     for value in cells.present:
         form = parsing.shape_form(value)
+        if form and parsing.is_lower_case_text(value):
+            lower[form] = (lower[form] if form in lower else 0) + 1
         if not form:
             # A CELL WITH NO FORM IS NOT COUNTED AT ALL, and it is not
             # pooled either. `(withheld)` means ONE thing everywhere in
@@ -5780,17 +5788,103 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # the values wearing any one form, so the test errs toward
     # refusing -- the safe direction.
     room_needed = cells.raw_distinct + cells.settings.small_cell_floor
+    floor = cells.settings.small_cell_floor
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
         if parsing.form_room(form) < room_needed:
             continue
-        if counts[form] >= cells.settings.small_cell_floor:
+        lowered = lower[form] if form in lower else 0
+        # NO LOWER-CASE KEY ON A COLUMN WHOSE VALUES FOLD ONTO EACH
+        # OTHER, and the test is over two PUBLISHED counts, so an
+        # absence it causes is one a reader predicts, and so tells
+        # them nothing. Such a column's twin writes values that differ from one
+        # another only in case or edge spacing -- the partners of G9.3
+        # and the made-up variants of G8.2 -- and a case flip of a
+        # lower-case value is not lower case, so it settles the form's own
+        # key and never the lower-case one. Measured on 240 cells, 200
+        # `a-b` and twenty `x00` beside twenty `X00`: named apart, the
+        # twin's partners came out `A-a` and missed three keys by
+        # thirty-three cells, where the case-blind census it had before
+        # is met (plan P4-D121).
+        if cells.raw_distinct != len(cells.folded_counts):
+            lowered = 0
+        split = _lower_case_split(
+            form, counts[form], lowered, floor, room_needed
+        )
+        if split:
+            for key in sorted(split):
+                if key == SUPPRESSED_LABEL:
+                    withheld = withheld + split[key]
+                    continue
+                published_counts[key] = split[key]
+            continue
+        if counts[form] >= floor:
             published_counts[form] = counts[form]
             continue
         withheld = withheld + counts[form]
     if withheld:
         published_counts[SUPPRESSED_LABEL] = withheld
     return published_counts
+
+
+def _lower_case_split(
+    form: str, count: int, lowered: int, floor: int, room_needed: int
+) -> "dict[str, int]":
+    """How one form's cells are named when its lower-case cells are apart.
+
+    THE CASE CONVENTION, CARRIED UNDER THE DISCLOSURE RULE (plan
+    P4-D121, audit LTM-6). A form's letter mark said "a letter" and the
+    twin wrote a capital, so a column of lower-case codes came back in
+    capitals on every row -- measured on 800 cells `e9z-1i1`: a
+    case-sensitive pattern matched 800 real cells and 0 twin cells,
+    and both files passed. The fact that was missing is how many cells
+    of a form wrote every letter lower case, and it is published here
+    by naming a SECOND KEY of that form, `&` in every letter place.
+
+    WHAT IS NAMED, and each branch is the disclosure rule and not a
+    preference. ``lowered`` is how many of the form's ``count`` cells
+    wrote every letter lower case and ``rest`` the others; the line is
+    the floor or TWO, whichever is larger, because no count of one is
+    ever published and no pair of keys may leave a count of one to be
+    worked out from them.
+
+    - ``lowered`` under the line, or the lower-case key's own supply
+      below what the small-supply rule asks of any key: the form is
+      named as it always was, blind to case. This answers {} and the
+      caller writes the form exactly as before, byte for byte.
+    - ``lowered`` at or over the line and nothing else: the lower-case
+      key alone.
+    - both at or over the line: both keys, the form's own key then
+      counting the cells that were NOT all lower case.
+    - ``rest`` under the floor: the lower-case key, and the rest go to
+      the pool, where a group too small to name always goes -- and the
+      pool names no form, so it says nothing about which.
+    - ``rest`` at the floor but under two, which is a floor of one and
+      a single cell: nothing can be pooled at that floor and a count of
+      one may not stand beside its complement, so the form is named
+      blind to case as before.
+
+    A reader of a case-blind key therefore is shown nothing about case:
+    it is written where the lower-case cells were too few to name, where
+    they were none, and where the rest were exactly one.
+
+    Guarantees: returns {} or a mapping of the keys to name, the pooled
+    key included where the rest are pooled. Raises nothing. No I/O.
+    """
+    line = max(floor, 2)
+    lower_key = parsing.lower_case_form(form)
+    if not lower_key or lowered < line:
+        return {}
+    if parsing.form_room(lower_key) < room_needed:
+        return {}
+    rest = count - lowered
+    if rest == 0:
+        return {lower_key: lowered}
+    if rest >= line:
+        return {lower_key: lowered, form: rest}
+    if rest < floor:
+        return {lower_key: lowered, SUPPRESSED_LABEL: rest}
+    return {}
 
 
 def _comma_remarks(cells: _Cells) -> "list[Note]":
@@ -5835,6 +5929,84 @@ def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
         if reading == parsing.COMMA_EITHER:
             unsettled = unsettled + 1
     return unsettled, settled
+
+
+# The longest figure string the spelling census below reads as one
+# number: fifteen figures is the widest whole number binary64 holds
+# exactly, so every spelling it names is a number this format carries.
+_SPELLING_FIGURES = 15
+
+
+def _number_spellings(cells: _Cells) -> dict[str, int]:
+    """Every spelling of a column that wrote one number more than one way.
+
+    THE FACT A CODE COLUMN OF MIXED PADDING LOST (plan P4-D123; the
+    audit's missed item, numbers and codes). A column of coded answers
+    written `7`, `07`, `007` and `0` -- how an export that zero-fills
+    some cells and not others writes a code -- was described as a count,
+    and a count publishes how many cells wore each field width and how
+    many were padded, but never WHICH number wore which. Its twin came
+    back `7`, `007`, `0`, `00`, `07` and `05`: seven spellings for four,
+    three of them spellings the real column never had, and both files
+    passed. Nothing published could say otherwise.
+
+    WHAT IS PUBLISHED, and only here. A census of the column's spellings
+    with how many cells wrote each, under four conditions, every one of
+    them the disclosure rule or the reading this census is for:
+
+    - every cell read as a number is written in figures alone, at most
+      fifteen of them, so every key is a whole number this format holds;
+    - at least two of those spellings are ONE NUMBER, which is what the
+      census is for -- a column writing each number one way is already
+      described by its field widths, and publishes `{}` here;
+    - EVERY spelling is written by at least the smallest group size and
+      at least two cells. The census is all or nothing, as the value
+      histogram is: a spelling too rare to name is never pooled, because
+      beside the named ones a pool's count would be the complement of a
+      number anybody can add up, and a count of one is never published;
+    - and the spellings are no more than a set of categories may hold in
+      a table this size, so a long column of counts is never turned into
+      a list of every value it holds.
+
+    A column with no such census publishes `{}`, and that absence says
+    only that one of the four did not hold -- no count of anybody.
+
+    Guarantees: a function of the tally alone; keys in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    written: dict[str, int] = {}
+    numbers = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        numbers = numbers + 1
+        text = cell.text
+        if len(text) > _SPELLING_FIGURES or not parsing.is_digit_text(text):
+            return {}
+        written[text] = (written[text] if text in written else 0) + 1
+    if numbers < 1:
+        return {}
+    line = max(cells.settings.small_cell_floor, 2)
+    seen: dict[str, int] = {}
+    twice = False
+    for spelling in sorted(written):
+        if written[spelling] < line:
+            return {}
+        bare = _figures_unfilled(spelling)
+        if bare in seen:
+            twice = True
+        seen[bare] = 1
+    if not twice or len(written) > _categorical_ceiling(cells):
+        return {}
+    return {spelling: written[spelling] for spelling in sorted(written)}
+
+
+def _figures_unfilled(spelling: str) -> str:
+    """A figure string with its leading noughts taken off, `0` at least."""
+    start = 0
+    while start < len(spelling) - 1 and spelling[start] == "0":
+        start = start + 1
+    return spelling[start:]
 
 
 def _padded_cells(cells: _Cells) -> int:
@@ -11131,6 +11303,12 @@ def _numeric_verdict(
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)
+    if role == ROLE_COUNT:
+        # EVERY SPELLING, WHERE ONE NUMBER WAS WRITTEN MORE THAN ONE WAY
+        # (plan P4-D123, the audit's missed item on mixed padding). The
+        # count role alone: a column holding a negative is not a column
+        # of codes written `007` beside `7`.
+        details["number_spellings"] = _number_spellings(cells)
     # A spread larger than this file format can hold is a fact the
     # profile records in a field of its own, and it is also a fact the
     # person running the tool has to be told in words: without this

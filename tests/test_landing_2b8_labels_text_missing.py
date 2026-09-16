@@ -605,7 +605,9 @@ def test_a_code_column_of_forty_forms_wears_every_one(
     assert len(published) >= 30, published
     assert len({len(form) for form in published}) >= 3, published
     # THE CENSUS ITSELF, form by form, off the written twin.
-    counted = _counted([parsing.shape_form(cell) for cell in written])
+    counted = _counted(
+        [parsing.census_form(cell, first["shape_forms"]) for cell in written]
+    )
     for form in sorted(published):
         assert counted.get(form, 0) == published[form], (
             form, published[form], counted.get(form, 0), len(published)
@@ -640,7 +642,9 @@ def test_arm_record_identifiers_come_back_in_their_own_forms(
         for form, count in first["shape_forms"].items()
         if form != "(withheld)"
     }
-    counted = _counted([parsing.shape_form(cell) for cell in written])
+    counted = _counted(
+        [parsing.census_form(cell, first["shape_forms"]) for cell in written]
+    )
     for form in sorted(published):
         assert counted.get(form, 0) == published[form], (
             form, published[form], counted.get(form, 0)
@@ -744,7 +748,9 @@ def test_a_notes_column_of_codes_and_prose_wears_its_whole_census(
     # The shape is evidence only while it publishes a census at all.
     assert len(published) >= 2, published
     # THE CENSUS ITSELF, form by form, recounted off the written twin.
-    counted = _counted([parsing.shape_form(cell) for cell in written])
+    counted = _counted(
+        [parsing.census_form(cell, first["shape_forms"]) for cell in written]
+    )
     for form in sorted(published):
         assert counted.get(form, 0) == published[form], (
             form, published[form], counted.get(form, 0)
@@ -794,7 +800,9 @@ def test_a_telephone_column_of_two_conventions_wears_its_form(
         if form != "(withheld)"
     }
     assert published, first["shape_forms"]
-    counted = _counted([parsing.shape_form(cell) for cell in written])
+    counted = _counted(
+        [parsing.census_form(cell, first["shape_forms"]) for cell in written]
+    )
     for form in sorted(published):
         assert counted.get(form, 0) == published[form], (
             form, published[form], counted.get(form, 0)

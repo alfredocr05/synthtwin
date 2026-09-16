@@ -2786,6 +2786,33 @@ sign band ends at the edge it would have to cross. `empty_bins` is
 REPORT-ONLY on that measurement (contract 7.11), so `synthtwin
 validate` LISTS the fact rather than holding a file to it.
 
+### G6.8 A count column that publishes every spelling is written as them
+
+**THE FACT THIS SECTION SERVES IS `number_spellings`** (contract 7.13,
+plan P4-D123, landing 2b.18 part 2), which a `count` block names only
+where one number was written more than one way — `7`, `07`, `007` — and
+every spelling cleared the floor and two cells. It then names every cell
+read as a number with its own spelling.
+
+**THE RULE.** Where the census names anything, the numbers of the
+column's content list are that census and nothing else: each spelling
+written as many times as it counts, ordered by the whole number it
+writes and then by the spelling itself, so `0`, `7`, `07`, `007`. G5's
+strata and G6.1 to G6.7 are not taken for those cells, and the
+stragglers of G10.3 follow them exactly as they follow the numbers G5
+and G6 would have written. The words G4.3 budgets for the column are
+still drawn, so the stream every later column reads does not move.
+
+**WHY THIS IS NOT A SHORTCUT.** Every statistic the block publishes beside
+the census — the ladder, the moments, the styles, the pad and field
+widths, `n_zero`, `n_distinct_values` — was computed from exactly the
+cells the census names, so writing the census writes a column holding
+every one of them. Measured on a 500-row column of `0`, `7`, `07` and
+`007` at three source and generate seeds: before, the twin held six or
+eight spellings for four, two to four of them spellings the table
+never wrote; after, the four spellings at their published counts on
+every run, with both files passing their description.
+
 ## G6A. Affixed-number columns (`affixed_number`)
 
 Added by Phase 4; like G7A this section was written after the
@@ -4500,6 +4527,69 @@ leading segment answer plausibly and wrongly.
   own: it must read as ordinary text under the column's grammar AND
   under the other one, exactly as the number property is already asked
   twice.
+
+**THE LOWER-CASE KEY** (contract C6-31a, plan P4-D121). A census key
+carrying `&` names the cells of one form whose every letter was lower
+case, and a stand-in written in it fills each `&` from the lower-case
+alphabet at the position and by the arithmetic a `@` is filled: the
+step taken apart leftmost first, twenty-six to a letter place. Every
+cell already written settles the census under the key the census counts
+it under — its lower-case key where every letter of it is lower case
+and the census names that key, and the form as `@` writes it
+otherwise — which is the recount's own reading, so a debt is never
+paid by a cell the validator files elsewhere. The probe of G8.3a that
+asks whether a form's spellings read as numbers fills `&` with `e` as it
+fills `@` with `E`, so `1.1e6` written in lower case keeps its number
+reading under the key `%.%&%`.
+
+### G8.3b The shape a stand-in the census owes no form takes
+
+**THE RULE THE NEUTRAL SPELLING GAVE WAY TO** (plan P4-D122, landing
+2b.18 part 2, the carried item of landing 2b.12). A stand-in the census
+owes no form was `group-N`, and on a long tail that is most of them: a
+code column of 2,000 rows at a floor of twenty, `4-F` beside `12-AB` and
+longer, published three forms and none for its commonest shape `%-@`,
+whose few spellings the small-supply rule of contract C6-31 withholds,
+and its twin's mean cell length was 9.907 against the real 7.204, with
+both files passing.
+
+1. **The shape.** The spellings a label column publishes — each level's
+   variants, or its label where it lists none — are tallied by the shape
+   each wears and the rows that wrote it: the written form, with `&` in
+   every letter place where every letter of the spelling is lower case.
+   A shape reading as a number (G8.3a's reading) is passed over, and so
+   is a shape the census names in either case. The shape covering the
+   most rows is taken, ties to its own spelling ascending; none left
+   means no shape, and every stand-in owed no form is `group-N` as
+   before.
+2. **Its supply**, counted as G8.3 counts any form's.
+3. **The places it covers.** The places owed no form are ranked largest
+   first and then by place, and the first `supply` of them are covered;
+   the rows of the rest are the rows missed.
+4. **The trade.** While any row is missed, each place paying a named
+   form is offered once, largest first and then by place: for an offer
+   of `k` rows, two or more, places owed no form are taken from the END
+   of that ranking — smallest first — each smaller than `k` and no
+   larger than what is still to be matched, until they sum to `k` with
+   two or more of them. The trade stands where they do, where the named
+   form has spellings for the extra places, and where the rows missed
+   then FALL; the named form is paid exactly the rows it was paid
+   before. Each offer costs twice the number of places against a budget
+   of `2^22`, and the offers stop when it is spent.
+5. **The walk.** Each covered place takes the shape's next spelling
+   under the same cursor, collision skips and neutrality tests a named
+   form's walk uses; a place past the supply, or one whose shape is
+   spent, takes `group-N`.
+
+**WHY THE LARGEST PLACES.** The published labels are the column's
+commonest values, so the held-back values most like them are the most
+repeated ones, and a shape of 260 spellings covers a thousand rows only
+if it is spent on the groups that write many rows each. Measured on the
+carried column at two source seeds: the length mix of the twin equals
+the real column's exactly, `{3: 988, 5: 306, 9: 350, 19: 356}`, mean and
+spread identical to three decimals. Without the trade the shape's 257
+spellings covered 257 of the 919 rows owed no form, all of them single
+rows, and the other 662 were `group-N`.
 
 ### G8.3a The classes the held-back levels owe
 
@@ -8178,9 +8268,12 @@ unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
 2b.5), and one for the LAYOUT of a record number (contract section
 7.12, landing 2b.18), whose three identifier cases all publish an empty
 census, so the whole layout rule could have been withdrawn with every
-committed byte unchanged.
-**All forty-one are required.** The
-first nine are the first committed file, the next fifteen the second,
+committed byte unchanged, and three for the lower-case key of a form
+census, the shape a stand-in owed no form takes, and the census of
+spellings of a count column (landing 2b.18 part 2), which no earlier
+case reaches.
+**All forty-four are required.** The
+first nine are the first committed file, the next eighteen the second,
 and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
@@ -8204,6 +8297,9 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
+| `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over five groups of four rows and forty single rows. The stand-ins owed no form wear `&-` with the case kept, and one group of four trades with four single rows so the shape's supply covers every row owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
+| `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |
 | `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST — `A00000`, `B30816`, `C60632` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |

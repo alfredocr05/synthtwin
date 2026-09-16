@@ -1068,6 +1068,40 @@ def battery() -> list[Mutation]:
             "a census counting more cells than the column has present",
             edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 9999}),
         ),
+        # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (contract 7.13,
+        # landing 2b.18 part 2, plan P4-D123), on `visits`, the base
+        # description's count column: 229 number cells, 22 of them nought.
+        Mutation(
+            "SC1",
+            "a spelling named for fewer cells than the floor admits",
+            edit("visits", number_spellings={"07": 3, "7": 226}),
+        ),
+        Mutation(
+            "SC2",
+            "a census of spellings that leaves number cells unnamed",
+            edit("visits", number_spellings={"07": 11, "7": 11}),
+        ),
+        Mutation(
+            "SC3",
+            "a census whose spellings of nought are not the published noughts",
+            edit(
+                "visits",
+                number_spellings={"0": 11, "07": 11, "7": 207},
+            ),
+        ),
+        # ...AND ONLY WHERE THE COLUMN'S VALUES DO NOT FOLD ONTO ONE
+        # ANOTHER, which the two published distinct counts say.
+        Mutation(
+            "SF5",
+            "a lower-case form key on a column whose values fold together",
+            lambda document: at(document, "region").update(
+                {
+                    "shape_forms": {"&&&-&": 117},
+                    "n_distinct": int(at(document, "region")["n_distinct_folded"])
+                    + 1,
+                }
+            ),
+        ),
         # THE LAYOUT CENSUS, on the one role that carries it (contract
         # 7.12, landing 2b.18, plan P4-D120). `record_code` is the base
         # description's declared identifier, so it is the only block

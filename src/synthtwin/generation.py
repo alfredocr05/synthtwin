@@ -8511,6 +8511,20 @@ def _numeric_content(
     layout = plan.layout
     if not isinstance(facts, contract.NumericFacts) or layout is None:
         raise _wrong_facts(column.name)
+    if facts.number_spellings:
+        # A COUNT COLUMN THAT PUBLISHES EVERY SPELLING IS WRITTEN AS THEM
+        # (method G6.8, plan P4-D123). The census names every cell read
+        # as a number with its own spelling, so it IS the column's
+        # numbers: each spelling is written as many times as the census
+        # says, in the order of the number it spells and then of the
+        # spelling, and the rows are made random by G4.2 as every other
+        # content list is. Nothing is drawn for them, and every statistic
+        # published beside the census was computed from exactly these
+        # cells. The words G4.3 budgets for the numbers are still drawn,
+        # so the stream a later column reads does not move.
+        return _numeric_tail(
+            column, facts, layout, _spelled_census(facts.number_spellings), []
+        )
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
     if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
@@ -8575,6 +8589,41 @@ def _numeric_content(
     # value a thousandth outside a stretch is written back inside it
     # at one width and not at another.
     notes = notes + _gap_notes(column, facts, cells)
+    return _numeric_tail(column, facts, layout, cells, notes)
+
+
+def _spelled_census(census: "dict[str, int]") -> "list[str]":
+    """Every spelling of a count census, as many times as it was written.
+
+    In the order of the number each spells, and then of the spelling, so
+    `0`, `7`, `07`, `007`: a function of the census alone (G6.8).
+    """
+    order = sorted(
+        [(_census_number(spelling), spelling) for spelling in census]
+    )
+    cells: "list[str]" = []
+    for pair in order:
+        spelling = pair[1]
+        cells += [spelling for _each in range(census[spelling])]
+    return cells
+
+
+def _census_number(spelling: str) -> int:
+    """The whole number a census spelling of figures writes."""
+    number = 0
+    for character in spelling:
+        number = number * 10 + (ord(character) - ord("0"))
+    return number
+
+
+def _numeric_tail(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    cells: "list[str]",
+    notes: "list[Deviation]",
+) -> "tuple[list[str], list[Deviation]]":
+    """The cells after the numbers: out of range, contradictory, text."""
     used: dict[str, int] = {cell: 1 for cell in cells}
     if column.n_out_of_range:
         cells = cells + _class_spellings(
@@ -14146,10 +14195,20 @@ def _label_content(
         shared = ["" for _each in sizes]
         for step in range(len(wordy)):
             shared[wordy[step]] = settled[step]
+    # THE SHAPE A STAND-IN TAKES WHERE THE CENSUS OWES IT NONE (landing
+    # 2b.18 part 2, plan P4-D122; the carried item of landing 2b.12),
+    # and the rows it is spent on.
+    level_shape = _published_level_shape(facts, comma)
+    shaped_places: "dict[int, int]" = {}
+    if level_shape:
+        shared, shaped_places = _level_shape_spent(
+            sizes, shared, level_shape, written_as, used, owners, holes
+        )
     # Each form's place in its own supply, carried across the whole
     # column so no spelling is walked twice.
     walked: "dict[str, int]" = {}
     shaped = 0
+    kept = 0
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -14158,15 +14217,18 @@ def _label_content(
             form = asked[place]
         else:
             number, label = _made_up_label(
-                number, used, owners, form, plan.all_holes, walked
+                number, used, owners, form, plan.all_holes, walked,
+                level_shape if place in shaped_places else "",
             )
+            if not form and level_shape and _level_key(label) == level_shape:
+                kept = kept + 1
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
         # its supply is spent or every spelling of it is refused, and
         # this counted the ASKING -- so a report said thirty-three
         # stand-ins were written in a published form when five of them
         # were `group-N`.
-        if form and parsing.shape_form(label) == form:
+        if form and parsing.census_form(label, facts.shape_forms) == form:
             shaped = shaped + 1
         cells = cells + [label for _row in range(size)]
     if facts.suppressed_levels:
@@ -14185,6 +14247,17 @@ def _label_content(
                 f"{facts.suppressed_levels} labels made up in their place, "
                 f"{shaped} of them written in a form this column published"
             )
+        if kept and not shaped:
+            made = (
+                f"{facts.suppressed_levels} labels made up in their place, "
+                f"{kept} of them written in the shape of a label this "
+                f"column published"
+            )
+        elif kept:
+            made = (
+                f"{made}, and {kept} more in the shape of a label this "
+                f"column published"
+            )
         reason = _HELD_BACK_REASON
         if numbers_made:
             made = (
@@ -14194,6 +14267,11 @@ def _label_content(
             if shaped:
                 made = (
                     f"{made}, and {shaped} of them written in a form this "
+                    f"column published"
+                )
+            if kept:
+                made = (
+                    f"{made}, and {kept} in the shape of a label this "
                     f"column published"
                 )
             reason = _HELD_BACK_NUMBERS_REASON
@@ -14906,7 +14984,11 @@ def _forms_owed(
             continue
         owing[form] = facts.shape_forms[form]
     for cell in written:
-        form = parsing.shape_form(cell)
+        # COUNTED UNDER THE KEY THE CENSUS COUNTS IT UNDER, which is a
+        # lower-case key for a lower-case cell where one is named (plan
+        # P4-D121) -- the recount's own reading, so a debt is never
+        # paid by a cell the validator files elsewhere.
+        form = parsing.census_form(cell, facts.shape_forms)
         if form not in owing:
             continue
         if owing[form] > 0:
@@ -15407,6 +15489,12 @@ def _filled_form(form: str, step: int) -> str:
     """
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
+    # LTM-6). The census names `&` in every letter place of a form whose
+    # cells wrote every letter lower case, and the step is taken apart
+    # exactly as it is for `@` -- same positions, same arithmetic -- so
+    # the only thing that moves is the case the letter is written in.
+    lower = "abcdefghijklmnopqrstuvwxyz"
     spelling = ""
     place = _stepped_around(step, _form_room(form))
     for character in form:
@@ -15416,6 +15504,10 @@ def _filled_form(form: str, step: int) -> str:
             continue
         if character == parsing.SHAPE_LETTER:
             spelling = spelling + letters[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.SHAPE_LOWER:
+            spelling = spelling + lower[place % 26]
             place = place // 26
             continue
         spelling = spelling + character
@@ -15436,7 +15528,10 @@ def _form_room(form: str) -> int:
     for character in form:
         if character == parsing.SHAPE_DIGIT:
             room = room * 10
-        elif character == parsing.SHAPE_LETTER:
+        elif (
+            character == parsing.SHAPE_LETTER
+            or character == parsing.SHAPE_LOWER
+        ):
             room = room * 26
     return room
 
@@ -15571,7 +15666,7 @@ def _text_debt(facts: "contract.TextFacts") -> "dict[str, int]":
 
 def _settle(owing: "dict[str, int]", spelling: str, cells: int) -> None:
     """Take one group's cells off the debt of the form it wears."""
-    form = parsing.shape_form(spelling)
+    form = parsing.census_form(spelling, owing)
     if form not in owing:
         return
     owing[form] = max(0, owing[form] - cells)
@@ -15924,6 +16019,239 @@ def _is_a_usable_stand_in(
     return candidate[0] not in "=+-@"
 
 
+def _level_key(spelling: str) -> str:
+    """The shape one published spelling wears, its case kept (P4-D122).
+
+    `parsing.shape_form` of the spelling, with `&` in every letter place
+    where every letter of it is lower case -- the key the census would
+    give it if it named that shape -- and "" for a spelling with no form.
+    """
+    form = parsing.shape_form(spelling)
+    if form and parsing.is_lower_case_text(spelling):
+        lower = parsing.lower_case_form(form)
+        if lower:
+            return lower
+    return form
+
+
+def _published_level_shape(
+    facts: "contract.LabelFacts", decimal_comma: bool = False
+) -> str:
+    """The shape a held-back label takes where the census owes it none.
+
+    THE CARRIED ITEM OF LANDING 2b.12, CLOSED (plan P4-D122). A code
+    column at a floor of twenty wrote `group-288` for every held-back
+    code the census owed no form, and those were the column's commonest
+    codes: 2,000 cells of a digit, a hyphen and a letter, `4-F`, whose
+    form `%-@` has too few spellings to be named (C6-31 small supply).
+    The real column's mean cell length was 7.204 and the twin's 9.907,
+    with both files passing and nothing said.
+
+    WHAT IS ALREADY PUBLISHED SAYS WHAT THEY LOOKED LIKE. The labels a
+    column publishes are written byte for byte, so the shape of each is
+    a published fact already -- `4-F` beside `7-B` says a figure, a
+    hyphen and a capital, and it says it without this rule. The shape
+    worn by the most published rows is what a stand-in owed no named
+    form is written in, with its case: every letter lower case where the
+    spellings wearing it were.
+
+    A SHAPE THE CENSUS NAMES IS NEVER TAKEN, in either case, because a
+    stand-in written in it would be counted there and overpay a count
+    the settlement above already met exactly. A shape no published
+    spelling wears, or a column whose published spellings have no form,
+    answers "" and the stand-in is the neutral spelling as before.
+
+    Guarantees: a function of the published levels and the census
+    alone; ties between shapes go to the key's own spelling ascending.
+    Raises nothing. No I/O of any kind.
+    """
+    rows: "dict[str, int]" = {}
+    for entry in facts.levels:
+        spellings = entry.variants
+        if not spellings:
+            spellings = {entry.label: entry.count}
+        for spelling in sorted(spellings):
+            key = _level_key(spelling)
+            if not key:
+                continue
+            rows[key] = (rows[key] if key in rows else 0) + spellings[spelling]
+    best = ""
+    for key in sorted(rows):
+        if _form_reading(key, decimal_comma) != parsing.NOT_A_NUMBER:
+            # A SHAPE THAT READS AS A NUMBER IS NOT ONE A WORD CAN WEAR:
+            # every spelling of it is refused a text stand-in, so it
+            # would cost the walk its supply and buy nothing.
+            continue
+        blind = parsing.shape_form(_filled_form(key, 0))
+        if (
+            key in facts.shape_forms
+            or blind in facts.shape_forms
+            or parsing.lower_case_form(blind) in facts.shape_forms
+        ):
+            continue
+        if not best or rows[key] > rows[best]:
+            best = key
+    return best
+
+
+def _level_shape_spent(
+    sizes: "tuple[int, ...]",
+    shared: "list[str]",
+    level_shape: str,
+    fixed: "dict[int, str]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> "tuple[list[str], dict[int, int]]":
+    """Which stand-ins the published labels' shape is spent on (P4-D122).
+
+    THE SHAPE HAS A SUPPLY, AND IT IS SPENT ON ROWS. The census's own
+    settlement meets the named forms from the LARGEST held-back groups
+    first, so on a long tail the groups it owes nothing are the ones
+    written once -- and a shape of a figure, a hyphen and a letter holds
+    260 spellings, which a thousand single rows run through at once.
+    Measured on the carried column: 257 spellings covered 257 of 919
+    rows owed no form, and the other 662 were `group-N`.
+
+    SO A LARGE GROUP PAYING A NAMED FORM TRADES PLACES WITH SINGLE ROWS
+    THAT SUM TO IT EXACTLY. The named form is paid the same number of
+    cells either way -- that count is exact and stays exact -- and the
+    shape then covers a group of many rows with one spelling instead of
+    one row. The published labels are the column's COMMONEST values, so
+    the held-back values most like them are the most repeated ones, and
+    that is who now wears their shape.
+
+    THE RULE, in the order it is taken, a function of the description
+    alone. The shape's supply is counted as `_usable_room` counts any
+    form's. The places owed no form are ranked largest first, then by
+    place, and the first `supply` of them are covered; the rows of the
+    rest are the rows the shape misses. The places paying a named form
+    are offered once each, largest first and then by place, while any
+    row is missed: for an offered place of `k` rows (two or more) the
+    places owed no form are taken from the END of that ranking --
+    smallest first -- each smaller than `k` and no larger than what is
+    still to be matched, until they sum to `k` exactly with at least
+    two of them. The trade is made only where it does, where the named
+    form has the spellings for the extra places, and where the rows the
+    shape misses then FALL. Places a class debt settled (``fixed``) are
+    never moved. Each offer costs twice the number of places against a
+    budget of `_LEVEL_SHAPE_WORK`, and the offers stop when it is spent.
+
+    WHICH PLACES WEAR IT is answered too, because the walk writes the
+    stand-ins in place order and not in size order: the covered places
+    are the first `supply` owed no form, largest first, and a place past
+    them takes the neutral spelling rather than a spelling one of them
+    needed. Measured before this was returned, a group of nineteen rows
+    was written `group-1` while a single row wore the shape.
+
+    Guarantees: returns a new list and the covered places; every named
+    form is assigned exactly the rows it was before. Raises nothing. No
+    I/O of any kind.
+    """
+    arranged = list(shared)
+    covered_places: "dict[int, int]" = {}
+    free = [
+        place for place in range(len(sizes))
+        if place not in fixed and not arranged[place]
+    ]
+    supply = _usable_room(level_shape, len(free), used, owners, holes)
+    if supply < 1 or not free:
+        return arranged, covered_places
+    taken: "dict[str, int]" = {}
+    for place in range(len(sizes)):
+        if place in fixed or not arranged[place]:
+            continue
+        name = arranged[place]
+        taken[name] = (taken[name] if name in taken else 0) + 1
+    rooms: "dict[str, int]" = {}
+    offered = sorted(
+        [
+            (0 - sizes[place], place) for place in range(len(sizes))
+            if place not in fixed and arranged[place]
+        ]
+    )
+    work = _LEVEL_SHAPE_WORK
+    for pair in offered:
+        place = pair[1]
+        size = sizes[place]
+        if size < 2:
+            continue
+        # A BOUNDED AMOUNT OF WORK, stated rather than imposed: each
+        # offer re-ranks the places, which costs twice their number, and
+        # past the budget the arrangement reached so far stands. A tail
+        # of a thousand held-back levels is settled well inside it; a
+        # tail of a hundred thousand makes twenty offers and stops.
+        work = work - 2 * len(sizes)
+        if work < 0:
+            break
+        owed = sorted(
+            [
+                (0 - sizes[other], other) for other in range(len(sizes))
+                if other not in fixed and not arranged[other]
+            ]
+        )
+        before = _rows_past(owed, sizes, supply)
+        if before == 0:
+            break
+        chosen: "list[int]" = []
+        left = size
+        for back in range(len(owed)):
+            other = owed[len(owed) - 1 - back][1]
+            if sizes[other] <= left and sizes[other] < size:
+                chosen += [other]
+                left = left - sizes[other]
+                if left == 0:
+                    break
+        if left != 0 or len(chosen) < 2:
+            continue
+        name = arranged[place]
+        if name not in rooms:
+            rooms[name] = _usable_room(name, len(sizes), used, owners, holes)
+        if taken[name] - 1 + len(chosen) > rooms[name]:
+            continue
+        trial = list(arranged)
+        trial[place] = ""
+        for other in chosen:
+            trial[other] = name
+        after = _rows_past(
+            sorted(
+                [
+                    (0 - sizes[other], other) for other in range(len(sizes))
+                    if other not in fixed and not trial[other]
+                ]
+            ),
+            sizes,
+            supply,
+        )
+        if after >= before:
+            continue
+        arranged = trial
+        taken[name] = taken[name] - 1 + len(chosen)
+    owed_last = sorted(
+        [
+            (0 - sizes[other], other) for other in range(len(sizes))
+            if other not in fixed and not arranged[other]
+        ]
+    )
+    for pair in owed_last[:supply]:
+        covered_places[pair[1]] = 1
+    return arranged, covered_places
+
+
+# How many place-visits the trade pass of `_level_shape_spent` may spend.
+_LEVEL_SHAPE_WORK = 1 << 22
+
+
+def _rows_past(
+    ranked: "list[tuple[int, int]]", sizes: "tuple[int, ...]", supply: int
+) -> int:
+    """The rows of the places ranked past a shape's supply (P4-D122)."""
+    rows = 0
+    for pair in ranked[supply:]:
+        rows = rows + sizes[pair[1]]
+    return rows
+
+
 def _made_up_label(
     number: int,
     used: "dict[str, int]",
@@ -15931,6 +16259,7 @@ def _made_up_label(
     form: str,
     holes: "tuple[str, ...]",
     walked: "dict[str, int]",
+    level_shape: str = "",
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -15957,6 +16286,12 @@ def _made_up_label(
     `_is_a_usable_stand_in` asks them, because a spelling built to look
     like a code no longer has them for free.
     """
+    if not form and level_shape:
+        # OWED NO NAMED FORM, IT WEARS THE SHAPE OF THE COLUMN'S OWN
+        # PUBLISHED LABELS (plan P4-D122), walked with the same cursor
+        # and the same refusals a named form is. Where that supply is
+        # spent the neutral spelling below stands, as before.
+        form = level_shape
     if form:
         # THE FORM'S CURSOR IS CARRIED ACROSS STAND-INS, and the
         # counter for the neutral spelling is NOT TOUCHED here (review
@@ -16294,7 +16629,7 @@ def _exponent_filling(form: str) -> str:
     and letter of a cell before it is published, and the characters put
     back here are two constants of this module.
     """
-    if parsing.SHAPE_LETTER not in form:
+    if parsing.SHAPE_LETTER not in form and parsing.SHAPE_LOWER not in form:
         return ""
     spelled = ""
     for character in form:
@@ -16302,6 +16637,10 @@ def _exponent_filling(form: str) -> str:
             spelled = spelled + "0"
         elif character == parsing.SHAPE_LETTER:
             spelled = spelled + "E"
+        elif character == parsing.SHAPE_LOWER:
+            # `1.1e6` written in lower case has the key `%.%&%`, and its
+            # probe is the lower-case exponent (plan P4-D121).
+            spelled = spelled + "e"
         else:
             spelled = spelled + character
     return spelled
@@ -16794,7 +17133,7 @@ def _next_on_ladder(
             if state == _LADDER_SKIP:
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
-            form = parsing.shape_form(candidate)
+            form = parsing.census_form(candidate, named)
             if name == _OWED_NUMBER:
                 if form in named:
                     continue
@@ -17108,7 +17447,7 @@ def _straggler_stand_in(
         candidate = _contradictory_spelling(counters[name])
         if name == _OWED_OUT_OF_RANGE:
             candidate = _out_of_range_spelling(counters[name], False)
-        if parsing.shape_form(candidate) in named:
+        if parsing.census_form(candidate, named) in named:
             continue
         if candidate in used or parsing.folded(candidate) in owners:
             continue
@@ -20556,7 +20895,9 @@ def _number_forms(
     return chosen
 
 
-def _number_form_at(band: str, length: int) -> str:
+def _number_form_at(
+    band: str, length: int, census: "dict[str, int] | None" = None
+) -> str:
     """The written form every number of one band and length wears.
 
     One band and one length write ONE form: `-%` and `%%@%` in the code
@@ -20567,7 +20908,7 @@ def _number_form_at(band: str, length: int) -> str:
     spelled = _number_at(band, length, 0)
     if spelled is None:
         return ""
-    return parsing.shape_form(spelled)
+    return parsing.census_form(spelled, census if census is not None else {})
 
 
 def _unasked_number_length(
@@ -20608,7 +20949,7 @@ def _unasked_number_length(
         if spent < _plain_number_room(band, length):
             if not spare:
                 spare = length
-            if _number_form_at(band, length) not in named:
+            if _number_form_at(band, length, named) not in named:
                 return length
         length = length + 1
     if spare:
@@ -24864,7 +25205,7 @@ def _form_notes(
             # case was counted as a present cell and a conforming twin
             # was accused (review round 2 finding 11).
             continue
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census)
         if not form:
             continue
         if form in counted:

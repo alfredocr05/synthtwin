@@ -885,7 +885,10 @@ def test_a_number_form_of_a_column_of_text_is_paid_in_its_own_band(
     for form in first["shape_forms"]:
         if form == "(withheld)":
             continue
-        worn = sum(1 for cell in written if parsing.shape_form(cell) == form)
+        worn = sum(
+            1 for cell in written
+            if parsing.census_form(cell, first["shape_forms"]) == form
+        )
         assert worn == first["shape_forms"][form], form
     # A form is filled from a counter, and `%%.%` at step zero is `00.0`.
     numbers = [cell for cell in written if parsing.classify_number(cell) == parsing.NUMBER]
@@ -918,7 +921,10 @@ def test_numbers_are_moved_into_the_band_their_forms_are_written_in(
     for form in first["shape_forms"]:
         if form == "(withheld)":
             continue
-        worn = sum(1 for cell in written if parsing.shape_form(cell) == form)
+        worn = sum(
+            1 for cell in written
+            if parsing.census_form(cell, first["shape_forms"]) == form
+        )
         miss = miss + abs(worn - first["shape_forms"][form])
     assert miss <= 1, miss
 

@@ -1152,6 +1152,18 @@ SHAPE_MARKS = "-./_:#*()[]+,"
 # in the sentence the report prints beside every form it names.
 SHAPE_DIGIT = "%"
 SHAPE_LETTER = "@"
+# THE THIRD PLACEHOLDER, AND IT IS A CENSUS KEY'S ALONE (landing 2b.18
+# part 2, plan P4-D121, audit LTM-6). `shape_form` never writes it: the
+# form of a cell stays blind to case, so no level, no variant and no
+# per-level count moves. What writes it is the census, and only for the
+# cells of one form whose every letter was lower case, where enough of
+# them share that form to be named on their own (C6-31a). A column of
+# `e9z-1i1` published `@%@-%@%` and its twin came back `Y6O-7P3` on
+# every row, so a case-sensitive pattern matched 800 real cells and 0
+# twin cells while both files passed. `&` is outside the letters, the
+# figures and `SHAPE_MARKS`, so no cell that has a form can be spelled
+# like a key carrying it, which is the property the other two buy.
+SHAPE_LOWER = "&"
 
 
 def _is_a_digit(character: str) -> bool:
@@ -1293,8 +1305,9 @@ def shape_form(text: str) -> str:
 def form_room(name: str) -> int:
     """How many different cells could have worn this form.
 
-    Every `SHAPE_DIGIT` of it stands for one of ten figures and every
-    `SHAPE_LETTER` for one of fifty-two letters; the marks stand for
+    Every `SHAPE_DIGIT` of it stands for one of ten figures, every
+    `SHAPE_LETTER` for one of fifty-two letters and every `SHAPE_LOWER`
+    for one of twenty-six lower-case ones; the marks stand for
     themselves. So a form is a COUNT of the cells it could have come
     from, and that count is what says whether naming it tells a reader
     anything they did not already have.
@@ -1310,6 +1323,11 @@ def form_room(name: str) -> int:
             room = room * 10
         elif character == SHAPE_LETTER:
             room = room * 52
+        elif character == SHAPE_LOWER:
+            # A LOWER-CASE LETTER IS ONE OF TWENTY-SIX, not fifty-two,
+            # so the small-supply rule asks a lower-case key for its own
+            # room and never for the case-blind form's (P4-D121).
+            room = room * 26
     return room
 
 
@@ -1328,7 +1346,9 @@ def is_a_written_form(name: str) -> bool:
     placeholder or a mark from the closed list, carrying at least TWO
     of the three kinds -- figure, letter, mark. Two kinds, because a
     key of one kind says nothing `length` and the two alphabet counts
-    do not already say.
+    do not already say. A letter is written `@` or, in a key the census
+    names for lower-case cells, `&` -- one or the other throughout, and
+    never both in one key (plan P4-D121).
 
     Guarantees: accepts any string; answers only from the characters.
     Raises TypeError if handed anything that is not a string instance.
@@ -1340,17 +1360,99 @@ def is_a_written_form(name: str) -> bool:
         return False
     figures = 0
     letters = 0
+    lower = 0
     marks = 0
     for character in name:
         if character == SHAPE_DIGIT:
             figures = 1
         elif character == SHAPE_LETTER:
             letters = 1
+        elif character == SHAPE_LOWER:
+            lower = 1
         elif character in SHAPE_MARKS:
             marks = 1
         else:
             return False
-    return figures + letters + marks >= 2
+    if letters and lower:
+        # A KEY IS WRITTEN IN ONE CONVENTION OR THE OTHER (P4-D121).
+        # The census writes `&` for EVERY letter of a form whose cells
+        # were all lower case and `@` for every letter otherwise, so a
+        # key mixing the two is one no producer writes and no recount
+        # can ever meet.
+        return False
+    return figures + max(letters, lower) + marks >= 2
+
+
+def is_lower_case_text(text: str) -> bool:
+    """Whether a cell holds a letter and every letter it holds is lower case.
+
+    The letters are `a`-`z` and `A`-`Z` and nothing else, for the reason
+    `_is_a_letter` gives. A cell with no letter at all is not lower
+    case: it has no case to keep, and its form has no letter to mark.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    seen = False
+    for character in text:
+        if "A" <= character <= "Z":
+            return False
+        if "a" <= character <= "z":
+            seen = True
+    return seen
+
+
+def lower_case_form(form: str) -> str:
+    """The census key a form takes for its lower-case cells (P4-D121).
+
+    Every `SHAPE_LETTER` becomes `SHAPE_LOWER` and every other character
+    stands. A form with no letter has no lower-case key and answers "".
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(form, str):
+        raise TypeError(_NOT_TEXT)
+    if SHAPE_LETTER not in form:
+        return ""
+    built = ""
+    for character in form:
+        if character == SHAPE_LETTER:
+            built = built + SHAPE_LOWER
+            continue
+        built = built + character
+    return built
+
+
+def census_form(text: str, census: "dict[str, int]") -> str:
+    """The key of a form census one cell is counted under (C6-31a).
+
+    THE ONE READING A GENERATOR AND A RECOUNT BOTH USE, so what the twin
+    is written to and what it is measured by cannot part. A cell's form
+    is `shape_form`, blind to case. Where every letter of the cell is
+    lower case AND the census names that form's lower-case key, the cell
+    is counted there; every other cell is counted under its form as
+    `shape_form` writes it. So a census naming `&&%` beside `@@%` counts
+    `ab1` under the first and `AB1` or `Ab1` under the second, and a
+    census naming only `@@%` counts all three under it, exactly as
+    before the lower-case key existed.
+
+    Guarantees: accepts a string and a census; returns a key or "" for a
+    cell with no form. Determinism: a function of the two arguments
+    alone. Raises TypeError if handed a cell that is not a string. No
+    I/O of any kind.
+    """
+    form = shape_form(text)
+    if not form or SHAPE_LETTER not in form:
+        return form
+    if not is_lower_case_text(text):
+        return form
+    lower = lower_case_form(form)
+    if lower in census:
+        return lower
+    return form
 
 
 # -- the LAYOUT of a record number (contract 7.12) --------------------

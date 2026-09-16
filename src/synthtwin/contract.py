@@ -518,6 +518,14 @@ NUMERIC_KEYS = (
     "std_unrepresentable",
 )
 
+# THE COUNT ROLE'S ONE KEY OF ITS OWN (plan P4-D123): the census of
+# spellings a column writing one number more than one way publishes --
+# `7`, `07`, `007` -- and `{}` everywhere else. It is the count role's and
+# not `continuous`'s, and it is not in NUMERIC_KEYS, because the affixed,
+# joined and compound blocks that reuse that list read a column of
+# quantities, never one of codes written in figures.
+COUNT_KEYS = NUMERIC_KEYS + ("number_spellings",)
+
 # The affixed-number role: everything a numeric column carries, plus
 # the pair it publishes, how many cells wore it, and the four counts
 # that answer for the CORES rather than for the cells. The two
@@ -1363,11 +1371,30 @@ INVARIANTS = {
     # round 1 finding 9).
     "SF1": (
         "every written form the census names was written by at least "
-        "the smallest group size"
+        "the smallest group size, and a lower-case key, with the form's "
+        "own key beside it, by at least two cells as well"
     ),
     "SF3": (
         "the census counts no more cells than the column has present, "
         "a cell too long to have a form being counted nowhere"
+    ),
+    "SC1": (
+        "every spelling a count column's census names was written by at "
+        "least the smallest group size and by at least two cells"
+    ),
+    "SC2": (
+        "a count column's census of spellings, where it names any, names "
+        "every cell read as a number, holds one number written two ways, "
+        "and names no more spellings than a set of categories may hold"
+    ),
+    "SC3": (
+        "the spellings of nought a count column's census names count "
+        "exactly the cells published as nought"
+    ),
+    "SF5": (
+        "a lower-case key of the form census is named only on a column "
+        "whose different values are as many once case and edge spacing "
+        "are set aside"
     ),
     "LF1": (
         "every layout the census names was written by at least the "
@@ -1908,6 +1935,12 @@ class NumericFacts:
     # value under the stretch and the smallest over it, both real
     # (residual R-P4-138).
     empty_edges: "tuple[tuple[float, float], ...]"
+    # EVERY SPELLING OF A COUNT COLUMN THAT WROTE ONE NUMBER MORE THAN
+    # ONE WAY, with its cells (7.13, plan P4-D123); `{}` on every other
+    # column and on every block that is not a `count` block.
+    number_spellings: "dict[str, int]" = dataclasses.field(
+        default_factory=dict
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4846,7 +4879,9 @@ def _role_keys(role: str) -> "tuple[str, ...]":
         return LONG_TAIL_KEYS
     if role == ROLE_DATETIME:
         return DATETIME_KEYS
-    if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
+    if role == ROLE_COUNT:
+        return COUNT_KEYS
+    if role == ROLE_CONTINUOUS:
         return NUMERIC_KEYS
     if role == ROLE_CLOCK:
         return CLOCK_KEYS
@@ -4903,7 +4938,7 @@ def _facts(
     if role == ROLE_DATETIME:
         return _datetime_facts(mapping, where, frame.floor, n_present)
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
-        return _numeric_facts(
+        numeric = _numeric_facts(
             mapping,
             where,
             frame,
@@ -4911,6 +4946,14 @@ def _facts(
             n_numeric,
             n_out_of_range,
             n_contradictory,
+        )
+        if role == ROLE_CONTINUOUS:
+            return numeric
+        return dataclasses.replace(
+            numeric,
+            number_spellings=_number_spellings(
+                mapping, where, frame, n_numeric, numeric.n_zero
+            ),
         )
     if role == ROLE_CLOCK:
         return _clock_facts(mapping, where, frame, n_present)
@@ -7916,7 +7959,8 @@ def _shape_forms(
                 where,
                 "a key of that shape",
                 "a written form: a figure written '%', a letter "
-                "written '@', and between them only the marks "
+                "written '@' -- or '&' throughout, where every letter "
+                "was lower case -- and between them only the marks "
                 "- . / _ : # * ( ) [ ] + , -- carrying at least two "
                 "of those three kinds",
             )
@@ -7927,7 +7971,155 @@ def _shape_forms(
                 f"the form '{name}' was written by {forms[name]} cells",
                 f"the smallest group size is {floor}",
             )
+        _lower_case_key_line(forms, name, where, floor)
+        if parsing.SHAPE_LOWER in name:
+            distinct = _whole(mapping["n_distinct"], "n_distinct", where, 0)
+            folded_distinct = _whole(
+                mapping["n_distinct_folded"], "n_distinct_folded", where, 0
+            )
+            if distinct != folded_distinct:
+                # SF5. The census writes a lower-case key only on a
+                # column whose values do not fold onto one another,
+                # because the twin's case partners could never pay one
+                # (P4-D121).
+                raise _broken(
+                    "SF5",
+                    where,
+                    f"the lower-case key '{name}' is named",
+                    f"the column holds {distinct} different values that "
+                    f"fold to {folded_distinct}",
+                )
     return forms
+
+
+def _lower_case_key_line(
+    forms: "dict[str, int]", name: str, where: str, floor: int
+) -> None:
+    """SF1's second line: a lower-case key and its partner clear two.
+
+    (Plan P4-D121.) At a floor of two or more this is the floor line
+    itself and is already met by the time it is asked; at a floor of one
+    it is the line a count of one person may not cross.
+
+    A key written with `&` names the cells of one form whose every
+    letter was lower case, and the census writes it only where they
+    number at least the floor AND at least two -- and where the form's
+    own key stands beside it, only where the other cells do too. Below
+    that the census names the form blind to case instead, because a
+    pair of keys one of which counts a single cell publishes a count of
+    one, and a pair whose sum is known makes one of them the complement
+    of the other. A loader that admitted either would carry a count of
+    one person the producer refuses to write.
+
+    Raises ProfileError for SF1.
+    """
+    if parsing.SHAPE_LOWER not in name:
+        return
+    line = max(floor, 2)
+    partner = ""
+    for character in name:
+        partner = partner + (
+            parsing.SHAPE_LETTER if character == parsing.SHAPE_LOWER
+            else character
+        )
+    if forms[name] < line:
+        raise _broken(
+            "SF1",
+            where,
+            f"the lower-case key '{name}' counts {forms[name]} cells",
+            f"a lower-case key is named only at {line} cells or more",
+        )
+    if partner in forms and forms[partner] < line:
+        raise _broken(
+            "SF1",
+            where,
+            f"the key '{partner}' beside '{name}' counts "
+            f"{forms[partner]} cells",
+            f"beside a lower-case key it is named only at {line} cells "
+            "or more",
+        )
+
+
+def _number_spellings(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_numeric: int,
+    n_zero: int,
+) -> "dict[str, int]":
+    """The spelling census of a count column, checked (7.13, P4-D123).
+
+    ALL OR NOTHING, and every rule here is one the producer keeps:
+
+    - SC1: every key is one to fifteen figures and nothing else, and
+      every count is at least the smallest group size and at least two
+      -- a census naming a spelling one cell wrote publishes that cell;
+    - SC2: a census that names anything names every number cell, so its
+      counts sum to `n_numeric`, and at least two of its keys are one
+      number written two ways, which is the only thing it is for; and
+      it names no more spellings than a set of categories may hold;
+    - SC3: its spellings of nought count exactly `n_zero` cells.
+
+    Raises ProfileError for a wrong type, and for SC1, SC2 and SC3.
+    """
+    spellings = _counts(
+        mapping["number_spellings"], "number_spellings", where, 1
+    )
+    if not spellings:
+        return spellings
+    line = max(frame.floor, 2)
+    total = 0
+    zeros = 0
+    seen: "dict[str, int]" = {}
+    twice = False
+    for name in sorted(spellings):
+        if (
+            name == WITHHELD
+            or len(name) > 15
+            or not parsing.is_digit_text(name)
+        ):
+            raise _out_of_range(
+                "number_spellings -> (a key)",
+                where,
+                "a key of that shape",
+                "a whole number written in one to fifteen figures and "
+                "nothing else",
+            )
+        if spellings[name] < line:
+            raise _broken(
+                "SC1",
+                where,
+                f"a spelling written by {spellings[name]} cell(s)",
+                f"a spelling is named only at {line} cells or more",
+            )
+        total = total + spellings[name]
+        bare = name
+        while len(bare) > 1 and bare[0] == "0":
+            bare = bare[1:]
+        if bare == "0":
+            zeros = zeros + spellings[name]
+        if bare in seen:
+            twice = True
+        seen[bare] = 1
+    if total != n_numeric or not twice or len(spellings) > _category_ceiling(
+        frame
+    ):
+        raise _broken(
+            "SC2",
+            where,
+            f"a census of {len(spellings)} spelling(s) counting {total} "
+            "cell(s)",
+            f"the column's {n_numeric} number cell(s), with one number "
+            "written two ways",
+        )
+    if zeros != n_zero:
+        raise _broken(
+            "SC3",
+            where,
+            f"{zeros} cell(s) spelled as nought",
+            f"n_zero is {n_zero}",
+        )
+    return spellings
 
 
 def _layout_forms(

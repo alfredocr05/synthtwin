@@ -127,6 +127,11 @@ def _generator():
 
 gen = _generator()
 
+# The oracle's own filling and numeric content, held before any test
+# patches them, so a mutant calls the rule it replaces rather than itself.
+gen_filled_form = gen.filled_form
+gen_numeric_content = gen._numeric_content
+
 
 
 def _document() -> dict:
@@ -170,6 +175,11 @@ BRANCH_CASES = (
     # so the all-different repair of G7A.4 has no slack and every
     # interior rank must land on the one ordinal left for it.
     "clock_ladder",
+    # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (landing 2b.18 part 2,
+    # plan P4-D123). Every count case before it wrote each number one
+    # way, so it publishes an empty census and the rule could be
+    # withdrawn with every committed byte unchanged.
+    "count_spellings",
     "free_text_joint",
     "identifier_edge_spacing",
     # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). The
@@ -185,12 +195,20 @@ BRANCH_CASES = (
     # between two quantities at all.
     "joined_readings",
     "leap_second_endpoint",
+    # THE SHAPE OF A PUBLISHED LABEL (landing 2b.18 part 2, plan
+    # P4-D122). No label case before it reaches a stand-in the census
+    # owes no form, so the rule could be withdrawn with every committed
+    # byte unchanged.
+    "level_shape_stand_ins",
     # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). Every other case here exercises a role Phase 1 to 3
     # built; the four Phase 4 roles had no independent vector at all,
     # so their generator branches were checked only against
     # themselves. This is one of the four.
     "long_tail_levels",
+    # THE CASE OF A LETTER (landing 2b.18 part 2, plan P4-D121). Every
+    # label case before it publishes a census blind to case.
+    "lower_case_stand_ins",
     # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
     # One pins the day-unit rule of a column that stands wholly at
     # midnight; the other pins the evenly spread rotation of marks, its
@@ -294,6 +312,9 @@ SEEDS = {
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
     "identifier_layout": 136,
+    "lower_case_stand_ins": 137,
+    "level_shape_stand_ins": 138,
+    "count_spellings": 139,
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
     "month_span": 116,
@@ -1347,7 +1368,9 @@ def _next_on_the_ladder_without_the_census(
     return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
 
 
-def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
+def _levels_from_the_second_spelling(
+    used, sizes, census=None, written=(), placed=None, level_shape=""
+):
     """G8.3's stand-in walk, started one spelling along.
 
     The method enumerates a form's spellings IN ORDER and takes the
@@ -1435,6 +1458,37 @@ def _no_layout_preferred(column, groups, families, bands, windows, pinned):
     and the identities written twice take the second.
     """
     return [""] * len(groups)
+
+
+def _lower_filled_in_capitals(form, step):
+    """C6-31a's lower-case key withdrawn: `&` is filled as `@` is."""
+    return gen_filled_form(form.replace("&", "@"), step)
+
+
+def _no_spelling_census(column):
+    """G6.8 withdrawn: a count column's census of spellings is not read.
+
+    The ladder walk of G5 and the style walk of G6 write the column, as
+    they did before the census existed.
+    """
+    return gen_numeric_content(dict(column, number_spellings={}))
+
+
+def _no_level_shape_trade(sizes, shared, level_shape, fixed, seen, folds):
+    """G8.3b's trade withdrawn: the shape covers the places as settled.
+
+    The named forms keep the places the census settlement gave them, so
+    the places owed no form past the shape's supply take the neutral
+    spelling -- which carries a figure, and this oracle refuses to reason
+    about one.
+    """
+    free = [
+        place for place in range(len(sizes))
+        if place not in fixed and not shared[place]
+    ]
+    supply = gen.usable_room(level_shape, len(free), seen, folds)
+    owed = sorted((-sizes[place], place) for place in free)
+    return list(shared), {place for _size, place in owed[:supply]}
 
 
 def _case_flips_only(parent, longest):
@@ -1633,6 +1687,32 @@ CASE_MUTANTS = {
         attribute="grouping_mark_of",
         replacement=_every_mark_a_comma,
         outcome=CHANGES_THE_CELLS,
+    ),
+    "lower_case_stand_ins": Mutant(
+        branch="C6-31a's lower-case key, filled from the lower-case "
+        "alphabet at the positions a `@` takes; the mutant fills it in "
+        "capitals, and every stand-in moves",
+        attribute="filled_form",
+        replacement=_lower_filled_in_capitals,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "count_spellings": Mutant(
+        branch="G6.8's census of spellings, which writes a count column "
+        "that wrote one number more than one way as its published "
+        "spellings; the mutant withdraws it, and the ladder and style walks "
+        "write the column instead",
+        attribute="_numeric_content",
+        replacement=_no_spelling_census,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "level_shape_stand_ins": Mutant(
+        branch="G8.3b's trade, which moves a large held-back group paying a "
+        "named form onto the published labels' shape and settles the form "
+        "with single rows summing to it; the mutant withdraws the trade, "
+        "and a place past the shape's supply is left the neutral spelling",
+        attribute="level_shape_spent",
+        replacement=_no_level_shape_trade,
+        outcome="reasons only about stand-ins with no figure",
     ),
     "identifier_layout": Mutant(
         branch="G9.6's smooth weighted rotation of a layout census over the "

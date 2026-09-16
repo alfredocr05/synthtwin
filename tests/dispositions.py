@@ -1148,6 +1148,12 @@ REGISTRY += [
         plan_region="padding",
         aliases=("padding census", "field-width census"),
     ),
+    # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (contract 7.13, landing
+    # 2b.18 part 2, plan P4-D123). EXACT-OBSERVABLE, on the plainest
+    # terms any census here has: it names every cell read as a number
+    # with its own spelling and pools nothing, so a person opens the twin
+    # and counts each spelling back.
+    Fact("numeric", "number_spellings", EXACT_OBSERVABLE),
     # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
     # sibling of the styles map and is the ONE of the three that is not
     # exact. Its two siblings are facts about SPELLING and are bought

@@ -1421,6 +1421,18 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   `n_distinct_folded` and `n_distinct_by_occurrences` are REPORT-ONLY
   for that column, and nothing else is.
 
+  **THE LOWER-CASE KEY OF A FORM CENSUS AND THE CENSUS OF SPELLINGS
+  OF A COUNT COLUMN** (contract C6-31a and section 7.13, landing 2b.18
+  part 2, plans P4-D121 and P4-D123) are recounted by the same producer
+  the description was made with, so the file is read the way the table
+  was: a cell whose every letter is lower case is counted under its
+  form's lower-case key where the description names one, and under the
+  form otherwise, each named key numbering at least its published count
+  and at most that count plus the pooled remainder. A count column's
+  published spellings are each recounted EXACTLY, subcheck
+  `spellings.published.<spelling>`, because that census pools nothing.
+  Neither is lowered in this corner, which reaches neither role.
+
   **`layout_forms` IS NOT LOWERED HERE, AND THE CHECK STANDS BEFORE
   THE CORNER AS WELL AS INSIDE IT** (contract 7.12, landing 2b.18,
   plan P4-D120). This corner is about DISTINCTNESS — a published

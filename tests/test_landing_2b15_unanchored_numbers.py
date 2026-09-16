@@ -36,12 +36,18 @@ _FLOOR = ("--smallest-group", "11")
 
 
 def _worn(written: "list[str]") -> "dict[str, int]":
-    """The census the twin actually wears, recounted off its own cells."""
+    """The census the twin actually wears, recounted off its own cells.
+
+    Every column here writes its exponent in LOWER case, `1.1e6`, so
+    since landing 2b.18's second part (plan P4-D121) the census names
+    `%.%&%` and a cell is counted under the key the census counts it
+    under -- the lower-case key for a lower-case cell.
+    """
     seen: "dict[str, int]" = {}
     for cell in written:
         if not cell:
             continue
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, {"%.%&%": 1})
         seen[form] = (seen[form] if form in seen else 0) + 1
     return seen
 
@@ -93,7 +99,7 @@ def test_an_unanchored_exponent_column_settles_its_form_debt(
         tmp_path, cells, _FLOOR, seed
     )
     worn = _worn(written)
-    assert worn["%.%@%"] == 26
+    assert worn["%.%&%"] == 26
     assert twin_exit == 0
     assert real_exit == 0
     # AND THE NUMBERS STAY INSIDE THE MAGNITUDES THE COLUMN PUBLISHED,
@@ -124,7 +130,7 @@ def test_the_close_is_not_an_accident_of_one_exponent(
     _first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert _worn(written)["%.%@%"] == 26
+    assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
     assert real_exit == 0
     for value in _numbers(written):
@@ -158,7 +164,7 @@ def test_a_span_with_no_reachable_spelling_still_goes_short_and_says_so(
     _first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert _worn(written)["%.%@%"] == 22
+    assert _worn(written)["%.%&%"] == 22
     assert twin_exit == 3
     assert real_exit == 0
     # The shortfall is announced, and NOT paid with an overshoot.
@@ -187,10 +193,12 @@ def test_p4_d92_is_not_withdrawn_where_the_ladder_has_its_own_ends(
     _first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert _worn(written)["%.%@%"] == 26
+    assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
     assert real_exit == 0
-    assert "5.0E6" in written
+    # Lower case since landing 2b.18 part 2 (P4-D121): the column wrote
+    # `1.1e6`, and the census now carries that case.
+    assert "5.0e6" in written
 
 
 # -- P4-D101: what the bound costs where the held-back level is a TAIL --
@@ -237,7 +245,7 @@ def test_a_held_back_level_below_the_span_is_paid_from_inside_it(
     _first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert _worn(written)["%.%@%"] == 26
+    assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
     assert real_exit == 0
     # The stand-in is held inside the published span, which is the one
@@ -271,7 +279,9 @@ def test_the_report_says_where_the_made_up_numbers_were_held(
         tmp_path, cells, _FLOOR, seed
     )
     assert twin_exit == 0
-    assert "5.0E6" in written
+    # Lower case since landing 2b.18 part 2 (P4-D121): the column wrote
+    # `1.1e6`, and the census now carries that case.
+    assert "5.0e6" in written
     report = (tmp_path / "real-twin-report.txt").read_text(encoding="utf-8")
     # What is true of these cells now.
     assert "held between the smallest and the largest number" in report
@@ -322,7 +332,7 @@ def test_the_anchored_bound_keeps_its_own_narrower_ends(
     first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert first["shape_forms"]["%.%@%"] == 15
-    assert _worn(written)["%.%@%"] == 11
+    assert first["shape_forms"]["%.%&%"] == 15
+    assert _worn(written)["%.%&%"] == 11
     assert twin_exit == 3
     assert real_exit == 0

@@ -861,8 +861,14 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 #   * the QUALITY REPORT says MORE and not less: it carries one
 #     obligation it did not carry, `identifier.layout_forms`, and drops
 #     none -- which the wide baseline above asserts by identity.
+# THE DESCRIPTION DIGEST MOVED AGAIN AT LANDING 2b.18'S SECOND PART, and
+# ONLY it: the two count blocks gained the empty census
+# `number_spellings: {}` (contract 7.13, plan P4-D123), which is the whole
+# of the diff against 2e2ec8f. MEASURED: the twin and the quality report
+# digests below come back character for character, because an empty
+# census writes nothing differently and sets no obligation.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0293dea00bc36ff8061c490240c22f4208d6ea5ad26461cecc5baa3a8e700dec"
+    "3065d8cd09b8ce0456803d7156d8c0351cb6f023cb03548daaad2bb875be3432"
 )
 
 

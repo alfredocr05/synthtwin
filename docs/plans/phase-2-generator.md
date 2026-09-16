@@ -609,7 +609,10 @@ A-P4-48); `mean`, `std`, `skew` APPROXIMATED with fixed formula and
 two-sided bound; `n_distinct` and `n_distinct_folded` EXACT-OBSERVABLE
 using the spellings of owner decision 7, falling back to the two-sided
 envelope only where even those cannot supply the count, which the report
-then names.
+then names. `number_spellings`, on `count` alone, EXACT-OBSERVABLE: every
+spelling it names is recounted on the measured file and must number
+exactly its published count, the census pooling nothing (contract
+section 7.13, landing 2b.18 part 2, plan P4-D123).
 
 **Label roles (categorical, binary, constant)**: `levels` (normalized
 label and count), `suppressed_levels`, `suppressed_level_counts`,

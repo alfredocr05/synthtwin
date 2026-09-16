@@ -1,5 +1,5 @@
 {
-  "case_set": "The 15 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason.",
+  "case_set": "The 18 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at, and, for landing 2b.18, the layout census of a declared record number, the lower-case key of a form census, and the shape of a published label worn by the stand-ins a census owes no form. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -874,6 +874,862 @@
         "11122896599893611155",
         "15231939135091175662",
         "12051230916723616950"
+      ]
+    },
+    "count_spellings": {
+      "cells": [
+        "0",
+        "7",
+        "007",
+        "07",
+        "7",
+        "007",
+        "07",
+        "07",
+        "007",
+        "007",
+        "07",
+        "07",
+        "007",
+        "0",
+        "7",
+        "0",
+        "0",
+        "007",
+        "07",
+        "007",
+        "007",
+        "007",
+        "07",
+        "7",
+        "07",
+        "0",
+        "007",
+        "7",
+        "7",
+        "007",
+        "7",
+        "0",
+        "07",
+        "7",
+        "0",
+        "0",
+        "07",
+        "7",
+        "0",
+        "07",
+        "7",
+        "7",
+        "0",
+        "0"
+      ],
+      "column": {
+        "decimal_plus": {},
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
+        "empty_edges": [],
+        "field_widths": {
+          "1": 22,
+          "2": 11,
+          "3": 11
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": {
+          "decimal": "2.3333333333333335",
+          "exact": "4666666666666667/2000000000000000",
+          "float64": 2.3333333333333335,
+          "proof": "nearest"
+        },
+        "mean": {
+          "decimal": "5.25",
+          "exact": "21/4",
+          "float64": 5.25,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
+        "n_contradictory": 0,
+        "n_distinct": 4,
+        "n_distinct_folded": 4,
+        "n_distinct_values": 2,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 44,
+        "n_out_of_range": 0,
+        "n_present": 44,
+        "n_rows": 44,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 44,
+        "n_zero": 11,
+        "name": "column_1",
+        "negative_form": "minus",
+        "number_spellings": {
+          "0": 11,
+          "007": 11,
+          "07": 11,
+          "7": 11
+        },
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "leading_zero": 22,
+          "plain": 22
+        },
+        "pad_widths": {
+          "2": 11,
+          "3": 11
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "5.25",
+            "exact": "21/4",
+            "float64": 5.25,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          }
+        },
+        "percentiles_between": {
+          "p02": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p03": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p04": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p06": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p07": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p08": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p09": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p11": {
+            "decimal": "0.350000",
+            "exact": "7/20",
+            "float64": 0.35,
+            "proof": "nearest"
+          },
+          "p12": {
+            "decimal": "0.700000",
+            "exact": "7/10",
+            "float64": 0.7,
+            "proof": "nearest"
+          },
+          "p13": {
+            "decimal": "1.050000",
+            "exact": "21/20",
+            "float64": 1.05,
+            "proof": "nearest"
+          },
+          "p14": {
+            "decimal": "1.400000",
+            "exact": "7/5",
+            "float64": 1.4,
+            "proof": "nearest"
+          },
+          "p15": {
+            "decimal": "1.750000",
+            "exact": "7/4",
+            "float64": 1.75,
+            "proof": "nearest"
+          },
+          "p16": {
+            "decimal": "2.100000",
+            "exact": "21/10",
+            "float64": 2.1,
+            "proof": "nearest"
+          },
+          "p17": {
+            "decimal": "2.450000",
+            "exact": "49/20",
+            "float64": 2.45,
+            "proof": "nearest"
+          },
+          "p18": {
+            "decimal": "2.800000",
+            "exact": "14/5",
+            "float64": 2.8,
+            "proof": "nearest"
+          },
+          "p19": {
+            "decimal": "3.150000",
+            "exact": "63/20",
+            "float64": 3.15,
+            "proof": "nearest"
+          },
+          "p20": {
+            "decimal": "3.500000",
+            "exact": "7/2",
+            "float64": 3.5,
+            "proof": "nearest"
+          },
+          "p21": {
+            "decimal": "3.850000",
+            "exact": "77/20",
+            "float64": 3.85,
+            "proof": "nearest"
+          },
+          "p22": {
+            "decimal": "4.200000",
+            "exact": "21/5",
+            "float64": 4.2,
+            "proof": "nearest"
+          },
+          "p23": {
+            "decimal": "4.550000",
+            "exact": "91/20",
+            "float64": 4.55,
+            "proof": "nearest"
+          },
+          "p24": {
+            "decimal": "4.900000",
+            "exact": "49/10",
+            "float64": 4.9,
+            "proof": "nearest"
+          },
+          "p26": {
+            "decimal": "5.320000",
+            "exact": "133/25",
+            "float64": 5.32,
+            "proof": "nearest"
+          },
+          "p27": {
+            "decimal": "5.390000",
+            "exact": "539/100",
+            "float64": 5.39,
+            "proof": "nearest"
+          },
+          "p28": {
+            "decimal": "5.460000",
+            "exact": "273/50",
+            "float64": 5.46,
+            "proof": "nearest"
+          },
+          "p29": {
+            "decimal": "5.530000",
+            "exact": "553/100",
+            "float64": 5.53,
+            "proof": "nearest"
+          },
+          "p30": {
+            "decimal": "5.600000",
+            "exact": "28/5",
+            "float64": 5.6,
+            "proof": "nearest"
+          },
+          "p31": {
+            "decimal": "5.670000",
+            "exact": "567/100",
+            "float64": 5.67,
+            "proof": "nearest"
+          },
+          "p32": {
+            "decimal": "5.740000",
+            "exact": "287/50",
+            "float64": 5.74,
+            "proof": "nearest"
+          },
+          "p33": {
+            "decimal": "5.810000",
+            "exact": "581/100",
+            "float64": 5.81,
+            "proof": "nearest"
+          },
+          "p34": {
+            "decimal": "5.880000",
+            "exact": "147/25",
+            "float64": 5.88,
+            "proof": "nearest"
+          },
+          "p35": {
+            "decimal": "5.950000",
+            "exact": "119/20",
+            "float64": 5.95,
+            "proof": "nearest"
+          },
+          "p36": {
+            "decimal": "6.020000",
+            "exact": "301/50",
+            "float64": 6.02,
+            "proof": "nearest"
+          },
+          "p37": {
+            "decimal": "6.090000",
+            "exact": "609/100",
+            "float64": 6.09,
+            "proof": "nearest"
+          },
+          "p38": {
+            "decimal": "6.160000",
+            "exact": "154/25",
+            "float64": 6.16,
+            "proof": "nearest"
+          },
+          "p39": {
+            "decimal": "6.230000",
+            "exact": "623/100",
+            "float64": 6.23,
+            "proof": "nearest"
+          },
+          "p40": {
+            "decimal": "6.300000",
+            "exact": "63/10",
+            "float64": 6.3,
+            "proof": "nearest"
+          },
+          "p41": {
+            "decimal": "6.370000",
+            "exact": "637/100",
+            "float64": 6.37,
+            "proof": "nearest"
+          },
+          "p42": {
+            "decimal": "6.440000",
+            "exact": "161/25",
+            "float64": 6.44,
+            "proof": "nearest"
+          },
+          "p43": {
+            "decimal": "6.510000",
+            "exact": "651/100",
+            "float64": 6.51,
+            "proof": "nearest"
+          },
+          "p44": {
+            "decimal": "6.580000",
+            "exact": "329/50",
+            "float64": 6.58,
+            "proof": "nearest"
+          },
+          "p45": {
+            "decimal": "6.650000",
+            "exact": "133/20",
+            "float64": 6.65,
+            "proof": "nearest"
+          },
+          "p46": {
+            "decimal": "6.720000",
+            "exact": "168/25",
+            "float64": 6.72,
+            "proof": "nearest"
+          },
+          "p47": {
+            "decimal": "6.790000",
+            "exact": "679/100",
+            "float64": 6.79,
+            "proof": "nearest"
+          },
+          "p48": {
+            "decimal": "6.860000",
+            "exact": "343/50",
+            "float64": 6.86,
+            "proof": "nearest"
+          },
+          "p49": {
+            "decimal": "6.930000",
+            "exact": "693/100",
+            "float64": 6.93,
+            "proof": "nearest"
+          },
+          "p51": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p52": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p53": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p54": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p55": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p56": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p57": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p58": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p59": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p60": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p61": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p62": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p63": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p64": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p65": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p66": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p67": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p68": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p69": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p70": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p71": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p72": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p73": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p74": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p76": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p77": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p78": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p79": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p80": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p81": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p82": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p83": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p84": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p85": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p86": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p87": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p88": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p89": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p91": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p92": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p93": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p94": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p96": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p97": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p98": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "count",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "-1.1547005383792515",
+          "exact": "-2309401076758503/2000000000000000",
+          "float64": -1.1547005383792515,
+          "proof": "nearest"
+        },
+        "statistical_type": "count",
+        "std": {
+          "decimal": "3.066131567740966",
+          "exact": "1533065783870483/500000000000000",
+          "float64": 3.066131567740966,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "value_histogram": {}
+      },
+      "content": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7"
+      ],
+      "csv_bytes": "0\n7\n007\n07\n7\n007\n07\n07\n007\n007\n07\n07\n007\n0\n7\n0\n0\n007\n07\n007\n007\n007\n07\n7\n07\n0\n007\n7\n7\n007\n7\n0\n07\n7\n0\n0\n07\n7\n0\n07\n7\n7\n0\n0\n",
+      "float64": [],
+      "why": "a count column that wrote one number more than one way -- `7`, `07` and `007` beside `0` -- and so publishes the census of its spellings (contract section 7.13, method G6.8, landing 2b.18 part 2). Before the census a count published how many cells wore each field width and never which number wore which, and the twin of a column shaped like this one wrote `00` and `05`, spellings its source never had. The census names every cell read as a number, so it is the column's numbers: the forty-four cells here are its four spellings eleven times each, in the order of the number spelled and then of the spelling, and nothing is drawn for them. This case's mutant withdraws the rule, and the ladder walk of G5 and the style walk of G6 write the column instead: the cells move.",
+      "word_budget": {
+        "content": 2,
+        "placement": 43
+      },
+      "words": [
+        "7687911214574418412",
+        "10663533608816953314",
+        "2616547998438772155",
+        "1366869589866334087",
+        "17520374349558038042",
+        "1609274745335312500",
+        "14208627795420856630",
+        "4243662745333721072",
+        "16049732717786980771",
+        "13998553070692769882",
+        "1474326905162042579",
+        "2312802121902820003",
+        "2469587400300821282",
+        "18252884443183030911",
+        "3161585658302330964",
+        "5124052084043109061",
+        "12069967067160595751",
+        "18101372447488982082",
+        "1747047840045718174",
+        "8772433440031119127",
+        "503463901603744489",
+        "14446097835952004249",
+        "5275666164281917924",
+        "17786018302256602457",
+        "9531465300822991939",
+        "16454979768288460259",
+        "14153358980504684320",
+        "544672169205711433",
+        "17575418052128749653",
+        "1651629124224001023",
+        "12674954058559114794",
+        "6112529208509423379",
+        "12384984089675196170",
+        "236106178430280789",
+        "16664337307126418403",
+        "600496068526828757",
+        "17536768382670458704",
+        "2828983999751666805",
+        "4820344975137709250",
+        "15646717198495412648",
+        "15130515098698616441",
+        "4009465223591371070",
+        "5131576334512893944",
+        "4352129982649265412",
+        "11759005967142306325"
       ]
     },
     "free_text_joint": {
@@ -2746,6 +3602,327 @@
         "9204310222248724882"
       ]
     },
+    "level_shape_stand_ins": {
+      "cells": [
+        "XQLR-TU",
+        "WGZS-KS",
+        "YAYP-CX",
+        "b-",
+        "f-",
+        "y-",
+        "z-",
+        "x-",
+        "JRKZ-HT",
+        "JRKZ-HT",
+        "b-",
+        "ZKKO-LZ",
+        "w-",
+        "a-",
+        "JRKZ-HT",
+        "d-",
+        "a-",
+        "h-",
+        "k-",
+        "q-",
+        "LQMJ-FW",
+        "t-",
+        "EOXT-JJ",
+        "a-",
+        "OUXE-GD",
+        "n-",
+        "ZKKO-LZ",
+        "IHYA-ZQ",
+        "SNYL-VK",
+        "NKLG-XA",
+        "OUXE-GD",
+        "o-",
+        "i-",
+        "RDMN-MI",
+        "QTZO-DG",
+        "a-",
+        "a-",
+        "g-",
+        "TXKK-EN",
+        "a-",
+        "VWMU-BQ",
+        "a-",
+        "ZKKO-LZ",
+        "b-",
+        "JRKZ-HT",
+        "l-",
+        "a-",
+        "r-",
+        "a-",
+        "DELV-AH",
+        "HXLC-QO",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "c-",
+        "BKMY-IC",
+        "OUXE-GD",
+        "p-",
+        "MAZH-OY",
+        "AAAA-AA",
+        "GNZD-HM",
+        "CUYW-RE",
+        "ZKKO-LZ",
+        "a-",
+        "a-",
+        "u-",
+        "v-",
+        "OUXE-GD",
+        "EOXT-JJ",
+        "e-",
+        "b-",
+        "m-"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "levels": [
+          {
+            "count": 11,
+            "label": "a-",
+            "shape_form_cells": 11,
+            "variants": {
+              "a-": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 46,
+        "n_distinct_folded": 46,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 71,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 71,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "long_tail_labels",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "@@@@-@@": 34
+        },
+        "statistical_type": "long_tail_labels",
+        "structural_role": "data",
+        "suppressed_level_counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "suppressed_levels": 45,
+        "suppressed_rows": 60
+      },
+      "content": [
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "AAAA-AA",
+        "VWMU-BQ",
+        "QTZO-DG",
+        "LQMJ-FW",
+        "GNZD-HM",
+        "BKMY-IC",
+        "WGZS-KS",
+        "RDMN-MI",
+        "MAZH-OY",
+        "HXLC-QO",
+        "CUYW-RE",
+        "XQLR-TU",
+        "SNYL-VK",
+        "NKLG-XA",
+        "r-",
+        "i-",
+        "z-",
+        "q-",
+        "h-",
+        "y-",
+        "p-",
+        "g-",
+        "x-",
+        "o-",
+        "f-",
+        "w-",
+        "n-",
+        "e-",
+        "v-",
+        "m-",
+        "d-",
+        "u-",
+        "l-",
+        "c-",
+        "t-",
+        "k-",
+        "IHYA-ZQ",
+        "DELV-AH",
+        "YAYP-CX",
+        "TXKK-EN",
+        "b-",
+        "b-",
+        "b-",
+        "b-",
+        "OUXE-GD",
+        "OUXE-GD",
+        "OUXE-GD",
+        "OUXE-GD",
+        "JRKZ-HT",
+        "JRKZ-HT",
+        "JRKZ-HT",
+        "JRKZ-HT",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "ZKKO-LZ",
+        "ZKKO-LZ",
+        "ZKKO-LZ",
+        "ZKKO-LZ"
+      ],
+      "csv_bytes": "XQLR-TU\nWGZS-KS\nYAYP-CX\nb-\nf-\ny-\nz-\nx-\nJRKZ-HT\nJRKZ-HT\nb-\nZKKO-LZ\nw-\na-\nJRKZ-HT\nd-\na-\nh-\nk-\nq-\nLQMJ-FW\nt-\nEOXT-JJ\na-\nOUXE-GD\nn-\nZKKO-LZ\nIHYA-ZQ\nSNYL-VK\nNKLG-XA\nOUXE-GD\no-\ni-\nRDMN-MI\nQTZO-DG\na-\na-\ng-\nTXKK-EN\na-\nVWMU-BQ\na-\nZKKO-LZ\nb-\nJRKZ-HT\nl-\na-\nr-\na-\nDELV-AH\nHXLC-QO\nEOXT-JJ\nEOXT-JJ\nc-\nBKMY-IC\nOUXE-GD\np-\nMAZH-OY\nAAAA-AA\nGNZD-HM\nCUYW-RE\nZKKO-LZ\na-\na-\nu-\nv-\nOUXE-GD\nEOXT-JJ\ne-\nb-\nm-\n",
+      "float64": [],
+      "why": "the shape a held-back label takes where the census owes it no form (method G8.3b, landing 2b.18 part 2, the carried item of landing 2b.12). The column publishes one level, `a-`, whose shape no census key names because it has too few spellings; before this rule every stand-in the census owed nothing was `group-N`, and on the carried column that made the twin's mean cell length 9.907 against the real 7.204. The stand-ins owed no form are written in the level's own shape with its case kept, `&-`, whose supply here is twenty-five spellings against more places owed nothing -- so the TRADE of G8.3b is frozen too: a large held-back group paying `@@@@-@@` trades places with single rows summing to it exactly, the named form keeps its count, and the shape covers every row it can. This case's mutant withdraws the trade, and a place past the shape's supply takes the neutral spelling, which this oracle refuses to reason about.",
+      "word_budget": {
+        "content": 0,
+        "placement": 70
+      },
+      "words": [
+        "10572201364969750517",
+        "14488452992183049686",
+        "10338980211685271540",
+        "17310746628490101705",
+        "15930516927233095031",
+        "10925981946687229523",
+        "11984375984483652018",
+        "3115820831674141766",
+        "1491667508731758021",
+        "12095184894851438023",
+        "6616027349516039298",
+        "4869191475851910318",
+        "3667299028267463384",
+        "6287211967338772842",
+        "10303464976186970092",
+        "3778724444670585346",
+        "5518558728777231354",
+        "15069916103189709611",
+        "13902520522701011481",
+        "14960497023170678489",
+        "7361620293930603418",
+        "17783812003195909956",
+        "902419012765408100",
+        "9861278426630039680",
+        "550339003356881841",
+        "17324367625225383559",
+        "16634594057315558326",
+        "17745590132511631737",
+        "4661080672871936834",
+        "3041321162227143340",
+        "5680036735926225649",
+        "3863807788710707093",
+        "9729211348814354707",
+        "15791412086449201245",
+        "3530221954823534184",
+        "4612587005460363641",
+        "7044370326001245642",
+        "10055541422525994635",
+        "14970981537008481323",
+        "7666065712349092006",
+        "6886019483394326737",
+        "14772245721026608204",
+        "15083889930239009629",
+        "16666244600805875045",
+        "11435779303634445760",
+        "11864111828352662593",
+        "10236277314942045383",
+        "2765469866442712258",
+        "15636219563350824567",
+        "8863328807930096672",
+        "12914777269208835441",
+        "3595536836711968274",
+        "1433759923759427814",
+        "13624577672746584616",
+        "4873316314549421849",
+        "7932092449336148476",
+        "7739797739499316257",
+        "123464669902506341",
+        "11181717779831646623",
+        "9263968744977333854",
+        "14344049750293701763",
+        "16366278832934763060",
+        "12179873843408294288",
+        "2444068681713350805",
+        "12848255613891529191",
+        "12641691033048600769",
+        "14952483995130744131",
+        "8283423452509650775",
+        "12601060826970560254",
+        "8872082779446286874"
+      ]
+    },
     "long_tail_levels": {
       "cells": [
         "OUXE-GD",
@@ -2947,6 +4124,253 @@
         "15281512689324940288",
         "17576893266494880556",
         "5388882302899227045"
+      ]
+    },
+    "lower_case_stand_ins": {
+      "cells": [
+        "ab-cd",
+        "nklg-xa",
+        "ab-cd",
+        "rdmn-mi",
+        "wgzs-ks",
+        "note alpha",
+        "note alpha",
+        "ab-cd",
+        "hxlc-qo",
+        "ab-cd",
+        "delv-ah",
+        "yayp-cx",
+        "txkk-en",
+        "bkmy-ic",
+        "jrkz-ht",
+        "ihya-zq",
+        "note alpha",
+        "note alpha",
+        "ab-cd",
+        "xqlr-tu",
+        "ab-cd",
+        "ab-cd",
+        "aaaa-aa",
+        "nklg-xa",
+        "ab-cd",
+        "delv-ah",
+        "snyl-vk",
+        "snyl-vk",
+        "jrkz-ht",
+        "gnzd-hm",
+        "qtzo-dg",
+        "note alpha",
+        "ihya-zq",
+        "ab-cd",
+        "vwmu-bq",
+        "note alpha",
+        "ab-cd",
+        "note alpha",
+        "ouxe-gd",
+        "cuyw-re",
+        "xqlr-tu",
+        "ouxe-gd",
+        "ab-cd",
+        "note alpha",
+        "lqmj-fw",
+        "txkk-en",
+        "note alpha",
+        "mazh-oy",
+        "note alpha",
+        "note alpha",
+        "yayp-cx"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "level_ceiling": 25,
+        "levels": [
+          {
+            "count": 11,
+            "label": "ab-cd",
+            "shape_form_cells": 11,
+            "variants": {
+              "ab-cd": 11
+            },
+            "variants_withheld": {}
+          },
+          {
+            "count": 11,
+            "label": "note alpha",
+            "shape_form_cells": 0,
+            "variants": {
+              "note alpha": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 22,
+        "n_distinct_folded": 22,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 51,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 51,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "categorical",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "&&&&-&&": 29,
+          "&&-&&": 11
+        },
+        "statistical_type": "categorical",
+        "structural_role": "data",
+        "suppressed_level_counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "suppressed_levels": 20,
+        "suppressed_rows": 29
+      },
+      "content": [
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "aaaa-aa",
+        "vwmu-bq",
+        "qtzo-dg",
+        "lqmj-fw",
+        "gnzd-hm",
+        "bkmy-ic",
+        "wgzs-ks",
+        "rdmn-mi",
+        "mazh-oy",
+        "hxlc-qo",
+        "cuyw-re",
+        "xqlr-tu",
+        "xqlr-tu",
+        "snyl-vk",
+        "snyl-vk",
+        "nklg-xa",
+        "nklg-xa",
+        "ihya-zq",
+        "ihya-zq",
+        "delv-ah",
+        "delv-ah",
+        "yayp-cx",
+        "yayp-cx",
+        "txkk-en",
+        "txkk-en",
+        "ouxe-gd",
+        "ouxe-gd",
+        "jrkz-ht",
+        "jrkz-ht"
+      ],
+      "csv_bytes": "ab-cd\nnklg-xa\nab-cd\nrdmn-mi\nwgzs-ks\nnote alpha\nnote alpha\nab-cd\nhxlc-qo\nab-cd\ndelv-ah\nyayp-cx\ntxkk-en\nbkmy-ic\njrkz-ht\nihya-zq\nnote alpha\nnote alpha\nab-cd\nxqlr-tu\nab-cd\nab-cd\naaaa-aa\nnklg-xa\nab-cd\ndelv-ah\nsnyl-vk\nsnyl-vk\njrkz-ht\ngnzd-hm\nqtzo-dg\nnote alpha\nihya-zq\nab-cd\nvwmu-bq\nnote alpha\nab-cd\nnote alpha\nouxe-gd\ncuyw-re\nxqlr-tu\nouxe-gd\nab-cd\nnote alpha\nlqmj-fw\ntxkk-en\nnote alpha\nmazh-oy\nnote alpha\nnote alpha\nyayp-cx\n",
+      "float64": [],
+      "why": "a column of categories whose census names LOWER-CASE keys (contract C6-31a, landing 2b.18 part 2): every formed cell wrote every letter in lower case, so the census names `&&&&-&&` and `&&-&&` and not their capital forms. The published level `ab-cd` settles `&&-&&` in full, counted under the key the census files it under, so the twenty stand-ins owe `&&&&-&&` alone -- twenty-nine cells, exactly their sizes -- and G8.3 fills each `&` from the lower-case alphabet at the position and by the arithmetic a `@` is filled. Before this key existed a column of lower-case codes came back in capitals on every stand-in and a case-sensitive pattern matched none of them. This case's mutant fills the key in capitals, and every stand-in moves; a walk reading the published level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too.",
+      "word_budget": {
+        "content": 0,
+        "placement": 50
+      },
+      "words": [
+        "15830664673893228848",
+        "5073698456080673279",
+        "7875838601216900988",
+        "11535154252214777058",
+        "8621941330772045083",
+        "8772339449381309270",
+        "10488852849884475397",
+        "6371871893467202343",
+        "1246799487542206975",
+        "9064597751508696776",
+        "15332551243623560934",
+        "14774754731362542570",
+        "14534231870623192905",
+        "9408872517084544776",
+        "3320777161477635281",
+        "8654342408759465470",
+        "12447963985929670088",
+        "5106417360233856539",
+        "18427915347586493865",
+        "10570067524607262016",
+        "14439736570525528903",
+        "16546367209938517481",
+        "8477631004882138497",
+        "10913147923967033456",
+        "4194028020326342935",
+        "14495905327524417777",
+        "583302282863258999",
+        "139154040289801448",
+        "18046683419125720843",
+        "1296118245588486310",
+        "2636961127756418768",
+        "9001931390103612218",
+        "7741167511558814911",
+        "18041580935583591676",
+        "13694740739387581868",
+        "553546565315490563",
+        "22513546439589079",
+        "16709646298868681502",
+        "1447791936714280564",
+        "5098489623189836073",
+        "4374303835978440748",
+        "9815100461200391397",
+        "15679049804236764501",
+        "18155049002991901528",
+        "8469325124826455278",
+        "946244536432157447",
+        "7040022859543152818",
+        "15636706020943181500",
+        "10620482021486410816",
+        "741266932377646521"
       ]
     },
     "midnight_days": {
@@ -3460,6 +4884,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "number_spellings": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",

@@ -444,10 +444,12 @@ def test_a_column_of_plain_words_publishes_no_census_at_all() -> None:
 # -- what the census found in the walk that was already there ---------
 
 
-def _forms_of(cells: "list[str]") -> "dict[str, int]":
+def _forms_of(
+    cells: "list[str]", census: "dict[str, int] | None" = None
+) -> "dict[str, int]":
     counted: dict[str, int] = {}
     for cell in cells:
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census if census is not None else {})
         counted[form] = counted.get(form, 0) + 1
     return counted
 
@@ -1187,7 +1189,7 @@ def test_a_form_pass_that_gave_up_under_the_letter_ask_is_put_back() -> None:
     document, described, _folder = _described(values, "code")
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
-    counted = _forms_of([cell for cell in twin.columns[0] if cell])
+    counted = _forms_of([cell for cell in twin.columns[0] if cell], published)
     met = 0
     for form in published:
         if form == "(withheld)":

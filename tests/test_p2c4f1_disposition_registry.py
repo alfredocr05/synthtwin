@@ -1183,7 +1183,12 @@ def _restatement_violations(
                 f"is a second statement about a class written in one "
                 f"place, and it can qualify or contradict it"
             )
-    absent = sorted(numeric - seen)
+    # A KEY OF THE `count` BLOCK ALONE is not one the affixed cores carry
+    # -- `number_spellings` (contract 7.13, landing 2b.18 part 2) stands
+    # in the numeric table and on no affixed block -- so the delegation
+    # owed is total over the keys the two roles SHARE, read off the loader.
+    count_only = set(contract.COUNT_KEYS) - set(contract.NUMERIC_KEYS)
+    absent = sorted(numeric - seen - count_only)
     if absent:
         broken.append(
             f"affixed: the sub-table no longer delegates {absent}, so those "
